@@ -1,0 +1,35 @@
+syntax = "proto3";
+package eosapi;
+
+message EosTxInput {
+    repeated EosSignData transactions = 1;
+}
+
+message EosSignData {
+    string txHex = 1;
+    repeated string publicKeys = 2;
+    string chainId = 3;
+    string receiver = 4;
+    string payment = 5;
+    string sender = 6;
+}
+
+message EosTxOutput {
+    repeated EosSignResult trans_multi_signs = 1;
+}
+
+message EosSignResult {
+    string hash = 1;
+    repeated string signs = 2;
+}
+
+
+message EosMessageInput {
+    string data = 1;
+    string pubkey = 2;
+    bool isHex = 3;
+}
+
+message EosMessageOutput {
+    string signature = 1;
+}

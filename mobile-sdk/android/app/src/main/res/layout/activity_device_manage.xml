@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/sroll_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="8dp"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_se_query"
+                    style="@style/button"
+                    android:layout_width="0dp"
+                    android:layout_marginLeft="2dp"
+                    android:layout_weight="1"
+                    android:onClick="onClick"
+                    android:text="query" />
+
+                <Button
+                    android:id="@+id/btn_se_check"
+                    style="@style/button"
+                    android:layout_width="0dp"
+                    android:layout_marginLeft="2dp"
+                    android:layout_weight="1"
+                    android:onClick="onClick"
+                    android:text="secheck" />
+
+                <Button
+                    android:id="@+id/btn_se_active"
+                    style="@style/button"
+                    android:layout_width="0dp"
+                    android:layout_marginLeft="2dp"
+                    android:layout_weight="1"
+                    android:onClick="onClick"
+                    android:text="activeSe" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_app_download"
+                    style="@style/button"
+                    android:layout_width="0dp"
+                    android:layout_marginLeft="2dp"
+                    android:layout_weight="1"
+                    android:onClick="onClick"
+                    android:text="download" />
+
+                <Button
+                    android:id="@+id/btn_app_delete"
+                    style="@style/button"
+                    android:layout_width="0dp"
+                    android:layout_marginLeft="2dp"
+                    android:layout_weight="1"
+                    android:onClick="onClick"
+                    android:text="delete" />
+
+                <Button
+                    android:id="@+id/btn_app_update"
+                    style="@style/button"
+                    android:layout_width="0dp"
+                    android:layout_marginLeft="2dp"
+                    android:layout_weight="1"
+                    android:onClick="onClick"
+                    android:text="update" />
+
+            </LinearLayout>
+
+            <com.mk.imkeydemo.widget.FlowRadioGroup
+                android:id="@+id/radios"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/radio_btc"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:checked="true"
+                    android:gravity="center"
+                    android:onClick="onClick"
+                    android:text="BTC" />
+
+                <RadioButton
+                    android:id="@+id/radio_eth"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:gravity="center"
+                    android:onClick="onClick"
+                    android:text="ETH" />
+
+                <RadioButton
+                    android:id="@+id/radio_eos"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:gravity="center"
+                    android:onClick="onClick"
+                    android:text="EOS" />
+
+                <RadioButton
+                    android:id="@+id/radio_imk"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:gravity="center"
+                    android:onClick="onClick"
+                    android:text="IMK" />
+
+                <RadioButton
+                    android:id="@+id/radio_usdt"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:gravity="center"
+                    android:onClick="onClick"
+                    android:text="USDT" />
+
+
+                <RadioButton
+                    android:id="@+id/radio_cosmos"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="4dp"
+                    android:gravity="center"
+                    android:onClick="onClick"
+                    android:text="COSMOS" />
+
+            </com.mk.imkeydemo.widget.FlowRadioGroup>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_set_ble_name"
+                style="@style/button"
+                android:layout_width="0dp"
+                android:layout_marginLeft="2dp"
+                android:layout_weight="1"
+                android:onClick="onClick"
+                android:text="set_ble_name" />
+
+            <EditText
+                android:id="@+id/edit_ble_name"
+                android:layout_width="200dp"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom"
+                android:hint="blename"
+                android:textSize="12sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
+</ScrollView>

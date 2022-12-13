@@ -1,0 +1,19 @@
+[package]
+name = "coin-tezos"
+version = "0.1.0"
+authors = ["xiaoguang <xiaoguang101010@163.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ikc-common = {path = "../../ikc-common"}
+ikc-device = {path = "../../ikc-device"}
+ikc-transport = {path = "../../ikc-transport"}
+
+hex = "0.4.3"
+blake2b_simd = "1.0.0"
+bitcoin = "0.29.2"
+failure = "0.1.8"
+prost = "0.11.2"
+prost-types = "0.11.2"

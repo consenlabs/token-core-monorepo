@@ -1,0 +1,65 @@
+syntax = "proto3";
+package btcapi;
+
+message Utxo {
+    string tx_hash = 1;
+    int32 vout = 2;
+    int64 amount = 3;
+    string address = 4;
+    string script_pubKey = 5;
+    string derived_path = 6;
+    int64 sequence = 7;
+}
+
+message BtcTxReq {
+    string to = 1;
+    int64 amount = 2;
+    int64 fee = 3;
+    uint32 change_address_index = 4;
+    repeated Utxo unspents = 5;
+    bytes extra_data = 6;
+    int32 property_id = 7;
+    string network = 8;
+    string path_prefix = 9;
+}
+
+message BtcTxRes {
+    string tx_data = 1;
+    string tx_hash = 2;
+}
+
+message BtcSegwitTxReq {
+    string to = 1;
+    int64 amount = 2;
+    int64 fee = 3;
+    uint32 change_address_index = 4;
+    repeated Utxo unspents = 5;
+    bytes extra_data = 6;
+    int32 property_id = 7;
+    string network = 8;
+    string path_prefix = 9;
+}
+
+message BtcSegwitTxRes {
+    string witness_tx_data = 1;
+    string wtx_hash = 2;
+    string tx_hash = 3;
+}
+
+message BtcXpubReq {
+    string network = 1;
+    string path = 2;
+}
+
+message BtcXpubRes {
+    string xpub = 1;
+}
+
+message BtcAddressReq {
+    string network = 1;
+    string path = 2;
+}
+
+message BtcAddressRes {
+    string address = 1;
+}

@@ -1,0 +1,31 @@
+PODS:
+  - CryptoSwift (1.3.2)
+  - imKeyBleLib (0.1.0):
+    - CryptoSwift (~> 1.3)
+  - LTHRadioButton (1.2.3)
+  - SwiftProtobuf (1.13.0)
+
+DEPENDENCIES:
+  - imKeyBleLib (from `../../blelibrary/imkey-ble-ios`)
+  - LTHRadioButton
+  - SwiftProtobuf (~> 1.0)
+
+SPEC REPOS:
+  trunk:
+    - CryptoSwift
+    - LTHRadioButton
+    - SwiftProtobuf
+
+EXTERNAL SOURCES:
+  imKeyBleLib:
+    :path: "../../blelibrary/imkey-ble-ios"
+
+SPEC CHECKSUMS:
+  CryptoSwift: 093499be1a94b0cae36e6c26b70870668cb56060
+  imKeyBleLib: ff083381de7514fe95caec5be5e69710b255a0b4
+  LTHRadioButton: b20980614572f7911272a6b8aa79ec0fdc9a74d4
+  SwiftProtobuf: fd4693388a96c8c2df35d3b063272b0e7c499d00
+
+PODFILE CHECKSUM: 03b461c4d18e8a60e9a741b04b9e6ba8e1fa028a
+
+COCOAPODS: 1.9.3

@@ -1,0 +1,20 @@
+syntax = "proto3";
+package tronapi;
+
+message TronTxInput {
+    string raw_data = 2;
+}
+
+message TronTxOutput {
+    string signature = 1;
+}
+
+message TronMessageInput {
+    string message = 2;
+    bool is_hex =4;
+    bool is_tron_header=5;
+}
+
+message TronMessageOutput {
+    string signature = 1;
+}

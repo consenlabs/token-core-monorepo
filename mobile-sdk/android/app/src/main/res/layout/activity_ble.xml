@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/sroll_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="8dp"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <Button
+            android:id="@+id/btn_getinst_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="getinst_001_context为空" />
+
+        <Button
+            android:id="@+id/btn_getinst_002"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="getinst_002_正常" />
+
+        <Button
+            android:id="@+id/btn_initialize_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="initialize_001_关闭蓝牙/定位关闭会报错" />
+
+        <Button
+            android:id="@+id/btn_startscan_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="startscan_001_正常" />
+
+        <Button
+            android:id="@+id/btn_startscan_002"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="startscan_002_未initialize" />
+
+        <Button
+            android:id="@+id/btn_startscan_003"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="startscan_003_finalize后调用" />
+
+        <Button
+            android:id="@+id/btn_startscan_004"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="startscan_004_两次startscan" />
+
+        <Button
+            android:id="@+id/btn_startscan_005"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="startscan_005_stopScan后再次scan" />
+        <Button
+            android:id="@+id/btn_startscan_006"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="startscan_006_蓝牙/定位服务关闭" />
+        <Button
+            android:id="@+id/btn_startscan_007"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="startscan_007_扫描到的设备关机再扫描" />
+        <Button
+            android:id="@+id/btn_startscan_008"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="startscan_008_已连接的设备再扫描" />
+        <Button
+            android:id="@+id/btn_connect_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_001_正常" />
+        <Button
+            android:id="@+id/btn_connect_002"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_002_超时" />
+        <Button
+            android:id="@+id/btn_connect_003"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_003_取消配对" />
+        <Button
+            android:id="@+id/btn_connect_004"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_004_配对码错误" />
+        <Button
+            android:id="@+id/btn_connect_005"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_005_未initialize" />
+        <Button
+            android:id="@+id/btn_connect_006"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_006_未执行startScan" />
+        <Button
+            android:id="@+id/btn_connect_007"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_007_scan同时执行connect" />
+        <Button
+            android:id="@+id/btn_connect_008"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_008_connect未扫描到的设备" />
+        <Button
+            android:id="@+id/btn_connect_009"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_009_connect扫描到但已离线的设备" />
+        <Button
+            android:id="@+id/btn_connect_010"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_010_stop后connect" />
+        <Button
+            android:id="@+id/btn_connect_011"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_011_finalize后connect" />
+        <Button
+            android:id="@+id/btn_connect_012"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_012_成功后关闭蓝牙/硬件" />
+        <Button
+            android:id="@+id/btn_connect_013"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_013_connect时关闭蓝牙" />
+        <Button
+            android:id="@+id/btn_connect_014"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_014_connect时关闭硬件" />
+        <Button
+            android:id="@+id/btn_connect_015"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_015_重复connect" />
+        <Button
+            android:id="@+id/btn_connect_016"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_016_反复connect-disconnect" />
+        <Button
+            android:id="@+id/btn_connect_017"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="connect_017_超时" />
+        <Button
+            android:id="@+id/btn_disconnect_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="disconnect_001_正常disconnect" />
+        <Button
+            android:id="@+id/btn_disconnect_002"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="disconnect_002_设备信息空" />
+        <Button
+            android:id="@+id/btn_disconnect_003"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="disconnect_003_两次disconnect" />
+        <Button
+            android:id="@+id/btn_disconnect_004"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="disconnect_004_未connect" />
+        <Button
+            android:id="@+id/btn_disconnect_005"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="disconnect_005_finalize后" />
+        <Button
+            android:id="@+id/btn_disconnect_006"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="disconnect_006_关闭蓝牙/设备后" />
+
+
+
+        <Button
+            android:id="@+id/btn_stopscan_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="stopscan_001" />
+        <Button
+            android:id="@+id/btn_stopscan_002"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="stopscan_002_未调用startscan" />
+        <Button
+            android:id="@+id/btn_stopscan_003"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="stopscan_003_未调用initialize" />
+        <Button
+            android:id="@+id/btn_stopscan_004"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="stopscan_004_两次调用stopscan" />
+
+        <Button
+            android:id="@+id/btn_finalize_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="finalize_001_先initialize" />
+        <Button
+            android:id="@+id/btn_finalize_002"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="finalize_002_未initialize" />
+
+        <Button
+            android:id="@+id/btn_finalize_003"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="finalize_003_两次finalize" />
+
+        <Button
+            android:id="@+id/btn_conndirectly_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="conndirectly_001_正常" />
+
+
+    </LinearLayout>
+
+</ScrollView>

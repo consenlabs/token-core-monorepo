@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/sroll_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="8dp"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/btn_tx_sign_auto"
+                style="@style/button"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:onClick="onClick"
+                android:text="签名一键测试" />
+
+            <Button
+                android:id="@+id/btn_tx_sign"
+                style="@style/button"
+                android:layout_width="0dp"
+                android:layout_marginLeft="2dp"
+                android:layout_weight="1"
+                android:onClick="onClick"
+                android:text="签名测试" />
+
+            <Button
+                android:id="@+id/btn_msg_sign"
+                style="@style/button"
+                android:layout_width="0dp"
+                android:layout_marginLeft="2dp"
+                android:layout_weight="1"
+                android:onClick="onClick"
+                android:text="消息签名测试" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            <Button
+                android:id="@+id/btn_address"
+                style="@style/button"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:onClick="onClick"
+                android:text="地址" />
+
+        </LinearLayout>
+        <TextView
+            android:id="@+id/tv_sign_result"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textIsSelectable="true"
+            android:layout_margin="18dp"/>
+    </LinearLayout>
+
+</ScrollView>

@@ -1,0 +1,12 @@
+syntax = "proto3";
+package tezosapi;
+
+message TezosTxInput {
+  string raw_data = 1;
+}
+
+message TezosTxOutput {
+  string signature = 1;
+  string edsig = 2;
+  string sbytes = 3;
+}

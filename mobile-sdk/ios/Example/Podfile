@@ -1,0 +1,32 @@
+use_frameworks!
+install! 'cocoapods', :deterministic_uuids => false
+platform :ios, '9.3'
+
+target 'imKeyConnector_Example' do
+#  pod 'OpenSSL-Universal', '1.0.1.16'
+#  pod 'ISO8601DateFormatter'
+#  pod "CoreBitcoin", :path => '../../CoreBitcoin'
+#   pod "CoreBitcoin", :git => 'git@github.com:consenlabs/CoreBitcoin.git'
+#  pod "secp256k1.swift", :path => '../../secp256k1.swift'
+#  pod "secp256k1.swift", :git => 'git@github.com:consenlabs/secp256k1.swift.git', :submodules => true
+  
+#  pod 'OrderedDictionary', '~> 1.4'
+
+  
+  pod 'imKeyConnector', :path => '../'
+  pod "imKeyBleLib", path: "../../../blelibrary/imkey-ble-ios"
+  
+  pod 'LTHRadioButton'
+  pod 'SwiftProtobuf', '~> 1.0'
+
+  target 'imKeyConnector_Tests' do
+    inherit! :search_paths
+
+    pod 'FBSnapshotTestCase' , '~> 2.1.4'
+  end
+end
+
+pre_install do |installer|
+  # workaround for https://github.com/CocoaPods/CocoaPods/issues/3289
+  def installer.verify_no_static_framework_transitive_dependencies; end
+end

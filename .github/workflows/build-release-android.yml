@@ -1,0 +1,86 @@
+name: Build Release Android
+
+on:
+  push:
+    tags:
+    - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always    
+  
+jobs:
+
+  cross-compile:
+    name: cross compile
+    runs-on: ubuntu-20.04
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 1
+
+    - name: Cache
+      uses: actions/cache@v2
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          ~/.rustup
+          target
+        key: ${{ runner.os }}-nightly
+          
+    - name: Install Rust
+      run: |
+        rustup toolchain install nightly-2022-10-31
+        rustup default nightly-2022-10-31-x86_64-unknown-linux-gnu
+        rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+        rustup show
+        
+    - name: Install dependent
+      run: | 
+       sudo apt-get install -y libusb-dev libusb-1.0-0-dev libftdi1-dev libudev-dev
+       sudo apt-get install -y protobuf-compiler libprotobuf-dev
+       
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v2
+        
+    - name: Configure Rust Config File
+      run: |
+        echo '[target.armv7-linux-androideabi]' >> ~/.cargo/config
+        echo 'ar = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+        echo 'linker = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi29-clang"' >> ~/.cargo/config
+        echo '[target.aarch64-linux-android]' >> ~/.cargo/config
+        echo 'ar = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+        echo 'linker = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"' >> ~/.cargo/config
+        echo '[target.i686-linux-android]' >> ~/.cargo/config
+        echo 'ar = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+        echo 'linker = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android29-clang"' >> ~/.cargo/config
+        echo '[target.x86_64-linux-android]' >> ~/.cargo/config
+        echo 'ar = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+        echo 'linker = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android29-clang"' >> ~/.cargo/config
+        cat ~/.cargo/config
+
+    - name: Build TCX And IKC
+      run: | 
+       pushd ${{github.workspace}}/ikc-tools
+       ./build-android-linux.sh
+       popd
+    
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+       gradle-version: 7.0.1
+       
+    - name: publish
+      run: |
+        pushd ${{github.workspace}}/publish/android
+        TAG_NAME=${{ github.ref }}
+        VERSION_NAME="VERSION=${TAG_NAME: 11}"
+        echo 'NEXUS_USER=${{secrets.NEXUS_USER}}' >> ./local.properties
+        echo 'NEXUS_PASSWORD=${{secrets.NEXUS_PASSWORD}}' >> ./local.properties
+        echo ${VERSION_NAME} >> ./local.properties
+        ./gradlew assemble
+        ./gradlew pPPTNR
+        popd 
+        

@@ -1,14 +1,14 @@
 apply plugin: 'maven-publish'
 
-version '2.11.2'
-group 'im.token.libs'
-
 Properties properties = new Properties()
 properties.load(project.rootProject.file('local.properties').newDataInputStream())
 
-
 def NEXUS_USER = properties.getProperty('NEXUS_USER')
 def NEXUS_PASSWORD = properties.getProperty('NEXUS_PASSWORD')
+def VERSION = properties.getProperty('VERSION')
+
+version VERSION
+group 'im.token.libs'
 
 afterEvaluate {
     publishing {

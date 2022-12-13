@@ -1,0 +1,6 @@
+framework module Pods_imKeyBleLib_Tests {
+  umbrella header "Pods-imKeyBleLib_Tests-umbrella.h"
+
+  export *
+  module * { export * }
+}

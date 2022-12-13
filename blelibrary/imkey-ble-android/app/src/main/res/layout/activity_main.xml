@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/sroll_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="8dp"
+    tools:context="im.imkey.bledemo.MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_scan"
+                style="@style/button"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:onClick="onClick"
+                android:text="搜索" />
+
+            <Button
+                android:id="@+id/btn_disconnect"
+                style="@style/button"
+                android:layout_width="0dp"
+                android:layout_marginLeft="2dp"
+                android:layout_weight="1"
+                android:onClick="onClick"
+                android:text="断开" />
+
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/text_state"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_margin="14dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:textIsSelectable="true"
+            android:onClick="onClick" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:layout_marginRight="10dp">
+
+            <EditText
+                android:id="@+id/et_apdu"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="3"
+                android:layout_gravity="bottom"
+                android:text="00a4040000"/>
+
+
+            <Button
+                android:id="@+id/btn_send"
+                style="@style/button"
+                android:layout_width="0dp"
+                android:layout_marginLeft="2dp"
+                android:layout_marginBottom="5dp"
+                android:layout_weight="1"
+                android:onClick="onClick"
+                android:text="发送" />
+
+        </LinearLayout>
+
+        <TextView
+            android:layout_margin="14dp"
+            android:id="@+id/tv_result"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </LinearLayout>
+</ScrollView>

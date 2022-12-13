@@ -1,0 +1,29 @@
+{
+  "case-OnePublicKeys": {
+    "publicKeys": [
+      {"publicKey":"EOS88XhiiP7Cu5TmAUJqHbyuhyYgd6sei68AU266PyetDDAtjmYWF"}
+    ],
+    "txHex": "c578065b93aec6a7c811000000000100a6823403ea3055000000572d3ccdcd01000000602a48b37400000000a8ed323225000000602a48b374208410425c95b1ca80969800000000000453595300000000046d656d6f00",
+    "chainId" : "aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906",
+    "preview": {
+      "payment": "1000 eos",
+      "receiver": "bbbb5555bbbb",
+      "sender": "liujianmin12"
+    },
+    "txHash": "6af5b3ae9871c25e2de195168ed7423f455a68330955701e327f02276bb34088"
+  },
+
+  "case-PaymentIsNull": {
+    "publicKeys": [
+      {"publicKey":"EOS88XhiiP7Cu5TmAUJqHbyuhyYgd6sei68AU266PyetDDAtjmYWF"}
+    ],
+    "txHex": "c578065b93aec6a7c811000000000100a6823403ea3055000000572d3ccdcd01000000602a48b37400000000a8ed323225000000602a48b374208410425c95b1ca80969800000000000453595300000000046d656d6f00",
+    "chainId" : "aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906",
+    "preview": {
+      "payment": "",
+      "receiver": "bbbb5555bbbb",
+      "sender": "liujianmin12"
+    },
+    "txHash": "6af5b3ae9871c25e2de195168ed7423f455a68330955701e327f02276bb34088"
+  }
+}

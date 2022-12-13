@@ -1,0 +1,27 @@
+syntax = "proto3";
+package cosmosapi;
+
+message Coin {
+    string amount = 1;
+    string denom = 2;
+}
+
+message StdFee {
+    repeated Coin amount = 1;
+    string gas = 2;
+}
+
+
+message CosmosTxInput {
+    string account_number = 1;
+    string chain_id = 2;
+    StdFee fee = 3;
+    string memo = 4;
+    string msgs = 5;
+    string sequence = 6;
+}
+
+message CosmosTxOutput {
+    string signature = 1;
+    string txHash = 2;
+}

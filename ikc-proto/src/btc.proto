@@ -1,0 +1,45 @@
+syntax = "proto3";
+package btcapi;
+
+message Utxo {
+    string tx_hash = 1;
+    int32 vout = 2;
+    int64 amount = 3;
+    string address = 4;
+    string script_pubKey = 5;
+    string derived_path = 6;
+    int64 sequence = 7;
+}
+
+message BtcTxExtra {
+    string opReturn = 1;
+    int32 propertyId = 2;
+    string feeMode = 3;
+}
+message BtcTxInput {
+    string to = 1;
+    int64 amount = 2;
+    int64 fee = 3;
+    uint32 change_address_index = 4;
+    repeated Utxo unspents = 5;
+    string segWit = 6;
+    string protocol = 7;
+    BtcTxExtra extra = 8;
+}
+
+message BtcTxOutput {
+    string signature = 1;
+    string txHash = 2;
+    string wtxHash = 3;
+}
+
+message BtcXpubReq {
+    string network = 1;
+    string path = 2;
+}
+
+message BtcXpubRes {
+    string xpub = 1;
+}
+
+

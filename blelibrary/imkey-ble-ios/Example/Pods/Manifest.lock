@@ -1,0 +1,16 @@
+PODS:
+  - imKeyBleLib (0.1.0)
+
+DEPENDENCIES:
+  - imKeyBleLib (from `../`)
+
+EXTERNAL SOURCES:
+  imKeyBleLib:
+    :path: "../"
+
+SPEC CHECKSUMS:
+  imKeyBleLib: f54389d478bcd3541ff143ecc683e2f2ebf02e55
+
+PODFILE CHECKSUM: d67e6d2d3fabade62ef6ce0586ff44816cd4a8d6
+
+COCOAPODS: 1.7.0

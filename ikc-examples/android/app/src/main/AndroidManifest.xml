@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.mk.imkeydemo">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <application
+        android:name=".ImKeyApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+        <activity android:name=".MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".DevicesDialogActivity"
+            android:theme="@style/Theme.ActivityDialogStyle">
+        </activity>
+        <activity android:name=".BleTestActivity"
+            android:theme="@style/Theme.AppCompat">
+        </activity>
+        <activity android:name=".BusinessTestActivity"
+            android:theme="@style/Theme.AppCompat">
+        </activity>
+        <activity android:name=".BtcActivity"/>
+        <activity android:name=".EthActivity"/>
+        <activity android:name=".EosActivity"/>
+        <activity android:name=".CosmosActivity"/>
+        <activity android:name=".DeviceManageActivity"/>
+        <activity android:name=".FilecoinActivity"/>
+
+    </application>
+
+</manifest>
