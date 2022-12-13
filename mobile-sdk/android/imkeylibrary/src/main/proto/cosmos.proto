@@ -1,0 +1,66 @@
+syntax = "proto3";
+package cosmosapi;
+import "google/protobuf/wrappers.proto";
+
+message Coin {
+    string amount = 1;
+    string denom = 2;
+}
+
+message StdFee {
+    repeated Coin amount = 1;
+    string gas = 2;
+}
+
+message SignData{
+    string account_number = 1;
+    string chain_id = 2;
+    StdFee fee = 3;
+    google.protobuf.StringValue memo = 4;
+    repeated Msg msgs = 5;
+    string sequence = 6;
+}
+
+message Msg {
+    string type = 1;
+    MsgValue value = 2;
+}
+
+message MsgValue{
+    repeated Coin amount = 1;
+    map<string, string> addresses = 2;
+}
+
+message MsgDelegateValue {
+     repeated Coin amount = 1;
+     string delegator_address = 2;
+     string validator_address = 3;
+}
+
+message MsgSendValue {
+    repeated Coin amount = 1;
+    string from_address = 2;
+    string to_address = 3;
+}
+
+message CosmosTxReq {
+    SignData signData=1;
+    string path = 2;
+    string payment_dis = 3;
+    string to_dis = 4;
+    string from_dis = 5;
+    string fee_dis = 6;
+}
+
+message CosmosTxRes {
+    string tx_data = 1;
+    string tx_hash = 2;
+}
+
+message CosmosAddressReq {
+    string path = 1;
+}
+
+message CosmosAddressRes {
+    string address = 1;
+}

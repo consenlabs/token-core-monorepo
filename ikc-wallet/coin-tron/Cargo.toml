@@ -1,0 +1,19 @@
+[package]
+name = "coin-tron"
+version = "0.1.0"
+authors = ["xiemener <xielamenla@qq.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+keccak-hash = "0.10.0"
+failure = "0.1.8"
+bitcoin = "0.29.2"
+hex = "0.4.3"
+ikc-common = {path = "../../ikc-common"}
+ikc-device = {path = "../../ikc-device"}
+ikc-transport = {path = "../../ikc-transport"}
+prost = "0.11.2"
+secp256k1 = {version ="0.24.1", features = ["rand", "recovery"] }
+tiny-keccak = { version = "2.0.2", features = ["keccak"] }

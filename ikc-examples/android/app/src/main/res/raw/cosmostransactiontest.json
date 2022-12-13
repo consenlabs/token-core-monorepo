@@ -1,0 +1,296 @@
+{
+  "case-OneFeeamountMsgMsgamount": {
+    "fee": {
+      "amount": [
+        {
+          "amount": "750",
+          "denom": "muon"
+        }
+      ],
+      "gas": "30000"
+    },
+    "msg": [
+      {
+        "type": "cosmos-sdk/MsgSend",
+        "value": {
+          "amount": [
+            {
+              "amount": "1000000",
+              "denom": "muon"
+            }
+          ],
+          "from_address": "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992",
+          "to_address": "cosmos1yeckxz7tapz34kjwnjxvmxzurerquhtrmxmuxt"
+        }
+      }
+    ],
+    "memo": "",
+    "accountNumber": "1234567890",
+    "chainId": "tendermint_test",
+    "sequence": "1234567890",
+    "preview": {
+      "payment": "0.001 ATOM",
+      "receiver": "cosmos1yeckxz7tapz34kjwnjxvmxzurerquhtrmxmuxt",
+      "sender": "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992",
+      "fee": "0.00075 atom"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "type": "tendermint/PubKeySecp256k1",
+          "value": "AjLB7yHXPBlTGwqk6GPPOXwrmCsvlY9gzbYpaYJMCW1l"
+        },
+        "signature": "R3CcENwwA9k/rr8VeHagD1X86jNZx2qrrBCKn1G3Satnv+Gkrk/VUdo57unGZObFTq7Ts21dbMQ94sBe403NRw=="
+      }
+    ]
+  },
+
+  "case-MsgTypeIsMsgDelegate": {
+    "fee": {
+      "amount": [
+        {
+          "amount": "0",
+          "denom": ""
+        }
+      ],
+      "gas": "21906"
+    },
+    "msg": [
+      {
+        "type": "cosmos-sdk/MsgDelegate",
+        "value": {
+          "amount": [
+            {
+              "amount": "10",
+              "denom": "atom"
+            }
+          ],
+          "delegator_address": "cosmos1y0a8sc5ayv52f2fm5t7hr2g88qgljzk4jcz78f",
+          "validator_address": "cosmosvaloper1zkupr83hrzkn3up5elktzcq3tuft8nxsmwdqgp"
+        }
+      }
+    ],
+    "memo": "",
+    "accountNumber": "1234567890",
+    "chainId": "tendermint_test",
+    "sequence": "1234567890",
+    "preview": {
+      "payment": "0.001 ATOM",
+      "receiver": "cosmos1yeckxz7tapz34kjwnjxvmxzurerquhtrmxmuxt",
+      "sender": "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992",
+      "fee": "0.00075 atom"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "type": "tendermint/PubKeySecp256k1",
+          "value": "AjLB7yHXPBlTGwqk6GPPOXwrmCsvlY9gzbYpaYJMCW1l"
+        },
+        "signature": "h4//cOYLTiDYbdw+1NVZufwppIAcEQ1xsWMYcCdcGtsu4xSnYStxyJgIa57445sHnXgWP84VvnQ5geoUZAKxlQ=="
+      }
+    ]
+  },
+
+  "case-ReceiverAddrIsLong": {
+    "fee": {
+      "amount": [
+        {
+          "amount": "0",
+          "denom": ""
+        }
+      ],
+      "gas": "21906"
+    },
+    "msg": [
+      {
+        "type": "cosmos-sdk/MsgDelegate",
+        "value": {
+          "amount": [
+            {
+              "amount": "10",
+              "denom": "atom"
+            }
+          ],
+          "delegator_address": "cosmos1y0a8sc5ayv52f2fm5t7hr2g88qgljzk4jcz78f",
+          "validator_address": "cosmosvaloper1zkupr83hrzkn3up5elktzcq3tuft8nxsmwdqgp"
+        }
+      }
+    ],
+    "memo": "",
+    "accountNumber": "1234567890",
+    "chainId": "tendermint_test",
+    "sequence": "1234567890",
+    "preview": {
+      "payment": "0.001 ATOM",
+      "receiver": "cosmosvaloper1zkupr83hrzkn3up5elktzcq3tuft8nxsmwdqgp",
+      "sender": "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992",
+      "fee": "0.00075 atom"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "type": "tendermint/PubKeySecp256k1",
+          "value": "AjLB7yHXPBlTGwqk6GPPOXwrmCsvlY9gzbYpaYJMCW1l"
+        },
+        "signature": "h4//cOYLTiDYbdw+1NVZufwppIAcEQ1xsWMYcCdcGtsu4xSnYStxyJgIa57445sHnXgWP84VvnQ5geoUZAKxlQ=="
+      }
+    ]
+  },
+
+  "case-MsgTypeIsDelegationReward": {
+    "fee": {
+      "amount": [
+        {
+          "amount": "750",
+          "denom": "muon"
+        }
+      ],
+      "gas": "30000"
+    },
+    "msg": [
+      {
+        "type": "cosmos-sdk/MsgWithdrawDelegationReward",
+        "value": {
+          "amount": [
+
+          ],
+          "delegator_address": "cosmos1y0a8sc5ayv52f2fm5t7hr2g88qgljzk4jcz78f",
+          "validator_address": "cosmosvaloper1zkupr83hrzkn3up5elktzcq3tuft8nxsmwdqgp"
+        }
+      }
+    ],
+    "memo": "",
+    "accountNumber": "1234567890",
+    "chainId": "tendermint_test",
+    "sequence": "1234567890",
+    "preview": {
+      "payment": "0.001 ATOM",
+      "receiver": "cosmos1yeckxz7tapz34kjwnjxvmxzurerquhtrmxmuxt",
+      "sender": "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992",
+      "fee": "0.00075 atom"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "type": "tendermint/PubKeySecp256k1",
+          "value": "AjLB7yHXPBlTGwqk6GPPOXwrmCsvlY9gzbYpaYJMCW1l"
+        },
+        "signature": "GrWz3Oxr1QDArjm3ZVJGvSB3jgHkAhytCD+e0GLI1ok3xw3J5tz0pNO9SFI+rVj6O7k8msCnkrC+hdb+ZIpjfA=="
+      }
+    ]
+  },
+
+
+  "case-MultipleMsg": {
+    "fee": {
+      "amount": [
+        {
+          "amount": "750",
+          "denom": "muon"
+        }
+      ],
+      "gas": "30000"
+    },
+    "msg": [
+      {
+        "type": "cosmos-sdk/MsgDelegate",
+        "value": {
+          "amount": [
+            {
+              "amount": "10",
+              "denom": "atom"
+            }
+          ],
+          "delegator_address": "cosmos1y0a8sc5ayv52f2fm5t7hr2g88qgljzk4jcz78f",
+          "validator_address": "cosmosvaloper1zkupr83hrzkn3up5elktzcq3tuft8nxsmwdqgp"
+        }
+      },
+      {
+        "type": "cosmos-sdk/MsgDelegate",
+        "value": {
+          "amount": [
+            {
+              "amount": "10",
+              "denom": "atom"
+            }
+          ],
+          "delegator_address": "cosmos1y0a8sc5ayv52f2fm5t7hr2g88qgljzk4jcz78f",
+          "validator_address": "cosmosvaloper1zkupr83hrzkn3up5elktzcq3tuft8nxsmwdqgp"
+        }
+      },
+      {
+        "type": "cosmos-sdk/MsgDelegate",
+        "value": {
+          "amount": [
+            {
+              "amount": "10",
+              "denom": "atom"
+            }
+          ],
+          "delegator_address": "cosmos1y0a8sc5ayv52f2fm5t7hr2g88qgljzk4jcz78f",
+          "validator_address": "cosmosvaloper1zkupr83hrzkn3up5elktzcq3tuft8nxsmwdqgp"
+        }
+      }
+    ],
+    "memo": "",
+    "accountNumber": "1234567890",
+    "chainId": "tendermint_test",
+    "sequence": "1234567890",
+    "preview": {
+      "payment": "0.001 ATOM",
+      "receiver": "cosmos1yeckxz7tapz34kjwnjxvmxzurerquhtrmxmuxt",
+      "sender": "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992",
+      "fee": "0.00075 atom"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "type": "tendermint/PubKeySecp256k1",
+          "value": "AjLB7yHXPBlTGwqk6GPPOXwrmCsvlY9gzbYpaYJMCW1l"
+        },
+        "signature": "Ry6CM82catxyY4o+rE5oFJ8mZ8jkerJ938TeyjEvcCEYno0fEITjvxZHrbfY2MZUJ1Yv+ljgZ31CWGzEhwdJkw=="
+      }
+    ]
+  },
+  "case-PaymentIsNull": {
+    "fee": {
+      "amount": [
+        {
+          "amount": "750",
+          "denom": "muon"
+        }
+      ],
+      "gas": "30000"
+    },
+    "msg": [
+      {
+        "type": "cosmos-sdk/MsgSend",
+        "value": {
+          "amount": [
+          ],
+          "from_address": "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992",
+          "to_address": "cosmos1yeckxz7tapz34kjwnjxvmxzurerquhtrmxmuxt"
+        }
+      }
+    ],
+    "memo": "",
+    "accountNumber": "1234567890",
+    "chainId": "tendermint_test",
+    "sequence": "1234567890",
+    "preview": {
+      "payment": "",
+      "receiver": "",
+      "sender": "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992",
+      "fee": "0.00075 atom"
+    },
+    "signatures": [
+      {
+        "pub_key": {
+          "type": "tendermint/PubKeySecp256k1",
+          "value": "AjLB7yHXPBlTGwqk6GPPOXwrmCsvlY9gzbYpaYJMCW1l"
+        },
+        "signature": "Tp8DYyOSghHF2S70I08fodPL0PWPmY6KNu9ZWN+mqoREdHs7UKIox3tZO2K7ytN4LVl9wBqaWstNOfp5Qa44tg=="
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+syntax = "proto3";
+package btcforkapi;
+
+message Utxo {
+    string txHash = 1;
+    int32 vout = 2;
+    int64 amount = 3;
+    string address = 4;
+    string scriptPubKey = 5;
+    string derivedPath = 6;
+    int64 sequence = 7;
+}
+
+message BtcForkTxInput {
+    string to = 1;
+    int64 amount = 2;
+    repeated Utxo unspents = 3;
+    int64 fee = 4;
+    uint32 changeAddressIndex = 5;
+    string changeAddress = 6;
+    string segWit = 7;
+}
+
+message BtcForkTxOutput {
+    string signature = 1;
+    string txHash = 2;
+    string wtxHash = 3;
+}

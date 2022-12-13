@@ -1,0 +1,1329 @@
+{
+  "case-toCommonAddr": {
+    "description": "Test pay to common address",
+    "to": "18pMkq6HK5HR36jr7bSd39MpkVCfnP68VV",
+    "amount": 112345678,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 1012345678,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "bfa6137f3cdd4a9bc672380afc931bb89d4539d8c1a589316bedad30e4248a90",
+    "wtxID" : "4694a01d72237fc066564fc807d9a2d7be9518151aabb32f3911526a4589109c"
+  },
+
+  "case-payment100000.12345678BTC": {
+    "description": "Test payment amount 100000.12345678BTC",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 10000012345678,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 10000112345678,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "e64a88c76446cefb8d1c2a06e4e80a46563a0c27613c363aa65839a97d4b1b71",
+    "wtxID" : "198dfa6e512cb1cc9a27bcfc15de2abcb08911c2fa5b40a90fe02f4680cbe09b"
+  },
+
+  "case-payment123.12345678BTC": {
+    "description": "Test payment amount 123.12345678BTC",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 12312345678,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 10000112345678,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "af35ee3f365b259d847b28856951e21b31fe2a2e7abde59f3d84af831e21bb05",
+    "wtxID" : "340d851e1fb9cc96e18e085a39eaefe154bfe27909bccc316785fbcc57daa84e"
+  },
+
+  "case-payment0.12345678BTC": {
+    "description": "Test payment amount 0.12345678BTC",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 12345678,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 10000112345678,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "d66d04138c4f34b12baee064585fd5ddbc5fce84d303468ec57e984fe506a687",
+    "wtxID" : "d11c88ae981b6d7ca4e03292dbf0281d01533ac72356404357e171e8d1634301"
+  },
+
+  "case-payment0.00345678BTC": {
+    "description": "Test payment amount 0.00345678BTC",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 345678,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 10000112345678,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "2c29650ec14d279a9a14d4adba4bf06ff49affda32a57da3d48fa4a1b9800afe",
+    "wtxID" : "8c0daece4d9b3f6c4713c6b360d1242bc696e8be5c6e34440472e7e583049761"
+  },
+
+  "case-payment1BTC": {
+    "description": "Test payment amount 1 BTC",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 10000000,
+    "fee": 500000,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 10000112345678,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "ba76dad4001207c596b25c55dbc5178322833baa02b7b74dafd15e380c0e30e9",
+    "wtxID" : "876afaed76ecb517bfb7d22ee67501a23846a61353612c4d4c9336bde83bca77"
+  },
+
+  "case-payment10.55BTC": {
+    "description": "Test payment amount 10.55 BTC",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 1055000000,
+    "fee": 500055,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 10000112345678,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "b8ec693ccb862010668df104c6722fc374a188c1c5ced0d189479c218181dd87",
+    "wtxID" : "14210e43dbb20ab6a37fb405b49025ce4a0c9b476a124c9b622f1031d6a6f2a1"
+  },
+
+  "case-1utxo": {
+    "description": "Test 1 utxo",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 150000000,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "b0e69fc5165567f9235923d09fbfd9e6783944b55ffdd722c1d40f83940e13c7",
+    "wtxID" : "94a24ae328376565dc6bde2780123e56b050540acebacd54b0835d09d1a7bd97"
+  },
+
+  "case-2utxoes": {
+    "description": "Test 2 utxoes",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 150000000,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      }
+    ],
+    "txHash": "3448ec65f1e7e58188242400e47371d58484a8e0b94d4c328a0f6edad2b7471b",
+    "wtxID" : "272f469fba7a312415f32a17b0dffe89f883a6f3ff6848abb66fa2eb31f30144"
+  },
+  "case-3utxoes": {
+    "description": "Test 3 utxoes",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 150000000,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      }
+    ],
+    "txHash": "c8685e3f421e6556959a3657918a1fd1d4bdc818babf38d75c546cfc302ffe79",
+    "wtxID" : "a04690ebd2a7ba78f68f7c12c1fa64a0d928e94c740c3cd0b28440f12dd2d00e"
+  },
+  "case-4utxoes": {
+    "description": "Test 4 utxoes",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 750000000,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      }
+    ],
+    "txHash": "4f979b538cf3e67f18c310e73b9517df2adcdc2f5fca0d5feef47f7b935cea55",
+    "wtxID" : "938633b99b02e2f394be692a636dfa8c5302ca6bd2badac6b16a38c12629c743"
+  },
+  "case-5utxoes": {
+    "description": "Test 5 utxoes",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 750000000,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "3e7206ccd19dfeadb6774774779cd4484a03fb9bdc63b0d592a555c4eb0dc893",
+    "wtxID" : "23bca31c5f84518e73dad2403f2ac50ff8e04a0af5fb70f92921118c8782c6f7"
+  },
+  "case-6utxoes": {
+    "description": "Test 6 utxoes",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 750000000,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "023adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "5fce9d923996d9ec384cbe563555f37c1dce145ac71f407f4ff72feee9df13e1",
+    "wtxID" : "ffe6298772bde41b2bdf89ea2627a5e4b2a35efa42f5f4442f275af4f0ef110d"
+  },
+  "case-8utxoes": {
+    "description": "Test 8 utxoes",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 750000000,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "023adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "033adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "043adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "e0d99b55a66f8202e98c54291a437b654183b63d2bb8d8cb86675b16d3b70d1b",
+    "wtxID" : "266e44e6a88cf4263b8f29ced871b971d619f24c8f1f31e731280b9758301996"
+  },
+  "case-10utxoes": {
+    "description": "Test 10 utxoes",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 750000000,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "023adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "033adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "043adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "033adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "043adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "057de6d5f795aee0a7f5a1bb0398f23adbe78ff3eb2b5388c33a42e67b888d3c",
+    "wtxID" : "a856cef934f3982ccf15f12f512172176d58af98d679a329ada21408a43aa3be"
+  },
+  "case-15utxoes": {
+    "description": "Test 15 utxoes",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 750000000,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "023adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "033adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "043adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "5e92e356d43d374f67c53f936f6e894018af51313fabcc9dff250c3f93b7155a",
+    "wtxID" : "a5b0e2255e182de16218255616c5d311db14105fdb84fd35892da001ba4331ee"
+  },
+  "case-20utxoes": {
+    "description": "Test 20 utxoes",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 750000000,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "023adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "033adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "043adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "b0e3b1feddc355d4fc15b0ad8331b7cc38a727aef277a5d14c2dd07f87962c2e",
+    "wtxID" : "31db2e041f679cf222a77c1efad1080391719f8aa77342f4a0de0e0900eb345d"
+  },
+  "case-50utxoes": {
+    "description": "Test 50 utxoes",
+    "to": "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a",
+    "amount": 750000000,
+    "fee": 502130,
+    "changeIdx": 53,
+    "payment": "0.0001 BTC",
+    "toDis": "3CVD68V71no5jn2UZpLLq6hASpXu1jrByt",
+    "from": "3GrvKsZWbb9ocBaNF7XosFZEKuCVBRSoiy",
+    "feeDis": "0.00007945 BTC",
+    "utxo": [
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "023adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "033adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "043adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "023adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "033adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "043adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9",
+        "vout": 1,
+        "amount": 200000000,
+        "address": "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/0"
+      },
+      {
+        "txHash": "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "023adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "033adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "043adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "033adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      },
+      {
+        "txHash": "043adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a",
+        "vout": 0,
+        "amount": 200000000,
+        "address": "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e",
+        "scriptPubKey": "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987",
+        "derivedPath": "0/22"
+      }
+    ],
+    "txHash": "8149cd99a8361dcde6e0a326657de5a8c154819477f2fdac19f78795172cfd65",
+    "wtxID" : "6ee7f338bdc63c6ed9296b48fdc7e72e5abd01870524dd30b8266c118f9bb6ba"
+  }
+}
+

@@ -1,0 +1,6 @@
+framework module LTHRadioButton {
+  umbrella header "LTHRadioButton-umbrella.h"
+
+  export *
+  module * { export * }
+}

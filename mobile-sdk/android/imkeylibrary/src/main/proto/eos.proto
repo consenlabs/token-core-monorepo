@@ -1,0 +1,44 @@
+syntax = "proto3";
+package eosapi;
+
+message EosTxReq {
+    string path = 1;
+    repeated EosSignData sign_datas = 2;
+}
+
+message EosSignData {
+    string tx_data = 1;
+    repeated string pub_keys = 2;
+    string chain_id = 3;
+    string to = 4;
+    string from = 5;
+    string payment = 6;
+}
+
+message EosTxRes {
+    repeated EosSignResult trans_multi_signs = 1;
+}
+
+message EosSignResult {
+    string hash = 1;
+    repeated string signs = 2;
+}
+
+message EosPubkeyReq {
+    string path = 1;
+}
+
+message EosPubkeyRes {
+    string pubkey = 1;
+}
+
+message EosMessageSignReq{
+    string path = 1;
+    string data = 2;
+    bool is_hex = 3;
+    string pubkey = 4;
+}
+
+message EosMessageSignRes{
+    string signature = 1;
+}

@@ -1,0 +1,22 @@
+[package]
+name = "coin-substrate"
+version = "0.1.0"
+authors = ["xiemener <xielamenla@qq.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ikc-common = {path = "../../ikc-common"}
+ikc-device = {path = "../../ikc-device"}
+ikc-transport = {path = "../../ikc-transport"}
+sp-core = "7.0.0"
+failure = "0.1.8"
+hex = "0.4.3"
+prost = "0.11.2"
+prost-types = "0.11.2"
+
+
+[dev-dependencies]
+sp-runtime = "7.0.0"
+sp-keyring = "7.0.0"

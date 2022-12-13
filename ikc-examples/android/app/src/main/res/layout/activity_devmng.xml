@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/sroll_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="8dp"
+    tools:context=".MainActivity">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <Button
+            android:id="@+id/btn_getseid_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="getseid_001" />
+
+        <Button
+            android:id="@+id/btn_getseid_002"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="getseid_002" />
+        <Button
+            android:id="@+id/btn_getseid_003"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="getseid_003" />
+        <Button
+            android:id="@+id/btn_getfirmwareversion_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="getfirmwareversion_001获取固件版本" />
+        <Button
+            android:id="@+id/btn_checkUpdate_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="checkUpdate_001" />
+        <Button
+            android:id="@+id/btn_activeDevice_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="activeDevice_001" />
+        <Button
+            android:id="@+id/btn_checkDevice_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="checkDevice_001" />
+        <Button
+            android:id="@+id/btn_download_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="download_001" />
+        <Button
+            android:id="@+id/btn_update_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="update_001" />
+        <Button
+            android:id="@+id/btn_delete_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="delete_001" />
+        <Button
+            android:id="@+id/btn_getBatteryPower_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="getBatteryPower_001" />
+        <Button
+            android:id="@+id/btn_bindCheck_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="bindCheck_001" />
+        <Button
+            android:id="@+id/btn_disBindCode_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="disBindCode_001" />
+        <Button
+            android:id="@+id/btn_bindAcquire_001"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="bindAcquire_001" />
+        <Button
+            android:id="@+id/btn_test_key"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="test_key" />
+        <Button
+            android:id="@+id/btn_get_sdkinfo"
+            style="@style/button"
+            android:layout_marginLeft="2dp"
+            android:layout_weight="1"
+            android:onClick="onClick"
+            android:text="get_sdkinfo" />
+
+
+    </LinearLayout>
+
+</ScrollView>

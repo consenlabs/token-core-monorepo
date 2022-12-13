@@ -1,0 +1,10 @@
+syntax = "proto3";
+package substrateapi;
+
+message SubstrateRawTxIn {
+    string rawData = 1;
+}
+
+message SubstrateTxOut {
+    string signature = 1;
+}

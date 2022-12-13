@@ -1,0 +1,40 @@
+syntax = "proto3";
+package ethapi;
+
+message EthTxReq {
+    string nonce = 1;
+    string gas_price = 2;
+    string gas_limit = 3;
+    string to = 4;
+    string value = 5;
+    string data = 6;
+    string chain_id = 7;
+    string path = 8;
+    string payment = 9;
+    string receiver = 10;
+    string sender = 11;
+    string fee = 12;
+}
+
+message EthTxRes {
+    string tx_data = 1;
+    string tx_hash = 2;
+}
+
+message EthAddressReq {
+    string path = 1;
+}
+
+message EthAddressRes {
+    string address = 1;
+}
+
+message EthMessageSignReq {
+    string path = 1;
+    string message = 2;
+    string sender = 3;
+}
+
+message EthMessageSignRes {
+    string signature = 1;
+}

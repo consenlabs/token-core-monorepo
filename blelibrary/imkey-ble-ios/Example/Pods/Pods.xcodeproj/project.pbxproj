@@ -1,0 +1,840 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		03D2929C6A58B93110F10FD6D61F5E5E /* imKeyBleLib-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 4536C32300BE8049DB95AA15BEEA794D /* imKeyBleLib-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		10AED62EC1C3D2B2E5AC50A1C2BC7F3E /* Pods-imKeyBleLib_Example-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 3177A14D822C80B6AE708136C48A7215 /* Pods-imKeyBleLib_Example-dummy.m */; };
+		136D635219196A398F881BF1584EFC5B /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3212113385A8FBBDB272BD23C409FF61 /* Foundation.framework */; };
+		42BFA4B365C96181D4D7FD4CA727EBFD /* imKeyBleLib.h in Headers */ = {isa = PBXBuildFile; fileRef = 2A579A0EBEDDD408EADB8987E56E5010 /* imKeyBleLib.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		52BF8E85CBCAF9FF039A97B934746554 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3212113385A8FBBDB272BD23C409FF61 /* Foundation.framework */; };
+		54451FCA47B6E50B2FAE1588C1182AF3 /* BleApdu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47B2EAAC31A923E4048CA75274665A00 /* BleApdu.swift */; };
+		65F26DA87A0684BB19FBD0AC7EF3CD5E /* Pods-imKeyBleLib_Tests-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 7EABB1D821C12384B2A2468FB2909819 /* Pods-imKeyBleLib_Tests-dummy.m */; };
+		7BF0A7D9B6AB7B688285C0277C9746C6 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3212113385A8FBBDB272BD23C409FF61 /* Foundation.framework */; };
+		84921D51B3AC2B9C364C872B9E9200CA /* ImkeyBleError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4EF5326E0074DEC91CBEE0F7CBC6A93A /* ImkeyBleError.swift */; };
+		8AED02C5A461A80EA83492BF93E28108 /* Pods-imKeyBleLib_Example-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 3D7BD71853607AB64580FF9EC3BFC901 /* Pods-imKeyBleLib_Example-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		9ACCAE71E32B9AF631E0C005BEEB2AFC /* BleByteUtil.swift in Sources */ = {isa = PBXBuildFile; fileRef = 645738429CC9DBD3C1C6CE775D0C656F /* BleByteUtil.swift */; };
+		AB64343123950CC4A49F39C1E3BF4967 /* imKeyBleLib-dummy.m in Sources */ = {isa = PBXBuildFile; fileRef = 27430AC5B51EE69445D65775F110DA45 /* imKeyBleLib-dummy.m */; };
+		B171338256DD3DCFF51737F6D1359334 /* Pods-imKeyBleLib_Tests-umbrella.h in Headers */ = {isa = PBXBuildFile; fileRef = 47A464DD859E830B4E15B000867EF8E6 /* Pods-imKeyBleLib_Tests-umbrella.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		BF70608C1AF469F1CAC4C952EACCEDD2 /* BLEDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D0E85450D4DB6A7F47367BE0C3E1CC7 /* BLEDelegate.swift */; };
+		D0ABA42FFAF62C2D59F53F03BCBDBC57 /* LogBle.swift in Sources */ = {isa = PBXBuildFile; fileRef = B024739CEB126CFD249020DCF3FA904D /* LogBle.swift */; };
+		D4E9E3B5DBF58DF5F00838CD128E0431 /* BLE.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8A39A8D35C36615EEDF3BDCB6AFEF95 /* BLE.swift */; };
+		D811D96624994D1900D9A9A9 /* ErrorCodesAndMacros.h in Headers */ = {isa = PBXBuildFile; fileRef = D811D96224994D1900D9A9A9 /* ErrorCodesAndMacros.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D811D96724994D1900D9A9A9 /* FTBLEInterface.h in Headers */ = {isa = PBXBuildFile; fileRef = D811D96324994D1900D9A9A9 /* FTBLEInterface.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D811D96824994D1900D9A9A9 /* FTBLEDelegate.h in Headers */ = {isa = PBXBuildFile; fileRef = D811D96424994D1900D9A9A9 /* FTBLEDelegate.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		D811D96A24994D8F00D9A9A9 /* libFtBTKeyApi.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D811D96924994D8F00D9A9A9 /* libFtBTKeyApi.a */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		7ED8C53BFF43F617CC9476DD3E25991C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BFDFE7DC352907FC980B868725387E98 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7BE69320C3FB87AE2F26D42A95D90BBA;
+			remoteInfo = imKeyBleLib;
+		};
+		82712A8BBB45ED8E63301A6114E6643C /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BFDFE7DC352907FC980B868725387E98 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0724E3DF888FDCB3AB046E434173A976;
+			remoteInfo = "Pods-imKeyBleLib_Example";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0B2A9EDFAB614820FF203B90DC3081E2 /* LICENSE */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
+		0F470065DDF4A3AB098EBFEA04304DA2 /* Pods-imKeyBleLib_Example-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-imKeyBleLib_Example-acknowledgements.markdown"; sourceTree = "<group>"; };
+		0FB112179106CB7808292C094CD49F79 /* Pods-imKeyBleLib_Example-frameworks.sh */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.script.sh; path = "Pods-imKeyBleLib_Example-frameworks.sh"; sourceTree = "<group>"; };
+		22619B1EFFD9E6640E7BE54445D05257 /* Pods-imKeyBleLib_Example.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-imKeyBleLib_Example.debug.xcconfig"; sourceTree = "<group>"; };
+		27430AC5B51EE69445D65775F110DA45 /* imKeyBleLib-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "imKeyBleLib-dummy.m"; sourceTree = "<group>"; };
+		2A579A0EBEDDD408EADB8987E56E5010 /* imKeyBleLib.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; name = imKeyBleLib.h; path = imKeyBleLib/Classes/imKeyBleLib.h; sourceTree = "<group>"; };
+		3177A14D822C80B6AE708136C48A7215 /* Pods-imKeyBleLib_Example-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-imKeyBleLib_Example-dummy.m"; sourceTree = "<group>"; };
+		3212113385A8FBBDB272BD23C409FF61 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS12.2.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		355A2EE1060ADE460A76327C2F9974FF /* imKeyBleLib-prefix.pch */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "imKeyBleLib-prefix.pch"; sourceTree = "<group>"; };
+		3A103FE5DB5FC77D0EB38EDC976F1130 /* Pods-imKeyBleLib_Tests-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-imKeyBleLib_Tests-acknowledgements.plist"; sourceTree = "<group>"; };
+		3D0E85450D4DB6A7F47367BE0C3E1CC7 /* BLEDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BLEDelegate.swift; sourceTree = "<group>"; };
+		3D7BD71853607AB64580FF9EC3BFC901 /* Pods-imKeyBleLib_Example-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Pods-imKeyBleLib_Example-umbrella.h"; sourceTree = "<group>"; };
+		4536C32300BE8049DB95AA15BEEA794D /* imKeyBleLib-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "imKeyBleLib-umbrella.h"; sourceTree = "<group>"; };
+		47A464DD859E830B4E15B000867EF8E6 /* Pods-imKeyBleLib_Tests-umbrella.h */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.h; path = "Pods-imKeyBleLib_Tests-umbrella.h"; sourceTree = "<group>"; };
+		47B2EAAC31A923E4048CA75274665A00 /* BleApdu.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BleApdu.swift; sourceTree = "<group>"; };
+		4C6D50A46201EF7DEE8720E36D8BE5C7 /* Pods-imKeyBleLib_Tests.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = "Pods-imKeyBleLib_Tests.modulemap"; sourceTree = "<group>"; };
+		4EF5326E0074DEC91CBEE0F7CBC6A93A /* ImkeyBleError.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImkeyBleError.swift; sourceTree = "<group>"; };
+		5FA767F6758128AC19F778CE88E53116 /* Pods-imKeyBleLib_Example-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-imKeyBleLib_Example-Info.plist"; sourceTree = "<group>"; };
+		61553D7695CAB054975245EA5AB78683 /* imKeyBleLib.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = imKeyBleLib.xcconfig; sourceTree = "<group>"; };
+		61D29F4A699558E66156D058C20AE1EC /* imKeyBleLib.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = imKeyBleLib.modulemap; sourceTree = "<group>"; };
+		645738429CC9DBD3C1C6CE775D0C656F /* BleByteUtil.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BleByteUtil.swift; sourceTree = "<group>"; };
+		666840B2A3F01F59B084DE4E8FBDE73E /* imKeyBleLib.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = imKeyBleLib.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		71704CC56653EFDAF901920214311982 /* Pods-imKeyBleLib_Tests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-imKeyBleLib_Tests.debug.xcconfig"; sourceTree = "<group>"; };
+		7D6495B40C3985A5A6F87FCDF91BCEE9 /* Pods-imKeyBleLib_Example.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-imKeyBleLib_Example.release.xcconfig"; sourceTree = "<group>"; };
+		7EABB1D821C12384B2A2468FB2909819 /* Pods-imKeyBleLib_Tests-dummy.m */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.c.objc; path = "Pods-imKeyBleLib_Tests-dummy.m"; sourceTree = "<group>"; };
+		8589D7695C29675CB5B0C7EE4C648CAB /* Pods-imKeyBleLib_Tests-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-imKeyBleLib_Tests-Info.plist"; sourceTree = "<group>"; };
+		9D940727FF8FB9C785EB98E56350EF41 /* Podfile */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; name = Podfile; path = ../Podfile; sourceTree = SOURCE_ROOT; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
+		A290CB4C44C39E1E82CDDE501CB52520 /* imKeyBleLib.podspec */ = {isa = PBXFileReference; explicitFileType = text.script.ruby; includeInIndex = 1; indentWidth = 2; path = imKeyBleLib.podspec; sourceTree = "<group>"; tabWidth = 2; xcLanguageSpecificationIdentifier = xcode.lang.ruby; };
+		A8A39A8D35C36615EEDF3BDCB6AFEF95 /* BLE.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BLE.swift; sourceTree = "<group>"; };
+		AC171230494EBC734592AE4FFDFB69D3 /* Pods_imKeyBleLib_Example.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_imKeyBleLib_Example.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		B024739CEB126CFD249020DCF3FA904D /* LogBle.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LogBle.swift; sourceTree = "<group>"; };
+		B4ECC29EB4DDCBBA25D18856EFB363C2 /* Pods-imKeyBleLib_Example.modulemap */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.module; path = "Pods-imKeyBleLib_Example.modulemap"; sourceTree = "<group>"; };
+		B9C705ECE11E94445202FF24604902A3 /* Pods_imKeyBleLib_Tests.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_imKeyBleLib_Tests.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		C501E210F1144E47311DFFD1F419052C /* imKeyBleLib-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "imKeyBleLib-Info.plist"; sourceTree = "<group>"; };
+		C65882874D9A73520857222ED5848ED2 /* Pods-imKeyBleLib_Example-acknowledgements.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = "Pods-imKeyBleLib_Example-acknowledgements.plist"; sourceTree = "<group>"; };
+		CFDFB921B25C8B6ACEEF24F1E9B8C74D /* Pods-imKeyBleLib_Tests-acknowledgements.markdown */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text; path = "Pods-imKeyBleLib_Tests-acknowledgements.markdown"; sourceTree = "<group>"; };
+		D811D96224994D1900D9A9A9 /* ErrorCodesAndMacros.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ErrorCodesAndMacros.h; sourceTree = "<group>"; };
+		D811D96324994D1900D9A9A9 /* FTBLEInterface.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FTBLEInterface.h; sourceTree = "<group>"; };
+		D811D96424994D1900D9A9A9 /* FTBLEDelegate.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FTBLEDelegate.h; sourceTree = "<group>"; };
+		D811D96924994D8F00D9A9A9 /* libFtBTKeyApi.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libFtBTKeyApi.a; sourceTree = "<group>"; };
+		F1DE12AB935CA293F3AD40E3FEA4CF73 /* Pods-imKeyBleLib_Tests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; path = "Pods-imKeyBleLib_Tests.release.xcconfig"; sourceTree = "<group>"; };
+		F343552F3AB28B3B744339339E636686 /* README.md */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5DB04FC5751595CFE4585D1C4F546AC8 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				52BF8E85CBCAF9FF039A97B934746554 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		661D6AC148C0FB942EAEDC8ABFAF2A63 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D811D96A24994D8F00D9A9A9 /* libFtBTKeyApi.a in Frameworks */,
+				7BF0A7D9B6AB7B688285C0277C9746C6 /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BDE3A5E43DC18AEAE0B4871514BAF444 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				136D635219196A398F881BF1584EFC5B /* Foundation.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		05B466848FEB00642C8566DD5356B04B /* Pods-imKeyBleLib_Example */ = {
+			isa = PBXGroup;
+			children = (
+				B4ECC29EB4DDCBBA25D18856EFB363C2 /* Pods-imKeyBleLib_Example.modulemap */,
+				0F470065DDF4A3AB098EBFEA04304DA2 /* Pods-imKeyBleLib_Example-acknowledgements.markdown */,
+				C65882874D9A73520857222ED5848ED2 /* Pods-imKeyBleLib_Example-acknowledgements.plist */,
+				3177A14D822C80B6AE708136C48A7215 /* Pods-imKeyBleLib_Example-dummy.m */,
+				0FB112179106CB7808292C094CD49F79 /* Pods-imKeyBleLib_Example-frameworks.sh */,
+				5FA767F6758128AC19F778CE88E53116 /* Pods-imKeyBleLib_Example-Info.plist */,
+				3D7BD71853607AB64580FF9EC3BFC901 /* Pods-imKeyBleLib_Example-umbrella.h */,
+				22619B1EFFD9E6640E7BE54445D05257 /* Pods-imKeyBleLib_Example.debug.xcconfig */,
+				7D6495B40C3985A5A6F87FCDF91BCEE9 /* Pods-imKeyBleLib_Example.release.xcconfig */,
+			);
+			name = "Pods-imKeyBleLib_Example";
+			path = "Target Support Files/Pods-imKeyBleLib_Example";
+			sourceTree = "<group>";
+		};
+		0ED7459BE4D636E313175EEF0E6ACC5F /* Support Files */ = {
+			isa = PBXGroup;
+			children = (
+				61D29F4A699558E66156D058C20AE1EC /* imKeyBleLib.modulemap */,
+				61553D7695CAB054975245EA5AB78683 /* imKeyBleLib.xcconfig */,
+				27430AC5B51EE69445D65775F110DA45 /* imKeyBleLib-dummy.m */,
+				C501E210F1144E47311DFFD1F419052C /* imKeyBleLib-Info.plist */,
+				355A2EE1060ADE460A76327C2F9974FF /* imKeyBleLib-prefix.pch */,
+				4536C32300BE8049DB95AA15BEEA794D /* imKeyBleLib-umbrella.h */,
+			);
+			name = "Support Files";
+			path = "Example/Pods/Target Support Files/imKeyBleLib";
+			sourceTree = "<group>";
+		};
+		2F6B83A80CE46B562464F80555AA8909 /* Bluetooth */ = {
+			isa = PBXGroup;
+			children = (
+				A8A39A8D35C36615EEDF3BDCB6AFEF95 /* BLE.swift */,
+				47B2EAAC31A923E4048CA75274665A00 /* BleApdu.swift */,
+				3D0E85450D4DB6A7F47367BE0C3E1CC7 /* BLEDelegate.swift */,
+				4EF5326E0074DEC91CBEE0F7CBC6A93A /* ImkeyBleError.swift */,
+			);
+			name = Bluetooth;
+			path = imKeyBleLib/Classes/Bluetooth;
+			sourceTree = "<group>";
+		};
+		363548903A55EFC94D4D1B37CD7F4FFB /* Development Pods */ = {
+			isa = PBXGroup;
+			children = (
+				6F671DDD4B898C35224ABC52BBFECE89 /* imKeyBleLib */,
+			);
+			name = "Development Pods";
+			sourceTree = "<group>";
+		};
+		6F671DDD4B898C35224ABC52BBFECE89 /* imKeyBleLib */ = {
+			isa = PBXGroup;
+			children = (
+				2A579A0EBEDDD408EADB8987E56E5010 /* imKeyBleLib.h */,
+				2F6B83A80CE46B562464F80555AA8909 /* Bluetooth */,
+				AB8C311411DDC70961A4F2329D83DA62 /* include */,
+				BCAF7F5B716D25C9E9F3E2C6243FA5CC /* Pod */,
+				0ED7459BE4D636E313175EEF0E6ACC5F /* Support Files */,
+				E69E811F4E51F34472C6351F0253F0E3 /* Util */,
+			);
+			name = imKeyBleLib;
+			path = ../..;
+			sourceTree = "<group>";
+		};
+		A91C9007287F0CE6775DB8EFC425754B /* Pods-imKeyBleLib_Tests */ = {
+			isa = PBXGroup;
+			children = (
+				4C6D50A46201EF7DEE8720E36D8BE5C7 /* Pods-imKeyBleLib_Tests.modulemap */,
+				CFDFB921B25C8B6ACEEF24F1E9B8C74D /* Pods-imKeyBleLib_Tests-acknowledgements.markdown */,
+				3A103FE5DB5FC77D0EB38EDC976F1130 /* Pods-imKeyBleLib_Tests-acknowledgements.plist */,
+				7EABB1D821C12384B2A2468FB2909819 /* Pods-imKeyBleLib_Tests-dummy.m */,
+				8589D7695C29675CB5B0C7EE4C648CAB /* Pods-imKeyBleLib_Tests-Info.plist */,
+				47A464DD859E830B4E15B000867EF8E6 /* Pods-imKeyBleLib_Tests-umbrella.h */,
+				71704CC56653EFDAF901920214311982 /* Pods-imKeyBleLib_Tests.debug.xcconfig */,
+				F1DE12AB935CA293F3AD40E3FEA4CF73 /* Pods-imKeyBleLib_Tests.release.xcconfig */,
+			);
+			name = "Pods-imKeyBleLib_Tests";
+			path = "Target Support Files/Pods-imKeyBleLib_Tests";
+			sourceTree = "<group>";
+		};
+		AB8C311411DDC70961A4F2329D83DA62 /* include */ = {
+			isa = PBXGroup;
+			children = (
+				D811D96924994D8F00D9A9A9 /* libFtBTKeyApi.a */,
+				D811D96224994D1900D9A9A9 /* ErrorCodesAndMacros.h */,
+				D811D96424994D1900D9A9A9 /* FTBLEDelegate.h */,
+				D811D96324994D1900D9A9A9 /* FTBLEInterface.h */,
+			);
+			name = include;
+			path = imKeyBleLib/Classes/include;
+			sourceTree = "<group>";
+		};
+		BCAF7F5B716D25C9E9F3E2C6243FA5CC /* Pod */ = {
+			isa = PBXGroup;
+			children = (
+				A290CB4C44C39E1E82CDDE501CB52520 /* imKeyBleLib.podspec */,
+				0B2A9EDFAB614820FF203B90DC3081E2 /* LICENSE */,
+				F343552F3AB28B3B744339339E636686 /* README.md */,
+			);
+			name = Pod;
+			sourceTree = "<group>";
+		};
+		C0834CEBB1379A84116EF29F93051C60 /* iOS */ = {
+			isa = PBXGroup;
+			children = (
+				3212113385A8FBBDB272BD23C409FF61 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+		CF1408CF629C7361332E53B88F7BD30C = {
+			isa = PBXGroup;
+			children = (
+				9D940727FF8FB9C785EB98E56350EF41 /* Podfile */,
+				363548903A55EFC94D4D1B37CD7F4FFB /* Development Pods */,
+				D210D550F4EA176C3123ED886F8F87F5 /* Frameworks */,
+				F15719E737BF42CE99A9E62E08708CE9 /* Products */,
+				E54CBC6F29416696141765743C8B68B8 /* Targets Support Files */,
+			);
+			sourceTree = "<group>";
+		};
+		D210D550F4EA176C3123ED886F8F87F5 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				C0834CEBB1379A84116EF29F93051C60 /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		E54CBC6F29416696141765743C8B68B8 /* Targets Support Files */ = {
+			isa = PBXGroup;
+			children = (
+				05B466848FEB00642C8566DD5356B04B /* Pods-imKeyBleLib_Example */,
+				A91C9007287F0CE6775DB8EFC425754B /* Pods-imKeyBleLib_Tests */,
+			);
+			name = "Targets Support Files";
+			sourceTree = "<group>";
+		};
+		E69E811F4E51F34472C6351F0253F0E3 /* Util */ = {
+			isa = PBXGroup;
+			children = (
+				645738429CC9DBD3C1C6CE775D0C656F /* BleByteUtil.swift */,
+				B024739CEB126CFD249020DCF3FA904D /* LogBle.swift */,
+			);
+			name = Util;
+			path = imKeyBleLib/Classes/Util;
+			sourceTree = "<group>";
+		};
+		F15719E737BF42CE99A9E62E08708CE9 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				666840B2A3F01F59B084DE4E8FBDE73E /* imKeyBleLib.framework */,
+				AC171230494EBC734592AE4FFDFB69D3 /* Pods_imKeyBleLib_Example.framework */,
+				B9C705ECE11E94445202FF24604902A3 /* Pods_imKeyBleLib_Tests.framework */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		3F289A8DA8001DA0E817B95422F04CF9 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B171338256DD3DCFF51737F6D1359334 /* Pods-imKeyBleLib_Tests-umbrella.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A8932D2C44422C16CBD8B038EF37CFB8 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				03D2929C6A58B93110F10FD6D61F5E5E /* imKeyBleLib-umbrella.h in Headers */,
+				D811D96724994D1900D9A9A9 /* FTBLEInterface.h in Headers */,
+				D811D96824994D1900D9A9A9 /* FTBLEDelegate.h in Headers */,
+				D811D96624994D1900D9A9A9 /* ErrorCodesAndMacros.h in Headers */,
+				42BFA4B365C96181D4D7FD4CA727EBFD /* imKeyBleLib.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D2EB9ADAF596D1096470A6D36CBE1381 /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8AED02C5A461A80EA83492BF93E28108 /* Pods-imKeyBleLib_Example-umbrella.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		0724E3DF888FDCB3AB046E434173A976 /* Pods-imKeyBleLib_Example */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E985880ED64ADE094EE0985DEE3429BA /* Build configuration list for PBXNativeTarget "Pods-imKeyBleLib_Example" */;
+			buildPhases = (
+				D2EB9ADAF596D1096470A6D36CBE1381 /* Headers */,
+				0D7C75423850A523BE2147997ECB1F09 /* Sources */,
+				5DB04FC5751595CFE4585D1C4F546AC8 /* Frameworks */,
+				A0EF314E5756C4AA5390BCF15D31DAA8 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				216726BA0AA45313546CEF8879E618AB /* PBXTargetDependency */,
+			);
+			name = "Pods-imKeyBleLib_Example";
+			productName = "Pods-imKeyBleLib_Example";
+			productReference = AC171230494EBC734592AE4FFDFB69D3 /* Pods_imKeyBleLib_Example.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		7BE69320C3FB87AE2F26D42A95D90BBA /* imKeyBleLib */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B36F3EFF3539743FA497D2EE6D706F0F /* Build configuration list for PBXNativeTarget "imKeyBleLib" */;
+			buildPhases = (
+				A8932D2C44422C16CBD8B038EF37CFB8 /* Headers */,
+				8B4A0C3746E8925F48681A4E38095302 /* Sources */,
+				661D6AC148C0FB942EAEDC8ABFAF2A63 /* Frameworks */,
+				08CD62DD688D4703997B2E5FE89AAFCB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = imKeyBleLib;
+			productName = imKeyBleLib;
+			productReference = 666840B2A3F01F59B084DE4E8FBDE73E /* imKeyBleLib.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		E56C648D74584FD98AE5A56657FD256C /* Pods-imKeyBleLib_Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 83F702F6C169FEDD06D8F1483EB8D31C /* Build configuration list for PBXNativeTarget "Pods-imKeyBleLib_Tests" */;
+			buildPhases = (
+				3F289A8DA8001DA0E817B95422F04CF9 /* Headers */,
+				80986384F7FA0F81308D3529F4136224 /* Sources */,
+				BDE3A5E43DC18AEAE0B4871514BAF444 /* Frameworks */,
+				577D72A216C62E976563637EF09AE2DD /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				38B78289BE3DADD1F1EA7D24CA584EDF /* PBXTargetDependency */,
+			);
+			name = "Pods-imKeyBleLib_Tests";
+			productName = "Pods-imKeyBleLib_Tests";
+			productReference = B9C705ECE11E94445202FF24604902A3 /* Pods_imKeyBleLib_Tests.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		BFDFE7DC352907FC980B868725387E98 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastSwiftUpdateCheck = 1100;
+				LastUpgradeCheck = 1100;
+			};
+			buildConfigurationList = 4821239608C13582E20E6DA73FD5F1F9 /* Build configuration list for PBXProject "Pods" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = CF1408CF629C7361332E53B88F7BD30C;
+			productRefGroup = F15719E737BF42CE99A9E62E08708CE9 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				7BE69320C3FB87AE2F26D42A95D90BBA /* imKeyBleLib */,
+				0724E3DF888FDCB3AB046E434173A976 /* Pods-imKeyBleLib_Example */,
+				E56C648D74584FD98AE5A56657FD256C /* Pods-imKeyBleLib_Tests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		08CD62DD688D4703997B2E5FE89AAFCB /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		577D72A216C62E976563637EF09AE2DD /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A0EF314E5756C4AA5390BCF15D31DAA8 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0D7C75423850A523BE2147997ECB1F09 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				10AED62EC1C3D2B2E5AC50A1C2BC7F3E /* Pods-imKeyBleLib_Example-dummy.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		80986384F7FA0F81308D3529F4136224 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				65F26DA87A0684BB19FBD0AC7EF3CD5E /* Pods-imKeyBleLib_Tests-dummy.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8B4A0C3746E8925F48681A4E38095302 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D4E9E3B5DBF58DF5F00838CD128E0431 /* BLE.swift in Sources */,
+				54451FCA47B6E50B2FAE1588C1182AF3 /* BleApdu.swift in Sources */,
+				9ACCAE71E32B9AF631E0C005BEEB2AFC /* BleByteUtil.swift in Sources */,
+				BF70608C1AF469F1CAC4C952EACCEDD2 /* BLEDelegate.swift in Sources */,
+				84921D51B3AC2B9C364C872B9E9200CA /* ImkeyBleError.swift in Sources */,
+				AB64343123950CC4A49F39C1E3BF4967 /* imKeyBleLib-dummy.m in Sources */,
+				D0ABA42FFAF62C2D59F53F03BCBDBC57 /* LogBle.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		216726BA0AA45313546CEF8879E618AB /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = imKeyBleLib;
+			target = 7BE69320C3FB87AE2F26D42A95D90BBA /* imKeyBleLib */;
+			targetProxy = 7ED8C53BFF43F617CC9476DD3E25991C /* PBXContainerItemProxy */;
+		};
+		38B78289BE3DADD1F1EA7D24CA584EDF /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			name = "Pods-imKeyBleLib_Example";
+			target = 0724E3DF888FDCB3AB046E434173A976 /* Pods-imKeyBleLib_Example */;
+			targetProxy = 82712A8BBB45ED8E63301A6114E6643C /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0B19C6B008CC5EBE1107DBA4A648D47D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 22619B1EFFD9E6640E7BE54445D05257 /* Pods-imKeyBleLib_Example.debug.xcconfig */;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CODE_SIGN_IDENTITY = "";
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				INFOPLIST_FILE = "Target Support Files/Pods-imKeyBleLib_Example/Pods-imKeyBleLib_Example-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 9.3;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				MACH_O_TYPE = staticlib;
+				MODULEMAP_FILE = "Target Support Files/Pods-imKeyBleLib_Example/Pods-imKeyBleLib_Example.modulemap";
+				OTHER_LDFLAGS = "";
+				OTHER_LIBTOOLFLAGS = "";
+				PODS_ROOT = "$(SRCROOT)";
+				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		15B3C37C155C902E0D9EC3837706D6AB /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7D6495B40C3985A5A6F87FCDF91BCEE9 /* Pods-imKeyBleLib_Example.release.xcconfig */;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CODE_SIGN_IDENTITY = "";
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				INFOPLIST_FILE = "Target Support Files/Pods-imKeyBleLib_Example/Pods-imKeyBleLib_Example-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 9.3;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				MACH_O_TYPE = staticlib;
+				MODULEMAP_FILE = "Target Support Files/Pods-imKeyBleLib_Example/Pods-imKeyBleLib_Example.modulemap";
+				OTHER_LDFLAGS = "";
+				OTHER_LIBTOOLFLAGS = "";
+				PODS_ROOT = "$(SRCROOT)";
+				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		4322918A36A62829F2E4C4EEAAD0E161 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 61553D7695CAB054975245EA5AB78683 /* imKeyBleLib.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GCC_PREFIX_HEADER = "Target Support Files/imKeyBleLib/imKeyBleLib-prefix.pch";
+				HEADER_SEARCH_PATHS = "\"$(SRCROOT)/../../imKeyBleLib/Classes/include\"";
+				INFOPLIST_FILE = "Target Support Files/imKeyBleLib/imKeyBleLib-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)/../../imKeyBleLib/Classes/include\"";
+				MODULEMAP_FILE = "Target Support Files/imKeyBleLib/imKeyBleLib.modulemap";
+				PRODUCT_MODULE_NAME = imKeyBleLib;
+				PRODUCT_NAME = imKeyBleLib;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ";
+				SWIFT_VERSION = 4.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		61B76BB3AE25FA272A14E86755465F4A /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = F1DE12AB935CA293F3AD40E3FEA4CF73 /* Pods-imKeyBleLib_Tests.release.xcconfig */;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CODE_SIGN_IDENTITY = "";
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				INFOPLIST_FILE = "Target Support Files/Pods-imKeyBleLib_Tests/Pods-imKeyBleLib_Tests-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 9.3;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				MACH_O_TYPE = staticlib;
+				MODULEMAP_FILE = "Target Support Files/Pods-imKeyBleLib_Tests/Pods-imKeyBleLib_Tests.modulemap";
+				OTHER_LDFLAGS = "";
+				OTHER_LIBTOOLFLAGS = "";
+				PODS_ROOT = "$(SRCROOT)";
+				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		7B1B6B23497835A5B2951C375511BC22 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 71704CC56653EFDAF901920214311982 /* Pods-imKeyBleLib_Tests.debug.xcconfig */;
+			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = NO;
+				CODE_SIGN_IDENTITY = "";
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				INFOPLIST_FILE = "Target Support Files/Pods-imKeyBleLib_Tests/Pods-imKeyBleLib_Tests-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 9.3;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				MACH_O_TYPE = staticlib;
+				MODULEMAP_FILE = "Target Support Files/Pods-imKeyBleLib_Tests/Pods-imKeyBleLib_Tests.modulemap";
+				OTHER_LDFLAGS = "";
+				OTHER_LIBTOOLFLAGS = "";
+				PODS_ROOT = "$(SRCROOT)";
+				PRODUCT_BUNDLE_IDENTIFIER = "org.cocoapods.${PRODUCT_NAME:rfc1034identifier}";
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		95AFB983C4F451706A22BB594C616DF2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 61553D7695CAB054975245EA5AB78683 /* imKeyBleLib.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "";
+				"CODE_SIGN_IDENTITY[sdk=appletvos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "";
+				"CODE_SIGN_IDENTITY[sdk=watchos*]" = "";
+				CURRENT_PROJECT_VERSION = 1;
+				DEFINES_MODULE = YES;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				GCC_PREFIX_HEADER = "Target Support Files/imKeyBleLib/imKeyBleLib-prefix.pch";
+				HEADER_SEARCH_PATHS = "\"$(SRCROOT)/../../imKeyBleLib/Classes/include\"";
+				INFOPLIST_FILE = "Target Support Files/imKeyBleLib/imKeyBleLib-Info.plist";
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
+				LIBRARY_SEARCH_PATHS = "\"$(SRCROOT)/../../imKeyBleLib/Classes/include\"";
+				MODULEMAP_FILE = "Target Support Files/imKeyBleLib/imKeyBleLib.modulemap";
+				PRODUCT_MODULE_NAME = imKeyBleLib;
+				PRODUCT_NAME = imKeyBleLib;
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited) ";
+				SWIFT_VERSION = 4.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		B0087CB4594321EF41619F3181FE120E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"POD_CONFIGURATION_RELEASE=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 9.3;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRIP_INSTALLED_PRODUCT = NO;
+				SWIFT_OPTIMIZATION_LEVEL = "-Owholemodule";
+				SWIFT_VERSION = 5.0;
+				SYMROOT = "${SRCROOT}/../build";
+			};
+			name = Release;
+		};
+		B8BCBD0110C2658BB5DAADB9B7D97B92 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"POD_CONFIGURATION_DEBUG=1",
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 9.3;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRIP_INSTALLED_PRODUCT = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				SYMROOT = "${SRCROOT}/../build";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4821239608C13582E20E6DA73FD5F1F9 /* Build configuration list for PBXProject "Pods" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B8BCBD0110C2658BB5DAADB9B7D97B92 /* Debug */,
+				B0087CB4594321EF41619F3181FE120E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		83F702F6C169FEDD06D8F1483EB8D31C /* Build configuration list for PBXNativeTarget "Pods-imKeyBleLib_Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7B1B6B23497835A5B2951C375511BC22 /* Debug */,
+				61B76BB3AE25FA272A14E86755465F4A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B36F3EFF3539743FA497D2EE6D706F0F /* Build configuration list for PBXNativeTarget "imKeyBleLib" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				95AFB983C4F451706A22BB594C616DF2 /* Debug */,
+				4322918A36A62829F2E4C4EEAAD0E161 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		E985880ED64ADE094EE0985DEE3429BA /* Build configuration list for PBXNativeTarget "Pods-imKeyBleLib_Example" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0B19C6B008CC5EBE1107DBA4A648D47D /* Debug */,
+				15B3C37C155C902E0D9EC3837706D6AB /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = BFDFE7DC352907FC980B868725387E98 /* Project object */;
+}

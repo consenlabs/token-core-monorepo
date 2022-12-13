@@ -1,0 +1,27 @@
+{
+  "name": "imKeyBleLib",
+  "version": "0.1.0",
+  "summary": "A short description of imKeyBleLib.",
+  "description": "TODO: Add long description of the pod here.",
+  "homepage": "https://github.com/91bcfa9bf8b8f4345615c740f2b0a1668d4b68a9/imKeyBleLib",
+  "license": {
+    "type": "MIT",
+    "file": "LICENSE"
+  },
+  "authors": {
+    "91bcfa9bf8b8f4345615c740f2b0a1668d4b68a9": "xielamenla@qq.com"
+  },
+  "source": {
+    "git": "https://github.com/91bcfa9bf8b8f4345615c740f2b0a1668d4b68a9/imKeyBleLib.git",
+    "tag": "0.1.0"
+  },
+  "platforms": {
+    "ios": "8.0"
+  },
+  "source_files": "imKeyBleLib/Classes/**/*",
+  "dependencies": {
+    "CryptoSwift": [
+      "~> 1.3"
+    ]
+  }
+}

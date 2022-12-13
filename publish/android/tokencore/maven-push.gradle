@@ -1,6 +1,6 @@
 apply plugin: 'maven-publish'
 
-version '2.11.2'
+version '2.11.4'
 group 'im.token.libs'
 
 Properties properties = new Properties()
@@ -39,8 +39,8 @@ afterEvaluate {
                 name 'nexus'
                 url "https://nexus.token.im/repository/im-releases/"
                 credentials {
-                    username NEXUS_USER
-                    password NEXUS_PASSWORD
+                    username 'xuyunzhao'
+                    password 'F2s8yyYbadwh9npteUBc'
                 }
             }
         }
