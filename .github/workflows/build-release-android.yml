@@ -76,6 +76,8 @@ jobs:
        sudo apt-get install libusb-dev
        sudo apt-get install libusb-1.0-0-dev
        sudo apt-get install -y protobuf-compiler libprotobuf-dev
+       sudo apt-get update gcc
+       gcc -v
        
     - name: Setup Android SDK
       uses: android-actions/setup-android@v2
