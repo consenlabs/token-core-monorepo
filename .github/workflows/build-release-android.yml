@@ -9,19 +9,19 @@ on:
 env:
   CARGO_TERM_COLOR: always
   ANDROID_NDK_TOOLCHAINS: /usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin
-  OPENSSL_DIR: ${{github.workspace}}/depend/openssl
-  OPENSSL_LIB_ROOT_DIR: ${{github.workspace}}/depend/openssl
-  OPENSSL_INCLUDE_ROOT_DIR: ${{github.workspace}}/depend/openssl
-  OPENSSL_LIB_DIR: ${{github.workspace}}/depend/openssl
-  X86_64_LINUX_ANDROID_OPENSSL_LIB_DIR: ${{github.workspace}}/depend/openssl/android-x86_64/lib
-  I686_LINUX_ANDROID_OPENSSL_LIB_DIR: ${{github.workspace}}/depend/openssl/android-x86/lib
-  ARMV7_LINUX_ANDROIDEABI_OPENSSL_LIB_DIR: ${{github.workspace}}/depend/openssl/android-arm/lib
-  AARCH64_LINUX_ANDROID_OPENSSL_LIB_DIR: ${{github.workspace}}/depend/openssl/android-arm64/lib
-  OPENSSL_INCLUDE_DIR: ${{github.workspace}}/depend/openssl
-  X86_64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: ${{github.workspace}}/depend/openssl/android-x86_64/include
-  I686_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: ${{github.workspace}}/depend/openssl/android-x86/include
-  ARMV7_LINUX_ANDROIDEABI_OPENSSL_INCLUDE_DIR: ${{github.workspace}}/depend/openssl/android-arm/include
-  AARCH64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: ${{github.workspace}}/depend/openssl/android-arm64/include
+  OPENSSL_DIR: ${{github.workspace}}/ikc-depend/openssl
+  OPENSSL_LIB_ROOT_DIR: ${{github.workspace}}/ikc-depend/openssl
+  OPENSSL_INCLUDE_ROOT_DIR: ${{github.workspace}}/ikc-depend/openssl
+  OPENSSL_LIB_DIR: ${{github.workspace}}/ikc-depend/openssl
+  X86_64_LINUX_ANDROID_OPENSSL_LIB_DIR: ${{github.workspace}}/ikc-depend/openssl/android-x86_64/lib
+  I686_LINUX_ANDROID_OPENSSL_LIB_DIR: ${{github.workspace}}/ikc-depend/openssl/android-x86/lib
+  ARMV7_LINUX_ANDROIDEABI_OPENSSL_LIB_DIR: ${{github.workspace}}/ikc-depend/openssl/android-arm/lib
+  AARCH64_LINUX_ANDROID_OPENSSL_LIB_DIR: ${{github.workspace}}/ikc-depend/openssl/android-arm64/lib
+  OPENSSL_INCLUDE_DIR: ${{github.workspace}}/ikc-depend/openssl
+  X86_64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: ${{github.workspace}}/ikc-depend/openssl/android-x86_64/include
+  I686_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: ${{github.workspace}}/ikc-depend/openssl/android-x86/include
+  ARMV7_LINUX_ANDROIDEABI_OPENSSL_INCLUDE_DIR: ${{github.workspace}}/ikc-depend/openssl/android-arm/include
+  AARCH64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: ${{github.workspace}}/ikc-depend/openssl/android-arm64/include
     
   
 jobs:
