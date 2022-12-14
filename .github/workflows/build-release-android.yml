@@ -2,8 +2,10 @@ name: Build Release Android
 
 on:
   push:
-    tags:
-    - 'v*'
+    branches:    
+      - master
+#     tags:
+#     - 'v*'
 
 env:
   CARGO_TERM_COLOR: always
@@ -88,58 +90,58 @@ jobs:
     - name: Build
       run: | 
         OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/${{ matrix.openssl }}/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/${{ matrix.openssl }}/include AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/${{ matrix.linker }} LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target ${{ matrix.target }} --release
-    
-    - name: Artifacts
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{ matrix.target }}
-        path: ./target/${{ matrix.target }}/release/libconnector.so
-  publish:
-    runs-on: ubuntu-22.04
-    needs: cross-compile
-    steps:
-    - name: Download x86_64
-      uses: actions/download-artifact@v3
-      with:
-        name: x86_64-linux-android
-    - run: |
-        TAG_NAME=${{ github.ref }}
-        VERSION_NAME=${TAG_NAME: 11}
-        mkdir -p ./android-release-$VERSION_NAME/x86_64/; mv -fv libconnector.so $_
+        ls ./target/${{ matrix.target }}/release/
+#     - name: Artifacts
+#       uses: actions/upload-artifact@v3
+#       with:
+#         name: ${{ matrix.target }}
+#         path: ./target/${{ matrix.target }}/release/libconnector.so
+#   publish:
+#     runs-on: ubuntu-22.04
+#     needs: cross-compile
+#     steps:
+#     - name: Download x86_64
+#       uses: actions/download-artifact@v3
+#       with:
+#         name: x86_64-linux-android
+#     - run: |
+#         TAG_NAME=${{ github.ref }}
+#         VERSION_NAME=${TAG_NAME: 11}
+#         mkdir -p ./android-release-$VERSION_NAME/x86_64/; mv -fv libconnector.so $_
         
-    - name: Download x86
-      uses: actions/download-artifact@v3
-      with:
-        name: i686-linux-android
-    - run: | 
-        TAG_NAME=${{ github.ref }}
-        VERSION_NAME=${TAG_NAME: 11}
-        mkdir -p ./android-release-$VERSION_NAME/x86/; mv -fv libconnector.so $_
+#     - name: Download x86
+#       uses: actions/download-artifact@v3
+#       with:
+#         name: i686-linux-android
+#     - run: | 
+#         TAG_NAME=${{ github.ref }}
+#         VERSION_NAME=${TAG_NAME: 11}
+#         mkdir -p ./android-release-$VERSION_NAME/x86/; mv -fv libconnector.so $_
         
-    - name: Download arm64-v8a
-      uses: actions/download-artifact@v3
-      with:
-        name: aarch64-linux-android
-    - run: |   
-        TAG_NAME=${{ github.ref }}
-        VERSION_NAME=${TAG_NAME: 11}
-        mkdir -p ./android-release-$VERSION_NAME/arm64-v8a/; mv -fv libconnector.so $_
+#     - name: Download arm64-v8a
+#       uses: actions/download-artifact@v3
+#       with:
+#         name: aarch64-linux-android
+#     - run: |   
+#         TAG_NAME=${{ github.ref }}
+#         VERSION_NAME=${TAG_NAME: 11}
+#         mkdir -p ./android-release-$VERSION_NAME/arm64-v8a/; mv -fv libconnector.so $_
         
-    - name: Download armeabi-v7a
-      uses: actions/download-artifact@v3
-      with:
-        name: armv7-linux-androideabi
-    - run: |  
-        TAG_NAME=${{ github.ref }}
-        VERSION_NAME=${TAG_NAME: 11}
-        mkdir -p ./android-release-$VERSION_NAME/armeabi-v7a/; mv -fv libconnector.so $_
+#     - name: Download armeabi-v7a
+#       uses: actions/download-artifact@v3
+#       with:
+#         name: armv7-linux-androideabi
+#     - run: |  
+#         TAG_NAME=${{ github.ref }}
+#         VERSION_NAME=${TAG_NAME: 11}
+#         mkdir -p ./android-release-$VERSION_NAME/armeabi-v7a/; mv -fv libconnector.so $_
         
-    - name: Publish To Nuxes
-      run: |
-        TAG_NAME=${{ github.ref }}
-        VERSION_NAME=${TAG_NAME: 11}
-        PACKAGE_NAME=android-release-v$VERSION_NAME.zip
-        zip -q -r $PACKAGE_NAME ./android-release-$VERSION_NAME
-        curl -v -u xuyunzhao:${{secrets.NEXUS_PASSWORD}} --upload-file $PACKAGE_NAME https://nexus.token.im/repository/im-releases/im/imkey/android/imkey-core/$VERSION_NAME/$PACKAGE_NAME
+#     - name: Publish To Nuxes
+#       run: |
+#         TAG_NAME=${{ github.ref }}
+#         VERSION_NAME=${TAG_NAME: 11}
+#         PACKAGE_NAME=android-release-v$VERSION_NAME.zip
+#         zip -q -r $PACKAGE_NAME ./android-release-$VERSION_NAME
+#         curl -v -u xuyunzhao:${{secrets.NEXUS_PASSWORD}} --upload-file $PACKAGE_NAME https://nexus.token.im/repository/im-releases/im/imkey/android/imkey-core/$VERSION_NAME/$PACKAGE_NAME
       
         
