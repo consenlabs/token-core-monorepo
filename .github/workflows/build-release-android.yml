@@ -71,11 +71,12 @@ jobs:
         rustup target add ${{ matrix.target }}
         rustup show
         
-    - name: Install Libusb
+    - name: Install dependent
       run: | 
        sudo apt-get install libusb-dev
        sudo apt-get install libusb-1.0-0-dev
        sudo apt-get install -y protobuf-compiler libprotobuf-dev
+       gcc -v
        
     - name: Setup Android SDK
       uses: android-actions/setup-android@v2
@@ -89,11 +90,9 @@ jobs:
 
     - name: Build
       run: | 
-       pushd ${{github.workspace}}/ikc
+       pushd ${{github.workspace}}
+       ls
        OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/${{ matrix.openssl }}/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/${{ matrix.openssl }}/include AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/${{ matrix.linker }} LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target ${{ matrix.target }} --release
-       popd
-       pushd ${{github.workspace}}/tcx
-       cargo build --target ${{ matrix.target }} --release
        popd
        ls ${{github.workspace}}/target/${{ matrix.target }}/release/
         
