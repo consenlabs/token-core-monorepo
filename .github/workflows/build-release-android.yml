@@ -34,19 +34,19 @@ jobs:
         include:
         - build: x86
           target: i686-linux-android
-          linker: i686-linux-android33-clang
+          linker: i686-linux-android29-clang
           openssl: android-x86
         - build: x86_64
           target: x86_64-linux-android
-          linker: x86_64-linux-android33-clang
+          linker: x86_64-linux-android29-clang
           openssl: android-x86_64
         - build: arm-v7
           target: armv7-linux-androideabi
-          linker: armv7a-linux-androideabi33-clang
+          linker: armv7a-linux-androideabi29-clang
           openssl: android-arm
         - build: aarch64
           target: aarch64-linux-android
-          linker: aarch64-linux-android33-clang
+          linker: aarch64-linux-android29-clang
           openssl: android-arm64
     steps:
     - name: Checkout repository
@@ -88,7 +88,15 @@ jobs:
 
     - name: Build
       run: | 
+        pushd ../ikc
         OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/${{ matrix.openssl }}/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/${{ matrix.openssl }}/include AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/${{ matrix.linker }} LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target ${{ matrix.target }} --release
+        popd
+        pushd ../tcx
+        cargo build --target ${{ matrix.target }} --release
+        popd
+        pushd ../tcx-libs/secp256k1
+        cargo build --target ${{ matrix.target }} --release
+        popd
         ls ./target/${{ matrix.target }}/release/
 #     - name: Artifacts
 #       uses: actions/upload-artifact@v3
