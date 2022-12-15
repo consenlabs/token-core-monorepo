@@ -88,16 +88,16 @@ jobs:
 
     - name: Build
       run: | 
-        pushd ../ikc
+        pushd ${{github.workspace}}/ikc
         OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/${{ matrix.openssl }}/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/${{ matrix.openssl }}/include AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/${{ matrix.linker }} LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target ${{ matrix.target }} --release
         popd
-        pushd ../tcx
+        pushd ${{github.workspace}}/tcx
         cargo build --target ${{ matrix.target }} --release
         popd
-        pushd ../tcx-libs/secp256k1
+        pushd ${{github.workspace}}/tcx-libs/secp256k1
         cargo build --target ${{ matrix.target }} --release
         popd
-        ls ./target/${{ matrix.target }}/release/
+        ls ${{github.workspace}}/target/${{ matrix.target }}/release/
 #     - name: Artifacts
 #       uses: actions/upload-artifact@v3
 #       with:
