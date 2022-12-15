@@ -9,7 +9,7 @@ export ANDROID_NDK_TOOLCHAINS=$HOME/Library/Android/sdk/ndk/22.1.7171670/toolcha
 #    mkdir $JNI_LIBS/x86_64
 #fi
 
-#pushd ../api
+pushd ../ikc
 #JNI_LIBS=../android/imkeylibrary/src/main/jniLibs
 #export JNI_LIBS=/Users/xiaoguang/work/project/token-v2/android/app/src/main/jniLibs
 export OPENSSL_LIB_ROOT_DIR=/Users/xiaoguang/work/project/token-core-monorepo/ikc-depend/openssl
@@ -40,4 +40,4 @@ OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/android-x86_64/lib OPENSSL_INCLUDE_DIR=$OP
 #cp ../target/i686-linux-android/release/libconnector.so ../android/imkeylibrary/src/main/jniLibs/x86/libconnector.so
 #cp ../target/x86_64-linux-android/release/libconnector.so ../android/imkeylibrary/src/main/jniLibs/x86_64/libconnector.so
 
-#popd
+popd
