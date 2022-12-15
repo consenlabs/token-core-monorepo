@@ -8,7 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  ANDROID_NDK_TOOLCHAINS: /usr/local/lib/android/sdk/ndk/22.1.7171670/toolchains/llvm/prebuilt/linux-x86_64/bin
+  ANDROID_NDK_TOOLCHAINS: /usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin
   OPENSSL_DIR: ${{github.workspace}}/ikc-depend/openssl
   OPENSSL_LIB_ROOT_DIR: ${{github.workspace}}/ikc-depend/openssl
   OPENSSL_INCLUDE_ROOT_DIR: ${{github.workspace}}/ikc-depend/openssl
@@ -92,7 +92,8 @@ jobs:
       run: | 
        pushd ${{github.workspace}}
        ls
-       export PATH=$ANDROID_NDK_TOOLCHAINS:$PATH
+       cp -rf /usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/lib/gcc /usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/lib
+       ls /usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/lib
        OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/${{ matrix.openssl }}/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/${{ matrix.openssl }}/include AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/${{ matrix.linker }} LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target ${{ matrix.target }} --release
        popd
        ls ${{github.workspace}}/target/${{ matrix.target }}/release/
