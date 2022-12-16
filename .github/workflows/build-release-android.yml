@@ -64,9 +64,15 @@ jobs:
           target
         key: ${{ runner.os }}-nightly
 
+    - name: Install latest nightly
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: nightly-2022-07-12
+          override: true
+          components: rustfmt, clippy
+          
     - name: Install Rust
       run: |
-        rustup install nightly
         rustup default nightly
         rustup target add ${{ matrix.target }}
         rustup show
