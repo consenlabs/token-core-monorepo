@@ -8,7 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  ANDROID_NDK_TOOLCHAINS: /usr/local/lib/android/sdk/ndk/23.2.8568313/toolchains/llvm/prebuilt/linux-x86_64/bin
+  ANDROID_NDK_TOOLCHAINS: /usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin
   OPENSSL_DIR: ${{github.workspace}}/ikc-depend/openssl
   OPENSSL_LIB_ROOT_DIR: ${{github.workspace}}/ikc-depend/openssl
   OPENSSL_INCLUDE_ROOT_DIR: ${{github.workspace}}/ikc-depend/openssl
@@ -28,7 +28,7 @@ jobs:
 
   cross-compile:
     name: cross compile
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-20.04
     strategy:
       matrix:
         include:
@@ -73,8 +73,7 @@ jobs:
         
     - name: Install dependent
       run: | 
-       sudo apt-get install libusb-dev
-       sudo apt-get install libusb-1.0-0-dev
+       sudo apt-get install -y libusb-dev libusb-1.0-0-dev libftdi1-dev libudev-dev
        sudo apt-get install -y protobuf-compiler libprotobuf-dev
        gcc -v
        
