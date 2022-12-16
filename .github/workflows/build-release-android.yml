@@ -67,13 +67,12 @@ jobs:
     - name: Install latest nightly
       uses: actions-rs/toolchain@v1
       with:
-          toolchain: nightly-2022-07-12
+          toolchain: stable
           override: true
           components: rustfmt, clippy
           
     - name: Install Rust
       run: |
-        rustup default nightly
         rustup target add ${{ matrix.target }}
         rustup show
         
