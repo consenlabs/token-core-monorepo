@@ -63,18 +63,12 @@ jobs:
           ~/.rustup
           target
         key: ${{ runner.os }}-nightly
-
-    - name: Install latest nightly
-      uses: actions-rs/toolchain@v1
-      with:
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
           
     - name: Install Rust
       run: |
-        rustup default nightly
-        rustup target add ${{ matrix.target }}
+        rustup toolchain install nightly-2022-10-31
+        rustup default nightly-2022-10-31-x86_64-unknown-linux-gnu
+        rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
         rustup show
         
     - name: Install dependent
@@ -92,14 +86,24 @@ jobs:
         echo 'ar="${{env.ANDROID_NDK_TOOLCHAINS}}/llvm-ar"' >> ~/.cargo/config
         echo 'linker="${{env.ANDROID_NDK_TOOLCHAINS}}/${{ matrix.linker }}"' >> ~/.cargo/config
         cat ~/.cargo/config
+        
+    - name: Setup Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+       gradle-version: 7.0.1
 
     - name: Build
       run: | 
+       pushd ${{github.workspace}}/tcx-libs/secp256k1/
+       AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/${{ matrix.linker }} LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target ${{ matrix.target }} --release
+       popd
+       ls ${{github.workspace}}/tcx-libs/secp256k1/target/
+       echo aaaaaaaaaaaa
        pushd ${{github.workspace}}
-       ls
        OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/${{ matrix.openssl }}/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/${{ matrix.openssl }}/include AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/${{ matrix.linker }} LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target ${{ matrix.target }} --release
        popd
        ls ${{github.workspace}}/target/${{ matrix.target }}/release/
+       
         
 #     - name: Artifacts
 #       uses: actions/upload-artifact@v3
