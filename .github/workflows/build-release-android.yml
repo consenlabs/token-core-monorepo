@@ -2,9 +2,9 @@ name: Build Release Android
 
 on:
   push:
-    branches: [ "main" ]
-    tags:
-    - 'v*'
+#     branches: [ "main" ]
+#     tags:
+#     - 'v*'
 
 env:
   CARGO_TERM_COLOR: always    
@@ -77,6 +77,11 @@ jobs:
     - name: publish
       run: |
         pushd ${{github.workspace}}/publish/android
+        TAG_NAME=${{ github.ref }}
+        VERSION_NAME=${TAG_NAME: 11}
+        echo 'NEXUS_USER=${{secrets.NEXUS_USER}}' >> ./local.properties
+        echo 'NEXUS_PASSWORD=${{secrets.NEXUS_PASSWORD}}' >> ./local.properties
+        echo 'VERSION=$VERSION_NAME' >> ./local.properties
         ./gradlew assemble
         ./gradlew pPPTNR
         popd 
