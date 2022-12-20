@@ -2,52 +2,19 @@ name: Build Release Android
 
 on:
   push:
-    branches: [ "main" ]
-#     tags:
-#     - 'v*'
+#     branches: [ "main" ]
+    tags:
+    - 'v*'
 
 env:
-  CARGO_TERM_COLOR: always
-  ANDROID_NDK_TOOLCHAINS: /usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin
-  OPENSSL_DIR: ${{github.workspace}}/ikc-depend/openssl
-  OPENSSL_LIB_ROOT_DIR: ${{github.workspace}}/ikc-depend/openssl
-  OPENSSL_INCLUDE_ROOT_DIR: ${{github.workspace}}/ikc-depend/openssl
-  OPENSSL_LIB_DIR: ${{github.workspace}}/ikc-depend/openssl
-  X86_64_LINUX_ANDROID_OPENSSL_LIB_DIR: ${{github.workspace}}/ikc-depend/openssl/android-x86_64/lib
-  I686_LINUX_ANDROID_OPENSSL_LIB_DIR: ${{github.workspace}}/ikc-depend/openssl/android-x86/lib
-  ARMV7_LINUX_ANDROIDEABI_OPENSSL_LIB_DIR: ${{github.workspace}}/ikc-depend/openssl/android-arm/lib
-  AARCH64_LINUX_ANDROID_OPENSSL_LIB_DIR: ${{github.workspace}}/ikc-depend/openssl/android-arm64/lib
-  OPENSSL_INCLUDE_DIR: ${{github.workspace}}/ikc-depend/openssl
-  X86_64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: ${{github.workspace}}/ikc-depend/openssl/android-x86_64/include
-  I686_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: ${{github.workspace}}/ikc-depend/openssl/android-x86/include
-  ARMV7_LINUX_ANDROIDEABI_OPENSSL_INCLUDE_DIR: ${{github.workspace}}/ikc-depend/openssl/android-arm/include
-  AARCH64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR: ${{github.workspace}}/ikc-depend/openssl/android-arm64/include
-    
+  CARGO_TERM_COLOR: always    
   
 jobs:
 
   cross-compile:
     name: cross compile
     runs-on: ubuntu-20.04
-    strategy:
-      matrix:
-        include:
-        - build: x86
-          target: i686-linux-android
-          linker: i686-linux-android29-clang
-          openssl: android-x86
-        - build: x86_64
-          target: x86_64-linux-android
-          linker: x86_64-linux-android29-clang
-          openssl: android-x86_64
-        - build: arm-v7
-          target: armv7-linux-androideabi
-          linker: armv7a-linux-androideabi29-clang
-          openssl: android-arm
-        - build: aarch64
-          target: aarch64-linux-android
-          linker: aarch64-linux-android29-clang
-          openssl: android-arm64
+    
     steps:
     - name: Checkout repository
       uses: actions/checkout@v2
@@ -75,87 +42,42 @@ jobs:
       run: | 
        sudo apt-get install -y libusb-dev libusb-1.0-0-dev libftdi1-dev libudev-dev
        sudo apt-get install -y protobuf-compiler libprotobuf-dev
-       gcc -v
        
     - name: Setup Android SDK
       uses: android-actions/setup-android@v2
         
-    - name: Compiler configuration
+    - name: Configure Rust Config File
       run: |
-        echo '[target.${{ matrix.target }}]' >> ~/.cargo/config
-        echo 'ar="${{env.ANDROID_NDK_TOOLCHAINS}}/llvm-ar"' >> ~/.cargo/config
-        echo 'linker="${{env.ANDROID_NDK_TOOLCHAINS}}/${{ matrix.linker }}"' >> ~/.cargo/config
+        echo '[target.armv7-linux-androideabi]' >> ~/.cargo/config
+        echo 'ar = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+        echo 'linker = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi29-clang"' >> ~/.cargo/config
+        echo '[target.aarch64-linux-android]' >> ~/.cargo/config
+        echo 'ar = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+        echo 'linker = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"' >> ~/.cargo/config
+        echo '[target.i686-linux-android]' >> ~/.cargo/config
+        echo 'ar = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+        echo 'linker = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android29-clang"' >> ~/.cargo/config
+        echo '[target.x86_64-linux-android]' >> ~/.cargo/config
+        echo 'ar = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+        echo 'linker = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android29-clang"' >> ~/.cargo/config
         cat ~/.cargo/config
-        
+
+    - name: Build TCX And IKC
+      run: | 
+       pushd ${{github.workspace}}/ikc-tools
+       ./build-android-linux.sh
+       popd
+       ls ${{github.workspace}}/target/
+    
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
       with:
        gradle-version: 7.0.1
-
-    - name: Build
-      run: | 
-       pushd ${{github.workspace}}/tcx-libs/secp256k1/
-       AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/${{ matrix.linker }} LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target ${{ matrix.target }} --release
-       popd
-       ls ${{github.workspace}}/tcx-libs/secp256k1/target/
-       echo aaaaaaaaaaaa
-       pushd ${{github.workspace}}
-       OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/${{ matrix.openssl }}/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/${{ matrix.openssl }}/include AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/${{ matrix.linker }} LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target ${{ matrix.target }} --release
-       popd
-       ls ${{github.workspace}}/target/${{ matrix.target }}/release/
        
-        
-#     - name: Artifacts
-#       uses: actions/upload-artifact@v3
-#       with:
-#         name: ${{ matrix.target }}
-#         path: ./target/${{ matrix.target }}/release/libconnector.so
-#   publish:
-#     runs-on: ubuntu-22.04
-#     needs: cross-compile
-#     steps:
-#     - name: Download x86_64
-#       uses: actions/download-artifact@v3
-#       with:
-#         name: x86_64-linux-android
-#     - run: |
-#         TAG_NAME=${{ github.ref }}
-#         VERSION_NAME=${TAG_NAME: 11}
-#         mkdir -p ./android-release-$VERSION_NAME/x86_64/; mv -fv libconnector.so $_
-        
-#     - name: Download x86
-#       uses: actions/download-artifact@v3
-#       with:
-#         name: i686-linux-android
-#     - run: | 
-#         TAG_NAME=${{ github.ref }}
-#         VERSION_NAME=${TAG_NAME: 11}
-#         mkdir -p ./android-release-$VERSION_NAME/x86/; mv -fv libconnector.so $_
-        
-#     - name: Download arm64-v8a
-#       uses: actions/download-artifact@v3
-#       with:
-#         name: aarch64-linux-android
-#     - run: |   
-#         TAG_NAME=${{ github.ref }}
-#         VERSION_NAME=${TAG_NAME: 11}
-#         mkdir -p ./android-release-$VERSION_NAME/arm64-v8a/; mv -fv libconnector.so $_
-        
-#     - name: Download armeabi-v7a
-#       uses: actions/download-artifact@v3
-#       with:
-#         name: armv7-linux-androideabi
-#     - run: |  
-#         TAG_NAME=${{ github.ref }}
-#         VERSION_NAME=${TAG_NAME: 11}
-#         mkdir -p ./android-release-$VERSION_NAME/armeabi-v7a/; mv -fv libconnector.so $_
-        
-#     - name: Publish To Nuxes
-#       run: |
-#         TAG_NAME=${{ github.ref }}
-#         VERSION_NAME=${TAG_NAME: 11}
-#         PACKAGE_NAME=android-release-v$VERSION_NAME.zip
-#         zip -q -r $PACKAGE_NAME ./android-release-$VERSION_NAME
-#         curl -v -u xuyunzhao:${{secrets.NEXUS_PASSWORD}} --upload-file $PACKAGE_NAME https://nexus.token.im/repository/im-releases/im/imkey/android/imkey-core/$VERSION_NAME/$PACKAGE_NAME
-      
+    - name: publish
+      run: |
+        pushd ${{github.workspace}}/publish/android
+        ./gradlew assemble
+        ./gradlew pPPTNR
+        popd 
         
