@@ -3,8 +3,8 @@ name: Build Release Android
 on:
   push:
 #     branches: [ "main" ]
-#     tags:
-#     - 'v*'
+    tags:
+    - 'v*'
 
 env:
   CARGO_TERM_COLOR: always    
