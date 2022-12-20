@@ -1,26 +1,59 @@
 #!/bin/bash
-#reference  https://medium.com/visly/rust-on-android-19f34a2fb43
 
-JNI_LIBS=../examples/android/app/src/main/jniLibs
-if [ ! -d $JNI_LIBS ]; then
-    mkdir $JNI_LIBS
-    mkdir $JNI_LIBS/arm64-v8a
-    mkdir $JNI_LIBS/armeabi-v7a
-    mkdir $JNI_LIBS/x86
-    mkdir $JNI_LIBS/x86_64
-fi
+export ANDROID_NDK_TOOLCHAINS=/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin
 
-export ANDROID_NDK_TOOLCHAINS=~/.NDK
-cd ../api
-path_pwd=`pwd`
-export OPENSSL_DIR=$path_pwd/../depend/openssl
+export OPENSSL_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl
+export OPENSSL_LIB_ROOT_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl
+export OPENSSL_INCLUDE_ROOT_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl
+export OPENSSL_LIB_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl
+export X86_64_LINUX_ANDROID_OPENSSL_LIB_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl/android-x86_64/lib/
+export I686_LINUX_ANDROID_OPENSSL_LIB_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl/android-x86/lib/
+export ARMV7_LINUX_ANDROIDEABI_OPENSSL_LIB_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl/android-arm/lib/
+export AARCH64_LINUX_ANDROID_OPENSSL_LIB_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl/android-arm64/lib/
+export OPENSSL_INCLUDE_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl
+export X86_64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl/android-x86_64/include/
+export I686_LINUX_ANDROID_OPENSSL_INCLUDE_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl/android-x86/include/
+export ARMV7_LINUX_ANDROIDEABI_OPENSSL_INCLUDE_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl/android-arm/include/
+export AARCH64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl/android-arm64/include/
+export OPENSSL_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/ikc-depend/openssl
 
-AR=$ANDROID_NDK_TOOLCHAINS/arm64/bin/aarch64-linux-android-ar CC=$ANDROID_NDK_TOOLCHAINS/arm64/bin/aarch64-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/arm64/bin/aarch64-linux-android-ld PKG_CONFIG_ALLOW_CROSS=1 OPENSSL_DIR=$OPENSSL_DIR/android-arm64 LDFLAGS=-L$OPENSSL_DIR/android-arm64/lib/ CPPFLAGS=-I$OPENSSL_DIR/android-arm64/include cargo build --target aarch64-linux-android --release
-AR=$ANDROID_NDK_TOOLCHAINS/arm/bin/arm-linux-androideabi-ar CC=$ANDROID_NDK_TOOLCHAINS/arm/bin/armv7a-linux-androideabi29-clang LD=$ANDROID_NDK_TOOLCHAINS/arm/bin/arm-linux-androideabi-ld PKG_CONFIG_ALLOW_CROSS=1 OPENSSL_DIR=$OPENSSL_DIR/android-arm LDFLAGS=-L$OPENSSL_DIR/android-arm/lib/ CPPFLAGS=-I$OPENSSL_DIR/android-arm/include cargo build --target armv7-linux-androideabi --release
-AR=$ANDROID_NDK_TOOLCHAINS/x86/bin/i686-linux-android-ar CC=$ANDROID_NDK_TOOLCHAINS/x86/bin/i686-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/x86/bin/i686-linux-android-ld PKG_CONFIG_ALLOW_CROSS=1 OPENSSL_DIR=$OPENSSL_DIR/android-x86 LDFLAGS=-L$OPENSSL_DIR/android-x86/lib/ CPPFLAGS=-I$OPENSSL_DIR/android-x86/include cargo build --target i686-linux-android --release
-AR=$ANDROID_NDK_TOOLCHAINS/x86_64/bin/x86_64-linux-android-ar CC=$ANDROID_NDK_TOOLCHAINS/x86_64/bin/x86_64-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/x86_64/bin/x86_64-linux-android-ld PKG_CONFIG_ALLOW_CROSS=1 OPENSSL_DIR=$OPENSSL_DIR/android-x86_64 LDFLAGS=-L$OPENSSL_DIR/android-x86_64/lib/ CPPFLAGS=-I$OPENSSL_DIR/android-x86_64/include cargo build --target x86_64-linux-android --release
+OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/android-arm64/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/android-arm64/include  AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/aarch64-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target aarch64-linux-android --release
+OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/android-arm/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/android-arm/include AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/armv7a-linux-androideabi29-clang LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target armv7-linux-androideabi --release
+OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/android-x86/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/android-x86/include AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/i686-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target i686-linux-android --release
+OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/android-x86_64/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/android-x86_64/include AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/x86_64-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target x86_64-linux-android --release
 
-cp ../target/aarch64-linux-android/release/libconnector.so ../examples/android/app/src/main/jniLibs/arm64-v8a/libconnector.so
-cp ../target/armv7-linux-androideabi/release/libconnector.so ../examples/android/app/src/main/jniLibs/armeabi-v7a/libconnector.so
-cp ../target/i686-linux-android/release/libconnector.so ../examples/android/app/src/main/jniLibs/x86/libconnector.so
-cp ../target/x86_64-linux-android/release/libconnector.so ../examples/android/app/src/main/jniLibs/x86_64/libconnector.so
+pushd ../tcx-libs/secp256k1/
+AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/aarch64-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target aarch64-linux-android --release
+AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/armv7a-linux-androideabi29-clang LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target armv7-linux-androideabi --release
+AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/i686-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target i686-linux-android --release
+AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/x86_64-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target x86_64-linux-android --release
+popd
+
+# copy so to jinLibs
+cp -rf ../target/aarch64-linux-android/release/libconnector.so ../publish/android/tokencore/src/jniLibs/arm64-v8a/
+cp -rf ../target/aarch64-linux-android/release/libtcx.so ../publish/android/tokencore/src/jniLibs/arm64-v8a/
+cp -rf ../tcx-libs/secp256k1/target/aarch64-linux-android/release/libsecp256k1.so ../publish/android/tokencore/src/jniLibs/arm64-v8a/
+
+cp -rf ../target/armv7-linux-androideabi/release/libconnector.so ../publish/android/tokencore/src/jniLibs/armeabi-v7a/
+cp -rf ../target/armv7-linux-androideabi/release/libtcx.so ../publish/android/tokencore/src/jniLibs/armeabi-v7a/
+cp -rf ../tcx-libs/secp256k1/target/armv7-linux-androideabi/release/libsecp256k1.so ../publish/android/tokencore/src/jniLibs/armeabi-v7a/
+
+cp -rf ../target/i686-linux-android/release/libconnector.so ../publish/android/tokencore/src/jniLibs/x86/
+cp -rf ../target/i686-linux-android/release/libtcx.so ../publish/android/tokencore/src/jniLibs/x86/
+cp -rf ../tcx-libs/secp256k1/target/i686-linux-android/release/libsecp256k1.so ../publish/android/tokencore/src/jniLibs/x86/
+
+cp -rf ../target/x86_64-linux-android/release/libconnector.so ../publish/android/tokencore/src/jniLibs/x86_64/
+cp -rf ../target/x86_64-linux-android/release/libtcx.so ../publish/android/tokencore/src/jniLibs/x86_64/
+cp -rf ../tcx-libs/secp256k1/target/x86_64-linux-android/release/libsecp256k1.so ../publish/android/tokencore/src/jniLibs/x86_64/
+
+echo aaaaa
+ls -ll ../publish/android/tokencore/src/jniLibs/arm64-v8a/
+echo bbbbb
+ls -ll ../publish/android/tokencore/src/jniLibs/armeabi-v7a/
+echo ccccc
+ls -ll ../publish/android/tokencore/src/jniLibs/x86/
+echo ddddd
+ls ll ../publish/android/tokencore/src/jniLibs/x86_64/
+echo eeeeee
+
+
