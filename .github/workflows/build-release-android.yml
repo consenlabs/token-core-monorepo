@@ -2,7 +2,7 @@ name: Build Release Android
 
 on:
   push:
-#     branches: [ "main" ]
+    branches: [ "main" ]
     tags:
     - 'v*'
 
