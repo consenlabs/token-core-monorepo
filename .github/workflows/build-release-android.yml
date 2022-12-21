@@ -77,10 +77,10 @@ jobs:
       run: |
         pushd ${{github.workspace}}/publish/android
         TAG_NAME=${{ github.ref }}
-        VERSION_NAME=${TAG_NAME: 11}
+        VERSION_NAME="VERSION=${TAG_NAME: 11}"
         echo 'NEXUS_USER=${{secrets.NEXUS_USER}}' >> ./local.properties
         echo 'NEXUS_PASSWORD=${{secrets.NEXUS_PASSWORD}}' >> ./local.properties
-        echo 'VERSION=$VERSION_NAME' >> ./local.properties
+        echo ${VERSION_NAME} >> ./local.properties
         ./gradlew assemble
         ./gradlew pPPTNR
         popd 
