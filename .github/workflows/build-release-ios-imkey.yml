@@ -49,7 +49,7 @@ jobs:
         pushd ./tcx
         cargo lipo --release --targets aarch64-apple-ios x86_64-apple-ios
         cbindgen ./src/lib.rs -l c > ${{github.workspace}}/target/tcx.h
-        cargo lipo
+        popd
         
         LIBS=./mobile-sdk/imKeyCoreX/imKeyCoreX
         cp ./target/universal/release/libconnector.a $LIBS/libconnector.a
