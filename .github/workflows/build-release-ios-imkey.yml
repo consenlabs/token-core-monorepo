@@ -37,6 +37,7 @@ jobs:
         rustup target add aarch64-apple-ios x86_64-apple-ios
         rustup show
         cargo install cargo-lipo
+        brew install protobuf
 
     - name: Build
       run: | 
