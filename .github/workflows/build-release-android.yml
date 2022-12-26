@@ -66,7 +66,6 @@ jobs:
        pushd ${{github.workspace}}/ikc-tools
        ./build-android-linux.sh
        popd
-       ls ${{github.workspace}}/target/
     
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
@@ -82,7 +81,6 @@ jobs:
         echo 'NEXUS_PASSWORD=${{secrets.NEXUS_PASSWORD}}' >> ./local.properties
         echo ${VERSION_NAME} >> ./local.properties
         ./gradlew assemble
-        ls ./tokencore/build/outputs/aar/
         ./gradlew pPPTNR
         popd 
         
