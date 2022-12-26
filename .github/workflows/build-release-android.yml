@@ -82,6 +82,7 @@ jobs:
         echo 'NEXUS_PASSWORD=${{secrets.NEXUS_PASSWORD}}' >> ./local.properties
         echo ${VERSION_NAME} >> ./local.properties
         ./gradlew assemble
+        ls ./tokencore/build/outputs/aar/
         ./gradlew pPPTNR
         popd 
         
