@@ -14,7 +14,7 @@ afterEvaluate {
     publishing {
         publications {
             Production(MavenPublication) {
-                artifact("$buildDir/outputs/aar/token-core-${VERSION}.aar")
+                artifact("$buildDir/outputs/aar/tokencore-release.aar")
 
                 groupId this.group
                 artifactId 'token-core'
