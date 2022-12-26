@@ -54,6 +54,6 @@ cp -rf ../tcx-libs/secp256k1/target/x86_64-linux-android/release/libsecp256k1.so
 ls -ll ../publish/android/tokencore/src/main/jniLibs/arm64-v8a/
 ls -ll ../publish/android/tokencore/src/main/jniLibs/armeabi-v7a/
 ls -ll ../publish/android/tokencore/src/main/jniLibs/x86/
-ls ll ../publish/android/tokencore/src/main/jniLibs/x86_64/
+ls -ll ../publish/android/tokencore/src/main/jniLibs/x86_64/
 
 
