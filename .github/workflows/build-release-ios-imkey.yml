@@ -104,7 +104,7 @@ jobs:
         cp -R $BUILD_DIR/$CONFIGURATION-iphoneos/$PROJECT_NAME_TCX.framework $UNIVERSAL_OUTPUTFOLDER/
         lipo -create -output $UNIVERSAL_OUTPUTFOLDER/$PROJECT_NAME_TCX.framework/$PROJECT_NAME_TCX $BUILD_PRODUCTS/Debug-iphonesimulator/$PROJECT_NAME_TCX.framework/$PROJECT_NAME_TCX $BUILD_DIR/$CONFIGURATION-iphoneos/$PROJECT_NAME_TCX.framework/$PROJECT_NAME_TCX
         
-        cp -R $UNIVERSAL_OUTPUTFOLDER/PROJECT_NAME_TCX ../../ios-release
+        cp -R $UNIVERSAL_OUTPUTFOLDER/$PROJECT_NAME_TCX ../../ios-release
         rm -rf $UNIVERSAL_OUTPUTFOLDER 
         popd
         
