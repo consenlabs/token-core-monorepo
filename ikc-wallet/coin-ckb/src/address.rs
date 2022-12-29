@@ -10,10 +10,10 @@ use ikc_common::error::{CoinError, CommonError};
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{secp256k1_sign, secp256k1_sign_verify, uncompress_pubkey_2_compress};
 use ikc_device::device_binding::KEY_MANAGER;
+use ikc_transport::message::send_apdu;
 use secp256k1::PublicKey as Secp256k1PublicKey;
 use std::convert::TryFrom;
 use std::str::FromStr;
-use ikc_transport::message::send_apdu;
 
 pub struct CkbAddress {}
 
@@ -96,7 +96,8 @@ impl CkbAddress {
         let iv = ikc_common::XPUB_COMMON_IV.read();
         let key_bytes = hex::decode(&*key)?;
         let iv_bytes = hex::decode(&*iv)?;
-        let encrypted = ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
+        let encrypted =
+            ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
         Ok(base64::encode(&encrypted))
     }
 

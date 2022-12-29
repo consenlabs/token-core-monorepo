@@ -5,12 +5,12 @@ use ikc_common::error::CoinError;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{secp256k1_sign, secp256k1_sign_verify, uncompress_pubkey_2_compress};
 use ikc_device::device_binding::KEY_MANAGER;
+use ikc_transport::message::send_apdu;
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use sp_core::ed25519::Public;
 use sp_core::ByteArray;
 use sp_core::Public as TraitPublic;
 use std::str::FromStr;
-use ikc_transport::message::send_apdu;
 
 pub struct SubstrateAddress();
 impl SubstrateAddress {

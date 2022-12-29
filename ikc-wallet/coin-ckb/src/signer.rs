@@ -12,9 +12,9 @@ use ikc_common::error::CoinError;
 use ikc_common::utility::{secp256k1_sign, uncompress_pubkey_2_compress};
 use ikc_common::{constants, utility, SignParam};
 use ikc_device::device_binding::KEY_MANAGER;
+use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use lazy_static::lazy_static;
 use secp256k1::Signature;
-use ikc_transport::message::{send_apdu, send_apdu_timeout};
 
 pub struct CkbSigner {}
 

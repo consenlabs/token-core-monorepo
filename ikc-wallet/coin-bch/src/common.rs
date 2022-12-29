@@ -10,10 +10,10 @@ use ikc_common::apdu::{ApduCheck, BtcForkApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
 use ikc_common::utility::sha256_hash;
 use ikc_device::device_binding::KEY_MANAGER;
+use ikc_transport::message::send_apdu;
 use secp256k1::{Message, PublicKey as Secp256k1PublicKey, Secp256k1, Signature};
 use std::convert::TryFrom;
 use std::str::FromStr;
-use ikc_transport::message::send_apdu;
 
 /**
 utxo address verify

@@ -15,9 +15,9 @@ use app_update::AppUpdateRequest;
 use ikc_common::apdu::{Apdu, ApduCheck};
 use ikc_common::applet;
 use ikc_common::constants;
+use ikc_transport::message::send_apdu;
 use regex::Regex;
 use se_activate::SeActivateRequest;
-use ikc_transport::message::send_apdu;
 
 pub fn select_isd() -> Result<String> {
     let res = send_apdu("00A4040000".to_string())?;

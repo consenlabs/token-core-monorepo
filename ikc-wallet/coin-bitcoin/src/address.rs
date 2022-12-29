@@ -6,9 +6,9 @@ use bitcoin::{Address, PublicKey};
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::error::CommonError;
 use ikc_common::path::check_path_validity;
+use ikc_transport::message::send_apdu;
 use secp256k1::PublicKey as Secp256k1PublicKey;
 use std::str::FromStr;
-use ikc_transport::message::send_apdu;
 
 pub struct BtcAddress();
 

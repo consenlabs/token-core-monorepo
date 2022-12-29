@@ -14,6 +14,9 @@ use ikc_common::constants::{
     BIND_RESULT_ERROR, BIND_RESULT_SUCCESS, BIND_STATUS_BOUND_OTHER, BIND_STATUS_BOUND_THIS,
     BIND_STATUS_UNBOUND, IMK_AID,
 };
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+use ikc_transport::hid_api::hid_connect;
+use ikc_transport::message::send_apdu;
 use parking_lot::Mutex;
 use rand::rngs::OsRng;
 use rand::thread_rng;
@@ -24,9 +27,6 @@ use secp256k1::ecdh::SharedSecret;
 use secp256k1::{ecdh, PublicKey, SecretKey};
 use sha1::Sha1;
 use std::collections::HashMap;
-#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
-use ikc_transport::hid_api::hid_connect;
-use ikc_transport::message::send_apdu;
 
 lazy_static! {
     pub static ref KEY_MANAGER: Mutex<KeyManager> = Mutex::new(KeyManager::new());
@@ -253,10 +253,10 @@ mod test {
         auth_code_encrypt, gen_iv, DeviceManage, TEST_BIND_CODE, TEST_KEY_PATH,
     };
     use crate::device_manager::bind_display_code;
+    use ikc_transport::hid_api::hid_connect;
     use std::fs::OpenOptions;
     use std::io::Read;
     use std::path::Path;
-    use ikc_transport::hid_api::hid_connect;
 
     #[test]
     fn device_bind_test() {

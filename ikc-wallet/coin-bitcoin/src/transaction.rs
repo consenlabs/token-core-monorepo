@@ -24,9 +24,9 @@ use ikc_common::error::CoinError;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
+use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::Signature;
 use std::str::FromStr;
-use ikc_transport::message::{send_apdu, send_apdu_timeout};
 
 #[derive(Clone)]
 pub struct Utxo {

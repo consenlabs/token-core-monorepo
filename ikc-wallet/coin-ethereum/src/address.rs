@@ -1,11 +1,11 @@
 use crate::Result;
+use hex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EthApdu};
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::hex_to_bytes;
-use hex;
+use ikc_transport::message::send_apdu;
 use keccak_hash::keccak;
 use regex::Regex;
-use ikc_transport::message::send_apdu;
 
 #[derive(Debug)]
 pub struct EthAddress {}

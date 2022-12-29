@@ -2,13 +2,13 @@ use crate::utils::{digest, HashSize};
 use crate::Result;
 
 use base32::Alphabet;
+use hex;
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::FILECOIN_AID;
 use ikc_common::error::CoinError;
 use ikc_common::path;
 use ikc_common::utility;
 use ikc_device::device_binding::KEY_MANAGER;
-use hex;
 use ikc_transport::message;
 
 const MAINNET_PREFIX: &'static str = "f";

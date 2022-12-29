@@ -12,10 +12,10 @@ use ikc_device::deviceapi::{
     GetLifeTimeRes, GetRamSizeRes, GetSdkInfoRes, GetSeidRes, GetSnRes, IsBlStatusRes,
     SetBleNameReq,
 };
-use parking_lot::RwLock;
-use prost::Message;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use ikc_transport::hid_api::hid_connect;
+use parking_lot::RwLock;
+use prost::Message;
 
 lazy_static! {
     pub static ref IS_DEBUG: RwLock<bool> = RwLock::new(false);

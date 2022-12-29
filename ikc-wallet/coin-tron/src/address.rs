@@ -7,8 +7,8 @@ use ikc_common::path::check_path_validity;
 use ikc_common::utility;
 use ikc_common::utility::secp256k1_sign;
 use ikc_device::device_binding::KEY_MANAGER;
-use keccak_hash::keccak;
 use ikc_transport::message::send_apdu;
+use keccak_hash::keccak;
 
 pub struct TronAddress {}
 

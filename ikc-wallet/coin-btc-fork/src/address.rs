@@ -34,7 +34,8 @@ impl BtcForkAddress {
         let iv = ikc_common::XPUB_COMMON_IV.read();
         let key_bytes = hex::decode(&*key)?;
         let iv_bytes = hex::decode(&*iv)?;
-        let encrypted = ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
+        let encrypted =
+            ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
         Ok(base64::encode(&encrypted))
     }
 

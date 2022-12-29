@@ -6,11 +6,11 @@ use bitcoin::util::base58;
 use bitcoin_hashes::hex::ToHex;
 use bitcoin_hashes::{ripemd160, Hash};
 use bytes::BufMut;
+use hex::FromHex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EosApdu};
 use ikc_common::utility::{retrieve_recid, secp256k1_sign, sha256_hash};
 use ikc_common::{constants, path, utility, SignParam};
 use ikc_device::device_binding::KEY_MANAGER;
-use hex::FromHex;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 
 #[derive(Debug)]

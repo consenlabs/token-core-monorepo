@@ -14,8 +14,8 @@ use crate::Result;
 use aes_soft::Aes128;
 use block_modes::block_padding::Pkcs7;
 use block_modes::{BlockMode, Cbc};
-use ikc_common::utility::is_valid_hex;
 use hex::FromHex;
+use ikc_common::utility::is_valid_hex;
 use rand::thread_rng;
 use secp256k1::Secp256k1;
 

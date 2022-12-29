@@ -8,8 +8,8 @@ use ikc_common::path::check_path_validity;
 use ikc_common::utility::secp256k1_sign;
 use ikc_common::{constants, utility, SignParam};
 use ikc_device::device_binding::KEY_MANAGER;
-use sp_core::blake2_256;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
+use sp_core::blake2_256;
 
 #[derive(Debug)]
 pub struct Transaction {}

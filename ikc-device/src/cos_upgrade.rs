@@ -5,12 +5,12 @@ use crate::ServiceResponse;
 use crate::{Result, TsmService};
 use ikc_common::utility::hex_to_bytes;
 use ikc_common::{constants, https};
-use serde::{Deserialize, Serialize};
-use std::thread;
-use std::time::Duration;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use ikc_transport::hid_api::hid_connect;
 use ikc_transport::message::send_apdu;
+use serde::{Deserialize, Serialize};
+use std::thread;
+use std::time::Duration;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]

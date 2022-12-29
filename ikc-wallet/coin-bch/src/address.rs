@@ -1,7 +1,7 @@
 use crate::common::get_xpub_data;
 use crate::Result;
-use ikc_common::error::CoinError;
 use core::result;
+use ikc_common::error::CoinError;
 use ikc_transport::message::send_apdu;
 
 use bch_addr::Converter;

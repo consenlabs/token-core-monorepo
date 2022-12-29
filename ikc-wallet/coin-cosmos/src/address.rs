@@ -4,12 +4,12 @@ use bech32::{encode, ToBase32, Variant};
 use bitcoin::bech32::convert_bits;
 use bitcoin_hashes::hex::{FromHex, ToHex};
 use bitcoin_hashes::{hash160, Hash};
+use hex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu};
 use ikc_common::error::CoinError;
 use ikc_common::path;
 use ikc_common::utility;
 use ikc_device::device_binding::KEY_MANAGER;
-use hex;
 use ikc_transport::message;
 
 #[derive(Debug)]

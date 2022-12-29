@@ -298,9 +298,7 @@ pub struct ExternalAddressExtra {
     #[prost(string, tag = "1")]
     pub enc_xpub: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "2")]
-    pub external_address: ::core::option::Option<
-        external_address_extra::ExternalAddress,
-    >,
+    pub external_address: ::core::option::Option<external_address_extra::ExternalAddress>,
 }
 /// Nested message and enum types in `ExternalAddressExtra`.
 pub mod external_address_extra {

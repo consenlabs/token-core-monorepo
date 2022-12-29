@@ -3,10 +3,10 @@ use crate::message_handler::encode_message;
 use coin_ethereum::ethapi::{EthMessageInput, EthTxInput};
 use coin_ethereum::transaction::{AccessListItem, Transaction};
 use coin_ethereum::types::Action;
-use ikc_common::constants::ETH_TRANSACTION_TYPE_EIP1559;
-use ikc_common::SignParam;
 use ethereum_types::{Address, H256, U256, U64};
 use hex;
+use ikc_common::constants::ETH_TRANSACTION_TYPE_EIP1559;
+use ikc_common::SignParam;
 use prost::Message;
 use std::str::FromStr;
 
@@ -123,12 +123,12 @@ mod tests {
     use super::*;
     use crate::ethereum_signer::sign_eth_transaction;
     use coin_ethereum::ethapi::{AccessList, EthTxInput, EthTxOutput};
-    use ikc_common::constants;
-    use ikc_device::device_binding::{bind_test, DeviceManage};
     use ethereum_types::{Address, U256};
     use hex;
-    use std::str::FromStr;
+    use ikc_common::constants;
+    use ikc_device::device_binding::{bind_test, DeviceManage};
     use ikc_transport::hid_api::hid_connect;
+    use std::str::FromStr;
 
     #[test]
     fn u256_from_str() {
