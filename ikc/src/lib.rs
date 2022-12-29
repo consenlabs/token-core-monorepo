@@ -1,8 +1,11 @@
 use crate::api::{AddressParam, ErrorResponse, ExternalAddressParam, ImkeyAction, PubKeyParam};
+use failure::Error;
 use ikc_common::SignParam;
 use prost::Message;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
+use std::result;
+
 pub mod api;
 pub mod bch_address;
 pub mod bch_signer;
@@ -44,6 +47,8 @@ use ikc_transport::message;
 lazy_static! {
     pub static ref API_LOCK: Mutex<String> = Mutex::new("".to_string());
 }
+
+pub type Result<T> = result::Result<T, Error>;
 
 #[no_mangle]
 pub extern "C" fn get_apdu() -> *const c_char {
@@ -89,7 +94,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
 
     let data = hex::decode(hex_str).expect("imkey_illegal_prarm");
     let action: ImkeyAction = ImkeyAction::decode(data.as_slice()).expect("decode imkey api");
-    let reply: Vec<u8> = match action.method.to_lowercase().as_str() {
+    let reply: Result<Vec<u8>> = match action.method.to_lowercase().as_str() {
         "init_imkey_core_x" => {
             landingpad(|| device_manager::init_imkey_core(&action.param.unwrap().value))
         }
@@ -263,9 +268,13 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
 
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
-
-    let ret_str = hex::encode(reply);
-    CString::new(ret_str).unwrap().into_raw()
+    match reply {
+        Ok(reply) => {
+            let ret_str = hex::encode(reply);
+            CString::new(ret_str).unwrap().into_raw()
+        }
+        _ => CString::new("").unwrap().into_raw(),
+    }
 }
 
 #[no_mangle]
@@ -282,14 +291,7 @@ pub unsafe extern "C" fn imkey_clear_err() {
 pub unsafe extern "C" fn imkey_get_last_err_message() -> *const c_char {
     LAST_ERROR.with(|e| {
         if let Some(ref err) = *e.borrow() {
-            let rsp = ErrorResponse {
-                is_success: false,
-                error: err.to_string(),
-            };
-            // eprintln!("{:#?}", rsp);
-            let rsp_bytes = encode_message(rsp).expect("encode error");
-            let ret_str = hex::encode(rsp_bytes);
-            CString::new(ret_str).unwrap().into_raw()
+            CString::new(err.to_string()).unwrap().into_raw()
         } else {
             CString::new("").unwrap().into_raw()
         }
@@ -311,8 +313,8 @@ mod tests {
     use crate::api::CommonResponse;
     use ikc_device::device_binding::DeviceManage;
     use ikc_device::deviceapi::{AppDownloadReq, BindAcquireReq};
-    use std::fs;
     use ikc_transport::hid_api::hid_connect;
+    use std::fs;
 
     fn _to_c_char(str: &str) -> *const c_char {
         CString::new(str).unwrap().into_raw()

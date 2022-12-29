@@ -9,23 +9,26 @@ thread_local! {
     pub static LAST_BACKTRACE: RefCell<Option<(Option<String>, Backtrace)>> = RefCell::new(None);
 }
 
+#[cfg_attr(tarpaulin, skip)]
 #[allow(irrefutable_let_patterns)]
-fn notify_err(err: Error) {
+fn notify_err(err: Error) -> Error {
     if let _backtrace = err.backtrace() {
         LAST_BACKTRACE.with(|e| {
             *e.borrow_mut() = Some((None, Backtrace::new()));
         });
     }
+    let display_err = format_err!("{}", &err);
     LAST_ERROR.with(|e| {
         *e.borrow_mut() = Some(err);
     });
+    display_err
 }
 
 /// catch any error and format to string
 /// ref: <https://doc.rust-lang.org/edition-guide/rust-2018/error-handling-and-panics/controlling-panics-with-std-panic.html>
-pub unsafe fn landingpad<F: FnOnce() -> Result<T> + panic::UnwindSafe, T>(f: F) -> T {
+pub unsafe fn landingpad<F: FnOnce() -> Result<T> + panic::UnwindSafe, T>(f: F) -> Result<T> {
     match panic::catch_unwind(f) {
-        Ok(rv) => rv.map_err(notify_err).unwrap_or_else(|_| mem::zeroed()),
+        Ok(rv) => rv.map_err(notify_err),
         Err(err) => {
             use std::any::Any;
             let err = &*err as &dyn Any;
@@ -36,8 +39,7 @@ pub unsafe fn landingpad<F: FnOnce() -> Result<T> + panic::UnwindSafe, T>(f: F) 
                     None => "Box<Any>",
                 },
             };
-            notify_err(format_err!("{}", msg));
-            mem::zeroed()
+            Err(notify_err(format_err!("{}", msg)))
         }
     }
 }
