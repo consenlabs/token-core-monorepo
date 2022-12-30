@@ -10,12 +10,12 @@
 #ifndef HEADER_PKCS7_H
 # define HEADER_PKCS7_H
 
-# include "asn1.h"
-# include "bio.h"
-# include "e_os2.h"
+# include <openssl/asn1.h>
+# include <openssl/bio.h>
+# include <openssl/e_os2.h>
 
 # include <openssl/symhacks.h>
-# include "ossl_typ.h"
+# include <openssl/ossl_typ.h>
 # include <openssl/pkcs7err.h>
 
 #ifdef  __cplusplus

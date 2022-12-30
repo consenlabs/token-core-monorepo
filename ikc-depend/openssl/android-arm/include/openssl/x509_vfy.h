@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2019 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,14 +14,14 @@
  * Protect against recursion, x509.h and x509_vfy.h each include the other.
  */
 # ifndef HEADER_X509_H
-#  include "x509.h"
+#  include <openssl/x509.h>
 # endif
 
-# include "opensslconf.h"
-# include "lhash.h"
-# include "bio.h"
-# include "crypto.h"
-# include "symhacks.h"
+# include <openssl/opensslconf.h>
+# include <openssl/lhash.h>
+# include <openssl/bio.h>
+# include <openssl/crypto.h>
+# include <openssl/symhacks.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -184,6 +184,10 @@ void X509_STORE_CTX_set_depth(X509_STORE_CTX *ctx, int depth);
 # define         X509_V_ERR_OCSP_VERIFY_NEEDED                   73  /* Need OCSP verification */
 # define         X509_V_ERR_OCSP_VERIFY_FAILED                   74  /* Couldn't verify cert through OCSP */
 # define         X509_V_ERR_OCSP_CERT_UNKNOWN                    75  /* Certificate wasn't recognized by the OCSP responder */
+# define         X509_V_ERR_SIGNATURE_ALGORITHM_MISMATCH         76
+# define         X509_V_ERR_NO_ISSUER_PUBLIC_KEY                 77
+# define         X509_V_ERR_UNSUPPORTED_SIGNATURE_ALGORITHM      78
+# define         X509_V_ERR_EC_KEY_EXPLICIT_PARAMS               79
 
 /* Certificate verify flags */
 

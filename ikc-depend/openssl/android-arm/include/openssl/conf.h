@@ -10,7 +10,7 @@
 #ifndef  HEADER_CONF_H
 # define HEADER_CONF_H
 
-# include "bio.h"
+# include <openssl/bio.h>
 # include <openssl/lhash.h>
 # include <openssl/safestack.h>
 # include <openssl/e_os2.h>

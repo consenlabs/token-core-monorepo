@@ -10,9 +10,9 @@
 #ifndef HEADER_OBJECTS_H
 # define HEADER_OBJECTS_H
 
-# include "obj_mac.h"
-# include "bio.h"
-# include "asn1.h"
+# include <openssl/obj_mac.h>
+# include <openssl/bio.h>
+# include <openssl/asn1.h>
 # include <openssl/objectserr.h>
 
 # define OBJ_NAME_TYPE_UNDEF             0x00

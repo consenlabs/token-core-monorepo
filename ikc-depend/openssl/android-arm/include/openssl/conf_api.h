@@ -11,7 +11,7 @@
 # define HEADER_CONF_API_H
 
 # include <openssl/lhash.h>
-# include "conf.h"
+# include <openssl/conf.h>
 
 #ifdef  __cplusplus
 extern "C" {

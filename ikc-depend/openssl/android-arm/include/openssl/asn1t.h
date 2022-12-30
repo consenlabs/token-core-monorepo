@@ -12,7 +12,7 @@
 
 # include <stddef.h>
 # include <openssl/e_os2.h>
-# include "asn1.h"
+# include <openssl/asn1.h>
 
 # ifdef OPENSSL_BUILD_SHLIBCRYPTO
 #  undef OPENSSL_EXTERN

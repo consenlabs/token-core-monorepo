@@ -14,11 +14,11 @@
 
 # ifndef OPENSSL_NO_DH
 # include <openssl/e_os2.h>
-# include "bio.h"
-# include "asn1.h"
+# include <openssl/bio.h>
+# include <openssl/asn1.h>
 # include <openssl/ossl_typ.h>
 # if OPENSSL_API_COMPAT < 0x10100000L
-#  include "bn.h"
+#  include <openssl/bn.h>
 # endif
 # include <openssl/dherr.h>
 

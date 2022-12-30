@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the OpenSSL license (the "License").  You may not use
@@ -11,10 +11,10 @@
 #ifndef HEADER_SSL3_H
 # define HEADER_SSL3_H
 
-# include "comp.h"
-# include "buffer.h"
-# include "evp.h"
-# include "ssl.h"
+# include <openssl/comp.h>
+# include <openssl/buffer.h>
+# include <openssl/evp.h>
+# include <openssl/ssl.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -291,6 +291,9 @@ extern "C" {
 # define TLS1_FLAGS_ENCRYPT_THEN_MAC_WRITE       0x0400
 
 # define TLS1_FLAGS_STATELESS                    0x0800
+
+/* Set if extended master secret extension required on renegotiation */
+# define TLS1_FLAGS_REQUIRED_EXTMS               0x1000
 
 # define SSL3_MT_HELLO_REQUEST                   0
 # define SSL3_MT_CLIENT_HELLO                    1

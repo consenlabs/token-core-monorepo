@@ -10,7 +10,7 @@
 #ifndef HEADER_PKCS12_H
 # define HEADER_PKCS12_H
 
-# include "bio.h"
+# include <openssl/bio.h>
 # include <openssl/x509.h>
 # include <openssl/pkcs12err.h>
 

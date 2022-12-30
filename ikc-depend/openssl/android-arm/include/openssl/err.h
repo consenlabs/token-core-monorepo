@@ -10,7 +10,7 @@
 #ifndef HEADER_ERR_H
 # define HEADER_ERR_H
 
-# include "e_os2.h"
+# include <openssl/e_os2.h>
 
 # ifndef OPENSSL_NO_STDIO
 #  include <stdio.h>
@@ -18,7 +18,7 @@
 # endif
 
 # include <openssl/ossl_typ.h>
-# include "bio.h"
+# include <openssl/bio.h>
 # include <openssl/lhash.h>
 
 #ifdef  __cplusplus

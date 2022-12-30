@@ -10,10 +10,10 @@
 #ifndef HEADER_PEM_H
 # define HEADER_PEM_H
 
-# include "e_os2.h"
-# include "bio.h"
+# include <openssl/e_os2.h>
+# include <openssl/bio.h>
 # include <openssl/safestack.h>
-# include "evp.h"
+# include <openssl/evp.h>
 # include <openssl/x509.h>
 # include <openssl/pemerr.h>
 
