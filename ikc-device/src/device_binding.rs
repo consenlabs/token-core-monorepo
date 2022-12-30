@@ -19,11 +19,9 @@ use ikc_transport::hid_api::hid_connect;
 use ikc_transport::message::send_apdu;
 use parking_lot::Mutex;
 use rand::rngs::OsRng;
-use rand::thread_rng;
 use regex::Regex;
 use ring::digest;
 use rsa::{BigUint, PaddingScheme, PublicKey as RSAPublic, RsaPublicKey};
-use secp256k1::ecdh::SharedSecret;
 use secp256k1::{ecdh, PublicKey, SecretKey};
 use sha1::Sha1;
 use std::collections::HashMap;
@@ -89,8 +87,8 @@ impl DeviceManage {
             //calc the session key
             let pk2 = PublicKey::from_slice(key_manager_obj.se_pub_key.as_slice())?;
             let sk1 = SecretKey::from_slice(key_manager_obj.pri_key.as_slice())?;
-            let sharedSecret = ecdh::shared_secret_point(&pk2, &sk1);
-            let sha1_result = Sha1::from(&sharedSecret[..32]).digest().bytes();
+            let shared_secret = ecdh::shared_secret_point(&pk2, &sk1);
+            let sha1_result = Sha1::from(&shared_secret[..32]).digest().bytes();
 
             //set the session key
             key_manager_obj.session_key = sha1_result[..16].to_vec();

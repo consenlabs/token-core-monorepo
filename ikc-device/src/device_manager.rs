@@ -26,14 +26,14 @@ pub fn select_isd() -> Result<String> {
 }
 
 pub fn get_se_id() -> Result<String> {
-    select_isd();
+    select_isd()?;
     let res = send_apdu("80CB800005DFFF028101".to_string())?;
     ApduCheck::check_response(res.as_str())?;
     Ok(String::from(&res[0..res.len() - 4]))
 }
 
 pub fn get_sn() -> Result<String> {
-    select_isd();
+    select_isd()?;
     let res = send_apdu("80CA004400".to_string())?;
     ApduCheck::check_response(res.as_str())?;
     let hex_decode = hex::decode(String::from(&res[0..res.len() - 4]));
@@ -52,7 +52,7 @@ pub fn get_ram_size() -> Result<String> {
 }
 
 pub fn get_firmware_version() -> Result<String> {
-    select_isd();
+    select_isd()?;
     let res = send_apdu("80CB800005DFFF02800300".to_string())?;
     ApduCheck::check_response(res.as_str())?;
     let firmware_version = format!(
@@ -65,7 +65,7 @@ pub fn get_firmware_version() -> Result<String> {
 }
 
 pub fn get_bl_version() -> Result<String> {
-    select_isd();
+    select_isd()?;
     let res = send_apdu("80CA800900".to_string())?;
     ApduCheck::check_response(res.as_str())?;
     let bl_version = format!(
@@ -78,7 +78,7 @@ pub fn get_bl_version() -> Result<String> {
 }
 
 pub fn get_battery_power() -> Result<String> {
-    select_isd();
+    select_isd()?;
     let res = send_apdu("00D6FEED01".to_string())?;
     ApduCheck::check_response(res.as_str())?;
     let hex_power: String = res[0..res.len() - 4].to_string();
@@ -124,7 +124,7 @@ pub fn set_ble_name(ble_name: String) -> Result<String> {
 }
 
 pub fn get_ble_version() -> Result<String> {
-    select_isd();
+    select_isd()?;
     let res = send_apdu("80CB800005DFFF02810000".to_string())?;
     let chars: Vec<char> = res.chars().collect();
     let format_version = format!("{}.{}.{}{}", chars[0], chars[1], chars[2], chars[3]);
@@ -132,7 +132,7 @@ pub fn get_ble_version() -> Result<String> {
 }
 
 pub fn get_cert() -> Result<String> {
-    select_isd();
+    select_isd()?;
     let res = send_apdu("80CABF2106A6048302151800".to_string())?;
     ApduCheck::check_response(&res)?;
     Ok(res.chars().take(res.len() - 4).collect())
@@ -210,7 +210,7 @@ pub fn cos_upgrade() -> Result<()> {
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub fn cos_check_update() -> Result<ServiceResponse<CosCheckUpdateResponse>> {
     let seid = get_se_id()?;
-    let mut cos_version = get_firmware_version()?;
+    let cos_version = get_firmware_version()?;
     CosCheckUpdateRequest::build_request_data(seid, cos_version).send_message()
 }
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]

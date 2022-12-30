@@ -1,6 +1,6 @@
 use core::result;
 use failure::{Backtrace, Error};
-use std::{cell::RefCell, mem, panic};
+use std::{cell::RefCell, panic};
 
 pub type Result<T> = result::Result<T, Error>;
 
