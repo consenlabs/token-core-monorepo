@@ -42,8 +42,8 @@ pub const POLKADOT_PATH: &str = "m/44'/354'/0'/0'/0'";
 pub const KUSAMA_PATH: &str = "m/44'/434'/0'/0'/0'";
 pub const TRON_PATH: &str = "m/44'/195'/0'/0/0";
 
-pub const MAX_UTXO_NUMBER: usize = 252;
-pub const EACH_ROUND_NUMBER: usize = 5;
+pub const MAX_UTXO_NUMBER: usize = 1000;
+pub const EACH_ROUND_NUMBER: usize = 10;
 pub const DUST_THRESHOLD: i64 = 2730;
 pub const MIN_NONDUST_OUTPUT: i64 = 546;
 // max op return size
