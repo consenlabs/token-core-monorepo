@@ -15,6 +15,8 @@ pub struct SeActivateRequest {
     #[serde(rename = "commandID")]
     pub command_id: String,
     pub card_ret_data_list: Option<Vec<String>>,
+    pub sdk_version: Option<String>,
+    pub terminal_type: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -70,6 +72,8 @@ impl SeActivateRequest {
             status_word: None,
             command_id: String::from(constants::TSM_ACTION_SE_ACTIVATE),
             card_ret_data_list: None,
+            sdk_version: Some(ikc_common::SDK_VERSION.read().to_string()),
+            terminal_type: Some(ikc_common::TERMINAL_TYPE.read().to_string()),
         }
     }
 }

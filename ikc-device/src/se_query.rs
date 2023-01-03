@@ -15,6 +15,7 @@ pub struct SeQueryRequest {
     #[serde(rename = "commandID")]
     pub command_id: String,
     pub card_ret_data_list: Option<Vec<String>>,
+    pub terminal_type: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -67,15 +68,16 @@ impl TsmService for SeQueryRequest {
 }
 
 impl SeQueryRequest {
-    pub fn build_request_data(seid: String, sn: String, sdk_version: Option<String>) -> Self {
+    pub fn build_request_data(seid: String, sn: String) -> Self {
         SeQueryRequest {
             seid: seid,
             sn: sn,
-            sdk_version: sdk_version,
+            sdk_version: Some(ikc_common::SDK_VERSION.read().to_string()),
             step_key: String::from("01"),
             status_word: None,
             command_id: String::from(constants::TSM_ACTION_SE_QUERY),
             card_ret_data_list: None,
+            terminal_type: Some(ikc_common::TERMINAL_TYPE.read().to_string()),
         }
     }
 }
@@ -92,7 +94,7 @@ mod tests {
         assert!(hid_connect("imKey Pro").is_ok());
         let seid = get_se_id().unwrap();
         let sn = get_sn().unwrap();
-        assert!(SeQueryRequest::build_request_data(seid, sn, None)
+        assert!(SeQueryRequest::build_request_data(seid, sn)
             .send_message()
             .is_ok());
     }
@@ -101,7 +103,7 @@ mod tests {
     pub fn se_query_error_test() {
         let seid = "00000000000000000000000000000000".to_string();
         let sn = "000001".to_string();
-        assert!(SeQueryRequest::build_request_data(seid, sn, None)
+        assert!(SeQueryRequest::build_request_data(seid, sn)
             .send_message()
             .is_err());
     }

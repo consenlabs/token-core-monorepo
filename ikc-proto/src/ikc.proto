@@ -93,6 +93,9 @@ message InitImKeyCoreXParam {
     string xpubCommonIv = 3;
     bool isDebug = 4;
     string system = 5;
+    string terminalType = 6;
+    string sdkVersion = 7;
+    string serverUrl = 8;
 }
 
 message BtcForkWallet {

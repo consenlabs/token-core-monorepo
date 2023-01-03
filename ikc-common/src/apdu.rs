@@ -1,6 +1,7 @@
-use crate::constants::{BTC_AID, COSMOS_AID, EOS_AID, ETH_AID, LC_MAX};
+use crate::constants::{BTC_AID, COSMOS_AID, EOS_AID, ETH_AID, LC_MAX, TERMINAL_TYPE_PC};
 use crate::error::ApduError;
 use crate::Result;
+use crate::TERMINAL_TYPE;
 use hex;
 use rustc_serialize::hex::ToHex;
 
@@ -513,7 +514,12 @@ impl ImkApdu {
         if data.len() as u32 > LC_MAX {
             panic!("data to long");
         }
-        let mut apdu = ApduHeader::new(0x80, 0x71, 0x00, 0x00, data.len() as u8).to_array();
+        let ins = if let TERMINAL_TYPE_PC = TERMINAL_TYPE.read().as_str() {
+            0x74
+        } else {
+            0x71
+        };
+        let mut apdu = ApduHeader::new(0x80, ins, 0x00, 0x00, data.len() as u8).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
         apdu.to_hex().to_uppercase()
@@ -534,7 +540,12 @@ impl ImkApdu {
         if data.len() as u32 > LC_MAX {
             panic!("data to long");
         }
-        let mut apdu = ApduHeader::new(0x80, 0x73, 0x80, 0x00, data.len() as u8).to_array();
+        let ins = if let TERMINAL_TYPE_PC = TERMINAL_TYPE.read().as_str() {
+            0x75
+        } else {
+            0x73
+        };
+        let mut apdu = ApduHeader::new(0x80, ins, 0x80, 0x00, data.len() as u8).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
         apdu.to_hex().to_uppercase()

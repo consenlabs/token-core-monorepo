@@ -133,6 +133,12 @@ pub struct InitImKeyCoreXParam {
     pub is_debug: bool,
     #[prost(string, tag = "5")]
     pub system: std::string::String,
+    #[prost(string, tag = "6")]
+    pub terminal_type: std::string::String,
+    #[prost(string, tag = "7")]
+    pub sdk_version: std::string::String,
+    #[prost(string, tag = "8")]
+    pub server_url: std::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BtcForkWallet {

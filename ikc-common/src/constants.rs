@@ -117,3 +117,7 @@ pub const ETH_TRANSACTION_TYPE_EIP2718: &str = "01";
 pub const ETH_TRANSACTION_TYPE_EIP1559: &str = "02";
 
 pub const ETH_MAX_SUPPORT_PAYMENT_LEN: usize = 255;
+
+//terminal type
+pub const TERMINAL_TYPE_APP: &str = "APP";
+pub const TERMINAL_TYPE_PC: &str = "PC";

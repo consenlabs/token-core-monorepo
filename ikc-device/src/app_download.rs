@@ -16,6 +16,7 @@ pub struct AppDownloadRequest {
     #[serde(rename = "commandID")]
     pub command_id: String,
     pub card_ret_data_list: Option<Vec<String>>,
+    pub terminal_type: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -64,21 +65,17 @@ impl TsmService for AppDownloadRequest {
 }
 
 impl AppDownloadRequest {
-    pub fn build_request_data(
-        seid: String,
-        instance_aid: String,
-        device_cert: String,
-        sdk_version: Option<String>,
-    ) -> Self {
+    pub fn build_request_data(seid: String, instance_aid: String, device_cert: String) -> Self {
         AppDownloadRequest {
             seid: seid,
             instance_aid: instance_aid,
             device_cert: device_cert,
-            sdk_version: sdk_version,
+            sdk_version: Some(ikc_common::SDK_VERSION.read().to_string()),
             step_key: String::from("01"),
             status_word: None,
             command_id: String::from(constants::TSM_ACTION_APP_DOWNLOAD),
             card_ret_data_list: None,
+            terminal_type: Some(ikc_common::TERMINAL_TYPE.read().to_string()),
         }
     }
 }
@@ -97,8 +94,7 @@ mod test {
         let device_cert = get_cert().unwrap();
         let instance_aid = "695F657468".to_string();
         let exe_result =
-            AppDownloadRequest::build_request_data(seid, instance_aid, device_cert, None)
-                .send_message();
+            AppDownloadRequest::build_request_data(seid, instance_aid, device_cert).send_message();
         assert!(exe_result.is_ok());
     }
 
@@ -108,7 +104,7 @@ mod test {
         let device_cert = "00000000000000000000000000".to_string();
         let instance_aid = "695F627463".to_string();
         assert!(
-            AppDownloadRequest::build_request_data(seid, instance_aid, device_cert, None)
+            AppDownloadRequest::build_request_data(seid, instance_aid, device_cert)
                 .send_message()
                 .is_err()
         );
