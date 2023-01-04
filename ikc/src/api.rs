@@ -32,8 +32,8 @@ pub struct AddressParam {
     pub path: std::string::String,
     #[prost(string, tag = "3")]
     pub network: std::string::String,
-    #[prost(bool, tag = "4")]
-    pub is_seg_wit: bool,
+    #[prost(string, tag = "4")]
+    pub seg_wit: std::string::String,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AddressResult {
