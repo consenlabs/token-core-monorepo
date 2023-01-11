@@ -41,17 +41,17 @@ android/imkeylibrary/src/main/jniLibs/
 
 *.o
 *.so
-tcx-examples/android/app/src/main/jniLibs/**
-tcx-examples/iOSExample/TokenCoreX/**
-tcx-examples/RN/ios/TokenCoreX/**
-tcx-tools/android-token-v2-build.sh
-tcx-tools/android-token-v2-simulator-build.sh
-tcx-tools/ios-token-v2-build.sh
-tcx-tools/ios-token-v2-simulator-build.sh
-tcx-tools/ios-token-v2-release-build.sh
-tcx-tools/ios-internal-release.sh
+token-core/tcx-examples/android/app/src/main/jniLibs/**
+token-core/tcx-examples/iOSExample/TokenCoreX/**
+token-core/tcx-examples/RN/ios/TokenCoreX/**
+token-core/tcx-tools/android-token-v2-build.sh
+token-core/tcx-tools/android-token-v2-simulator-build.sh
+token-core/tcx-tools/ios-token-v2-build.sh
+token-core/tcx-tools/ios-token-v2-simulator-build.sh
+token-core/tcx-tools/ios-token-v2-release-build.sh
+token-core/tcx-tools/ios-internal-release.sh
 
-ios-release/**
+token-core/ios-release/**
 
 *.rlib
 *.dll
@@ -68,28 +68,28 @@ generated/
 *.swp
 *.swo
 
-test-data/**
-tcx/cheader/tcx.h
+token-core/test-data/**
+token-core/tcx/cheader/tcx.h
 
 
 
 lcov.info
 ccov/
 tarpaulin-report.html
-tcx-tools/ios-token-v2-release-build.sh
+token-core/tcx-tools/ios-token-v2-release-build.sh
 #
 #tcx-btc-fork/src/transaction.rs
 #tcx-ckb/src/transaction.rs
 #tcx-substrate/src/transaction.rs
 #tcx-tron/src/transaction.rs
 #tcx/src/api.rs
-tcx-tools/ios-internal-release.sh
+token-core/tcx-tools/ios-internal-release.sh
 
 
-ikc-tools/ios-internal-release.sh
-ikc-tools/android-internal-release.sh
-ikc-tools/android-debug.sh
-ikc-tools/build-android-linux.sh
-ios-release/**
-mobile-sdk/imKeyCoreX/Products/
-test-data/
+imkey-core/ikc-tools/ios-internal-release.sh
+imkey-core/ikc-tools/android-internal-release.sh
+imkey-core/ikc-tools/android-debug.sh
+imkey-core/ikc-tools/build-android-linux.sh
+imkey-core/ios-release/**
+imkey-core/mobile-sdk/imKeyCoreX/Products/
+
