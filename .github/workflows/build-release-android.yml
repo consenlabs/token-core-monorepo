@@ -63,7 +63,7 @@ jobs:
 
     - name: Build TCX And IKC
       run: | 
-       pushd ${{github.workspace}}/ikc-tools
+       pushd ${{github.workspace}}/script
        ./build-android-linux.sh
        popd
     
