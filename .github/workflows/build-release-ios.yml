@@ -41,18 +41,18 @@ jobs:
 
     - name: Build And Publish
       run: | 
-        pushd ./ikc
+        pushd ./imkey-core/ikc
         cargo lipo --release --targets aarch64-apple-ios x86_64-apple-ios
         cbindgen ./src/lib.rs -l c > ${{github.workspace}}/target/connector.h
         popd
         
-        pushd ./tcx
+        pushd ./token-core/tcx
         cargo lipo --release --targets aarch64-apple-ios x86_64-apple-ios
         cbindgen ./src/lib.rs -l c > ${{github.workspace}}/target/tcx.h
         popd
         
-        LIBS_IKC=./mobile-sdk/imKeyCoreX/imKeyCoreX
-        LIBS_TCX=./tcx-examples/TokenCoreX/TokenCoreX
+        LIBS_IKC=./imkey-core/mobile-sdk/imKeyCoreX/imKeyCoreX
+        LIBS_TCX=./token-core/tcx-examples/TokenCoreX/TokenCoreX
         cp ./target/universal/release/libconnector.a $LIBS_IKC/libconnector.a
         cp ./target/universal/release/libtcx.a $LIBS_TCX/libtcx.a
         cp ./target/connector.h $LIBS_IKC/connector.h
@@ -69,7 +69,7 @@ jobs:
         PROJECT_NAME_IKC=imKeyCoreX
         PROJECT_NAME_TCX=TokenCoreX
         
-        pushd ./mobile-sdk/imKeyCoreX        
+        pushd ./imkey-core/mobile-sdk/imKeyCoreX        
         mkdir -p $BUILD_DIR
         UNIVERSAL_OUTPUTFOLDER=$BUILD_DIR/$CONFIGURATION-Universal
         mkdir -p $UNIVERSAL_OUTPUTFOLDER
@@ -83,7 +83,7 @@ jobs:
         rm -rf $UNIVERSAL_OUTPUTFOLDER 
         popd
         
-        pushd ios-release
+        pushd ./imkey-core/ios-release
         TAG_NAME=${{ github.ref }}
         VERSION_NAME=${TAG_NAME: 11}
         PACKAGE_NAME=ios-release-v$VERSION_NAME.zip
@@ -91,10 +91,7 @@ jobs:
         curl -v -u ${{secrets.NEXUS_USER}}:${{secrets.NEXUS_PASSWORD}} --upload-file $PACKAGE_NAME https://nexus.token.im/repository/im-releases/im/imkey/ios/$VERSION_NAME/$PACKAGE_NAME
         popd
         
-        if [ -d "./ios-release" ]; then
-          rm -rf ./ios-release
-        fi
-        pushd ./tcx-examples/TokenCoreX       
+        pushd ./token-core/tcx-examples/TokenCoreX       
         mkdir -p $BUILD_DIR
         UNIVERSAL_OUTPUTFOLDER=$BUILD_DIR/$CONFIGURATION-Universal
         mkdir -p $UNIVERSAL_OUTPUTFOLDER
@@ -108,7 +105,7 @@ jobs:
         rm -rf $UNIVERSAL_OUTPUTFOLDER 
         popd
         
-        pushd ios-release
+        pushd ./token-core/ios-release
         TAG_NAME=${{ github.ref }}
         VERSION_NAME=${TAG_NAME: 11}
         PACKAGE_NAME=ios-release-v$VERSION_NAME.zip
