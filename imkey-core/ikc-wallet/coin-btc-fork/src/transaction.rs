@@ -585,12 +585,12 @@ mod tests {
     use bitcoin::{Address, Network};
     use hex::FromHex;
 
-    use common::coin_info::coin_info_from_param;
-    use common::error::CoinError;
-    use device::device_binding::bind_test;
-    use device::device_binding::DeviceManage;
+    use ikc_common::coin_info::coin_info_from_param;
+    use ikc_common::error::CoinError;
+    use ikc_device::device_binding::bind_test;
+    use ikc_device::device_binding::DeviceManage;
+    use ikc_transport::hid_api::hid_connect;
     use std::str::FromStr;
-    use transport::hid_api::hid_connect;
 
     use crate::btcforkapi::BtcForkTxInput;
     use crate::btcforkapi::Utxo;

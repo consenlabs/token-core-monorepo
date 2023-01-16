@@ -254,8 +254,8 @@ impl EosTransaction {
 mod tests {
     use crate::eosapi::{EosMessageInput, EosSignData, EosTxInput};
     use crate::transaction::EosTransaction;
-    use common::{constants, SignParam};
-    use device::device_binding::bind_test;
+    use ikc_common::{constants, SignParam};
+    use ikc_device::device_binding::bind_test;
 
     #[test]
     fn test_sgin_tx() {
@@ -487,7 +487,7 @@ mod tests {
         let output = EosTransaction::sign_message(input, &sign_param);
         assert_eq!(
             format!("{}", output.err().unwrap()),
-            "imkey_command_data_error"
+            "imkey_publickey_mismatch_with_path"
         );
     }
 }

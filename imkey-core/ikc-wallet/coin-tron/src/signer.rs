@@ -183,8 +183,8 @@ impl TronSigner {
 mod tests {
     use crate::signer::TronSigner;
     use crate::tronapi::{TronMessageInput, TronTxInput};
-    use common::{constants, SignParam};
-    use device::device_binding::bind_test;
+    use ikc_common::{constants, SignParam};
+    use ikc_device::device_binding::bind_test;
 
     #[test]
     fn sign_message() {

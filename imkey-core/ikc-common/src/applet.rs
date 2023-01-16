@@ -51,9 +51,9 @@ mod tests {
         assert_eq!(get_appname_by_instid("695F636F736D6F73").unwrap(), "Cosmos");
         assert_eq!(
             get_appname_by_instid("695F6B315F66696C").unwrap(),
-            "FILECOIN"
+            "Filecoin"
         );
-        assert_eq!(get_appname_by_instid("695F626368").unwrap(), "Bitcoin");
+        assert_eq!(get_appname_by_instid("695F626368").unwrap(), "Bitcoin Cash");
         assert_eq!(get_appname_by_instid("695F6C7463").unwrap(), "Litecoin");
         assert_eq!(get_appname_by_instid("695F696D6B").unwrap(), "IMK");
         assert!(get_appname_by_instid("1111111111").is_none());
