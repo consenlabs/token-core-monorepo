@@ -241,7 +241,7 @@ mod test {
     #[test]
     fn app_delete_test() {
         assert!(hid_connect(constants::DEVICE_MODEL_NAME).is_ok());
-        let result = app_delete("COSMOS");
+        let result = app_delete("Cosmos");
         assert!(result.is_ok());
     }
 
@@ -255,7 +255,7 @@ mod test {
     #[test]
     fn app_download_test() {
         assert!(hid_connect(constants::DEVICE_MODEL_NAME).is_ok());
-        let result = app_download("COSMOS");
+        let result = app_download("Cosmos");
         assert!(result.is_ok());
     }
 
@@ -270,7 +270,7 @@ mod test {
     #[test]
     fn app_update_test() {
         assert!(hid_connect(constants::DEVICE_MODEL_NAME).is_ok());
-        let result = app_update("COSMOS");
+        let result = app_update("Cosmos");
         assert!(result.is_ok());
     }
 

@@ -419,10 +419,10 @@ impl UnverifiedTransaction {
 mod tests {
     use super::*;
     use crate::transaction::{AccessListItem, Transaction};
-    use common::constants;
-    use device::device_binding::bind_test;
     use ethereum_types::{Address, U256};
     use hex;
+    use ikc_common::constants;
+    use ikc_device::device_binding::bind_test;
     use std::str::FromStr;
 
     #[test]
