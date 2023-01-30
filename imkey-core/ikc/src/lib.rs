@@ -291,7 +291,13 @@ pub unsafe extern "C" fn imkey_clear_err() {
 pub unsafe extern "C" fn imkey_get_last_err_message() -> *const c_char {
     LAST_ERROR.with(|e| {
         if let Some(ref err) = *e.borrow() {
-            CString::new(err.to_string()).unwrap().into_raw()
+            let rsp = ErrorResponse {
+                is_success: false,
+                error: err.to_string(),
+            };
+            let rsp_bytes = encode_message(rsp).expect("encode error");
+            let ret_str = hex::encode(rsp_bytes);
+            CString::new(ret_str).unwrap().into_raw()
         } else {
             CString::new("").unwrap().into_raw()
         }
