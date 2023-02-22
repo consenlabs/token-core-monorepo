@@ -69,6 +69,44 @@ pub struct WalletKeyParam {
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ZksyncPrivateKeyFromSeedParam {
+    #[prost(string, tag = "1")]
+    pub seed: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ZksyncPrivateKeyFromSeedResult {
+    #[prost(string, tag = "1")]
+    pub priv_key: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ZksyncSignMusigParam {
+    #[prost(string, tag = "1")]
+    pub priv_key: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub bytes: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ZksyncSignMusigResult {
+    #[prost(string, tag = "1")]
+    pub signature: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ZksyncPrivateKeyToPubkeyHashParam {
+    #[prost(string, tag = "1")]
+    pub priv_key: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ZksyncPrivateKeyToPubkeyHashResult {
+    #[prost(string, tag = "1")]
+    pub pub_key_hash: ::prost::alloc::string::String,
+}
 /// FUNCTION: hd_store_create(HdStoreCreateParam): WalletResult
 ///
 /// create a new hd keystore
