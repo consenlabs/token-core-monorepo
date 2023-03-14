@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export ANDROID_NDK_TOOLCHAINS=$ANDROID_SDK_ROOT/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin
+export ANDROID_NDK_TOOLCHAINS=$ANDROID_SDK_ROOT/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin
 
 export OPENSSL_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/imkey-core/ikc-depend/openssl
 export OPENSSL_LIB_ROOT_DIR=/home/runner/work/token-core-monorepo/token-core-monorepo/imkey-core/ikc-depend/openssl

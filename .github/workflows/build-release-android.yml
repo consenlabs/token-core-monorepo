@@ -58,8 +58,8 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v2
     
-    # - name: Install NDK
-    #   run: sdkmanager "ndk;25.2.9519653"
+    - name: Install NDK
+      run: sdkmanager "ndk;25.2.9519653"
         
     # - name: Configure Rust Config File
     #   run: |
