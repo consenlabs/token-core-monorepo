@@ -61,21 +61,21 @@ jobs:
     - name: Install NDK
       run: sdkmanager "ndk;25.2.9519653"
         
-    # - name: Configure Rust Config File
-    #   run: |
-    #     echo '[target.armv7-linux-androideabi]' >> ~/.cargo/config
-    #     echo 'ar = "$HOME/.android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
-    #     echo 'linker = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi29-clang"' >> ~/.cargo/config
-    #     echo '[target.aarch64-linux-android]' >> ~/.cargo/config
-    #     echo 'ar = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
-    #     echo 'linker = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"' >> ~/.cargo/config
-    #     echo '[target.i686-linux-android]' >> ~/.cargo/config
-    #     echo 'ar = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
-    #     echo 'linker = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android29-clang"' >> ~/.cargo/config
-    #     echo '[target.x86_64-linux-android]' >> ~/.cargo/config
-    #     echo 'ar = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
-    #     echo 'linker = "/usr/local/lib/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android29-clang"' >> ~/.cargo/config
-    #     cat ~/.cargo/config
+    - name: Configure Rust Config File
+      run: |
+        echo '[target.armv7-linux-androideabi]' >> ~/.cargo/config
+        echo 'ar = "$HOME/.android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+        echo 'linker = "/usr/local/lib/android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi29-clang"' >> ~/.cargo/config
+        echo '[target.aarch64-linux-android]' >> ~/.cargo/config
+        echo 'ar = "/usr/local/lib/android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+        echo 'linker = "/usr/local/lib/android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android29-clang"' >> ~/.cargo/config
+        echo '[target.i686-linux-android]' >> ~/.cargo/config
+        echo 'ar = "/usr/local/lib/android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+        echo 'linker = "/usr/local/lib/android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android29-clang"' >> ~/.cargo/config
+        echo '[target.x86_64-linux-android]' >> ~/.cargo/config
+        echo 'ar = "/usr/local/lib/android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+        echo 'linker = "/usr/local/lib/android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android29-clang"' >> ~/.cargo/config
+        cat ~/.cargo/config
 
     - name: Build TCX And IKC
       run: | 
