@@ -4,6 +4,8 @@ on:
   push:
     tags:
     - 'v*'
+  issue_comment:
+    types: [created, edited]
 
 env:
   CARGO_TERM_COLOR: always    
@@ -12,6 +14,15 @@ jobs:
 
   cross-compile:
     name: cross compile
+
+    if: (
+        github.event.issue.pull_request &&
+        contains(
+          fromJson('["build"]'),
+          github.event.comment.body
+        )
+      )
+
     runs-on: ubuntu-20.04
     
     steps:
