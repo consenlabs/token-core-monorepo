@@ -24,5 +24,5 @@ cargo install cbindgen
 ## 配置 Android 编译工具  
 1. 安装 Android SDK， Android Studio 会默认附带 Android SDK。也可以单独安装。Android Studio 附带的 SDK 目录在`/Users/xxx/Library/Android/sdk`   
 2. 配置`~/.cargo/config`   
-3. 运行 `imkey-core` 项目中的`tools/build-android-linux.sh`。注意目前android编译仅支持在linux系统上实现。
+3. 运行 `imkey-core` 项目中的`tools/build-android.sh`。注意目前android编译仅支持在linux系统上实现。
 

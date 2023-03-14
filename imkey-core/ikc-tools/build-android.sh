@@ -19,7 +19,7 @@ export OPENSSL_LIB_DIR=`brew --prefix openssl`/lib
 ##  linking with `cc` failed
 #export RUSTFLAGS="-Clink-arg=-fuse-ld=gold"
 AR=$ANDROID_NDK_TOOLCHAINS/aarch64-linux-android-ar CC=$ANDROID_NDK_TOOLCHAINS/aarch64-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/aarch64-linux-android-ld env OPENSSL_STATIC=1 cargo build --target aarch64-linux-android --release
-AR=$ANDROID_NDK_TOOLCHAINS/arm-linux-androideabi-ar CC=$ANDROID_NDK_TOOLCHAINS/armv7a-linux-androideabi29-clang LD=$ANDROID_NDK_TOOLCHAINS/arm-linux-androideabi-ld env OPENSSL_STATIC=1 cargo build --target armv7-linux-androideabi --release
+AR=$ANDROID_NDK_TOOLCHAINS/arm-linux-androideabi-ar CC=$ANDROID_NDK_TOOLCHAINS/armv7a-linux-androideabi22-clang LD=$ANDROID_NDK_TOOLCHAINS/arm-linux-androideabi-ld env OPENSSL_STATIC=1 cargo build --target armv7-linux-androideabi --release
 AR=$ANDROID_NDK_TOOLCHAINS/i686-linux-android-ar CC=$ANDROID_NDK_TOOLCHAINS/i686-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/i686-linux-android-ld env OPENSSL_STATIC=1 cargo build --target i686-linux-android --release
 AR=$ANDROID_NDK_TOOLCHAINS/x86_64-linux-android-ar CC=$ANDROID_NDK_TOOLCHAINS/x86_64-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/x86_64-linux-android-ld env OPENSSL_STATIC=1 cargo build --target x86_64-linux-android --release
 

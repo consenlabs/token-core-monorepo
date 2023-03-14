@@ -1,9 +1,6 @@
-name: Build iOS Release
+name: Build iOS Debug
 
 on:
-  push:
-    branches:
-      - main
   issue_comment:
     types: [created, edited]
 
@@ -12,15 +9,12 @@ env:
   
 jobs:
   build:
-    name: Build iOS Release
-    if: (
-        github.ref == 'refs/heads/main' ||
-        (github.event.issue.pull_request &&
+    name: Build iOS Debug
+    if: (github.event.issue.pull_request &&
         contains(
-          fromJson('["build", "build ios"]'),
+          fromJson('["build debug"]'),
           github.event.comment.body
         ))
-      )
 
     runs-on: macos-latest
     
@@ -44,14 +38,14 @@ jobs:
       run: |
         rustup toolchain install nightly-2022-10-31
         rustup default nightly-2022-10-31-x86_64-apple-darwin
-        rustup target add aarch64-apple-ios x86_64-apple-ios
+        rustup target add x86_64-apple-ios
         rustup show
         cargo install cargo-lipo
         brew install protobuf
 
     - name: Read VERSION file
       id: getversion
-      run: echo "version=$(cat VERSION)+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      run: echo "version=$(cat VERSION)-alpha+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
     - name: Get commits
       id: getcommits
@@ -61,12 +55,12 @@ jobs:
     - name: Build And Publish
       run: | 
         pushd ./imkey-core/ikc
-        cargo lipo --release --targets aarch64-apple-ios x86_64-apple-ios
+        cargo lipo --release --targets x86_64-apple-ios
         cbindgen ./src/lib.rs -l c > ${{github.workspace}}/target/connector.h
         popd
         
         pushd ./token-core/tcx
-        cargo lipo --release --targets aarch64-apple-ios x86_64-apple-ios
+        cargo lipo --release --targets x86_64-apple-ios
         cbindgen ./src/lib.rs -l c > ${{github.workspace}}/target/tcx.h
         popd
         
