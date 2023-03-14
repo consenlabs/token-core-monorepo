@@ -57,18 +57,9 @@ jobs:
 
     - name: Setup Android SDK
       uses: android-actions/setup-android@v2
-      with:
-        packages: 
-          - build-tools;29.0.3
-          - platforms;android-31
-          - ndk;25.2.9519653
-          - cmake;3.18.1
-       
-    # - name: Setup Android SDK
-    #   uses: android-actions/setup-android@v2
-    
-    # - name: Install NDK
-    #   run: sdkmanager "ndk;25.2.9519653"
+
+    - name: Install Android Tools
+      run: sdkmanager "build-tools;29.0.3" "platforms;android-31" "ndk;25.2.9519653" 
         
     - name: Configure Rust Config File
       run: |
