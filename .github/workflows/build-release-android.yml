@@ -2,8 +2,10 @@ name: Build Release Android
 
 on:
   push:
+    branches:
+      - main
     tags:
-    - 'v*'
+      - 'v*'
   issue_comment:
     types: [created, edited]
 
