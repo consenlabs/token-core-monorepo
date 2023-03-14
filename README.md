@@ -1,20 +1,39 @@
-# token-core-monorepo
+# TokenCore Monorepo  
 
-合并token-core和imkey-core两个项目到一个workspace，使用统一的rust版本和依赖库版本进行编译，解决不同rust版本编译出来的库文件集成到
-client端冲突问题，并提供Android包的publish到nexus功能
+This repo holds some core code which support imToken. It contains 
+- token-core, which manages the wallet keystore and sign signature by mobile phone
+- imkey-core, which hold the private key in an imKey Hardwallet and sign signature security whitout leaks the pk to mobile.
 
-警告：还未应用到生产环境
+## Getting Started
+```bash
+$ git clone git@github.com:consenlabs/token-core-monorepo.git
+$ cargo build 
+$ cargo test
+```    
+See more documents in the package readme  
 
-## package
+
+
+## Packages
 * `token-core` [token-core README](./token-core/README.md)
 * `imkey-core` [imkey-core README](./imkey-core/README.md)
-* `publish`  [publish README](./publish/README.md)
-* `script`  Linux交叉编译脚本，主要用于CI发布Android库时调用
 
 
-## Code Build
-cargo build
 
+## Copyright and License
 
-## License
-Apache Licence v2.0
+```
+  Copyright 2023 imToken PTE. LTD.
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+```
