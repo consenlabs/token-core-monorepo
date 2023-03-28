@@ -27,7 +27,8 @@ use crate::handler::{
 mod filemanager;
 
 use crate::handler::{
-    export_substrate_keystore, get_public_key, import_substrate_keystore, substrate_keystore_exists,
+    export_substrate_keystore, get_public_key, import_substrate_keystore,
+    sign_bls_to_execution_change, substrate_keystore_exists,
 };
 use parking_lot::RwLock;
 
@@ -127,6 +128,9 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "zksync_private_key_to_pubkey_hash" => {
             landingpad(|| zksync_private_key_to_pubkey_hash(&action.param.unwrap().value))
         }
+        "sign_bls_to_execution_change" => {
+            landingpad(|| sign_bls_to_execution_change(&action.param.unwrap().value))
+        }
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {
@@ -201,6 +205,7 @@ mod tests {
     use sp_core::{ByteArray, Public as TraitPublic};
     use sp_runtime::traits::Verify;
     use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
+    use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
     use tcx_filecoin::{SignedMessage, UnsignedMessage};
     use tcx_substrate::{
         ExportSubstrateKeystoreResult, SubstrateKeystore, SubstrateKeystoreParam, SubstrateRawTxIn,
@@ -2884,6 +2889,64 @@ mod tests {
                 "941c2ab3d28b0fe37fde727e3178738a475696aed7335c7f4c2d91d06a1540acadb8042f119fb5f8029e7765de21fac2",
                 public_key_result.public_key
             );
+            remove_created_wallet(&import_result.id);
+        })
+    }
+
+    #[test]
+    pub fn test_sign_bls_to_execution_change() {
+        run_test(|| {
+            let param = HdStoreImportParam {
+                mnemonic: OTHER_MNEMONIC.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                source: "MNEMONIC".to_string(),
+                name: "test-wallet".to_string(),
+                password_hint: "imtoken".to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("hd_store_import", param).unwrap();
+            let import_result: WalletResult = WalletResult::decode(ret.as_slice()).unwrap();
+
+            let derivations = vec![Derivation {
+                chain_type: "ETHEREUM2".to_string(),
+                path: "m/12381/3600/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "BLS".to_string(),
+            }];
+
+            let param = KeystoreCommonDeriveParam {
+                id: import_result.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                derivations,
+            };
+            let derived_accounts_bytes = call_api("keystore_common_derive", param).unwrap();
+            let derived_accounts: AccountsResponse =
+                AccountsResponse::decode(derived_accounts_bytes.as_slice()).unwrap();
+            assert_eq!(1, derived_accounts.accounts.len());
+            assert_eq!(
+                "a9bedcb23b8ea49d9171a75eacaa90733df0c5e92be5298c2e2e3d001afc0a9ba99e146796cf1d6e93b1778c3e89edac",
+                derived_accounts.accounts[0].address
+            );
+
+            let signBlsToExecutionChangeParam = SignBlsToExecutionChangeParam{
+                id: import_result.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                genesis_fork_version: "0x03000000".to_string(),
+                genesis_validators_root: "4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".to_string(),
+                validator_index: vec![100],
+                // from_bls_pub_key: derived_accounts.accounts[0].clone().extended_xpub_key,
+                from_bls_pub_key: "0xa9bedcb23b8ea49d9171a75eacaa90733df0c5e92be5298c2e2e3d001afc0a9ba99e146796cf1d6e93b1778c3e89edac".to_string(),
+                eth1_withdrawal_address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F".to_string()
+            };
+            let ret_bytes = call_api(
+                "sign_bls_to_execution_change",
+                signBlsToExecutionChangeParam,
+            )
+            .unwrap();
+            let signBlsToExecutionChangeResult =
+                SignBlsToExecutionChangeResult::decode(ret_bytes.as_slice()).unwrap();
             remove_created_wallet(&import_result.id);
         })
     }

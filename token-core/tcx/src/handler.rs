@@ -46,6 +46,7 @@ use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::hash::dsha256;
 use tcx_crypto::KDF_ROUNDS;
 use tcx_eth2::address::Eth2Address;
+use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
 use tcx_substrate::{
     decode_substrate_keystore, encode_substrate_keystore, ExportSubstrateKeystoreResult,
@@ -975,4 +976,17 @@ pub(crate) fn zksync_private_key_to_pubkey_hash(data: &[u8]) -> Result<Vec<u8>> 
         pub_key_hash: hex::encode(pub_key_hash),
     };
     encode_message(ret)
+}
+
+pub(crate) fn sign_bls_to_execution_change(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignBlsToExecutionChangeParam = SignBlsToExecutionChangeParam::decode(data)?;
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(format_err!("{}", "wallet_not_found")),
+    }?;
+    let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+    let result: SignBlsToExecutionChangeResult =
+        param.sign_bls_to_execution_change(guard.keystore_mut())?;
+    encode_message(result)
 }
