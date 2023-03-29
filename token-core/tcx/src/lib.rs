@@ -2945,9 +2945,10 @@ mod tests {
                 signBlsToExecutionChangeParam,
             )
             .unwrap();
-            let signBlsToExecutionChangeResult =
+            let signBlsToExecutionChangeResult: SignBlsToExecutionChangeResult =
                 SignBlsToExecutionChangeResult::decode(ret_bytes.as_slice()).unwrap();
-            println!("{:#?}", signBlsToExecutionChangeResult);
+
+            assert_eq!(signBlsToExecutionChangeResult.signeds.get(0).unwrap().signature, "b78a05bad927fc896f1406b32d644ae169cecd8986c1ef8c0d037d7086f85f13e1e188b4309643a2c13ffefb0ae80511099853a0581f4b2bd2e14541047901e22a940a9c7e3ac0a882d1a8af6bfaea813a6a6be721f9262204aa9da4e47727d0");
             remove_created_wallet(&import_result.id);
         })
     }
