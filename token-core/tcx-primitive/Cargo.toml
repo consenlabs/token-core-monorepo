@@ -33,3 +33,6 @@ hkdf = "0.12.3"
 sp-core = "7.0.0"
 regex = { version = "1.7.0"}
 schnorrkel = "0.9.1"
+
+[patch.crates-io]
+bls-signatures = { git = "https://github.com/XuNeal/bls-signatures.git", branch = "feat/pop_dst" }
