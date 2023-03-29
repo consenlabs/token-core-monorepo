@@ -1,3 +1,5 @@
+extern crate core;
+
 pub mod address;
 mod bls_to_execution_change;
 pub mod signer;

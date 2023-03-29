@@ -215,7 +215,7 @@ mod tests {
     use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 
     static OTHER_MNEMONIC: &'static str =
-        "calm release clay imitate top extend close draw quiz refuse shuffle injury";
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
 
     fn _to_c_char(str: &str) -> *const c_char {
         CString::new(str).unwrap().into_raw()
@@ -2926,19 +2926,19 @@ mod tests {
                 AccountsResponse::decode(derived_accounts_bytes.as_slice()).unwrap();
             assert_eq!(1, derived_accounts.accounts.len());
             assert_eq!(
-                "a9bedcb23b8ea49d9171a75eacaa90733df0c5e92be5298c2e2e3d001afc0a9ba99e146796cf1d6e93b1778c3e89edac",
+                "99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db",
                 derived_accounts.accounts[0].address
             );
 
             let signBlsToExecutionChangeParam = SignBlsToExecutionChangeParam{
                 id: import_result.id.to_string(),
                 password: TEST_PASSWORD.to_string(),
-                genesis_fork_version: "0x03000000".to_string(),
-                genesis_validators_root: "4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".to_string(),
-                validator_index: vec![100],
-                // from_bls_pub_key: derived_accounts.accounts[0].clone().extended_xpub_key,
-                from_bls_pub_key: "0xa9bedcb23b8ea49d9171a75eacaa90733df0c5e92be5298c2e2e3d001afc0a9ba99e146796cf1d6e93b1778c3e89edac".to_string(),
-                eth1_withdrawal_address: "0x71C7656EC7ab88b098defB751B7401B5f6d8976F".to_string()
+                genesis_fork_version: "0x00000000".to_string(),
+                genesis_validators_root: "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+                validator_index: vec![0],
+                // from_bls_pub_key: derived_accounts.accounts[0].clone().address,
+                from_bls_pub_key: "99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db".to_string(),
+                eth1_withdrawal_address: "8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string()
             };
             let ret_bytes = call_api(
                 "sign_bls_to_execution_change",
@@ -2947,6 +2947,7 @@ mod tests {
             .unwrap();
             let signBlsToExecutionChangeResult =
                 SignBlsToExecutionChangeResult::decode(ret_bytes.as_slice()).unwrap();
+            println!("{:#?}", signBlsToExecutionChangeResult);
             remove_created_wallet(&import_result.id);
         })
     }

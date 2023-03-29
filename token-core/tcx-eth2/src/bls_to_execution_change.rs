@@ -7,8 +7,8 @@ use std::str::FromStr;
 
 const DOMAIN_LEN: usize = 32;
 const DOMAIN_TYPE_LEN: usize = 4;
-const BLS_PUBKEY_LEN: usize = 96;
-const EXECUTION_ADDR_LEN: usize = 40;
+const BLS_PUBKEY_LEN: usize = 48;
+const EXECUTION_ADDR_LEN: usize = 20;
 type DomainType = Vector<u8, DOMAIN_TYPE_LEN>;
 type Domain = Vector<u8, DOMAIN_LEN>;
 type Version = Vector<u8, 4>;
@@ -47,52 +47,14 @@ lazy_static! {
     ]);
 }
 
-// pub fn generate_bls_to_execution_change_hash(
-//     genesis_fork_version: &str,
-//     genesis_validators_root: &str,
-//     validator_index: u32,
-//     from_bls_pubkey: &str,
-//     to_execution_address: &str,
-// ) -> Result<&[u8], Box<dyn std::error::Error>> {
-//     let to_execution_address = Vector::<u8, EXECUTION_ADDR_LEN>::deserialize(
-//         to_execution_address.strip_prefix("0x").unwrap().as_bytes(),
-//     )?;
-//
-//     let from_bls_pubkey = Vector::<u8, BLS_PUBKEY_LEN>::deserialize(
-//         from_bls_pubkey.strip_prefix("0x").unwrap().as_bytes(),
-//     )?;
-//     let message = BLSToExecutionChange1 {
-//         validator_index,
-//         from_bls_pubkey,
-//         to_execution_address,
-//     };
-//     let fork_version = Vector::<u8, DOMAIN_TYPE_LEN>::deserialize(
-//         genesis_fork_version.strip_prefix("0x").unwrap().as_bytes(),
-//     )?;
-//     // let validator_root = genesis_validators_root.as_bytes()[0..32].try_into()?;
-//     let validator_root = Node::from_bytes(genesis_validators_root.as_bytes()[0..32].try_into()?.to_owned());
-//     let domain = compute_domain(
-//         &DOMAIN_BLS_TO_EXECUTION_CHANGE,
-//         fork_version,
-//         &validator_root,
-//     )?;
-//
-//     let signing_root = compute_signing_root(message.clone(), domain)?;
-//     let message = signing_root.as_bytes();
-//     Ok(message)
-// }
 impl BLSToExecutionRequest {
     pub fn generate_bls_to_execution_change_hash(&self) -> tcx_constants::Result<String> {
-        let to_execution_address = Vector::<u8, EXECUTION_ADDR_LEN>::deserialize(
-            self.to_execution_address
-                .strip_prefix("0x")
-                .unwrap()
-                .as_bytes(),
-        )?;
-
-        let from_bls_pubkey = Vector::<u8, BLS_PUBKEY_LEN>::deserialize(
-            self.from_bls_pubkey.strip_prefix("0x").unwrap().as_bytes(),
-        )?;
+        let to_execution_address_bytes = hex::decode(&self.to_execution_address)?;
+        let to_execution_address =
+            Vector::<u8, EXECUTION_ADDR_LEN>::deserialize(to_execution_address_bytes.as_ref())?;
+        let from_bls_pubkey_bytes = hex::decode(&self.from_bls_pubkey)?;
+        let from_bls_pubkey =
+            Vector::<u8, BLS_PUBKEY_LEN>::deserialize(from_bls_pubkey_bytes.as_ref())?;
         let validator_index = self.validator_index;
         println!(
             "to_execution_address-->{}",
@@ -108,12 +70,18 @@ impl BLSToExecutionRequest {
         let fork_version = Vector::<u8, DOMAIN_TYPE_LEN>::deserialize(
             hex::decode(&self.genesis_fork_version.strip_prefix("0x").unwrap())?.as_slice(),
         )?;
-        let validator_root = self.genesis_validators_root.as_bytes()[0..32].try_into()?;
-        let domain = compute_domain(
-            &DOMAIN_BLS_TO_EXECUTION_CHANGE,
-            fork_version,
-            &validator_root,
-        )?;
+        // hex::decode(&self.genesis_validators_root)?.as_slice();
+        let validator_root =
+            Node::try_from(hex::decode(&self.genesis_validators_root)?.as_slice())?;
+        // let validator_root = self.genesis_validators_root.as_bytes()[0..32].try_into()?;
+        // let domain = compute_domain(
+        //     &DOMAIN_BLS_TO_EXECUTION_CHANGE,
+        //     fork_version,
+        //     &validator_root,
+        // )?;
+        let domain = Domain::try_from(hex::decode(
+            "0000000000000000000000000000000000000000000000000000000000000000",
+        )?)?;
         println!("domain-->{}", hex::encode(domain.clone().as_ref()));
         let signing_root = compute_signing_root(message.clone(), domain)?;
         println!("signing_root-->{}", hex::encode(signing_root.as_bytes()));
@@ -127,6 +95,9 @@ pub fn compute_domain(
     fork_version: Version,
     genesis_validators_root: &Node,
 ) -> Result<Domain, MerkleizationError> {
+    if domain_type.len() != 4 {
+        //todo
+    }
     let fork_data_root = compute_fork_data_root(fork_version, genesis_validators_root)?;
     let mut bytes = Vec::new();
     domain_type.serialize(&mut bytes)?;
@@ -149,6 +120,7 @@ pub fn compute_signing_root<T: SimpleSerialize>(
     mut ssz_object: T,
     domain: Domain,
 ) -> Result<Node, MerkleizationError> {
+    println!("message-->{}", hex::encode(ssz_object.hash_tree_root()?));
     SigningData {
         object_root: ssz_object.hash_tree_root()?,
         domain,
