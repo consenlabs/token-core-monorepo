@@ -22,7 +22,7 @@ tiny-bip39 = "0.7.3"
 ed25519-bip32 = "0.3.2"
 blake2b_simd = "1.0.0"
 iop-keyvault = "0.0.5"
-bls-signatures = "0.13.0"
+bls-signatures = { git = "https://github.com/XuNeal/bls-signatures.git", branch = "feat/pop_dst" }
 #rust-crypto = "0.2"
 num-bigint = "0.4"
 num-traits = "0.2"
@@ -33,6 +33,3 @@ hkdf = "0.12.3"
 sp-core = "7.0.0"
 regex = { version = "1.7.0"}
 schnorrkel = "0.9.1"
-
-[patch.crates-io]
-bls-signatures = { git = "https://github.com/XuNeal/bls-signatures.git", branch = "feat/pop_dst" }

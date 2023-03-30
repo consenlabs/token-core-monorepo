@@ -215,7 +215,7 @@ mod tests {
     use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 
     static OTHER_MNEMONIC: &'static str =
-        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art";
+        "calm release clay imitate top extend close draw quiz refuse shuffle injury";
 
     fn _to_c_char(str: &str) -> *const c_char {
         CString::new(str).unwrap().into_raw()
@@ -2897,7 +2897,7 @@ mod tests {
     pub fn test_sign_bls_to_execution_change() {
         run_test(|| {
             let param = HdStoreImportParam {
-                mnemonic: OTHER_MNEMONIC.to_string(),
+                mnemonic: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art".to_string(),
                 password: TEST_PASSWORD.to_string(),
                 source: "MNEMONIC".to_string(),
                 name: "test-wallet".to_string(),
@@ -2930,15 +2930,16 @@ mod tests {
                 derived_accounts.accounts[0].address
             );
 
-            let signBlsToExecutionChangeParam = SignBlsToExecutionChangeParam{
+            let signBlsToExecutionChangeParam = SignBlsToExecutionChangeParam {
                 id: import_result.id.to_string(),
                 password: TEST_PASSWORD.to_string(),
-                genesis_fork_version: "0x00000000".to_string(),
-                genesis_validators_root: "0000000000000000000000000000000000000000000000000000000000000000".to_string(),
+                genesis_fork_version: "03000000".to_string(),
+                genesis_validators_root:
+                    "4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".to_string(),
                 validator_index: vec![0],
-                // from_bls_pub_key: derived_accounts.accounts[0].clone().address,
-                from_bls_pub_key: "99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db".to_string(),
-                eth1_withdrawal_address: "8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string()
+                from_bls_pub_key: derived_accounts.accounts[0].clone().address,
+                // from_bls_pub_key: "99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db".to_string(),
+                eth1_withdrawal_address: "8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string(),
             };
             let ret_bytes = call_api(
                 "sign_bls_to_execution_change",
@@ -2948,7 +2949,7 @@ mod tests {
             let signBlsToExecutionChangeResult: SignBlsToExecutionChangeResult =
                 SignBlsToExecutionChangeResult::decode(ret_bytes.as_slice()).unwrap();
 
-            assert_eq!(signBlsToExecutionChangeResult.signeds.get(0).unwrap().signature, "b78a05bad927fc896f1406b32d644ae169cecd8986c1ef8c0d037d7086f85f13e1e188b4309643a2c13ffefb0ae80511099853a0581f4b2bd2e14541047901e22a940a9c7e3ac0a882d1a8af6bfaea813a6a6be721f9262204aa9da4e47727d0");
+            assert_eq!(signBlsToExecutionChangeResult.signeds.get(0).unwrap().signature, "8c8ce9f8aedf380e47548501d348afa28fbfc282f50edf33555a3ed72eb24d710bc527b5108022cffb764b953941ec4014c44106d2708387d26cc84cbc5c546a1e6e56fdc194cf2649719e6ac149596d80c86bf6844b36bd47038ee96dd3962f");
             remove_created_wallet(&import_result.id);
         })
     }

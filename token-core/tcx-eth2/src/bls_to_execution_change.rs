@@ -19,32 +19,6 @@ lazy_static! {
     static ref DOMAIN_BLS_TO_EXECUTION_CHANGE: DomainType =
         Vector::<u8, DOMAIN_TYPE_LEN>::deserialize(&[0x0A, 0, 0, 0])
             .expect("failed to deserialize");
-    static ref CAPELLA_FORK_VERSION: Version =
-        Vector::<u8, DOMAIN_TYPE_LEN>::deserialize(&[0x03, 0, 0, 0])
-            .expect("failed to deserialize");
-    static ref GENESIS_VALIDATORS_ROOT: [u8; 32] =
-        "4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".as_bytes()[0..32]
-            .try_into()
-            .expect("could not wrap genesis validators root");
-    // FIXME: use the real testnet genesis_validators_root
-    static ref GENESIS_VALIDATORS_ROOT_STUB: [u8; 32] =
-        "4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".as_bytes()[0..32]
-            .try_into()
-            .expect("could not wrap genesis validators root");
-    static ref GENESIS_VALIDATOR_ROOT: HashMap<String, Node> = HashMap::from([
-        (
-            "mainnet".to_owned(),
-            Node::from_bytes(GENESIS_VALIDATORS_ROOT.to_owned())
-        ),
-        (
-            "prater".to_owned(),
-            Node::from_bytes(GENESIS_VALIDATORS_ROOT_STUB.to_owned())
-        ),
-        (
-            "goerli".to_owned(),
-            Node::from_bytes(GENESIS_VALIDATORS_ROOT_STUB.to_owned())
-        ),
-    ]);
 }
 
 impl BLSToExecutionRequest {
@@ -56,35 +30,23 @@ impl BLSToExecutionRequest {
         let from_bls_pubkey =
             Vector::<u8, BLS_PUBKEY_LEN>::deserialize(from_bls_pubkey_bytes.as_ref())?;
         let validator_index = self.validator_index;
-        println!(
-            "to_execution_address-->{}",
-            hex::encode(to_execution_address.clone())
-        );
-        println!("from_bls_pubkey-->{}", hex::encode(from_bls_pubkey.clone()));
-        println!("validator_index-->{}", validator_index);
         let message = BLSToExecutionChange {
             validator_index,
             from_bls_pubkey,
             to_execution_address,
         };
+
         let fork_version = Vector::<u8, DOMAIN_TYPE_LEN>::deserialize(
-            hex::decode(&self.genesis_fork_version.strip_prefix("0x").unwrap())?.as_slice(),
+            hex::decode(&self.genesis_fork_version)?.as_slice(),
         )?;
-        // hex::decode(&self.genesis_validators_root)?.as_slice();
         let validator_root =
             Node::try_from(hex::decode(&self.genesis_validators_root)?.as_slice())?;
-        // let validator_root = self.genesis_validators_root.as_bytes()[0..32].try_into()?;
-        // let domain = compute_domain(
-        //     &DOMAIN_BLS_TO_EXECUTION_CHANGE,
-        //     fork_version,
-        //     &validator_root,
-        // )?;
-        let domain = Domain::try_from(hex::decode(
-            "0000000000000000000000000000000000000000000000000000000000000000",
-        )?)?;
-        println!("domain-->{}", hex::encode(domain.clone().as_ref()));
+        let domain = compute_domain(
+            &DOMAIN_BLS_TO_EXECUTION_CHANGE,
+            fork_version,
+            &validator_root,
+        )?;
         let signing_root = compute_signing_root(message.clone(), domain)?;
-        println!("signing_root-->{}", hex::encode(signing_root.as_bytes()));
         let message = signing_root.as_bytes();
         Ok(hex::encode(message))
     }
@@ -120,7 +82,6 @@ pub fn compute_signing_root<T: SimpleSerialize>(
     mut ssz_object: T,
     domain: Domain,
 ) -> Result<Node, MerkleizationError> {
-    println!("message-->{}", hex::encode(ssz_object.hash_tree_root()?));
     SigningData {
         object_root: ssz_object.hash_tree_root()?,
         domain,

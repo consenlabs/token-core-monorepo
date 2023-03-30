@@ -24,7 +24,6 @@ impl SignBlsToExecutionChangeParam {
         for validator_index in &self.validator_index {
             blsToExecutionRequest.validator_index = *validator_index;
             let message = blsToExecutionRequest.generate_bls_to_execution_change_hash()?;
-            println!("message-->{}", message.clone());
 
             let signature = keystore.sign_hash(
                 hex::decode(message)?.as_slice(),
