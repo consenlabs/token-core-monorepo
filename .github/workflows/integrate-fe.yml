@@ -49,7 +49,7 @@ jobs:
 
     - name: Get commits
       id: getcommits
-      run: echo "commits=$(git log -5 --pretty=%B)" >> $GITHUB_OUTPUT
+      run: echo "commits=$(git log -n 5 --pretty=format:"%s")" >> $GITHUB_OUTPUT
 
 
     - name: Build And Publish
