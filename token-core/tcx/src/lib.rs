@@ -2933,13 +2933,12 @@ mod tests {
             let signBlsToExecutionChangeParam = SignBlsToExecutionChangeParam {
                 id: import_result.id.to_string(),
                 password: TEST_PASSWORD.to_string(),
-                genesis_fork_version: "03000000".to_string(),
+                genesis_fork_version: "0x03000000".to_string(),
                 genesis_validators_root:
-                    "4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".to_string(),
+                    "0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".to_string(),
                 validator_index: vec![0],
                 from_bls_pub_key: derived_accounts.accounts[0].clone().address,
-                // from_bls_pub_key: "99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db".to_string(),
-                eth1_withdrawal_address: "8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string(),
+                eth1_withdrawal_address: "0x8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string(),
             };
             let ret_bytes = call_api(
                 "sign_bls_to_execution_change",

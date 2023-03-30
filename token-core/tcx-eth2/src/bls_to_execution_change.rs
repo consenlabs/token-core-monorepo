@@ -1,3 +1,4 @@
+use crate::hex_to_bytes;
 use lazy_static::lazy_static;
 use ssz_rs::prelude::*;
 use ssz_rs::{Node, Vector};
@@ -23,10 +24,10 @@ lazy_static! {
 
 impl BLSToExecutionRequest {
     pub fn generate_bls_to_execution_change_hash(&self) -> tcx_constants::Result<String> {
-        let to_execution_address_bytes = hex::decode(&self.to_execution_address)?;
+        let to_execution_address_bytes = hex_to_bytes(&self.to_execution_address)?;
         let to_execution_address =
             Vector::<u8, EXECUTION_ADDR_LEN>::deserialize(to_execution_address_bytes.as_ref())?;
-        let from_bls_pubkey_bytes = hex::decode(&self.from_bls_pubkey)?;
+        let from_bls_pubkey_bytes = hex_to_bytes(&self.from_bls_pubkey)?;
         let from_bls_pubkey =
             Vector::<u8, BLS_PUBKEY_LEN>::deserialize(from_bls_pubkey_bytes.as_ref())?;
         let validator_index = self.validator_index;
@@ -37,10 +38,10 @@ impl BLSToExecutionRequest {
         };
 
         let fork_version = Vector::<u8, DOMAIN_TYPE_LEN>::deserialize(
-            hex::decode(&self.genesis_fork_version)?.as_slice(),
+            hex_to_bytes(&self.genesis_fork_version)?.as_slice(),
         )?;
         let validator_root =
-            Node::try_from(hex::decode(&self.genesis_validators_root)?.as_slice())?;
+            Node::try_from(hex_to_bytes(&self.genesis_validators_root)?.as_slice())?;
         let domain = compute_domain(
             &DOMAIN_BLS_TO_EXECUTION_CHANGE,
             fork_version,
@@ -115,4 +116,29 @@ pub struct BLSToExecutionRequest {
     pub validator_index: u32,
     pub from_bls_pubkey: String,
     pub to_execution_address: String,
+}
+
+#[cfg(test)]
+mod test {
+    use crate::bls_to_execution_change::BLSToExecutionRequest;
+    use crate::transaction::SignBlsToExecutionChangeParam;
+    use tcx_chain::Keystore;
+
+    #[test]
+    fn test_generate_bls_to_execution_change_hash() {
+        let mut blsToExecutionRequest = BLSToExecutionRequest {
+            genesis_fork_version: "0x03000000".to_string(),
+            genesis_validators_root: "0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".to_string(),
+            validator_index: 0,
+            from_bls_pubkey: "0x99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db".to_string(),
+            to_execution_address: "0x8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string(),
+        };
+        let ret_data = blsToExecutionRequest
+            .generate_bls_to_execution_change_hash()
+            .expect("generate_bls_to_execution_change_hash_error");
+        assert_eq!(
+            ret_data,
+            "23ba0fe9dc5d2fae789f31fdccb4e28e74b89aec26bafdd6c96ced598542f53e"
+        );
+    }
 }
