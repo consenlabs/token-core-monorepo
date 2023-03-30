@@ -1,0 +1,26 @@
+syntax = "proto3";
+package transaction;
+message SignBLSToExecutionChangeParam {
+  string id = 1;
+  string password = 2;
+  string genesisForkVersion = 3;
+  string genesisValidatorsRoot = 4;
+  repeated uint32 validatorIndex = 5;
+  string fromBlsPubKey = 6;
+  string eth1WithdrawalAddress = 7;
+}
+
+message SignBLSToExecutionChangeResult {
+  repeated SignedBLSToExecutionChange signeds = 1;
+}
+
+message SignedBLSToExecutionChange {
+  BLSToExecutionChangeMessage message = 1;
+  string signature = 2;
+}
+
+message BLSToExecutionChangeMessage{
+  uint32 validator_index = 1;
+  string from_bls_pubkey = 2;
+  string to_execution_address = 3;
+}
