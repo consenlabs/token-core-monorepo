@@ -28,6 +28,7 @@ impl TraitPrivateKey for BLSPrivateKey {
             return Err(KeyError::InvalidBlsKey.into());
         }
         let mut temp_data = data.to_vec();
+        temp_data.reverse();
         if data.len() == 31 {
             temp_data.insert(0, 0x00);
         }
@@ -53,7 +54,9 @@ impl TraitPrivateKey for BLSPrivateKey {
     }
 
     fn to_bytes(&self) -> Vec<u8> {
-        self.0.serialize().to_vec()
+        let mut private_key = self.0.serialize().to_vec();
+        private_key.reverse();
+        private_key
     }
 }
 
@@ -74,11 +77,11 @@ mod tests {
 
     #[test]
     fn test_bls_private_key() {
-        let mut sec_key_bytes =
-            hex::decode("0ef71710671a9f1cfc4bd441c017c9b6db68491929facc68ab072a9676e9e23c")
-                .unwrap();
-        sec_key_bytes.reverse();
-        let private_key = BLSPrivateKey::from_slice(&sec_key_bytes).unwrap();
+        let private_key = BLSPrivateKey::from_slice(
+            &hex::decode("0ef71710671a9f1cfc4bd441c017c9b6db68491929facc68ab072a9676e9e23c")
+                .unwrap(),
+        )
+        .unwrap();
 
         assert_eq!(hex::encode(private_key.public_key().to_bytes()),
                    "b2be11dc8e54ee74dbc07569fd74fe03b5f52ad71cd49a8579b6c6387891f5a20ad980ec2747618c1b9ad35846a68a3e");
@@ -86,23 +89,27 @@ mod tests {
 
     #[test]
     fn test_bls_private_key2() {
-        let private_key = BLSPrivateKey::from_slice(
-            &hex::decode("068dce0c90cb428ab37a74af0191eac49648035f1aaef077734b91e05985ec55")
-                .unwrap(),
-        )
-        .unwrap();
-
+        let mut sec_key_bytes =
+            hex::decode("068dce0c90cb428ab37a74af0191eac49648035f1aaef077734b91e05985ec55")
+                .unwrap();
+        sec_key_bytes.reverse();
+        let private_key = BLSPrivateKey::from_slice(&sec_key_bytes).unwrap();
         assert_eq!(hex::encode(private_key.public_key().to_bytes()),
                    "99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db");
     }
 
     #[test]
     fn test_bls_sign() {
-        let private_key = BLSPrivateKey::from_slice(
-            &hex::decode("068dce0c90cb428ab37a74af0191eac49648035f1aaef077734b91e05985ec55")
-                .unwrap(),
-        )
-        .unwrap();
+        // let private_key = BLSPrivateKey::from_slice(
+        //     &hex::decode("068dce0c90cb428ab37a74af0191eac49648035f1aaef077734b91e05985ec55")
+        //         .unwrap(),
+        // )
+        // .unwrap();
+        let mut sec_key_bytes =
+            hex::decode("068dce0c90cb428ab37a74af0191eac49648035f1aaef077734b91e05985ec55")
+                .unwrap();
+        sec_key_bytes.reverse();
+        let private_key = BLSPrivateKey::from_slice(&sec_key_bytes).unwrap();
         let sign_result = private_key.sign(
             hex::decode("23ba0fe9dc5d2fae789f31fdccb4e28e74b89aec26bafdd6c96ced598542f53e")
                 .unwrap()

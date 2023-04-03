@@ -60,7 +60,7 @@ impl DeterministicPrivateKey for BLSDeterministicPrivateKey {
     }
 
     fn private_key(&self) -> Self::PrivateKey {
-        BLSPrivateKey::from_slice(&self.0.to_bytes_be()).unwrap()
+        BLSPrivateKey::from_slice(&self.0.to_bytes_le()).unwrap()
     }
 
     fn deterministic_public_key(&self) -> Self::DeterministicPublicKey {
@@ -267,7 +267,7 @@ mod tests {
 
         assert_eq!(
             hex::encode(dsk.private_key().to_bytes()),
-            "0d7359d57963ab8fbbde1852dcf553fedbc31f464d80ee7d40ae683122b45070"
+            "7050b4223168ae407dee804d461fc3dbfe53f5dc5218debb8fab6379d559730d"
         );
 
         assert_eq!(
@@ -277,7 +277,7 @@ mod tests {
 
         assert_eq!(
             hex::encode(dsk.derive("m/0").unwrap().private_key().to_bytes()),
-            "2d18bd6c14e6d15bf8b5085c9b74f3daae3b03cc2014770a599d8c1539e50f8e"
+            "8e0fe539158c9d590a771420cc033baedaf3749b5c08b5f85bd1e6146cbd182d"
         );
 
         assert_eq!(
@@ -301,7 +301,7 @@ mod tests {
 
         assert_eq!(
             hex::encode(child_sk.to_bytes()),
-            "060d9e2a8741adfad5c2383dee8b64bc88be99cc1889c4265a2aee78a4c387ba"
+            "ba87c3a478ee2a5a26c48918cc99be88bc648bee3d38c2d5faad41872a9e0d06"
         );
 
         assert_eq!(
@@ -315,7 +315,7 @@ mod tests {
         let child_sk = dsk.derive("m/12381/3600/0/0/0").unwrap().private_key();
         assert_eq!(
             hex::encode(child_sk.to_bytes()),
-            "00f71d8c3d8baa5cdc705be729f7cf19cf93c8fc76c9273b711ef027030bc546"
+            "46c50b0327f01e713b27c976fcc893cf19cff729e75b70dc5caa8b3d8c1df700"
         );
         assert_eq!(
             hex::encode(child_sk.public_key().to_bytes()),
