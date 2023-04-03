@@ -58,9 +58,6 @@ pub fn compute_domain(
     fork_version: Version,
     genesis_validators_root: &Node,
 ) -> Result<Domain, MerkleizationError> {
-    if domain_type.len() != 4 {
-        //todo
-    }
     let fork_data_root = compute_fork_data_root(fork_version, genesis_validators_root)?;
     let mut bytes = Vec::new();
     domain_type.serialize(&mut bytes)?;

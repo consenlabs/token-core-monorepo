@@ -60,7 +60,7 @@ impl DeterministicPrivateKey for BLSDeterministicPrivateKey {
     }
 
     fn private_key(&self) -> Self::PrivateKey {
-        BLSPrivateKey::from_slice(&self.0.to_bytes_le()).unwrap()
+        BLSPrivateKey::from_slice(&self.0.to_bytes_be()).unwrap()
     }
 
     fn deterministic_public_key(&self) -> Self::DeterministicPublicKey {
@@ -194,7 +194,7 @@ pub fn derive_master_sk(seed: &[u8]) -> Result<BigUint> {
 mod tests {
     use super::*;
     use crate::bls_derive::BLSDeterministicPrivateKey;
-    use crate::{Derive, DeterministicPrivateKey, PrivateKey};
+    use crate::{Derive, DeterministicPrivateKey, PrivateKey, PublicKey};
     use hex;
     use num_bigint::BigUint;
 
@@ -225,6 +225,12 @@ mod tests {
                 master_sk: "27580842291869792442942448775674722299803720648445448686099262467207037398656",
                 child_index: "4294967295",
                 child_sk: "29358610794459428860402234341874281240803786294062035874021252734817515685787",
+            },
+            TestVector{
+                seed: "3141592653589793238462643383279502884197169399375105820974944592",
+                master_sk: "29757020647961307431480504535336562678282505419141012933316116377660817309383",
+                child_index: "3141592653",
+                child_sk: "25457201688850691947727629385191704516744796114925897962676248250929345014287",
             }
         );
 
@@ -261,12 +267,22 @@ mod tests {
 
         assert_eq!(
             hex::encode(dsk.private_key().to_bytes()),
-            "7050b4223168ae407dee804d461fc3dbfe53f5dc5218debb8fab6379d559730d"
+            "0d7359d57963ab8fbbde1852dcf553fedbc31f464d80ee7d40ae683122b45070"
+        );
+
+        assert_eq!(
+            hex::encode(dsk.private_key().public_key().to_bytes()),
+            "a2c975348667926acf12f3eecb005044e08a7a9b7d95f30bd281b55445107367a2e5d0558be7943c8bd13f9a1a7036fb"
         );
 
         assert_eq!(
             hex::encode(dsk.derive("m/0").unwrap().private_key().to_bytes()),
-            "8e0fe539158c9d590a771420cc033baedaf3749b5c08b5f85bd1e6146cbd182d"
+            "2d18bd6c14e6d15bf8b5085c9b74f3daae3b03cc2014770a599d8c1539e50f8e"
+        );
+
+        assert_eq!(
+            hex::encode(dsk.derive("m/0").unwrap().private_key().public_key().to_bytes()),
+            "a17ec83dc60fe5d43cf3767e06a75a3394847f204052d52fd9f3d53e044a5abb250749ea35399dfed58fe1f4765a8c52"
         );
     }
 
@@ -281,29 +297,29 @@ mod tests {
                 .expect("invalid master key format")
         );
 
-        let child_sk = hex::encode(
-            dsk.derive("m/12381/3600/1/0/0")
-                .unwrap()
-                .private_key()
-                .to_bytes(),
-        );
+        let child_sk = dsk.derive("m/12381/3600/1/0/0").unwrap().private_key();
+
         assert_eq!(
-            child_sk,
-            "ba87c3a478ee2a5a26c48918cc99be88bc648bee3d38c2d5faad41872a9e0d06"
+            hex::encode(child_sk.to_bytes()),
+            "060d9e2a8741adfad5c2383dee8b64bc88be99cc1889c4265a2aee78a4c387ba"
+        );
+
+        assert_eq!(
+            hex::encode(child_sk.public_key().to_bytes()),
+            "b7912fe8f9b811df8c11a1d3306d2a27d091aa37adf994d8484cdd82137d76a5bcb1206e3b4715eb598e23ea5b48dfe5"
         );
 
         let dsk = BLSDeterministicPrivateKey::from_seed(
             &hex::decode("ed93db74a05f1a93b607ac20b447152aedfeb1f541c75abbb415c068eacdd9cd4f46f97b4ee0bbe99255016e3121ff7d283c5ab9a5d235829870b76e6e070061").unwrap()).unwrap();
 
-        let child_sk = hex::encode(
-            dsk.derive("m/12381/3600/0/0/0")
-                .unwrap()
-                .private_key()
-                .to_bytes(),
+        let child_sk = dsk.derive("m/12381/3600/0/0/0").unwrap().private_key();
+        assert_eq!(
+            hex::encode(child_sk.to_bytes()),
+            "00f71d8c3d8baa5cdc705be729f7cf19cf93c8fc76c9273b711ef027030bc546"
         );
         assert_eq!(
-            child_sk,
-            "46c50b0327f01e713b27c976fcc893cf19cff729e75b70dc5caa8b3d8c1df700"
+            hex::encode(child_sk.public_key().to_bytes()),
+            "8ef2719d53c1263dfa666f2f00b1e099961746e6c6ed6c70a8ab92c6dcbe7f11edf2e9769aa6f8b2e616b3f426fa8cee"
         );
     }
 }
