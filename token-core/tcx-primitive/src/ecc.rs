@@ -66,6 +66,8 @@ pub enum KeyError {
     Base58,
     #[fail(display = "hexadecimal_decoding_error")]
     Hex,
+    #[fail(display = "invalid_bls_key")]
+    InvalidBlsKey,
 }
 
 pub trait PublicKey: Sized {
