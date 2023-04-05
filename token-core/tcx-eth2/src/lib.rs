@@ -11,6 +11,8 @@ use tcx_chain::Result;
 pub enum Error {
     #[fail(display = "invalid_hex_value")]
     InvalidHexValue,
+    #[fail(display = "invalid_eth_address")]
+    InvalidEthAddress,
 }
 
 pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
