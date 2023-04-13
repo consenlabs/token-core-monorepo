@@ -2,7 +2,6 @@ use crate::constants::{BTC_AID, COSMOS_AID, EOS_AID, ETH_AID, LC_MAX};
 use crate::error::ApduError;
 use crate::Result;
 use hex;
-use rustc_serialize::hex::ToHex;
 
 pub trait CoinCommonApdu: Default {
     fn select_applet() -> String;
@@ -66,7 +65,7 @@ impl BtcApdu {
         let mut apdu = ApduHeader::new(0x80, 0x41, p1, 0x00, data.len() as u8).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        hex::encode(apdu).to_uppercase()
     }
 
     pub fn btc_sign(index: u8, hash_type: u8, path: &str) -> String {
@@ -75,7 +74,7 @@ impl BtcApdu {
             ApduHeader::new(0x80, 0x42, index, hash_type, path_bytes.len() as u8).to_array();
         apdu.extend(path_bytes.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        hex::encode(apdu).to_uppercase()
     }
 
     pub fn btc_segwit_sign(last_one: bool, hash_type: u8, data: Vec<u8>) -> String {
@@ -90,7 +89,7 @@ impl BtcApdu {
 
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        hex::encode(apdu).to_uppercase()
     }
 
     pub fn omni_prepare_data(p1: u8, data: Vec<u8>) -> String {
@@ -100,7 +99,7 @@ impl BtcApdu {
         let mut apdu = ApduHeader::new(0x80, 0x44, p1, 0x00, data.len() as u8).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        hex::encode(apdu).to_uppercase()
     }
 
     pub fn register_name_address(name: &[u8], address: &[u8]) -> String {
@@ -189,7 +188,7 @@ impl EosApdu {
         apdu.push(((nonce & 0xFF00) >> 8) as u8);
         apdu.push((nonce & 0x00FF) as u8);
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        hex::encode(apdu).to_uppercase()
     }
 
     pub fn prepare_message_sign(data: Vec<u8>) -> Vec<String> {
@@ -201,7 +200,7 @@ impl EosApdu {
         apdu.push(((nonce & 0xFF00) >> 8) as u8);
         apdu.push((nonce & 0x00FF) as u8);
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        hex::encode(apdu).to_uppercase()
     }
 }
 
@@ -359,7 +358,7 @@ impl BtcForkApdu {
         let mut apdu = ApduHeader::new(0x80, ins, p1, 0x00, data.len() as u8).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        hex::encode(apdu).to_uppercase()
     }
 
     pub fn btc_fork_sign(ins: u8, index: u8, hash_type: u8, path: &str) -> String {
@@ -368,7 +367,7 @@ impl BtcForkApdu {
             ApduHeader::new(0x80, ins, index, hash_type, path_bytes.len() as u8).to_array();
         apdu.extend(path_bytes.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        hex::encode(apdu).to_uppercase()
     }
 
     pub fn btc_fork_segwit_sign(ins: u8, last_one: bool, hash_type: u8, data: Vec<u8>) -> String {
@@ -383,7 +382,7 @@ impl BtcForkApdu {
 
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        hex::encode(apdu).to_uppercase()
     }
 }
 
@@ -474,7 +473,7 @@ impl Apdu {
         let mut apdu = ApduHeader::new(0x80, ins, 0x00, 0x00, data.len() as u8).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        hex::encode(apdu).to_uppercase()
     }
 
     pub fn sign_digest(ins: u8, index: u8, hashtype: u8, path: &str) -> String {
@@ -516,7 +515,7 @@ impl ImkApdu {
         let mut apdu = ApduHeader::new(0x80, 0x71, 0x00, 0x00, data.len() as u8).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        hex::encode(apdu).to_uppercase()
     }
 
     /**
@@ -524,7 +523,7 @@ impl ImkApdu {
     */
     pub fn generate_auth_code() -> String {
         let apdu = ApduHeader::new(0x80, 0x72, 0x00, 0x00, 0x00).to_array();
-        apdu.to_hex().to_uppercase()
+        hex::encode(apdu).to_uppercase()
     }
 
     /**
@@ -537,7 +536,7 @@ impl ImkApdu {
         let mut apdu = ApduHeader::new(0x80, 0x73, 0x80, 0x00, data.len() as u8).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        hex::encode(apdu).to_uppercase()
     }
 }
 
