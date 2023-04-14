@@ -44,7 +44,15 @@ impl TraitPrivateKey for BLSPrivateKey {
     fn sign(&self, message: &[u8]) -> Result<Vec<u8>> {
         Ok(self
             .0
-            .sign(message, b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_", &[])
+            .sign(message, b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_", &[])
+            .compress()
+            .to_vec())
+    }
+
+    fn sign_specified_hash(&self, message: &[u8], dst: &str) -> Result<Vec<u8>> {
+        Ok(self
+            .0
+            .sign(message, dst.as_bytes(), &[])
             .compress()
             .to_vec())
     }

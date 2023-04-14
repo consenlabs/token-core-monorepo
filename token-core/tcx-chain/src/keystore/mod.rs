@@ -376,6 +376,23 @@ impl ChainSigner for Keystore {
 
         private_key.sign(data)
     }
+
+    fn sign_specified_hash(
+        &mut self,
+        data: &[u8],
+        symbol: &str,
+        address: &str,
+        path: Option<&str>,
+        dst: &str,
+    ) -> Result<Vec<u8>> {
+        let private_key = if path.is_some() {
+            self.find_private_key_by_path(symbol, address, path.unwrap())?
+        } else {
+            self.find_private_key(symbol, address)?
+        };
+
+        private_key.sign_specified_hash(data, dst)
+    }
 }
 
 #[cfg(test)]

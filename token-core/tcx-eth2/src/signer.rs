@@ -33,11 +33,12 @@ impl SignBlsToExecutionChangeParam {
             blsToExecutionRequest.validator_index = *validator_index;
             let message = blsToExecutionRequest.generate_bls_to_execution_change_hash()?;
 
-            let signature = keystore.sign_hash(
+            let signature = keystore.sign_specified_hash(
                 hex::decode(message)?.as_slice(),
                 "ETHEREUM2",
                 self.from_bls_pub_key.as_str(),
                 None,
+                "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_",
             )?;
             let blsToExecutionChangeMessage = BlsToExecutionChangeMessage {
                 validator_index: *validator_index,

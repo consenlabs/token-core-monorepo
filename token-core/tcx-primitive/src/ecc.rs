@@ -85,6 +85,8 @@ pub trait PrivateKey: Sized {
 
     fn sign(&self, _: &[u8]) -> Result<Vec<u8>>;
 
+    fn sign_specified_hash(&self, _: &[u8], dst: &str) -> Result<Vec<u8>>;
+
     fn sign_recoverable(&self, data: &[u8]) -> Result<Vec<u8>>;
 
     fn to_bytes(&self) -> Vec<u8>;
@@ -177,6 +179,15 @@ impl TypedPrivateKey {
             TypedPrivateKey::Sr25519(sk) => sk.sign(data),
             TypedPrivateKey::Ed25519(sk) => sk.sign(data),
             TypedPrivateKey::BLS(sk) => sk.sign(data),
+        }
+    }
+
+    pub fn sign_specified_hash(&self, data: &[u8], dst: &str) -> Result<Vec<u8>> {
+        match self {
+            TypedPrivateKey::Secp256k1(sk) => sk.sign_specified_hash(data, dst),
+            TypedPrivateKey::Sr25519(sk) => sk.sign_specified_hash(data, dst),
+            TypedPrivateKey::Ed25519(sk) => sk.sign_specified_hash(data, dst),
+            TypedPrivateKey::BLS(sk) => sk.sign_specified_hash(data, dst),
         }
     }
 

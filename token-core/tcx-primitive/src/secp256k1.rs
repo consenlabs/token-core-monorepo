@@ -83,6 +83,10 @@ impl TraitPrivateKey for Secp256k1PrivateKey {
         Ok(signature.serialize_der().to_vec())
     }
 
+    fn sign_specified_hash(&self, _: &[u8], _: &str) -> Result<Vec<u8>> {
+        Err(KeyError::NotImplement.into())
+    }
+
     fn sign_recoverable(&self, data: &[u8]) -> Result<Vec<u8>> {
         let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
         let signature = SECP256K1_ENGINE.sign_recoverable(&msg, &self.0.inner);
