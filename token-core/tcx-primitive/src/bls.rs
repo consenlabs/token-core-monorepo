@@ -118,10 +118,11 @@ mod tests {
                 .unwrap();
         sec_key_bytes.reverse();
         let private_key = BLSPrivateKey::from_slice(&sec_key_bytes).unwrap();
-        let sign_result = private_key.sign(
+        let sign_result = private_key.sign_specified_hash(
             hex::decode("23ba0fe9dc5d2fae789f31fdccb4e28e74b89aec26bafdd6c96ced598542f53e")
                 .unwrap()
                 .as_slice(),
+            "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_",
         );
         assert_eq!(hex::encode(sign_result.unwrap()),
                    "8c8ce9f8aedf380e47548501d348afa28fbfc282f50edf33555a3ed72eb24d710bc527b5108022cffb764b953941ec4014c44106d2708387d26cc84cbc5c546a1e6e56fdc194cf2649719e6ac149596d80c86bf6844b36bd47038ee96dd3962f");
