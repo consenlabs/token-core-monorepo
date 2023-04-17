@@ -1,34 +1,25 @@
 name: Build Android Release
 
 on:
-  push:
-    branches:
-      - main
-  issue_comment:
-    types: [created, edited]
+  pull_request_target:
+    types: [assigned, opened, synchronize, reopened]
 
 env:
   CARGO_TERM_COLOR: always    
   
 jobs:
+
   build:
     name: Build Android Release
-    if: (
-        github.ref == 'refs/heads/main' ||
-        (github.event.issue.pull_request &&
-        contains(
-          fromJson('["build", "build android"]'),
-          github.event.comment.body
-        ))
-      )
-
     runs-on: macos-latest
-    
+  
     steps:
+    
     - name: Checkout repository
       uses: actions/checkout@v2
       with:
-        fetch-depth: 1
+        ref: ${{ github.head_ref }}
+        fetch-depth: 5
 
     - name: Cache
       uses: actions/cache@v2
@@ -95,7 +86,10 @@ jobs:
 
     - name: Get commits
       id: getcommits
-      run: echo "commits=$(git log -n 5 --pretty=format:"%s")" >> $GITHUB_OUTPUT
+      shell: bash
+      run: |
+        OUTPUT="$(git log -n 5 --pretty=format:"%s")"
+        echo ::set-output name=commits::"${OUTPUT}"
 
     - name: Publish
       run: |
