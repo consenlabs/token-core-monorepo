@@ -11,6 +11,7 @@ env:
   CARGO_TERM_COLOR: always
   
 jobs:
+
   build:
     name: Build iOS Release
     if: (
@@ -23,12 +24,28 @@ jobs:
       )
 
     runs-on: macos-latest
-    
+
     steps:
+    - name: Install jq
+      run: |
+        brew install jq
+
+    - name: Retrieve pull request details
+      id: pr_details
+      run: |
+        PR_URL="${{ github.event.issue.pull_request.url }}"
+        PR_DETAILS=$(curl -s $PR_URL)
+        PR_HEAD_SHA=$(echo $PR_DETAILS | jq -r .head.sha)
+        PR_HEAD_REF=$(echo $PR_DETAILS | jq -r .head.ref)
+
+        echo "PR_HEAD_SHA=$PR_HEAD_SHA" >> $GITHUB_ENV
+        echo "PR_HEAD_REF=$PR_HEAD_REF" >> $GITHUB_ENV  
+          
     - name: Checkout repository
       uses: actions/checkout@v2
       with:
-        fetch-depth: 1
+        ref: ${{ env.PR_HEAD_SHA }}
+        fetch-depth: 5
 
     - name: Cache
       uses: actions/cache@v2
