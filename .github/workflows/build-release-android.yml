@@ -1,12 +1,8 @@
 name: Build Android Release
 
 on:
-  push:
-    branches:
-      - main
-  issue_comment:
-    types: [created, edited]
-
+  pull_request_target:
+    types: [assigned, opened, synchronize, reopened]
 
 env:
   CARGO_TERM_COLOR: always    
@@ -15,38 +11,14 @@ jobs:
 
   build:
     name: Build Android Release
-    if: (
-        github.ref == 'refs/heads/main' ||
-        (github.event.issue.pull_request &&
-        contains(
-          fromJson('["build", "build android"]'),
-          github.event.comment.body
-        ))
-      )
-
     runs-on: macos-latest
   
-  
     steps:
-    - name: Install jq
-      run: |
-        brew install jq
-
-    - name: Retrieve pull request details
-      id: pr_details
-      run: |
-        PR_URL="${{ github.event.issue.pull_request.url }}"
-        PR_DETAILS=$(curl -s $PR_URL)
-        PR_HEAD_SHA=$(echo $PR_DETAILS | jq -r .head.sha)
-        PR_HEAD_REF=$(echo $PR_DETAILS | jq -r .head.ref)
-
-        echo "PR_HEAD_SHA=$PR_HEAD_SHA" >> $GITHUB_ENV
-        echo "PR_HEAD_REF=$PR_HEAD_REF" >> $GITHUB_ENV  
-          
+    
     - name: Checkout repository
       uses: actions/checkout@v2
       with:
-        ref: ${{ env.PR_HEAD_SHA }}
+        ref: ${{ github.head_ref }}
         fetch-depth: 5
 
     - name: Cache
