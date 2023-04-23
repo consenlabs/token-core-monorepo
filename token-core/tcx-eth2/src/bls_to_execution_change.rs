@@ -48,8 +48,8 @@ impl BLSToExecutionRequest {
             &validator_root,
         )?;
         let signing_root = compute_signing_root(message.clone(), domain)?;
-        let message = signing_root.as_bytes();
-        Ok(hex::encode(message))
+        let message = format!("{:x}", signing_root);
+        Ok(message)
     }
 }
 
