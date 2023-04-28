@@ -1,8 +1,8 @@
 name: Build iOS Release
 
 on:
-  issue_comment:
-    types: [created, edited]
+  pull_request:
+    types: [assigned, opened, synchronize, reopened]
 
 env:
   CARGO_TERM_COLOR: always
