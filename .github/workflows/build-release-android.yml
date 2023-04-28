@@ -8,7 +8,6 @@ env:
   CARGO_TERM_COLOR: always    
   
 jobs:
-
   build:
     if: (
           github.event.issue.pull_request &&
@@ -20,9 +19,7 @@ jobs:
 
     name: Build Android Release
     runs-on: macos-latest
-  
     steps:
-
     - name: Get the latest commit SHA
       id: sha
       uses: actions/github-script@v6
@@ -121,7 +118,7 @@ jobs:
         echo 'NEXUS_PASSWORD=${{secrets.RELEASE_TOKEN}}' >> ./local.properties
         echo ${VERSION_NAME} >> ./local.properties
         ./gradlew assemble
-        ./gradlew pPPTNR
+        ./gradlew publishProductionPublicationToGithubPackagesRepository
         popd 
         
           
