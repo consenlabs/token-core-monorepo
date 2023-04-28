@@ -1,20 +1,19 @@
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SignParam {
     #[prost(string, tag = "1")]
-    pub chain_type: ::prost::alloc::string::String,
+    pub chain_type: std::string::String,
     #[prost(string, tag = "2")]
-    pub path: ::prost::alloc::string::String,
+    pub path: std::string::String,
     #[prost(string, tag = "3")]
-    pub network: ::prost::alloc::string::String,
+    pub network: std::string::String,
     #[prost(message, optional, tag = "4")]
-    pub input: ::core::option::Option<::prost_types::Any>,
+    pub input: ::std::option::Option<::prost_types::Any>,
     #[prost(string, tag = "5")]
-    pub payment: ::prost::alloc::string::String,
+    pub payment: std::string::String,
     #[prost(string, tag = "6")]
-    pub receiver: ::prost::alloc::string::String,
+    pub receiver: std::string::String,
     #[prost(string, tag = "7")]
-    pub sender: ::prost::alloc::string::String,
+    pub sender: std::string::String,
     #[prost(string, tag = "8")]
-    pub fee: ::prost::alloc::string::String,
+    pub fee: std::string::String,
 }
