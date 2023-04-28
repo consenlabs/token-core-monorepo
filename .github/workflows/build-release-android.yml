@@ -1,8 +1,8 @@
 name: Build Android Release
 
 on:
-  pull_request_target:
-    types: [assigned, opened, synchronize, reopened]
+  issue_comment:
+    types: [created, edited]
 
 env:
   CARGO_TERM_COLOR: always    
@@ -10,15 +10,37 @@ env:
 jobs:
 
   build:
+    if: (
+          github.event.issue.pull_request &&
+          contains(
+            fromJson('["build android", "build"]'),
+            github.event.comment.body
+          )
+        )
+
     name: Build Android Release
     runs-on: macos-latest
   
     steps:
-    
-    - name: Checkout repository
-      uses: actions/checkout@v2
+
+    - name: Get the latest commit SHA
+      id: sha
+      uses: actions/github-script@v6
       with:
-        ref: ${{ github.head_ref }}
+        result-encoding: string
+        script: |
+          const { owner, repo, number } = context.issue
+          const pr = await github.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: number,
+          })
+          return pr.data.head.sha
+
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ steps.sha.outputs.result }}
         fetch-depth: 5
 
     - name: Cache
@@ -95,8 +117,8 @@ jobs:
       run: |
         pushd ${{github.workspace}}/publish/android
         VERSION_NAME="VERSION=${{ steps.getversion.outputs.version }}"
-        echo 'NEXUS_USER=${{secrets.NEXUS_USER}}' >> ./local.properties
-        echo 'NEXUS_PASSWORD=${{secrets.NEXUS_PASSWORD}}' >> ./local.properties
+        echo 'NEXUS_USER=${{secrets.RELEASE_USER}}' >> ./local.properties
+        echo 'NEXUS_PASSWORD=${{secrets.RELEASE_TOKEN}}' >> ./local.properties
         echo ${VERSION_NAME} >> ./local.properties
         ./gradlew assemble
         ./gradlew pPPTNR
