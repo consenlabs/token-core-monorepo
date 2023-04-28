@@ -36,7 +36,7 @@ afterEvaluate {
         }
         repositories {
             maven {
-                name 'Github Packages'
+                name 'GithubPackages'
                 url "https://maven.pkg.github.com/consenlabs/token-core-monorepo"
                 credentials {
                     username NEXUS_USER
