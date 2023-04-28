@@ -1,8 +1,8 @@
 name: Build iOS Release
 
 on:
-  pull_request_target:
-    types: [assigned, opened, synchronize, reopened]
+  issue_comment:
+    types: [created, edited]
 
 env:
   CARGO_TERM_COLOR: always
@@ -11,14 +11,36 @@ jobs:
 
   build:
     name: Build iOS Release
+    if: (
+          github.event.issue.pull_request &&
+          contains(
+            fromJson('["build ios", "build"]'),
+            github.event.comment.body
+          )
+        )
+
     runs-on: macos-latest
 
     steps:
-        
-    - name: Checkout repository
-      uses: actions/checkout@v2
+
+    - name: Get the latest commit SHA
+      id: sha
+      uses: actions/github-script@v6
       with:
-        ref: ${{ github.head_ref }}
+        result-encoding: string
+        script: |
+          const { owner, repo, number } = context.issue
+          const pr = await github.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: number,
+          })
+          return pr.data.head.sha
+
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ steps.sha.outputs.result }}
         fetch-depth: 5
 
     - name: Cache
@@ -97,9 +119,9 @@ jobs:
         popd
         
         pushd ./imkey-core/ios-release
-        PACKAGE_NAME=ios-release-${{ steps.getversion.outputs.version }}.zip
+        PACKAGE_NAME=ios-ikc-${{ steps.getversion.outputs.version }}.zip
         zip -q -r $PACKAGE_NAME .
-        curl -v -u ${{secrets.NEXUS_USER}}:${{secrets.NEXUS_PASSWORD}} --upload-file $PACKAGE_NAME https://nexus.token.im/repository/im-releases/im/imkey/ios/${{ steps.getversion.outputs.version }}/$PACKAGE_NAME
+        cp $PACKAGE_NAME ../../
         popd
         
         pushd ./token-core/tcx-examples/TokenCoreX       
@@ -117,11 +139,22 @@ jobs:
         popd
         
         pushd ./token-core/ios-release
-        PACKAGE_NAME=ios-release-${{ steps.getversion.outputs.version }}.zip
+        PACKAGE_NAME=ios-tcx-${{ steps.getversion.outputs.version }}.zip
         zip -q -r $PACKAGE_NAME .
-        curl -v -u ${{secrets.NEXUS_USER}}:${{secrets.NEXUS_PASSWORD}} --upload-file $PACKAGE_NAME https://nexus.token.im/repository/im-releases/com/consenlabs/ios/${{ steps.getversion.outputs.version }}/$PACKAGE_NAME
+        cp $PACKAGE_NAME ../../
         popd
         
+   - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "Release ${{ steps.getversion.outputs.version }}"
+          tag_name: ""
+          draft: true
+          prerelease: true
+          token: ${{ secrets.RELEASE_TOKEN }}
+          files: |
+            ios-ikc-${{ steps.getversion.outputs.version }}.zip
+            ios-tcx-${{ steps.getversion.outputs.version }}.zip
           
     - name: Send custom JSON data to Slack workflow
       id: slack

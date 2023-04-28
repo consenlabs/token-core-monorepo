@@ -8,7 +8,7 @@ def NEXUS_PASSWORD = properties.getProperty('NEXUS_PASSWORD')
 def VERSION = properties.getProperty('VERSION')
 
 version VERSION
-group 'im.token.libs'
+group 'im.token.android'
 
 afterEvaluate {
     publishing {
@@ -36,8 +36,8 @@ afterEvaluate {
         }
         repositories {
             maven {
-                name 'nexus'
-                url "https://nexus.token.im/repository/im-releases/"
+                name 'Github Packages'
+                url "https://maven.pkg.github.com/consenlabs/token-core-monorepo"
                 credentials {
                     username NEXUS_USER
                     password NEXUS_PASSWORD
