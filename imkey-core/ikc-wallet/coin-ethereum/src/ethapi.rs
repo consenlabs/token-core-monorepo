@@ -1,56 +1,51 @@
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EthTxInput {
     #[prost(string, tag = "1")]
-    pub nonce: ::prost::alloc::string::String,
+    pub nonce: std::string::String,
     #[prost(string, tag = "2")]
-    pub gas_price: ::prost::alloc::string::String,
+    pub gas_price: std::string::String,
     #[prost(string, tag = "3")]
-    pub gas_limit: ::prost::alloc::string::String,
+    pub gas_limit: std::string::String,
     #[prost(string, tag = "4")]
-    pub to: ::prost::alloc::string::String,
+    pub to: std::string::String,
     #[prost(string, tag = "5")]
-    pub value: ::prost::alloc::string::String,
+    pub value: std::string::String,
     #[prost(string, tag = "6")]
-    pub data: ::prost::alloc::string::String,
+    pub data: std::string::String,
     #[prost(string, tag = "7")]
-    pub chain_id: ::prost::alloc::string::String,
+    pub chain_id: std::string::String,
     #[prost(string, tag = "8")]
-    pub r#type: ::prost::alloc::string::String,
+    pub r#type: std::string::String,
     #[prost(string, tag = "9")]
-    pub max_fee_per_gas: ::prost::alloc::string::String,
+    pub max_fee_per_gas: std::string::String,
     #[prost(string, tag = "10")]
-    pub max_priority_fee_per_gas: ::prost::alloc::string::String,
+    pub max_priority_fee_per_gas: std::string::String,
     #[prost(message, repeated, tag = "11")]
-    pub access_list: ::prost::alloc::vec::Vec<AccessList>,
+    pub access_list: ::std::vec::Vec<AccessList>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct AccessList {
     #[prost(string, tag = "1")]
-    pub address: ::prost::alloc::string::String,
+    pub address: std::string::String,
     #[prost(string, repeated, tag = "2")]
-    pub storage_keys: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub storage_keys: ::std::vec::Vec<std::string::String>,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EthTxOutput {
     #[prost(string, tag = "1")]
-    pub signature: ::prost::alloc::string::String,
+    pub signature: std::string::String,
     #[prost(string, tag = "2")]
-    pub tx_hash: ::prost::alloc::string::String,
+    pub tx_hash: std::string::String,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EthMessageInput {
     #[prost(string, tag = "1")]
-    pub message: ::prost::alloc::string::String,
+    pub message: std::string::String,
     #[prost(bool, tag = "2")]
     pub is_personal_sign: bool,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EthMessageOutput {
     #[prost(string, tag = "1")]
-    pub signature: ::prost::alloc::string::String,
+    pub signature: std::string::String,
 }

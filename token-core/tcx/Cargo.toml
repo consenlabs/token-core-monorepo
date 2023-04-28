@@ -41,7 +41,7 @@ name = "tcx"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-prost-build = "0.11.4"
+prost-build = "0.11.3"
 
 [dev-dependencies]
 sp-core = "7.0.0"
