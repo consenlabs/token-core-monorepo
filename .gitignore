@@ -93,3 +93,4 @@ imkey-core/ikc-tools/build-android-linux.sh
 imkey-core/ios-release/**
 imkey-core/mobile-sdk/imKeyCoreX/Products/
 
+script/*-local.sh

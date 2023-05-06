@@ -1,23 +1,20 @@
 name: Build Android Release
 
 on:
-  pull_request:
-    types: [assigned, opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted]
 
 env:
-  CARGO_TERM_COLOR: always    
+  CARGO_TERM_COLOR: always
+  ORG_GRADLE_PROJECT_sonatypeUsername : ${{ secrets.OSSRH_USERNAME }}
+  ORG_GRADLE_PROJECT_sonatypePassword : ${{ secrets.OSSRH_PASSWORD }}
+  ORG_GRADLE_PROJECT_signingKey : ${{ secrets.SIGNING_KEY }}
+  ORG_GRADLE_PROJECT_signingPassword : ${{ secrets.SIGNING_SECRET }}
   
 jobs:
   build:
-    if: (
-          github.event.issue.pull_request &&
-          contains(
-            fromJson('["build android", "build"]'),
-            github.event.comment.body
-          )
-        )
-
     name: Build Android Release
+    if: github.event.review.state == 'approved'
     runs-on: macos-latest
     steps:
     - name: Get the latest commit SHA
@@ -113,12 +110,9 @@ jobs:
     - name: Publish
       run: |
         pushd ${{github.workspace}}/publish/android
-        VERSION_NAME="VERSION=${{ steps.getversion.outputs.version }}"
-        echo 'NEXUS_USER=${{secrets.RELEASE_USER}}' >> ./local.properties
-        echo 'NEXUS_PASSWORD=${{secrets.RELEASE_TOKEN}}' >> ./local.properties
-        echo ${VERSION_NAME} >> ./local.properties
         ./gradlew assemble
-        ./gradlew publishProductionPublicationToGithubPackagesRepository
+        ./gradlew publishToSonatype closeSonatypeStagingRepository
+        ./gradlew findSonatypeStagingRepository releaseSonatypeStagingRepository
         popd 
         
           

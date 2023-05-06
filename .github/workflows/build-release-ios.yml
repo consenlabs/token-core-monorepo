@@ -1,23 +1,17 @@
 name: Build iOS Release
 
 on:
-  pull_request:
-    types: [assigned, opened, synchronize, reopened]
+  pull_request_review:
+    types: [submitted]
 
 env:
   CARGO_TERM_COLOR: always
-  
+
+
 jobs:
   build:
     name: Build iOS Release
-    if: (
-          github.event.issue.pull_request &&
-          contains(
-            fromJson('["build ios", "build"]'),
-            github.event.comment.body
-          )
-        )
-
+    if: github.event.review.state == 'approved'
     runs-on: macos-latest
     steps:
     - name: Get the latest commit SHA
