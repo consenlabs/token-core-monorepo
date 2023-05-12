@@ -66,6 +66,7 @@ jobs:
 
 
     - name: Build And Publish
+      id: build
       run: | 
         pushd ./imkey-core/ikc
         cargo lipo --release --targets aarch64-apple-ios x86_64-apple-ios
@@ -112,6 +113,8 @@ jobs:
         pushd ./imkey-core/ios-release
         PACKAGE_NAME=ios-ikc-${{ steps.getversion.outputs.version }}.zip
         zip -q -r $PACKAGE_NAME .
+        echo "imkeycorex_sha256=$(shasum -a 256 $PACKAGE_NAME | awk '{ print $1 }')" >> $GITHUB_OUTPUT
+        echo "imKeyCoreX sha256: $(shasum -a 256 $PACKAGE_NAME | awk '{ print $1 }')"
         cp $PACKAGE_NAME ../../
         popd
         
@@ -132,6 +135,8 @@ jobs:
         pushd ./token-core/ios-release
         PACKAGE_NAME=ios-tcx-${{ steps.getversion.outputs.version }}.zip
         zip -q -r $PACKAGE_NAME .
+        echo "tokencorex_sha256=$(shasum -a 256 $PACKAGE_NAME | awk '{ print $1 }')" >> $GITHUB_OUTPUT
+        echo "TokenCoreX sha256: $(shasum -a 256 $PACKAGE_NAME | awk '{ print $1 }')"
         cp $PACKAGE_NAME ../../
         popd
         
@@ -155,13 +160,13 @@ jobs:
         # For posting a rich message using Block Kit
         payload: |
           {
-            "text": "New build of ios-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}",
+            "text": "New build of ios-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nimKey Core X Sha256: ${{ steps.build.outputs.imkeycorex_sha256 }}\nToken Core X Sha256: ${{ steps.build.outputs.tokencorex_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}",
             "blocks": [
               {
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "New build of ios-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}"
+                  "text": "New build of ios-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nimKey Core X Sha256: ${{ steps.build.outputs.imkeycorex_sha256 }}\nToken Core X Sha256: ${{ steps.build.outputs.tokencorex_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}"
                 }
               }
             ]
