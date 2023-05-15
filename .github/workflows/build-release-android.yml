@@ -115,7 +115,6 @@ jobs:
         echo "tokencore_sha256=$(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')" >> $GITHUB_OUTPUT
         echo "tokencore-release.aar sha256: $(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')"
         ./gradlew publishToSonatype closeSonatypeStagingRepository
-        ./gradlew findSonatypeStagingRepository releaseSonatypeStagingRepository
         popd 
         
           
