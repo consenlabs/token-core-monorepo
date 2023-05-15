@@ -1,14 +1,13 @@
 name: Build iOS Release
 
 on:
-  issue_comment:
-    types: [created, edited]
+  pull_request:
+    types: [assigned, opened, synchronize, reopened]
 
 env:
   CARGO_TERM_COLOR: always
   
 jobs:
-
   build:
     name: Build iOS Release
     if: (
@@ -20,9 +19,7 @@ jobs:
         )
 
     runs-on: macos-latest
-
     steps:
-
     - name: Get the latest commit SHA
       id: sha
       uses: actions/github-script@v6
@@ -144,17 +141,18 @@ jobs:
         cp $PACKAGE_NAME ../../
         popd
         
-   - name: Release
-        uses: softprops/action-gh-release@v1
-        with:
-          name: "Release ${{ steps.getversion.outputs.version }}"
-          tag_name: ""
-          draft: true
-          prerelease: true
-          token: ${{ secrets.RELEASE_TOKEN }}
-          files: |
-            ios-ikc-${{ steps.getversion.outputs.version }}.zip
-            ios-tcx-${{ steps.getversion.outputs.version }}.zip
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: "Release ${{ steps.getversion.outputs.version }}"
+        tag_name: ""
+        draft: true
+        prerelease: true
+        token: ${{ secrets.RELEASE_TOKEN }}
+        generate_release_notes: true
+        files: |
+          ios-ikc-${{ steps.getversion.outputs.version }}.zip
+          ios-tcx-${{ steps.getversion.outputs.version }}.zip
           
     - name: Send custom JSON data to Slack workflow
       id: slack
