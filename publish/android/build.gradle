@@ -18,7 +18,7 @@ plugins {
     id("signing")
 }
 
-version System.getProperty("VERSION") ?: project['version']
+version System.getenv("VERSION") ?: project['version']
 group 'io.github.consenlabs.android'
 
 afterEvaluate {
