@@ -57,7 +57,9 @@ jobs:
 
     - name: Read VERSION file
       id: getversion
-      run: echo "version=$(cat VERSION)+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      run: |
+        echo "version=$(cat VERSION)+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        echo "short_commit=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
     - name: Get commits
       id: getcommits
@@ -148,7 +150,7 @@ jobs:
         name: "Release ${{ steps.getversion.outputs.version }}"
         tag_name: "v${{steps.getversion.outputs.version}}"
         prerelease: true
-        target_commitish: $(git rev-parse --short HEAD)
+        target_commitish: "${{ steps.getversion.outputs.short_commit }}"
         generate_release_notes: true
         files: |
           ios-ikc-${{ steps.getversion.outputs.version }}.zip
