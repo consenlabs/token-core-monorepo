@@ -59,6 +59,7 @@ jobs:
       id: getversion
       run: |
         echo "version=$(cat VERSION)+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        echo "tag_name=$(cat VERSION)" >> $GITHUB_OUTPUT
         echo "short_commit=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
     - name: Get commits
@@ -148,7 +149,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         name: "Release ${{ steps.getversion.outputs.version }}"
-        tag_name: "v${{steps.getversion.outputs.version}}"
+        tag_name: "v${{steps.getversion.outputs.tag_name}}"
         prerelease: true
         target_commitish: "${{ steps.getversion.outputs.short_commit }}"
         generate_release_notes: true
