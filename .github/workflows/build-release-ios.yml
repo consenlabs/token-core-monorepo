@@ -149,8 +149,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         name: "Release ${{ steps.getversion.outputs.version }}"
-        tag_name: "v${{steps.getversion.outputs.tag_name}}"
-        prerelease: true
+        tag_name: "${{ steps.getversion.outputs.version }}"
         target_commitish: "${{ steps.getversion.outputs.short_commit }}"
         generate_release_notes: true
         files: |
