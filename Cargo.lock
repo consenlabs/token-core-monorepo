@@ -4943,6 +4943,7 @@ dependencies = [
  "tcx-substrate",
  "tcx-tezos",
  "tcx-tron",
+ "tcx-wallet",
  "zksync-crypto",
 ]
 
@@ -5244,6 +5245,16 @@ dependencies = [
  "tcx-primitive",
  "tiny-bip39 0.7.3",
  "uuid",
+]
+
+[[package]]
+name = "tcx-wallet"
+version = "0.1.0"
+dependencies = [
+ "failure",
+ "prost 0.11.8",
+ "prost-types 0.11.8",
+ "tcx-primitive",
 ]
 
 [[package]]

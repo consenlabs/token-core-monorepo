@@ -56,6 +56,8 @@ use tcx_tezos::address::TezosAddress;
 use tcx_tezos::transaction::TezosRawTxIn;
 use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
 use tcx_tron::transaction::{TronMessageInput, TronTxInput};
+use tcx_wallet::wallet_api::GenerateMnemonicResult;
+use tcx_wallet::wallet_manager::generate_Mnemonic;
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
 
 pub(crate) fn encode_message(msg: impl Message) -> Result<Vec<u8>> {
@@ -988,5 +990,11 @@ pub(crate) fn sign_bls_to_execution_change(data: &[u8]) -> Result<Vec<u8>> {
     let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
     let result: SignBlsToExecutionChangeResult =
         param.sign_bls_to_execution_change(guard.keystore_mut())?;
+    encode_message(result)
+}
+
+pub(crate) fn generate_mnemonic() -> Result<Vec<u8>> {
+    let mnemonic = generate_Mnemonic()?;
+    let result = GenerateMnemonicResult { mnemonic };
     encode_message(result)
 }

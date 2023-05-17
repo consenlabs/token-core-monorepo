@@ -27,7 +27,7 @@ use crate::handler::{
 mod filemanager;
 
 use crate::handler::{
-    export_substrate_keystore, get_public_key, import_substrate_keystore,
+    export_substrate_keystore, generate_mnemonic, get_public_key, import_substrate_keystore,
     sign_bls_to_execution_change, substrate_keystore_exists,
 };
 use parking_lot::RwLock;
@@ -131,6 +131,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "sign_bls_to_execution_change" => {
             landingpad(|| sign_bls_to_execution_change(&action.param.unwrap().value))
         }
+        "generate_mnemonic" => landingpad(|| generate_mnemonic()),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {
@@ -213,6 +214,7 @@ mod tests {
     };
     use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
     use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
+    use tcx_wallet::wallet_api::GenerateMnemonicResult;
 
     static OTHER_MNEMONIC: &'static str =
         "calm release clay imitate top extend close draw quiz refuse shuffle injury";
@@ -2950,6 +2952,20 @@ mod tests {
 
             assert_eq!(signBlsToExecutionChangeResult.signeds.get(0).unwrap().signature, "8c8ce9f8aedf380e47548501d348afa28fbfc282f50edf33555a3ed72eb24d710bc527b5108022cffb764b953941ec4014c44106d2708387d26cc84cbc5c546a1e6e56fdc194cf2649719e6ac149596d80c86bf6844b36bd47038ee96dd3962f");
             remove_created_wallet(&import_result.id);
+        })
+    }
+
+    #[test]
+    pub fn test_generate_mnemonic() {
+        run_test(|| {
+            let generate_mnemonic_bytes = call_api("generate_mnemonic", ()).unwrap();
+            let generate_mnemonic_result: GenerateMnemonicResult =
+                GenerateMnemonicResult::decode(generate_mnemonic_bytes.as_slice()).unwrap();
+            let split_result: Vec<&str> = generate_mnemonic_result
+                .mnemonic
+                .split_whitespace()
+                .collect();
+            assert_eq!(split_result.len(), 12);
         })
     }
 }
