@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 export ANDROID_NDK_TOOLCHAINS=$ANDROID_SDK_ROOT/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin
 
 export OPENSSL_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl
