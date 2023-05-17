@@ -1,0 +1,3 @@
+.github/**/*  @consenlabs/token-core
+script/**/*  @consenlabs/token-core
+Makefile  @consenlabs/token-core

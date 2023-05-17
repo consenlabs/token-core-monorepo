@@ -1,34 +1,40 @@
 name: Build iOS Release
 
 on:
-  push:
-    branches:
-      - main
-  issue_comment:
-    types: [created, edited]
+  pull_request_review:
+    types: [submitted]
 
 env:
   CARGO_TERM_COLOR: always
-  
+
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build iOS Release
-    if: (
-        github.ref == 'refs/heads/main' ||
-        (github.event.issue.pull_request &&
-        contains(
-          fromJson('["build", "build ios"]'),
-          github.event.comment.body
-        ))
-      )
-
+    if: github.event.review.state == 'approved'
     runs-on: macos-latest
-    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+    - name: Get the latest commit SHA
+      id: sha
+      uses: actions/github-script@v6
       with:
-        fetch-depth: 1
+        result-encoding: string
+        script: |
+          const { owner, repo, number } = context.issue
+          const pr = await github.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: number,
+          })
+          return pr.data.head.sha
+
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ steps.sha.outputs.result }}
+        fetch-depth: 5
 
     - name: Cache
       uses: actions/cache@v2
@@ -51,14 +57,21 @@ jobs:
 
     - name: Read VERSION file
       id: getversion
-      run: echo "version=$(cat VERSION)+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      run: |
+        echo "version=$(cat VERSION)+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+        echo "tag_name=$(cat VERSION)" >> $GITHUB_OUTPUT
+        echo "short_commit=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
     - name: Get commits
       id: getcommits
-      run: echo "commits=$(git log -5 --pretty=%B)" >> $GITHUB_OUTPUT
+      shell: bash
+      run: |
+        OUTPUT="$(git log -n 5 --pretty=format:"%s")"
+        echo ::set-output name=commits::"${OUTPUT}"
 
 
     - name: Build And Publish
+      id: build
       run: | 
         pushd ./imkey-core/ikc
         cargo lipo --release --targets aarch64-apple-ios x86_64-apple-ios
@@ -103,9 +116,11 @@ jobs:
         popd
         
         pushd ./imkey-core/ios-release
-        PACKAGE_NAME=ios-release-${{ steps.getversion.outputs.version }}.zip
+        PACKAGE_NAME=ios-ikc-${{ steps.getversion.outputs.version }}.zip
         zip -q -r $PACKAGE_NAME .
-        curl -v -u ${{secrets.NEXUS_USER}}:${{secrets.NEXUS_PASSWORD}} --upload-file $PACKAGE_NAME https://nexus.token.im/repository/im-releases/im/imkey/ios/${{ steps.getversion.outputs.version }}/$PACKAGE_NAME
+        echo "imkeycorex_sha256=$(shasum -a 256 $PACKAGE_NAME | awk '{ print $1 }')" >> $GITHUB_OUTPUT
+        echo "imKeyCoreX sha256: $(shasum -a 256 $PACKAGE_NAME | awk '{ print $1 }')"
+        cp $PACKAGE_NAME ../../
         popd
         
         pushd ./token-core/tcx-examples/TokenCoreX       
@@ -123,11 +138,22 @@ jobs:
         popd
         
         pushd ./token-core/ios-release
-        PACKAGE_NAME=ios-release-${{ steps.getversion.outputs.version }}.zip
+        PACKAGE_NAME=ios-tcx-${{ steps.getversion.outputs.version }}.zip
         zip -q -r $PACKAGE_NAME .
-        curl -v -u ${{secrets.NEXUS_USER}}:${{secrets.NEXUS_PASSWORD}} --upload-file $PACKAGE_NAME https://nexus.token.im/repository/im-releases/com/consenlabs/ios/${{ steps.getversion.outputs.version }}/$PACKAGE_NAME
+        echo "tokencorex_sha256=$(shasum -a 256 $PACKAGE_NAME | awk '{ print $1 }')" >> $GITHUB_OUTPUT
+        echo "TokenCoreX sha256: $(shasum -a 256 $PACKAGE_NAME | awk '{ print $1 }')"
+        cp $PACKAGE_NAME ../../
         popd
         
+    - name: Release
+      uses: softprops/action-gh-release@v1
+      with:
+        name: "Release ${{ steps.getversion.outputs.version }}"
+        tag_name: "v${{ steps.getversion.outputs.version }}"
+        generate_release_notes: true
+        files: |
+          ios-ikc-${{ steps.getversion.outputs.version }}.zip
+          ios-tcx-${{ steps.getversion.outputs.version }}.zip
           
     - name: Send custom JSON data to Slack workflow
       id: slack
@@ -136,13 +162,13 @@ jobs:
         # For posting a rich message using Block Kit
         payload: |
           {
-            "text": "New build of ios-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}",
+            "text": "New build of ios-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nimKey Core X Sha256: ${{ steps.build.outputs.imkeycorex_sha256 }}\nToken Core X Sha256: ${{ steps.build.outputs.tokencorex_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}",
             "blocks": [
               {
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "New build of ios-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}"
+                  "text": "New build of ios-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nimKey Core X Sha256: ${{ steps.build.outputs.imkeycorex_sha256 }}\nToken Core X Sha256: ${{ steps.build.outputs.tokencorex_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}"
                 }
               }
             ]

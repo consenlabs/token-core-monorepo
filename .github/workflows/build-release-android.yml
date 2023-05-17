@@ -1,34 +1,41 @@
 name: Build Android Release
 
 on:
-  push:
-    branches:
-      - main
-  issue_comment:
-    types: [created, edited]
+  pull_request_review:
+    types: [submitted]
 
 env:
-  CARGO_TERM_COLOR: always    
+  CARGO_TERM_COLOR: always
+  ORG_GRADLE_PROJECT_sonatypeUsername : ${{ secrets.OSSRH_USERNAME }}
+  ORG_GRADLE_PROJECT_sonatypePassword : ${{ secrets.OSSRH_PASSWORD }}
+  ORG_GRADLE_PROJECT_signingKey : ${{ secrets.SIGNING_KEY }}
+  ORG_GRADLE_PROJECT_signingPassword : ${{ secrets.SIGNING_SECRET }}
   
 jobs:
   build:
     name: Build Android Release
-    if: (
-        github.ref == 'refs/heads/main' ||
-        (github.event.issue.pull_request &&
-        contains(
-          fromJson('["build", "build android"]'),
-          github.event.comment.body
-        ))
-      )
-
+    if: github.event.review.state == 'approved'
     runs-on: macos-latest
-    
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v2
+    - name: Get the latest commit SHA
+      id: sha
+      uses: actions/github-script@v6
       with:
-        fetch-depth: 1
+        result-encoding: string
+        script: |
+          const { owner, repo, number } = context.issue
+          const pr = await github.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: number,
+          })
+          return pr.data.head.sha
+
+    - name: Checkout repository
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ steps.sha.outputs.result }}
+        fetch-depth: 5
 
     - name: Cache
       uses: actions/cache@v2
@@ -95,17 +102,19 @@ jobs:
 
     - name: Get commits
       id: getcommits
-      run: echo "commits=$(git log -5 --pretty=%B)" >> $GITHUB_OUTPUT
+      shell: bash
+      run: |
+        OUTPUT="$(git log -n 5 --pretty=format:"%s")"
+        echo ::set-output name=commits::"${OUTPUT}"
 
     - name: Publish
+      id: publish
       run: |
         pushd ${{github.workspace}}/publish/android
-        VERSION_NAME="VERSION=${{ steps.getversion.outputs.version }}"
-        echo 'NEXUS_USER=${{secrets.NEXUS_USER}}' >> ./local.properties
-        echo 'NEXUS_PASSWORD=${{secrets.NEXUS_PASSWORD}}' >> ./local.properties
-        echo ${VERSION_NAME} >> ./local.properties
         ./gradlew assemble
-        ./gradlew pPPTNR
+        echo "tokencore_sha256=$(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')" >> $GITHUB_OUTPUT
+        echo "tokencore-release.aar sha256: $(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')"
+        VERSION=${{steps.getversion.outputs.version}} ./gradlew publishToSonatype closeSonatypeStagingRepository
         popd 
         
           
@@ -116,13 +125,13 @@ jobs:
         # For posting a rich message using Block Kit
         payload: |
           {
-            "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}",
+            "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.publish.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}",
             "blocks": [
               {
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}"
+                  "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.publish.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}"
                 }
               }
             ]
