@@ -46,6 +46,10 @@ impl TraitPrivateKey for Sr25519PrivateKey {
         Ok(self.0.sign(data).0.to_vec())
     }
 
+    fn sign_specified_hash(&self, _: &[u8], _: &str) -> Result<Vec<u8>> {
+        Err(KeyError::NotImplement.into())
+    }
+
     fn sign_recoverable(&self, data: &[u8]) -> Result<Vec<u8>> {
         // https://www.deadalnix.me/2017/02/17/schnorr-signatures-for-not-so-dummies/
         self.sign(data)

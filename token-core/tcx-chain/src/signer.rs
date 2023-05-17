@@ -26,4 +26,13 @@ pub trait ChainSigner {
         address: &str,
         path: Option<&str>,
     ) -> Result<Vec<u8>>;
+
+    fn sign_specified_hash(
+        &mut self,
+        data: &[u8],
+        symbol: &str,
+        address: &str,
+        path: Option<&str>,
+        dst: &str,
+    ) -> Result<Vec<u8>>;
 }

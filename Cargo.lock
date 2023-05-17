@@ -4775,24 +4775,25 @@ dependencies = [
 ]
 
 [[package]]
-name = "ssz-rs"
+name = "ssz_rs"
 version = "0.8.0"
-source = "git+https://github.com/ChorusOne/ssz-rs.git?rev=cb08f18ca919cc1b685b861d0fa9e2daabe89737#cb08f18ca919cc1b685b861d0fa9e2daabe89737"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f923762d556417668b192ac2fdc9827ea21e6df011d8a0a7e68f3d5da095a675"
 dependencies = [
  "bitvec",
  "hex 0.4.3",
- "lazy_static",
  "num-bigint 0.4.3",
  "serde",
  "sha2 0.9.9",
- "ssz-rs-derive",
+ "ssz_rs_derive",
  "thiserror",
 ]
 
 [[package]]
-name = "ssz-rs-derive"
+name = "ssz_rs_derive"
 version = "0.8.0"
-source = "git+https://github.com/ChorusOne/ssz-rs.git?rev=cb08f18ca919cc1b685b861d0fa9e2daabe89737#cb08f18ca919cc1b685b861d0fa9e2daabe89737"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c679ebd9c1ceeb0f9e5b839952b4a71bfe35a791b431ef7b3ee0b71b7588b565"
 dependencies = [
  "proc-macro2 1.0.54",
  "quote 1.0.26",
@@ -5078,11 +5079,13 @@ dependencies = [
  "bytes 1.4.0",
  "failure",
  "hex 0.3.2",
+ "keccak-hash",
  "lazy_static",
  "prost 0.11.8",
  "prost-types 0.11.8",
- "ssz-rs",
- "ssz-rs-derive",
+ "regex 1.7.3",
+ "ssz_rs",
+ "ssz_rs_derive",
  "tcx-chain",
  "tcx-constants",
  "tcx-crypto",
