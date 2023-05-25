@@ -25,14 +25,14 @@ pub enum Key {
     DerivedKey(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct EncPair {
     pub enc_str: String,
     pub nonce: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 struct CipherParams {
     iv: String,
@@ -43,6 +43,7 @@ pub trait KdfParams: Default {
     fn validate(&self) -> Result<()>;
     fn generate_derived_key(&self, password: &[u8], out: &mut [u8]);
     fn set_salt(&mut self, salt: &str);
+    fn set_round(&mut self, round_number: u32);
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -85,6 +86,10 @@ impl KdfParams for Pbkdf2Params {
 
     fn set_salt(&mut self, salt: &str) {
         self.salt = salt.to_owned();
+    }
+
+    fn set_round(&mut self, round_number: u32) {
+        self.c = round_number;
     }
 }
 
@@ -135,6 +140,10 @@ impl KdfParams for SCryptParams {
     fn set_salt(&mut self, salt: &str) {
         self.salt = salt.to_owned();
     }
+
+    fn set_round(&mut self, round_number: u32) {
+        self.n = round_number;
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -164,7 +173,7 @@ impl CacheDerivedKey {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Crypto<T: KdfParams> {
     cipher: String,
@@ -183,6 +192,33 @@ where
 {
     pub fn new(password: &str, origin: &[u8]) -> Crypto<T> {
         let mut param = T::default();
+        param.set_salt(&numberic_util::random_iv(32).to_hex());
+        let iv = numberic_util::random_iv(16);
+
+        let mut crypto = Crypto {
+            cipher: "aes-128-ctr".to_owned(),
+            cipherparams: CipherParams { iv: iv.to_hex() },
+            ciphertext: String::from(""),
+            kdf: T::kdf_key(),
+            kdfparams: param,
+            mac: String::from(""),
+            cached_derived_key: None,
+        };
+
+        let derived_key = crypto
+            .generate_derived_key(password)
+            .expect("new crypto generate_derived_key");
+
+        let ciphertext = crypto.encrypt(password, origin);
+        crypto.ciphertext = ciphertext.to_hex();
+        let mac = Self::generate_mac(&derived_key, &ciphertext);
+        crypto.mac = mac.to_hex();
+        crypto
+    }
+
+    pub fn new_by_10240_round(password: &str, origin: &[u8]) -> Crypto<T> {
+        let mut param = T::default();
+        param.set_round(10240);
         param.set_salt(&numberic_util::random_iv(32).to_hex());
         let iv = numberic_util::random_iv(16);
 

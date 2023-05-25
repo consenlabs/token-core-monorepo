@@ -2,5 +2,18 @@ syntax = "proto3";
 package wallet_api;
 
 message GenerateMnemonicResult {
-    string Mnemonic = 1;
+    string mnemonic = 1;
+}
+
+message CreateIdentityParam {
+    string name = 1;
+    string password = 2;
+    optional string passwordHint = 3;
+    string network = 4;
+    string segWit = 5;
+}
+
+message CreateIdentityResult {
+    string identifier = 1;
+    string ipfsId = 2;
 }
