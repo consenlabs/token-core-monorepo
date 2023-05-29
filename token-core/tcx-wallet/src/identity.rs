@@ -11,7 +11,6 @@ use hex::{FromHex, ToHex};
 use hmac_sha256::HMAC;
 use lazy_static::lazy_static;
 use multihash::{Code, MultihashDigest};
-// use parking_lot::RwLock;
 use secp256k1::Secp256k1;
 use serde::{de::Deserializer, ser::Serializer, Deserialize, Serialize};
 use std::hash::Hash;
@@ -72,7 +71,6 @@ impl IdentityKeystore {
             _ => 111,
         };
 
-        //
         let version = 2;
         let magic_hex = "0fdc0c";
         let full_identifier = format!(
@@ -113,8 +111,7 @@ impl IdentityKeystore {
             wallet_ids: vec![],
             im_token_meta: metadata,
         };
-        // let mut identity_keystore_obj = IDENTITY_KEYSTORE.write();
-        // *identity_keystore_obj = identity_keystore.clone();
+
         Ok(identity_keystore)
     }
 

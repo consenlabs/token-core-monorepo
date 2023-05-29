@@ -2988,13 +2988,28 @@ mod tests {
             let ret = call_api("create_identity", param).unwrap();
             let create_result: CreateIdentityResult =
                 CreateIdentityResult::decode(ret.as_slice()).unwrap();
-            println!("{}", create_result.ipfs_id);
-            println!("{}", create_result.identifier);
+            assert!(create_result.ipfs_id.len() > 0);
+            assert!(create_result.identifier.len() > 0);
 
-            // assert!(import_result.accounts.is_empty());
-            // assert_eq!(import_result.name, "aaa");
-            // assert_eq!(import_result.source, "MNEMONIC");
-            // remove_created_wallet(&import_result.id);
+            let param = CreateIdentityParam {
+                name: sample_key::NAME.to_string(),
+                password: sample_key::PASSWORD.to_string(),
+                password_hint: None,
+                network: model::NETWORK_TESTNET.to_string(),
+                seg_wit: None,
+            };
+            assert!(create_result.ipfs_id.len() > 0);
+            assert!(create_result.identifier.len() > 0);
+
+            let param = CreateIdentityParam {
+                name: sample_key::NAME.to_string(),
+                password: sample_key::PASSWORD.to_string(),
+                password_hint: None,
+                network: model::NETWORK_MAINNET.to_string(),
+                seg_wit: None,
+            };
+            assert!(create_result.ipfs_id.len() > 0);
+            assert!(create_result.identifier.len() > 0);
         })
     }
 }
