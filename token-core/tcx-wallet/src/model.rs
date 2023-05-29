@@ -23,7 +23,7 @@ pub const NETWORK_TESTNET: &str = "TESTNET";
 #[serde(rename_all = "camelCase")]
 pub struct Metadata {
     pub name: String,
-    pub password_hint: String,
+    pub password_hint: Option<String>,
     pub chain_type: String,
     pub timestamp: u128,
     pub network: String,
@@ -37,7 +37,7 @@ pub struct Metadata {
 impl Metadata {
     pub fn new(
         name: &str,
-        password_hint: &str,
+        password_hint: Option<&str>,
         source: &str,
         network: &str,
         seg_wit: Option<&str>,
@@ -50,7 +50,7 @@ impl Metadata {
         };
         Ok(Metadata {
             name: name.to_string(),
-            password_hint: password_hint.to_string(),
+            password_hint: password_hint.map(|s| s.to_owned()),
             chain_type: "".to_string(),
             timestamp,
             network: network.to_string(),
@@ -73,7 +73,7 @@ mod test {
 
     #[test]
     fn test_metadata_new() {
-        let metadata = Metadata::new("name", "password_hint", "ETH", "MAINNET", None);
+        let metadata = Metadata::new("name", Some("password_hint"), "ETH", "MAINNET", None);
         assert_eq!(metadata.is_ok(), true)
     }
 }

@@ -10,7 +10,7 @@ message CreateIdentityParam {
     string password = 2;
     optional string passwordHint = 3;
     string network = 4;
-    string segWit = 5;
+    optional string segWit = 5;
 }
 
 message CreateIdentityResult {

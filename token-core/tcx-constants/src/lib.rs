@@ -1,6 +1,7 @@
 pub mod btc_fork_network;
 pub mod coin_info;
 pub mod curve;
+pub mod sample_key;
 
 pub use btc_fork_network::{
     coin_from_xpub_prefix, network_form_hrp, network_from_coin, pub_version_from_prv_version,

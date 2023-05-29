@@ -1,5 +1,6 @@
 use crate::model::{Metadata, FROM_NEW_IDENTITY};
 use crate::wallet_manager::generate_Mnemonic;
+use crate::Error;
 use crate::Result as SelfResult;
 use bip39::{Language, Mnemonic, MnemonicType, Seed};
 use bitcoin::network::constants::Network;
@@ -10,7 +11,7 @@ use hex::{FromHex, ToHex};
 use hmac_sha256::HMAC;
 use lazy_static::lazy_static;
 use multihash::{Code, MultihashDigest};
-use parking_lot::RwLock;
+// use parking_lot::RwLock;
 use secp256k1::Secp256k1;
 use serde::{de::Deserializer, ser::Serializer, Deserialize, Serialize};
 use std::hash::Hash;
@@ -20,13 +21,9 @@ use uuid::Uuid;
 
 pub const VERSION: u32 = 1000;
 
-lazy_static! {
-    pub static ref IDENTITY_KEYSTORE: RwLock<Keystore> = RwLock::new(Keystore::default());
-}
-
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
-pub struct Keystore {
+pub struct IdentityKeystore {
     pub crypto: Crypto<Pbkdf2Params>,
     pub id: String,
     pub version: u32,
@@ -40,29 +37,23 @@ pub struct Keystore {
     pub im_token_meta: Metadata,
 }
 
-impl Keystore {
+impl IdentityKeystore {
     pub fn create_identity(
         name: &str,
         password: &str,
-        password_hit: &str,
-        network: Network,
+        password_hit: Option<&str>,
+        network: &str,
         seg_wit: Option<&str>,
-    ) -> SelfResult<Keystore> {
-        let metadata = Metadata::new(
-            name,
-            password_hit,
-            FROM_NEW_IDENTITY,
-            network.to_string().as_str(),
-            seg_wit,
-        )?;
-        //生成助记词
-        let mnemonic = Mnemonic::new(MnemonicType::Words12, Language::English);
-        //助记词验证
-        Mnemonic::validate(mnemonic.phrase(), Language::English).unwrap();
-        //通过助记词获取seed
+        mnemonic_phrase: &str,
+    ) -> SelfResult<IdentityKeystore> {
+        let network_type = get_netwrok_from_str(network)?;
+
+        let metadata = Metadata::new(name, password_hit, FROM_NEW_IDENTITY, network, seg_wit)?;
+
+        Mnemonic::validate(mnemonic_phrase, Language::English).unwrap();
+        let mnemonic = Mnemonic::from_phrase(mnemonic_phrase, Language::English).unwrap();
         let seed = Seed::new(&mnemonic, "");
-        //通过seed获取master key
-        let master_key = ExtendedPrivKey::new_master(network, seed.as_ref())?;
+        let master_key = ExtendedPrivKey::new_master(network_type, seed.as_ref())?;
 
         let salt = match metadata.is_main_net() {
             true => "Automatic Backup Key Mainnet",
@@ -72,8 +63,7 @@ impl Keystore {
 
         let authentication_key = HMAC::mac("Authentication Key".as_bytes(), backup_key);
 
-        let auth_private_key =
-            PrivateKey::from_slice(authentication_key.as_ref(), Network::Bitcoin)?;
+        let auth_private_key = PrivateKey::from_slice(authentication_key.as_ref(), network_type)?;
         let secp = Secp256k1::new();
         let auth_pubkey_hash = auth_private_key.public_key(&secp).pubkey_hash();
 
@@ -96,7 +86,7 @@ impl Keystore {
 
         let enc_private_key = PrivateKey::new_uncompressed(
             secp256k1::SecretKey::from_slice(enc_key_bytes.as_ref())?,
-            Network::Bitcoin,
+            network_type,
         );
         let multihash =
             Code::Sha2_256.digest(enc_private_key.public_key(&secp).to_bytes().as_slice());
@@ -111,7 +101,7 @@ impl Keystore {
         let enc_mnemonic = crypto.derive_enc_pair(password, mnemonic.phrase().as_bytes())?;
         crypto.clear_cache_derived_key();
 
-        let keystore = Keystore {
+        let identity_keystore = IdentityKeystore {
             crypto,
             id: Uuid::new_v4().as_hyphenated().to_string(),
             version: VERSION,
@@ -123,14 +113,25 @@ impl Keystore {
             wallet_ids: vec![],
             im_token_meta: metadata,
         };
-        let mut keystore_obj = IDENTITY_KEYSTORE.write();
-        *keystore_obj = keystore.clone();
-        Ok(keystore)
+        // let mut identity_keystore_obj = IDENTITY_KEYSTORE.write();
+        // *identity_keystore_obj = identity_keystore.clone();
+        Ok(identity_keystore)
     }
 
     pub fn to_json(&self) -> SelfResult<String> {
         Ok(serde_json::to_string(&self)?)
     }
+}
+
+fn get_netwrok_from_str(network_str: &str) -> SelfResult<Network> {
+    let network_type = match network_str.to_lowercase().as_str() {
+        "bitcoin" => Network::Bitcoin,
+        "testnet" => Network::Testnet,
+        "regtest" => Network::Regtest,
+        "signet" => Network::Signet,
+        _ => return Err(Error::NetworkParamsInvalid.into()),
+    };
+    Ok(network_type)
 }
 
 fn create_identity(
@@ -148,8 +149,9 @@ fn create_identity(
 
 #[cfg(test)]
 mod test {
-    use crate::identity::{create_identity, Keystore};
+    use crate::identity::{create_identity, IdentityKeystore};
     use bitcoin::network::constants::Network;
+    use tcx_constants::sample_key;
 
     #[test]
     fn test_create_identity() {
@@ -158,12 +160,14 @@ mod test {
 
     #[test]
     fn test_keystore_create_identity() {
-        Keystore::create_identity(
+        IdentityKeystore::create_identity(
             "xyz",
             "Insecure Pa55w0rd",
-            "Password Hint",
-            Network::Testnet,
+            Some("Password Hint"),
+            "TESTNET",
             None,
-        );
+            sample_key::MNEMONIC,
+        )
+        .unwrap();
     }
 }

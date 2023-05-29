@@ -15,8 +15,8 @@ pub struct CreateIdentityParam {
     pub password_hint: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, tag = "4")]
     pub network: ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
-    pub seg_wit: ::prost::alloc::string::String,
+    #[prost(string, optional, tag = "5")]
+    pub seg_wit: ::core::option::Option<::prost::alloc::string::String>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

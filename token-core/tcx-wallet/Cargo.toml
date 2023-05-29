@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 tcx-primitive = { path = "../tcx-primitive" }
 tcx-crypto = { path = "../tcx-crypto"}
+tcx-constants = { path = "../tcx-constants"}
 
 failure = "0.1.8"
 prost = "0.11.2"

@@ -32,7 +32,10 @@ use crate::api::{
 };
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
-use crate::filemanager::{cache_keystore, clean_keystore, flush_keystore, WALLET_FILE_DIR};
+use crate::filemanager::{
+    cache_current_identity, cache_keystore, clean_keystore, flush_identity_keystore,
+    flush_keystore, WALLET_FILE_DIR,
+};
 use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
 use crate::IS_DEBUG;
@@ -56,7 +59,8 @@ use tcx_tezos::address::TezosAddress;
 use tcx_tezos::transaction::TezosRawTxIn;
 use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
 use tcx_tron::transaction::{TronMessageInput, TronTxInput};
-use tcx_wallet::wallet_api::GenerateMnemonicResult;
+use tcx_wallet::identity::IdentityKeystore;
+use tcx_wallet::wallet_api::{CreateIdentityParam, CreateIdentityResult, GenerateMnemonicResult};
 use tcx_wallet::wallet_manager::generate_Mnemonic;
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
 
@@ -996,5 +1000,28 @@ pub(crate) fn sign_bls_to_execution_change(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn generate_mnemonic() -> Result<Vec<u8>> {
     let mnemonic = generate_Mnemonic()?;
     let result = GenerateMnemonicResult { mnemonic };
+    encode_message(result)
+}
+
+pub(crate) fn create_identity(data: &[u8]) -> Result<Vec<u8>> {
+    let param: CreateIdentityParam = CreateIdentityParam::decode(data)?;
+
+    let mnemonic_phrase = generate_Mnemonic()?;
+    let identity_keystore = IdentityKeystore::create_identity(
+        param.name.as_str(),
+        param.password.as_str(),
+        param.password_hint.as_deref(),
+        param.network.as_str(),
+        param.seg_wit.as_deref(),
+        mnemonic_phrase.as_str(),
+    )?;
+
+    let result = CreateIdentityResult {
+        identifier: identity_keystore.identifier.clone(),
+        ipfs_id: identity_keystore.ipfs_id.clone(),
+    };
+
+    flush_identity_keystore(&identity_keystore)?;
+    cache_current_identity(identity_keystore);
     encode_message(result)
 }

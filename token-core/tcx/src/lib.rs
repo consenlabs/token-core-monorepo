@@ -27,8 +27,8 @@ use crate::handler::{
 mod filemanager;
 
 use crate::handler::{
-    export_substrate_keystore, generate_mnemonic, get_public_key, import_substrate_keystore,
-    sign_bls_to_execution_change, substrate_keystore_exists,
+    create_identity, export_substrate_keystore, generate_mnemonic, get_public_key,
+    import_substrate_keystore, sign_bls_to_execution_change, substrate_keystore_exists,
 };
 use parking_lot::RwLock;
 
@@ -132,6 +132,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
             landingpad(|| sign_bls_to_execution_change(&action.param.unwrap().value))
         }
         "generate_mnemonic" => landingpad(|| generate_mnemonic()),
+        "create_identity" => landingpad(|| create_identity(&action.param.unwrap().value)),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {
@@ -197,7 +198,9 @@ mod tests {
     use crate::handler::{encode_message, private_key_store_import};
     use prost::Message;
     use tcx_chain::Keystore;
+    use tcx_constants::sample_key;
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_wallet::model;
 
     use std::fs;
     use tcx_btc_fork::transaction::BtcForkTxInput;
@@ -214,7 +217,9 @@ mod tests {
     };
     use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
     use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
-    use tcx_wallet::wallet_api::GenerateMnemonicResult;
+    use tcx_wallet::wallet_api::{
+        CreateIdentityParam, CreateIdentityResult, GenerateMnemonicResult,
+    };
 
     static OTHER_MNEMONIC: &'static str =
         "calm release clay imitate top extend close draw quiz refuse shuffle injury";
@@ -2966,6 +2971,30 @@ mod tests {
                 .split_whitespace()
                 .collect();
             assert_eq!(split_result.len(), 12);
+        })
+    }
+
+    #[test]
+    pub fn test_identity_wallet_create() {
+        run_test(|| {
+            let param = CreateIdentityParam {
+                name: sample_key::NAME.to_string(),
+                password: sample_key::PASSWORD.to_string(),
+                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
+                network: model::NETWORK_TESTNET.to_string(),
+                seg_wit: None,
+            };
+
+            let ret = call_api("create_identity", param).unwrap();
+            let create_result: CreateIdentityResult =
+                CreateIdentityResult::decode(ret.as_slice()).unwrap();
+            println!("{}", create_result.ipfs_id);
+            println!("{}", create_result.identifier);
+
+            // assert!(import_result.accounts.is_empty());
+            // assert_eq!(import_result.name, "aaa");
+            // assert_eq!(import_result.source, "MNEMONIC");
+            // remove_created_wallet(&import_result.id);
         })
     }
 }
