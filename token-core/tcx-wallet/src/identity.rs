@@ -2,7 +2,7 @@ use crate::constants::{CHAIN_TYPE_ETHEREUM, ETHEREUM_PATH};
 use crate::imt_keystore::IMTKeystore;
 use crate::model::{Metadata, FROM_NEW_IDENTITY};
 use crate::wallet_manager::WalletManager;
-use crate::wallet_manager::WALLET_FILE_DIR;
+use crate::wallet_manager::WALLET_KEYSTORE_DIR;
 use crate::Error;
 use crate::Result as SelfResult;
 use bip39::{Language, Mnemonic, MnemonicType, Seed};
@@ -166,7 +166,7 @@ impl Identity {
         if !identity_keystore_obj.id.is_empty() {
             return Ok(identity_keystore_obj.to_owned());
         }
-        let dir = WALLET_FILE_DIR.read();
+        let dir = WALLET_KEYSTORE_DIR.read();
         let path_str = format!("{}/{}", dir.as_str(), IDENTITY_KEYSTORE_FILE_NAME);
         let path = Path::new(path_str.as_str());
         if !path.exists() {

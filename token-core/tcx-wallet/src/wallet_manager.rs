@@ -14,7 +14,7 @@ use tcx_primitive;
 
 lazy_static! {
     pub static ref WALLETS: RwLock<HashMap<String, IMTKeystore>> = RwLock::new(HashMap::new());
-    pub static ref WALLET_FILE_DIR: RwLock<String> = RwLock::new("../test-data".to_string());
+    pub static ref WALLET_KEYSTORE_DIR: RwLock<String> = RwLock::new("../test-data".to_string());
 }
 
 pub struct WalletManager();
@@ -26,7 +26,7 @@ impl WalletManager {
     }
 
     pub fn create_wallet(imtKeystore: IMTKeystore) -> Result<()> {
-        let file_dir = WALLET_FILE_DIR.read();
+        let file_dir = WALLET_KEYSTORE_DIR.read();
         let ks_path = format!("{}/{}{}", file_dir, imtKeystore.id, ".json");
         let path = Path::new(&ks_path);
         let mut file = fs::File::create(path)?;
@@ -59,7 +59,7 @@ impl WalletManager {
 
     pub fn get_wallets(identity_keystore: IdentityKeystore) -> Result<Vec<IMTKeystore>> {
         let ids = identity_keystore.to_owned().wallet_ids;
-        let dir = WALLET_FILE_DIR.read();
+        let dir = WALLET_KEYSTORE_DIR.read();
 
         let mut wallets = WALLETS.write();
         let mut ret_wallets = Vec::new();

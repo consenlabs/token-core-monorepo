@@ -67,7 +67,7 @@ use tcx_wallet::wallet_api::{
     CreateIdentityParam, CreateIdentityResult, GenerateMnemonicResult, GetCurrentIdentityResult,
     ImtKeystore, Metadata as MetadataRes,
 };
-use tcx_wallet::wallet_manager::WalletManager;
+use tcx_wallet::wallet_manager::{WalletManager, WALLET_KEYSTORE_DIR};
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
 
 pub(crate) fn encode_message(msg: impl Message) -> Result<Vec<u8>> {
@@ -109,6 +109,7 @@ pub fn init_token_core_x(data: &[u8]) -> Result<()> {
         is_debug,
     } = InitTokenCoreXParam::decode(data).unwrap();
     *WALLET_FILE_DIR.write() = file_dir.to_string();
+    *WALLET_KEYSTORE_DIR.write() = file_dir.to_string();
     *XPUB_COMMON_KEY_128.write() = xpub_common_key.to_string();
     *XPUB_COMMON_IV.write() = xpub_common_iv.to_string();
 
