@@ -59,9 +59,15 @@ use tcx_tezos::address::TezosAddress;
 use tcx_tezos::transaction::TezosRawTxIn;
 use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
 use tcx_tron::transaction::{TronMessageInput, TronTxInput};
-use tcx_wallet::identity::IdentityKeystore;
-use tcx_wallet::wallet_api::{CreateIdentityParam, CreateIdentityResult, GenerateMnemonicResult};
-use tcx_wallet::wallet_manager::generate_Mnemonic;
+use tcx_wallet::constants::{CHAIN_TYPE_ETHEREUM, ETHEREUM_PATH};
+use tcx_wallet::identity::{Identity, IdentityKeystore, IDENTITY_KEYSTORE};
+use tcx_wallet::imt_keystore::IMTKeystore;
+use tcx_wallet::model::Metadata as IdentityMetadata;
+use tcx_wallet::wallet_api::{
+    CreateIdentityParam, CreateIdentityResult, GenerateMnemonicResult, GetCurrentIdentityResult,
+    ImtKeystore, Metadata as MetadataRes,
+};
+use tcx_wallet::wallet_manager::WalletManager;
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
 
 pub(crate) fn encode_message(msg: impl Message) -> Result<Vec<u8>> {
@@ -998,7 +1004,7 @@ pub(crate) fn sign_bls_to_execution_change(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn generate_mnemonic() -> Result<Vec<u8>> {
-    let mnemonic = generate_Mnemonic()?;
+    let mnemonic = WalletManager::generate_mnemonic()?;
     let result = GenerateMnemonicResult { mnemonic };
     encode_message(result)
 }
@@ -1006,22 +1012,95 @@ pub(crate) fn generate_mnemonic() -> Result<Vec<u8>> {
 pub(crate) fn create_identity(data: &[u8]) -> Result<Vec<u8>> {
     let param: CreateIdentityParam = CreateIdentityParam::decode(data)?;
 
-    let mnemonic_phrase = generate_Mnemonic()?;
-    let identity_keystore = IdentityKeystore::create_identity(
+    let mnemonic = WalletManager::generate_mnemonic()?;
+    let mut identity_keystore = IdentityKeystore::create_identity(
         param.name.as_str(),
         param.password.as_str(),
         param.password_hint.as_deref(),
         param.network.as_str(),
         param.seg_wit.as_deref(),
-        mnemonic_phrase.as_str(),
+        mnemonic.as_str(),
     )?;
-
     let result = CreateIdentityResult {
         identifier: identity_keystore.identifier.clone(),
         ipfs_id: identity_keystore.ipfs_id.clone(),
     };
 
+    let eth_keystore_id = derive_ethereum_wallet(
+        &identity_keystore,
+        param.password.as_str(),
+        mnemonic.as_str(),
+    )?;
+
+    identity_keystore.wallet_ids.push(eth_keystore_id);
     flush_identity_keystore(&identity_keystore)?;
     cache_current_identity(identity_keystore);
+
+    encode_message(result)
+}
+
+pub(crate) fn derive_ethereum_wallet(
+    identity_keystore: &IdentityKeystore,
+    password: &str,
+    mnemonic: &str,
+) -> Result<String> {
+    let mut metadata = IdentityMetadata::default();
+    metadata.chain_type = CHAIN_TYPE_ETHEREUM.to_string();
+    metadata.password_hint = identity_keystore.im_token_meta.password_hint.to_owned();
+    metadata.source = identity_keystore.im_token_meta.source.to_owned();
+    metadata.name = "ETH".to_string();
+    let imt_keystore =
+        IMTKeystore::create_v3_mnemonic_keystore(&mut metadata, password, mnemonic, ETHEREUM_PATH)?;
+    WalletManager::create_wallet(imt_keystore.clone())?;
+    Identity::add_wallet(imt_keystore.id.as_str());
+    Ok(imt_keystore.id)
+}
+
+pub(crate) fn get_current_identity() -> Result<Vec<u8>> {
+    let current_identity = Identity::get_current_identity()?;
+    let wallets = WalletManager::get_wallets(current_identity.to_owned())?;
+    let identity_metadata = MetadataRes {
+        name: current_identity.im_token_meta.name,
+        password_hint: current_identity.im_token_meta.password_hint,
+        chain_type: current_identity.im_token_meta.chain_type,
+        timestamp: current_identity.im_token_meta.timestamp as u64,
+        network: current_identity.im_token_meta.network,
+        backup: current_identity.im_token_meta.backup.unwrap_or(vec![]),
+        source: current_identity.im_token_meta.source,
+        mode: current_identity.im_token_meta.mode,
+        wallet_type: current_identity.im_token_meta.wallet_type,
+        seg_wit: current_identity.im_token_meta.seg_wit,
+    };
+    // let identity_metadata: MetadataRes = serde_json::from_str(serde_json::to_string(&current_identity.im_token_meta)?.as_str())?;
+    let mut ret_wallet = vec![];
+    for wallet in wallets {
+        // let wallet_metadata: MetadataRes = serde_json::from_str(serde_json::to_string(&wallet.im_token_meta)?.as_str())?;
+        let wallet_metadata = MetadataRes {
+            name: wallet.im_token_meta.name,
+            password_hint: wallet.im_token_meta.password_hint,
+            chain_type: wallet.im_token_meta.chain_type,
+            timestamp: wallet.im_token_meta.timestamp as u64,
+            network: wallet.im_token_meta.network,
+            backup: wallet.im_token_meta.backup.unwrap_or(vec![]),
+            source: wallet.im_token_meta.source,
+            mode: wallet.im_token_meta.mode,
+            wallet_type: wallet.im_token_meta.wallet_type,
+            seg_wit: wallet.im_token_meta.seg_wit,
+        };
+        let imt_keystore = ImtKeystore {
+            id: wallet.id,
+            version: wallet.version,
+            address: wallet.address,
+            mnemonic_path: wallet.mnemonic_path,
+            metadata: Some(wallet_metadata),
+        };
+        ret_wallet.push(imt_keystore);
+    }
+    let result = GetCurrentIdentityResult {
+        identifier: current_identity.identifier,
+        ipfs_id: current_identity.ipfs_id,
+        wallets: ret_wallet,
+        metadata: Some(identity_metadata),
+    };
     encode_message(result)
 }

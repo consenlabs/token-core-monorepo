@@ -27,10 +27,12 @@ use crate::handler::{
 mod filemanager;
 
 use crate::handler::{
-    create_identity, export_substrate_keystore, generate_mnemonic, get_public_key,
-    import_substrate_keystore, sign_bls_to_execution_change, substrate_keystore_exists,
+    create_identity, export_substrate_keystore, generate_mnemonic, get_current_identity,
+    get_public_key, import_substrate_keystore, sign_bls_to_execution_change,
+    substrate_keystore_exists,
 };
 use parking_lot::RwLock;
+use tcx_wallet::constants;
 
 extern crate serde_json;
 
@@ -133,6 +135,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         }
         "generate_mnemonic" => landingpad(|| generate_mnemonic()),
         "create_identity" => landingpad(|| create_identity(&action.param.unwrap().value)),
+        "get_current_identity" => landingpad(|| get_current_identity()),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {
@@ -218,7 +221,7 @@ mod tests {
     use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
     use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
     use tcx_wallet::wallet_api::{
-        CreateIdentityParam, CreateIdentityResult, GenerateMnemonicResult,
+        CreateIdentityParam, CreateIdentityResult, GenerateMnemonicResult, GetCurrentIdentityResult,
     };
 
     static OTHER_MNEMONIC: &'static str =
@@ -2984,7 +2987,6 @@ mod tests {
                 network: model::NETWORK_TESTNET.to_string(),
                 seg_wit: None,
             };
-
             let ret = call_api("create_identity", param).unwrap();
             let create_result: CreateIdentityResult =
                 CreateIdentityResult::decode(ret.as_slice()).unwrap();
@@ -2998,6 +3000,9 @@ mod tests {
                 network: model::NETWORK_TESTNET.to_string(),
                 seg_wit: None,
             };
+            let ret = call_api("create_identity", param).unwrap();
+            let create_result: CreateIdentityResult =
+                CreateIdentityResult::decode(ret.as_slice()).unwrap();
             assert!(create_result.ipfs_id.len() > 0);
             assert!(create_result.identifier.len() > 0);
 
@@ -3008,8 +3013,21 @@ mod tests {
                 network: model::NETWORK_MAINNET.to_string(),
                 seg_wit: None,
             };
+            let ret = call_api("create_identity", param).unwrap();
+            let create_result: CreateIdentityResult =
+                CreateIdentityResult::decode(ret.as_slice()).unwrap();
             assert!(create_result.ipfs_id.len() > 0);
             assert!(create_result.identifier.len() > 0);
+
+            let ret_bytes = call_api("get_current_identity", ()).unwrap();
+            let ret: GetCurrentIdentityResult =
+                GetCurrentIdentityResult::decode(ret_bytes.as_slice()).unwrap();
+            assert_eq!(ret.wallets.len(), 1);
+            let wallet = ret.wallets.get(0).unwrap();
+            assert_eq!(
+                wallet.metadata.clone().unwrap().chain_type,
+                constants::CHAIN_TYPE_ETHEREUM
+            )
         })
     }
 }

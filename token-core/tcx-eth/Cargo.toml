@@ -1,0 +1,15 @@
+[package]
+name = "tcx-eth"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tcx-chain = {path = "../tcx-chain"}
+tcx-primitive = {path = "../tcx-primitive"}
+tcx-constants = {path = "../tcx-constants"}
+
+failure = "0.1.8"
+keccak-hash = "0.10.0"
+hex = "0.4.3"

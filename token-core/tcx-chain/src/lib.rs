@@ -19,7 +19,7 @@ use core::result;
 extern crate failure;
 extern crate regex;
 
-mod keystore;
+pub mod keystore;
 mod signer;
 
 pub use keystore::{

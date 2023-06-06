@@ -1,6 +1,8 @@
 syntax = "proto3";
 package wallet_api;
 
+import "google/protobuf/any.proto";
+
 message GenerateMnemonicResult {
     string mnemonic = 1;
 }
@@ -16,4 +18,32 @@ message CreateIdentityParam {
 message CreateIdentityResult {
     string identifier = 1;
     string ipfsId = 2;
+}
+
+message GetCurrentIdentityResult {
+    string identifier = 1;
+    string ipfs_id = 2;
+    repeated IMTKeystore wallets = 3;
+    Metadata metadata = 4;
+}
+
+message Metadata {
+    string name = 1;
+    optional string passwordHint = 2;
+    string chainType = 3;
+    uint64 timestamp = 4;
+    string network = 5;
+    repeated string  backup = 6;
+    string source = 7;
+    optional string mode = 8;
+    optional string walletType = 9;
+    optional string segWit = 10;
+}
+
+message IMTKeystore {
+    string id = 1;
+    uint32 version = 2;
+    string address = 3;
+    string mnemonic_path = 4;
+    Metadata metadata = 5;
 }
