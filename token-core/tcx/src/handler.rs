@@ -32,10 +32,7 @@ use crate::api::{
 };
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
-use crate::filemanager::{
-    cache_current_identity, cache_keystore, clean_keystore, flush_identity_keystore,
-    flush_keystore, WALLET_FILE_DIR,
-};
+use crate::filemanager::{cache_keystore, clean_keystore, flush_keystore, WALLET_FILE_DIR};
 use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
 use crate::IS_DEBUG;
@@ -60,7 +57,7 @@ use tcx_tezos::transaction::TezosRawTxIn;
 use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
 use tcx_tron::transaction::{TronMessageInput, TronTxInput};
 use tcx_wallet::constants::{CHAIN_TYPE_ETHEREUM, ETHEREUM_PATH};
-use tcx_wallet::identity::{Identity, IdentityKeystore, IDENTITY_KEYSTORE};
+use tcx_wallet::identity::{Identity, IdentityKeystore};
 use tcx_wallet::imt_keystore::IMTKeystore;
 use tcx_wallet::model::Metadata as IdentityMetadata;
 use tcx_wallet::wallet_api::{
@@ -1034,13 +1031,13 @@ pub(crate) fn create_identity(data: &[u8]) -> Result<Vec<u8>> {
     )?;
 
     identity_keystore.wallet_ids.push(eth_keystore_id);
-    flush_identity_keystore(&identity_keystore)?;
-    cache_current_identity(identity_keystore);
+    identity_keystore.flush_identity_keystore()?;
+    identity_keystore.cache_current_identity();
 
     encode_message(result)
 }
 
-pub(crate) fn derive_ethereum_wallet(
+fn derive_ethereum_wallet(
     identity_keystore: &IdentityKeystore,
     password: &str,
     mnemonic: &str,
@@ -1060,6 +1057,7 @@ pub(crate) fn derive_ethereum_wallet(
 pub(crate) fn get_current_identity() -> Result<Vec<u8>> {
     let current_identity = Identity::get_current_identity()?;
     let wallets = WalletManager::get_wallets(current_identity.to_owned())?;
+    //TODO 待优化
     let identity_metadata = MetadataRes {
         name: current_identity.im_token_meta.name,
         password_hint: current_identity.im_token_meta.password_hint,

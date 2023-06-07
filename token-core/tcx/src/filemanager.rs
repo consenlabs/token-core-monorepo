@@ -1,12 +1,9 @@
+use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-//use std::sync::RwLock;
-use parking_lot::RwLock;
 use tcx_chain::Keystore;
-use tcx_wallet::identity::{IdentityKeystore, IDENTITY_KEYSTORE, IDENTITY_KEYSTORE_FILE_NAME};
-use tcx_wallet::imt_keystore::IMTKeystore;
 
 use crate::error_handling::Result;
 
@@ -42,20 +39,5 @@ pub fn delete_keystore_file(wid: &str) -> Result<()> {
     let ks_path = format!("{}/{}.json", file_dir, wid);
     let path = Path::new(&ks_path);
     fs::remove_file(path)?;
-    Ok(())
-}
-
-pub fn cache_current_identity(identity_keystore: IdentityKeystore) {
-    let mut identity_keystore_obj = IDENTITY_KEYSTORE.write();
-    *identity_keystore_obj = identity_keystore;
-}
-
-pub fn flush_identity_keystore(iks: &IdentityKeystore) -> Result<()> {
-    let json = iks.to_json()?;
-    let file_dir = WALLET_FILE_DIR.read();
-    let ks_path = format!("{}/{}", file_dir, IDENTITY_KEYSTORE_FILE_NAME);
-    let path = Path::new(&ks_path);
-    let mut file = fs::File::create(path)?;
-    let _ = file.write_all(&json.as_bytes());
     Ok(())
 }

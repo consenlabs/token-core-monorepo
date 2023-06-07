@@ -2,19 +2,12 @@ use crate::constants::CHAIN_TYPE_ETHEREUM;
 use crate::model::Metadata;
 use crate::Error;
 use crate::Result;
-use bip39::{Language, Mnemonic, Seed};
-use bitcoin::network::constants::Network;
-use bitcoin::util::bip32::ExtendedPrivKey;
-use serde::{de::Deserializer, ser::Serializer, Deserialize, Serialize};
+use bip39::{Language, Mnemonic};
+use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
-use tcx_chain::keystore::Address;
-use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::{Crypto, EncPair, Pbkdf2Params};
 use tcx_eth::address::EthAddress;
-use tcx_primitive::{
-    Bip32DeterministicPrivateKey, Derive, DeterministicPrivateKey, DeterministicPublicKey,
-    PrivateKey, TypedPrivateKey, TypedPublicKey,
-};
+use tcx_primitive::{Bip32DeterministicPrivateKey, Derive, DeterministicPrivateKey, PrivateKey};
 use uuid::Uuid;
 
 pub const VERSION: u32 = 3;
@@ -27,7 +20,7 @@ pub struct IMTKeystore {
     pub version: u32,
     pub address: String,
     pub mnemonic_path: String,
-    pub encMnemonic: EncPair,
+    pub enc_mnemonic: EncPair,
     pub im_token_meta: Metadata,
 }
 
@@ -40,13 +33,13 @@ impl IMTKeystore {
     ) -> Result<IMTKeystore> {
         Mnemonic::validate(mnemonic_phrase, Language::English).unwrap();
 
-        let bip32DeterministicPrivateKey =
+        let bip32_deterministic_privateKey =
             Bip32DeterministicPrivateKey::from_mnemonic(mnemonic_phrase)?;
-        let bip32DeterministicPrivateKey = bip32DeterministicPrivateKey.derive(path)?;
+        let bip32_deterministic_privateKey = bip32_deterministic_privateKey.derive(path)?;
 
         let mut crypto: Crypto<Pbkdf2Params> = Crypto::new_by_10240_round(
             password,
-            bip32DeterministicPrivateKey
+            bip32_deterministic_privateKey
                 .private_key()
                 .0
                 .to_bytes()
@@ -56,7 +49,7 @@ impl IMTKeystore {
         crypto.clear_cache_derived_key();
         metadata.timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_micros();
 
-        let publick_key = bip32DeterministicPrivateKey
+        let publick_key = bip32_deterministic_privateKey
             .private_key()
             .public_key()
             .to_uncompressed();
@@ -73,7 +66,7 @@ impl IMTKeystore {
             version: VERSION,
             address,
             mnemonic_path: path.to_string(),
-            encMnemonic: enc_mnemonic,
+            enc_mnemonic,
             im_token_meta: metadata.clone(),
         })
     }
@@ -111,16 +104,17 @@ fn get_address(chain_type: &str, is_mainnet: bool, public_key: &[u8]) -> Result<
 
 #[cfg(test)]
 mod test {
-    use crate::imt_keystore::IMTKeystore;
+    use crate::constants;
+    use crate::imt_keystore::{get_address, IMTKeystore};
     use crate::model::Metadata;
     #[test]
-    fn test_imt_keystore_create() {
-        // IMTKeystore::create(
-        //     &mut Metadata::default(),
-        //     "Insecure Pa55w0rd",
-        //     "account_name",
-        //     "token hole original drink sing distance bus combine cheap knock art globe",
-        //     "m/44'/60'/0'/0/0",
-        // );
+    fn test_get_address() {
+        let public_key = hex::decode("0480c98b8ea7cab630defb0c09a4295c2193cdee016c1d5b9b0cb18572b9c370fefbc790fc3291d3cb6441ac94c3952035c409f4374d1780f400c1ed92972ce83c").unwrap();
+        let address = get_address(constants::CHAIN_TYPE_ETHEREUM, false, public_key.as_slice());
+        assert!(address.is_ok());
+        assert_eq!(address.unwrap(), "6031564e7b2f5cc33737807b2e58daff870b590b");
+
+        let address = get_address("WRONG_CHAIN_TYPE", false, public_key.as_slice());
+        assert!(address.is_err());
     }
 }

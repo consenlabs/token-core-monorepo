@@ -32,7 +32,6 @@ use crate::handler::{
     substrate_keystore_exists,
 };
 use parking_lot::RwLock;
-use tcx_wallet::constants;
 
 extern crate serde_json;
 
@@ -203,7 +202,7 @@ mod tests {
     use tcx_chain::Keystore;
     use tcx_constants::sample_key;
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
-    use tcx_wallet::model;
+    use tcx_wallet::{constants, model};
 
     use std::fs;
     use tcx_btc_fork::transaction::BtcForkTxInput;

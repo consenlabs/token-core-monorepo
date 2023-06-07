@@ -65,15 +65,53 @@ impl Metadata {
     pub fn is_main_net(&self) -> bool {
         self.network.eq_ignore_ascii_case(NETWORK_MAINNET)
     }
+
+    pub fn to_json(&self) -> Result<String> {
+        Ok(serde_json::to_string(&self)?)
+    }
 }
 
 #[cfg(test)]
 mod test {
     use crate::model::Metadata;
+    use crate::model::FROM_NEW_IDENTITY;
 
     #[test]
     fn test_metadata_new() {
-        let metadata = Metadata::new("name", Some("password_hint"), "ETH", "MAINNET", None);
-        assert_eq!(metadata.is_ok(), true)
+        let mut metadata = Metadata::new(
+            "name",
+            Some("password_hint"),
+            FROM_NEW_IDENTITY,
+            "MAINNET",
+            None,
+        )
+        .unwrap();
+        metadata.timestamp = 1686105373257408;
+        let metadata_json = metadata.to_json().unwrap();
+        let expected_json = "{\"name\":\"name\",\"passwordHint\":\"password_hint\",\"chainType\":\"\",\"timestamp\":1686105373257408,\"network\":\"MAINNET\",\"backup\":null,\"source\":\"NEW_IDENTITY\",\"mode\":null,\"walletType\":null,\"segWit\":null}";
+        assert_eq!(metadata_json, expected_json);
+        metadata.chain_type = "ETHEREUM".to_string();
+        let metadata_json = metadata.to_json().unwrap();
+        let expected_json = "{\"name\":\"name\",\"passwordHint\":\"password_hint\",\"chainType\":\"ETHEREUM\",\"timestamp\":1686105373257408,\"network\":\"MAINNET\",\"backup\":null,\"source\":\"NEW_IDENTITY\",\"mode\":null,\"walletType\":null,\"segWit\":null}";
+        assert_eq!(metadata_json, expected_json);
+    }
+
+    #[test]
+    fn test_is_main_net() {
+        let mut metadata = Metadata::new(
+            "name",
+            Some("password_hint"),
+            FROM_NEW_IDENTITY,
+            "MAINNET",
+            None,
+        )
+        .unwrap();
+        assert_eq!(metadata.is_main_net(), true);
+        metadata.network = "TESTNET".to_string();
+        assert_eq!(metadata.is_main_net(), false);
+        metadata.network = "WRONG_NET".to_string();
+        assert_eq!(metadata.is_main_net(), false);
+        metadata.network = "".to_string();
+        assert_eq!(metadata.is_main_net(), false);
     }
 }

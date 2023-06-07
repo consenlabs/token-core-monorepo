@@ -2,7 +2,6 @@ use crate::identity::IdentityKeystore;
 use crate::imt_keystore::IMTKeystore;
 use crate::Error;
 use crate::Result;
-use core::result;
 use lazy_static::lazy_static;
 use parking_lot::RwLock;
 use std::collections::HashMap;
@@ -25,17 +24,17 @@ impl WalletManager {
         Ok(mnemonic)
     }
 
-    pub fn create_wallet(imtKeystore: IMTKeystore) -> Result<()> {
+    pub fn create_wallet(imt_keystore: IMTKeystore) -> Result<()> {
         let file_dir = WALLET_KEYSTORE_DIR.read();
-        let ks_path = format!("{}/{}{}", file_dir, imtKeystore.id, ".json");
+        let ks_path = format!("{}/{}{}", file_dir, imt_keystore.id, ".json");
         let path = Path::new(&ks_path);
         let mut file = fs::File::create(path)?;
-        let json = imtKeystore.to_json()?;
+        let json = imt_keystore.to_json()?;
         let _ = file.write_all(&json.as_bytes());
 
         WALLETS
             .write()
-            .insert(imtKeystore.id.to_owned(), imtKeystore);
+            .insert(imt_keystore.id.to_owned(), imt_keystore);
         Ok(())
     }
 
