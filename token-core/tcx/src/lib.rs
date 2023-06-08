@@ -27,9 +27,9 @@ use crate::handler::{
 mod filemanager;
 
 use crate::handler::{
-    create_identity, export_substrate_keystore, generate_mnemonic, get_current_identity,
-    get_public_key, import_substrate_keystore, sign_bls_to_execution_change,
-    substrate_keystore_exists,
+    create_identity, export_identity, export_substrate_keystore, generate_mnemonic,
+    get_current_identity, get_public_key, import_substrate_keystore, recover_identity,
+    sign_bls_to_execution_change, substrate_keystore_exists,
 };
 use parking_lot::RwLock;
 
@@ -135,6 +135,8 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "generate_mnemonic" => landingpad(|| generate_mnemonic()),
         "create_identity" => landingpad(|| create_identity(&action.param.unwrap().value)),
         "get_current_identity" => landingpad(|| get_current_identity()),
+        "recover_identity" => landingpad(|| recover_identity(&action.param.unwrap().value)),
+        "export_identity" => landingpad(|| export_identity(&action.param.unwrap().value)),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {
@@ -211,6 +213,7 @@ mod tests {
     use sp_core::{ByteArray, Public as TraitPublic};
     use sp_runtime::traits::Verify;
     use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
+    use tcx_constants::sample_key::MNEMONIC;
     use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
     use tcx_filecoin::{SignedMessage, UnsignedMessage};
     use tcx_substrate::{
@@ -220,7 +223,9 @@ mod tests {
     use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
     use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
     use tcx_wallet::wallet_api::{
-        CreateIdentityParam, CreateIdentityResult, GenerateMnemonicResult, GetCurrentIdentityResult,
+        CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
+        GenerateMnemonicResult, GetCurrentIdentityResult, RecoverIdentityParam,
+        RecoverIdentityResult,
     };
 
     static OTHER_MNEMONIC: &'static str =
@@ -3004,6 +3009,9 @@ mod tests {
                 CreateIdentityResult::decode(ret.as_slice()).unwrap();
             assert!(create_result.ipfs_id.len() > 0);
             assert!(create_result.identifier.len() > 0);
+            assert_eq!(create_result.wallets.len(), 1);
+            let wallets = create_result.wallets.get(0).unwrap();
+            assert_eq!(wallets.metadata.as_ref().unwrap().chain_type, "ETHEREUM");
 
             let param = CreateIdentityParam {
                 name: sample_key::NAME.to_string(),
@@ -3027,6 +3035,67 @@ mod tests {
                 wallet.metadata.clone().unwrap().chain_type,
                 constants::CHAIN_TYPE_ETHEREUM
             )
+        })
+    }
+
+    #[test]
+    pub fn test_recover_identity_on_testnet() {
+        run_test(|| {
+            let param = RecoverIdentityParam {
+                name: sample_key::NAME.to_string(),
+                mnemonic: sample_key::MNEMONIC.to_string(),
+                password: sample_key::PASSWORD.to_string(),
+                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
+                network: model::NETWORK_TESTNET.to_string(),
+                seg_wit: None,
+            };
+            let ret = call_api("recover_identity", param).unwrap();
+            let recover_result: RecoverIdentityResult =
+                RecoverIdentityResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(
+                recover_result.ipfs_id,
+                "QmSTTidyfa4np9ak9BZP38atuzkCHy4K59oif23f4dNAGU"
+            );
+            assert_eq!(
+                recover_result.identifier,
+                "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg"
+            );
+
+            let wallet = recover_result.wallets.get(0).unwrap();
+            assert_eq!(
+                wallet.metadata.clone().unwrap().chain_type,
+                constants::CHAIN_TYPE_ETHEREUM
+            );
+            assert_eq!(wallet.address, "6031564e7b2f5cc33737807b2e58daff870b590b");
+        })
+    }
+
+    #[test]
+    pub fn test_export_identity() {
+        run_test(|| {
+            let param = RecoverIdentityParam {
+                name: sample_key::NAME.to_string(),
+                mnemonic: MNEMONIC.to_string(),
+                password: sample_key::PASSWORD.to_string(),
+                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
+                network: model::NETWORK_TESTNET.to_string(),
+                seg_wit: None,
+            };
+            let ret = call_api("recover_identity", param).unwrap();
+            let recover_result: RecoverIdentityResult =
+                RecoverIdentityResult::decode(ret.as_slice()).unwrap();
+            assert!(recover_result.ipfs_id.len() > 0);
+            assert!(recover_result.identifier.len() > 0);
+
+            let param = ExportIdentityParam {
+                identifier: recover_result.identifier.to_owned(),
+                password: sample_key::PASSWORD.to_string(),
+            };
+            let ret = call_api("export_identity", param).unwrap();
+            let export_result: ExportIdentityResult =
+                ExportIdentityResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(export_result.mnemonic, MNEMONIC);
+            assert_eq!(recover_result.identifier, export_result.identifier);
         })
     }
 }

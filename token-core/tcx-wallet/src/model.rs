@@ -37,7 +37,7 @@ pub struct Metadata {
 impl Metadata {
     pub fn new(
         name: &str,
-        password_hint: Option<&str>,
+        password_hint: Option<String>,
         source: &str,
         network: &str,
         seg_wit: Option<&str>,
@@ -50,7 +50,7 @@ impl Metadata {
         };
         Ok(Metadata {
             name: name.to_string(),
-            password_hint: password_hint.map(|s| s.to_owned()),
+            password_hint,
             chain_type: "".to_string(),
             timestamp,
             network: network.to_string(),
@@ -80,7 +80,7 @@ mod test {
     fn test_metadata_new() {
         let mut metadata = Metadata::new(
             "name",
-            Some("password_hint"),
+            Some("password_hint".to_string()),
             FROM_NEW_IDENTITY,
             "MAINNET",
             None,
@@ -100,7 +100,7 @@ mod test {
     fn test_is_main_net() {
         let mut metadata = Metadata::new(
             "name",
-            Some("password_hint"),
+            Some("password_hint".to_string()),
             FROM_NEW_IDENTITY,
             "MAINNET",
             None,

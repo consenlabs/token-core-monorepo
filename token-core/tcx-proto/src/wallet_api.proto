@@ -18,6 +18,7 @@ message CreateIdentityParam {
 message CreateIdentityResult {
     string identifier = 1;
     string ipfsId = 2;
+    repeated IMTKeystore wallets = 3;
 }
 
 message GetCurrentIdentityResult {
@@ -46,4 +47,30 @@ message IMTKeystore {
     string address = 3;
     string mnemonic_path = 4;
     Metadata metadata = 5;
+}
+
+message ExportIdentityParam {
+    string identifier = 1;
+    string password = 2;
+}
+
+message ExportIdentityResult {
+    string identifier = 1;
+    string mnemonic = 2;
+}
+
+message RecoverIdentityParam {
+    string name = 1;
+    string mnemonic = 2;
+    string password = 3;
+    optional string passwordHint = 4;
+    string network = 5;
+    optional string segWit = 6;
+}
+
+message RecoverIdentityResult {
+    string identifier = 1;
+    string mnemonic = 2;
+    string ipfsId = 3;
+    repeated IMTKeystore wallets = 4;
 }

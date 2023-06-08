@@ -25,6 +25,8 @@ pub struct CreateIdentityResult {
     pub identifier: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub ipfs_id: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "3")]
+    pub wallets: ::prost::alloc::vec::Vec<ImtKeystore>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -75,4 +77,48 @@ pub struct ImtKeystore {
     pub mnemonic_path: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "5")]
     pub metadata: ::core::option::Option<Metadata>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExportIdentityParam {
+    #[prost(string, tag = "1")]
+    pub identifier: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub password: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExportIdentityResult {
+    #[prost(string, tag = "1")]
+    pub identifier: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub mnemonic: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RecoverIdentityParam {
+    #[prost(string, tag = "1")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub mnemonic: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(string, optional, tag = "4")]
+    pub password_hint: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, tag = "5")]
+    pub network: ::prost::alloc::string::String,
+    #[prost(string, optional, tag = "6")]
+    pub seg_wit: ::core::option::Option<::prost::alloc::string::String>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RecoverIdentityResult {
+    #[prost(string, tag = "1")]
+    pub identifier: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub mnemonic: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub ipfs_id: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "4")]
+    pub wallets: ::prost::alloc::vec::Vec<ImtKeystore>,
 }

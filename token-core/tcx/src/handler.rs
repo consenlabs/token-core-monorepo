@@ -59,10 +59,11 @@ use tcx_tron::transaction::{TronMessageInput, TronTxInput};
 use tcx_wallet::constants::{CHAIN_TYPE_ETHEREUM, ETHEREUM_PATH};
 use tcx_wallet::identity::{Identity, IdentityKeystore};
 use tcx_wallet::imt_keystore::IMTKeystore;
-use tcx_wallet::model::Metadata as IdentityMetadata;
+use tcx_wallet::model::{Metadata as IdentityMetadata, FROM_NEW_IDENTITY, FROM_RECOVERED_IDENTITY};
 use tcx_wallet::wallet_api::{
-    CreateIdentityParam, CreateIdentityResult, GenerateMnemonicResult, GetCurrentIdentityResult,
-    ImtKeystore, Metadata as MetadataRes,
+    CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
+    GenerateMnemonicResult, GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes,
+    RecoverIdentityParam, RecoverIdentityResult,
 };
 use tcx_wallet::wallet_manager::{WalletManager, WALLET_KEYSTORE_DIR};
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
@@ -1009,30 +1010,31 @@ pub(crate) fn generate_mnemonic() -> Result<Vec<u8>> {
 
 pub(crate) fn create_identity(data: &[u8]) -> Result<Vec<u8>> {
     let param: CreateIdentityParam = CreateIdentityParam::decode(data)?;
+    let name = param.name.as_str();
+    let password = param.password.as_str();
+    let password_hint = param.password_hint;
+    let network = param.network.as_str();
+    let seg_wit = param.seg_wit.as_deref();
+    let mnemonic_phrase = WalletManager::generate_mnemonic()?;
 
-    let mnemonic = WalletManager::generate_mnemonic()?;
-    let mut identity_keystore = IdentityKeystore::create_identity(
-        param.name.as_str(),
-        param.password.as_str(),
-        param.password_hint.as_deref(),
-        param.network.as_str(),
-        param.seg_wit.as_deref(),
-        mnemonic.as_str(),
-    )?;
-    let result = CreateIdentityResult {
-        identifier: identity_keystore.identifier.clone(),
-        ipfs_id: identity_keystore.ipfs_id.clone(),
-    };
+    let metadata = IdentityMetadata::new(name, password_hint, FROM_NEW_IDENTITY, network, seg_wit)?;
+    let mut identity_keystore =
+        IdentityKeystore::create_identity(metadata, password, mnemonic_phrase.as_str())?;
 
-    let eth_keystore_id = derive_ethereum_wallet(
-        &identity_keystore,
-        param.password.as_str(),
-        mnemonic.as_str(),
-    )?;
+    let eth_keystore_id =
+        derive_ethereum_wallet(&identity_keystore, password, mnemonic_phrase.as_str())?;
 
     identity_keystore.wallet_ids.push(eth_keystore_id);
     identity_keystore.flush_identity_keystore()?;
     identity_keystore.cache_current_identity();
+
+    let current_identity: GetCurrentIdentityResult =
+        GetCurrentIdentityResult::decode(get_current_identity()?.as_slice()).unwrap();
+    let result = CreateIdentityResult {
+        identifier: identity_keystore.identifier.clone(),
+        ipfs_id: identity_keystore.ipfs_id.clone(),
+        wallets: current_identity.wallets,
+    };
 
     encode_message(result)
 }
@@ -1040,15 +1042,19 @@ pub(crate) fn create_identity(data: &[u8]) -> Result<Vec<u8>> {
 fn derive_ethereum_wallet(
     identity_keystore: &IdentityKeystore,
     password: &str,
-    mnemonic: &str,
+    mnemonic_phrase: &str,
 ) -> Result<String> {
     let mut metadata = IdentityMetadata::default();
     metadata.chain_type = CHAIN_TYPE_ETHEREUM.to_string();
     metadata.password_hint = identity_keystore.im_token_meta.password_hint.to_owned();
     metadata.source = identity_keystore.im_token_meta.source.to_owned();
     metadata.name = "ETH".to_string();
-    let imt_keystore =
-        IMTKeystore::create_v3_mnemonic_keystore(&mut metadata, password, mnemonic, ETHEREUM_PATH)?;
+    let imt_keystore = IMTKeystore::create_v3_mnemonic_keystore(
+        &mut metadata,
+        password,
+        mnemonic_phrase,
+        ETHEREUM_PATH,
+    )?;
     WalletManager::create_wallet(imt_keystore.clone())?;
     Identity::add_wallet(imt_keystore.id.as_str());
     Ok(imt_keystore.id)
@@ -1101,5 +1107,59 @@ pub(crate) fn get_current_identity() -> Result<Vec<u8>> {
         wallets: ret_wallet,
         metadata: Some(identity_metadata),
     };
+    encode_message(result)
+}
+
+pub(crate) fn export_identity(data: &[u8]) -> Result<Vec<u8>> {
+    let param: ExportIdentityParam = ExportIdentityParam::decode(data)?;
+    let identifier = param.identifier;
+    let password = param.password;
+    let identity = Identity::get_current_identity()?;
+    if identity.identifier != identifier {
+        return Err(format_err!("{}", "invalid_identity"));
+    }
+
+    let mnemonic = identity.export_Identity(password.as_str())?;
+    let result = ExportIdentityResult {
+        identifier,
+        mnemonic,
+    };
+    encode_message(result)
+}
+
+pub(crate) fn recover_identity(data: &[u8]) -> Result<Vec<u8>> {
+    let param: RecoverIdentityParam = RecoverIdentityParam::decode(data)?;
+
+    let name = param.name.as_str();
+    let password = param.password.as_str();
+    let password_hint = param.password_hint;
+    let network = param.network.as_str();
+    let seg_wit = param.seg_wit.as_deref();
+    let mnemonic_phrase = param.mnemonic.as_str();
+    let metadata = IdentityMetadata::new(
+        name,
+        password_hint,
+        FROM_RECOVERED_IDENTITY,
+        network,
+        seg_wit,
+    )?;
+    let mut identity_keystore =
+        IdentityKeystore::create_identity(metadata, password, mnemonic_phrase)?;
+    let eth_keystore_id = derive_ethereum_wallet(&identity_keystore, password, mnemonic_phrase)?;
+
+    identity_keystore.wallet_ids.push(eth_keystore_id);
+    identity_keystore.flush_identity_keystore()?;
+    identity_keystore.cache_current_identity();
+
+    let current_identity: GetCurrentIdentityResult =
+        GetCurrentIdentityResult::decode(get_current_identity()?.as_slice()).unwrap();
+
+    let result = RecoverIdentityResult {
+        identifier: identity_keystore.identifier.clone(),
+        mnemonic: mnemonic_phrase.to_string(),
+        ipfs_id: identity_keystore.ipfs_id.clone(),
+        wallets: current_identity.wallets,
+    };
+
     encode_message(result)
 }
