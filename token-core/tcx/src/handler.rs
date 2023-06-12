@@ -63,7 +63,7 @@ use tcx_wallet::model::{Metadata as IdentityMetadata, FROM_NEW_IDENTITY, FROM_RE
 use tcx_wallet::wallet_api::{
     CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
     GenerateMnemonicResult, GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes,
-    RecoverIdentityParam, RecoverIdentityResult,
+    RecoverIdentityParam, RecoverIdentityResult, RemoveIdentityParam,
 };
 use tcx_wallet::wallet_manager::{WalletManager, WALLET_KEYSTORE_DIR};
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
@@ -1119,7 +1119,7 @@ pub(crate) fn export_identity(data: &[u8]) -> Result<Vec<u8>> {
         return Err(format_err!("{}", "invalid_identity"));
     }
 
-    let mnemonic = identity.export_Identity(password.as_str())?;
+    let mnemonic = identity.export_identity(password.as_str())?;
     let result = ExportIdentityResult {
         identifier,
         mnemonic,
@@ -1162,4 +1162,15 @@ pub(crate) fn recover_identity(data: &[u8]) -> Result<Vec<u8>> {
     };
 
     encode_message(result)
+}
+
+pub(crate) fn remove_identity(data: &[u8]) -> Result<()> {
+    let param: RemoveIdentityParam = RemoveIdentityParam::decode(data)?;
+    let identity = Identity::get_current_identity()?;
+    if identity.identifier != param.identifier {
+        return Err(format_err!("{}", "invalid_identity"));
+    }
+    identity.delete_identity(param.password.as_str())?;
+
+    Ok(())
 }

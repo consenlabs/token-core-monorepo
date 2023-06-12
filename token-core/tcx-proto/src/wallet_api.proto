@@ -74,3 +74,8 @@ message RecoverIdentityResult {
     string ipfsId = 3;
     repeated IMTKeystore wallets = 4;
 }
+
+message RemoveIdentityParam {
+    string identifier = 1;
+    string password = 2;
+}

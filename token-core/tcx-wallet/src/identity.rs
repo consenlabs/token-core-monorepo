@@ -1,6 +1,6 @@
 use crate::constants::{CHAIN_TYPE_ETHEREUM, ETHEREUM_PATH};
 use crate::imt_keystore::IMTKeystore;
-use crate::model::{Metadata, FROM_NEW_IDENTITY};
+use crate::model::Metadata;
 use crate::wallet_manager::WalletManager;
 use crate::wallet_manager::WALLET_KEYSTORE_DIR;
 use crate::Error;
@@ -20,7 +20,6 @@ use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
-use tcx_crypto::hash::hex_dsha256;
 use tcx_crypto::{Crypto, EncPair, Key, Pbkdf2Params};
 use uuid::Uuid;
 
@@ -165,11 +164,26 @@ impl IdentityKeystore {
         Ok(())
     }
 
-    pub fn export_Identity(&self, password: &str) -> SelfResult<String> {
+    pub fn export_identity(&self, password: &str) -> SelfResult<String> {
         let decrypt_data = self
             .crypto
             .decrypt_enc_pair(Key::Password(password.to_string()), &self.enc_mnemonic)?;
         Ok(String::from_utf8(decrypt_data)?)
+    }
+
+    pub fn delete_identity(&self, password: &str) -> SelfResult<()> {
+        if !self.crypto.verify_password(password) {
+            return Err(Error::WalletInvalidPassword.into());
+        }
+
+        let clean_wallet_keystore_result = WalletManager::clean_keystore_dir()?;
+        if clean_wallet_keystore_result == () {
+            WalletManager::clear_keystore_map();
+            let mut identity_keystore = IDENTITY_KEYSTORE.write();
+            *identity_keystore = IdentityKeystore::default();
+        }
+
+        Ok(())
     }
 }
 

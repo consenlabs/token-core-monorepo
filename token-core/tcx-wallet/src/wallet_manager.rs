@@ -38,8 +38,8 @@ impl WalletManager {
         Ok(())
     }
 
-    fn clear_keystore_map() {
-        WALLETS.write().clear()
+    pub fn clear_keystore_map() {
+        WALLETS.write().clear();
     }
 
     fn remove_wallet(id: &str, password: &str) -> Result<()> {
@@ -81,5 +81,20 @@ impl WalletManager {
             wallets.insert(id, imt_keystore);
         }
         Ok(ret_wallets)
+    }
+
+    pub fn clean_keystore_dir() -> Result<()> {
+        let dir = WALLET_KEYSTORE_DIR.read();
+        let paths = fs::read_dir(dir.as_str()).unwrap();
+        for path in paths {
+            let path = path?.path();
+            if path.is_file() {
+                fs::remove_file(path)?;
+            }
+        }
+
+        // let path = Path::new(dir.as_str());
+        // fs::remove_dir_all(path)?;
+        Ok(())
     }
 }

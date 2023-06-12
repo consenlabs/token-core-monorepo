@@ -122,3 +122,11 @@ pub struct RecoverIdentityResult {
     #[prost(message, repeated, tag = "4")]
     pub wallets: ::prost::alloc::vec::Vec<ImtKeystore>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RemoveIdentityParam {
+    #[prost(string, tag = "1")]
+    pub identifier: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub password: ::prost::alloc::string::String,
+}

@@ -29,7 +29,7 @@ mod filemanager;
 use crate::handler::{
     create_identity, export_identity, export_substrate_keystore, generate_mnemonic,
     get_current_identity, get_public_key, import_substrate_keystore, recover_identity,
-    sign_bls_to_execution_change, substrate_keystore_exists,
+    remove_identity, sign_bls_to_execution_change, substrate_keystore_exists,
 };
 use parking_lot::RwLock;
 
@@ -137,6 +137,10 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "get_current_identity" => landingpad(|| get_current_identity()),
         "recover_identity" => landingpad(|| recover_identity(&action.param.unwrap().value)),
         "export_identity" => landingpad(|| export_identity(&action.param.unwrap().value)),
+        "remove_identity" => landingpad(|| {
+            remove_identity(&action.param.unwrap().value).unwrap();
+            Ok(vec![])
+        }),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {
@@ -225,7 +229,7 @@ mod tests {
     use tcx_wallet::wallet_api::{
         CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
         GenerateMnemonicResult, GetCurrentIdentityResult, RecoverIdentityParam,
-        RecoverIdentityResult,
+        RecoverIdentityResult, RemoveIdentityParam,
     };
 
     static OTHER_MNEMONIC: &'static str =
@@ -3096,6 +3100,31 @@ mod tests {
                 ExportIdentityResult::decode(ret.as_slice()).unwrap();
             assert_eq!(export_result.mnemonic, MNEMONIC);
             assert_eq!(recover_result.identifier, export_result.identifier);
+        })
+    }
+
+    #[test]
+    pub fn test_delete_identity() {
+        run_test(|| {
+            let param = CreateIdentityParam {
+                name: sample_key::NAME.to_string(),
+                password: sample_key::PASSWORD.to_string(),
+                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
+                network: model::NETWORK_TESTNET.to_string(),
+                seg_wit: None,
+            };
+            let ret = call_api("create_identity", param).unwrap();
+            let create_result: CreateIdentityResult =
+                CreateIdentityResult::decode(ret.as_slice()).unwrap();
+            assert!(create_result.ipfs_id.len() > 0);
+            assert!(create_result.identifier.len() > 0);
+
+            let remove_identity_param = RemoveIdentityParam {
+                identifier: create_result.identifier.to_owned(),
+                password: sample_key::PASSWORD.to_string(),
+            };
+            let ret = call_api("remove_identity", remove_identity_param);
+            assert!(ret.is_ok());
         })
     }
 }

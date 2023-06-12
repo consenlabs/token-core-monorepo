@@ -21,4 +21,6 @@ pub enum Error {
     WalletNotFound,
     #[fail(display = "keystore_file_not_exist")]
     KeystoreFileNotExist,
+    #[fail(display = "password_incorrect")]
+    WalletInvalidPassword,
 }
