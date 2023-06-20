@@ -18,6 +18,7 @@ members=[
     "token-core/tcx-wallet",
     "token-core/tcx-eth",
     "token-core/zksync-crypto",
+    "token-core/tcx-common",
     "imkey-core/ikc",
     "imkey-core/ikc-common",
     "imkey-core/ikc-device",

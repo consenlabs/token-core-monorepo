@@ -6,7 +6,7 @@ use bip39::{Language, Mnemonic};
 use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tcx_crypto::{Crypto, EncPair, Key, Pbkdf2Params};
-use tcx_eth::address::EthAddress;
+// use tcx_eth::address::EthAddress;
 use tcx_primitive::{Bip32DeterministicPrivateKey, Derive, DeterministicPrivateKey, PrivateKey};
 use uuid::Uuid;
 
@@ -100,7 +100,8 @@ impl IMTKeystore {
 
 fn get_address(chain_type: &str, is_mainnet: bool, public_key: &[u8]) -> Result<String> {
     let address = match chain_type {
-        CHAIN_TYPE_ETHEREUM => EthAddress::get_address_from_pubkey(public_key)?,
+        // CHAIN_TYPE_ETHEREUM => EthAddress::get_address_from_pubkey(public_key)?,
+        CHAIN_TYPE_ETHEREUM => "EthAddress::get_address_from_pubkey(public_key)?".to_string(),
         _ => return Err(Error::WalletInvalidType.into()),
     };
     Ok(address)

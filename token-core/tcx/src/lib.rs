@@ -29,7 +29,7 @@ mod filemanager;
 use crate::handler::{
     create_identity, export_identity, export_substrate_keystore, generate_mnemonic,
     get_current_identity, get_public_key, import_substrate_keystore, recover_identity,
-    remove_identity, sign_bls_to_execution_change, substrate_keystore_exists,
+    remove_identity, sign_bls_to_execution_change, sign_transaction, substrate_keystore_exists,
 };
 use parking_lot::RwLock;
 
@@ -141,6 +141,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
             remove_identity(&action.param.unwrap().value).unwrap();
             Ok(vec![])
         }),
+        "sign_transaction" => landingpad(|| sign_transaction(&action.param.unwrap().value)),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {
@@ -3125,6 +3126,26 @@ mod tests {
             };
             let ret = call_api("remove_identity", remove_identity_param);
             assert!(ret.is_ok());
+        })
+    }
+
+    #[test]
+    pub fn test_sign_ethereum_tx() {
+        run_test(|| {
+            let param = CreateIdentityParam {
+                name: sample_key::NAME.to_string(),
+                password: sample_key::PASSWORD.to_string(),
+                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
+                network: model::NETWORK_TESTNET.to_string(),
+                seg_wit: None,
+            };
+            let ret = call_api("create_identity", param).unwrap();
+            let create_result: CreateIdentityResult =
+                CreateIdentityResult::decode(ret.as_slice()).unwrap();
+            assert!(create_result.ipfs_id.len() > 0);
+            assert!(create_result.identifier.len() > 0);
+
+            let param = EthTxInputParam {};
         })
     }
 }

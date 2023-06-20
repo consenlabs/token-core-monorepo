@@ -1,6 +1,8 @@
+use async_std::task;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
+use std::str::FromStr;
 
 use bytes::BytesMut;
 use prost::Message;
@@ -37,14 +39,19 @@ use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
 use crate::IS_DEBUG;
 use base58::ToBase58;
+use ethereum_types::{H256, U256, U64};
+use ethers::types::transaction::eip2930::AccessListItem;
 use tcx_chain::tcx_ensure;
 use tcx_chain::Address;
 use tcx_chain::{MessageSigner, TransactionSigner};
+use tcx_common::utility::hex_to_bytes;
 use tcx_constants::coin_info::coin_info_from_param;
 use tcx_constants::CurveType;
 use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::hash::dsha256;
 use tcx_crypto::KDF_ROUNDS;
+use tcx_eth::transaction::{EthTxInput, EthTxOutput};
+use tcx_eth::types::Action;
 use tcx_eth2::address::Eth2Address;
 use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
@@ -57,7 +64,7 @@ use tcx_tezos::transaction::TezosRawTxIn;
 use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
 use tcx_tron::transaction::{TronMessageInput, TronTxInput};
 use tcx_wallet::constants::{CHAIN_TYPE_ETHEREUM, ETHEREUM_PATH};
-use tcx_wallet::identity::{Identity, IdentityKeystore};
+use tcx_wallet::identity::{Identity, IdentityKeystore, IDENTITY_KEYSTORE};
 use tcx_wallet::imt_keystore::IMTKeystore;
 use tcx_wallet::model::{Metadata as IdentityMetadata, FROM_NEW_IDENTITY, FROM_RECOVERED_IDENTITY};
 use tcx_wallet::wallet_api::{
@@ -1173,4 +1180,46 @@ pub(crate) fn remove_identity(data: &[u8]) -> Result<()> {
     identity.delete_identity(param.password.as_str())?;
 
     Ok(())
+}
+
+pub(crate) fn sign_transaction(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignParam = SignParam::decode(data).expect("SignTxParam");
+
+    let keystore = WalletManager::must_find_wallet_by_id(&param.id)?;
+    let password = match param.key.clone().unwrap() {
+        Key::Password(password) => password,
+        _ => {
+            return Err(format_err!("{}", "key_type_error"));
+        }
+    };
+
+    let private_key = keystore.decrypt_main_key(password.as_str())?;
+
+    let result = match param.chain_type.as_str() {
+        "ETHEREUM" => sign_eth_transaction(&param, private_key.as_slice()),
+        _ => Err(format_err!("unsupported_chain")),
+    }?;
+
+    Ok(result)
+}
+
+pub(crate) fn sign_eth_transaction(param: &SignParam, private_key: &[u8]) -> Result<Vec<u8>> {
+    let eth_tx_input: EthTxInput = EthTxInput::decode(
+        param
+            .input
+            .as_ref()
+            .expect("eth_tx_input_error")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("EthereumTransactionInputError");
+
+    if !tcx_eth::address::is_valid_address(&eth_tx_input.to)? {
+        return Err(format_err!("{}", "invalid_to_address"));
+    }
+
+    let eth_tx_output: Result<EthTxOutput> =
+        task::block_on(async { eth_tx_input.sign(private_key).await });
+    encode_message(eth_tx_output?)
 }

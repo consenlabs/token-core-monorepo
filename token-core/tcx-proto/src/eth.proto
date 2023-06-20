@@ -1,0 +1,35 @@
+syntax = "proto3";
+package transaction;
+
+message EthTxInput {
+  string nonce = 1;
+  string gas_price = 2;
+  string gas_limit = 3;
+  string to = 4;
+  string value = 5;
+  string data = 6;
+  string chain_id = 7;
+  string tx_type = 8;
+  string max_fee_per_gas = 9;
+  string max_priority_fee_per_gas = 10;
+  repeated AccessList access_list = 11;
+}
+
+message AccessList {
+  string address = 1;
+  repeated string storage_keys = 2;
+}
+
+message EthTxOutput {
+  string signature = 1;
+  string txHash = 2;
+}
+
+message EthMessageInput {
+  string message = 1;
+  bool isPersonalSign = 2;
+}
+
+message EthMessageOutput {
+  string signature = 1;
+}

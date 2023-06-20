@@ -53,4 +53,8 @@ fn main() {
     //tcx-wallet
     env::set_var("OUT_DIR", "../tcx-wallet/src");
     prost_build::compile_protos(&["src/wallet_api.proto"], &["src/"]).unwrap();
+
+    //tcx-eth
+    env::set_var("OUT_DIR", "../tcx-eth/src");
+    prost_build::compile_protos(&["src/eth.proto"], &["src/"]).unwrap();
 }

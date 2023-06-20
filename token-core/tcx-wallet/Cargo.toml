@@ -9,7 +9,7 @@ edition = "2021"
 tcx-primitive = { path = "../tcx-primitive" }
 tcx-crypto = { path = "../tcx-crypto"}
 tcx-constants = { path = "../tcx-constants"}
-tcx-eth = {path = "../tcx-eth"}
+#tcx-eth = {path = "../tcx-eth"}
 tcx-chain = {path = "../tcx-chain"}
 
 failure = "0.1.8"

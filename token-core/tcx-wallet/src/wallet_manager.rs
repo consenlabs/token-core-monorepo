@@ -48,7 +48,7 @@ impl WalletManager {
         Ok(())
     }
 
-    fn must_find_wallet_by_id(id: &str) -> Result<IMTKeystore> {
+    pub fn must_find_wallet_by_id(id: &str) -> Result<IMTKeystore> {
         let mut map = WALLETS.write();
         match map.get(id) {
             Some(keystore) => Ok(keystore.to_owned()),

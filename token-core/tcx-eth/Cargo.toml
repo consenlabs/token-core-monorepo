@@ -9,7 +9,20 @@ edition = "2021"
 tcx-chain = {path = "../tcx-chain"}
 tcx-primitive = {path = "../tcx-primitive"}
 tcx-constants = {path = "../tcx-constants"}
+tcx-common = {path = "../tcx-common"}
+tcx-wallet = {path = "../tcx-wallet"}
 
 failure = "0.1.8"
 keccak-hash = "0.10.0"
 hex = "0.4.3"
+ethereum-types = "0.14.0"
+rlp = "0.5.2"
+prost = "0.11.2"
+prost-types = "0.11.2"
+#ethereum = "0.14.0"
+ethers = "2.0.3"
+tiny-keccak = { version = "2.0.2", features = ["keccak"] }
+regex = "1.7.0"
+
+[dev-dependencies]
+async-std = "1.12.0"
