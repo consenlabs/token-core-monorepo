@@ -3198,6 +3198,57 @@ mod tests {
             assert!(recover_result.ipfs_id.len() > 0);
             assert!(recover_result.identifier.len() > 0);
             //eip1559 transaction
+            let eth_tx_input = EthTxInput {
+                nonce: "8".to_string(),
+                gas_price: "".to_string(),
+                gas_limit: "4286".to_string(),
+                to: "0x3535353535353535353535353535353535353535".to_string(),
+                value: "3490361".to_string(),
+                data: "0x200184c0486d5f082a27".to_string(),
+                chain_id: "1".to_string(),
+                tx_type: "02".to_string(),
+                max_fee_per_gas: "1076634600920".to_string(),
+                max_priority_fee_per_gas: "226".to_string(),
+                access_list: vec![],
+            };
+            let input_value = encode_message(eth_tx_input).unwrap();
+            let param = SignParam {
+                id: recover_result.wallets.get(0).unwrap().id.clone(),
+                chain_type: "ETHEREUM".to_string(),
+                address: recover_result.wallets.get(0).unwrap().address.clone(),
+                input: Some(::prost_types::Any {
+                    type_url: "imtoken".to_string(),
+                    value: input_value,
+                }),
+                key: Some(sign_param::Key::Password(sample_key::PASSWORD.to_string())),
+            };
+            let ret = call_api("sign_transaction", param).unwrap();
+            let output: EthTxOutput = EthTxOutput::decode(ret.as_slice()).unwrap();
+            assert_eq!(
+                output.tx_hash,
+                "0x9a427f295369171f686d83a05b92d8849b822f1fa1c9ccb853e81de545f4625b"
+            );
+            assert_eq!(output.signature, "02f875010881e285faac6c45d88210be943535353535353535353535353535353535353535833542398a200184c0486d5f082a27c001a0602501c9cfedf145810f9b54558de6cf866a89b7a65890ccde19dd6cec1fe32ca02769f3382ee526a372241238922da39f6283a9613215fd98c8ce37a0d03fa3bb");
+        })
+    }
+
+    #[test]
+    pub fn test_sign_ethereum_eip1559_tx2() {
+        run_test(|| {
+            let param = RecoverIdentityParam {
+                name: sample_key::NAME.to_string(),
+                mnemonic: MNEMONIC.to_string(),
+                password: sample_key::PASSWORD.to_string(),
+                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
+                network: model::NETWORK_TESTNET.to_string(),
+                seg_wit: None,
+            };
+            let ret = call_api("recover_identity", param).unwrap();
+            let recover_result: RecoverIdentityResult =
+                RecoverIdentityResult::decode(ret.as_slice()).unwrap();
+            assert!(recover_result.ipfs_id.len() > 0);
+            assert!(recover_result.identifier.len() > 0);
+            //eip1559 transaction
             let mut access_list = vec![];
             access_list.push(AccessList {
                 address: "0x019fda53b3198867b8aae65320c9c55d74de1938".to_string(),
@@ -3232,7 +3283,7 @@ mod tests {
                 tx_type: "02".to_string(),
                 max_fee_per_gas: "1076634600920".to_string(),
                 max_priority_fee_per_gas: "226".to_string(),
-                access_list: vec![],
+                access_list,
             };
             let input_value = encode_message(eth_tx_input).unwrap();
             let param = SignParam {
@@ -3249,9 +3300,9 @@ mod tests {
             let output: EthTxOutput = EthTxOutput::decode(ret.as_slice()).unwrap();
             assert_eq!(
                 output.tx_hash,
-                "0x9a427f295369171f686d83a05b92d8849b822f1fa1c9ccb853e81de545f4625b"
+                "0x2c20edff7e496c1f8d8370fc3d70f3f02b4c63008bb2586d507ddb88d68cea7d"
             );
-            assert_eq!(output.signature, "02f875010881e285faac6c45d88210be943535353535353535353535353535353535353535833542398a200184c0486d5f082a27c001a0602501c9cfedf145810f9b54558de6cf866a89b7a65890ccde19dd6cec1fe32ca02769f3382ee526a372241238922da39f6283a9613215fd98c8ce37a0d03fa3bb");
+            assert_eq!(output.signature, "02f90141010881e285faac6c45d88210be943535353535353535353535353535353535353535833542398a200184c0486d5f082a27f8cbd694019fda53b3198867b8aae65320c9c55d74de1938c0f7941b976cdbc43cfcbeaad2623c95523981ea1e664ae1a0d259410e74fa5c0227f688cc1f79b4d2bee3e9b7342c4c61342e8906a63406a2f87a94f1946eba70f89687d67493d8106f56c90ecba943f863a0b3838dedffc33c62f8abfc590b41717a6dd70c3cab5a6900efae846d9060a2b9a06a6c4d1ab264204fb2cdd7f55307ca3a0040855aa9c4a749a605a02b43374b82a00c38e901d0d95fbf8f05157c68a89393a86aa1e821279e4cce78f827dccb206480a0d95cb4d82912b2fed0510dd44cce5c0b177af6e7ed991f1dbe5b8e34303bf84ca04e0896caf07d9644e2728d919a84f7af46cb2421a0ce7bb814cce782d921e672");
         })
     }
 }

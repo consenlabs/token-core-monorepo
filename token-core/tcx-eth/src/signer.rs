@@ -23,7 +23,6 @@ impl EthTxInput {
                 .value(U256::from_dec_str(&self.value)?)
                 .gas(U256::from_dec_str(&self.gas_limit)?)
                 .data(Bytes::from_str(&self.data)?)
-                // .chain_id(U64::from_dec_str(&self.chain_id)?)
                 .chain_id(chain_id)
                 .max_priority_fee_per_gas(U256::from_dec_str(&self.max_priority_fee_per_gas)?)
                 .max_fee_per_gas(U256::from_dec_str(&self.max_fee_per_gas)?)
@@ -49,7 +48,6 @@ impl EthTxInput {
                 .gas_price(U256::from_dec_str(&self.gas_price)?)
                 .gas(U256::from_dec_str(&self.gas_limit)?)
                 .data(Bytes::from_str(&self.data)?)
-                // .chain_id(U64::from_dec_str(&self.chain_id)?)
                 .chain_id(chain_id);
 
             let signature: Signature = wallet
