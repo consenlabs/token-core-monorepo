@@ -1,12 +1,10 @@
 use async_std::task;
-use std::fs;
-use std::io::Read;
-use std::path::Path;
-use std::str::FromStr;
-
 use bytes::BytesMut;
 use prost::Message;
 use serde_json::Value;
+use std::fs;
+use std::io::Read;
+use std::path::Path;
 use tcx_primitive::{get_account_path, private_key_without_version, FromHex, TypedPrivateKey};
 
 use tcx_bch::{BchAddress, BchTransaction};
@@ -39,19 +37,15 @@ use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
 use crate::IS_DEBUG;
 use base58::ToBase58;
-use ethereum_types::{H256, U256, U64};
-use ethers::types::transaction::eip2930::AccessListItem;
 use tcx_chain::tcx_ensure;
 use tcx_chain::Address;
 use tcx_chain::{MessageSigner, TransactionSigner};
-use tcx_common::utility::hex_to_bytes;
 use tcx_constants::coin_info::coin_info_from_param;
 use tcx_constants::CurveType;
 use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::hash::dsha256;
 use tcx_crypto::KDF_ROUNDS;
 use tcx_eth::transaction::{EthTxInput, EthTxOutput};
-use tcx_eth::types::Action;
 use tcx_eth2::address::Eth2Address;
 use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
