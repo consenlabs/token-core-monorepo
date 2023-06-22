@@ -1,16 +1,17 @@
-use crate::transaction::{EthTxInput, EthTxOutput};
+use crate::transaction::{EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput};
 use crate::Result;
 use ethereum_types::{Address, H256, U256, U64};
 use ethers::signers::{LocalWallet, Signer};
 use ethers::types::transaction::eip2718::TypedTransaction;
 use ethers::types::transaction::eip2930::{AccessList, AccessListItem};
 use ethers::types::{Bytes, Eip1559TransactionRequest, Signature, TransactionRequest};
+use ethers::utils::keccak256;
 use keccak_hash::keccak;
 use std::str::FromStr;
-use tcx_common::utility::hex_to_bytes;
+use tcx_common::utility::{hex_to_bytes, string_to_bytes};
 
 impl EthTxInput {
-    pub async fn sign(&self, private_key: &[u8]) -> Result<EthTxOutput> {
+    pub async fn sign_transaction(&self, private_key: &[u8]) -> Result<EthTxOutput> {
         let wallet = LocalWallet::from_bytes(private_key)?;
         let chain_id = parse_u64(self.chain_id.as_str())?;
         let ret_result = if self.tx_type.to_lowercase() == "0x02"
@@ -91,6 +92,29 @@ impl EthTxInput {
     }
 }
 
+impl EthMessageInput {
+    pub async fn sign_personal(&self, private_key: &[u8]) -> Result<EthMessageOutput> {
+        let wallet = LocalWallet::from_bytes(private_key)?;
+        let message_bytes = string_to_bytes(self.message.as_str())?;
+        let sign_result = wallet.sign_message(message_bytes.as_slice()).await?;
+        let signature = sign_result.to_string();
+        Ok(EthMessageOutput { signature })
+    }
+
+    pub async fn sign_message(&self, private_key: &[u8]) -> Result<EthMessageOutput> {
+        let wallet = LocalWallet::from_bytes(private_key)?;
+        let message = if self.is_hex.expect("is_hex is required") {
+            hex_to_bytes(self.message.as_str())?
+        } else {
+            self.message.as_bytes().to_vec()
+        };
+        let h256_hash = H256(keccak256(&message));
+        let sign_result = wallet.sign_hash(h256_hash)?;
+        let signature = sign_result.to_string();
+        Ok(EthMessageOutput { signature })
+    }
+}
+
 fn parse_u64(s: &str) -> Result<U64> {
     if s.starts_with("0x") {
         Ok(U64::from_str_radix(&s[2..], 16)?)
@@ -105,7 +129,9 @@ fn parse_u64(s: &str) -> Result<U64> {
 
 #[cfg(test)]
 mod test {
-    use crate::transaction::{AccessList, EthTxInput, EthTxOutput};
+    use crate::transaction::{
+        AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput,
+    };
     use async_std::task;
 
     #[test]
@@ -127,7 +153,7 @@ mod test {
             hex::decode("cce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2")
                 .unwrap();
         let eth_tx_output: EthTxOutput =
-            task::block_on(async { tx.sign(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { tx.sign_transaction(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             eth_tx_output.tx_hash,
             "0x17fd692605405e051ac738ddf3d9b58185eaac14e434839d1453e653c5c23a1a"
@@ -154,7 +180,7 @@ mod test {
             hex::decode("4646464646464646464646464646464646464646464646464646464646464646")
                 .unwrap();
         let eth_tx_output: EthTxOutput =
-            task::block_on(async { tx.sign(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { tx.sign_transaction(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             eth_tx_output.tx_hash,
             "0x6421324e5b1dcf30ff7b37e381eb94c8dad1f893d25efa8420aa653e9f19f51f"
@@ -181,7 +207,7 @@ mod test {
             hex::decode("cce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2")
                 .unwrap();
         let eth_tx_output: EthTxOutput =
-            task::block_on(async { tx.sign(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { tx.sign_transaction(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             eth_tx_output.tx_hash,
             "0x812824e60c60f8d46aa5e211c8e4a50baf92350c98c83e71c379d273ce0a0787"
@@ -205,7 +231,7 @@ mod test {
             hex::decode("cce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2")
                 .unwrap();
         let eth_tx_output: EthTxOutput =
-            task::block_on(async { tx.sign(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { tx.sign_transaction(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             eth_tx_output.tx_hash,
             "0x90b1a2325ee4acb953e67a9b05c5b7048dc30ac222f8736b82ea4222b5a5721e"
@@ -229,7 +255,7 @@ mod test {
             hex::decode("0626687a500e27ffca881fe129541f1a2033aedd32186a0540c10e3d0588b4f7")
                 .unwrap();
         let eth_tx_output: EthTxOutput =
-            task::block_on(async { tx.sign(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { tx.sign_transaction(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             eth_tx_output.tx_hash,
             "0xa8b660bec405dca182e526401b03aab04f0f3547ba7382e89f73bb3b3aae0829"
@@ -262,7 +288,7 @@ mod test {
             hex::decode("c69e17f597758c69dc181956060bef908e5a89fc00313aac0da6e387121648c2")
                 .unwrap();
         let eth_tx_output: EthTxOutput =
-            task::block_on(async { tx.sign(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { tx.sign_transaction(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             eth_tx_output.tx_hash,
             "0x0a0b6c71e52fcb14ba60e271e71c410783beb2448e06822c5f148f9d3fe796c3"
@@ -294,7 +320,7 @@ mod test {
             hex::decode("272bbc8b388511b2fb17315ec77c802187368e82459081e0ce3229ed30b8001c")
                 .unwrap();
         let eth_tx_output: EthTxOutput =
-            task::block_on(async { tx.sign(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { tx.sign_transaction(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             eth_tx_output.tx_hash,
             "0xdec9d2ca302a5421a9ab5ce568899eb2dae6ba89b2051a5e15be8506246524c4"
@@ -323,7 +349,7 @@ mod test {
             hex::decode("1515a472fde48c24c6e7f565397e683f3c3a33cb57bcd3bffc06444081aac1fb")
                 .unwrap();
         let eth_tx_output: EthTxOutput =
-            task::block_on(async { tx.sign(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { tx.sign_transaction(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             eth_tx_output.tx_hash,
             "0x6dc6942e91746d1df6637b32cc7e3d4ec3bbe943d85cd8e32a30d6b6367558ed"
@@ -366,7 +392,7 @@ mod test {
             hex::decode("d639ec503c8acc27d2a57a4477864d43aad1bf84c2270f47207ca372c7dc480b")
                 .unwrap();
         let eth_tx_output: EthTxOutput =
-            task::block_on(async { tx.sign(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { tx.sign_transaction(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             eth_tx_output.tx_hash,
             "0xf512934c8e6d1d1436488c9584eeb9b2d8bf1a8bc361d268c2a55aa31fb6f3c3"
@@ -393,7 +419,7 @@ mod test {
             hex::decode("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6")
                 .unwrap();
         let eth_tx_output: EthTxOutput =
-            task::block_on(async { tx.sign(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { tx.sign_transaction(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             eth_tx_output.tx_hash,
             "0x1a3c3947ea626e00d6ff1493bcf929b9320d15ff088046990ef88a45f7d37623"
@@ -420,7 +446,7 @@ mod test {
             hex::decode("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6")
                 .unwrap();
         let eth_tx_output: EthTxOutput =
-            task::block_on(async { tx.sign(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { tx.sign_transaction(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             eth_tx_output.tx_hash,
             "0xa10172bcf5002ccd23bc1785fd6caf2f663a2430b6710ec539429230ec615073"
@@ -447,7 +473,7 @@ mod test {
             hex::decode("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6")
                 .unwrap();
         let eth_tx_output: EthTxOutput =
-            task::block_on(async { tx.sign(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { tx.sign_transaction(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             eth_tx_output.tx_hash,
             "0x0e3cc87e9f4924a01edc5e09c27f9b1f9fcdb1c6a2a637fb28fd9efe39af42b0"
@@ -474,11 +500,67 @@ mod test {
             hex::decode("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6")
                 .unwrap();
         let eth_tx_output: EthTxOutput =
-            task::block_on(async { tx.sign(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { tx.sign_transaction(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             eth_tx_output.tx_hash,
             "0x66617e83ddfb63b5853e18a99af169651ad07ff5ca2eae812d9b79ceedda1174"
         );
         assert_eq!(eth_tx_output.signature, "f86b088504a817c8088302e24894353535353535353535353535353535353535353582020080849c8a82c7a098c8ea50a36a00ee155db34340157fe34f76690466aca9e87f337ea3ba847cdba001b7742139071ef81c874b783c3aa1ef9261ac0096eba81e6936998d8c8ecd74");
+    }
+
+    #[test]
+    fn test_personal_sign() {
+        let params = EthMessageInput {
+            message: "Hello imToken".to_string(),
+            is_hex: None,
+        };
+        let private_key =
+            hex::decode("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6")
+                .unwrap();
+        let sign_output: EthMessageOutput =
+            task::block_on(async { params.sign_personal(private_key.as_slice()).await }).unwrap();
+        assert_eq!(
+            sign_output.signature,
+            "1be38ff0ab0e6d97cba73cf61421f0641628be8ee91dcb2f73315e7fdf4d0e2770b0cb3cc7350426798d43f0fb05602664a28bb2c9fcf46a07fa1c8c4e322ec01b"
+        );
+
+        let params = EthMessageInput {
+            message: "ef678007d18427e6022059dbc264f27507cd1ffc".to_string(),
+            is_hex: None,
+        };
+        let sign_output: EthMessageOutput =
+            task::block_on(async { params.sign_personal(private_key.as_slice()).await }).unwrap();
+        assert_eq!(
+            sign_output.signature,
+            "b12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b"
+        );
+    }
+
+    #[test]
+    fn test_message_sign() {
+        let params = EthMessageInput {
+            message: "Hello imToken".to_string(),
+            is_hex: None,
+        };
+        let private_key =
+            hex::decode("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6")
+                .unwrap();
+        let sign_output: EthMessageOutput =
+            task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
+        assert_eq!(
+            sign_output.signature,
+            "1be38ff0ab0e6d97cba73cf61421f0641628be8ee91dcb2f73315e7fdf4d0e2770b0cb3cc7350426798d43f0fb05602664a28bb2c9fcf46a07fa1c8c4e322ec01b"
+        );
+
+        let params = EthMessageInput {
+            message: "ef678007d18427e6022059dbc264f27507cd1ffc".to_string(),
+            is_hex: None,
+        };
+        let sign_output: EthMessageOutput =
+            task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
+        assert_eq!(
+            sign_output.signature,
+            "b12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b"
+        );
     }
 }

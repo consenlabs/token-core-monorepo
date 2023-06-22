@@ -6665,6 +6665,7 @@ version = "0.1.0"
 dependencies = [
  "failure",
  "hex 0.4.3",
+ "regex 1.8.4",
 ]
 
 [[package]]

@@ -45,8 +45,8 @@ pub struct EthTxOutput {
 pub struct EthMessageInput {
     #[prost(string, tag = "1")]
     pub message: ::prost::alloc::string::String,
-    #[prost(bool, tag = "2")]
-    pub is_personal_sign: bool,
+    #[prost(bool, optional, tag = "2")]
+    pub is_hex: ::core::option::Option<bool>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

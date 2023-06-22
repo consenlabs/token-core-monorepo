@@ -2,6 +2,7 @@ use std::ffi::{CStr, CString};
 
 use std::os::raw::c_char;
 
+use handler::{eth_sign_message, eth_sign_personal};
 use prost::Message;
 
 pub mod api;
@@ -142,6 +143,8 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
             Ok(vec![])
         }),
         "sign_transaction" => landingpad(|| sign_transaction(&action.param.unwrap().value)),
+        "eth_sign_personal" => landingpad(|| eth_sign_personal(&action.param.unwrap().value)),
+        "eth_sign_message" => landingpad(|| eth_sign_message(&action.param.unwrap().value)),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {

@@ -45,7 +45,7 @@ use tcx_constants::CurveType;
 use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::hash::dsha256;
 use tcx_crypto::KDF_ROUNDS;
-use tcx_eth::transaction::{EthTxInput, EthTxOutput};
+use tcx_eth::transaction::{EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput};
 use tcx_eth2::address::Eth2Address;
 use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
@@ -1214,6 +1214,60 @@ pub(crate) fn sign_eth_transaction(param: &SignParam, private_key: &[u8]) -> Res
     }
 
     let eth_tx_output: Result<EthTxOutput> =
-        task::block_on(async { eth_tx_input.sign(private_key).await });
+        task::block_on(async { eth_tx_input.sign_transaction(private_key).await });
     encode_message(eth_tx_output?)
+}
+
+pub(crate) fn eth_sign_personal(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignParam = SignParam::decode(data).expect("EthPersonalSignParam");
+
+    let keystore = WalletManager::must_find_wallet_by_id(&param.id)?;
+    let password = match param.key.clone().unwrap() {
+        Key::Password(password) => password,
+        _ => {
+            return Err(format_err!("{}", "key_type_error"));
+        }
+    };
+
+    let private_key = keystore.decrypt_main_key(password.as_str())?;
+
+    let input: EthMessageInput = EthMessageInput::decode(
+        param
+            .input
+            .expect("EthMessageInput")
+            .value
+            .clone()
+            .as_slice(),
+    )?;
+    let sign_result: Result<EthMessageOutput> =
+        task::block_on(async { input.sign_personal(private_key.as_slice()).await });
+
+    encode_message(sign_result?)
+}
+
+pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignParam = SignParam::decode(data).expect("EthMessageSignParam");
+
+    let keystore = WalletManager::must_find_wallet_by_id(&param.id)?;
+    let password = match param.key.clone().unwrap() {
+        Key::Password(password) => password,
+        _ => {
+            return Err(format_err!("{}", "key_type_error"));
+        }
+    };
+
+    let private_key = keystore.decrypt_main_key(password.as_str())?;
+
+    let input: EthMessageInput = EthMessageInput::decode(
+        param
+            .input
+            .expect("EthMessageInput")
+            .value
+            .clone()
+            .as_slice(),
+    )?;
+    let sign_result: Result<EthMessageOutput> =
+        task::block_on(async { input.sign_message(private_key.as_slice()).await });
+
+    encode_message(sign_result?)
 }

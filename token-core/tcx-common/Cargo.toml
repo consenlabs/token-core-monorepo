@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 failure = "0.1.8"
 hex = "0.4.3"
+regex = "1.7.0"

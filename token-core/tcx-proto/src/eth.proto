@@ -27,7 +27,7 @@ message EthTxOutput {
 
 message EthMessageInput {
   string message = 1;
-  bool isPersonalSign = 2;
+  optional bool is_hex = 2;
 }
 
 message EthMessageOutput {
