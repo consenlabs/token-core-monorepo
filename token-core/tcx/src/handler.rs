@@ -45,7 +45,10 @@ use tcx_constants::CurveType;
 use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::hash::dsha256;
 use tcx_crypto::KDF_ROUNDS;
-use tcx_eth::transaction::{EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput};
+use tcx_eth::transaction::{
+    EthMessageInput, EthMessageOutput, EthRecoverAddressInput, EthRecoverAddressOutput, EthTxInput,
+    EthTxOutput,
+};
 use tcx_eth2::address::Eth2Address;
 use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
@@ -1270,4 +1273,12 @@ pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
         task::block_on(async { input.sign_message(private_key.as_slice()).await });
 
     encode_message(sign_result?)
+}
+
+pub(crate) fn eth_recover_address(data: &[u8]) -> Result<Vec<u8>> {
+    let input: EthRecoverAddressInput =
+        EthRecoverAddressInput::decode(data).expect("EthRecoverAddressParam");
+    let result: Result<EthRecoverAddressOutput> = input.recover_address();
+
+    encode_message(result?)
 }

@@ -33,3 +33,13 @@ message EthMessageInput {
 message EthMessageOutput {
   string signature = 1;
 }
+
+message EthRecoverAddressInput {
+  string message = 1;
+  string signature = 2;
+  optional bool is_hex = 3;
+}
+
+message EthRecoverAddressOutput {
+  string address = 1;
+}

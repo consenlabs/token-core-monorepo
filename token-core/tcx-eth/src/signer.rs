@@ -1,4 +1,7 @@
-use crate::transaction::{EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput};
+use crate::transaction::{
+    EthMessageInput, EthMessageOutput, EthRecoverAddressInput, EthRecoverAddressOutput, EthTxInput,
+    EthTxOutput,
+};
 use crate::Result;
 use ethereum_types::{Address, H256, U256, U64};
 use ethers::signers::{LocalWallet, Signer};
@@ -103,15 +106,31 @@ impl EthMessageInput {
 
     pub async fn sign_message(&self, private_key: &[u8]) -> Result<EthMessageOutput> {
         let wallet = LocalWallet::from_bytes(private_key)?;
-        let message = if self.is_hex.expect("is_hex is required") {
+        let message = if self.is_hex.is_some() && self.is_hex.unwrap() == true {
             hex_to_bytes(self.message.as_str())?
         } else {
             self.message.as_bytes().to_vec()
         };
         let h256_hash = H256(keccak256(&message));
         let sign_result = wallet.sign_hash(h256_hash)?;
-        let signature = sign_result.to_string();
+        let signature = format!("{}{}", "0x", sign_result.to_string());
         Ok(EthMessageOutput { signature })
+    }
+}
+
+impl EthRecoverAddressInput {
+    pub fn recover_address(&self) -> Result<EthRecoverAddressOutput> {
+        let signature = Signature::from_str(&self.signature)?;
+        let message = if self.is_hex.is_some() && self.is_hex.unwrap() == true {
+            hex_to_bytes(self.message.as_str())?
+        } else {
+            self.message.as_bytes().to_vec()
+        };
+        let h256_hash = H256(keccak256(&message));
+        let address = signature.recover(h256_hash)?;
+        Ok(EthRecoverAddressOutput {
+            address: hex::encode(address.0),
+        })
     }
 }
 
@@ -540,27 +559,49 @@ mod test {
     fn test_message_sign() {
         let params = EthMessageInput {
             message: "Hello imToken".to_string(),
-            is_hex: None,
+            is_hex: Some(false),
         };
         let private_key =
-            hex::decode("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6")
+            hex::decode("3c9229289a6125f7fdf1885a77bb12c37a8d3b4962d936f7e3084dece32a3ca1")
                 .unwrap();
         let sign_output: EthMessageOutput =
             task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
-            "1be38ff0ab0e6d97cba73cf61421f0641628be8ee91dcb2f73315e7fdf4d0e2770b0cb3cc7350426798d43f0fb05602664a28bb2c9fcf46a07fa1c8c4e322ec01b"
+            "648081bc111e6116769bdb4396eebe17f58d3eddc0aeb04a868990deac9dfa2f322514a380fa66e0e864faaac6ef936092cdc022f5fd7d61cb501193ede537b31b"
         );
 
         let params = EthMessageInput {
-            message: "ef678007d18427e6022059dbc264f27507cd1ffc".to_string(),
-            is_hex: None,
+            message: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+            is_hex: Some(false),
         };
         let sign_output: EthMessageOutput =
             task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
-            "b12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b"
+            "65e4952899a8dcadf3a65a11bdac0f0cfdf93e0bae5c67674c78a72631de524d3cafe27ea71c86aa3fd838c6a50a0b09d6ece85a6dcf3ce85c30fdc51380ebdf1b"
+        );
+
+        let params = EthMessageInput {
+            message: "0000000000000000".to_string(),
+            is_hex: Some(true),
+        };
+        let sign_output: EthMessageOutput =
+            task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
+        assert_eq!(
+            sign_output.signature,
+            "b35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
+        );
+
+        let params = EthMessageInput {
+            message: "0x0000000000000000".to_string(),
+            is_hex: Some(true),
+        };
+        let sign_output: EthMessageOutput =
+            task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
+        assert_eq!(
+            sign_output.signature,
+            "b35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
         );
     }
 }
