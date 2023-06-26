@@ -1,3 +1,4 @@
+use keccak_hash::keccak;
 use regex::Regex;
 
 use crate::Result;
@@ -36,4 +37,10 @@ pub fn is_valid_hex(value: &str) -> Result<bool> {
         return Ok(false);
     }
     Ok(true)
+}
+
+pub fn get_address_from_pubkey(public_key: &[u8]) -> Result<String> {
+    let pubkey_hash = keccak::<&[u8]>(public_key[1..].as_ref());
+    let addr_bytes = &pubkey_hash[12..];
+    Ok(hex::encode(addr_bytes))
 }

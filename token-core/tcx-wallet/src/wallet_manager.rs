@@ -26,7 +26,7 @@ impl WalletManager {
 
     pub fn create_wallet(imt_keystore: IMTKeystore) -> Result<()> {
         let file_dir = WALLET_KEYSTORE_DIR.read();
-        let ks_path = format!("{}/{}{}", file_dir, imt_keystore.id, ".json");
+        let ks_path = format!("{}/{}.json", file_dir, imt_keystore.id);
         let path = Path::new(&ks_path);
         let mut file = fs::File::create(path)?;
         let json = imt_keystore.to_json()?;

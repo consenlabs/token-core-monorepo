@@ -176,8 +176,8 @@ impl IdentityKeystore {
             return Err(Error::WalletInvalidPassword.into());
         }
 
-        let clean_wallet_keystore_result = WalletManager::clean_keystore_dir()?;
-        if clean_wallet_keystore_result == () {
+        let clean_wallet_keystore_result = WalletManager::clean_keystore_dir();
+        if clean_wallet_keystore_result.is_ok() {
             WalletManager::clear_keystore_map();
             let mut identity_keystore = IDENTITY_KEYSTORE.write();
             *identity_keystore = IdentityKeystore::default();

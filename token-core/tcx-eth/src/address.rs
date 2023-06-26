@@ -9,9 +9,8 @@ pub struct EthAddress();
 impl Address for EthAddress {
     fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<String> {
         let public_key_bytes = public_key.to_bytes();
-        let pubkey_hash = keccak::<&[u8]>(public_key_bytes[1..].as_ref());
-        let addr_bytes = &pubkey_hash[12..];
-        Ok(hex::encode(addr_bytes))
+        let address = EthAddress::get_address_from_pubkey(public_key_bytes.as_slice())?;
+        Ok(address)
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {

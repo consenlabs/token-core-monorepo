@@ -43,11 +43,6 @@ impl Metadata {
         seg_wit: Option<&str>,
     ) -> Result<Self> {
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_micros();
-        let temp_seg_wit = if let Some(a) = seg_wit {
-            Some(a.to_string())
-        } else {
-            None
-        };
         Ok(Metadata {
             name: name.to_string(),
             password_hint,
@@ -58,7 +53,7 @@ impl Metadata {
             source: source.to_string(),
             mode: None,
             wallet_type: None,
-            seg_wit: temp_seg_wit,
+            seg_wit: seg_wit.and_then(|val| Some(val.to_string())),
         })
     }
 

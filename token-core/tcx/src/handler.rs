@@ -1023,10 +1023,9 @@ pub(crate) fn create_identity(data: &[u8]) -> Result<Vec<u8>> {
 
     let metadata = IdentityMetadata::new(name, password_hint, FROM_NEW_IDENTITY, network, seg_wit)?;
     let mut identity_keystore =
-        IdentityKeystore::create_identity(metadata, password, mnemonic_phrase.as_str())?;
+        IdentityKeystore::create_identity(metadata.clone(), password, mnemonic_phrase.as_str())?;
 
-    let eth_keystore_id =
-        derive_ethereum_wallet(&identity_keystore, password, mnemonic_phrase.as_str())?;
+    let eth_keystore_id = derive_ethereum_wallet(&metadata, password, mnemonic_phrase.as_str())?;
 
     identity_keystore.wallet_ids.push(eth_keystore_id);
     identity_keystore.flush_identity_keystore()?;
@@ -1044,14 +1043,12 @@ pub(crate) fn create_identity(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 fn derive_ethereum_wallet(
-    identity_keystore: &IdentityKeystore,
+    metadata: &IdentityMetadata,
     password: &str,
     mnemonic_phrase: &str,
 ) -> Result<String> {
-    let mut metadata = IdentityMetadata::default();
+    let mut metadata = metadata.clone();
     metadata.chain_type = CHAIN_TYPE_ETHEREUM.to_string();
-    metadata.password_hint = identity_keystore.im_token_meta.password_hint.to_owned();
-    metadata.source = identity_keystore.im_token_meta.source.to_owned();
     metadata.name = "ETH".to_string();
     let imt_keystore = IMTKeystore::create_v3_mnemonic_keystore(
         &mut metadata,
@@ -1148,8 +1145,8 @@ pub(crate) fn recover_identity(data: &[u8]) -> Result<Vec<u8>> {
         seg_wit,
     )?;
     let mut identity_keystore =
-        IdentityKeystore::create_identity(metadata, password, mnemonic_phrase)?;
-    let eth_keystore_id = derive_ethereum_wallet(&identity_keystore, password, mnemonic_phrase)?;
+        IdentityKeystore::create_identity(metadata.clone(), password, mnemonic_phrase)?;
+    let eth_keystore_id = derive_ethereum_wallet(&metadata, password, mnemonic_phrase)?;
 
     identity_keystore.wallet_ids.push(eth_keystore_id);
     identity_keystore.flush_identity_keystore()?;

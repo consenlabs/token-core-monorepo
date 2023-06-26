@@ -6665,6 +6665,7 @@ version = "0.1.0"
 dependencies = [
  "failure",
  "hex 0.4.3",
+ "keccak-hash",
  "regex 1.8.4",
 ]
 
@@ -6920,6 +6921,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.6",
  "tcx-chain",
+ "tcx-common",
  "tcx-constants",
  "tcx-crypto",
  "tcx-primitive",
