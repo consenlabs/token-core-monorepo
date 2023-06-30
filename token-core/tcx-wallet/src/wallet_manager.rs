@@ -92,9 +92,6 @@ impl WalletManager {
                 fs::remove_file(path)?;
             }
         }
-
-        // let path = Path::new(dir.as_str());
-        // fs::remove_dir_all(path)?;
         Ok(())
     }
 }

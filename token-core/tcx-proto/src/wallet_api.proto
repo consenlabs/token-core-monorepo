@@ -18,7 +18,15 @@ message CreateIdentityParam {
 message CreateIdentityResult {
     string identifier = 1;
     string ipfsId = 2;
-    repeated IMTKeystore wallets = 3;
+    repeated Wallet wallets = 3;
+}
+
+message Wallet{
+    string id = 1;
+    string address = 2;
+    uint64 createdAt = 3;
+    string source = 4;
+    string chainType = 5;
 }
 
 message GetCurrentIdentityResult {

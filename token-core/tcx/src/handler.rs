@@ -67,7 +67,7 @@ use tcx_wallet::model::{Metadata as IdentityMetadata, FROM_NEW_IDENTITY, FROM_RE
 use tcx_wallet::wallet_api::{
     CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
     GenerateMnemonicResult, GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes,
-    RecoverIdentityParam, RecoverIdentityResult, RemoveIdentityParam,
+    RecoverIdentityParam, RecoverIdentityResult, RemoveIdentityParam, Wallet,
 };
 use tcx_wallet::wallet_manager::{WalletManager, WALLET_KEYSTORE_DIR};
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
@@ -1033,10 +1033,20 @@ pub(crate) fn create_identity(data: &[u8]) -> Result<Vec<u8>> {
 
     let current_identity: GetCurrentIdentityResult =
         GetCurrentIdentityResult::decode(get_current_identity()?.as_slice()).unwrap();
+    let mut wallets = vec![];
+    for imt_keystore in current_identity.wallets {
+        wallets.push(Wallet {
+            id: imt_keystore.id,
+            address: imt_keystore.address,
+            created_at: imt_keystore.metadata.clone().unwrap().timestamp,
+            source: imt_keystore.metadata.clone().unwrap().source,
+            chain_type: imt_keystore.metadata.clone().unwrap().chain_type,
+        });
+    }
     let result = CreateIdentityResult {
         identifier: identity_keystore.identifier.clone(),
         ipfs_id: identity_keystore.ipfs_id.clone(),
-        wallets: current_identity.wallets,
+        wallets,
     };
 
     encode_message(result)

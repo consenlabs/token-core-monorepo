@@ -26,7 +26,21 @@ pub struct CreateIdentityResult {
     #[prost(string, tag = "2")]
     pub ipfs_id: ::prost::alloc::string::String,
     #[prost(message, repeated, tag = "3")]
-    pub wallets: ::prost::alloc::vec::Vec<ImtKeystore>,
+    pub wallets: ::prost::alloc::vec::Vec<Wallet>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Wallet {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub address: ::prost::alloc::string::String,
+    #[prost(uint64, tag = "3")]
+    pub created_at: u64,
+    #[prost(string, tag = "4")]
+    pub source: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub chain_type: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

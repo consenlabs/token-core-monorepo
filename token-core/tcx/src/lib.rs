@@ -3025,7 +3025,7 @@ mod tests {
             assert!(create_result.identifier.len() > 0);
             assert_eq!(create_result.wallets.len(), 1);
             let wallets = create_result.wallets.get(0).unwrap();
-            assert_eq!(wallets.metadata.as_ref().unwrap().chain_type, "ETHEREUM");
+            assert_eq!(wallets.chain_type, "ETHEREUM");
 
             let param = CreateIdentityParam {
                 name: sample_key::NAME.to_string(),
