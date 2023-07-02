@@ -3076,10 +3076,7 @@ mod tests {
             );
 
             let wallet = recover_result.wallets.get(0).unwrap();
-            assert_eq!(
-                wallet.metadata.clone().unwrap().chain_type,
-                constants::CHAIN_TYPE_ETHEREUM
-            );
+            assert_eq!(wallet.chain_type, constants::CHAIN_TYPE_ETHEREUM);
             assert_eq!(wallet.address, "6031564e7b2f5cc33737807b2e58daff870b590b");
         })
     }

@@ -1033,16 +1033,7 @@ pub(crate) fn create_identity(data: &[u8]) -> Result<Vec<u8>> {
 
     let current_identity: GetCurrentIdentityResult =
         GetCurrentIdentityResult::decode(get_current_identity()?.as_slice()).unwrap();
-    let mut wallets = vec![];
-    for imt_keystore in current_identity.wallets {
-        wallets.push(Wallet {
-            id: imt_keystore.id,
-            address: imt_keystore.address,
-            created_at: imt_keystore.metadata.clone().unwrap().timestamp,
-            source: imt_keystore.metadata.clone().unwrap().source,
-            chain_type: imt_keystore.metadata.clone().unwrap().chain_type,
-        });
-    }
+    let wallets = create_wallets(current_identity.wallets);
     let result = CreateIdentityResult {
         identifier: identity_keystore.identifier.clone(),
         ipfs_id: identity_keystore.ipfs_id.clone(),
@@ -1069,6 +1060,20 @@ fn derive_ethereum_wallet(
     WalletManager::create_wallet(imt_keystore.clone())?;
     Identity::add_wallet(imt_keystore.id.as_str());
     Ok(imt_keystore.id)
+}
+
+fn create_wallets(wallets: Vec<ImtKeystore>) -> Vec<Wallet> {
+    let mut ret_data = vec![];
+    for imt_keystore in wallets {
+        ret_data.push(Wallet {
+            id: imt_keystore.id,
+            address: imt_keystore.address,
+            created_at: imt_keystore.metadata.clone().unwrap().timestamp,
+            source: imt_keystore.metadata.clone().unwrap().source,
+            chain_type: imt_keystore.metadata.clone().unwrap().chain_type,
+        });
+    }
+    ret_data
 }
 
 pub(crate) fn get_current_identity() -> Result<Vec<u8>> {
@@ -1164,12 +1169,12 @@ pub(crate) fn recover_identity(data: &[u8]) -> Result<Vec<u8>> {
 
     let current_identity: GetCurrentIdentityResult =
         GetCurrentIdentityResult::decode(get_current_identity()?.as_slice()).unwrap();
-
+    let wallets = create_wallets(current_identity.wallets);
     let result = RecoverIdentityResult {
         identifier: identity_keystore.identifier.clone(),
         mnemonic: mnemonic_phrase.to_string(),
         ipfs_id: identity_keystore.ipfs_id.clone(),
-        wallets: current_identity.wallets,
+        wallets,
     };
 
     encode_message(result)

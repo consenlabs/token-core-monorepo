@@ -80,7 +80,7 @@ message RecoverIdentityResult {
     string identifier = 1;
     string mnemonic = 2;
     string ipfsId = 3;
-    repeated IMTKeystore wallets = 4;
+    repeated Wallet wallets = 4;
 }
 
 message RemoveIdentityParam {

@@ -134,7 +134,7 @@ pub struct RecoverIdentityResult {
     #[prost(string, tag = "3")]
     pub ipfs_id: ::prost::alloc::string::String,
     #[prost(message, repeated, tag = "4")]
-    pub wallets: ::prost::alloc::vec::Vec<ImtKeystore>,
+    pub wallets: ::prost::alloc::vec::Vec<Wallet>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
