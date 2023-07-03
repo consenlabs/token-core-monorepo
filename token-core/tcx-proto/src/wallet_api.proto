@@ -87,3 +87,7 @@ message RemoveIdentityParam {
     string identifier = 1;
     string password = 2;
 }
+
+message RemoveIdentityResult {
+    string identifier = 1;
+}

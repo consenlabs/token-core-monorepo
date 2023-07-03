@@ -67,7 +67,7 @@ use tcx_wallet::model::{Metadata as IdentityMetadata, FROM_NEW_IDENTITY, FROM_RE
 use tcx_wallet::wallet_api::{
     CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
     GenerateMnemonicResult, GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes,
-    RecoverIdentityParam, RecoverIdentityResult, RemoveIdentityParam, Wallet,
+    RecoverIdentityParam, RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult, Wallet,
 };
 use tcx_wallet::wallet_manager::{WalletManager, WALLET_KEYSTORE_DIR};
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
@@ -1180,15 +1180,17 @@ pub(crate) fn recover_identity(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(result)
 }
 
-pub(crate) fn remove_identity(data: &[u8]) -> Result<()> {
+pub(crate) fn remove_identity(data: &[u8]) -> Result<Vec<u8>> {
     let param: RemoveIdentityParam = RemoveIdentityParam::decode(data)?;
     let identity = Identity::get_current_identity()?;
     if identity.identifier != param.identifier {
         return Err(format_err!("{}", "invalid_identity"));
     }
     identity.delete_identity(param.password.as_str())?;
-
-    Ok(())
+    let result = RemoveIdentityResult {
+        identifier: param.identifier,
+    };
+    encode_message(result)
 }
 
 pub(crate) fn sign_transaction(data: &[u8]) -> Result<Vec<u8>> {

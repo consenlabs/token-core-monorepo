@@ -139,10 +139,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "get_current_identity" => landingpad(|| get_current_identity()),
         "recover_identity" => landingpad(|| recover_identity(&action.param.unwrap().value)),
         "export_identity" => landingpad(|| export_identity(&action.param.unwrap().value)),
-        "remove_identity" => landingpad(|| {
-            remove_identity(&action.param.unwrap().value).unwrap();
-            Ok(vec![])
-        }),
+        "remove_identity" => landingpad(|| remove_identity(&action.param.unwrap().value)),
         "sign_transaction" => landingpad(|| sign_transaction(&action.param.unwrap().value)),
         "eth_sign_personal" => landingpad(|| eth_sign_personal(&action.param.unwrap().value)),
         "eth_sign_message" => landingpad(|| eth_sign_message(&action.param.unwrap().value)),
@@ -239,7 +236,7 @@ mod tests {
     use tcx_wallet::wallet_api::{
         CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
         GenerateMnemonicResult, GetCurrentIdentityResult, RecoverIdentityParam,
-        RecoverIdentityResult, RemoveIdentityParam,
+        RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult,
     };
 
     static OTHER_MNEMONIC: &'static str =
@@ -3130,8 +3127,10 @@ mod tests {
                 identifier: create_result.identifier.to_owned(),
                 password: sample_key::PASSWORD.to_string(),
             };
-            let ret = call_api("remove_identity", remove_identity_param);
-            assert!(ret.is_ok());
+            let ret = call_api("remove_identity", remove_identity_param).unwrap();
+            let remove_result: RemoveIdentityResult =
+                RemoveIdentityResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(remove_result.identifier, create_result.identifier);
         })
     }
 

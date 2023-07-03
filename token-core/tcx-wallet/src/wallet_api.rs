@@ -144,3 +144,9 @@ pub struct RemoveIdentityParam {
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct RemoveIdentityResult {
+    #[prost(string, tag = "1")]
+    pub identifier: ::prost::alloc::string::String,
+}
