@@ -38,7 +38,7 @@ impl EthTxInput {
             let sign_result = eip1559_tx.rlp_signed(&signature);
 
             let mut sign_bytes = vec![];
-            sign_bytes.push(self.tx_type.parse()?);
+            sign_bytes.push(parse_u64(self.tx_type.as_str())?.byte(0));
             sign_bytes.extend(sign_result.as_ref().iter());
 
             let signature = hex::encode(sign_bytes.clone());
