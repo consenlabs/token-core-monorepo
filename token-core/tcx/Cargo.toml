@@ -38,7 +38,6 @@ hex = "0.4.3"
 base64 = "0.13.1"
 base58 = "0.2.0"
 parking_lot = "0.12.1"
-ethereum-types = "0.14.0"
 ethers = "2.0.3"
 async-std = "1.12.0"
 

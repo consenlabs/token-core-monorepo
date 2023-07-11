@@ -14,18 +14,18 @@ impl Address for EthAddress {
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {
-        is_valid_address(address).expect("eth_address_check_error")
+        is_valid_address(address)
     }
 }
 
-pub fn is_valid_address(address: &str) -> Result<bool> {
+pub fn is_valid_address(address: &str) -> bool {
     if address.is_empty() || address.len() != 42 || !address.starts_with("0x") {
-        return Ok(false);
+        return false;
     }
 
     let ethAddrRegex = Regex::new(r"^(0x)?[0-9a-fA-F]{40}$").unwrap();
     if !ethAddrRegex.is_match(address.as_ref()) {
-        return Ok(false);
+        return false;
     }
 
     let address_temp = &address[2..];
@@ -35,12 +35,13 @@ pub fn is_valid_address(address: &str) -> Result<bool> {
     let hash_str = hex::encode(hash);
 
     for (i, c) in address_temp.chars().enumerate() {
-        let char_int = u8::from_str_radix(&hash_str.chars().nth(i).unwrap().to_string(), 16)?;
+        let char_int =
+            u8::from_str_radix(&hash_str.chars().nth(i).unwrap().to_string(), 16).unwrap();
         if (c.is_uppercase() && char_int <= 7) || (c.is_lowercase() && char_int > 7) {
-            return Ok(false);
+            return false;
         }
     }
-    Ok(true)
+    true
 }
 
 impl EthAddress {

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tcx_crypto::{Crypto, EncPair, Key, Pbkdf2Params};
 // use tcx_eth::address::EthAddress;
-use tcx_common::utility::get_address_from_pubkey;
+use tcx_common::util::get_address_from_pubkey;
 use tcx_primitive::{Bip32DeterministicPrivateKey, Derive, DeterministicPrivateKey, PrivateKey};
 use uuid::Uuid;
 
@@ -79,8 +79,7 @@ impl IMTKeystore {
         path: &str,
         id: Option<&str>,
     ) -> Result<IMTKeystore> {
-        //todo
-        Ok(IMTKeystore::default())
+        unimplemented!();
     }
 
     pub fn to_json(&self) -> Result<String> {
@@ -94,8 +93,7 @@ impl IMTKeystore {
 
 impl IMTKeystore {
     fn delete(&self, password: &str) -> Result<()> {
-        //TODO
-        Ok(())
+        unimplemented!();
     }
 }
 

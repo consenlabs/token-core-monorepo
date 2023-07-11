@@ -44,15 +44,14 @@ impl WalletManager {
 
     fn remove_wallet(id: &str, password: &str) -> Result<()> {
         let imt_keystore = Self::must_find_wallet_by_id(id)?;
-        //TODO
-        Ok(())
+        unimplemented!();
     }
 
     pub fn must_find_wallet_by_id(id: &str) -> Result<IMTKeystore> {
         let mut map = WALLETS.write();
         match map.get(id) {
             Some(keystore) => Ok(keystore.to_owned()),
-            _ => Err(Error::WalletInvalidType.into()),
+            _ => Err(Error::WalletNotFound.into()),
         }
     }
 

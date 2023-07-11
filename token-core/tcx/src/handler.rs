@@ -1132,7 +1132,7 @@ pub(crate) fn export_identity(data: &[u8]) -> Result<Vec<u8>> {
     let password = param.password;
     let identity = Identity::get_current_identity()?;
     if identity.identifier != identifier {
-        return Err(format_err!("{}", "invalid_identity"));
+        return Err(format_err!("invalid_identity"));
     }
 
     let mnemonic = identity.export_identity(password.as_str())?;
@@ -1184,7 +1184,7 @@ pub(crate) fn remove_identity(data: &[u8]) -> Result<Vec<u8>> {
     let param: RemoveIdentityParam = RemoveIdentityParam::decode(data)?;
     let identity = Identity::get_current_identity()?;
     if identity.identifier != param.identifier {
-        return Err(format_err!("{}", "invalid_identity"));
+        return Err(format_err!("invalid_identity"));
     }
     identity.delete_identity(param.password.as_str())?;
     let result = RemoveIdentityResult {
@@ -1200,7 +1200,7 @@ pub(crate) fn sign_transaction(data: &[u8]) -> Result<Vec<u8>> {
     let password = match param.key.clone().unwrap() {
         Key::Password(password) => password,
         _ => {
-            return Err(format_err!("{}", "key_type_error"));
+            return Err(format_err!("key_type_error"));
         }
     };
 
@@ -1226,8 +1226,8 @@ pub(crate) fn sign_eth_transaction(param: &SignParam, private_key: &[u8]) -> Res
     )
     .expect("EthereumTransactionInputError");
 
-    if !tcx_eth::address::is_valid_address(&eth_tx_input.to)? {
-        return Err(format_err!("{}", "invalid_to_address"));
+    if !tcx_eth::address::is_valid_address(&eth_tx_input.to) {
+        return Err(format_err!("invalid_to_address"));
     }
 
     let eth_tx_output: Result<EthTxOutput> =
@@ -1242,7 +1242,7 @@ pub(crate) fn eth_sign_personal(data: &[u8]) -> Result<Vec<u8>> {
     let password = match param.key.clone().unwrap() {
         Key::Password(password) => password,
         _ => {
-            return Err(format_err!("{}", "key_type_error"));
+            return Err(format_err!("key_type_error"));
         }
     };
 
@@ -1269,7 +1269,7 @@ pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
     let password = match param.key.clone().unwrap() {
         Key::Password(password) => password,
         _ => {
-            return Err(format_err!("{}", "key_type_error"));
+            return Err(format_err!("key_type_error"));
         }
     };
 

@@ -11,7 +11,7 @@ use ethers::types::{Bytes, Eip1559TransactionRequest, Signature, TransactionRequ
 use ethers::utils::keccak256;
 use keccak_hash::keccak;
 use std::str::FromStr;
-use tcx_common::utility::{hex_to_bytes, string_to_bytes};
+use tcx_common::util::{hex_to_bytes, string_to_bytes};
 
 impl EthTxInput {
     pub async fn sign_transaction(&self, private_key: &[u8]) -> Result<EthTxOutput> {
@@ -100,7 +100,7 @@ impl EthMessageInput {
         let wallet = LocalWallet::from_bytes(private_key)?;
         let message_bytes = string_to_bytes(self.message.as_str())?;
         let sign_result = wallet.sign_message(message_bytes.as_slice()).await?;
-        let signature = sign_result.to_string();
+        let signature = format!("{}{}", "0x", sign_result.to_string());
         Ok(EthMessageOutput { signature })
     }
 
@@ -540,7 +540,7 @@ mod test {
             task::block_on(async { params.sign_personal(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
-            "1be38ff0ab0e6d97cba73cf61421f0641628be8ee91dcb2f73315e7fdf4d0e2770b0cb3cc7350426798d43f0fb05602664a28bb2c9fcf46a07fa1c8c4e322ec01b"
+            "0x1be38ff0ab0e6d97cba73cf61421f0641628be8ee91dcb2f73315e7fdf4d0e2770b0cb3cc7350426798d43f0fb05602664a28bb2c9fcf46a07fa1c8c4e322ec01b"
         );
 
         let params = EthMessageInput {
@@ -551,7 +551,7 @@ mod test {
             task::block_on(async { params.sign_personal(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
-            "b12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b"
+            "0xb12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b"
         );
     }
 
@@ -568,7 +568,7 @@ mod test {
             task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
-            "648081bc111e6116769bdb4396eebe17f58d3eddc0aeb04a868990deac9dfa2f322514a380fa66e0e864faaac6ef936092cdc022f5fd7d61cb501193ede537b31b"
+            "0x648081bc111e6116769bdb4396eebe17f58d3eddc0aeb04a868990deac9dfa2f322514a380fa66e0e864faaac6ef936092cdc022f5fd7d61cb501193ede537b31b"
         );
 
         let params = EthMessageInput {
@@ -579,7 +579,7 @@ mod test {
             task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
-            "65e4952899a8dcadf3a65a11bdac0f0cfdf93e0bae5c67674c78a72631de524d3cafe27ea71c86aa3fd838c6a50a0b09d6ece85a6dcf3ce85c30fdc51380ebdf1b"
+            "0x65e4952899a8dcadf3a65a11bdac0f0cfdf93e0bae5c67674c78a72631de524d3cafe27ea71c86aa3fd838c6a50a0b09d6ece85a6dcf3ce85c30fdc51380ebdf1b"
         );
 
         let params = EthMessageInput {
@@ -590,7 +590,7 @@ mod test {
             task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
-            "b35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
+            "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
         );
 
         let params = EthMessageInput {
@@ -601,7 +601,7 @@ mod test {
             task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
-            "b35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
+            "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
         );
     }
 }

@@ -6536,7 +6536,6 @@ dependencies = [
  "base58",
  "base64 0.13.1",
  "bytes 1.4.0",
- "ethereum-types",
  "ethers",
  "failure",
  "hex 0.4.3",
