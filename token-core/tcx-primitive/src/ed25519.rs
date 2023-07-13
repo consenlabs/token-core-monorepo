@@ -1,7 +1,7 @@
 use crate::ecc::{KeyError, PrivateKey as TraitPrivateKey, PublicKey as TraitPublicKey};
 use crate::{FromHex, Result, ToHex};
 use sp_core::ed25519::{Pair, Public};
-use sp_core::{Pair as TraitPair, Public as TraitPublic};
+use sp_core::Pair as TraitPair;
 use std::convert::TryFrom;
 
 #[derive(Clone)]

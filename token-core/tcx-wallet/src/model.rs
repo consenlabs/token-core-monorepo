@@ -83,7 +83,6 @@ impl IdentitySource {
         match self {
             IdentitySource::NEW(val) => val.to_string(),
             IdentitySource::RECOVERED(val) => val.to_string(),
-            _ => String::default(),
         }
     }
 }

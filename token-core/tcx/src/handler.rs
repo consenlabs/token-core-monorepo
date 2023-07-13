@@ -60,10 +60,8 @@ use tcx_tezos::address::TezosAddress;
 use tcx_tezos::transaction::TezosRawTxIn;
 use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
 use tcx_tron::transaction::{TronMessageInput, TronTxInput};
-use tcx_wallet::constants::{CHAIN_TYPE_ETHEREUM, ETHEREUM_PATH};
-use tcx_wallet::identity::{Identity, IdentityKeystore, IDENTITY_KEYSTORE};
+use tcx_wallet::identity::Identity;
 use tcx_wallet::imt_keystore::{IMTKeystore, WALLET_KEYSTORE_DIR};
-use tcx_wallet::model::{Metadata as IdentityMetadata, FROM_NEW_IDENTITY, FROM_RECOVERED_IDENTITY};
 use tcx_wallet::wallet_api::{
     CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
     GenerateMnemonicResult, GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes,

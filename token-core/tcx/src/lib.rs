@@ -53,7 +53,7 @@ pub unsafe extern "C" fn free_const_string(s: *const c_char) {
     if s.is_null() {
         return;
     }
-    CStr::from_ptr(s);
+    let _ = CStr::from_ptr(s);
 }
 
 /// dispatch protobuf rpc call
@@ -217,7 +217,7 @@ mod tests {
     use tcx_btc_fork::transaction::BtcForkTxInput;
     use tcx_btc_fork::transaction::Utxo;
 
-    use sp_core::{ByteArray, Public as TraitPublic};
+    use sp_core::ByteArray;
     use sp_runtime::traits::Verify;
     use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
     use tcx_constants::sample_key::MNEMONIC;
@@ -2955,7 +2955,7 @@ mod tests {
                 derived_accounts.accounts[0].address
             );
 
-            let signBlsToExecutionChangeParam = SignBlsToExecutionChangeParam {
+            let param = SignBlsToExecutionChangeParam {
                 id: import_result.id.to_string(),
                 password: TEST_PASSWORD.to_string(),
                 genesis_fork_version: "0x03000000".to_string(),
@@ -2965,15 +2965,11 @@ mod tests {
                 from_bls_pub_key: derived_accounts.accounts[0].clone().address,
                 eth1_withdrawal_address: "0x8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string(),
             };
-            let ret_bytes = call_api(
-                "sign_bls_to_execution_change",
-                signBlsToExecutionChangeParam,
-            )
-            .unwrap();
-            let signBlsToExecutionChangeResult: SignBlsToExecutionChangeResult =
+            let ret_bytes = call_api("sign_bls_to_execution_change", param).unwrap();
+            let result: SignBlsToExecutionChangeResult =
                 SignBlsToExecutionChangeResult::decode(ret_bytes.as_slice()).unwrap();
 
-            assert_eq!(signBlsToExecutionChangeResult.signeds.get(0).unwrap().signature, "8c8ce9f8aedf380e47548501d348afa28fbfc282f50edf33555a3ed72eb24d710bc527b5108022cffb764b953941ec4014c44106d2708387d26cc84cbc5c546a1e6e56fdc194cf2649719e6ac149596d80c86bf6844b36bd47038ee96dd3962f");
+            assert_eq!(result.signeds.get(0).unwrap().signature, "8c8ce9f8aedf380e47548501d348afa28fbfc282f50edf33555a3ed72eb24d710bc527b5108022cffb764b953941ec4014c44106d2708387d26cc84cbc5c546a1e6e56fdc194cf2649719e6ac149596d80c86bf6844b36bd47038ee96dd3962f");
             remove_created_wallet(&import_result.id);
         })
     }

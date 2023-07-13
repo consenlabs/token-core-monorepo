@@ -45,13 +45,13 @@ impl IMTKeystore {
     ) -> Result<IMTKeystore> {
         Mnemonic::validate(mnemonic_phrase, Language::English).unwrap();
 
-        let bip32_deterministic_privateKey =
+        let bip32_deterministic_private_key =
             Bip32DeterministicPrivateKey::from_mnemonic(mnemonic_phrase)?;
-        let bip32_deterministic_privateKey = bip32_deterministic_privateKey.derive(path)?;
+        let bip32_deterministic_private_key = bip32_deterministic_private_key.derive(path)?;
 
         let mut crypto: Crypto<Pbkdf2Params> = Crypto::new_by_10240_round(
             password,
-            bip32_deterministic_privateKey
+            bip32_deterministic_private_key
                 .private_key()
                 .0
                 .to_bytes()
@@ -61,7 +61,7 @@ impl IMTKeystore {
         crypto.clear_cache_derived_key();
         metadata.timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_micros();
 
-        let publick_key = bip32_deterministic_privateKey
+        let publick_key = bip32_deterministic_private_key
             .private_key()
             .public_key()
             .to_uncompressed();
@@ -83,12 +83,13 @@ impl IMTKeystore {
         })
     }
 
+    #[warn(dead_code)]
     pub fn create_hd_mnemonic_keystore(
-        metadata: &mut Metadata,
-        password: &str,
-        mnemonic_phrase: &str,
-        path: &str,
-        id: Option<&str>,
+        _metadata: &mut Metadata,
+        _password: &str,
+        _mnemonic_phrase: &str,
+        _path: &str,
+        _id: Option<&str>,
     ) -> Result<IMTKeystore> {
         unimplemented!();
     }
@@ -103,10 +104,6 @@ impl IMTKeystore {
 }
 
 impl IMTKeystore {
-    fn delete(&self, password: &str) -> Result<()> {
-        unimplemented!();
-    }
-
     pub fn create_wallet(&self) -> Result<()> {
         let file_dir = WALLET_KEYSTORE_DIR.read();
         let ks_path = format!("{}/{}.json", file_dir, self.id);
@@ -124,7 +121,7 @@ impl IMTKeystore {
     }
 
     pub fn must_find_wallet_by_id(id: &str) -> Result<IMTKeystore> {
-        let mut map = WALLETS.write();
+        let map = WALLETS.write();
         match map.get(id) {
             Some(keystore) => Ok(keystore.to_owned()),
             _ => Err(Error::WalletNotFound.into()),
@@ -144,7 +141,7 @@ impl IMTKeystore {
     }
 }
 
-fn get_address(chain_type: &str, is_mainnet: bool, public_key: &[u8]) -> Result<String> {
+fn get_address(chain_type: &str, _is_mainnet: bool, public_key: &[u8]) -> Result<String> {
     let address = match chain_type {
         CHAIN_TYPE_ETHEREUM => get_address_from_pubkey(public_key)?,
         _ => return Err(Error::WalletInvalidType.into()),

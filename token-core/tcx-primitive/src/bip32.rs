@@ -4,13 +4,11 @@ use crate::constant::SECP256K1_ENGINE;
 use crate::ecc::{DeterministicPrivateKey, DeterministicPublicKey, KeyError};
 
 use crate::{Derive, FromHex, Secp256k1PrivateKey, Secp256k1PublicKey, Ss58Codec, ToHex};
-use bitcoin::util::key::PublicKey;
 
 use bitcoin::util::base58;
 use bitcoin::util::base58::Error::InvalidLength;
 use bitcoin::util::bip32::{
-    ChainCode, ChildNumber, Error as Bip32Error, Error, ExtendedPrivKey, ExtendedPubKey,
-    Fingerprint,
+    ChainCode, ChildNumber, Error as Bip32Error, ExtendedPrivKey, ExtendedPubKey, Fingerprint,
 };
 use bitcoin::Network;
 use byteorder::BigEndian;
@@ -118,7 +116,7 @@ impl DeterministicPrivateKey for Bip32DeterministicPrivateKey {
     }
 
     fn deterministic_public_key(&self) -> Self::DeterministicPublicKey {
-        let pk = ExtendedPubKey::from_private(&SECP256K1_ENGINE, &self.0);
+        let pk = ExtendedPubKey::from_priv(&SECP256K1_ENGINE, &self.0);
         Bip32DeterministicPublicKey(pk)
     }
 }

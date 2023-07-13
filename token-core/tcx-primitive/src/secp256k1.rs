@@ -8,8 +8,6 @@ use bitcoin::util::key::{PrivateKey, PublicKey};
 use crate::{Result, Ss58Codec};
 use bitcoin::util::base58;
 
-use bitcoin::secp256k1::Message;
-use secp256k1::Error;
 use tcx_constants::{network_from_coin, CoinInfo};
 
 #[cfg_attr(tarpaulin, skip)]
@@ -79,7 +77,7 @@ impl TraitPrivateKey for Secp256k1PrivateKey {
 
     fn sign(&self, data: &[u8]) -> Result<Vec<u8>> {
         let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
-        let signature = SECP256K1_ENGINE.sign(&msg, &self.0.inner);
+        let signature = SECP256K1_ENGINE.sign_ecdsa(&msg, &self.0.inner);
         Ok(signature.serialize_der().to_vec())
     }
 
@@ -89,7 +87,7 @@ impl TraitPrivateKey for Secp256k1PrivateKey {
 
     fn sign_recoverable(&self, data: &[u8]) -> Result<Vec<u8>> {
         let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
-        let signature = SECP256K1_ENGINE.sign_recoverable(&msg, &self.0.inner);
+        let signature = SECP256K1_ENGINE.sign_ecdsa_recoverable(&msg, &self.0.inner);
         let (recover_id, sign) = signature.serialize_compact();
         let signed_bytes = [sign[..].to_vec(), vec![(recover_id.to_i32()) as u8]].concat();
         Ok(signed_bytes)
