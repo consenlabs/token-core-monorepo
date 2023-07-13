@@ -3,7 +3,6 @@ pub mod identity;
 pub mod imt_keystore;
 pub mod model;
 pub mod wallet_api;
-pub mod wallet_manager;
 #[macro_use]
 extern crate failure;
 
@@ -23,4 +22,6 @@ pub enum Error {
     KeystoreFileNotExist,
     #[fail(display = "password_incorrect")]
     WalletInvalidPassword,
+    #[fail(display = "invalid_mnemonic")]
+    InvalidMnemonic,
 }

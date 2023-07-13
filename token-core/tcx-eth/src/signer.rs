@@ -96,7 +96,7 @@ impl EthTxInput {
 }
 
 impl EthMessageInput {
-    pub async fn sign_personal(&self, private_key: &[u8]) -> Result<EthMessageOutput> {
+    pub async fn sign_message(&self, private_key: &[u8]) -> Result<EthMessageOutput> {
         let wallet = LocalWallet::from_bytes(private_key)?;
         let message_bytes = string_to_bytes(self.message.as_str())?;
         let sign_result = wallet.sign_message(message_bytes.as_slice()).await?;
@@ -104,7 +104,7 @@ impl EthMessageInput {
         Ok(EthMessageOutput { signature })
     }
 
-    pub async fn sign_message(&self, private_key: &[u8]) -> Result<EthMessageOutput> {
+    pub async fn ec_sign(&self, private_key: &[u8]) -> Result<EthMessageOutput> {
         let wallet = LocalWallet::from_bytes(private_key)?;
         let message = if self.is_hex.is_some() && self.is_hex.unwrap() == true {
             hex_to_bytes(self.message.as_str())?
@@ -113,7 +113,7 @@ impl EthMessageInput {
         };
         let h256_hash = H256(keccak256(&message));
         let sign_result = wallet.sign_hash(h256_hash)?;
-        let signature = format!("{}{}", "0x", sign_result.to_string());
+        let signature = format!("0x{}", sign_result.to_string());
         Ok(EthMessageOutput { signature })
     }
 }
@@ -528,7 +528,7 @@ mod test {
     }
 
     #[test]
-    fn test_personal_sign() {
+    fn test_sign_message() {
         let params = EthMessageInput {
             message: "Hello imToken".to_string(),
             is_hex: None,
@@ -537,7 +537,7 @@ mod test {
             hex::decode("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6")
                 .unwrap();
         let sign_output: EthMessageOutput =
-            task::block_on(async { params.sign_personal(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
             "0x1be38ff0ab0e6d97cba73cf61421f0641628be8ee91dcb2f73315e7fdf4d0e2770b0cb3cc7350426798d43f0fb05602664a28bb2c9fcf46a07fa1c8c4e322ec01b"
@@ -548,7 +548,7 @@ mod test {
             is_hex: None,
         };
         let sign_output: EthMessageOutput =
-            task::block_on(async { params.sign_personal(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
             "0xb12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b"
@@ -556,7 +556,7 @@ mod test {
     }
 
     #[test]
-    fn test_message_sign() {
+    fn test_ec_sign() {
         let params = EthMessageInput {
             message: "Hello imToken".to_string(),
             is_hex: Some(false),
@@ -565,7 +565,7 @@ mod test {
             hex::decode("3c9229289a6125f7fdf1885a77bb12c37a8d3b4962d936f7e3084dece32a3ca1")
                 .unwrap();
         let sign_output: EthMessageOutput =
-            task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { params.ec_sign(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
             "0x648081bc111e6116769bdb4396eebe17f58d3eddc0aeb04a868990deac9dfa2f322514a380fa66e0e864faaac6ef936092cdc022f5fd7d61cb501193ede537b31b"
@@ -576,7 +576,7 @@ mod test {
             is_hex: Some(false),
         };
         let sign_output: EthMessageOutput =
-            task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { params.ec_sign(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
             "0x65e4952899a8dcadf3a65a11bdac0f0cfdf93e0bae5c67674c78a72631de524d3cafe27ea71c86aa3fd838c6a50a0b09d6ece85a6dcf3ce85c30fdc51380ebdf1b"
@@ -587,7 +587,7 @@ mod test {
             is_hex: Some(true),
         };
         let sign_output: EthMessageOutput =
-            task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { params.ec_sign(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
             "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
@@ -598,7 +598,7 @@ mod test {
             is_hex: Some(true),
         };
         let sign_output: EthMessageOutput =
-            task::block_on(async { params.sign_message(private_key.as_slice()).await }).unwrap();
+            task::block_on(async { params.ec_sign(private_key.as_slice()).await }).unwrap();
         assert_eq!(
             sign_output.signature,
             "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"

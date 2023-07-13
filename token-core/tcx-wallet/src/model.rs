@@ -28,7 +28,7 @@ pub struct Metadata {
     pub timestamp: u128,
     pub network: String,
     pub backup: Option<Vec<String>>,
-    pub source: String,
+    pub source: IdentitySource,
     pub mode: Option<String>,
     pub wallet_type: Option<String>,
     pub seg_wit: Option<String>,
@@ -38,7 +38,7 @@ impl Metadata {
     pub fn new(
         name: &str,
         password_hint: Option<String>,
-        source: &str,
+        source: IdentitySource,
         network: &str,
         seg_wit: Option<&str>,
     ) -> Result<Self> {
@@ -50,7 +50,7 @@ impl Metadata {
             timestamp,
             network: network.to_string(),
             backup: None,
-            source: source.to_string(),
+            source,
             mode: None,
             wallet_type: None,
             seg_wit: seg_wit.and_then(|val| Some(val.to_string())),
@@ -66,28 +66,50 @@ impl Metadata {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum IdentitySource {
+    NEW(String),
+    RECOVERED(String),
+}
+
+impl Default for IdentitySource {
+    fn default() -> Self {
+        IdentitySource::NEW(String::default())
+    }
+}
+
+impl IdentitySource {
+    pub fn get_value(&self) -> String {
+        match self {
+            IdentitySource::NEW(val) => val.to_string(),
+            IdentitySource::RECOVERED(val) => val.to_string(),
+            _ => String::default(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::model::Metadata;
     use crate::model::FROM_NEW_IDENTITY;
+    use crate::model::{IdentitySource, Metadata};
 
     #[test]
     fn test_metadata_new() {
         let mut metadata = Metadata::new(
             "name",
             Some("password_hint".to_string()),
-            FROM_NEW_IDENTITY,
+            IdentitySource::NEW(FROM_NEW_IDENTITY.to_string()),
             "MAINNET",
             None,
         )
         .unwrap();
         metadata.timestamp = 1686105373257408;
         let metadata_json = metadata.to_json().unwrap();
-        let expected_json = "{\"name\":\"name\",\"passwordHint\":\"password_hint\",\"chainType\":\"\",\"timestamp\":1686105373257408,\"network\":\"MAINNET\",\"backup\":null,\"source\":\"NEW_IDENTITY\",\"mode\":null,\"walletType\":null,\"segWit\":null}";
+        let expected_json = "{\"name\":\"name\",\"passwordHint\":\"password_hint\",\"chainType\":\"\",\"timestamp\":1686105373257408,\"network\":\"MAINNET\",\"backup\":null,\"source\":{\"NEW\":\"NEW_IDENTITY\"},\"mode\":null,\"walletType\":null,\"segWit\":null}";
         assert_eq!(metadata_json, expected_json);
         metadata.chain_type = "ETHEREUM".to_string();
         let metadata_json = metadata.to_json().unwrap();
-        let expected_json = "{\"name\":\"name\",\"passwordHint\":\"password_hint\",\"chainType\":\"ETHEREUM\",\"timestamp\":1686105373257408,\"network\":\"MAINNET\",\"backup\":null,\"source\":\"NEW_IDENTITY\",\"mode\":null,\"walletType\":null,\"segWit\":null}";
+        let expected_json = "{\"name\":\"name\",\"passwordHint\":\"password_hint\",\"chainType\":\"ETHEREUM\",\"timestamp\":1686105373257408,\"network\":\"MAINNET\",\"backup\":null,\"source\":{\"NEW\":\"NEW_IDENTITY\"},\"mode\":null,\"walletType\":null,\"segWit\":null}";
         assert_eq!(metadata_json, expected_json);
     }
 
@@ -96,7 +118,7 @@ mod test {
         let mut metadata = Metadata::new(
             "name",
             Some("password_hint".to_string()),
-            FROM_NEW_IDENTITY,
+            IdentitySource::NEW(FROM_NEW_IDENTITY.to_string()),
             "MAINNET",
             None,
         )

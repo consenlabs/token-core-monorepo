@@ -2,7 +2,7 @@ use std::ffi::{CStr, CString};
 
 use std::os::raw::c_char;
 
-use handler::{eth_sign_message, eth_sign_personal};
+use handler::eth_sign_message;
 use prost::Message;
 
 pub mod api;
@@ -28,7 +28,7 @@ use crate::handler::{
 mod filemanager;
 
 use crate::handler::{
-    create_identity, eth_recover_address, export_identity, export_substrate_keystore,
+    create_identity, eth_ec_sign, eth_recover_address, export_identity, export_substrate_keystore,
     generate_mnemonic, get_current_identity, get_public_key, import_substrate_keystore,
     recover_identity, remove_identity, sign_bls_to_execution_change, sign_transaction,
     substrate_keystore_exists,
@@ -141,8 +141,8 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "export_identity" => landingpad(|| export_identity(&action.param.unwrap().value)),
         "remove_identity" => landingpad(|| remove_identity(&action.param.unwrap().value)),
         "sign_transaction" => landingpad(|| sign_transaction(&action.param.unwrap().value)),
-        "eth_sign_personal" => landingpad(|| eth_sign_personal(&action.param.unwrap().value)),
         "eth_sign_message" => landingpad(|| eth_sign_message(&action.param.unwrap().value)),
+        "eth_ec_sign" => landingpad(|| eth_ec_sign(&action.param.unwrap().value)),
         "eth_recover_address" => landingpad(|| eth_recover_address(&action.param.unwrap().value)),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
@@ -3311,7 +3311,7 @@ mod tests {
     }
 
     #[test]
-    pub fn test_eth_sign_message() {
+    pub fn test_eth_ec_sign() {
         run_test(|| {
             let param = RecoverIdentityParam {
                 name: sample_key::NAME.to_string(),
@@ -3341,7 +3341,7 @@ mod tests {
                 }),
                 key: Some(sign_param::Key::Password(sample_key::PASSWORD.to_string())),
             };
-            let ret = call_api("eth_sign_message", param).unwrap();
+            let ret = call_api("eth_ec_sign", param).unwrap();
             let output: EthMessageOutput = EthMessageOutput::decode(ret.as_slice()).unwrap();
             assert_eq!(output.signature.to_owned(), "0x509afc633572c8f1885ec217cf1a42fb87a2c341217dbfcc21417e2dce357c0b41116412d1dd51af86ed25920ce6b5648d80d77bbbba8c79d68476bdffd773a31b");
 

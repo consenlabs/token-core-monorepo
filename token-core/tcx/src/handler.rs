@@ -62,14 +62,13 @@ use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
 use tcx_tron::transaction::{TronMessageInput, TronTxInput};
 use tcx_wallet::constants::{CHAIN_TYPE_ETHEREUM, ETHEREUM_PATH};
 use tcx_wallet::identity::{Identity, IdentityKeystore, IDENTITY_KEYSTORE};
-use tcx_wallet::imt_keystore::IMTKeystore;
+use tcx_wallet::imt_keystore::{IMTKeystore, WALLET_KEYSTORE_DIR};
 use tcx_wallet::model::{Metadata as IdentityMetadata, FROM_NEW_IDENTITY, FROM_RECOVERED_IDENTITY};
 use tcx_wallet::wallet_api::{
     CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
     GenerateMnemonicResult, GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes,
     RecoverIdentityParam, RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult, Wallet,
 };
-use tcx_wallet::wallet_manager::{WalletManager, WALLET_KEYSTORE_DIR};
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
 
 pub(crate) fn encode_message(msg: impl Message) -> Result<Vec<u8>> {
@@ -1007,29 +1006,14 @@ pub(crate) fn sign_bls_to_execution_change(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn generate_mnemonic() -> Result<Vec<u8>> {
-    let mnemonic = WalletManager::generate_mnemonic()?;
+    let mnemonic = tcx_primitive::generate_mnemonic();
     let result = GenerateMnemonicResult { mnemonic };
     encode_message(result)
 }
 
 pub(crate) fn create_identity(data: &[u8]) -> Result<Vec<u8>> {
     let param: CreateIdentityParam = CreateIdentityParam::decode(data)?;
-    let name = param.name.as_str();
-    let password = param.password.as_str();
-    let password_hint = param.password_hint;
-    let network = param.network.as_str();
-    let seg_wit = param.seg_wit.as_deref();
-    let mnemonic_phrase = WalletManager::generate_mnemonic()?;
-
-    let metadata = IdentityMetadata::new(name, password_hint, FROM_NEW_IDENTITY, network, seg_wit)?;
-    let mut identity_keystore =
-        IdentityKeystore::create_identity(metadata.clone(), password, mnemonic_phrase.as_str())?;
-
-    let eth_keystore_id = derive_ethereum_wallet(&metadata, password, mnemonic_phrase.as_str())?;
-
-    identity_keystore.wallet_ids.push(eth_keystore_id);
-    identity_keystore.flush_identity_keystore()?;
-    identity_keystore.cache_current_identity();
+    let identity_keystore = Identity::create_identity(param)?;
 
     let current_identity: GetCurrentIdentityResult =
         GetCurrentIdentityResult::decode(get_current_identity()?.as_slice()).unwrap();
@@ -1043,34 +1027,16 @@ pub(crate) fn create_identity(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(result)
 }
 
-fn derive_ethereum_wallet(
-    metadata: &IdentityMetadata,
-    password: &str,
-    mnemonic_phrase: &str,
-) -> Result<String> {
-    let mut metadata = metadata.clone();
-    metadata.chain_type = CHAIN_TYPE_ETHEREUM.to_string();
-    metadata.name = "ETH".to_string();
-    let imt_keystore = IMTKeystore::create_v3_mnemonic_keystore(
-        &mut metadata,
-        password,
-        mnemonic_phrase,
-        ETHEREUM_PATH,
-    )?;
-    WalletManager::create_wallet(imt_keystore.clone())?;
-    Identity::add_wallet(imt_keystore.id.as_str());
-    Ok(imt_keystore.id)
-}
-
 fn create_wallets(wallets: Vec<ImtKeystore>) -> Vec<Wallet> {
     let mut ret_data = vec![];
     for imt_keystore in wallets {
+        let metadata = imt_keystore.metadata.unwrap().clone();
         ret_data.push(Wallet {
             id: imt_keystore.id,
             address: imt_keystore.address,
-            created_at: imt_keystore.metadata.clone().unwrap().timestamp,
-            source: imt_keystore.metadata.clone().unwrap().source,
-            chain_type: imt_keystore.metadata.clone().unwrap().chain_type,
+            created_at: metadata.timestamp,
+            source: metadata.source,
+            chain_type: metadata.chain_type,
         });
     }
     ret_data
@@ -1078,8 +1044,7 @@ fn create_wallets(wallets: Vec<ImtKeystore>) -> Vec<Wallet> {
 
 pub(crate) fn get_current_identity() -> Result<Vec<u8>> {
     let current_identity = Identity::get_current_identity()?;
-    let wallets = WalletManager::get_wallets(current_identity.to_owned())?;
-    //TODO 待优化
+    let wallets = current_identity.get_wallets()?;
     let identity_metadata = MetadataRes {
         name: current_identity.im_token_meta.name,
         password_hint: current_identity.im_token_meta.password_hint,
@@ -1087,15 +1052,13 @@ pub(crate) fn get_current_identity() -> Result<Vec<u8>> {
         timestamp: current_identity.im_token_meta.timestamp as u64,
         network: current_identity.im_token_meta.network,
         backup: current_identity.im_token_meta.backup.unwrap_or(vec![]),
-        source: current_identity.im_token_meta.source,
+        source: current_identity.im_token_meta.source.get_value(),
         mode: current_identity.im_token_meta.mode,
         wallet_type: current_identity.im_token_meta.wallet_type,
         seg_wit: current_identity.im_token_meta.seg_wit,
     };
-    // let identity_metadata: MetadataRes = serde_json::from_str(serde_json::to_string(&current_identity.im_token_meta)?.as_str())?;
     let mut ret_wallet = vec![];
     for wallet in wallets {
-        // let wallet_metadata: MetadataRes = serde_json::from_str(serde_json::to_string(&wallet.im_token_meta)?.as_str())?;
         let wallet_metadata = MetadataRes {
             name: wallet.im_token_meta.name,
             password_hint: wallet.im_token_meta.password_hint,
@@ -1103,7 +1066,7 @@ pub(crate) fn get_current_identity() -> Result<Vec<u8>> {
             timestamp: wallet.im_token_meta.timestamp as u64,
             network: wallet.im_token_meta.network,
             backup: wallet.im_token_meta.backup.unwrap_or(vec![]),
-            source: wallet.im_token_meta.source,
+            source: wallet.im_token_meta.source.get_value(),
             mode: wallet.im_token_meta.mode,
             wallet_type: wallet.im_token_meta.wallet_type,
             seg_wit: wallet.im_token_meta.seg_wit,
@@ -1145,34 +1108,16 @@ pub(crate) fn export_identity(data: &[u8]) -> Result<Vec<u8>> {
 
 pub(crate) fn recover_identity(data: &[u8]) -> Result<Vec<u8>> {
     let param: RecoverIdentityParam = RecoverIdentityParam::decode(data)?;
+    let mnemonic = param.mnemonic.to_owned();
 
-    let name = param.name.as_str();
-    let password = param.password.as_str();
-    let password_hint = param.password_hint;
-    let network = param.network.as_str();
-    let seg_wit = param.seg_wit.as_deref();
-    let mnemonic_phrase = param.mnemonic.as_str();
-    let metadata = IdentityMetadata::new(
-        name,
-        password_hint,
-        FROM_RECOVERED_IDENTITY,
-        network,
-        seg_wit,
-    )?;
-    let mut identity_keystore =
-        IdentityKeystore::create_identity(metadata.clone(), password, mnemonic_phrase)?;
-    let eth_keystore_id = derive_ethereum_wallet(&metadata, password, mnemonic_phrase)?;
-
-    identity_keystore.wallet_ids.push(eth_keystore_id);
-    identity_keystore.flush_identity_keystore()?;
-    identity_keystore.cache_current_identity();
+    let identity_keystore = Identity::recover_identity(param)?;
 
     let current_identity: GetCurrentIdentityResult =
         GetCurrentIdentityResult::decode(get_current_identity()?.as_slice()).unwrap();
     let wallets = create_wallets(current_identity.wallets);
     let result = RecoverIdentityResult {
         identifier: identity_keystore.identifier.clone(),
-        mnemonic: mnemonic_phrase.to_string(),
+        mnemonic,
         ipfs_id: identity_keystore.ipfs_id.clone(),
         wallets,
     };
@@ -1196,7 +1141,7 @@ pub(crate) fn remove_identity(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn sign_transaction(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignParam = SignParam::decode(data).expect("SignTxParam");
 
-    let keystore = WalletManager::must_find_wallet_by_id(&param.id)?;
+    let keystore = IMTKeystore::must_find_wallet_by_id(&param.id)?;
     let password = match param.key.clone().unwrap() {
         Key::Password(password) => password,
         _ => {
@@ -1235,37 +1180,10 @@ pub(crate) fn sign_eth_transaction(param: &SignParam, private_key: &[u8]) -> Res
     encode_message(eth_tx_output?)
 }
 
-pub(crate) fn eth_sign_personal(data: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignParam = SignParam::decode(data).expect("EthPersonalSignParam");
 
-    let keystore = WalletManager::must_find_wallet_by_id(&param.id)?;
-    let password = match param.key.clone().unwrap() {
-        Key::Password(password) => password,
-        _ => {
-            return Err(format_err!("key_type_error"));
-        }
-    };
-
-    let private_key = keystore.decrypt_main_key(password.as_str())?;
-
-    let input: EthMessageInput = EthMessageInput::decode(
-        param
-            .input
-            .expect("EthMessageInput")
-            .value
-            .clone()
-            .as_slice(),
-    )?;
-    let sign_result: Result<EthMessageOutput> =
-        task::block_on(async { input.sign_personal(private_key.as_slice()).await });
-
-    encode_message(sign_result?)
-}
-
-pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
-    let param: SignParam = SignParam::decode(data).expect("EthMessageSignParam");
-
-    let keystore = WalletManager::must_find_wallet_by_id(&param.id)?;
+    let keystore = IMTKeystore::must_find_wallet_by_id(&param.id)?;
     let password = match param.key.clone().unwrap() {
         Key::Password(password) => password,
         _ => {
@@ -1285,6 +1203,33 @@ pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
     )?;
     let sign_result: Result<EthMessageOutput> =
         task::block_on(async { input.sign_message(private_key.as_slice()).await });
+
+    encode_message(sign_result?)
+}
+
+pub(crate) fn eth_ec_sign(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignParam = SignParam::decode(data).expect("EthMessageSignParam");
+
+    let keystore = IMTKeystore::must_find_wallet_by_id(&param.id)?;
+    let password = match param.key.clone().unwrap() {
+        Key::Password(password) => password,
+        _ => {
+            return Err(format_err!("key_type_error"));
+        }
+    };
+
+    let private_key = keystore.decrypt_main_key(password.as_str())?;
+
+    let input: EthMessageInput = EthMessageInput::decode(
+        param
+            .input
+            .expect("EthMessageInput")
+            .value
+            .clone()
+            .as_slice(),
+    )?;
+    let sign_result: Result<EthMessageOutput> =
+        task::block_on(async { input.ec_sign(private_key.as_slice()).await });
 
     encode_message(sign_result?)
 }

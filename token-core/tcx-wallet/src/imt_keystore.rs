@@ -3,15 +3,26 @@ use crate::model::Metadata;
 use crate::Error;
 use crate::Result;
 use bip39::{Language, Mnemonic};
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use std::fs;
+use std::io::Write;
+use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tcx_crypto::{Crypto, EncPair, Key, Pbkdf2Params};
 // use tcx_eth::address::EthAddress;
+use parking_lot::RwLock;
+use std::collections::HashMap;
 use tcx_common::util::get_address_from_pubkey;
 use tcx_primitive::{Bip32DeterministicPrivateKey, Derive, DeterministicPrivateKey, PrivateKey};
 use uuid::Uuid;
 
 pub const VERSION: u32 = 3;
+
+lazy_static! {
+    pub static ref WALLETS: RwLock<HashMap<String, IMTKeystore>> = RwLock::new(HashMap::new());
+    pub static ref WALLET_KEYSTORE_DIR: RwLock<String> = RwLock::new("../test-data".to_string());
+}
 
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
@@ -95,6 +106,42 @@ impl IMTKeystore {
     fn delete(&self, password: &str) -> Result<()> {
         unimplemented!();
     }
+
+    pub fn create_wallet(&self) -> Result<()> {
+        let file_dir = WALLET_KEYSTORE_DIR.read();
+        let ks_path = format!("{}/{}.json", file_dir, self.id);
+        let path = Path::new(&ks_path);
+        let mut file = fs::File::create(path)?;
+        let json = self.to_json()?;
+        let _ = file.write_all(&json.as_bytes());
+
+        WALLETS.write().insert(self.id.to_string(), self.to_owned());
+        Ok(())
+    }
+
+    pub fn clear_keystore_map() {
+        WALLETS.write().clear();
+    }
+
+    pub fn must_find_wallet_by_id(id: &str) -> Result<IMTKeystore> {
+        let mut map = WALLETS.write();
+        match map.get(id) {
+            Some(keystore) => Ok(keystore.to_owned()),
+            _ => Err(Error::WalletNotFound.into()),
+        }
+    }
+
+    pub fn clean_keystore_dir() -> Result<()> {
+        let dir = WALLET_KEYSTORE_DIR.read();
+        let paths = fs::read_dir(dir.as_str()).unwrap();
+        for path in paths {
+            let path = path?.path();
+            if path.is_file() {
+                fs::remove_file(path)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 fn get_address(chain_type: &str, is_mainnet: bool, public_key: &[u8]) -> Result<String> {
@@ -110,7 +157,7 @@ mod test {
     use crate::constants;
     use crate::constants::{CHAIN_TYPE_ETHEREUM, ETHEREUM_PATH};
     use crate::imt_keystore::{get_address, IMTKeystore};
-    use crate::model::{Metadata, FROM_NEW_IDENTITY};
+    use crate::model::{IdentitySource, Metadata, FROM_NEW_IDENTITY};
     use tcx_constants::sample_key::{MNEMONIC, PASSWORD, PASSWORD_HINT};
     #[test]
     fn test_get_address() {
@@ -128,7 +175,7 @@ mod test {
         let mut metadata = Metadata::default();
         metadata.chain_type = CHAIN_TYPE_ETHEREUM.to_string();
         metadata.password_hint = Some(PASSWORD_HINT.to_string());
-        metadata.source = FROM_NEW_IDENTITY.to_string();
+        metadata.source = IdentitySource::NEW(FROM_NEW_IDENTITY.to_string());
         metadata.name = "ETH".to_string();
         let imt_keystore = IMTKeystore::create_v3_mnemonic_keystore(
             &mut metadata,

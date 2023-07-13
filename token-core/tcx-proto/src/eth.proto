@@ -3,21 +3,21 @@ package transaction;
 
 message EthTxInput {
   string nonce = 1;
-  string gas_price = 2;
-  string gas_limit = 3;
+  string gasPrice = 2;
+  string gasLimit = 3;
   string to = 4;
   string value = 5;
   string data = 6;
-  string chain_id = 7;
-  string tx_type = 8;
-  string max_fee_per_gas = 9;
-  string max_priority_fee_per_gas = 10;
-  repeated AccessList access_list = 11;
+  string chainId = 7;
+  string txType = 8;
+  string maxFeePerGas = 9;
+  string maxPriorityFeePerGas = 10;
+  repeated AccessList accessList = 11;
 }
 
 message AccessList {
   string address = 1;
-  repeated string storage_keys = 2;
+  repeated string storageKeys = 2;
 }
 
 message EthTxOutput {
@@ -27,7 +27,7 @@ message EthTxOutput {
 
 message EthMessageInput {
   string message = 1;
-  optional bool is_hex = 2;
+  optional bool isHex = 2;
 }
 
 message EthMessageOutput {
@@ -37,7 +37,7 @@ message EthMessageOutput {
 message EthRecoverAddressInput {
   string message = 1;
   string signature = 2;
-  optional bool is_hex = 3;
+  optional bool isHex = 3;
 }
 
 message EthRecoverAddressOutput {

@@ -31,7 +31,7 @@ message Wallet{
 
 message GetCurrentIdentityResult {
     string identifier = 1;
-    string ipfs_id = 2;
+    string ipfsId = 2;
     repeated IMTKeystore wallets = 3;
     Metadata metadata = 4;
 }
@@ -53,7 +53,7 @@ message IMTKeystore {
     string id = 1;
     uint32 version = 2;
     string address = 3;
-    string mnemonic_path = 4;
+    string mnemonicPath = 4;
     Metadata metadata = 5;
 }
 

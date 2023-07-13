@@ -1,8 +1,7 @@
 use crate::constants::{CHAIN_TYPE_ETHEREUM, ETHEREUM_PATH};
-use crate::imt_keystore::IMTKeystore;
-use crate::model::Metadata;
-use crate::wallet_manager::WalletManager;
-use crate::wallet_manager::WALLET_KEYSTORE_DIR;
+use crate::imt_keystore::{IMTKeystore, WALLETS, WALLET_KEYSTORE_DIR};
+use crate::model::{IdentitySource, Metadata, FROM_NEW_IDENTITY, FROM_RECOVERED_IDENTITY};
+use crate::wallet_api::{CreateIdentityParam, RecoverIdentityParam};
 use crate::Error;
 use crate::Result as SelfResult;
 use bip39::{Language, Mnemonic, Seed};
@@ -48,7 +47,7 @@ pub struct IdentityKeystore {
 }
 
 impl IdentityKeystore {
-    pub fn create_identity(
+    pub fn new(
         metadata: Metadata,
         password: &str,
         mnemonic_phrase: &str,
@@ -58,7 +57,10 @@ impl IdentityKeystore {
             _ => Network::Testnet,
         };
 
-        Mnemonic::validate(mnemonic_phrase, Language::English).unwrap();
+        let validate_result = Mnemonic::validate(mnemonic_phrase, Language::English);
+        if validate_result.is_err() {
+            return Err(Error::InvalidMnemonic.into());
+        }
         let mnemonic = Mnemonic::from_phrase(mnemonic_phrase, Language::English).unwrap();
         let seed = Seed::new(&mnemonic, "");
         let master_key = ExtendedPrivKey::new_master(network_type, seed.as_ref())?;
@@ -124,37 +126,16 @@ impl IdentityKeystore {
         Ok(identity_keystore)
     }
 
-    fn derive_ethereum_wallet(
-        &self,
-        mnemonics_phrase: &str,
-        password: &str,
-    ) -> SelfResult<IMTKeystore> {
-        let mut metadata = Metadata::default();
-        metadata.chain_type = CHAIN_TYPE_ETHEREUM.to_string();
-        metadata.password_hint = self.im_token_meta.password_hint.to_owned();
-        let source = &self.im_token_meta.source.clone();
-        metadata.source = source.to_string();
-        metadata.name = "ETH".to_string();
-        let imt_keystore = IMTKeystore::create_v3_mnemonic_keystore(
-            &mut metadata,
-            password,
-            mnemonics_phrase,
-            ETHEREUM_PATH,
-        )?;
-        WalletManager::create_wallet(imt_keystore.to_owned())?;
-        Ok(imt_keystore)
-    }
-
     pub fn to_json(&self) -> SelfResult<String> {
         Ok(serde_json::to_string(&self)?)
     }
 
-    pub fn cache_current_identity(&self) {
+    pub fn cache(&self) {
         let mut identity_keystore_obj = IDENTITY_KEYSTORE.write();
         *identity_keystore_obj = self.to_owned();
     }
 
-    pub fn flush_identity_keystore(&self) -> SelfResult<()> {
+    pub fn flush(&self) -> SelfResult<()> {
         let json = self.to_json()?;
         let file_dir = WALLET_KEYSTORE_DIR.read();
         let ks_path = format!("{}/{}", file_dir, IDENTITY_KEYSTORE_FILE_NAME);
@@ -176,25 +157,47 @@ impl IdentityKeystore {
             return Err(Error::WalletInvalidPassword.into());
         }
 
-        let clean_wallet_keystore_result = WalletManager::clean_keystore_dir();
+        let clean_wallet_keystore_result = IMTKeystore::clean_keystore_dir();
         if clean_wallet_keystore_result.is_ok() {
-            WalletManager::clear_keystore_map();
+            IMTKeystore::clear_keystore_map();
             let mut identity_keystore = IDENTITY_KEYSTORE.write();
             *identity_keystore = IdentityKeystore::default();
         }
 
         Ok(())
     }
+
+    pub fn get_wallets(&self) -> SelfResult<Vec<IMTKeystore>> {
+        let ids = &self.wallet_ids;
+        let dir = WALLET_KEYSTORE_DIR.read();
+
+        let mut wallets = WALLETS.write();
+        let mut ret_wallets = Vec::new();
+        let mut keystore_context = String::new();
+        for id in ids {
+            if wallets.get(id.as_str()).is_some() {
+                ret_wallets.push(wallets.get(id.as_str()).unwrap().clone());
+                continue;
+            }
+
+            let path_str = format!("{}/{}.json", dir.as_str(), id);
+            let path = Path::new(path_str.as_str());
+            if !path.exists() {
+                return Err(Error::KeystoreFileNotExist.into());
+            }
+            let mut file = File::open(&path)?;
+            file.read_to_string(&mut keystore_context)?;
+            let imt_keystore: IMTKeystore = serde_json::from_str(keystore_context.as_str())?;
+            ret_wallets.push(imt_keystore.to_owned());
+            wallets.insert(id.to_string(), imt_keystore);
+        }
+        Ok(ret_wallets)
+    }
 }
 
 pub struct Identity();
 
 impl Identity {
-    pub fn add_wallet(id: &str) {
-        let mut identity_keystore = IDENTITY_KEYSTORE.write();
-        identity_keystore.wallet_ids.push(id.to_string());
-    }
-
     pub fn get_current_identity() -> SelfResult<IdentityKeystore> {
         let mut identity_keystore_obj = IDENTITY_KEYSTORE.write();
         if !identity_keystore_obj.id.is_empty() {
@@ -214,43 +217,133 @@ impl Identity {
 
         Ok(identity_keystore)
     }
+
+    pub fn create_identity(param: CreateIdentityParam) -> SelfResult<IdentityKeystore> {
+        let name = param.name.as_str();
+        let password = param.password.as_str();
+        let password_hint = param.password_hint;
+        let network = param.network.as_str();
+        let seg_wit = param.seg_wit.as_deref();
+        let mnemonic_phrase = tcx_primitive::generate_mnemonic();
+
+        let metadata = Metadata::new(
+            name,
+            password_hint.clone(),
+            IdentitySource::RECOVERED(FROM_NEW_IDENTITY.to_string()),
+            network,
+            seg_wit,
+        )?;
+        let mut identity_keystore =
+            IdentityKeystore::new(metadata.clone(), password, mnemonic_phrase.as_str())?;
+
+        let eth_keystore = Self::derive_ethereum_wallet(
+            password_hint,
+            identity_keystore.im_token_meta.source.clone(),
+            mnemonic_phrase.as_str(),
+            password,
+        )?;
+
+        identity_keystore.wallet_ids.push(eth_keystore.id);
+        identity_keystore.flush()?;
+        identity_keystore.cache();
+
+        Ok(identity_keystore)
+    }
+
+    pub fn recover_identity(param: RecoverIdentityParam) -> SelfResult<IdentityKeystore> {
+        let name = param.name.as_str();
+        let password = param.password.as_str();
+        let password_hint = param.password_hint;
+        let network = param.network.as_str();
+        let seg_wit = param.seg_wit.as_deref();
+        let mnemonic_phrase = param.mnemonic.as_str();
+        let metadata = Metadata::new(
+            name,
+            password_hint.clone(),
+            IdentitySource::RECOVERED(FROM_RECOVERED_IDENTITY.to_string()),
+            network,
+            seg_wit,
+        )?;
+        let mut identity_keystore = IdentityKeystore::new(metadata, password, mnemonic_phrase)?;
+        let eth_keystore = Self::derive_ethereum_wallet(
+            password_hint,
+            identity_keystore.im_token_meta.source.clone(),
+            mnemonic_phrase,
+            password,
+        )?;
+
+        identity_keystore.wallet_ids.push(eth_keystore.id);
+        identity_keystore.flush()?;
+        identity_keystore.cache();
+
+        Ok(identity_keystore)
+    }
+
+    fn derive_ethereum_wallet(
+        password_hint: Option<String>,
+        source: IdentitySource,
+        mnemonic_phrase: &str,
+        password: &str,
+    ) -> SelfResult<IMTKeystore> {
+        let mut metadata = Metadata::default();
+        metadata.chain_type = CHAIN_TYPE_ETHEREUM.to_string();
+        metadata.password_hint = password_hint;
+        metadata.source = source;
+        metadata.name = "ETH".to_string();
+        let imt_keystore = IMTKeystore::create_v3_mnemonic_keystore(
+            &mut metadata,
+            password,
+            mnemonic_phrase,
+            ETHEREUM_PATH,
+        )?;
+        imt_keystore.create_wallet()?;
+        Ok(imt_keystore)
+    }
 }
 
 #[cfg(test)]
 mod test {
     use crate::identity::{Identity, IdentityKeystore};
     use crate::model::{Metadata, FROM_NEW_IDENTITY};
+    use crate::wallet_api::{CreateIdentityParam, RecoverIdentityParam};
     use bitcoin::network::constants::Network;
     use tcx_constants::sample_key;
-    use tcx_constants::sample_key::{MNEMONIC, PASSWORD, PASSWORD_HINT};
+    use tcx_constants::sample_key::{MNEMONIC, NAME, PASSWORD, PASSWORD_HINT};
 
     #[test]
-    fn test_identity() {
-        let metadata = Metadata::new(
-            sample_key::NAME,
-            Some(PASSWORD_HINT.to_string()),
-            FROM_NEW_IDENTITY,
-            "TESTNET",
-            None,
-        )
-        .unwrap();
-        let identity_keystore =
-            IdentityKeystore::create_identity(metadata, PASSWORD, MNEMONIC).unwrap();
-
-        let ret = identity_keystore.flush_identity_keystore();
-        assert_eq!(ret.is_ok(), true);
-        identity_keystore.cache_current_identity();
-
-        let ret = identity_keystore.derive_ethereum_wallet(MNEMONIC, PASSWORD);
-        assert!(ret.is_ok());
-
-        let imt_keystore = ret.unwrap();
-        let id = imt_keystore.id.as_str();
-        Identity::add_wallet(id);
-
+    fn test_create_identity() {
+        let param = CreateIdentityParam {
+            name: sample_key::NAME.to_string(),
+            password: PASSWORD.to_string(),
+            password_hint: Some(PASSWORD_HINT.to_string()),
+            network: "TESTNET".to_string(),
+            seg_wit: None,
+        };
+        let identity_keystore = Identity::create_identity(param).unwrap();
+        let imt_keystore_id = identity_keystore.wallet_ids.get(0).unwrap();
         let ret = Identity::get_current_identity();
         assert_eq!(ret.is_ok(), true);
-        assert_eq!(ret.unwrap().wallet_ids.get(0).unwrap(), id);
-        // assert_eq!(ret.unwrap().wallet_ids.get(0).unwrap(), "cce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2")
+        assert_eq!(ret.unwrap().wallet_ids.get(0).unwrap(), imt_keystore_id);
+    }
+
+    #[test]
+    fn test_recover_identity() {
+        let param = RecoverIdentityParam {
+            name: NAME.to_string(),
+            mnemonic: MNEMONIC.to_string(),
+            password: PASSWORD.to_string(),
+            password_hint: Some(PASSWORD_HINT.to_string()),
+            network: "TESTNET".to_string(),
+            seg_wit: None,
+        };
+        let identity_keystore = Identity::recover_identity(param).unwrap();
+        let imt_keystore_id = identity_keystore.wallet_ids.get(0).unwrap();
+        let identity_keystore = Identity::get_current_identity().unwrap();
+        let wallets = identity_keystore.get_wallets().unwrap();
+        assert_eq!(wallets.len(), 1);
+        assert_eq!(
+            "6031564e7b2f5cc33737807b2e58daff870b590b",
+            wallets.get(0).unwrap().address
+        );
     }
 }
