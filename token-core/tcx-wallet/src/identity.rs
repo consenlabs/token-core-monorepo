@@ -1,6 +1,6 @@
 use crate::constants::{CHAIN_TYPE_ETHEREUM, ETHEREUM_PATH};
 use crate::imt_keystore::{IMTKeystore, WALLETS, WALLET_KEYSTORE_DIR};
-use crate::model::{IdentitySource, Metadata, FROM_NEW_IDENTITY, FROM_RECOVERED_IDENTITY};
+use crate::model::{Metadata, FROM_NEW_IDENTITY, FROM_RECOVERED_IDENTITY};
 use crate::wallet_api::{CreateIdentityParam, RecoverIdentityParam};
 use crate::Error;
 use crate::Result as SelfResult;
@@ -229,7 +229,7 @@ impl Identity {
         let metadata = Metadata::new(
             name,
             password_hint.clone(),
-            IdentitySource::RECOVERED(FROM_NEW_IDENTITY.to_string()),
+            FROM_NEW_IDENTITY,
             network,
             seg_wit,
         )?;
@@ -238,7 +238,7 @@ impl Identity {
 
         let eth_keystore = Self::derive_ethereum_wallet(
             password_hint,
-            identity_keystore.im_token_meta.source.clone(),
+            FROM_NEW_IDENTITY,
             mnemonic_phrase.as_str(),
             password,
         )?;
@@ -260,14 +260,14 @@ impl Identity {
         let metadata = Metadata::new(
             name,
             password_hint.clone(),
-            IdentitySource::RECOVERED(FROM_RECOVERED_IDENTITY.to_string()),
+            FROM_RECOVERED_IDENTITY,
             network,
             seg_wit,
         )?;
         let mut identity_keystore = IdentityKeystore::new(metadata, password, mnemonic_phrase)?;
         let eth_keystore = Self::derive_ethereum_wallet(
             password_hint,
-            identity_keystore.im_token_meta.source.clone(),
+            FROM_RECOVERED_IDENTITY,
             mnemonic_phrase,
             password,
         )?;
@@ -281,14 +281,14 @@ impl Identity {
 
     fn derive_ethereum_wallet(
         password_hint: Option<String>,
-        source: IdentitySource,
+        source: &str,
         mnemonic_phrase: &str,
         password: &str,
     ) -> SelfResult<IMTKeystore> {
         let mut metadata = Metadata::default();
         metadata.chain_type = CHAIN_TYPE_ETHEREUM.to_string();
         metadata.password_hint = password_hint;
-        metadata.source = source;
+        metadata.source = source.to_string();
         metadata.name = "ETH".to_string();
         let imt_keystore = IMTKeystore::create_v3_mnemonic_keystore(
             &mut metadata,
@@ -303,10 +303,9 @@ impl Identity {
 
 #[cfg(test)]
 mod test {
-    use crate::identity::{Identity, IdentityKeystore};
-    use crate::model::{Metadata, FROM_NEW_IDENTITY};
+    use crate::identity::Identity;
+    use crate::model::FROM_NEW_IDENTITY;
     use crate::wallet_api::{CreateIdentityParam, RecoverIdentityParam};
-    use bitcoin::network::constants::Network;
     use tcx_constants::sample_key;
     use tcx_constants::sample_key::{MNEMONIC, NAME, PASSWORD, PASSWORD_HINT};
 
@@ -336,8 +335,8 @@ mod test {
             network: "TESTNET".to_string(),
             seg_wit: None,
         };
-        let identity_keystore = Identity::recover_identity(param).unwrap();
-        let imt_keystore_id = identity_keystore.wallet_ids.get(0).unwrap();
+        let recover_result = Identity::recover_identity(param);
+        assert_eq!(recover_result.is_ok(), true);
         let identity_keystore = Identity::get_current_identity().unwrap();
         let wallets = identity_keystore.get_wallets().unwrap();
         assert_eq!(wallets.len(), 1);

@@ -154,7 +154,7 @@ mod test {
     use crate::constants;
     use crate::constants::{CHAIN_TYPE_ETHEREUM, ETHEREUM_PATH};
     use crate::imt_keystore::{get_address, IMTKeystore};
-    use crate::model::{IdentitySource, Metadata, FROM_NEW_IDENTITY};
+    use crate::model::{Metadata, FROM_NEW_IDENTITY};
     use tcx_constants::sample_key::{MNEMONIC, PASSWORD, PASSWORD_HINT};
     #[test]
     fn test_get_address() {
@@ -172,7 +172,7 @@ mod test {
         let mut metadata = Metadata::default();
         metadata.chain_type = CHAIN_TYPE_ETHEREUM.to_string();
         metadata.password_hint = Some(PASSWORD_HINT.to_string());
-        metadata.source = IdentitySource::NEW(FROM_NEW_IDENTITY.to_string());
+        metadata.source = FROM_NEW_IDENTITY.to_string();
         metadata.name = "ETH".to_string();
         let imt_keystore = IMTKeystore::create_v3_mnemonic_keystore(
             &mut metadata,
