@@ -116,19 +116,17 @@ pub struct BLSToExecutionRequest {
 #[cfg(test)]
 mod test {
     use crate::bls_to_execution_change::BLSToExecutionRequest;
-    use crate::transaction::SignBlsToExecutionChangeParam;
-    use tcx_chain::Keystore;
 
     #[test]
     fn test_generate_bls_to_execution_change_hash() {
-        let mut blsToExecutionRequest = BLSToExecutionRequest {
+        let bls_to_execution_request = BLSToExecutionRequest {
             genesis_fork_version: "0x03000000".to_string(),
             genesis_validators_root: "0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".to_string(),
             validator_index: 0,
             from_bls_pubkey: "0x99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db".to_string(),
             to_execution_address: "0x8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string(),
         };
-        let ret_data = blsToExecutionRequest
+        let ret_data = bls_to_execution_request
             .generate_bls_to_execution_change_hash()
             .expect("generate_bls_to_execution_change_hash_error");
         assert_eq!(

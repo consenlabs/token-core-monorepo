@@ -57,7 +57,7 @@ mod test {
     use crate::address::EthAddress;
     use tcx_chain::Address;
     use tcx_constants::{CoinInfo, CurveType};
-    use tcx_primitive::{PrivateKey, Secp256k1PrivateKey, TypedPrivateKey, TypedPublicKey};
+    use tcx_primitive::{PrivateKey, Secp256k1PrivateKey, TypedPrivateKey};
 
     #[test]
     fn test_eth_address() {
