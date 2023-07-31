@@ -1,3 +1,4 @@
+use aes::cipher::{KeyIvInit, StreamCipher, StreamCipherSeek};
 use bip39::{Language, Mnemonic};
 use bitcoin::secp256k1::Secp256k1 as BitcoinSecp256k1;
 use bitcoin::util::base58;
@@ -100,15 +101,39 @@ fn schnorr_verify(pubkey: &[u8], message: &[u8], sig: &[u8]) -> bool {
         .is_ok()
 }
 
+//aes-128-ctr encrypt no padding
+fn aes_128_ctr_encrypt_no_padding(key: &[u8], plaintext: &[u8], iv: &[u8]) -> Vec<u8> {
+    type Aes128Ctr64LE = ctr::Ctr64BE<aes::Aes128>;
+    let mut buf = plaintext.to_vec();
+    let mut cipher = Aes128Ctr64LE::new(key.into(), iv.into());
+    cipher.apply_keystream(&mut buf);
+    println!("{}", hex::encode(buf.clone()));
+    buf
+}
+
+//aes-128-ctr decrypt no padding
+fn aes_128_ctr_decrypt_no_padding(key: &[u8], ciphertext: &[u8], iv: &[u8]) -> Vec<u8> {
+    type Aes128Ctr64LE = ctr::Ctr64BE<aes::Aes128>;
+    let mut cipher = Aes128Ctr64LE::new(key.into(), iv.into());
+    let mut plaintext = [0u8; 34];
+    // cipher.seek(0u32);
+    cipher
+        .apply_keystream_b2b(ciphertext, &mut plaintext)
+        .unwrap();
+    plaintext.to_vec()
+}
+
 #[cfg(test)]
 mod test {
 
     use crate::{
-        sample::{hmacsha256, schnorr_sign, schnorr_verify, sha256},
+        sample::{
+            aes_128_ctr_decrypt_no_padding, hmacsha256, schnorr_sign, schnorr_verify, sha256,
+        },
         util::hex_to_bytes,
     };
 
-    use super::{bip44, secp256k1_sign, secp256k1_verify};
+    use super::{aes_128_ctr_encrypt_no_padding, bip44, secp256k1_sign, secp256k1_verify};
 
     #[test]
     fn test_sha256() {
@@ -188,5 +213,20 @@ mod test {
         let path = "m/44'/0'/0'/0/0";
         let xpub = bip44(mnemonic, path);
         assert_eq!(xpub, "xpub6FuzpGNBc46EfvmcvECyqXjrzGcKErQgpQcpvhw1tiC5yXvi1jUkzudMpdg5AaguiFstdVR5ASDbSceBswKRy6cAhpTgozmgxMUayPDrLLX");
+    }
+
+    #[test]
+    fn test_aes_128_ctr() {
+        let key = [0x42; 16];
+        let iv = [0x24; 16];
+        let plaintext = *b"hello world! this is my plaintext.";
+        let ciphertext =
+            hex::decode("3357121ebb5a29468bd861467596ce3d046163d218d0bae9a9d5532a8d4e19f5bf9a")
+                .unwrap();
+
+        let result = aes_128_ctr_encrypt_no_padding(&key, &plaintext[..], &iv);
+        assert_eq!(result, ciphertext);
+        let result = aes_128_ctr_decrypt_no_padding(&key, ciphertext.as_slice(), &iv);
+        assert_eq!(result, plaintext);
     }
 }
