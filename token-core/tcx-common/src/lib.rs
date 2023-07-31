@@ -1,3 +1,4 @@
+pub mod sample;
 pub mod util;
 use std::result;
 
