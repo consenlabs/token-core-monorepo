@@ -20,7 +20,7 @@ use tcx_primitive::{TypedDeterministicPublicKey, TypedPrivateKey, TypedPublicKey
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub(crate) struct Store {
+pub struct Store {
     pub id: String,
     pub version: i64,
     pub key_hash: String,
@@ -167,7 +167,7 @@ impl Keystore {
         }
     }
 
-    fn store_mut(&mut self) -> &mut Store {
+    pub fn store_mut(&mut self) -> &mut Store {
         match self {
             Keystore::PrivateKey(ks) => ks.store_mut(),
             Keystore::Hd(ks) => ks.store_mut(),

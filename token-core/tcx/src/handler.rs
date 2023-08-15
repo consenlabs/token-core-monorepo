@@ -5,6 +5,10 @@ use serde_json::Value;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
+use tcx_atom::address::{AtomAddress, AtomChainFactory};
+use tcx_eos::address::EosAddress;
+use tcx_eos::transaction::{EosMessageInput, EosTxInput};
+use tcx_eos::EosChainFactory;
 use tcx_primitive::{get_account_path, private_key_without_version, FromHex, TypedPrivateKey};
 
 use tcx_bch::{BchAddress, BchTransaction};
@@ -12,7 +16,9 @@ use tcx_btc_fork::{
     BtcForkAddress, BtcForkSegWitTransaction, BtcForkSignedTxOutput, BtcForkTransaction,
     BtcForkTxInput, WifDisplay,
 };
-use tcx_chain::{key_hash_from_mnemonic, key_hash_from_private_key, Keystore, KeystoreGuard};
+use tcx_chain::{
+    key_hash_from_mnemonic, key_hash_from_private_key, ChainFactory, Keystore, KeystoreGuard,
+};
 use tcx_chain::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
 use tcx_ckb::{CkbAddress, CkbTxInput};
 use tcx_crypto::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
@@ -25,8 +31,8 @@ use crate::api::{
     AccountResponse, AccountsResponse, DerivedKeyResult, ExportPrivateKeyParam, HdStoreCreateParam,
     HdStoreImportParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonDeriveParam,
     KeystoreCommonExistsParam, KeystoreCommonExistsResult, KeystoreCommonExportResult,
-    PrivateKeyStoreExportParam, PrivateKeyStoreImportParam, PublicKeyParam, PublicKeyResult,
-    Response, WalletKeyParam, WalletResult, ZksyncPrivateKeyFromSeedParam,
+    KeystoreUpdateAccount, PrivateKeyStoreExportParam, PrivateKeyStoreImportParam, PublicKeyParam,
+    PublicKeyResult, Response, WalletKeyParam, WalletResult, ZksyncPrivateKeyFromSeedParam,
     ZksyncPrivateKeyFromSeedResult, ZksyncPrivateKeyToPubkeyHashParam,
     ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult,
 };
@@ -37,6 +43,7 @@ use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
 use crate::IS_DEBUG;
 use base58::ToBase58;
+use tcx_atom::transaction::AtomTxInput;
 use tcx_chain::tcx_ensure;
 use tcx_chain::Address;
 use tcx_chain::{MessageSigner, TransactionSigner};
@@ -69,6 +76,16 @@ use tcx_wallet::wallet_api::{
 };
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
 
+fn create_chain_factory(chain: &str) -> Result<Box<dyn ChainFactory>> {
+    match chain {
+        "EOS" => Ok(Box::new(EosChainFactory {})),
+        "COSMOS" => Ok(Box::new(AtomChainFactory {})),
+        _ => Err(format_err!("unknow_chain_factory")),
+    }
+}
+
+const NO_PK_CHAINS: &[&str] = &["COSMOS"];
+
 pub(crate) fn encode_message(msg: impl Message) -> Result<Vec<u8>> {
     if *IS_DEBUG.read() {
         println!("{:#?}", msg);
@@ -96,6 +113,8 @@ fn derive_account<'a, 'b>(keystore: &mut Keystore, derivation: &Derivation) -> R
         "TEZOS" => keystore.derive_coin::<TezosAddress>(&coin_info),
         "FILECOIN" => keystore.derive_coin::<FilecoinAddress>(&coin_info),
         "ETHEREUM2" => keystore.derive_coin::<Eth2Address>(&coin_info),
+        "COSMOS" => keystore.derive_coin::<AtomAddress>(&coin_info),
+        "EOS" => keystore.derive_coin::<EosAddress>(&coin_info),
         _ => Err(format_err!("unsupported_chain")),
     }
 }
@@ -428,6 +447,11 @@ pub(crate) fn private_key_store_import(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn private_key_store_export(data: &[u8]) -> Result<Vec<u8>> {
     let param: PrivateKeyStoreExportParam =
         PrivateKeyStoreExportParam::decode(data).expect("private_key_store_export");
+
+    if NO_PK_CHAINS.contains(&param.chain_type.as_str()) {
+        return Err(format_err!("chain_cannot_export_private_key"));
+    }
+
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
@@ -462,6 +486,12 @@ pub(crate) fn private_key_store_export(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: ExportPrivateKeyParam =
         ExportPrivateKeyParam::decode(data).expect("export_private_key");
+
+    // TODO: refactor using ChainFactory
+    if NO_PK_CHAINS.contains(&param.chain_type.as_str()) {
+        return Err(format_err!("chain_cannot_export_private_key"));
+    }
+
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
@@ -494,7 +524,6 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
     };
 
     // private_key prefix is only about chain type and network
-    let _coin_info = coin_info_from_param(&param.chain_type, &param.network, "", "")?;
     let value = if ["TRON", "POLKADOT", "KUSAMA"].contains(&param.chain_type.as_str()) {
         Ok(pk_hex.to_string())
     } else if "FILECOIN".contains(&param.chain_type.as_str()) {
@@ -660,10 +689,36 @@ pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
         "POLKADOT" | "KUSAMA" => sign_substrate_tx_raw(&param, guard.keystore_mut()),
         "FILECOIN" => sign_filecoin_tx(&param, guard.keystore_mut()),
         "TEZOS" => sign_tezos_tx_raw(&param, guard.keystore_mut()),
+        "COSMOS" => sign_cosmos_tx(&param, guard.keystore_mut()),
+        "EOS" => sign_eos_tx(&param, guard.keystore_mut()),
         _ => Err(format_err!("unsupported_chain")),
     }
 }
 
+pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignParam = SignParam::decode(data).expect("SignTxParam");
+
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(format_err!("{}", "wallet_not_found")),
+    }?;
+
+    let mut guard = match param.key.clone().unwrap() {
+        Key::Password(password) => KeystoreGuard::unlock_by_password(keystore, &password)?,
+        Key::DerivedKey(derived_key) => {
+            KeystoreGuard::unlock_by_derived_key(keystore, &derived_key)?
+        }
+    };
+
+    match param.chain_type.as_str() {
+        "TRON" => sign_tron_message(&param, guard.keystore_mut()),
+        "EOS" => sign_eos_message(&param, guard.keystore_mut()),
+        _ => Err(format_err!("unsupported_chain")),
+    }
+}
+
+// TODO: replacing with ChainFactory
 pub(crate) fn get_public_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: PublicKeyParam = PublicKeyParam::decode(data).expect("PublicKeyParam");
 
@@ -705,7 +760,12 @@ pub(crate) fn get_public_key(data: &[u8]) -> Result<Vec<u8>> {
             ret.public_key = hex::encode(pub_key);
             encode_message(ret)
         }
-        _ => Err(format_err!("unsupported_chain")),
+        _ => {
+            let encoder =
+                create_chain_factory(&param.chain_type.to_uppercase())?.create_public_key_encoder();
+            ret.public_key = encoder.encode(&pub_key)?;
+            encode_message(ret)
+        }
     }
 }
 
@@ -794,7 +854,74 @@ pub(crate) fn sign_tron_tx(param: &SignParam, keystore: &mut Keystore) -> Result
     encode_message(signed_tx)
 }
 
-pub(crate) fn tron_sign_message(data: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn sign_cosmos_tx(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+    let input: AtomTxInput = AtomTxInput::decode(
+        param
+            .input
+            .as_ref()
+            .expect("tx_input")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("AtomTxInput");
+    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
+
+    encode_message(signed_tx)
+}
+
+pub(crate) fn sign_eos_tx(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+    let input = EosTxInput::decode(
+        param
+            .input
+            .as_ref()
+            .expect("tx_input")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("EosTxInput");
+    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
+
+    encode_message(signed_tx)
+}
+
+pub(crate) fn sign_eos_message(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+    let input = EosMessageInput::decode(
+        param
+            .input
+            .as_ref()
+            .expect("eos_message_input")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("EosMessageInput");
+    let signed_message = keystore.sign_message(&param.chain_type, &param.address, &input)?;
+
+    encode_message(signed_message)
+}
+
+pub(crate) fn sign_tron_message(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+    let input: TronMessageInput = TronMessageInput::decode(
+        param
+            .input
+            .as_ref()
+            .expect("TronMessageInput")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("TronMessageInput");
+    let signed_message = keystore.sign_message(&param.chain_type, &param.address, &input)?;
+    encode_message(signed_message)
+}
+
+#[deprecated(
+    since = "2.5.1",
+    note = "Please use the sign_message route function instead"
+)]
+pub(crate) fn sign_tron_message_legacy(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignParam = SignParam::decode(data).expect("SignParam");
 
     let mut map = KEYSTORE_MAP.write();
@@ -1238,4 +1365,28 @@ pub(crate) fn eth_recover_address(data: &[u8]) -> Result<Vec<u8>> {
     let result: Result<EthRecoverAddressOutput> = input.recover_address();
 
     encode_message(result?)
+}
+
+pub(crate) fn eos_update_account(data: &[u8]) -> Result<Vec<u8>> {
+    let param: KeystoreUpdateAccount =
+        KeystoreUpdateAccount::decode(data).expect("eos_update_account params");
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(format_err!("{}", "wallet_not_found")),
+    }?;
+
+    // todo: use ErrorKind
+    tcx_ensure!(
+        keystore.verify_password(&param.password),
+        format_err!("password_incorrect")
+    );
+
+    tcx_eos::address::eos_update_account(keystore, &param.account_name)?;
+    flush_keystore(&keystore)?;
+    let rsp = Response {
+        is_success: true,
+        error: "".to_string(),
+    };
+    encode_message(rsp)
 }

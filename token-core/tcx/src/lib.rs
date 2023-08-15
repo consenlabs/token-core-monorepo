@@ -2,7 +2,7 @@ use std::ffi::{CStr, CString};
 
 use std::os::raw::c_char;
 
-use handler::eth_sign_message;
+use handler::sign_message;
 use prost::Message;
 
 pub mod api;
@@ -17,10 +17,10 @@ use std::result;
 use crate::error_handling::{landingpad, LAST_BACKTRACE, LAST_ERROR};
 #[allow(deprecated)]
 use crate::handler::{
-    encode_message, export_mnemonic, export_private_key, get_derived_key, hd_store_create,
-    hd_store_export, hd_store_import, keystore_common_accounts, keystore_common_delete,
-    keystore_common_derive, keystore_common_exists, keystore_common_verify,
-    private_key_store_export, private_key_store_import, sign_tx, tron_sign_message,
+    encode_message, eos_update_account, eth_sign_message, export_mnemonic, export_private_key,
+    get_derived_key, hd_store_create, hd_store_export, hd_store_import, keystore_common_accounts,
+    keystore_common_delete, keystore_common_derive, keystore_common_exists, keystore_common_verify,
+    private_key_store_export, private_key_store_import, sign_tron_message_legacy, sign_tx,
     unlock_then_crash, zksync_private_key_from_seed, zksync_private_key_to_pubkey_hash,
     zksync_sign_musig,
 };
@@ -105,8 +105,9 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
 
         "sign_tx" => landingpad(|| sign_tx(&action.param.unwrap().value)),
         "get_public_key" => landingpad(|| get_public_key(&action.param.unwrap().value)),
-
-        "tron_sign_msg" => landingpad(|| tron_sign_message(&action.param.unwrap().value)),
+        // use the sign_msg instead
+        "tron_sign_msg" => landingpad(|| sign_tron_message_legacy(&action.param.unwrap().value)),
+        "sign_msg" => landingpad(|| sign_message(&action.param.unwrap().value)),
 
         "substrate_keystore_exists" => {
             landingpad(|| substrate_keystore_exists(&action.param.unwrap().value))
@@ -144,6 +145,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "eth_sign_message" => landingpad(|| eth_sign_message(&action.param.unwrap().value)),
         "eth_ec_sign" => landingpad(|| eth_ec_sign(&action.param.unwrap().value)),
         "eth_recover_address" => landingpad(|| eth_recover_address(&action.param.unwrap().value)),
+        "eos_update_account" => landingpad(|| eos_update_account(&action.param.unwrap().value)),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {
@@ -193,16 +195,18 @@ mod tests {
     use std::os::raw::c_char;
     use std::panic;
     use std::path::Path;
+    use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
 
     use crate::api::keystore_common_derive_param::Derivation;
     use crate::api::{
         sign_param, AccountsResponse, DerivedKeyResult, ExportPrivateKeyParam, HdStoreCreateParam,
         InitTokenCoreXParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonDeriveParam,
         KeystoreCommonExistsParam, KeystoreCommonExistsResult, KeystoreCommonExportResult,
-        PrivateKeyStoreExportParam, PrivateKeyStoreImportParam, PublicKeyParam, PublicKeyResult,
-        Response, SignParam, WalletKeyParam, ZksyncPrivateKeyFromSeedParam,
-        ZksyncPrivateKeyFromSeedResult, ZksyncPrivateKeyToPubkeyHashParam,
-        ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult,
+        KeystoreUpdateAccount, PrivateKeyStoreExportParam, PrivateKeyStoreImportParam,
+        PublicKeyParam, PublicKeyResult, Response, SignParam, WalletKeyParam,
+        ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
+        ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult,
+        ZksyncSignMusigParam, ZksyncSignMusigResult,
     };
     use crate::api::{HdStoreImportParam, WalletResult};
     use crate::handler::hd_store_import;
@@ -219,6 +223,8 @@ mod tests {
 
     use sp_core::ByteArray;
     use sp_runtime::traits::Verify;
+    use std::fs::File;
+    use std::io::Read;
     use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
     use tcx_constants::sample_key::MNEMONIC;
     use tcx_eth::transaction::{
@@ -693,6 +699,22 @@ mod tests {
                     chain_id: "".to_string(),
                     curve: "BLS".to_string(),
                 },
+                Derivation {
+                    chain_type: "COSMOS".to_string(),
+                    path: "m/44'/118'/0'/0/0".to_string(),
+                    network: "MAINNET".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: "SECP256k1".to_string(),
+                },
+                Derivation {
+                    chain_type: "EOS".to_string(),
+                    path: "m/44'/194'/0'/0/0".to_string(),
+                    network: "MAINNET".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: "SECP256k1".to_string(),
+                },
             ];
 
             let param = KeystoreCommonDeriveParam {
@@ -703,7 +725,7 @@ mod tests {
             let derived_accounts_bytes = call_api("keystore_common_derive", param).unwrap();
             let derived_accounts: AccountsResponse =
                 AccountsResponse::decode(derived_accounts_bytes.as_slice()).unwrap();
-            assert_eq!(10, derived_accounts.accounts.len());
+            assert_eq!(12, derived_accounts.accounts.len());
             assert_eq!(
                 "LQ3JqCohgLQ3x1CJXYERnJTy1ySaqr1E32",
                 derived_accounts.accounts[0].address
@@ -753,6 +775,13 @@ mod tests {
                 "a9bedcb23b8ea49d9171a75eacaa90733df0c5e92be5298c2e2e3d001afc0a9ba99e146796cf1d6e93b1778c3e89edac",
                 derived_accounts.accounts[9].address
             );
+
+            assert_eq!(
+                "cosmos1m566v5rcklnac8vc0dftfu4lnvznhlu7d3f404",
+                derived_accounts.accounts[10].address
+            );
+
+            assert_eq!("", derived_accounts.accounts[11].address);
             remove_created_wallet(&import_result.id);
         })
     }
@@ -1474,6 +1503,42 @@ mod tests {
     }
 
     #[test]
+    pub fn test_chain_cannot_export_private_key() {
+        run_test(|| {
+            let derivations = vec![Derivation {
+                chain_type: "COSMOS".to_string(),
+                path: "m/44'/118'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "SECP256k1".to_string(),
+            }];
+
+            let export_paths = vec!["m/44'/118'/0'/0/0"];
+
+            for idx in 0..derivations.len() {
+                let import_result: WalletResult = import_and_derive(derivations[idx].clone());
+                let acc = import_result.accounts.first().unwrap().clone();
+                let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
+                    id: import_result.id.to_string(),
+                    password: TEST_PASSWORD.to_string(),
+                    chain_type: acc.chain_type.to_string(),
+                    network: derivations[idx].network.to_string(),
+                    main_address: acc.address.to_string(),
+                    path: export_paths[idx].to_string(),
+                };
+                let ret = call_api("export_private_key", param);
+
+                assert_eq!(
+                    "chain_cannot_export_private_key",
+                    format!("{}", ret.err().unwrap())
+                );
+                remove_created_wallet(&import_result.id);
+            }
+        })
+    }
+
+    #[test]
     pub fn test_import_to_pk_which_from_hd() {
         run_test(|| {
             let param: PrivateKeyStoreImportParam = PrivateKeyStoreImportParam {
@@ -1833,6 +1898,155 @@ mod tests {
             let expected_sign = "bbf5ce0549490613a26c3ac4fc8574e748eabda05662b2e49cea818216b9da18691e78cd6379000e9c8a35c13dfbf620f269be90a078b58799b56dc20da3bdf200";
             assert_eq!(expected_sign, output.signatures[0]);
             remove_created_wallet(&wallet.id);
+        })
+    }
+
+    #[test]
+    pub fn test_sign_cosmos_tx() {
+        run_test(|| {
+            let derivation = Derivation {
+                chain_type: "COSMOS".to_string(),
+                path: "m/44'/118'/0'/0/0".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "SECP256k1".to_string(),
+            };
+
+            let wallet = import_and_derive(derivation);
+
+            let raw_data = "0a91010a8e010a1c2f636f736d6f732e62616e6b2e763162657461312e4d736753656e64126e0a2d636f736d6f733175616d6e346b74706d657332656664663671666837386d356365646b66637467617436657661122d636f736d6f73316a30636c726371727a636135326c6167707a3237687774713734776c327265353438346177681a0e0a057561746f6d1205313030303012680a510a460a1f2f636f736d6f732e63727970746f2e736563703235366b312e5075624b657912230a210232c1ef21d73c19531b0aa4e863cf397c2b982b2f958f60cdb62969824c096d6512040a02080118930312130a0d0a057561746f6d12043230303410b1f2041a0b636f736d6f736875622d34208cb201".to_string();
+            let input = AtomTxInput { raw_data };
+            let input_value = encode_message(input).unwrap();
+            let tx = SignParam {
+                id: wallet.id.to_string(),
+                key: Some(Key::Password("WRONG PASSWORD".to_string())),
+                chain_type: "COSMOS".to_string(),
+                address: wallet.accounts.first().unwrap().address.to_string(),
+                input: Some(::prost_types::Any {
+                    type_url: "imtoken".to_string(),
+                    value: input_value.clone(),
+                }),
+            };
+
+            let ret = call_api("sign_tx", tx);
+            assert!(ret.is_err());
+            assert_eq!(format!("{}", ret.err().unwrap()), "password_incorrect");
+
+            let tx = SignParam {
+                id: wallet.id.to_string(),
+                key: Some(Key::Password(TEST_PASSWORD.to_string())),
+                chain_type: "COSMOS1".to_string(),
+                address: wallet.accounts.first().unwrap().address.to_string(),
+                input: Some(::prost_types::Any {
+                    type_url: "imtoken".to_string(),
+                    value: input_value.clone(),
+                }),
+            };
+
+            let ret = call_api("sign_tx", tx);
+            assert!(ret.is_err());
+            assert_eq!(format!("{}", ret.err().unwrap()), "unsupported_chain");
+
+            let tx = SignParam {
+                id: wallet.id.to_string(),
+                key: Some(Key::Password(TEST_PASSWORD.to_string())),
+                chain_type: "COSMOS".to_string(),
+                address: wallet.accounts.first().unwrap().address.to_string(),
+                input: Some(::prost_types::Any {
+                    type_url: "imtoken".to_string(),
+                    value: input_value,
+                }),
+            };
+
+            let ret = call_api("sign_tx", tx).unwrap();
+            let output: AtomTxOutput = AtomTxOutput::decode(ret.as_slice()).unwrap();
+            let expected_sig = "355fWQ00dYitAZj6+EmnAgYEX1g7QtUrX/kQIqCbv05TCz0dfsWcMgXWVnr1l/I2hrjjQkiLRMoeRrmnqT2CZA==";
+            assert_eq!(expected_sig, output.signature);
+            remove_created_wallet(&wallet.id);
+        })
+    }
+
+    #[test]
+    pub fn test_eos_update_account() {
+        run_test(|| {
+            let derivation = Derivation {
+                chain_type: "EOS".to_string(),
+                path: "m/44'/194'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "SECP256k1".to_string(),
+            };
+
+            let wallet = import_and_derive(derivation);
+
+            let file_path = format!("/tmp/imtoken/wallets/{}.json", wallet.id);
+            let ks_str = fs::read_to_string(&file_path).expect("read ks file");
+            assert!(ks_str.contains(r#""address":"""#));
+
+            let update_param = KeystoreUpdateAccount {
+                id: wallet.id.to_string(),
+                password: "WRONG_PASSWORD".to_string(),
+                account_name: "666666".to_string(),
+            };
+            let ret = call_api("eos_update_account", update_param);
+
+            assert!(ret.is_err());
+            assert_eq!(format!("{}", ret.err().unwrap()), "password_incorrect");
+
+            let update_param = KeystoreUpdateAccount {
+                id: wallet.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                account_name: "666666".to_string(),
+            };
+            let ret = call_api("eos_update_account", update_param);
+
+            assert!(ret.is_err());
+            assert_eq!(
+                format!("{}", ret.err().unwrap()),
+                "eos_account_name_invalid"
+            );
+
+            let update_param = KeystoreUpdateAccount {
+                id: wallet.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                account_name: "account.123".to_string(),
+            };
+            let ret = call_api("eos_update_account", update_param);
+            let ks_str = fs::read_to_string(&file_path).expect("read ks file");
+            assert!(ks_str.contains(r#""address":"account.123""#));
+
+            remove_created_wallet(&wallet.id);
+        })
+    }
+
+    #[test]
+    pub fn test_get_public_key() {
+        run_test(|| {
+            let derivation = Derivation {
+                chain_type: "EOS".to_string(),
+                path: "m/44'/194'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "SECP256k1".to_string(),
+            };
+
+            let wallet = import_and_derive(derivation);
+
+            let param: PublicKeyParam = PublicKeyParam {
+                id: wallet.id.to_string(),
+                chain_type: "EOS".to_string(),
+                address: "".to_string(),
+            };
+            let ret_bytes = call_api("get_public_key", param).unwrap();
+            let public_key_result: PublicKeyResult =
+                PublicKeyResult::decode(ret_bytes.as_slice()).unwrap();
+            assert_eq!(
+                "EOS88XhiiP7Cu5TmAUJqHbyuhyYgd6sei68AU266PyetDDAtjmYWF",
+                public_key_result.public_key
+            );
         })
     }
 
