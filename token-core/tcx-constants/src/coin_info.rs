@@ -16,9 +16,22 @@ pub struct CoinInfo {
     pub seg_wit: String,
 }
 
+impl Default for CoinInfo {
+    fn default() -> Self {
+        CoinInfo {
+            coin: "".to_string(),
+            derivation_path: "".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        }
+    }
+}
+
 lazy_static! {
     static ref COIN_INFOS: RwLock<Vec<CoinInfo>> = {
         let mut coin_infos = Vec::new();
+        // chain is bitcoin, coin is btc
         coin_infos.push(CoinInfo {
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
@@ -185,6 +198,22 @@ lazy_static! {
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
+            seg_wit: "".to_string(),
+        });
+
+        coin_infos.push(CoinInfo {
+            coin: "COSMOS".to_string(),
+            derivation_path: "m/44'/118'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+        });
+
+        coin_infos.push(CoinInfo {
+            coin: "EOS".to_string(),
+            derivation_path: "m/44'/194'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
             seg_wit: "".to_string(),
         });
 

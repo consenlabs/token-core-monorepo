@@ -78,3 +78,4 @@ message ZksyncPrivateKeyToPubkeyHashParam{
 message ZksyncPrivateKeyToPubkeyHashResult{
     string pubKeyHash = 1;
 }
+

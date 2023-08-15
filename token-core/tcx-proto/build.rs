@@ -18,6 +18,14 @@ fn main() {
     //    env::set_var("OUT_DIR", "../tcx-chain/src");
     //    prost_build::compile_protos(&["src/tron.proto"], &["src/"]).unwrap();
 
+    // tcx-atom
+    env::set_var("OUT_DIR", "../tcx-atom/src");
+    prost_build::compile_protos(&["src/atom.proto"], &["src/"]).unwrap();
+
+    // tcx-eos
+    env::set_var("OUT_DIR", "../tcx-eos/src");
+    prost_build::compile_protos(&["src/eos.proto"], &["src/"]).unwrap();
+
     // tcx-tron
     env::set_var("OUT_DIR", "../tcx-tron/src");
     prost_build::compile_protos(&["src/tron.proto"], &["src/"]).unwrap();

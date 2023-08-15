@@ -9,7 +9,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
 dependencies = [
  "lazy_static",
- "regex 1.8.4",
+ "regex 1.9.3",
 ]
 
 [[package]]
@@ -131,9 +131,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.70"
+version = "1.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7de8ce5e0f9f8d88245311066a578d72b7af3e7088f32783804676302df237e4"
+checksum = "3b13c32d80ecc7ab747b80c3784bce54ee8a7a0cc4fbda9bf4cda2cf6fe90854"
 
 [[package]]
 name = "approx"
@@ -1098,7 +1098,7 @@ dependencies = [
  "num-traits",
  "prost 0.11.8",
  "prost-types 0.11.8",
- "regex 1.8.4",
+ "regex 1.9.3",
  "rlp",
  "rustc-hex",
  "secp256k1 0.24.3",
@@ -1937,7 +1937,7 @@ dependencies = [
  "ethereum-types",
  "hex 0.4.3",
  "once_cell",
- "regex 1.8.4",
+ "regex 1.9.3",
  "serde",
  "serde_json",
  "sha3",
@@ -2038,7 +2038,7 @@ dependencies = [
  "prettyplease 0.2.6",
  "proc-macro2 1.0.60",
  "quote 1.0.28",
- "regex 1.8.4",
+ "regex 1.9.3",
  "reqwest",
  "serde",
  "serde_json",
@@ -2085,7 +2085,7 @@ dependencies = [
  "rlp",
  "serde",
  "serde_json",
- "strum",
+ "strum 0.24.1",
  "syn 2.0.18",
  "tempfile",
  "thiserror",
@@ -2207,7 +2207,7 @@ dependencies = [
  "once_cell",
  "path-slash",
  "rayon",
- "regex 1.8.4",
+ "regex 1.9.3",
  "semver 1.0.17",
  "serde",
  "serde_json",
@@ -3248,7 +3248,7 @@ dependencies = [
  "parking_lot",
  "prost 0.11.8",
  "prost-types 0.11.8",
- "regex 1.8.4",
+ "regex 1.9.3",
  "ring",
  "rustc-serialize",
  "secp256k1 0.24.3",
@@ -3277,7 +3277,7 @@ dependencies = [
  "prost 0.11.8",
  "prost-types 0.11.8",
  "rand 0.8.5",
- "regex 1.8.4",
+ "regex 1.9.3",
  "ring",
  "rsa",
  "secp256k1 0.24.3",
@@ -3581,7 +3581,7 @@ dependencies = [
  "itertools 0.10.5",
  "lalrpop-util",
  "petgraph 0.6.3",
- "regex 1.8.4",
+ "regex 1.9.3",
  "regex-syntax 0.6.29",
  "string_cache",
  "term",
@@ -3784,7 +3784,7 @@ version = "0.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f099785f7595cc4b4553a174ce30dd7589ef93391ff414dbb67f62392b9e0ce1"
 dependencies = [
- "regex-automata",
+ "regex-automata 0.1.10",
 ]
 
 [[package]]
@@ -4730,7 +4730,7 @@ dependencies = [
  "itertools 0.10.5",
  "normalize-line-endings",
  "predicates-core",
- "regex 1.8.4",
+ "regex 1.9.3",
 ]
 
 [[package]]
@@ -4900,7 +4900,7 @@ dependencies = [
  "prettyplease 0.1.25",
  "prost 0.11.8",
  "prost-types 0.11.8",
- "regex 1.8.4",
+ "regex 1.9.3",
  "syn 1.0.109",
  "tempfile",
  "which 4.4.0",
@@ -5238,13 +5238,14 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.8.4"
+version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0ab3ca65655bb1e41f2a8c8cd662eb4fb035e67c3f78da1d61dffe89d07300f"
+checksum = "81bc1d4caf89fac26a70747fe603c130093b53c773888797a6329091246d651a"
 dependencies = [
  "aho-corasick 1.0.2",
  "memchr",
- "regex-syntax 0.7.2",
+ "regex-automata 0.3.6",
+ "regex-syntax 0.7.4",
 ]
 
 [[package]]
@@ -5254,6 +5255,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c230d73fb8d8c1b9c0b3135c5142a8acee3a0558fb8db5cf1cb65f8d7862132"
 dependencies = [
  "regex-syntax 0.6.29",
+]
+
+[[package]]
+name = "regex-automata"
+version = "0.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fed1ceff11a1dddaee50c9dc8e4938bd106e9d89ae372f192311e7da498e3b69"
+dependencies = [
+ "aho-corasick 1.0.2",
+ "memchr",
+ "regex-syntax 0.7.4",
 ]
 
 [[package]]
@@ -5273,9 +5285,9 @@ checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 
 [[package]]
 name = "regex-syntax"
-version = "0.7.2"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "436b050e76ed2903236f032a59761c1eb99e1b0aead2c257922771dab1fc8c78"
+checksum = "e5ea92a5b6195c6ef2a0295ea818b312502c6fc94dde986c5553242e18fd4ce2"
 
 [[package]]
 name = "reqwest"
@@ -6068,7 +6080,7 @@ dependencies = [
  "parking_lot",
  "primitive-types",
  "rand 0.7.3",
- "regex 1.8.4",
+ "regex 1.9.3",
  "scale-info",
  "schnorrkel",
  "secp256k1 0.24.3",
@@ -6162,7 +6174,7 @@ dependencies = [
  "lazy_static",
  "sp-core",
  "sp-runtime",
- "strum",
+ "strum 0.24.1",
 ]
 
 [[package]]
@@ -6190,7 +6202,7 @@ checksum = "97549ec99cb289db2a9f5c656b6880f7c90097135e1ca6c6ae4fe5694232e526"
 dependencies = [
  "backtrace",
  "lazy_static",
- "regex 1.8.4",
+ "regex 1.9.3",
 ]
 
 [[package]]
@@ -6463,7 +6475,16 @@ version = "0.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "063e6045c0e62079840579a7e47a355ae92f60eb74daaf156fb1e84ba164e63f"
 dependencies = [
- "strum_macros",
+ "strum_macros 0.24.3",
+]
+
+[[package]]
+name = "strum"
+version = "0.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "290d54ea6f91c969195bdbcd7442c8c2a2ba87da8bf60a7ee86a235d4bc1e125"
+dependencies = [
+ "strum_macros 0.25.2",
 ]
 
 [[package]]
@@ -6477,6 +6498,19 @@ dependencies = [
  "quote 1.0.28",
  "rustversion",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "strum_macros"
+version = "0.25.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad8d03b598d3d0fff69bf533ee3ef19b8eeb342729596df84bcc7e1f96ec4059"
+dependencies = [
+ "heck 0.4.1",
+ "proc-macro2 1.0.60",
+ "quote 1.0.28",
+ "rustversion",
+ "syn 2.0.18",
 ]
 
 [[package]]
@@ -6597,6 +6631,8 @@ dependencies = [
  "serde_json",
  "sp-core",
  "sp-runtime",
+ "strum 0.25.0",
+ "tcx-atom",
  "tcx-bch",
  "tcx-btc-fork",
  "tcx-chain",
@@ -6604,6 +6640,7 @@ dependencies = [
  "tcx-common",
  "tcx-constants",
  "tcx-crypto",
+ "tcx-eos",
  "tcx-eth",
  "tcx-eth2",
  "tcx-filecoin",
@@ -6614,6 +6651,21 @@ dependencies = [
  "tcx-tron",
  "tcx-wallet",
  "zksync-crypto",
+]
+
+[[package]]
+name = "tcx-atom"
+version = "0.1.0"
+dependencies = [
+ "base64 0.13.1",
+ "bech32 0.9.1",
+ "bytes 1.4.0",
+ "failure",
+ "prost 0.11.8",
+ "tcx-chain",
+ "tcx-constants",
+ "tcx-crypto",
+ "tcx-primitive",
 ]
 
 [[package]]
@@ -6676,7 +6728,7 @@ dependencies = [
  "failure",
  "hex 0.4.3",
  "prost 0.11.8",
- "regex 1.8.4",
+ "regex 1.9.3",
  "secp256k1 0.24.3",
  "serde",
  "serde_json",
@@ -6716,7 +6768,7 @@ dependencies = [
  "hex 0.4.3",
  "hmac-sha256",
  "keccak-hash",
- "regex 1.8.4",
+ "regex 1.9.3",
  "rust-crypto",
  "secp256k1 0.27.0",
  "sha2 0.10.6",
@@ -6751,6 +6803,7 @@ dependencies = [
  "parking_lot",
  "pbkdf2 0.11.0",
  "rand 0.8.5",
+ "regex 1.9.3",
  "scrypt",
  "secp256k1 0.24.3",
  "serde",
@@ -6758,6 +6811,22 @@ dependencies = [
  "sha2 0.10.6",
  "tcx-constants",
  "tiny-keccak 2.0.2",
+]
+
+[[package]]
+name = "tcx-eos"
+version = "0.1.0"
+dependencies = [
+ "base58",
+ "base64 0.13.1",
+ "bytes 1.4.0",
+ "failure",
+ "prost 0.11.8",
+ "regex 1.9.3",
+ "tcx-chain",
+ "tcx-constants",
+ "tcx-crypto",
+ "tcx-primitive",
 ]
 
 [[package]]
@@ -6772,7 +6841,7 @@ dependencies = [
  "keccak-hash",
  "prost 0.11.8",
  "prost-types 0.11.8",
- "regex 1.8.4",
+ "regex 1.9.3",
  "rlp",
  "tcx-chain",
  "tcx-common",
@@ -6793,7 +6862,7 @@ dependencies = [
  "lazy_static",
  "prost 0.11.8",
  "prost-types 0.11.8",
- "regex 1.8.4",
+ "regex 1.9.3",
  "ssz_rs",
  "ssz_rs_derive",
  "tcx-chain",
@@ -6850,7 +6919,7 @@ dependencies = [
  "lazy_static",
  "num-bigint 0.4.3",
  "num-traits",
- "regex 1.8.4",
+ "regex 1.9.3",
  "schnorrkel",
  "secp256k1 0.24.3",
  "serde",
@@ -6886,7 +6955,7 @@ dependencies = [
  "prost 0.11.8",
  "prost-types 0.11.8",
  "rand 0.8.5",
- "regex 1.8.4",
+ "regex 1.9.3",
  "scrypt",
  "serde",
  "serde_json",
@@ -7387,7 +7456,7 @@ dependencies = [
  "chrono",
  "lazy_static",
  "matchers",
- "regex 1.8.4",
+ "regex 1.9.3",
  "serde",
  "serde_json",
  "sharded-slab",

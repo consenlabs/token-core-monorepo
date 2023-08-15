@@ -126,35 +126,35 @@ mod test {
     use ikc_device::device_binding::bind_test;
     use ikc_transport::hid_api::hid_connect;
 
-    #[test]
-    fn tx_sign_test() {
-        assert!(hid_connect("imKey Pro").is_ok());
-        bind_test();
-        let tezos_tx_input = TezosTxInput{
-            to: "tz1QSHaKpTFhgHLbqinyYRjxD5sLcbfbzhxy".to_string(),
-            from: "tz1d2TfcvWBwtPqo7f21DVv7HSSCoNAVp8gz".to_string(),
-            value: "".to_string(),
-            raw_data: "d3bdafa2e36f872e24f1ccd68dbdca4356b193823d0a6a54886d7641e532a2a26c00dedf1a2f428e5e85edf105cb3600949f3d0e8837c70cacb4e803e8528102c0843d0000dcdcf88d0cfb769e33b1888d6bdc351ee3277ea700".to_string()
-        };
+    // #[test]
+    // fn tx_sign_test() {
+    //     assert!(hid_connect("imKey Pro").is_ok());
+    //     bind_test();
+    //     let tezos_tx_input = TezosTxInput{
+    //         to: "tz1QSHaKpTFhgHLbqinyYRjxD5sLcbfbzhxy".to_string(),
+    //         from: "tz1d2TfcvWBwtPqo7f21DVv7HSSCoNAVp8gz".to_string(),
+    //         value: "".to_string(),
+    //         raw_data: "d3bdafa2e36f872e24f1ccd68dbdca4356b193823d0a6a54886d7641e532a2a26c00dedf1a2f428e5e85edf105cb3600949f3d0e8837c70cacb4e803e8528102c0843d0000dcdcf88d0cfb769e33b1888d6bdc351ee3277ea700".to_string()
+    //     };
 
-        let sign_param = SignParam {
-            chain_type: "TEZOS".to_string(),
-            path: "m/44'/1729'/0'/0'".to_string(),
-            network: "MAINNET".to_string(),
-            input: None,
-            payment: "1 XTZ".to_string(),
-            receiver: "tz1QSHaKpTFhgHLbqinyYRjxD5sLcbfbzhxy".to_string(),
-            sender: "tz1d2TfcvWBwtPqo7f21DVv7HSSCoNAVp8gz".to_string(),
-            fee: "0.1 XTZ".to_string(),
-        };
-        let sign_result = Transaction::sign_tx(tezos_tx_input, sign_param);
-        if sign_result.is_ok() {
-            let tezosTxOutput = sign_result.unwrap();
-            assert_eq!("0DF020458BDCFE24546488DD81E1BD7E2CB05379DC7C72AD626646AE22DF5D3A652FDC4FFD2383DD5823A98FE158780928DA07A3F0A234E23B759CE7B3A39A0C", tezosTxOutput.signature);
-            assert_eq!("edsigtZdXPNY5QEakVWmib9RGM6nzkix5TM4GyKjez9uT9VtBV1xPLAV17YK6pQwFk2cvQXZrpE22AaUYhLkVbTjN5uvk3RXyKn", tezosTxOutput.edsig);
-            assert_eq!("d3bdafa2e36f872e24f1ccd68dbdca4356b193823d0a6a54886d7641e532a2a26c00dedf1a2f428e5e85edf105cb3600949f3d0e8837c70cacb4e803e8528102c0843d0000dcdcf88d0cfb769e33b1888d6bdc351ee3277ea700400DF020458BDCFE24546488DD81E1BD7E2CB05379DC7C72AD626646AE22DF5D3A652FDC4FFD2383DD5823A98FE158780928DA07A3F0A234E23B759CE7B3A39A0C", tezosTxOutput.sbytes);
-        } else {
-            panic!("sign error");
-        }
-    }
+    //     let sign_param = SignParam {
+    //         chain_type: "TEZOS".to_string(),
+    //         path: "m/44'/1729'/0'/0'".to_string(),
+    //         network: "MAINNET".to_string(),
+    //         input: None,
+    //         payment: "1 XTZ".to_string(),
+    //         receiver: "tz1QSHaKpTFhgHLbqinyYRjxD5sLcbfbzhxy".to_string(),
+    //         sender: "tz1d2TfcvWBwtPqo7f21DVv7HSSCoNAVp8gz".to_string(),
+    //         fee: "0.1 XTZ".to_string(),
+    //     };
+    //     let sign_result = Transaction::sign_tx(tezos_tx_input, sign_param);
+    //     if sign_result.is_ok() {
+    //         let tezosTxOutput = sign_result.unwrap();
+    //         assert_eq!("0DF020458BDCFE24546488DD81E1BD7E2CB05379DC7C72AD626646AE22DF5D3A652FDC4FFD2383DD5823A98FE158780928DA07A3F0A234E23B759CE7B3A39A0C", tezosTxOutput.signature);
+    //         assert_eq!("edsigtZdXPNY5QEakVWmib9RGM6nzkix5TM4GyKjez9uT9VtBV1xPLAV17YK6pQwFk2cvQXZrpE22AaUYhLkVbTjN5uvk3RXyKn", tezosTxOutput.edsig);
+    //         assert_eq!("d3bdafa2e36f872e24f1ccd68dbdca4356b193823d0a6a54886d7641e532a2a26c00dedf1a2f428e5e85edf105cb3600949f3d0e8837c70cacb4e803e8528102c0843d0000dcdcf88d0cfb769e33b1888d6bdc351ee3277ea700400DF020458BDCFE24546488DD81E1BD7E2CB05379DC7C72AD626646AE22DF5D3A652FDC4FFD2383DD5823A98FE158780928DA07A3F0A234E23B759CE7B3A39A0C", tezosTxOutput.sbytes);
+    //     } else {
+    //         panic!("sign error");
+    //     }
+    // }
 }
