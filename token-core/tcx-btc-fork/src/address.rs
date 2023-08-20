@@ -6,12 +6,14 @@ use bech32::{u5, Variant};
 use bitcoin::hash_types::PubkeyHash as PubkeyHashType;
 use bitcoin::hash_types::ScriptHash as ScriptHashType;
 use bitcoin::network::constants::Network;
+use bitcoin::schnorr::UntweakedPublicKey;
 use bitcoin::util::address::Payload;
 use bitcoin::util::address::{Error as BtcAddressError, WitnessVersion};
 use bitcoin::util::base58;
 use bitcoin::{Address as BtcAddress, Script};
 use bitcoin_hashes::Hash;
 use core::result;
+use secp256k1::Secp256k1;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -22,11 +24,11 @@ use tcx_constants::CoinInfo;
 use tcx_primitive::{Ss58Codec, TypedPrivateKey, TypedPublicKey};
 // use bitcoin::hash_types::PubkeyHash;
 
-pub trait WifDisplay {
+pub trait WIFDisplay {
     fn fmt(&self, coin_info: &CoinInfo) -> Result<String>;
 }
 
-impl WifDisplay for TypedPrivateKey {
+impl WIFDisplay for TypedPrivateKey {
     fn fmt(&self, coin_info: &CoinInfo) -> Result<String> {
         let network = network_from_coin(coin_info);
         tcx_ensure!(network.is_some(), Error::UnsupportedChain);
@@ -49,11 +51,13 @@ impl Address for BtcForkAddress {
         tcx_ensure!(network.is_some(), Error::MissingNetwork);
         let network = network.expect("network");
 
-        let addr = if coin.seg_wit.as_str() == "P2WPKH" {
-            BtcForkAddress::p2shwpkh(&public_key.to_bytes(), &network)?.to_string()
-        } else {
-            BtcForkAddress::p2pkh(&public_key.to_bytes(), &network)?.to_string()
+        let addr = match coin.seg_wit.as_str() {
+            "P2WPKH" => BtcForkAddress::p2shwpkh(&public_key.to_bytes(), &network)?.to_string(),
+            "SEGWIT" => BtcForkAddress::p2wpkh(&public_key.to_bytes(), &network)?.to_string(),
+            "P2TR" => BtcForkAddress::p2tr(&public_key.to_bytes(), &network)?.to_string(),
+            _ => BtcForkAddress::p2pkh(&public_key.to_bytes(), &network)?.to_string(),
         };
+
         Ok(addr.to_string())
     }
 
@@ -90,6 +94,16 @@ impl BtcForkAddress {
     pub fn p2wpkh(pub_key: &[u8], network: &BtcForkNetwork) -> Result<BtcForkAddress> {
         let pub_key = bitcoin::PublicKey::from_slice(&pub_key)?;
         let addr = BtcAddress::p2wpkh(&pub_key, Network::Bitcoin)?;
+        Ok(BtcForkAddress {
+            payload: addr.payload,
+            network: network.clone(),
+        })
+    }
+
+    pub fn p2tr(pub_key: &[u8], network: &BtcForkNetwork) -> Result<BtcForkAddress> {
+        let pub_key = UntweakedPublicKey::from_slice(&pub_key)?;
+        let secp256k1 = Secp256k1::new();
+        let addr = BtcAddress::p2tr(&secp256k1, pub_key, None, Network::Bitcoin);
         Ok(BtcForkAddress {
             payload: addr.payload,
             network: network.clone(),

@@ -10,7 +10,7 @@ use tcx_primitive::{get_account_path, private_key_without_version, FromHex, Type
 use tcx_bch::{BchAddress, BchTransaction};
 use tcx_btc_fork::{
     BtcForkAddress, BtcForkSegWitTransaction, BtcForkSignedTxOutput, BtcForkTransaction,
-    BtcForkTxInput, WifDisplay,
+    BtcForkTxInput, WIFDisplay,
 };
 use tcx_chain::{key_hash_from_mnemonic, key_hash_from_private_key, Keystore, KeystoreGuard};
 use tcx_chain::{Account, HdKeystore, Metadata, PrivateKeystore, Source};

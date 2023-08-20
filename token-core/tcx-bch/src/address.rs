@@ -118,7 +118,7 @@ impl ScriptPubKeyComponent for BchAddress {
 mod tests {
     use crate::address::{remove_bch_prefix, BchAddress};
 
-    use tcx_btc_fork::WifDisplay;
+    use tcx_btc_fork::WIFDisplay;
     use tcx_chain::Address;
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType};

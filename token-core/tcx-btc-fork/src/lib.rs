@@ -21,7 +21,7 @@ pub type Result<T> = result::Result<T, failure::Error>;
 pub use signer::{BitcoinForkSinger, BtcForkSegWitTransaction, BtcForkTransaction};
 pub use transaction::{BtcForkSignedTxOutput, BtcForkTxInput, Utxo};
 
-pub use address::{BtcForkAddress, PubKeyScript, WifDisplay};
+pub use address::{BtcForkAddress, PubKeyScript, WIFDisplay};
 pub use signer::ScriptPubKeyComponent;
 
 #[derive(Fail, Debug)]
