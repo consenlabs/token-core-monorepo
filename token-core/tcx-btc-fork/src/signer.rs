@@ -163,6 +163,7 @@ impl<S: ScriptPubKeyComponent + Address, T: BitcoinTransactionSignComponent>
                 witness: Witness::default(),
             });
         }
+
         tx_inputs
     }
 

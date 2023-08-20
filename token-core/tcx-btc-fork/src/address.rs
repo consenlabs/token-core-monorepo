@@ -22,7 +22,6 @@ use tcx_constants::btc_fork_network::{network_form_hrp, network_from_coin, BtcFo
 use tcx_constants::coin_info::coin_info_from_param;
 use tcx_constants::CoinInfo;
 use tcx_primitive::{Ss58Codec, TypedPrivateKey, TypedPublicKey};
-// use bitcoin::hash_types::PubkeyHash;
 
 pub trait WIFDisplay {
     fn fmt(&self, coin_info: &CoinInfo) -> Result<String>;
@@ -400,7 +399,6 @@ mod tests {
         assert_eq!(addr.network.coin, "BITCOIN");
         assert_eq!(addr.network.seg_wit, "NONE");
         assert_eq!(addr.network.network, "MAINNET");
-
         let addr = BtcForkAddress::from_str("2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB").unwrap();
         assert_eq!(addr.network.coin, "BITCOIN");
         assert_eq!(addr.network.seg_wit, "P2WPKH");
@@ -556,6 +554,19 @@ mod tests {
             "3Js9bGaZSQCNLudeGRHL4NExVinc25RbuG",
             &coin
         ));
+
+        let coin = coin_info_from_param("BITCOIN", "MAINNET", "NONE", "").unwrap();
+        assert!(BtcForkAddress::is_valid(
+            "1Gx9QwpQBFnAjF27Uiz3ea2zYBDrLx31bw",
+            &coin
+        ));
+
+        let coin = coin_info_from_param("BITCOIN", "MAINNET", "SEGWIT", "").unwrap();
+        assert!(BtcForkAddress::is_valid(
+            "bc1qnfv46v0wtarc6n82dnehtvzj2gtnqzjhj5wxqj",
+            &coin
+        ));
+
         let coin = coin_info_from_param("LITECOIN", "MAINNET", "NONE", "").unwrap();
         assert!(BtcForkAddress::is_valid(
             "Ldfdegx3hJygDuFDUA7Rkzjjx8gfFhP9DP",
