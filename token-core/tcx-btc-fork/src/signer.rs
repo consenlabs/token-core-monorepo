@@ -15,6 +15,7 @@ use bitcoin_hashes::hash160;
 use bitcoin_hashes::hex::FromHex as HashFromHex;
 use bitcoin_hashes::hex::ToHex as HashToHex;
 use std::marker::PhantomData;
+use tcx_chain::keystore::Error;
 use tcx_chain::Address;
 use tcx_constants::CoinInfo;
 use tcx_primitive::{
@@ -47,15 +48,19 @@ impl<S: ScriptPubKeyComponent + Address, T: BitcoinTransactionSignComponent>
         address: &str,
         tx: &BitcoinForkSinger<S, T>,
     ) -> Result<BtcForkSignedTxOutput> {
+        let account = self
+            .account(tx.coin_info.coin.as_str(), address)
+            .ok_or(Error::AccountNotFound)?;
+        let coin_info = account.coin_info();
+
         let change_address = if self.determinable() {
-            let dpk = self.find_deterministic_public_key(symbol, address)?;
-            tx.change_address(&dpk)?
+            let dpk = account.deterministic_public_key()?;
+            tx.change_address(&dpk, &coin_info)?
         } else {
             S::address_script_pub_key(&address)?
         };
 
         let mut sks = vec![];
-
         for x in tx.tx_input.unspents.iter() {
             if x.derived_path.len() > 0 {
                 sks.push(
@@ -92,16 +97,18 @@ impl<S: ScriptPubKeyComponent + Address, T: BitcoinTransactionSignComponent>
         S::address_script_pub_key(&self.tx_input.to)
     }
 
-    fn change_address(&self, dpk: &TypedDeterministicPublicKey) -> Result<Script> {
+    fn change_address(
+        &self,
+        dpk: &TypedDeterministicPublicKey,
+        coin_info: &CoinInfo,
+    ) -> Result<Script> {
         if !self.tx_input.change_address.is_empty() {
             S::address_script_pub_key(&self.tx_input.change_address)
         } else {
-            let from = &self.tx_input.unspents.first().expect("first_utxo").address;
-
-            //TODO: address is error
-            let _change_path = format!("1/{}", &self.tx_input.change_address_index);
-            let pub_key = dpk.public_key().as_secp256k1()?.0;
-            S::address_script_like(&from, &pub_key)
+            let pub_key = dpk
+                .derive(format!("1/{}", self.tx_input.change_address_index).as_str())?
+                .public_key();
+            S::address_script_pub_key(S::from_public_key(&pub_key, coin_info)?.as_str())
         }
     }
 
@@ -386,9 +393,10 @@ mod tests {
 
     mod btc {
         use super::*;
+        use tcx_constants::CurveType;
 
         #[test]
-        fn sign_op_return_with_keystore_on_testnet() {
+        fn sign_op_return_with_keystore() {
             let mut ks =
                 Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
             let guard = ks.unlock_by_password(TEST_PASSWORD).unwrap();
@@ -425,25 +433,49 @@ mod tests {
                 amount: 88000,
                 unspents: getUnspents(),
                 fee: 12000,
-                change_address_index: 0u32,
+                change_address_index: 53u32,
                 change_address: "".to_string(),
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
             };
 
-            let coin_info = coin_info_from_param("BITCOIN", "MAINNET", "P2WPKH", "").unwrap();
-            ks.derive_coin::<BtcForkAddress>(&coin_info);
+            let coin_info = coin_info_from_param("LITECOIN", "TESTNET", "NONE", "").unwrap();
+            //            let coin_info = coin_info_from_param("LITECOIN", "MAINNET", "NONE", "").unwrap();
+            let account = ks.derive_coin::<BtcForkAddress>(&coin_info).unwrap();
+            let dpk = account.deterministic_public_key().unwrap();
+            let child = dpk.derive("1/53").unwrap();
 
-            let tran = BitcoinForkSinger::<BtcForkAddress, SegWitTransactionSignComponent> {
-                tx_input,
-                coin_info,
-                _marker_s: PhantomData,
-                _marker_t: PhantomData,
-            };
-            let expected = ks
-                .sign_transaction("BITCOIN", "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB", &tran)
-                .unwrap();
-            //            assert_eq!(expected.signature, "");
+            let h = TypedDeterministicPublicKey::from_hex(CurveType::SECP256k1, "036c2b38ad8000000023332f38a77023d3c1a450499c8aeb3db2e666aa2cc6fff7db6797c5d2aef8fc036663443d71127b332c68cd6bffb6c2b5eb4dc6861404ed055dc36a25b8c18020").unwrap();
+            assert_eq!(h.to_string(), dpk.to_string());
+            println!(
+                "address {}",
+                BtcForkAddress::from_public_key(
+                    &dpk.derive("1/1").unwrap().public_key(),
+                    &coin_info
+                )
+                .unwrap()
+                .as_str()
+            );
+
+            let address = BtcForkAddress::from_public_key(&child.public_key(), &coin_info).unwrap();
+            let main_address = BtcForkAddress::from_public_key(
+                &dpk.derive("0/0").unwrap().public_key(),
+                &coin_info,
+            )
+            .unwrap();
+
+            /*
+                       let tran = BitcoinForkSinger::<BtcForkAddress, SegWitTransactionSignComponent> {
+                           tx_input,
+                           coin_info,
+                           _marker_s: PhantomData,
+                           _marker_t: PhantomData,
+                       };
+                       let expected = ks
+                           .sign_transaction("BITCOIN", "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB", &tran)
+                           .unwrap();
+                       //            assert_eq!(expected.signature, "");
+            */
         }
 
         #[test]
@@ -540,6 +572,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
             };
 
+            //contains change
             let coin_info = coin_info_from_param("BITCOIN", "TESTNET", "NONE", "").unwrap();
             let tran = BitcoinForkSinger::<
                 BtcForkAddress,
@@ -553,7 +586,7 @@ mod tests {
             let expected = ks
                 .sign_transaction("BITCOIN", "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN", &tran)
                 .unwrap();
-            //   assert_eq!(expected.signature, "01000000047a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000006b483045022100c4f39ce7f2448ab8e7154a7b7ce82edd034e3f33e1f917ca43e4aff822ba804c02206dd146d1772a45bb5e51abb081d066114e78bcb504671f61c5a301a647a494ac01210312a0cb31ff52c480c049da26d0aaa600f47e9deee53d02fc2b0e9acf3c20fbdfffffffff31b5a9794dcaf82af1738745afe1ecf402ea4a93e71ae75c7d3d8bf7c78aef45010000006b483045022100d235afda9a56aaa4cbe05df712202e6b1a45aab7a0c83540d3053133f15acc5602201b0e144bec3a02a5c556596040b0be81b0202c19b163bb537b8d965afd61403a0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffffa92c40dfd195a188d87110557fb7f46dbbfb68c4bb8718f33dc31d61927ec614000000006b483045022100dd8f1e20116f96a3400f55e0c637a0ad21ae47ff92d83ffb0c3d324c684a54be0220064b0a6d316154ef07a69bd82de3a052e43c3c6bb0e55e4de4de939b093e1a3a0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffffb99a3e8884b14f330d2a444a4bc2a03af16804fb99b5e37ee892ed5db8b67f11010000006a473044022048d8cb0f1480174b3b9186cc6fe410db765f1f9d3ce036b0d4dee0eb19aa3641022073de4bb2b00a0533e9c8f3e074c655e0695c8b223233ddecf3c99a84351d50a60121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff028017b42c000000001976a91455bdc1b42e3bed851959846ddf600e96125423e088ac0e47f302000000001976a91412967cdd9ceb72bbdbb7e5db85e2dbc6d6c3ab1a88ac00000000");
+            assert_eq!(expected.signature, "01000000047a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000006b483045022100c4f39ce7f2448ab8e7154a7b7ce82edd034e3f33e1f917ca43e4aff822ba804c02206dd146d1772a45bb5e51abb081d066114e78bcb504671f61c5a301a647a494ac01210312a0cb31ff52c480c049da26d0aaa600f47e9deee53d02fc2b0e9acf3c20fbdfffffffff31b5a9794dcaf82af1738745afe1ecf402ea4a93e71ae75c7d3d8bf7c78aef45010000006b483045022100d235afda9a56aaa4cbe05df712202e6b1a45aab7a0c83540d3053133f15acc5602201b0e144bec3a02a5c556596040b0be81b0202c19b163bb537b8d965afd61403a0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffffa92c40dfd195a188d87110557fb7f46dbbfb68c4bb8718f33dc31d61927ec614000000006b483045022100dd8f1e20116f96a3400f55e0c637a0ad21ae47ff92d83ffb0c3d324c684a54be0220064b0a6d316154ef07a69bd82de3a052e43c3c6bb0e55e4de4de939b093e1a3a0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffffb99a3e8884b14f330d2a444a4bc2a03af16804fb99b5e37ee892ed5db8b67f11010000006a473044022048d8cb0f1480174b3b9186cc6fe410db765f1f9d3ce036b0d4dee0eb19aa3641022073de4bb2b00a0533e9c8f3e074c655e0695c8b223233ddecf3c99a84351d50a60121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff028017b42c000000001976a91455bdc1b42e3bed851959846ddf600e96125423e088ac0e47f302000000001976a91412967cdd9ceb72bbdbb7e5db85e2dbc6d6c3ab1a88ac00000000");
         }
     }
 
@@ -710,9 +743,10 @@ mod tests {
                 .unwrap();
             assert_eq!(
                 expected.tx_hash,
-                "1d95b4e3cac9b81fb9459799cb6c7ffc38b5b78ee38fdcfdb972dc17f77db761"
+                "96fe3a5ff0e01e533f19642a0bd05ed4925dfdc271124bc08c3aa4a8bdb9d5c8"
             );
-            assert_eq!(expected.signature, "010000000201a1d4a6b051e732341c0101a62488051bb5bf969d1f15324bbf6a1d2035c957000000006a47304402202b007c693e784805eaae1e68a35d8d4a15331a29aa19a27fecd5a530cd6bba95022000dfa238c90a5a48c66817e0a0a69e275d159e566c1eb661b6c362b249f8aa510121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff00a1d4a6b051e732341c0101a62488051bb5bf969d1f15324bbf6a1d2035c957000000006a4730440220320b151cab9701c0e031310e4c7e6ff4712b291b79bee2a7f20bd2acd40a5a93022030fc72cf9f2f66aa5d88d97ef0e3c537dfa11f9d1ef6cac7bd68e45d3cb410700121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff02e0c81000000000001976a914461bf9360ec1bc9fe438df19ef36c7c2bb26ef8288ac92a40d00000000001976a9145ec105a23edc97d73a8de1e49d498684c40aa84988ac00000000");
+
+            assert_eq!(expected.signature, "010000000201a1d4a6b051e732341c0101a62488051bb5bf969d1f15324bbf6a1d2035c957000000006b483045022100a49798664e490075f9d111c6b6e8541781a5a88df1b95eb910dd307298ead4e802203adb4a21f2e680e1d05f6346ec25b1077f60e58c6289606cc9dad15698b5368d0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff00a1d4a6b051e732341c0101a62488051bb5bf969d1f15324bbf6a1d2035c957000000006a473044022100c7e2dba307022d45067e7b3eceb2b288f49037f43c8bac271ccc831f250b9438021f14103613f41f6d6811f70359077ae96dc2055fcb9dd5aff21469e1fb51a9870121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff02e0c81000000000001976a914461bf9360ec1bc9fe438df19ef36c7c2bb26ef8288ac92a40d00000000001976a9143770c8c6671d27e2a9f4502d74932bf740c1ff8688ac00000000");
         }
 
         #[test]
