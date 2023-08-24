@@ -36,6 +36,8 @@ pub struct BtcForkTxInput {
     pub network: ::prost::alloc::string::String,
     #[prost(string, tag = "8")]
     pub seg_wit: ::prost::alloc::string::String,
+    #[prost(string, tag = "9")]
+    pub op_return: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

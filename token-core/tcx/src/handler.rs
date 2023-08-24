@@ -7,11 +7,8 @@ use std::io::Read;
 use std::path::Path;
 use tcx_primitive::{get_account_path, private_key_without_version, FromHex, TypedPrivateKey};
 
-use tcx_bch::{BchAddress, BchTransaction};
-use tcx_btc_fork::{
-    BtcForkAddress, BtcForkSegWitTransaction, BtcForkSignedTxOutput, BtcForkTransaction,
-    BtcForkTxInput, WIFDisplay,
-};
+use tcx_bch::BchAddress;
+use tcx_btc_fork::{BtcForkAddress, BtcForkSignedTxOutput, BtcForkTxInput, WIFDisplay};
 use tcx_chain::{key_hash_from_mnemonic, key_hash_from_private_key, Keystore, KeystoreGuard};
 use tcx_chain::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
 use tcx_ckb::{CkbAddress, CkbTxInput};
@@ -741,25 +738,7 @@ pub(crate) fn sign_btc_fork_transaction(
     .expect("BitcoinForkTransactionInput");
     let coin = coin_info_from_param(&param.chain_type, &input.network, &input.seg_wit, "")?;
 
-    let signed_tx: BtcForkSignedTxOutput = if param.chain_type.as_str() == "BITCOINCASH" {
-        if !BchAddress::is_valid(&input.to, &coin) {
-            return Err(format_err!("address_invalid"));
-        }
-        let tran = BchTransaction::new(input, coin);
-        keystore.sign_transaction(&param.chain_type, &param.address, &tran)?
-    } else if input.seg_wit.as_str() != "NONE" {
-        if !BtcForkAddress::is_valid(&input.to, &coin) {
-            return Err(format_err!("address_invalid"));
-        }
-        let tran = BtcForkSegWitTransaction::new(input, coin);
-        keystore.sign_transaction(&param.chain_type, &param.address, &tran)?
-    } else {
-        if !BtcForkAddress::is_valid(&input.to, &coin) {
-            return Err(format_err!("address_invalid"));
-        }
-        let tran = BtcForkTransaction::new(input, coin);
-        keystore.sign_transaction(&param.chain_type, &param.address, &tran)?
-    };
+    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
     encode_message(signed_tx)
 }
 

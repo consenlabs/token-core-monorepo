@@ -15,10 +15,10 @@ extern crate num_traits;
 
 #[macro_use]
 extern crate tcx_chain;
+extern crate core;
 
 pub type Result<T> = result::Result<T, failure::Error>;
 
-pub use signer::{BitcoinForkSinger, BtcForkSegWitTransaction, BtcForkTransaction};
 pub use transaction::{BtcForkSignedTxOutput, BtcForkTxInput, Utxo};
 
 pub use address::{BtcForkAddress, PubKeyScript, WIFDisplay};

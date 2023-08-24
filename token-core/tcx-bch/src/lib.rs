@@ -1,7 +1,6 @@
 use core::result;
 
 mod address;
-mod transaction;
 
 pub type Result<T> = result::Result<T, failure::Error>;
 
@@ -9,7 +8,6 @@ pub type Result<T> = result::Result<T, failure::Error>;
 extern crate failure;
 
 pub use address::BchAddress;
-pub use transaction::BchTransaction;
 
 #[derive(Fail, Debug)]
 pub enum Error {

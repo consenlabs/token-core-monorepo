@@ -26,6 +26,7 @@ message BtcForkTxInput {
     string changeAddress = 6;
     string network = 7;
     string segWit = 8;
+    string opReturn = 9;
 }
 
 message BtcForkSignedTxOutput {
