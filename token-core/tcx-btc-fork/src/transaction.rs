@@ -47,3 +47,17 @@ pub struct BtcForkSignedTxOutput {
     #[prost(string, tag = "2")]
     pub tx_hash: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct OmniTxInput {
+    #[prost(string, tag = "1")]
+    pub to: ::prost::alloc::string::String,
+    #[prost(int64, tag = "2")]
+    pub amount: i64,
+    #[prost(message, repeated, tag = "3")]
+    pub unspent: ::prost::alloc::vec::Vec<Utxo>,
+    #[prost(int64, tag = "4")]
+    pub fee: i64,
+    #[prost(int32, tag = "5")]
+    pub property_id: i32,
+}

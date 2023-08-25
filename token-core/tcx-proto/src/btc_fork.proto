@@ -33,3 +33,11 @@ message BtcForkSignedTxOutput {
     string signature = 1;
     string txHash = 2;
 }
+
+message OmniTxInput {
+    string to = 1;
+    int64 amount = 2;
+    repeated Utxo unspent = 3;
+    int64 fee = 4;
+    int32 propertyId = 5;
+}

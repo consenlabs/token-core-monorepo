@@ -18,3 +18,5 @@ extern crate lazy_static;
 pub const TEST_MNEMONIC: &'static str =
     "inject kidney empty canal shadow pact comfort wife crush horse wife sketch";
 pub const TEST_PASSWORD: &'static str = "Insecure Pa55w0rd";
+
+pub const TEST_WIF: &'static str = "cT4fTJyLd5RmSZFHnkGmVCzXDKuJLbyTt7cy77ghTTCagzNdPH1j";

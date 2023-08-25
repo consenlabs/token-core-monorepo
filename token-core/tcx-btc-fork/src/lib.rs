@@ -32,6 +32,8 @@ pub enum Error {
     UnsupportedChain,
     #[fail(display = "missing_network")]
     MissingNetwork,
+    #[fail(display = "invalid_input_cells")]
+    InvalidInputCells,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
