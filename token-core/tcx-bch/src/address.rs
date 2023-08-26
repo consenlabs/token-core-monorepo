@@ -7,7 +7,7 @@ use core::result;
 
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use tcx_btc_fork::{BtcForkAddress, PubKeyScript, ScriptPubKeyComponent};
+use tcx_btc_kin::{BtcKinAddress, PubKeyScript, ScriptPubKeyComponent};
 use tcx_chain::Address;
 use tcx_constants::CoinInfo;
 use tcx_primitive::TypedPublicKey;
@@ -69,7 +69,7 @@ impl BchAddress {
 
 impl Address for BchAddress {
     fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<String> {
-        let addr = BtcForkAddress::from_public_key(public_key, coin)?;
+        let addr = BtcKinAddress::from_public_key(public_key, coin)?;
         legacy_to_bch(&addr)
     }
 
@@ -118,7 +118,7 @@ impl ScriptPubKeyComponent for BchAddress {
 mod tests {
     use crate::address::{remove_bch_prefix, BchAddress};
 
-    use tcx_btc_fork::WIFDisplay;
+    use tcx_btc_kin::WIFDisplay;
     use tcx_chain::Address;
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType};

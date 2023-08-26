@@ -23,8 +23,8 @@ fn main() {
     prost_build::compile_protos(&["src/tron.proto"], &["src/"]).unwrap();
 
     // tcx-btc-fork
-    env::set_var("OUT_DIR", "../tcx-btc-fork/src");
-    prost_build::compile_protos(&["src/btc_fork.proto"], &["src/"]).unwrap();
+    env::set_var("OUT_DIR", "../tcx-btc-kin/src");
+    prost_build::compile_protos(&["src/btc_kin.proto"], &["src/"]).unwrap();
 
     // tcx-ckb
     env::set_var("OUT_DIR", "../tcx-ckb/src");

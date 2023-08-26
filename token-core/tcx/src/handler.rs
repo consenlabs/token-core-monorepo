@@ -8,7 +8,7 @@ use std::path::Path;
 use tcx_primitive::{get_account_path, private_key_without_version, FromHex, TypedPrivateKey};
 
 use tcx_bch::BchAddress;
-use tcx_btc_fork::{BtcForkAddress, BtcForkSignedTxOutput, BtcForkTxInput, WIFDisplay};
+use tcx_btc_kin::{BtcKinAddress, BtcKinTxInput, BtcKinTxOutput, WIFDisplay};
 use tcx_chain::{key_hash_from_mnemonic, key_hash_from_private_key, Keystore, KeystoreGuard};
 use tcx_chain::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
 use tcx_ckb::{CkbAddress, CkbTxInput};
@@ -86,7 +86,7 @@ fn derive_account<'a, 'b>(keystore: &mut Keystore, derivation: &Derivation) -> R
 
     match derivation.chain_type.as_str() {
         "BITCOINCASH" => keystore.derive_coin::<BchAddress>(&coin_info),
-        "LITECOIN" => keystore.derive_coin::<BtcForkAddress>(&coin_info),
+        "LITECOIN" | "BITCOIN" => keystore.derive_coin::<BtcKinAddress>(&coin_info),
         "TRON" => keystore.derive_coin::<TrxAddress>(&coin_info),
         "NERVOS" => keystore.derive_coin::<CkbAddress>(&coin_info),
         "POLKADOT" | "KUSAMA" => keystore.derive_coin::<SubstrateAddress>(&coin_info),
@@ -726,7 +726,7 @@ pub(crate) fn sign_btc_fork_transaction(
     param: &SignParam,
     keystore: &mut Keystore,
 ) -> Result<Vec<u8>> {
-    let input: BtcForkTxInput = BtcForkTxInput::decode(
+    let input: BtcKinTxInput = BtcKinTxInput::decode(
         param
             .input
             .as_ref()
@@ -736,7 +736,6 @@ pub(crate) fn sign_btc_fork_transaction(
             .as_slice(),
     )
     .expect("BitcoinForkTransactionInput");
-    let coin = coin_info_from_param(&param.chain_type, &input.network, &input.seg_wit, "")?;
 
     let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
     encode_message(signed_tx)

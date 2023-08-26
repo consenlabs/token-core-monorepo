@@ -6598,7 +6598,7 @@ dependencies = [
  "sp-core",
  "sp-runtime",
  "tcx-bch",
- "tcx-btc-fork",
+ "tcx-btc-kin",
  "tcx-chain",
  "tcx-ckb",
  "tcx-common",
@@ -6628,7 +6628,7 @@ dependencies = [
  "secp256k1 0.24.3",
  "serde",
  "serde_json",
- "tcx-btc-fork",
+ "tcx-btc-kin",
  "tcx-chain",
  "tcx-constants",
  "tcx-primitive",
@@ -6636,7 +6636,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tcx-btc-fork"
+name = "tcx-btc-kin"
 version = "0.1.0"
 dependencies = [
  "base64 0.13.1",

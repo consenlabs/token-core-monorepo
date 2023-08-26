@@ -6,7 +6,7 @@ members=[
     "token-core/tcx-crypto",
     "token-core/tcx-chain",
     "token-core/tcx-tron",
-    "token-core/tcx-btc-fork",
+    "token-core/tcx-btc-kin",
     "token-core/tcx-bch",
     "token-core/tcx-ckb",
     "token-core/tcx-substrate",

@@ -19,9 +19,9 @@ extern crate core;
 
 pub type Result<T> = result::Result<T, failure::Error>;
 
-pub use transaction::{BtcForkSignedTxOutput, BtcForkTxInput, Utxo};
+pub use transaction::{BtcKinTxInput, BtcKinTxOutput, InputDetail, OmniTxInput};
 
-pub use address::{BtcForkAddress, PubKeyScript, WIFDisplay};
+pub use address::{BtcKinAddress, PubKeyScript, WIFDisplay};
 pub use signer::ScriptPubKeyComponent;
 
 #[derive(Fail, Debug)]
