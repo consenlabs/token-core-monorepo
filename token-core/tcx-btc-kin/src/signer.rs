@@ -125,6 +125,7 @@ impl KinTransaction {
 
         let tx_input = &mut context.tx.input[index];
 
+        let sig = [sig, vec![1]].concat();
         tx_input.witness.push(sig);
         tx_input.witness.push(pub_key.to_bytes());
 
@@ -256,10 +257,10 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
             return Err(Error::InvalidInputCells.into());
         }
 
-        let change_script = if tx.change_address_index.is_some() && self.determinable() {
+        let change_script = if let Some(change_address_index) = tx.change_address_index && self.determinable() {
             let dpk = account.deterministic_public_key()?;
             let pub_key = dpk
-                .derive(format!("1/{}", tx.change_address_index.unwrap()).as_str())?
+                .derive(format!("1/{}", change_address_index).as_str())?
                 .public_key();
             let change_address = BtcKinAddress::from_public_key(&pub_key, &coin_info)?;
 
@@ -352,8 +353,10 @@ mod tests {
         let need_setup = [
             ("BITCOIN", "MAINNET", "NONE"),
             ("BITCOIN", "MAINNET", "P2WPKH"),
+            ("BITCOIN", "MAINNET", "SEGWIT"),
             ("BITCOIN", "TESTNET", "NONE"),
             ("BITCOIN", "TESTNET", "P2WPKH"),
+            ("BITCOIN", "TESTNET", "SEGWIT"),
             ("LITECOIN", "MAINNET", "NONE"),
             ("LITECOIN", "MAINNET", "P2WPKH"),
             ("LITECOIN", "TESTNET", "NONE"),

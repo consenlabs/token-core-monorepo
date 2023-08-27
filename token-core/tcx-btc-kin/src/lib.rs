@@ -1,5 +1,9 @@
+#![feature(let_chains)]
+
 pub mod address;
+
 pub mod bip143_with_forkid;
+pub mod network;
 pub mod signer;
 pub mod transaction;
 
@@ -8,6 +12,9 @@ use serde::{Deserialize, Serialize};
 
 #[macro_use]
 extern crate failure;
+
+#[macro_use]
+extern crate lazy_static;
 
 extern crate num_bigint;
 extern crate num_integer;
@@ -19,10 +26,10 @@ extern crate core;
 
 pub type Result<T> = result::Result<T, failure::Error>;
 
-pub use transaction::{BtcKinTxInput, BtcKinTxOutput, InputDetail, OmniTxInput};
-
 pub use address::{BtcKinAddress, PubKeyScript, WIFDisplay};
+pub use network::BtcKinNetwork;
 pub use signer::ScriptPubKeyComponent;
+pub use transaction::{BtcKinTxInput, BtcKinTxOutput, InputDetail, OmniTxInput};
 
 #[derive(Fail, Debug)]
 pub enum Error {
@@ -34,6 +41,8 @@ pub enum Error {
     MissingNetwork,
     #[fail(display = "invalid_input_cells")]
     InvalidInputCells,
+    #[fail(display = "invalid_address")]
+    InvalidAddress,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

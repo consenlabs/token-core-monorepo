@@ -6579,7 +6579,6 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 name = "tcx"
 version = "0.1.0"
 dependencies = [
- "async-std",
  "base58",
  "base64 0.13.1",
  "bytes 1.4.0",
@@ -6647,6 +6646,7 @@ dependencies = [
  "bytes 1.4.0",
  "failure",
  "hex 0.4.3",
+ "lazy_static",
  "mockall",
  "num-bigint 0.4.3",
  "num-integer",

@@ -1,4 +1,3 @@
-use async_std::task;
 use bytes::BytesMut;
 use prost::Message;
 use serde_json::Value;
@@ -1136,6 +1135,8 @@ pub(crate) fn sign_transaction(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn sign_eth_transaction(param: &SignParam, private_key: &[u8]) -> Result<Vec<u8>> {
+    todo!()
+    /*
     let eth_tx_input: EthTxInput = EthTxInput::decode(
         param
             .input
@@ -1154,9 +1155,13 @@ pub(crate) fn sign_eth_transaction(param: &SignParam, private_key: &[u8]) -> Res
     let eth_tx_output: Result<EthTxOutput> =
         task::block_on(async { eth_tx_input.sign_transaction(private_key).await });
     encode_message(eth_tx_output?)
+
+     */
 }
 
 pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
+    todo!()
+    /*
     let param: SignParam = SignParam::decode(data).expect("EthPersonalSignParam");
 
     let keystore = IMTKeystore::must_find_wallet_by_id(&param.id)?;
@@ -1181,9 +1186,12 @@ pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
         task::block_on(async { input.sign_message(private_key.as_slice()).await });
 
     encode_message(sign_result?)
+     */
 }
 
 pub(crate) fn eth_ec_sign(data: &[u8]) -> Result<Vec<u8>> {
+    todo!()
+    /*
     let param: SignParam = SignParam::decode(data).expect("EthMessageSignParam");
 
     let keystore = IMTKeystore::must_find_wallet_by_id(&param.id)?;
@@ -1208,6 +1216,8 @@ pub(crate) fn eth_ec_sign(data: &[u8]) -> Result<Vec<u8>> {
         task::block_on(async { input.ec_sign(private_key.as_slice()).await });
 
     encode_message(sign_result?)
+
+     */
 }
 
 pub(crate) fn eth_recover_address(data: &[u8]) -> Result<Vec<u8>> {
