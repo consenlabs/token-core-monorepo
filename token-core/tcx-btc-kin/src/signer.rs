@@ -2,8 +2,8 @@ use std::io::Write;
 use tcx_chain::{Keystore, TransactionSigner};
 
 use bitcoin::{
-    EcdsaSighashType, OutPoint, PackedLockTime, PubkeyHash, Script, Sequence, Transaction, TxIn,
-    TxOut, WPubkeyHash, Witness,
+    EcdsaSighashType, OutPoint, PackedLockTime, SchnorrSighashType, Script, Sequence, Transaction,
+    TxIn, TxOut, WPubkeyHash, Witness,
 };
 use bitcoin_hashes::Hash;
 
@@ -11,6 +11,8 @@ use super::Error;
 use crate::Result;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::consensus::serialize;
+use bitcoin::psbt::Prevouts;
+use bitcoin::schnorr::TapTweak;
 use std::str::FromStr;
 
 use crate::address::BtcKinAddress;
@@ -20,6 +22,7 @@ use bitcoin_hashes::hash160;
 use bitcoin_hashes::hex::FromHex as HashFromHex;
 use bitcoin_hashes::hex::ToHex as HashToHex;
 use byteorder::{BigEndian, WriteBytesExt};
+use secp256k1::{Message, Secp256k1};
 use tcx_chain::keystore::Error as KeystoreError;
 use tcx_chain::Address;
 use tcx_primitive::{Derive, PrivateKey, PublicKey, Secp256k1PrivateKey};
@@ -31,42 +34,34 @@ pub trait ScriptPubKeyComponent {
     fn address_script_pub_key(target_addr: &str) -> Result<Script>;
 }
 
-pub struct SigningContext<'a> {
+pub struct TxSigner {
     tx: Transaction,
-    pub private_keys: Vec<Secp256k1PrivateKey>,
-    pub sighash_cache: SighashCache<&'a Transaction>,
+    private_keys: Vec<Secp256k1PrivateKey>,
+    prevouts: Vec<TxOut>,
 }
 
-pub struct KinTransaction {
-    inputs: Vec<InputDetail>,
-    amount: i64,
-    fee: i64,
-    to: Script,
-    change_script: Script,
-    op_return: Option<String>,
-}
-
-impl KinTransaction {
+impl TxSigner {
     fn hash160(&self, input: &[u8]) -> hash160::Hash {
         hash160::Hash::hash(input)
     }
+    fn sign_p2pkh_input(
+        &mut self,
+        sighash_cache: &mut SighashCache<&Transaction>,
+        index: usize,
+    ) -> Result<()> {
+        let key = &self.private_keys[index];
+        let prevout = &self.prevouts[index];
 
-    fn sign_p2pkh_input(&self, context: &mut SigningContext, index: usize) -> Result<()> {
-        let key = &context.private_keys[index];
-        let script = Script::new_p2pkh(&PubkeyHash::from_hash(
-            self.hash160(&key.public_key().to_bytes()),
-        ));
-
-        let hash = context.sighash_cache.legacy_signature_hash(
+        let hash = sighash_cache.legacy_signature_hash(
             index,
-            &script,
+            &prevout.script_pubkey,
             EcdsaSighashType::All.to_u32(),
         )?;
         let sig = key.sign(&hash)?;
 
         let sig = [sig, vec![1]].concat();
 
-        context.tx.input[index].script_sig = Builder::new()
+        self.tx.input[index].script_sig = Builder::new()
             .push_slice(&sig)
             .push_slice(&key.public_key().to_bytes())
             .into_script();
@@ -75,27 +70,27 @@ impl KinTransaction {
     }
 
     fn sign_p2sh_nested_p2wpkh_input(
-        &self,
-        context: &mut SigningContext,
+        &mut self,
+        sighash_cache: &mut SighashCache<&Transaction>,
         index: usize,
     ) -> Result<()> {
-        let input = &self.inputs[index];
-        let key = &context.private_keys[index];
+        let prevout = &self.prevouts[index];
+        let key = &self.private_keys[index];
         let pub_key = key.public_key();
 
         let script = Script::new_v0_p2wpkh(&WPubkeyHash::from_hash(
             self.hash160(&pub_key.to_compressed()),
         ));
 
-        let hash = context.sighash_cache.segwit_signature_hash(
+        let hash = sighash_cache.segwit_signature_hash(
             index,
             &script.p2wpkh_script_code().expect("must be v0_p2wpkh"),
-            input.amount as u64,
+            prevout.value as u64,
             EcdsaSighashType::All,
         )?;
         let sig = key.sign(&hash)?;
 
-        let tx_input = &mut context.tx.input[index];
+        let tx_input = &mut self.tx.input[index];
 
         let sig = [sig, vec![1]].concat();
 
@@ -106,36 +101,93 @@ impl KinTransaction {
         Ok(())
     }
 
-    fn sign_p2wpkh_input(&self, context: &mut SigningContext, index: usize) -> Result<()> {
-        let key = &context.private_keys[index];
-        let input = &self.inputs[index];
-        let pub_key = key.public_key();
+    fn sign_p2wpkh_input(
+        &mut self,
+        sighash_cache: &mut SighashCache<&Transaction>,
+        index: usize,
+    ) -> Result<()> {
+        let key = &self.private_keys[index];
+        let prevout = &self.prevouts[index];
 
-        let script = Script::new_v0_p2wpkh(&WPubkeyHash::from_hash(
-            self.hash160(&pub_key.to_compressed()),
-        ));
-
-        let hash = context.sighash_cache.segwit_signature_hash(
+        let hash = sighash_cache.segwit_signature_hash(
             index,
-            &script,
-            input.amount as u64,
+            &prevout.script_pubkey,
+            prevout.value,
             EcdsaSighashType::All,
         )?;
         let sig = key.sign(&hash)?;
 
-        let tx_input = &mut context.tx.input[index];
+        let tx_input = &mut self.tx.input[index];
 
         let sig = [sig, vec![1]].concat();
         tx_input.witness.push(sig);
-        tx_input.witness.push(pub_key.to_bytes());
+        tx_input.witness.push(key.public_key().to_bytes());
 
         Ok(())
     }
 
-    fn sign_p2tr_input(&self, context: &mut SigningContext, index: usize) -> Result<()> {
-        unimplemented!()
+    fn sign_p2tr_input(
+        &mut self,
+        sighash_cache: &mut SighashCache<&Transaction>,
+        index: usize,
+    ) -> Result<()> {
+        let key = &self.private_keys[index];
+        let secp = Secp256k1::new();
+
+        let key_pair =
+            bitcoin::schnorr::UntweakedKeyPair::from_seckey_slice(&secp, &key.to_bytes())?
+                .tap_tweak(&secp, None);
+
+        let hash = sighash_cache.taproot_signature_hash(
+            index,
+            &Prevouts::All(&self.prevouts.clone()),
+            None,
+            None,
+            SchnorrSighashType::All,
+        )?;
+
+        let msg = Message::from_slice(&hash[..])?;
+        let sig = secp.sign_schnorr(&msg, &key_pair.to_inner());
+
+        let tx_input = &mut self.tx.input[index];
+
+        tx_input.witness.push(sig.as_ref());
+
+        Ok(())
     }
 
+    fn sign(&mut self) -> Result<()> {
+        let cloned_tx = self.tx.clone();
+        let mut sighash_cache = SighashCache::new(&cloned_tx);
+
+        for idx in 0..self.prevouts.len() {
+            let prevout = &self.prevouts[idx];
+
+            if prevout.script_pubkey.is_p2pkh() {
+                self.sign_p2pkh_input(&mut sighash_cache, idx)?;
+            } else if prevout.script_pubkey.is_p2sh() {
+                self.sign_p2sh_nested_p2wpkh_input(&mut sighash_cache, idx)?;
+            } else if prevout.script_pubkey.is_v0_p2wpkh() {
+                self.sign_p2wpkh_input(&mut sighash_cache, idx)?;
+            } else if prevout.script_pubkey.is_v1_p2tr() {
+                self.sign_p2tr_input(&mut sighash_cache, idx)?;
+            }
+        }
+
+        Ok(())
+    }
+}
+
+pub struct KinTransaction {
+    inputs: Vec<Utxo>,
+    amount: i64,
+    fee: i64,
+    to: Script,
+    change_script: Script,
+    op_return: Option<String>,
+}
+
+impl KinTransaction {
     fn tx_outs(&self) -> Result<Vec<TxOut>> {
         let mut total_amount = 0;
 
@@ -181,61 +233,50 @@ impl KinTransaction {
         version: i32,
         private_keys: Vec<Secp256k1PrivateKey>,
     ) -> Result<BtcKinTxOutput> {
-        let tx_input = self
-            .inputs
-            .iter()
-            .map(|x| TxIn {
+        let mut prevouts = vec![];
+        let mut tx_inputs: Vec<TxIn> = vec![];
+
+        for inp in self.inputs.iter() {
+            prevouts.push(TxOut {
+                value: inp.amount as u64,
+                script_pubkey: BtcKinAddress::from_str(&inp.address)?.script_pubkey(),
+            });
+
+            tx_inputs.push(TxIn {
                 previous_output: OutPoint {
-                    txid: bitcoin::hash_types::Txid::from_hex(&x.tx_hash).expect("tx_hash"),
-                    vout: x.vout as u32,
+                    txid: bitcoin::hash_types::Txid::from_hex(&inp.tx_hash)?,
+                    vout: inp.vout as u32,
                 },
                 script_sig: Script::new(),
                 sequence: Sequence::MAX,
                 witness: Witness::default(),
-            })
-            .collect::<Vec<TxIn>>();
+            });
+        }
 
         let tx_outs = self.tx_outs()?;
 
         let tx = Transaction {
             version,
             lock_time: PackedLockTime::ZERO,
-            input: tx_input.clone(),
-            output: tx_outs.clone(),
-        };
-
-        let tx_clone = Transaction {
-            version,
-            lock_time: PackedLockTime::ZERO,
-            input: tx_input,
+            input: tx_inputs,
             output: tx_outs,
         };
 
-        let mut context = SigningContext {
+        let mut singer = TxSigner {
             tx,
             private_keys,
-            sighash_cache: SighashCache::new(&tx_clone),
+            prevouts,
         };
 
-        for idx in 0..self.inputs.len() {
-            let input = &self.inputs[idx];
-            let script = BtcKinAddress::from_str(&input.address)?.script_pubkey();
-            if script.is_p2pkh() {
-                self.sign_p2pkh_input(&mut context, idx)?;
-            } else if script.is_p2sh() {
-                self.sign_p2sh_nested_p2wpkh_input(&mut context, idx)?;
-            } else if script.is_v0_p2wpkh() {
-                self.sign_p2wpkh_input(&mut context, idx)?;
-            } else if script.is_v1_p2tr() {
-                self.sign_p2tr_input(&mut context, idx)?;
-            }
-        }
-
-        let tx_bytes = serialize(&context.tx);
-        let tx_hash = context.tx.txid().to_hex();
+        singer.sign()?;
+        let tx = singer.tx;
+        let tx_bytes = serialize(&tx);
+        let tx_hash = tx.txid().to_hex();
+        let wtx_hash = tx.wtxid().to_hex();
 
         Ok(BtcKinTxOutput {
             raw_tx: tx_bytes.to_hex(),
+            wtx_hash,
             tx_hash,
         })
     }
@@ -354,9 +395,11 @@ mod tests {
             ("BITCOIN", "MAINNET", "NONE"),
             ("BITCOIN", "MAINNET", "P2WPKH"),
             ("BITCOIN", "MAINNET", "SEGWIT"),
+            ("BITCOIN", "MAINNET", "P2TR"),
             ("BITCOIN", "TESTNET", "NONE"),
             ("BITCOIN", "TESTNET", "P2WPKH"),
             ("BITCOIN", "TESTNET", "SEGWIT"),
+            ("BITCOIN", "TESTNET", "P2TR"),
             ("LITECOIN", "MAINNET", "NONE"),
             ("LITECOIN", "MAINNET", "P2WPKH"),
             ("LITECOIN", "TESTNET", "NONE"),
@@ -407,10 +450,10 @@ mod tests {
         use super::*;
 
         #[test]
-        fn sign_less_than_dust() {
+        fn test_sign_less_than_dust() {
             let mut ks = sample_private_key_keystore();
 
-            let inputs = vec![InputDetail {
+            let inputs = vec![Utxo {
                 tx_hash: "e112b1215813c8888b31a80d215169809f7901359c0f4bf7e7374174ab2a64f4"
                     .to_string(),
                 vout: 0,
@@ -441,9 +484,9 @@ mod tests {
         use super::*;
 
         #[test]
-        fn sign_with_hd_on_testnet() {
+        fn test_sign_with_hd_on_testnet() {
             let mut ks = sample_hd_keystore();
-            let inputs = vec![InputDetail {
+            let inputs = vec![Utxo {
                 tx_hash: "0dd195c815c5086c5995f43a0c67d28344ae5fa130739a5e03ef40fea54f2031"
                     .to_string(),
                 vout: 0,
@@ -467,9 +510,9 @@ mod tests {
         }
 
         #[test]
-        fn sign_with_hd_p2shp2wpkh_on_testnet() {
+        fn test_sign_with_hd_p2shp2wpkh_on_testnet() {
             let mut ks = sample_hd_keystore();
-            let inputs = vec![InputDetail {
+            let inputs = vec![Utxo {
                 tx_hash: "9baf6fd0e560f9f199f4879c23cb73b9c4affb54a1cfdbacb85687efa89f4c78"
                     .to_string(),
                 vout: 1,
@@ -497,10 +540,81 @@ mod tests {
         use super::*;
 
         #[test]
-        fn sign_with_private_key_on_testnet() {
+        fn test_sign_with_multi_payment_on_testnet() {
+            let mut ks = sample_hd_keystore();
+
+            let inputs = vec![
+                Utxo {
+                    tx_hash: "aea080afe2cdeb23f0d9f546d386329addda5a6fdc521e02d74d5a4e4461dc4a"
+                        .to_string(),
+                    vout: 0,
+                    amount: 20000,
+                    address: "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4"
+                        .to_string(),
+                    derived_path: "0/0".to_string(),
+                },
+                Utxo {
+                    tx_hash: "aea080afe2cdeb23f0d9f546d386329addda5a6fdc521e02d74d5a4e4461dc4a"
+                        .to_string(),
+                    vout: 1,
+                    amount: 283000,
+                    address: "tb1pjvp6z9shfhfpafrnwen9j452cf8tdwpgc0hfnzvz62aqwr4qv92sg7qj9r"
+                        .to_string(),
+                    derived_path: "0/0".to_string(),
+                },
+                Utxo {
+                    tx_hash: "13dca25cc94c015067761f5cecf48dfb3afcaea78abeb28ce1b585bf4980cc12"
+                        .to_string(),
+                    vout: 0,
+                    amount: 100000,
+                    address: "tb1qrfaf3g4elgykshfgahktyaqj2r593qkrae5v95".to_string(),
+                    derived_path: "0/0".to_string(),
+                },
+                Utxo {
+                    tx_hash: "0122f46a161ded9805d95930549b2e4d93a765ef3dd5f10052c68c9270659e72"
+                        .to_string(),
+                    vout: 1,
+                    amount: 100000,
+                    address: "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB".to_string(),
+                    derived_path: "0/0".to_string(),
+                },
+                Utxo {
+                    tx_hash: "d8929d60667d2a717abd833828a899795c45c843352b3552322fcd75447226a1"
+                        .to_string(),
+                    vout: 1,
+                    amount: 100000,
+                    address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
+                    derived_path: "0/0".to_string(),
+                },
+            ];
+
+            let tx_input = BtcKinTxInput {
+                inputs: inputs.clone(),
+                to: "tb1pxcrec4q8tzj34phw470pwe5dfkz58k93kljklck6pxpv8yx9v40q66tmr7".to_string(),
+                amount: 40000,
+                fee: 40000,
+                change_address_index: Some(0u32),
+                op_return: None,
+            };
+
+            let actual = ks
+                .sign_transaction("BITCOIN", "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN", &tx_input)
+                .unwrap();
+            /*    assert_eq!(actual.raw_tx, "020000000001054adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0000000000ffffffff4adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0100000000ffffffff12cc8049bf85b5e18cb2be8aa7aefc3afb8df4ec5c1f766750014cc95ca2dc130000000000ffffffff729e6570928cc65200f1d53def65a7934d2e9b543059d90598ed1d166af422010100000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffffa126724475cd2f3252352b3543c8455c7999a8283883bd7a712a7d66609d92d8010000006b483045022100ca32abc7b180c84cf76907e4e1e0c3f4c0d6e64de23b0708647ac6fee1c04c5b02206e7412a712424eb9406f18e00a42e0dffbfb5901932d1ef97843d9273865550e0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff02409c00000000000022512036079c540758a51a86eeaf9e17668d4d8543d8b1b7e56fe2da0982c390c5655ef8fa0700000000002251209303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea0615501400391589e6eb0e8132b8ceb6a6ad4467eee7b04963111106aaf9449862dfba8f0492b36da66da7a16efb109d2e184c907979522adbcafe9abddd132028c22021001408b6246f16124e3e21f68b8675c00a8422fa617ae6dce0e38a2a1d75f2b285db9fbe0ea43a9f92b06c0e4b4ad631e5a3102f054c0b497207f632128c0222a883b02473044022022c2feaa4a225496fc6789c969fb776da7378f44c588ad812a7e1227ebe69b6302204fc7bf5107c6d02021fe4833629bc7ab71cefe354026ebd0d9c0da7d4f335f94012102e24f625a31c9a8bae42239f2bf945a306c01a450a03fd123316db0e837a660c002483045022100dec4d3fd189b532ef04f41f68319ff7dc6a7f2351a0a8f98cb7f1ec1f6d71c7a02205e507162669b642fdb480a6c496abbae5f798bce4fd42cc390aa58e3847a1b910121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc0000000000" );
+               assert_eq!(
+                   actual.tx_hash,
+                   "2bdcfa88d5f48954e98018da33aaf11a4951b4167ba8121bc787880890dee5f0"
+
+               );
+
+            */
+        }
+
+        #[test]
+        fn test_sign_with_private_key_on_testnet() {
             let mut ks = sample_private_key_keystore();
 
-            let inputs = vec![InputDetail {
+            let inputs = vec![Utxo {
                 tx_hash: "e112b1215813c8888b31a80d215169809f7901359c0f4bf7e7374174ab2a64f4"
                     .to_string(),
                 vout: 0,
@@ -556,11 +670,11 @@ mod tests {
         }
 
         #[test]
-        fn sign_with_hd_on_testnet() {
+        fn test_sign_with_hd_on_testnet() {
             let mut ks = sample_hd_keystore();
 
             let inputs = vec![
-                InputDetail {
+                Utxo {
                     tx_hash: "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a"
                         .to_string(),
                     vout: 0,
@@ -568,7 +682,7 @@ mod tests {
                     address: "mh7jj2ELSQUvRQELbn9qyA4q5nADhmJmUC".to_string(),
                     derived_path: "0/22".to_string(),
                 },
-                InputDetail {
+                Utxo {
                     tx_hash: "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531"
                         .to_string(),
                     vout: 1,
@@ -576,7 +690,7 @@ mod tests {
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
                     derived_path: "0/0".to_string(),
                 },
-                InputDetail {
+                Utxo {
                     tx_hash: "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9"
                         .to_string(),
                     vout: 0,
@@ -584,7 +698,7 @@ mod tests {
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
                     derived_path: "0/0".to_string(),
                 },
-                InputDetail {
+                Utxo {
                     tx_hash: "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9"
                         .to_string(),
                     vout: 1,
@@ -631,11 +745,11 @@ mod tests {
         }
 
         #[test]
-        fn sign_op_return_with_hd_on_testnet() {
+        fn test_sign_op_return_with_hd_on_testnet() {
             let mut ks = sample_hd_keystore();
 
             let unspent = vec![
-                InputDetail {
+                Utxo {
                     tx_hash: "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a"
                         .to_string(),
                     vout: 0,
@@ -643,7 +757,7 @@ mod tests {
                     address: "mh7jj2ELSQUvRQELbn9qyA4q5nADhmJmUC".to_string(),
                     derived_path: "0/22".to_string(),
                 },
-                InputDetail {
+                Utxo {
                     tx_hash: "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531"
                         .to_string(),
                     vout: 1,
@@ -651,7 +765,7 @@ mod tests {
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
                     derived_path: "0/0".to_string(),
                 },
-                InputDetail {
+                Utxo {
                     tx_hash: "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9"
                         .to_string(),
                     vout: 0,
@@ -659,7 +773,7 @@ mod tests {
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
                     derived_path: "0/0".to_string(),
                 },
-                InputDetail {
+                Utxo {
                     tx_hash: "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9"
                         .to_string(),
                     vout: 1,
@@ -686,11 +800,11 @@ mod tests {
         }
 
         #[test]
-        fn sign_p2shwpkh_on_testnet() {
+        fn test_sign_p2shwpkh_on_testnet() {
             let mut ks = sample_hd_keystore();
 
             let unspent = vec![
-                InputDetail {
+                Utxo {
                     tx_hash: "c2ceb5088cf39b677705526065667a3992c68cc18593a9af12607e057672717f"
                         .to_string(),
                     vout: 0,
@@ -698,7 +812,7 @@ mod tests {
                     address: "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB".to_string(),
                     derived_path: "0/0".to_string(),
                 },
-                InputDetail {
+                Utxo {
                     tx_hash: "9ad628d450952a575af59f7d416c9bc337d184024608f1d2e13383c44bd5cd74"
                         .to_string(),
                     vout: 0,
@@ -740,11 +854,11 @@ mod tests {
         }
 
         #[test]
-        fn sign_segwit_with_op_return_on_testnet() {
+        fn test_sign_segwit_with_op_return_on_testnet() {
             let mut ks = sample_hd_keystore();
 
             let unspent = vec![
-                InputDetail {
+                Utxo {
                     tx_hash: "c2ceb5088cf39b677705526065667a3992c68cc18593a9af12607e057672717f"
                         .to_string(),
                     vout: 0,
@@ -752,7 +866,7 @@ mod tests {
                     address: "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB".to_string(),
                     derived_path: "0/0".to_string(),
                 },
-                InputDetail {
+                Utxo {
                     tx_hash: "9ad628d450952a575af59f7d416c9bc337d184024608f1d2e13383c44bd5cd74"
                         .to_string(),
                     vout: 0,
@@ -783,11 +897,11 @@ mod tests {
         use super::*;
 
         #[test]
-        fn sign_with_hd_on_testnet() {
+        fn test_sign_with_hd_on_testnet() {
             let keystore_json = r#"
         {"id":"ae45d424-31d8-49f7-a601-1272b40c566d","version":11000,"keyHash":"512115eca3ae86646aeb06861d551e403b543509","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"588233984e9576f058bd7bae018eaa38"},"ciphertext":"8a5451c57fed478c7d45f5391659a6fb5fc85a347f1f7aaead450ad4ef4fe434d042d57aa990d850165293609aa746c715c805b236c3d54d86e7dea7d938ce55fcb2684e0eb7e0e6cc7d","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"ee656af962155e4e6e763b0883ed0d8cc37c2fa21a7ef01b1d3b18f352f74c69"},"mac":"a661aa444869aac9ea33f066676c6bfb49d079ab986d0ee755f8a1747b2b7f17"},"activeAccounts":[{"address":"mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN","derivationPath":"m/44'/1'/0'/0/0","curve":"SECP256k1","coin":"LITECOIN","network":"TESTNET","segWit":"NONE","extPubKey":"036c2b38ad8000000023332f38a77023d3c1a450499c8aeb3db2e666aa2cc6fff7db6797c5d2aef8fc036663443d71127b332c68cd6bffb6c2b5eb4dc6861404ed055dc36a25b8c18020"}],"imTokenMeta":{"name":"LTC-Wallet-1","passwordHint":"","timestamp":1576561805,"source":"MNEMONIC"}}
         "#;
-            let inputs = vec![InputDetail {
+            let inputs = vec![Utxo {
                 tx_hash: "57c935201d6abf4b32151f9d96bfb51b058824a601011c3432e751b0a6d4a101"
                     .to_string(),
                 vout: 0,
@@ -817,12 +931,12 @@ mod tests {
         }
 
         #[test]
-        fn sign_multi_utxo_with_hd_on_testnet() {
+        fn test_sign_multi_utxo_with_hd_on_testnet() {
             let keystore_json = r#"
         {"id":"ae45d424-31d8-49f7-a601-1272b40c566d","version":11000,"keyHash":"512115eca3ae86646aeb06861d551e403b543509","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"588233984e9576f058bd7bae018eaa38"},"ciphertext":"8a5451c57fed478c7d45f5391659a6fb5fc85a347f1f7aaead450ad4ef4fe434d042d57aa990d850165293609aa746c715c805b236c3d54d86e7dea7d938ce55fcb2684e0eb7e0e6cc7d","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"ee656af962155e4e6e763b0883ed0d8cc37c2fa21a7ef01b1d3b18f352f74c69"},"mac":"a661aa444869aac9ea33f066676c6bfb49d079ab986d0ee755f8a1747b2b7f17"},"activeAccounts":[{"address":"mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN","derivationPath":"m/44'/1'/0'/0/0","curve":"SECP256k1","coin":"LITECOIN","network":"TESTNET","segWit":"NONE","extPubKey":"036c2b38ad8000000023332f38a77023d3c1a450499c8aeb3db2e666aa2cc6fff7db6797c5d2aef8fc036663443d71127b332c68cd6bffb6c2b5eb4dc6861404ed055dc36a25b8c18020"}],"imTokenMeta":{"name":"LTC-Wallet-1","passwordHint":"","timestamp":1576561805,"source":"MNEMONIC"}}
         "#;
             let inputs = vec![
-                InputDetail {
+                Utxo {
                     tx_hash: "57c935201d6abf4b32151f9d96bfb51b058824a601011c3432e751b0a6d4a101"
                         .to_string(),
                     vout: 0,
@@ -830,7 +944,7 @@ mod tests {
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
                     derived_path: "0/0".to_string(),
                 },
-                InputDetail {
+                Utxo {
                     tx_hash: "57c935201d6abf4b32151f9d96bfb51b058824a601011c3432e751b0a6d4a100"
                         .to_string(),
                     vout: 0,
@@ -862,11 +976,11 @@ mod tests {
         }
 
         #[test]
-        fn wrong_derived_path() {
+        fn test_wrong_derived_path() {
             let keystore_json = r#"
         {"id":"ae45d424-31d8-49f7-a601-1272b40c566d","version":11000,"keyHash":"512115eca3ae86646aeb06861d551e403b543509","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"588233984e9576f058bd7bae018eaa38"},"ciphertext":"8a5451c57fed478c7d45f5391659a6fb5fc85a347f1f7aaead450ad4ef4fe434d042d57aa990d850165293609aa746c715c805b236c3d54d86e7dea7d938ce55fcb2684e0eb7e0e6cc7d","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"ee656af962155e4e6e763b0883ed0d8cc37c2fa21a7ef01b1d3b18f352f74c69"},"mac":"a661aa444869aac9ea33f066676c6bfb49d079ab986d0ee755f8a1747b2b7f17"},"activeAccounts":[{"address":"mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN","derivationPath":"m/44'/1'/0'/0/0","curve":"SECP256k1","coin":"LITECOIN","network":"TESTNET","segWit":"NONE","extPubKey":"036c2b38ad8000000023332f38a77023d3c1a450499c8aeb3db2e666aa2cc6fff7db6797c5d2aef8fc036663443d71127b332c68cd6bffb6c2b5eb4dc6861404ed055dc36a25b8c18020"}],"imTokenMeta":{"name":"LTC-Wallet-1","passwordHint":"","timestamp":1576561805,"source":"MNEMONIC"}}
         "#;
-            let inputs = vec![InputDetail {
+            let inputs = vec![Utxo {
                 tx_hash: "57c935201d6abf4b32151f9d96bfb51b058824a601011c3432e751b0a6d4a101"
                     .to_string(),
                 vout: 0,
@@ -896,11 +1010,11 @@ mod tests {
         }
 
         #[test]
-        fn invalid_derived_path() {
+        fn test_invalid_derived_path() {
             let keystore_json = r#"
         {"id":"ae45d424-31d8-49f7-a601-1272b40c566d","version":11000,"keyHash":"512115eca3ae86646aeb06861d551e403b543509","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"588233984e9576f058bd7bae018eaa38"},"ciphertext":"8a5451c57fed478c7d45f5391659a6fb5fc85a347f1f7aaead450ad4ef4fe434d042d57aa990d850165293609aa746c715c805b236c3d54d86e7dea7d938ce55fcb2684e0eb7e0e6cc7d","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"ee656af962155e4e6e763b0883ed0d8cc37c2fa21a7ef01b1d3b18f352f74c69"},"mac":"a661aa444869aac9ea33f066676c6bfb49d079ab986d0ee755f8a1747b2b7f17"},"activeAccounts":[{"address":"mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN","derivationPath":"m/44'/1'/0'/0/0","curve":"SECP256k1","coin":"LITECOIN","network":"TESTNET","segWit":"NONE","extPubKey":"036c2b38ad8000000023332f38a77023d3c1a450499c8aeb3db2e666aa2cc6fff7db6797c5d2aef8fc036663443d71127b332c68cd6bffb6c2b5eb4dc6861404ed055dc36a25b8c18020"}],"imTokenMeta":{"name":"LTC-Wallet-1","passwordHint":"","timestamp":1576561805,"source":"MNEMONIC"}}
         "#;
-            let inputs = vec![InputDetail {
+            let inputs = vec![Utxo {
                 tx_hash: "57c935201d6abf4b32151f9d96bfb51b058824a601011c3432e751b0a6d4a101"
                     .to_string(),
                 vout: 0,
@@ -932,11 +1046,11 @@ mod tests {
         }
 
         #[test]
-        fn sign_invalid_unspent_address() {
+        fn test_sign_invalid_unspent_address() {
             let keystore_json = r#"
         {"id":"ae45d424-31d8-49f7-a601-1272b40c566d","version":11000,"keyHash":"512115eca3ae86646aeb06861d551e403b543509","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"588233984e9576f058bd7bae018eaa38"},"ciphertext":"8a5451c57fed478c7d45f5391659a6fb5fc85a347f1f7aaead450ad4ef4fe434d042d57aa990d850165293609aa746c715c805b236c3d54d86e7dea7d938ce55fcb2684e0eb7e0e6cc7d","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"ee656af962155e4e6e763b0883ed0d8cc37c2fa21a7ef01b1d3b18f352f74c69"},"mac":"a661aa444869aac9ea33f066676c6bfb49d079ab986d0ee755f8a1747b2b7f17"},"activeAccounts":[{"address":"mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN","derivationPath":"m/44'/1'/0'/0/0","curve":"SECP256k1","coin":"LITECOIN","network":"TESTNET","segWit":"NONE","extPubKey":"036c2b38ad8000000023332f38a77023d3c1a450499c8aeb3db2e666aa2cc6fff7db6797c5d2aef8fc036663443d71127b332c68cd6bffb6c2b5eb4dc6861404ed055dc36a25b8c18020"}],"imTokenMeta":{"name":"LTC-Wallet-1","passwordHint":"","timestamp":1576561805,"source":"MNEMONIC"}}
         "#;
-            let inputs = vec![InputDetail {
+            let inputs = vec![Utxo {
                 tx_hash: "57c935201d6abf4b32151f9d96bfb51b058824a601011c3432e751b0a6d4a101"
                     .to_string(),
                 vout: 0,
@@ -964,9 +1078,9 @@ mod tests {
         }
 
         #[test]
-        fn sign_amount_great_than_inputs() {
+        fn test_sign_amount_great_than_inputs() {
             // amount great than inputs
-            let inputs = vec![InputDetail {
+            let inputs = vec![Utxo {
                 tx_hash: "a477af6b2667c29670467e4e0728b685ee07b240235771862318e29ddbe58458"
                     .to_string(),
                 vout: 0,
@@ -1011,10 +1125,10 @@ mod tests {
         }
 
         #[test]
-        fn sign_invalid_address() {
+        fn test_sign_invalid_address() {
             let chain_types = vec!["BITCOINCASH", "LITECOIN"];
             for chain_type in chain_types {
-                let inputs = vec![InputDetail {
+                let inputs = vec![Utxo {
                     tx_hash: "a477af6b2667c29670467e4e0728b685ee07b240235771862318e29ddbe58458"
                         .to_string(),
                     vout: 0,
@@ -1043,8 +1157,8 @@ mod tests {
         }
 
         #[test]
-        fn sign_segwit() {
-            let inputs = vec![InputDetail {
+        fn test_sign_segwit() {
+            let inputs = vec![Utxo {
                 tx_hash: "e868b66e75376add2154acb558cf45ff7b723f255e2aca794da1548eb945ba8b"
                     .to_string(),
                 vout: 1,

@@ -49,7 +49,7 @@ lazy_static! {
         });
         coin_infos.push(CoinInfo {
             coin: "BITCOIN".to_string(),
-            derivation_path: "m/84'/0'/0/0".to_string(),
+            derivation_path: "m/84'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "SEGWIT".to_string(),
@@ -63,17 +63,17 @@ lazy_static! {
         });
         coin_infos.push(CoinInfo {
             coin: "BITCOIN".to_string(),
-            derivation_path: "m/86'/0'/0/0".to_string(),
+            derivation_path: "m/86'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
-            seg_wit: "TAPROOT".to_string(),
+            seg_wit: "P2TR".to_string(),
         });
         coin_infos.push(CoinInfo {
             coin: "BITCOIN".to_string(),
             derivation_path: "m/86'/1'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
-            seg_wit: "TAPROOT".to_string(),
+            seg_wit: "P2TR".to_string(),
         });
         coin_infos.push(CoinInfo {
             coin: "BITCOINCASH".to_string(),

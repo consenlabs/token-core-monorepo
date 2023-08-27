@@ -29,7 +29,7 @@ pub type Result<T> = result::Result<T, failure::Error>;
 pub use address::{BtcKinAddress, PubKeyScript, WIFDisplay};
 pub use network::BtcKinNetwork;
 pub use signer::ScriptPubKeyComponent;
-pub use transaction::{BtcKinTxInput, BtcKinTxOutput, InputDetail, OmniTxInput};
+pub use transaction::{BtcKinTxInput, BtcKinTxOutput, OmniTxInput, Utxo};
 
 #[derive(Fail, Debug)]
 pub enum Error {

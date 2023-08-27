@@ -6,8 +6,8 @@ package transaction;
 // - https://en.bitcoin.it/wiki/Transaction
 // - https://www.bitcoincash.org/spec/transaction.html
 
-// FUNCTION: sign_tx(SignParam{input: BtcForkTxInput}): BtcForkSignedTxOutput
-message InputDetail {
+// FUNCTION: sign_tx(SignParam{input: BtcKinTxInput}): BtcKinTxOutput
+message Utxo {
     string txHash = 1;
     int32 vout = 2;
     int64 amount = 3;
@@ -16,7 +16,7 @@ message InputDetail {
 }
 
 message BtcKinTxInput {
-    repeated InputDetail inputs = 1;
+    repeated Utxo inputs = 1;
     string to = 2;
     int64 amount = 3;
     int64 fee = 4;
@@ -27,10 +27,11 @@ message BtcKinTxInput {
 message BtcKinTxOutput {
     string rawTx = 1;
     string txHash = 2;
+    string wtxHash = 3;
 }
 
 message OmniTxInput {
-    repeated InputDetail inputs = 1;
+    repeated Utxo inputs = 1;
     string to = 2;
     int64 amount = 3;
     int64 fee = 4;

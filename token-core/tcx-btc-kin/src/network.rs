@@ -3,13 +3,13 @@ pub struct BtcKinNetwork {
     pub coin: String,
     pub network: String,
 
-    pub hrp: String,
-    pub p2pkh: u8,
-    pub p2sh: u8,
-    pub private: u8,
+    pub bech32_hrp: String,
+    pub p2pkh_prefix: u8,
+    pub p2sh_prefix: u8,
+    pub private_prefix: u8,
 
-    pub xpub: [u8; 4],
-    pub xprv: [u8; 4],
+    pub xpub_prefix: [u8; 4],
+    pub xprv_prefix: [u8; 4],
 }
 
 lazy_static! {
@@ -93,12 +93,12 @@ impl BtcKinNetwork {
         BtcKinNetwork {
             coin: coin.to_string(),
             network: network.to_string(),
-            hrp: hrp.to_string(),
-            p2pkh,
-            p2sh,
-            private,
-            xpub,
-            xprv,
+            bech32_hrp: hrp.to_string(),
+            p2pkh_prefix: p2pkh,
+            p2sh_prefix: p2sh,
+            private_prefix: private,
+            xpub_prefix: xpub,
+            xprv_prefix: xprv,
         }
     }
 
@@ -110,13 +110,16 @@ impl BtcKinNetwork {
     }
 
     pub fn find_by_hrp<'a>(hrp: &str) -> Option<&'a BtcKinNetwork> {
-        BTC_KIN_NETWORKS.iter().filter(|net| net.hrp == hrp).next()
+        BTC_KIN_NETWORKS
+            .iter()
+            .filter(|net| net.bech32_hrp == hrp)
+            .next()
     }
 
     pub fn find_by_prefix<'a>(prefix: u8) -> Option<&'a BtcKinNetwork> {
         BTC_KIN_NETWORKS
             .iter()
-            .filter(|net| net.p2pkh == prefix || net.p2sh == prefix)
+            .filter(|net| net.p2pkh_prefix == prefix || net.p2sh_prefix == prefix)
             .next()
     }
 }

@@ -1,7 +1,7 @@
-/// FUNCTION: sign_tx(SignParam{input: BtcForkTxInput}): BtcForkSignedTxOutput
+/// FUNCTION: sign_tx(SignParam{input: BtcKinTxInput}): BtcKinTxOutput
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct InputDetail {
+pub struct Utxo {
     #[prost(string, tag = "1")]
     pub tx_hash: ::prost::alloc::string::String,
     #[prost(int32, tag = "2")]
@@ -17,7 +17,7 @@ pub struct InputDetail {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BtcKinTxInput {
     #[prost(message, repeated, tag = "1")]
-    pub inputs: ::prost::alloc::vec::Vec<InputDetail>,
+    pub inputs: ::prost::alloc::vec::Vec<Utxo>,
     #[prost(string, tag = "2")]
     pub to: ::prost::alloc::string::String,
     #[prost(int64, tag = "3")]
@@ -36,12 +36,14 @@ pub struct BtcKinTxOutput {
     pub raw_tx: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub tx_hash: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub wtx_hash: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct OmniTxInput {
     #[prost(message, repeated, tag = "1")]
-    pub inputs: ::prost::alloc::vec::Vec<InputDetail>,
+    pub inputs: ::prost::alloc::vec::Vec<Utxo>,
     #[prost(string, tag = "2")]
     pub to: ::prost::alloc::string::String,
     #[prost(int64, tag = "3")]
