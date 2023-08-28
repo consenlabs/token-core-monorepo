@@ -2,6 +2,7 @@ pub mod constants;
 pub mod identity;
 pub mod imt_keystore;
 pub mod model;
+pub mod v3_keystore;
 pub mod wallet_api;
 #[macro_use]
 extern crate failure;

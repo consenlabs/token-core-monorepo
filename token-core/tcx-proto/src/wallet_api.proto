@@ -53,7 +53,7 @@ message IMTKeystore {
     string id = 1;
     uint32 version = 2;
     string address = 3;
-    string mnemonicPath = 4;
+    optional string mnemonicPath = 4;
     Metadata metadata = 5;
 }
 
@@ -90,4 +90,22 @@ message RemoveIdentityParam {
 
 message RemoveIdentityResult {
     string identifier = 1;
+}
+
+message V3KeystoreImportInput {
+    string keystore = 1;
+    string password = 2;
+    bool overwrite = 3;
+    string name = 4;
+    string chainType = 5;
+    string source = 6;
+}
+
+message V3KeystoreExportInput {
+    string id = 1;
+    string password = 2;
+}
+
+message V3KeystoreExportOutput {
+    string json = 1;
 }

@@ -87,8 +87,8 @@ pub struct ImtKeystore {
     pub version: u32,
     #[prost(string, tag = "3")]
     pub address: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub mnemonic_path: ::prost::alloc::string::String,
+    #[prost(string, optional, tag = "4")]
+    pub mnemonic_path: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(message, optional, tag = "5")]
     pub metadata: ::core::option::Option<Metadata>,
 }
@@ -149,4 +149,34 @@ pub struct RemoveIdentityParam {
 pub struct RemoveIdentityResult {
     #[prost(string, tag = "1")]
     pub identifier: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct V3KeystoreImportInput {
+    #[prost(string, tag = "1")]
+    pub keystore: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(bool, tag = "3")]
+    pub overwrite: bool,
+    #[prost(string, tag = "4")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub chain_type: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub source: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct V3KeystoreExportInput {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub password: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct V3KeystoreExportOutput {
+    #[prost(string, tag = "1")]
+    pub json: ::prost::alloc::string::String,
 }

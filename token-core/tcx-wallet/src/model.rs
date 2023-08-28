@@ -24,7 +24,7 @@ pub const NETWORK_TESTNET: &str = "TESTNET";
 pub struct Metadata {
     pub name: String,
     pub password_hint: Option<String>,
-    pub chain_type: String,
+    pub chain_type: Option<String>,
     pub timestamp: u128,
     pub network: String,
     pub backup: Option<Vec<String>>,
@@ -40,13 +40,14 @@ impl Metadata {
         password_hint: Option<String>,
         source: &str,
         network: &str,
+        chain_type: Option<&str>,
         seg_wit: Option<&str>,
     ) -> Result<Self> {
         let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_micros();
         Ok(Metadata {
             name: name.to_string(),
             password_hint,
-            chain_type: "".to_string(),
+            chain_type: chain_type.and_then(|val| Some(val.to_string())),
             timestamp,
             network: network.to_string(),
             backup: None,
@@ -79,13 +80,14 @@ mod test {
             FROM_NEW_IDENTITY,
             "MAINNET",
             None,
+            None,
         )
         .unwrap();
         metadata.timestamp = 1686105373257408;
         let metadata_json = metadata.to_json().unwrap();
         let expected_json = "{\"name\":\"name\",\"passwordHint\":\"password_hint\",\"chainType\":\"\",\"timestamp\":1686105373257408,\"network\":\"MAINNET\",\"backup\":null,\"source\":\"NEW_IDENTITY\",\"mode\":null,\"walletType\":null,\"segWit\":null}";
         assert_eq!(metadata_json, expected_json);
-        metadata.chain_type = "ETHEREUM".to_string();
+        metadata.chain_type = Some("ETHEREUM".to_string());
         let metadata_json = metadata.to_json().unwrap();
         let expected_json = "{\"name\":\"name\",\"passwordHint\":\"password_hint\",\"chainType\":\"ETHEREUM\",\"timestamp\":1686105373257408,\"network\":\"MAINNET\",\"backup\":null,\"source\":\"NEW_IDENTITY\",\"mode\":null,\"walletType\":null,\"segWit\":null}";
         assert_eq!(metadata_json, expected_json);
@@ -98,6 +100,7 @@ mod test {
             Some("password_hint".to_string()),
             FROM_NEW_IDENTITY,
             "MAINNET",
+            None,
             None,
         )
         .unwrap();
