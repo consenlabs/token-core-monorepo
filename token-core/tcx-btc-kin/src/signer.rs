@@ -4,7 +4,7 @@ use std::str::FromStr;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::consensus::serialize;
 use bitcoin::psbt::Prevouts;
-use bitcoin::schnorr::{TapTweak, TweakedPublicKey};
+use bitcoin::schnorr::TapTweak;
 use bitcoin::util::sighash::SighashCache;
 use bitcoin::{
     EcdsaSighashType, OutPoint, PackedLockTime, SchnorrSighashType, Script, Sequence, Transaction,
@@ -15,7 +15,7 @@ use bitcoin_hashes::hex::FromHex as HashFromHex;
 use bitcoin_hashes::hex::ToHex as HashToHex;
 use bitcoin_hashes::Hash;
 use byteorder::{BigEndian, WriteBytesExt};
-use secp256k1::{Message, Secp256k1, XOnlyPublicKey};
+use secp256k1::{Message, Secp256k1};
 
 use tcx_chain::keystore::Error as KeystoreError;
 use tcx_chain::Address;
@@ -23,7 +23,7 @@ use tcx_chain::{Keystore, TransactionSigner};
 use tcx_primitive::{Derive, PrivateKey, PublicKey, Secp256k1PrivateKey};
 
 use crate::address::BtcKinAddress;
-use crate::transaction::*;
+use crate::transaction::{BtcKinTxInput, BtcKinTxOutput, OmniTxInput, Utxo};
 use crate::Result;
 
 use super::Error;
@@ -287,7 +287,7 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
             return Err(Error::InvalidUtxo.into());
         }
 
-        let change_script = if let Some(change_address_index) = tx.change_address_index && self.determinable() {
+        let change_script = if let Some(change_address_index) = tx.change_address_index && self.derivable() {
             let dpk = account.deterministic_public_key()?;
             let pub_key = dpk
                 .derive(format!("1/{}", change_address_index).as_str())?
@@ -346,7 +346,7 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
                 version = 2
             }
 
-            if x.derived_path.len() > 0 && self.determinable() {
+            if x.derived_path.len() > 0 && self.derivable() {
                 let matched = prepares
                     .iter()
                     .filter(|y| (y.is_matched)(&script_pubkey))
@@ -378,7 +378,7 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
             op_return: tx.op_return.clone(),
         };
 
-        kin_tx.sign(version as i32, sks)
+        kin_tx.sign(version, sks)
     }
 }
 
@@ -576,8 +576,8 @@ mod tests {
     mod btc {
         use super::*;
         use bitcoin::psbt::serialize::Deserialize;
-        use bitcoin::schnorr::TweakedPublicKey;
         use secp256k1::schnorr::Signature;
+        use secp256k1::XOnlyPublicKey;
 
         #[test]
         fn test_sign_with_p2wpkh_on_testnet() {
@@ -751,17 +751,19 @@ mod tests {
             .unwrap();
             assert!(sig.verify(&msg, &pub_key).is_ok());
 
-            assert_eq!(tx.input[4].script_sig.to_hex(), "483045022100ca32abc7b180c84cf76907e4e1e0c3f4c0d6e64de23b0708647ac6fee1c04c5b02206e7412a712424eb9406f18e00a42e0dffbfb5901932d1ef97843d9273865550e0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4e");
-            assert_eq!(tx.input[3].witness.to_vec()[0].to_hex(), "3045022100dec4d3fd189b532ef04f41f68319ff7dc6a7f2351a0a8f98cb7f1ec1f6d71c7a02205e507162669b642fdb480a6c496abbae5f798bce4fd42cc390aa58e3847a1b9101");
-            assert_eq!(
-                tx.input[3].witness.to_vec()[1].to_hex(),
-                "031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc"
-            );
             assert_eq!(tx.input[2].witness.to_vec()[0].to_hex(), "3044022022c2feaa4a225496fc6789c969fb776da7378f44c588ad812a7e1227ebe69b6302204fc7bf5107c6d02021fe4833629bc7ab71cefe354026ebd0d9c0da7d4f335f9401");
             assert_eq!(
                 tx.input[2].witness.to_vec()[1].to_hex(),
                 "02e24f625a31c9a8bae42239f2bf945a306c01a450a03fd123316db0e837a660c0"
             );
+
+            assert_eq!(tx.input[3].witness.to_vec()[0].to_hex(), "3045022100dec4d3fd189b532ef04f41f68319ff7dc6a7f2351a0a8f98cb7f1ec1f6d71c7a02205e507162669b642fdb480a6c496abbae5f798bce4fd42cc390aa58e3847a1b9101");
+            assert_eq!(
+                tx.input[3].witness.to_vec()[1].to_hex(),
+                "031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc"
+            );
+
+            assert_eq!(tx.input[4].script_sig.to_hex(), "483045022100ca32abc7b180c84cf76907e4e1e0c3f4c0d6e64de23b0708647ac6fee1c04c5b02206e7412a712424eb9406f18e00a42e0dffbfb5901932d1ef97843d9273865550e0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4e");
 
             //Because of the schnorr signature is not determined, can't compare the raw tx
             assert_eq!(

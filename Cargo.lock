@@ -6646,7 +6646,6 @@ dependencies = [
  "bytes 1.4.0",
  "failure",
  "hex 0.4.3",
- "lazy_static",
  "mockall",
  "num-bigint 0.4.3",
  "num-integer",

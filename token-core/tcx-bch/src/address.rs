@@ -7,7 +7,7 @@ use core::result;
 
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use tcx_btc_kin::{BtcKinAddress, PubKeyScript, ScriptPubKeyComponent};
+use tcx_btc_kin::{BtcKinAddress, ScriptPubkey};
 use tcx_chain::Address;
 use tcx_constants::CoinInfo;
 use tcx_primitive::TypedPublicKey;
@@ -96,21 +96,9 @@ impl Display for BchAddress {
     }
 }
 
-impl PubKeyScript for BchAddress {
-    fn script_pub_key(&self) -> Script {
+impl ScriptPubkey for BchAddress {
+    fn script_pubkey(&self) -> Script {
         self.0.script_pubkey()
-    }
-}
-
-impl ScriptPubKeyComponent for BchAddress {
-    fn address_script_like(_target_addr: &str, pub_key: &bitcoin::PublicKey) -> Result<Script> {
-        Ok(BtcAddress::p2pkh(&pub_key, Network::Bitcoin).script_pubkey())
-    }
-
-    fn address_script_pub_key(target_addr: &str) -> Result<Script> {
-        let target_addr = BchAddress::convert_to_legacy_if_need(target_addr)?;
-        let addr = BtcAddress::from_str(&target_addr)?;
-        Ok(addr.script_pubkey())
     }
 }
 

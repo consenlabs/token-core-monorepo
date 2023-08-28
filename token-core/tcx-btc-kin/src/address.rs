@@ -1,4 +1,9 @@
 use core::fmt;
+
+pub trait ScriptPubkey: Sized {
+    fn script_pubkey(&self) -> Script;
+}
+
 use core::result;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
@@ -38,7 +43,6 @@ impl WIFDisplay for TypedPrivateKey {
         Ok(key.to_ss58check_with_version(&version))
     }
 }
-
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BtcKinAddress {
     pub network: BtcKinNetwork,
@@ -275,13 +279,9 @@ impl Display for BtcKinAddress {
     }
 }
 
-pub trait PubKeyScript: Sized {
-    fn script_pub_key(&self) -> Script;
-}
-
-impl PubKeyScript for BtcKinAddress {
-    fn script_pub_key(&self) -> Script {
-        self.script_pubkey()
+impl ScriptPubkey for BtcKinAddress {
+    fn script_pubkey(&self) -> Script {
+        self.payload.script_pubkey()
     }
 }
 
@@ -388,7 +388,7 @@ mod tests {
     }
 
     #[test]
-    pub fn test_script_pub_key() {
+    pub fn test_script_pubkey() {
         let addr = BtcKinAddress::from_str("MR5Hu9zXPX3o9QuYNJGft1VMpRP418QDfW").unwrap();
         let script = hex::encode(addr.script_pubkey().as_bytes());
         assert_eq!("a914bc64b2d79807cd3d72101c3298b89117d32097fb87", script);

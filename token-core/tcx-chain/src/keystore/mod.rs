@@ -231,7 +231,7 @@ impl Keystore {
         }
     }
 
-    pub fn determinable(&self) -> bool {
+    pub fn derivable(&self) -> bool {
         match self {
             Keystore::PrivateKey(_) => false,
             Keystore::Hd(_) => true,

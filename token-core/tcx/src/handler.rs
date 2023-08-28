@@ -317,7 +317,7 @@ pub(crate) fn export_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
     let guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
 
     tcx_ensure!(
-        guard.keystore().determinable(),
+        guard.keystore().derivable(),
         format_err!("{}", "private_keystore_cannot_export_mnemonic")
     );
 
@@ -659,6 +659,23 @@ pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(format_err!("unsupported_chain")),
     }
 }
+/*
+fn sign_tx_with_keystore<Address, Input:Message, Output:Message>(&param: SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+    let input: Input = Input::decode(
+        param
+            .input
+            .as_ref()
+            .expect("tx_input")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("SignTxParam");
+
+    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
+    encode_message(signed_tx)
+}
+ */
 
 pub(crate) fn get_public_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: PublicKeyParam = PublicKeyParam::decode(data).expect("PublicKeyParam");
@@ -864,7 +881,7 @@ pub(crate) fn export_substrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
 
         // !!! Warning !!! HDKeystore only can export raw sr25519 key,
         // but polkadotjs keystore needs a Ed25519 expanded secret key.
-        if keystore.determinable() {
+        if keystore.derivable() {
             return Err(format_err!("{}", "hd_wallet_cannot_export_keystore"));
         }
         meta = keystore.meta().clone();

@@ -1,9 +1,9 @@
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BtcKinNetwork {
-    pub coin: String,
-    pub network: String,
+    pub coin: &'static str,
+    pub network: &'static str,
 
-    pub bech32_hrp: String,
+    pub bech32_hrp: &'static str,
     pub p2pkh_prefix: u8,
     pub p2sh_prefix: u8,
     pub private_prefix: u8,
@@ -11,97 +11,70 @@ pub struct BtcKinNetwork {
     pub xpub_prefix: [u8; 4],
     pub xprv_prefix: [u8; 4],
 }
-
-lazy_static! {
-    static ref BTC_KIN_NETWORKS: Vec<BtcKinNetwork> = {
-        vec![
-            BtcKinNetwork::new(
-                "BITCOIN",
-                "MAINNET",
-                "bc",
-                0x0,
-                0x05,
-                0x80,
-                [0x04, 0x88, 0xb2, 0x1e],
-                [0x04, 0x88, 0xad, 0xe4],
-            ),
-            BtcKinNetwork::new(
-                "BITCOIN",
-                "TESTNET",
-                "tb",
-                0x6f,
-                0xc4,
-                0xef,
-                [0x04, 0x35, 0x87, 0xcf],
-                [0x04, 0x35, 0x83, 0x94],
-            ),
-            BtcKinNetwork::new(
-                "LITECOIN",
-                "MAINNET",
-                "ltc",
-                0x30,
-                0x32,
-                0xb0,
-                [0x04, 0x88, 0xb2, 0x1e],
-                [0x04, 0x88, 0xad, 0xe4],
-            ),
-            BtcKinNetwork::new(
-                "LITECOIN",
-                "TESTNET",
-                "tltc",
-                0x6f,
-                0x3a,
-                0xef,
-                [0x04, 0x35, 0x87, 0xcf],
-                [0x04, 0x35, 0x83, 0x94],
-            ),
-            BtcKinNetwork::new(
-                "BITCOINCASH",
-                "MAINNET",
-                "bitcoincash",
-                0x0,
-                0x05,
-                0x80,
-                [0x04, 0x88, 0xb2, 0x1e],
-                [0x04, 0x88, 0xad, 0xe4],
-            ),
-            BtcKinNetwork::new(
-                "BITCOINCASH",
-                "TESTNET",
-                "bchtest",
-                0x6f,
-                0xc4,
-                0xef,
-                [0x04, 0x35, 0x87, 0xcf],
-                [0x04, 0x35, 0x83, 0x94],
-            ),
-        ]
-    };
-}
+const BTC_KIN_NETWORKS: [BtcKinNetwork; 6] = [
+    BtcKinNetwork {
+        coin: "BITCOIN",
+        network: "MAINNET",
+        bech32_hrp: "bc",
+        p2pkh_prefix: 0x0,
+        p2sh_prefix: 0x05,
+        private_prefix: 0x80,
+        xpub_prefix: [0x04, 0x88, 0xb2, 0x1e],
+        xprv_prefix: [0x04, 0x88, 0xad, 0xe4],
+    },
+    BtcKinNetwork {
+        coin: "BITCOIN",
+        network: "TESTNET",
+        bech32_hrp: "tb",
+        p2pkh_prefix: 0x6f,
+        p2sh_prefix: 0xc4,
+        private_prefix: 0xef,
+        xpub_prefix: [0x04, 0x35, 0x87, 0xcf],
+        xprv_prefix: [0x04, 0x35, 0x83, 0x94],
+    },
+    BtcKinNetwork {
+        coin: "LITECOIN",
+        network: "MAINNET",
+        bech32_hrp: "ltc",
+        p2pkh_prefix: 0x30,
+        p2sh_prefix: 0x32,
+        private_prefix: 0xb0,
+        xpub_prefix: [0x04, 0x88, 0xb2, 0x1e],
+        xprv_prefix: [0x04, 0x88, 0xad, 0xe4],
+    },
+    BtcKinNetwork {
+        coin: "LITECOIN",
+        network: "TESTNET",
+        bech32_hrp: "tltc",
+        p2pkh_prefix: 0x6f,
+        p2sh_prefix: 0x3a,
+        private_prefix: 0xef,
+        xpub_prefix: [0x04, 0x35, 0x87, 0xcf],
+        xprv_prefix: [0x04, 0x35, 0x83, 0x94],
+    },
+    BtcKinNetwork {
+        coin: "BITCOINCASH",
+        network: "MAINNET",
+        bech32_hrp: "bitcoincash",
+        p2pkh_prefix: 0x0,
+        p2sh_prefix: 0x05,
+        private_prefix: 0x80,
+        xpub_prefix: [0x04, 0x88, 0xb2, 0x1e],
+        xprv_prefix: [0x04, 0x88, 0xad, 0xe4],
+    },
+    BtcKinNetwork {
+        coin: "BITCOINCASH",
+        network: "TESTNET",
+        bech32_hrp: "bchtest",
+        p2pkh_prefix: 0x6f,
+        p2sh_prefix: 0xc4,
+        private_prefix: 0xef,
+        xpub_prefix: [0x04, 0x35, 0x87, 0xcf],
+        xprv_prefix: [0x04, 0x35, 0x83, 0x94],
+    },
+];
 
 impl BtcKinNetwork {
-    pub fn new(
-        coin: &str,
-        network: &str,
-        hrp: &str,
-        p2pkh: u8,
-        p2sh: u8,
-        private: u8,
-        xpub: [u8; 4],
-        xprv: [u8; 4],
-    ) -> BtcKinNetwork {
-        BtcKinNetwork {
-            coin: coin.to_string(),
-            network: network.to_string(),
-            bech32_hrp: hrp.to_string(),
-            p2pkh_prefix: p2pkh,
-            p2sh_prefix: p2sh,
-            private_prefix: private,
-            xpub_prefix: xpub,
-            xprv_prefix: xprv,
-        }
-    }
-
     pub fn find_by_coin<'a>(coin: &str, network: &str) -> Option<&'a BtcKinNetwork> {
         BTC_KIN_NETWORKS
             .iter()

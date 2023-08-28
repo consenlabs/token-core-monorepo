@@ -13,9 +13,6 @@ use serde::{Deserialize, Serialize};
 #[macro_use]
 extern crate failure;
 
-#[macro_use]
-extern crate lazy_static;
-
 extern crate num_bigint;
 extern crate num_integer;
 extern crate num_traits;
@@ -26,7 +23,7 @@ extern crate core;
 
 pub type Result<T> = result::Result<T, failure::Error>;
 
-pub use address::{BtcKinAddress, PubKeyScript, WIFDisplay};
+pub use address::{BtcKinAddress, ScriptPubkey, WIFDisplay};
 pub use network::BtcKinNetwork;
 pub use transaction::{BtcKinTxInput, BtcKinTxOutput, OmniTxInput, Utxo};
 
@@ -44,11 +41,20 @@ pub enum Error {
     InvalidAddress,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct ExternalAddress {
-    pub address: String,
-    #[serde(rename = "type")]
-    pub addr_type: String,
-    pub derived_path: String,
+pub mod bitcoin {
+    pub const CHAINS: [&'static str; 2] = ["BITCOIN", "LITECOIN"];
+
+    pub type Address = crate::BtcKinAddress;
+    pub type TransactionInput = crate::transaction::BtcKinTxInput;
+    pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
+}
+
+pub mod omni {
+    pub static CHAINS: [&'static str; 1] = ["OMNI"];
+
+    pub type Address = crate::BtcKinAddress;
+
+    pub type TransactionInput = crate::transaction::OmniTxInput;
+
+    pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
 }
