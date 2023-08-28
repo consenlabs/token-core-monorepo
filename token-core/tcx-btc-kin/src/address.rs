@@ -1,8 +1,9 @@
-use crate::signer::ScriptPubKeyComponent;
-use crate::Error;
-use crate::Result;
+use core::fmt;
+use core::result;
+use std::convert::TryFrom;
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 
-use crate::network::BtcKinNetwork;
 use bitcoin::hash_types::PubkeyHash as PubkeyHashType;
 use bitcoin::hash_types::ScriptHash as ScriptHashType;
 use bitcoin::network::constants::Network;
@@ -13,15 +14,15 @@ use bitcoin::util::base58;
 use bitcoin::util::key::PublicKey;
 use bitcoin::{Address as LibAddress, Script};
 use bitcoin_hashes::Hash;
-use core::fmt;
-use core::result;
 use secp256k1::Secp256k1;
-use std::convert::TryFrom;
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
+
 use tcx_chain::Address;
 use tcx_constants::CoinInfo;
 use tcx_primitive::{Ss58Codec, TypedPrivateKey, TypedPublicKey};
+
+use crate::network::BtcKinNetwork;
+use crate::Error;
+use crate::Result;
 
 pub trait WIFDisplay {
     fn fmt(&self, coin_info: &CoinInfo) -> Result<String>;
@@ -113,23 +114,6 @@ impl BtcKinAddress {
 
     pub fn script_pubkey(&self) -> Script {
         self.payload.script_pubkey()
-    }
-
-    pub fn address_like(target_addr: &str, pub_key: &[u8]) -> Result<BtcKinAddress> {
-        let target = BtcKinAddress::from_str(target_addr)?;
-        match target.payload {
-            Payload::PubkeyHash(_) => BtcKinAddress::p2pkh(pub_key, &target.network),
-            Payload::ScriptHash(_) => BtcKinAddress::p2shwpkh(pub_key, &target.network),
-            Payload::WitnessProgram {
-                version: WitnessVersion::V0,
-                ..
-            } => BtcKinAddress::p2wpkh(pub_key, &target.network),
-            Payload::WitnessProgram {
-                version: WitnessVersion::V1,
-                ..
-            } => BtcKinAddress::p2tr(pub_key, &target.network),
-            _ => Err(Error::InvalidAddress.into()),
-        }
     }
 
     pub fn extended_public_key(
@@ -301,30 +285,17 @@ impl PubKeyScript for BtcKinAddress {
     }
 }
 
-impl ScriptPubKeyComponent for BtcKinAddress {
-    fn address_script_like(target_addr: &str, pub_key: &bitcoin::PublicKey) -> Result<Script> {
-        let addr = BtcKinAddress::address_like(target_addr, &pub_key.to_bytes())?;
-        Ok(addr.script_pubkey())
-    }
-
-    fn address_script_pub_key(target_addr: &str) -> Result<Script> {
-        let addr = BtcKinAddress::from_str(target_addr)?;
-        Ok(addr.script_pubkey())
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::address::BtcKinAddress;
-    use crate::signer::ScriptPubKeyComponent;
-    use crate::tcx_chain::Address;
-    use tcx_constants::coin_info::coin_info_from_param;
-
     use std::str::FromStr;
 
-    use crate::BtcKinNetwork;
+    use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType};
     use tcx_primitive::{Bip32DeterministicPrivateKey, Derive, DeterministicPrivateKey, Ss58Codec};
+
+    use crate::address::BtcKinAddress;
+    use crate::tcx_chain::Address;
+    use crate::BtcKinNetwork;
 
     #[test]
     pub fn test_btc_kin_address() {
@@ -383,57 +354,6 @@ mod tests {
     }
 
     #[test]
-    pub fn test_address_like() {
-        let addr = BtcKinAddress::from_str("MR5Hu9zXPX3o9QuYNJGft1VMpRP418QDfW").unwrap();
-        let pub_key =
-            hex::decode("02506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aaba")
-                .unwrap();
-        let liked_address = BtcKinAddress::address_like(&addr.to_string(), &pub_key)
-            .ok()
-            .unwrap();
-        assert_eq!(
-            "MR5Hu9zXPX3o9QuYNJGft1VMpRP418QDfW",
-            liked_address.to_string()
-        );
-
-        let addr = BtcKinAddress::from_str("ltc1qum864wd9nwsc0u9ytkctz6wzrw6g7zdn08yddf").unwrap();
-        let pub_key =
-            hex::decode("02506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aaba")
-                .unwrap();
-        let liked_address = BtcKinAddress::address_like(&addr.to_string(), &pub_key)
-            .ok()
-            .unwrap();
-        assert_eq!(
-            "ltc1qum864wd9nwsc0u9ytkctz6wzrw6g7zdn08yddf",
-            liked_address.to_string()
-        );
-
-        let addr = BtcKinAddress::from_str("3Js9bGaZSQCNLudeGRHL4NExVinc25RbuG").unwrap();
-        let pub_key =
-            hex::decode("02506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aaba")
-                .unwrap();
-        let liked_address = BtcKinAddress::address_like(&addr.to_string(), &pub_key)
-            .ok()
-            .unwrap();
-        assert_eq!(
-            "3Js9bGaZSQCNLudeGRHL4NExVinc25RbuG",
-            liked_address.to_string()
-        );
-
-        let addr = BtcKinAddress::from_str("bc1qum864wd9nwsc0u9ytkctz6wzrw6g7zdntm7f4e").unwrap();
-        let pub_key =
-            hex::decode("02506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aaba")
-                .unwrap();
-        let liked_address = BtcKinAddress::address_like(&addr.to_string(), &pub_key)
-            .ok()
-            .unwrap();
-        assert_eq!(
-            "bc1qum864wd9nwsc0u9ytkctz6wzrw6g7zdntm7f4e",
-            liked_address.to_string()
-        );
-    }
-
-    #[test]
     pub fn test_extended_private_key() {
         let bitcoin_xprv_str = "xprv9yrdwPSRnvomqFK4u1y5uW2SaXS2Vnr3pAYTjJjbyRZR8p9BwoadRsCxtgUFdAKeRPbwvGRcCSYMV69nNK4N2kadevJ6L5iQVy1SwGKDTHQ";
         let anprv = Bip32DeterministicPrivateKey::from_ss58check(bitcoin_xprv_str).unwrap();
@@ -483,44 +403,6 @@ mod tests {
 
         let addr = BtcKinAddress::from_str("3Js9bGaZSQCNLudeGRHL4NExVinc25RbuG").unwrap();
         let script = hex::encode(addr.script_pubkey().as_bytes());
-        assert_eq!("a914bc64b2d79807cd3d72101c3298b89117d32097fb87", script);
-    }
-
-    #[test]
-    pub fn test_script_pub_key_component_address_like() {
-        let _addr = BtcKinAddress::from_str("MR5Hu9zXPX3o9QuYNJGft1VMpRP418QDfW").unwrap();
-        let pub_key = bitcoin::PublicKey::from_str(
-            "02506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aaba",
-        )
-        .unwrap();
-        let script =
-            BtcKinAddress::address_script_like("MR5Hu9zXPX3o9QuYNJGft1VMpRP418QDfW", &pub_key)
-                .unwrap();
-
-        let script = hex::encode(script.as_bytes());
-        assert_eq!("a914bc64b2d79807cd3d72101c3298b89117d32097fb87", script);
-
-        let script = BtcKinAddress::address_script_like(
-            "ltc1qum864wd9nwsc0u9ytkctz6wzrw6g7zdn08yddf",
-            &pub_key,
-        )
-        .unwrap();
-
-        let script = hex::encode(script.as_bytes());
-        assert_eq!("0014e6cfaab9a59ba187f0a45db0b169c21bb48f09b3", script);
-
-        let script =
-            BtcKinAddress::address_script_like("Ldfdegx3hJygDuFDUA7Rkzjjx8gfFhP9DP", &pub_key)
-                .unwrap();
-
-        let script = hex::encode(script.as_bytes());
-        assert_eq!("76a914e6cfaab9a59ba187f0a45db0b169c21bb48f09b388ac", script);
-
-        let script =
-            BtcKinAddress::address_script_like("3Js9bGaZSQCNLudeGRHL4NExVinc25RbuG", &pub_key)
-                .unwrap();
-
-        let script = hex::encode(script.as_bytes());
         assert_eq!("a914bc64b2d79807cd3d72101c3298b89117d32097fb87", script);
     }
 

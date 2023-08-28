@@ -1,38 +1,34 @@
 use std::io::Write;
-use tcx_chain::{Account, Keystore, TransactionSigner};
+use std::str::FromStr;
 
-use bitcoin::{
-    EcdsaSighashType, OutPoint, PackedLockTime, SchnorrSighashType, Script, Sequence, Transaction,
-    TxIn, TxOut, WPubkeyHash, Witness,
-};
-use bitcoin_hashes::Hash;
-
-use super::Error;
-use crate::Result;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::consensus::serialize;
 use bitcoin::psbt::Prevouts;
 use bitcoin::schnorr::TapTweak;
-use std::str::FromStr;
-
-use crate::address::BtcKinAddress;
-use crate::transaction::*;
 use bitcoin::util::sighash::SighashCache;
+use bitcoin::{
+    EcdsaSighashType, OutPoint, PackedLockTime, SchnorrSighashType, Script, Sequence, Transaction,
+    TxIn, TxOut, WPubkeyHash, Witness,
+};
 use bitcoin_hashes::hash160;
 use bitcoin_hashes::hex::FromHex as HashFromHex;
 use bitcoin_hashes::hex::ToHex as HashToHex;
+use bitcoin_hashes::Hash;
 use byteorder::{BigEndian, WriteBytesExt};
 use secp256k1::{Message, Secp256k1};
+
 use tcx_chain::keystore::Error as KeystoreError;
 use tcx_chain::Address;
+use tcx_chain::{Keystore, TransactionSigner};
 use tcx_primitive::{Derive, PrivateKey, PublicKey, Secp256k1PrivateKey};
 
-const MIN_TX_FEE: u64 = 546;
+use crate::address::BtcKinAddress;
+use crate::transaction::*;
+use crate::Result;
 
-pub trait ScriptPubKeyComponent {
-    fn address_script_like(target_addr: &str, pub_key: &bitcoin::PublicKey) -> Result<Script>;
-    fn address_script_pub_key(target_addr: &str) -> Result<Script>;
-}
+use super::Error;
+
+const MIN_TX_FEE: u64 = 546;
 
 pub struct TxSigner<'a> {
     tx: Transaction,
@@ -78,7 +74,7 @@ impl<'a> TxSigner<'a> {
         let hash = self.sighash_cache.segwit_signature_hash(
             index,
             &script.p2wpkh_script_code().expect("must be v0_p2wpkh"),
-            prevout.value as u64,
+            prevout.value,
             EcdsaSighashType::All,
         )?;
         let sig = key.sign(&hash)?;
@@ -100,7 +96,10 @@ impl<'a> TxSigner<'a> {
 
         let hash = self.sighash_cache.segwit_signature_hash(
             index,
-            &prevout.script_pubkey,
+            &prevout
+                .script_pubkey
+                .p2wpkh_script_code()
+                .expect("must be v0_p2wpkh"),
             prevout.value,
             EcdsaSighashType::All,
         )?;
@@ -128,7 +127,7 @@ impl<'a> TxSigner<'a> {
             &Prevouts::All(&self.prevouts.clone()),
             None,
             None,
-            SchnorrSighashType::All,
+            SchnorrSighashType::Default,
         )?;
 
         let msg = Message::from_slice(&hash[..])?;
@@ -136,7 +135,7 @@ impl<'a> TxSigner<'a> {
 
         let tx_input = &mut self.tx.input[index];
 
-        tx_input.witness.push(sig.as_ref());
+        tx_input.witness.push(&sig.as_ref());
 
         Ok(())
     }
@@ -353,6 +352,7 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
                     .filter(|y| (y.is_matched)(&script_pubkey))
                     .next();
                 if let Some(defined_key) = matched && let Some(address) = &defined_key.address {
+                    println!("{} {}", &x.derived_path, &address);
                     sks.push(
                         self.find_private_key_by_path(symbol, address, &x.derived_path)?
                             .as_secp256k1()?
@@ -420,14 +420,15 @@ impl TransactionSigner<OmniTxInput, BtcKinTxOutput> for Keystore {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    use crate::address::BtcKinAddress;
     use tcx_chain::Metadata;
     use tcx_chain::{Keystore, TransactionSigner};
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD, TEST_WIF};
     use tcx_primitive::Secp256k1PrivateKey;
+
+    use crate::address::BtcKinAddress;
+
+    use super::*;
 
     fn setup(keystore: &mut Keystore) {
         let need_setup = [
@@ -577,6 +578,85 @@ mod tests {
     mod btc {
         use super::*;
 
+        #[test]
+        fn test_sign_with_p2wpkh_on_testnet() {
+            let mut ks = sample_hd_keystore();
+
+            let inputs = vec![Utxo {
+                tx_hash: "cebc5c2b4f5533428ad0cca94e9bfefa6410a270ed1d7116e2ee8592494c66bd"
+                    .to_string(),
+                vout: 1,
+                amount: 100000,
+                address: "tb1qrfaf3g4elgykshfgahktyaqj2r593qkrae5v95".to_string(),
+                derived_path: "0/0".to_string(),
+            }];
+
+            let tx_input = BtcKinTxInput {
+                inputs: inputs.clone(),
+                to: "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4".to_string(),
+                amount: 50000,
+                fee: 20000,
+                change_address_index: Some(53u32),
+                op_return: None,
+            };
+
+            let actual = ks
+                .sign_transaction(
+                    "BITCOIN",
+                    "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4",
+                    &tx_input,
+                )
+                .unwrap();
+
+            //Because of the schnorr signature is not determined, can't compare to the raw tx
+            //please see https://blockstream.info/testnet/tx/b9d297c17be4fd659959a40fc6df7bf659f5f6e1b46c29d613d6fa25c711616b?expand
+            assert_eq!(actual.raw_tx, "02000000000101bd664c499285eee216711ded70a21064fafe9b4ea9ccd08a4233554f2b5cbcce0100000000ffffffff0250c30000000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c23330750000000000002251209303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea0615502483045022100bed2bc8b4bf2beb4dacda077b47f96b4070af659ca241c343eccfe3ebc4a6f600220379c51f6456adff08a7605496a88653689af9e44f5d324e2ad2e1eae330b434f012102e24f625a31c9a8bae42239f2bf945a306c01a450a03fd123316db0e837a660c000000000");
+            assert_eq!(
+                actual.tx_hash,
+                "b9d297c17be4fd659959a40fc6df7bf659f5f6e1b46c29d613d6fa25c711616b"
+            );
+        }
+
+        #[test]
+        fn test_sign_with_taproot_on_testnet() {
+            let mut ks = sample_hd_keystore();
+
+            let inputs = vec![Utxo {
+                tx_hash: "2bdcfa88d5f48954e98018da33aaf11a4951b4167ba8121bc787880890dee5f0"
+                    .to_string(),
+                vout: 1,
+                amount: 523000,
+                address: "tb1pjvp6z9shfhfpafrnwen9j452cf8tdwpgc0hfnzvz62aqwr4qv92sg7qj9r"
+                    .to_string(),
+                derived_path: "1/53".to_string(),
+            }];
+
+            let tx_input = BtcKinTxInput {
+                inputs: inputs.clone(),
+                to: "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4".to_string(),
+                amount: 40000,
+                fee: 1000,
+                change_address_index: Some(53u32),
+                op_return: None,
+            };
+
+            let actual = ks
+                .sign_transaction(
+                    "BITCOIN",
+                    "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4",
+                    &tx_input,
+                )
+                .unwrap();
+
+            //Because of the schnorr signature is not determined, can't compare to the raw tx
+            //please see https://blockstream.info/testnet/tx/0fb223cd2cd90830827ab235b752de841153d69a75649d8f92ffa2198d645852?expand
+            assert_eq!(
+                actual.tx_hash,
+                "0fb223cd2cd90830827ab235b752de841153d69a75649d8f92ffa2198d645852"
+            );
+        }
+
+        #[test]
         fn test_sign_with_multi_payment_on_testnet() {
             let mut ks = sample_hd_keystore();
 
@@ -641,7 +721,8 @@ mod tests {
                     &tx_input,
                 )
                 .unwrap();
-            assert_eq!(actual.raw_tx, "020000000001054adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0000000000ffffffff4adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0100000000ffffffff12cc8049bf85b5e18cb2be8aa7aefc3afb8df4ec5c1f766750014cc95ca2dc130000000000ffffffff729e6570928cc65200f1d53def65a7934d2e9b543059d90598ed1d166af422010100000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffffa126724475cd2f3252352b3543c8455c7999a8283883bd7a712a7d66609d92d8010000006b483045022100ca32abc7b180c84cf76907e4e1e0c3f4c0d6e64de23b0708647ac6fee1c04c5b02206e7412a712424eb9406f18e00a42e0dffbfb5901932d1ef97843d9273865550e0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff02409c00000000000022512036079c540758a51a86eeaf9e17668d4d8543d8b1b7e56fe2da0982c390c5655ef8fa0700000000002251209303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea0615501400391589e6eb0e8132b8ceb6a6ad4467eee7b04963111106aaf9449862dfba8f0492b36da66da7a16efb109d2e184c907979522adbcafe9abddd132028c22021001408b6246f16124e3e21f68b8675c00a8422fa617ae6dce0e38a2a1d75f2b285db9fbe0ea43a9f92b06c0e4b4ad631e5a3102f054c0b497207f632128c0222a883b02473044022022c2feaa4a225496fc6789c969fb776da7378f44c588ad812a7e1227ebe69b6302204fc7bf5107c6d02021fe4833629bc7ab71cefe354026ebd0d9c0da7d4f335f94012102e24f625a31c9a8bae42239f2bf945a306c01a450a03fd123316db0e837a660c002483045022100dec4d3fd189b532ef04f41f68319ff7dc6a7f2351a0a8f98cb7f1ec1f6d71c7a02205e507162669b642fdb480a6c496abbae5f798bce4fd42cc390aa58e3847a1b910121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc0000000000" );
+
+            //Because of the schnorr signature is not determined, can't compare the raw tx
             assert_eq!(
                 actual.tx_hash,
                 "2bdcfa88d5f48954e98018da33aaf11a4951b4167ba8121bc787880890dee5f0"

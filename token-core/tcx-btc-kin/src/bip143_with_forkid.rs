@@ -3,7 +3,6 @@ use bitcoin_hashes::{sha256d, Hash};
 use bitcoin::blockdata::script::Script;
 use bitcoin::blockdata::transaction::{Transaction, TxIn};
 use bitcoin::consensus::encode::Encodable;
-use std::io::Cursor;
 
 /// Parts of a sighash which are common across inputs or signatures, and which are
 /// sufficient (in conjunction with a private key) to sign the transaction
