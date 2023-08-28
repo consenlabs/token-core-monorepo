@@ -39,8 +39,8 @@ pub enum Error {
     UnsupportedChain,
     #[fail(display = "missing_network")]
     MissingNetwork,
-    #[fail(display = "invalid_input_cells")]
-    InvalidInputCells,
+    #[fail(display = "invalid_utxo")]
+    InvalidUtxo,
     #[fail(display = "invalid_address")]
     InvalidAddress,
 }

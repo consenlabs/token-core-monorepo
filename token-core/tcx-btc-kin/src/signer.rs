@@ -1,5 +1,5 @@
 use std::io::Write;
-use tcx_chain::{Keystore, TransactionSigner};
+use tcx_chain::{Account, Keystore, TransactionSigner};
 
 use bitcoin::{
     EcdsaSighashType, OutPoint, PackedLockTime, SchnorrSighashType, Script, Sequence, Transaction,
@@ -34,25 +34,22 @@ pub trait ScriptPubKeyComponent {
     fn address_script_pub_key(target_addr: &str) -> Result<Script>;
 }
 
-pub struct TxSigner {
+pub struct TxSigner<'a> {
     tx: Transaction,
-    private_keys: Vec<Secp256k1PrivateKey>,
     prevouts: Vec<TxOut>,
+    private_keys: Vec<Secp256k1PrivateKey>,
+    sighash_cache: SighashCache<&'a Transaction>,
 }
 
-impl TxSigner {
+impl<'a> TxSigner<'a> {
     fn hash160(&self, input: &[u8]) -> hash160::Hash {
         hash160::Hash::hash(input)
     }
-    fn sign_p2pkh_input(
-        &mut self,
-        sighash_cache: &mut SighashCache<&Transaction>,
-        index: usize,
-    ) -> Result<()> {
+    fn sign_p2pkh_input(&mut self, index: usize) -> Result<()> {
         let key = &self.private_keys[index];
         let prevout = &self.prevouts[index];
 
-        let hash = sighash_cache.legacy_signature_hash(
+        let hash = self.sighash_cache.legacy_signature_hash(
             index,
             &prevout.script_pubkey,
             EcdsaSighashType::All.to_u32(),
@@ -69,11 +66,7 @@ impl TxSigner {
         Ok(())
     }
 
-    fn sign_p2sh_nested_p2wpkh_input(
-        &mut self,
-        sighash_cache: &mut SighashCache<&Transaction>,
-        index: usize,
-    ) -> Result<()> {
+    fn sign_p2sh_nested_p2wpkh_input(&mut self, index: usize) -> Result<()> {
         let prevout = &self.prevouts[index];
         let key = &self.private_keys[index];
         let pub_key = key.public_key();
@@ -82,7 +75,7 @@ impl TxSigner {
             self.hash160(&pub_key.to_compressed()),
         ));
 
-        let hash = sighash_cache.segwit_signature_hash(
+        let hash = self.sighash_cache.segwit_signature_hash(
             index,
             &script.p2wpkh_script_code().expect("must be v0_p2wpkh"),
             prevout.value as u64,
@@ -101,15 +94,11 @@ impl TxSigner {
         Ok(())
     }
 
-    fn sign_p2wpkh_input(
-        &mut self,
-        sighash_cache: &mut SighashCache<&Transaction>,
-        index: usize,
-    ) -> Result<()> {
+    fn sign_p2wpkh_input(&mut self, index: usize) -> Result<()> {
         let key = &self.private_keys[index];
         let prevout = &self.prevouts[index];
 
-        let hash = sighash_cache.segwit_signature_hash(
+        let hash = self.sighash_cache.segwit_signature_hash(
             index,
             &prevout.script_pubkey,
             prevout.value,
@@ -126,11 +115,7 @@ impl TxSigner {
         Ok(())
     }
 
-    fn sign_p2tr_input(
-        &mut self,
-        sighash_cache: &mut SighashCache<&Transaction>,
-        index: usize,
-    ) -> Result<()> {
+    fn sign_p2tr_input(&mut self, index: usize) -> Result<()> {
         let key = &self.private_keys[index];
         let secp = Secp256k1::new();
 
@@ -138,7 +123,7 @@ impl TxSigner {
             bitcoin::schnorr::UntweakedKeyPair::from_seckey_slice(&secp, &key.to_bytes())?
                 .tap_tweak(&secp, None);
 
-        let hash = sighash_cache.taproot_signature_hash(
+        let hash = self.sighash_cache.taproot_signature_hash(
             index,
             &Prevouts::All(&self.prevouts.clone()),
             None,
@@ -157,20 +142,17 @@ impl TxSigner {
     }
 
     fn sign(&mut self) -> Result<()> {
-        let cloned_tx = self.tx.clone();
-        let mut sighash_cache = SighashCache::new(&cloned_tx);
-
         for idx in 0..self.prevouts.len() {
             let prevout = &self.prevouts[idx];
 
             if prevout.script_pubkey.is_p2pkh() {
-                self.sign_p2pkh_input(&mut sighash_cache, idx)?;
+                self.sign_p2pkh_input(idx)?;
             } else if prevout.script_pubkey.is_p2sh() {
-                self.sign_p2sh_nested_p2wpkh_input(&mut sighash_cache, idx)?;
+                self.sign_p2sh_nested_p2wpkh_input(idx)?;
             } else if prevout.script_pubkey.is_v0_p2wpkh() {
-                self.sign_p2wpkh_input(&mut sighash_cache, idx)?;
+                self.sign_p2wpkh_input(idx)?;
             } else if prevout.script_pubkey.is_v1_p2tr() {
-                self.sign_p2tr_input(&mut sighash_cache, idx)?;
+                self.sign_p2tr_input(idx)?;
             }
         }
 
@@ -180,8 +162,8 @@ impl TxSigner {
 
 pub struct KinTransaction {
     inputs: Vec<Utxo>,
-    amount: i64,
-    fee: i64,
+    amount: u64,
+    fee: u64,
     to: Script,
     change_script: Script,
     op_return: Option<String>,
@@ -189,14 +171,13 @@ pub struct KinTransaction {
 
 impl KinTransaction {
     fn tx_outs(&self) -> Result<Vec<TxOut>> {
-        let mut total_amount = 0;
+        let mut total_amount = 0u64;
 
         for input in &self.inputs {
             total_amount += input.amount;
         }
 
-        ensure!(self.amount >= MIN_TX_FEE as i64, "amount_less_than_minimum");
-
+        ensure!(self.amount >= MIN_TX_FEE, "amount_less_than_minimum");
         ensure!(
             total_amount >= (self.amount + self.fee),
             "total amount must ge amount + fee"
@@ -211,9 +192,9 @@ impl KinTransaction {
 
         let change_amount = total_amount - self.amount - self.fee;
 
-        if change_amount >= MIN_TX_FEE as i64 {
+        if change_amount >= MIN_TX_FEE {
             tx_outs.push(TxOut {
-                value: change_amount as u64,
+                value: change_amount,
                 script_pubkey: self.change_script.clone(),
             });
         }
@@ -238,14 +219,14 @@ impl KinTransaction {
 
         for inp in self.inputs.iter() {
             prevouts.push(TxOut {
-                value: inp.amount as u64,
+                value: inp.amount,
                 script_pubkey: BtcKinAddress::from_str(&inp.address)?.script_pubkey(),
             });
 
             tx_inputs.push(TxIn {
                 previous_output: OutPoint {
                     txid: bitcoin::hash_types::Txid::from_hex(&inp.tx_hash)?,
-                    vout: inp.vout as u32,
+                    vout: inp.vout,
                 },
                 script_sig: Script::new(),
                 sequence: Sequence::MAX,
@@ -258,14 +239,23 @@ impl KinTransaction {
         let tx = Transaction {
             version,
             lock_time: PackedLockTime::ZERO,
+            input: tx_inputs.clone(),
+            output: tx_outs.clone(),
+        };
+
+        //Only for sighash cache
+        let tx_clone = Transaction {
+            version,
+            lock_time: PackedLockTime::ZERO,
             input: tx_inputs,
             output: tx_outs,
         };
 
         let mut singer = TxSigner {
             tx,
-            private_keys,
             prevouts,
+            private_keys,
+            sighash_cache: SighashCache::new(&tx_clone),
         };
 
         singer.sign()?;
@@ -295,7 +285,7 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
         let coin_info = account.coin_info();
 
         if tx.inputs.len() == 0 {
-            return Err(Error::InvalidInputCells.into());
+            return Err(Error::InvalidUtxo.into());
         }
 
         let change_script = if let Some(change_address_index) = tx.change_address_index && self.determinable() {
@@ -313,13 +303,64 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
         let to = BtcKinAddress::from_str(&tx.to)?.script_pubkey();
 
         let mut sks = vec![];
+
+        struct PreparePrivateKey {
+            address: Option<String>,
+            is_matched: fn(script_pubkey: &Script) -> bool,
+        }
+
+        let mut prepares = [
+            PreparePrivateKey {
+                address: None,
+                is_matched: |script_pubkey| script_pubkey.is_p2pkh(),
+            },
+            PreparePrivateKey {
+                address: None,
+                is_matched: |script_pubkey| script_pubkey.is_p2sh(),
+            },
+            PreparePrivateKey {
+                address: None,
+                is_matched: |script_pubkey| script_pubkey.is_v0_p2wpkh(),
+            },
+            PreparePrivateKey {
+                address: None,
+                is_matched: |script_pubkey| script_pubkey.is_v1_p2tr(),
+            },
+        ];
+
+        let mut version = 1;
+        for acc in self.accounts().iter() {
+            if acc.coin == coin_info.coin && acc.network == coin_info.network {
+                let script_pubkey = BtcKinAddress::from_str(&acc.address)?.script_pubkey();
+                prepares.iter_mut().for_each(|x| {
+                    if (x.is_matched)(&script_pubkey) {
+                        x.address = Some(acc.address.clone());
+                    }
+                })
+            }
+        }
+
         for x in tx.inputs.iter() {
+            let script_pubkey = BtcKinAddress::from_str(&x.address)?.script_pubkey();
+
+            if !script_pubkey.is_p2pkh() {
+                version = 2
+            }
+
             if x.derived_path.len() > 0 && self.determinable() {
-                sks.push(
-                    self.find_private_key_by_path(symbol, address, &x.derived_path)?
-                        .as_secp256k1()?
-                        .clone(),
-                );
+                let matched = prepares
+                    .iter()
+                    .filter(|y| (y.is_matched)(&script_pubkey))
+                    .next();
+                if let Some(defined_key) = matched && let Some(address) = &defined_key.address {
+                    sks.push(
+                        self.find_private_key_by_path(symbol, address, &x.derived_path)?
+                            .as_secp256k1()?
+                            .clone(),
+                    );
+                } else {
+                    return Err(KeystoreError::AccountNotFound.into());
+                }
             } else {
                 sks.push(
                     self.find_private_key(symbol, &x.address)?
@@ -328,8 +369,6 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
                 );
             }
         }
-
-        let version = if coin_info.seg_wit != "NONE" { 2 } else { 1 };
 
         let kin_tx = KinTransaction {
             inputs: tx.inputs.clone(),
@@ -368,7 +407,7 @@ impl TransactionSigner<OmniTxInput, BtcKinTxOutput> for Keystore {
 
         let btc_tx = BtcKinTxInput {
             inputs: tx.inputs.clone(),
-            amount: MIN_TX_FEE as i64,
+            amount: MIN_TX_FEE,
             to: tx.to.clone(),
             fee: tx.fee,
             change_address_index: None,
@@ -409,7 +448,6 @@ mod tests {
         for i in need_setup {
             let coin_info = coin_info_from_param(i.0, i.1, i.2, "").unwrap();
             let account = &keystore.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
-            println!("account {:?}", account);
         }
     }
 
@@ -464,7 +502,7 @@ mod tests {
 
             let tx_input = BtcKinTxInput {
                 to: "mxCVgJtD2jSMv2diQVJQAwwq7Cg2wbwpmG".to_string(),
-                amount: MIN_TX_FEE as i64 - 1,
+                amount: MIN_TX_FEE - 1,
                 inputs: inputs.clone(),
                 fee: 1000,
                 change_address_index: Some(0u32),
@@ -539,7 +577,6 @@ mod tests {
     mod btc {
         use super::*;
 
-        #[test]
         fn test_sign_with_multi_payment_on_testnet() {
             let mut ks = sample_hd_keystore();
 
@@ -560,7 +597,7 @@ mod tests {
                     amount: 283000,
                     address: "tb1pjvp6z9shfhfpafrnwen9j452cf8tdwpgc0hfnzvz62aqwr4qv92sg7qj9r"
                         .to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "1/53".to_string(),
                 },
                 Utxo {
                     tx_hash: "13dca25cc94c015067761f5cecf48dfb3afcaea78abeb28ce1b585bf4980cc12"
@@ -593,21 +630,22 @@ mod tests {
                 to: "tb1pxcrec4q8tzj34phw470pwe5dfkz58k93kljklck6pxpv8yx9v40q66tmr7".to_string(),
                 amount: 40000,
                 fee: 40000,
-                change_address_index: Some(0u32),
+                change_address_index: Some(53u32),
                 op_return: None,
             };
 
             let actual = ks
-                .sign_transaction("BITCOIN", "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN", &tx_input)
+                .sign_transaction(
+                    "BITCOIN",
+                    "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4",
+                    &tx_input,
+                )
                 .unwrap();
-            /*    assert_eq!(actual.raw_tx, "020000000001054adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0000000000ffffffff4adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0100000000ffffffff12cc8049bf85b5e18cb2be8aa7aefc3afb8df4ec5c1f766750014cc95ca2dc130000000000ffffffff729e6570928cc65200f1d53def65a7934d2e9b543059d90598ed1d166af422010100000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffffa126724475cd2f3252352b3543c8455c7999a8283883bd7a712a7d66609d92d8010000006b483045022100ca32abc7b180c84cf76907e4e1e0c3f4c0d6e64de23b0708647ac6fee1c04c5b02206e7412a712424eb9406f18e00a42e0dffbfb5901932d1ef97843d9273865550e0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff02409c00000000000022512036079c540758a51a86eeaf9e17668d4d8543d8b1b7e56fe2da0982c390c5655ef8fa0700000000002251209303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea0615501400391589e6eb0e8132b8ceb6a6ad4467eee7b04963111106aaf9449862dfba8f0492b36da66da7a16efb109d2e184c907979522adbcafe9abddd132028c22021001408b6246f16124e3e21f68b8675c00a8422fa617ae6dce0e38a2a1d75f2b285db9fbe0ea43a9f92b06c0e4b4ad631e5a3102f054c0b497207f632128c0222a883b02473044022022c2feaa4a225496fc6789c969fb776da7378f44c588ad812a7e1227ebe69b6302204fc7bf5107c6d02021fe4833629bc7ab71cefe354026ebd0d9c0da7d4f335f94012102e24f625a31c9a8bae42239f2bf945a306c01a450a03fd123316db0e837a660c002483045022100dec4d3fd189b532ef04f41f68319ff7dc6a7f2351a0a8f98cb7f1ec1f6d71c7a02205e507162669b642fdb480a6c496abbae5f798bce4fd42cc390aa58e3847a1b910121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc0000000000" );
-               assert_eq!(
-                   actual.tx_hash,
-                   "2bdcfa88d5f48954e98018da33aaf11a4951b4167ba8121bc787880890dee5f0"
-
-               );
-
-            */
+            assert_eq!(actual.raw_tx, "020000000001054adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0000000000ffffffff4adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0100000000ffffffff12cc8049bf85b5e18cb2be8aa7aefc3afb8df4ec5c1f766750014cc95ca2dc130000000000ffffffff729e6570928cc65200f1d53def65a7934d2e9b543059d90598ed1d166af422010100000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffffa126724475cd2f3252352b3543c8455c7999a8283883bd7a712a7d66609d92d8010000006b483045022100ca32abc7b180c84cf76907e4e1e0c3f4c0d6e64de23b0708647ac6fee1c04c5b02206e7412a712424eb9406f18e00a42e0dffbfb5901932d1ef97843d9273865550e0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff02409c00000000000022512036079c540758a51a86eeaf9e17668d4d8543d8b1b7e56fe2da0982c390c5655ef8fa0700000000002251209303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea0615501400391589e6eb0e8132b8ceb6a6ad4467eee7b04963111106aaf9449862dfba8f0492b36da66da7a16efb109d2e184c907979522adbcafe9abddd132028c22021001408b6246f16124e3e21f68b8675c00a8422fa617ae6dce0e38a2a1d75f2b285db9fbe0ea43a9f92b06c0e4b4ad631e5a3102f054c0b497207f632128c0222a883b02473044022022c2feaa4a225496fc6789c969fb776da7378f44c588ad812a7e1227ebe69b6302204fc7bf5107c6d02021fe4833629bc7ab71cefe354026ebd0d9c0da7d4f335f94012102e24f625a31c9a8bae42239f2bf945a306c01a450a03fd123316db0e837a660c002483045022100dec4d3fd189b532ef04f41f68319ff7dc6a7f2351a0a8f98cb7f1ec1f6d71c7a02205e507162669b642fdb480a6c496abbae5f798bce4fd42cc390aa58e3847a1b910121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc0000000000" );
+            assert_eq!(
+                actual.tx_hash,
+                "2bdcfa88d5f48954e98018da33aaf11a4951b4167ba8121bc787880890dee5f0"
+            );
         }
 
         #[test]
@@ -625,7 +663,7 @@ mod tests {
 
             let tx_input = BtcKinTxInput {
                 to: "mxCVgJtD2jSMv2diQVJQAwwq7Cg2wbwpmG".to_string(),
-                amount: MIN_TX_FEE as i64 - 1,
+                amount: MIN_TX_FEE - 1,
                 inputs: inputs.clone(),
                 fee: 1000,
                 change_address_index: Some(0u32),
@@ -643,7 +681,7 @@ mod tests {
                 inputs: inputs.clone(),
                 to: "mxCVgJtD2jSMv2diQVJQAwwq7Cg2wbwpmG".to_string(),
                 amount: 63999000,
-                fee: 65000000 - 63999000 - MIN_TX_FEE as i64 + 1,
+                fee: 65000000 - 63999000 - MIN_TX_FEE + 1,
                 change_address_index: Some(0u32),
                 op_return: None,
             };

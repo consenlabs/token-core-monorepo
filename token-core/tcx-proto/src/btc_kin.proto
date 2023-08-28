@@ -9,8 +9,8 @@ package transaction;
 // FUNCTION: sign_tx(SignParam{input: BtcKinTxInput}): BtcKinTxOutput
 message Utxo {
     string txHash = 1;
-    int32 vout = 2;
-    int64 amount = 3;
+    uint32 vout = 2;
+    uint64 amount = 3;
     string address = 4;
     string derivedPath = 5;
 }
@@ -18,8 +18,8 @@ message Utxo {
 message BtcKinTxInput {
     repeated Utxo inputs = 1;
     string to = 2;
-    int64 amount = 3;
-    int64 fee = 4;
+    uint64 amount = 3;
+    uint64 fee = 4;
     optional string opReturn = 5;
     optional uint32 changeAddressIndex = 6;
 }
@@ -33,7 +33,7 @@ message BtcKinTxOutput {
 message OmniTxInput {
     repeated Utxo inputs = 1;
     string to = 2;
-    int64 amount = 3;
-    int64 fee = 4;
-    int32 propertyId = 5;
+    uint64 amount = 3;
+    uint64 fee = 4;
+    uint32 propertyId = 5;
 }
