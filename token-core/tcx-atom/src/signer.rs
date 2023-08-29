@@ -18,15 +18,11 @@ impl TraitTransactionSigner<AtomTxInput, AtomTxOutput> for Keystore {
         let data = hex::hex_to_bytes(&tx.raw_data)?;
         let hash = hash::sha256(&data);
 
-        let sign_result = self.sign_recoverable_hash(&hash[..], symbol, address, None);
+        let sign_result = self.sign_recoverable_hash(&hash[..], symbol, address, None)?;
 
-        match sign_result {
-            Ok(r) => Ok(AtomTxOutput {
-                // sign_recoverable_hash return r,s,v. we only need rs in atom
-                signature: (base64::encode(&r[..SIG_LEN])),
-            }),
-            Err(_e) => Err(format_err!("{}", "can not format error")),
-        }
+        Ok(AtomTxOutput {
+            signature: (base64::encode(&sign_result[..SIG_LEN])),
+        })
     }
 }
 
@@ -61,8 +57,9 @@ mod tests {
         let ks = guard.keystore_mut();
 
         let account = ks.derive_coin::<AtomAddress>(&coin_info).unwrap().clone();
+        println!("account {:?}", account);
 
-        let signed_tx: AtomTxOutput = ks.sign_transaction("Atom", &account.address, &tx)?;
+        let signed_tx: AtomTxOutput = ks.sign_transaction("COSMOS", &account.address, &tx)?;
 
         assert_eq!(signed_tx.signature, "355fWQ00dYitAZj6+EmnAgYEX1g7QtUrX/kQIqCbv05TCz0dfsWcMgXWVnr1l/I2hrjjQkiLRMoeRrmnqT2CZA==");
 

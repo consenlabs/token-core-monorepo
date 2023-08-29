@@ -1,13 +1,16 @@
 use crate::Result;
 use keccak_hash::keccak;
 use regex::Regex;
+use std::str::FromStr;
 use tcx_chain::Address;
 use tcx_constants::CoinInfo;
 use tcx_primitive::TypedPublicKey;
-pub struct EthAddress();
+
+#[derive(PartialEq, Eq, Clone)]
+pub struct EthAddress(String);
 
 impl Address for EthAddress {
-    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<String> {
+    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
         let public_key_bytes = public_key.to_bytes();
         let address = EthAddress::get_address_from_pubkey(public_key_bytes.as_slice())?;
         Ok(address)
@@ -15,6 +18,19 @@ impl Address for EthAddress {
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
         is_valid_address(address)
+    }
+}
+
+impl ToString for EthAddress {
+    fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
+impl FromStr for EthAddress {
+    type Err = failure::Error;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(EthAddress(s.to_string()))
     }
 }
 
@@ -45,10 +61,10 @@ pub fn is_valid_address(address: &str) -> bool {
 }
 
 impl EthAddress {
-    pub fn get_address_from_pubkey(public_key: &[u8]) -> Result<String> {
+    pub fn get_address_from_pubkey(public_key: &[u8]) -> Result<Self> {
         let pubkey_hash = keccak::<&[u8]>(public_key[1..].as_ref());
         let addr_bytes = &pubkey_hash[12..];
-        Ok(hex::encode(addr_bytes))
+        Ok(EthAddress(hex::encode(addr_bytes)))
     }
 }
 

@@ -8,17 +8,10 @@ use tcx_atom::address::{AtomAddress, AtomChainFactory};
 use tcx_eos::address::EosAddress;
 use tcx_eos::transaction::{EosMessageInput, EosTxInput};
 use tcx_eos::EosChainFactory;
-use tcx_crypto::crypto::SCryptParams;
 use tcx_primitive::{get_account_path, private_key_without_version, FromHex, TypedPrivateKey};
-use tcx_wallet::model::V3;
 
 use tcx_bch::BchAddress;
 use tcx_btc_kin::{BtcKinAddress, BtcKinTxInput, BtcKinTxOutput, WIFDisplay};
-use tcx_chain::{key_hash_from_mnemonic, key_hash_from_private_key, Keystore, KeystoreGuard};
-use tcx_btc_fork::{
-    BtcForkAddress, BtcForkSegWitTransaction, BtcForkSignedTxOutput, BtcForkTransaction,
-    BtcForkTxInput, WifDisplay,
-};
 use tcx_chain::{
     key_hash_from_mnemonic, key_hash_from_private_key, ChainFactory, Keystore, KeystoreGuard,
 };
@@ -26,7 +19,7 @@ use tcx_chain::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
 use tcx_ckb::{CkbAddress, CkbTxInput};
 use tcx_crypto::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
 use tcx_filecoin::{FilecoinAddress, KeyInfo, UnsignedMessage};
-use tcx_tron::TrxAddress;
+use tcx_tron::TronAddress;
 
 use crate::api::keystore_common_derive_param::Derivation;
 use crate::api::sign_param::Key;
@@ -112,7 +105,7 @@ fn derive_account<'a, 'b>(keystore: &mut Keystore, derivation: &Derivation) -> R
     match derivation.chain_type.as_str() {
         "BITCOINCASH" => keystore.derive_coin::<BchAddress>(&coin_info),
         "LITECOIN" | "BITCOIN" => keystore.derive_coin::<BtcKinAddress>(&coin_info),
-        "TRON" => keystore.derive_coin::<TrxAddress>(&coin_info),
+        "TRON" => keystore.derive_coin::<TronAddress>(&coin_info),
         "NERVOS" => keystore.derive_coin::<CkbAddress>(&coin_info),
         "POLKADOT" | "KUSAMA" => keystore.derive_coin::<SubstrateAddress>(&coin_info),
         "TEZOS" => keystore.derive_coin::<TezosAddress>(&coin_info),

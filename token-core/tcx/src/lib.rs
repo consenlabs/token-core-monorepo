@@ -3,7 +3,7 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 use handler::sign_message;
-use handler::{eth_sign_message, eth_v3keystore_export, eth_v3keystore_import};
+use handler::{eth_v3keystore_export, eth_v3keystore_import};
 use prost::Message;
 
 pub mod api;

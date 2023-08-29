@@ -1,4 +1,5 @@
 use super::Result;
+use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 mod guard;
@@ -98,9 +99,9 @@ impl Account {
 }
 
 /// Chain address interface, for encapsulate derivation
-pub trait Address {
+pub trait Address: ToString + FromStr + Sized + Clone + PartialEq + Eq {
     // Incompatible between the trait `Address:PubKey is not implemented for `&<impl curve::PrivateKey as curve::PrivateKey>::PublicKey`
-    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<String>;
+    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self>;
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool;
 }

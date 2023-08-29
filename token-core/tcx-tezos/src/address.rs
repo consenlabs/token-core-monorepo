@@ -1,14 +1,16 @@
 use bitcoin::util::base58;
 use blake2b_simd::Params;
+use std::str::FromStr;
 use tcx_chain::Address;
 use tcx_chain::Result;
 use tcx_constants::CoinInfo;
 use tcx_primitive::TypedPublicKey;
 
-pub struct TezosAddress();
+#[derive(PartialEq, Eq, Clone)]
+pub struct TezosAddress(String);
 
 impl Address for TezosAddress {
-    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<String> {
+    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
         let tz1_prefix = hex::decode("06A19F")?;
         //get public key
         let pubkey = public_key.to_bytes();
@@ -25,7 +27,7 @@ impl Address for TezosAddress {
         //base58Encode(prefix<3> + public key hash<20> + checksum<4>)
         let address = base58::encode_slice(prefixed_generic_hash.as_slice());
 
-        Ok(address)
+        Ok(TezosAddress(address))
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
@@ -42,6 +44,19 @@ impl Address for TezosAddress {
             }
         }
         true
+    }
+}
+
+impl ToString for TezosAddress {
+    fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
+impl FromStr for TezosAddress {
+    type Err = failure::Error;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(TezosAddress(s.to_string()))
     }
 }
 
@@ -76,7 +91,9 @@ mod test {
         )
         .unwrap();
         assert_eq!(
-            TezosAddress::from_public_key(&pub_key, &coin_info).unwrap(),
+            TezosAddress::from_public_key(&pub_key, &coin_info)
+                .unwrap()
+                .to_string(),
             "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9"
         );
 
@@ -86,11 +103,6 @@ mod test {
                 .unwrap(),
         )
         .unwrap();
-        //tz1MSaHcwz8vqQKTq9YsxZWfM5PhqFLB2B17
-        println!(
-            "###->{}",
-            TezosAddress::from_public_key(&pub_key, &coin_info).unwrap()
-        );
     }
 
     #[test]

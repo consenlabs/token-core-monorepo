@@ -1,24 +1,39 @@
 use base58::ToBase58;
 use failure::format_err;
 use regex::Regex;
+use std::str::FromStr;
 use tcx_chain::Keystore;
 use tcx_chain::{tcx_ensure, Address, ChainFactory, PublicKeyEncoder, Result};
 use tcx_constants::CoinInfo;
 use tcx_crypto::hash;
 use tcx_primitive::{PublicKey, Secp256k1PublicKey, TypedPublicKey};
 
-pub struct EosAddress();
+#[derive(PartialEq, Eq, Clone)]
+pub struct EosAddress(String);
 
 impl Address for EosAddress {
-    fn from_public_key(_public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<String> {
+    fn from_public_key(_public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
         // EOS address is registered by user, not from public key
-        Ok("".to_string())
+        Ok(EosAddress("".to_string()))
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
         let re = Regex::new(r"^[1-5a-z.]{1,12}$").expect("eos account regex");
 
         re.is_match(address)
+    }
+}
+
+impl FromStr for EosAddress {
+    type Err = failure::Error;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(EosAddress(s.to_string()))
+    }
+}
+
+impl ToString for EosAddress {
+    fn to_string(&self) -> String {
+        self.0.clone()
     }
 }
 

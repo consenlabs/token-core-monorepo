@@ -1,14 +1,16 @@
 use sp_core::crypto::Ss58AddressFormat;
 use sp_core::crypto::Ss58Codec;
 use sp_core::sr25519::Public;
+use std::str::FromStr;
 use tcx_chain::Address;
 use tcx_constants::{CoinInfo, Result};
 use tcx_primitive::{PublicKey, Sr25519PublicKey, TypedPublicKey};
 
-pub struct SubstrateAddress();
+#[derive(PartialEq, Eq, Clone)]
+pub struct SubstrateAddress(String);
 
 impl Address for SubstrateAddress {
-    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<String> {
+    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
         // todo: TypedPublicKey to public key
         let sr_pk = Sr25519PublicKey::from_slice(&public_key.to_bytes())?;
         let address = match coin.coin.as_str() {
@@ -21,7 +23,7 @@ impl Address for SubstrateAddress {
             _ => "".to_owned(),
         };
 
-        Ok(address)
+        Ok(SubstrateAddress(address))
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {
@@ -33,6 +35,20 @@ impl Address for SubstrateAddress {
             },
             Err(_) => false,
         }
+    }
+}
+
+impl FromStr for SubstrateAddress {
+    type Err = failure::Error;
+
+    fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
+        Ok(SubstrateAddress(s.to_string()))
+    }
+}
+
+impl ToString for SubstrateAddress {
+    fn to_string(&self) -> String {
+        self.0.clone()
     }
 }
 
@@ -74,7 +90,7 @@ mod test_super {
         ];
         for addr_and_coin in coin_infos {
             let addr = SubstrateAddress::from_public_key(&typed_key, &addr_and_coin.1).unwrap();
-            assert_eq!(addr_and_coin.0, addr);
+            assert_eq!(addr.to_string(), addr_and_coin.0);
         }
     }
 

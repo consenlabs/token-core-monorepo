@@ -196,7 +196,7 @@ impl HdKeystore {
         };
 
         let account = Account {
-            address,
+            address: address.to_string(),
             derivation_path: coin_info.derivation_path.to_string(),
             curve: coin_info.curve,
             coin: coin_info.coin.to_string(),
@@ -238,7 +238,6 @@ mod tests {
 
     use crate::Source;
     use std::string::ToString;
-    use tcx_constants::CurveType::Curve25519;
     use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_primitive::TypedPublicKey;
 
@@ -266,6 +265,7 @@ mod tests {
         assert_eq!(meta.source, expected.source);
     }
 
+    #[derive(Clone, Debug, PartialEq, Eq)]
     struct MockAddress {}
     impl Address for MockAddress {
         fn from_public_key(_pk: &TypedPublicKey, _coin: &CoinInfo) -> Result<String> {

@@ -138,10 +138,10 @@ impl PrivateKeystore {
     ) -> Result<Account> {
         let tsk = TypedPrivateKey::from_slice(coin.curve, private_key)?;
         let pub_key = tsk.public_key();
-        let addr = A::from_public_key(&pub_key, coin)?;
+        let address = A::from_public_key(&pub_key, coin)?;
 
         let acc = Account {
-            address: addr,
+            address: address.to_string(),
             derivation_path: "".to_string(),
             curve: coin.curve,
             coin: coin.coin.to_owned(),

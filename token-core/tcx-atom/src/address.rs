@@ -1,3 +1,5 @@
+use core::str::FromStr;
+
 use bech32::{FromBase32, ToBase32, Variant};
 use tcx_chain::{Address, ChainFactory, PublicKeyEncoder, Result};
 use tcx_constants::CoinInfo;
@@ -6,10 +8,11 @@ use tcx_primitive::TypedPublicKey;
 
 // size of address
 pub const LENGTH: usize = 20;
-pub struct AtomAddress();
+#[derive(PartialEq, Eq, Clone)]
+pub struct AtomAddress(String);
 
 impl Address for AtomAddress {
-    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<String> {
+    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
         let prefix = "cosmos";
 
         let pub_key_bytes = public_key.to_bytes();
@@ -17,7 +20,9 @@ impl Address for AtomAddress {
         let pub_key_hash = hash::ripemd160(&hash::sha256(&pub_key_bytes));
         bytes.copy_from_slice(&pub_key_hash[..LENGTH]);
 
-        Ok(bech32::encode(prefix, bytes.to_base32(), Variant::Bech32)?)
+        Ok(AtomAddress(
+            bech32::encode(prefix, bytes.to_base32(), Variant::Bech32)?.to_string(),
+        ))
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
@@ -38,6 +43,20 @@ impl Address for AtomAddress {
         } else {
             return false;
         }
+    }
+}
+
+impl FromStr for AtomAddress {
+    type Err = failure::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(AtomAddress(s.to_string()))
+    }
+}
+
+impl ToString for AtomAddress {
+    fn to_string(&self) -> String {
+        self.0.clone()
     }
 }
 
@@ -95,7 +114,7 @@ mod tests {
             .unwrap();
 
             let addr = AtomAddress::from_public_key(&pub_key, &get_test_coin()).unwrap();
-            assert_eq!(addr, expected_addr);
+            assert_eq!(addr.to_string(), expected_addr);
         }
     }
 

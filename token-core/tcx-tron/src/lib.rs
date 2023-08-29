@@ -2,7 +2,7 @@ pub mod address;
 pub mod signer;
 pub mod transaction;
 
-pub use crate::address::Address as TrxAddress;
+pub use crate::address::TronAddress;
 
 use sha3::{Digest, Keccak256};
 

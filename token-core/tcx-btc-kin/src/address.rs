@@ -6,7 +6,7 @@ pub trait ScriptPubkey: Sized {
 
 use core::result;
 use std::convert::TryFrom;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::str::FromStr;
 
 use bitcoin::hash_types::PubkeyHash as PubkeyHashType;
@@ -50,19 +50,19 @@ pub struct BtcKinAddress {
 }
 
 impl Address for BtcKinAddress {
-    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<String> {
+    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
         let network = BtcKinNetwork::find_by_coin(&coin.coin, &coin.network);
         tcx_ensure!(network.is_some(), Error::MissingNetwork);
         let network = network.expect("network");
 
-        let addr = match coin.seg_wit.as_str() {
-            "P2WPKH" => BtcKinAddress::p2shwpkh(&public_key.to_bytes(), &network)?.to_string(),
-            "SEGWIT" => BtcKinAddress::p2wpkh(&public_key.to_bytes(), &network)?.to_string(),
-            "P2TR" => BtcKinAddress::p2tr(&public_key.to_bytes(), &network)?.to_string(),
-            _ => BtcKinAddress::p2pkh(&public_key.to_bytes(), &network)?.to_string(),
+        let address = match coin.seg_wit.as_str() {
+            "P2WPKH" => BtcKinAddress::p2shwpkh(&public_key.to_bytes(), &network)?,
+            "SEGWIT" => BtcKinAddress::p2wpkh(&public_key.to_bytes(), &network)?,
+            "P2TR" => BtcKinAddress::p2tr(&public_key.to_bytes(), &network)?,
+            _ => BtcKinAddress::p2pkh(&public_key.to_bytes(), &network)?,
         };
 
-        Ok(addr.to_string())
+        Ok(address)
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {

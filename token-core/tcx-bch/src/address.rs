@@ -1,6 +1,5 @@
 use crate::{Error, Result};
 use bch_addr::Converter;
-use bitcoin::network::constants::Network;
 use bitcoin::util::address::Error as BtcAddressError;
 use bitcoin::{Address as BtcAddress, Script};
 use core::result;
@@ -40,13 +39,13 @@ impl FromStr for BchAddress {
 
     fn from_str(s: &str) -> result::Result<BchAddress, BtcAddressError> {
         let legacy = _bch_to_legacy(s).expect("_bch_to_legacy");
-        let btc_addr = BtcAddress::from_str(&legacy)?;
+        let btc_addr = BtcKinAddress::from_str(&legacy)?;
         Ok(BchAddress(btc_addr))
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub struct BchAddress(pub BtcAddress);
+#[derive(Clone, PartialEq, Eq)]
+pub struct BchAddress(pub BtcKinAddress);
 
 fn remove_bch_prefix(addr: &str) -> String {
     if let Some(sep) = addr.rfind(':') {
@@ -68,9 +67,10 @@ impl BchAddress {
 }
 
 impl Address for BchAddress {
-    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<String> {
-        let addr = BtcKinAddress::from_public_key(public_key, coin)?;
-        legacy_to_bch(&addr)
+    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
+        Ok(BchAddress(BtcKinAddress::from_public_key(
+            public_key, coin,
+        )?))
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {

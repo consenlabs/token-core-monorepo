@@ -1,14 +1,16 @@
+use std::str::FromStr;
 use tcx_chain::Address;
 use tcx_chain::Result;
 use tcx_constants::CoinInfo;
 use tcx_primitive::TypedPublicKey;
 
-pub struct Eth2Address();
+#[derive(PartialEq, Eq, Clone)]
+pub struct Eth2Address(String);
 
 impl Address for Eth2Address {
-    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<String> {
+    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
         let public_key_str = hex::encode(public_key.to_bytes());
-        Ok(public_key_str)
+        Ok(Eth2Address(public_key_str))
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
@@ -25,6 +27,20 @@ impl Address for Eth2Address {
             };
         };
         true
+    }
+}
+
+impl ToString for Eth2Address {
+    fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
+impl FromStr for Eth2Address {
+    type Err = failure::Error;
+
+    fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
+        Ok(Eth2Address(s.to_string()))
     }
 }
 

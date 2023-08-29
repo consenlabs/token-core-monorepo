@@ -341,7 +341,7 @@ pub fn encode_substrate_keystore(
     let pk = Sr25519PrivateKey::from_slice(prv_key)?;
     let pub_key = pk.public_key();
     let addr = SubstrateAddress::from_public_key(&TypedPublicKey::Sr25519(pub_key.clone()), &coin)?;
-    SubstrateKeystore::new(password, prv_key, &pub_key.to_bytes(), &addr)
+    SubstrateKeystore::new(password, prv_key, &pub_key.to_bytes(), &addr.to_string())
 }
 
 #[cfg(test)]

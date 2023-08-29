@@ -1,22 +1,24 @@
 use bitcoin::util::base58;
+use core::str::FromStr;
 
 use crate::keccak;
 
-use tcx_chain::Address as TraitAddress;
+use tcx_chain::Address;
 use tcx_chain::Result;
 use tcx_constants::CoinInfo;
 use tcx_primitive::TypedPublicKey;
 
-pub struct Address(pub String);
+#[derive(PartialEq, Eq, Clone)]
+pub struct TronAddress(pub String);
 
-impl TraitAddress for Address {
-    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<String> {
+impl Address for TronAddress {
+    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
         let pk = public_key.as_secp256k1()?;
         let bytes = pk.to_uncompressed();
 
         let hash = keccak(&bytes[1..]);
         let hex: Vec<u8> = [vec![0x41], hash[12..32].to_vec()].concat();
-        Ok(base58::check_encode_slice(&hex))
+        Ok(TronAddress(base58::check_encode_slice(&hex)))
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
@@ -29,9 +31,24 @@ impl TraitAddress for Address {
     }
 }
 
+impl FromStr for TronAddress {
+    type Err = failure::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(TronAddress(s.to_string()))
+    }
+}
+
+impl ToString for TronAddress {
+    fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Address;
+    use crate::TronAddress;
     use tcx_chain::Address as TraitAddress;
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType};
@@ -49,11 +66,12 @@ mod tests {
         };
 
         assert_eq!(
-            Address::from_public_key(
+            TronAddress::from_public_key(
                 &TypedPublicKey::from_slice(CurveType::SECP256k1, &bytes).unwrap(),
                 &coin_info
             )
-            .unwrap(),
+            .unwrap()
+            .to_string(),
             "THfuSDVRvSsjNDPFdGjMU19Ha4Kf7acotq"
         );
     }
@@ -61,19 +79,19 @@ mod tests {
     #[test]
     fn tron_address_validation() {
         let coin_info = coin_info_from_param("TRON", "", "", "").unwrap();
-        assert!(Address::is_valid(
+        assert!(TronAddress::is_valid(
             "THfuSDVRvSsjNDPFdGjMU19Ha4Kf7acotq",
             &coin_info
         ));
-        assert!(!Address::is_valid(
+        assert!(!TronAddress::is_valid(
             "THfuSDVRvSsjNDPFdGjMU19Ha4Kf7acot",
             &coin_info
         ));
-        assert!(!Address::is_valid(
+        assert!(!TronAddress::is_valid(
             "qq9j7zsvxxl7qsrtpnxp8q0ahcc3j3k6mss7mnlrj8",
             &coin_info
         ));
-        assert!(!Address::is_valid(
+        assert!(!TronAddress::is_valid(
             "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN",
             &coin_info
         ));

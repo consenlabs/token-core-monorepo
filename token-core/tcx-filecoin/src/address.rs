@@ -18,7 +18,8 @@ pub enum Protocol {
     BLS = 3,
 }
 
-pub struct FilecoinAddress();
+#[derive(PartialEq, Eq, Clone)]
+pub struct FilecoinAddress(String);
 
 impl FilecoinAddress {
     fn checksum(ingest: &[u8]) -> Vec<u8> {
@@ -31,43 +32,45 @@ impl FilecoinAddress {
 }
 
 impl Address for FilecoinAddress {
-    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<String> {
-        let ntwk = match coin.network.as_str() {
+    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
+        let network_prefix = match coin.network.as_str() {
             "TESTNET" => TESTNET_PREFIX,
             _ => MAINNET_PREFIX,
         };
         let protocol;
         let payload;
-        let cksm;
+        let checksum;
 
         match public_key {
             TypedPublicKey::Secp256k1(pk) => {
                 protocol = Protocol::Secp256k1;
                 payload = Self::address_hash(&pk.to_uncompressed());
 
-                cksm = Self::checksum(&[vec![protocol as u8], payload.clone().to_vec()].concat());
+                checksum =
+                    Self::checksum(&[vec![protocol as u8], payload.clone().to_vec()].concat());
             }
             TypedPublicKey::BLS(pk) => {
                 protocol = Protocol::BLS;
                 payload = pk.to_bytes();
 
-                cksm = Self::checksum(&[vec![protocol as u8], payload.clone().to_vec()].concat());
+                checksum =
+                    Self::checksum(&[vec![protocol as u8], payload.clone().to_vec()].concat());
             }
             _ => {
                 return Err(Error::InvalidCurveType.into());
             }
         };
 
-        Ok(format!(
+        Ok(FilecoinAddress(format!(
             "{}{}{}",
-            ntwk,
+            network_prefix,
             protocol as i8,
             base32::encode(
                 Alphabet::RFC4648 { padding: false },
-                &[payload, cksm].concat()
+                &[payload, checksum].concat()
             )
             .to_lowercase()
-        ))
+        )))
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {
@@ -81,6 +84,20 @@ impl Address for FilecoinAddress {
         }
 
         ForestAddress::from_str(address).is_ok()
+    }
+}
+
+impl FromStr for FilecoinAddress {
+    type Err = failure::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(FilecoinAddress(s.to_string()))
+    }
+}
+
+impl ToString for FilecoinAddress {
+    fn to_string(&self) -> String {
+        self.0.clone()
     }
 }
 
@@ -152,7 +169,7 @@ mod tests {
         for (input, expected) in test_cases {
             let pk = TypedPublicKey::from_slice(CurveType::BLS, &input).unwrap();
             let address = FilecoinAddress::from_public_key(&pk, &coin_info).unwrap();
-            assert_eq!(address, expected);
+            assert_eq!(address.to_string(), expected);
         }
     }
 
@@ -247,7 +264,7 @@ mod tests {
         for (input, expected) in test_cases {
             let pk = TypedPublicKey::from_slice(CurveType::SECP256k1, &input).unwrap();
             let address = FilecoinAddress::from_public_key(&pk, &coin_info).unwrap();
-            assert_eq!(address, expected);
+            assert_eq!(address.to_string(), expected);
         }
     }
 }

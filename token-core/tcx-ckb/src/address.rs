@@ -1,5 +1,6 @@
 use crate::hash::blake2b_160;
 use bech32::{FromBase32, ToBase32, Variant};
+use std::str::FromStr;
 use tcx_chain::{Address, Result};
 use tcx_constants::CoinInfo;
 use tcx_primitive::TypedPublicKey;
@@ -9,10 +10,11 @@ static TYPE_FULL_DATA: u8 = 2u8;
 static TYPE_FULL_TYPE: u8 = 4u8;
 static TYPE_SHORT: u8 = 1u8;
 
-pub struct CkbAddress();
+#[derive(PartialEq, Eq, Clone)]
+pub struct CkbAddress(String);
 
 impl Address for CkbAddress {
-    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<String> {
+    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
         let prefix = match coin.network.as_str() {
             "TESTNET" => "ckt",
             _ => "ckb",
@@ -24,7 +26,9 @@ impl Address for CkbAddress {
         buf.extend(vec![0x1, 0x00]); // append short version for locks with popular codehash and default code hash index
         buf.extend(pub_key_hash);
 
-        Ok(bech32::encode(prefix, buf.to_base32(), Variant::Bech32)?)
+        Ok(CkbAddress(
+            bech32::encode(prefix, buf.to_base32(), Variant::Bech32)?.to_string(),
+        ))
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {
@@ -61,6 +65,20 @@ impl Address for CkbAddress {
     }
 }
 
+impl FromStr for CkbAddress {
+    type Err = failure::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(CkbAddress(s.to_string()))
+    }
+}
+
+impl ToString for CkbAddress {
+    fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::address::CkbAddress;
@@ -91,7 +109,7 @@ mod tests {
             )
             .unwrap();
             let addr = CkbAddress::from_public_key(&pub_key, &coin_info).unwrap();
-            assert_eq!(addr, address);
+            assert_eq!(addr.to_string(), address);
         }
     }
 

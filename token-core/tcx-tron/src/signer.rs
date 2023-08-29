@@ -97,7 +97,7 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::address::Address;
+    use crate::address::TronAddress;
 
     use tcx_chain::{HdKeystore, Keystore, KeystoreGuard, Metadata};
     use tcx_constants::{CoinInfo, TEST_PASSWORD};
@@ -153,7 +153,7 @@ mod tests {
 
         let ks = guard.keystore_mut();
 
-        let account = ks.derive_coin::<Address>(&coin_info).unwrap().clone();
+        let account = ks.derive_coin::<TronAddress>(&coin_info).unwrap().clone();
 
         let signed_tx: TronTxOutput = ks.sign_transaction("TRON", &account.address, &tx)?;
 

@@ -293,8 +293,7 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
                 .derive(format!("1/{}", change_address_index).as_str())?
                 .public_key();
             let change_address = BtcKinAddress::from_public_key(&pub_key, &coin_info)?;
-
-            BtcKinAddress::from_str(&change_address)?.script_pubkey()
+            change_address.script_pubkey()
         } else {
             BtcKinAddress::from_str(&tx.inputs[0].address)?.script_pubkey()
         };
