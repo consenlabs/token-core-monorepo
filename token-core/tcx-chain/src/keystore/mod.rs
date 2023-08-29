@@ -77,6 +77,26 @@ pub struct Account {
     pub public_key: Option<String>,
 }
 
+impl Account {
+    pub fn coin_info(&self) -> CoinInfo {
+        CoinInfo {
+            coin: self.coin.clone(),
+            derivation_path: self.derivation_path.clone(),
+            curve: self.curve,
+            network: self.network.clone(),
+            seg_wit: self.seg_wit.clone(),
+        }
+    }
+
+    pub fn deterministic_public_key(&self) -> Result<TypedDeterministicPublicKey> {
+        if !self.ext_pub_key.is_empty() {
+            TypedDeterministicPublicKey::from_hex(self.curve, &self.ext_pub_key)
+        } else {
+            Err(Error::CannotDeriveKey.into())
+        }
+    }
+}
+
 /// Chain address interface, for encapsulate derivation
 pub trait Address {
     // Incompatible between the trait `Address:PubKey is not implemented for `&<impl curve::PrivateKey as curve::PrivateKey>::PublicKey`
@@ -211,7 +231,7 @@ impl Keystore {
         }
     }
 
-    pub fn determinable(&self) -> bool {
+    pub fn derivable(&self) -> bool {
         match self {
             Keystore::PrivateKey(_) => false,
             Keystore::Hd(_) => true,
@@ -403,7 +423,7 @@ mod tests {
     use std::str::FromStr;
 
     use crate::keystore::metadata_default_source;
-    use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_constants::{coin_info_from_param, CoinInfo, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_primitive::{Ss58Codec, ToHex};
 
     static HD_KEYSTORE_JSON: &'static str = r#"

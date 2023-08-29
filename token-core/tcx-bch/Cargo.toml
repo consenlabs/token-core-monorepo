@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 tcx-chain = { path = "../tcx-chain" }
-tcx-btc-fork = { path = "../tcx-btc-fork" }
+tcx-btc-kin = { path = "../tcx-btc-kin" }
 tcx-primitive = { path = "../tcx-primitive" }
 tcx-constants = { path = "../tcx-constants" }
 

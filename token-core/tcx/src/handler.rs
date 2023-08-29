@@ -1,4 +1,3 @@
-use async_std::task;
 use bytes::BytesMut;
 use prost::Message;
 use serde_json::Value;
@@ -13,7 +12,9 @@ use tcx_crypto::crypto::SCryptParams;
 use tcx_primitive::{get_account_path, private_key_without_version, FromHex, TypedPrivateKey};
 use tcx_wallet::model::V3;
 
-use tcx_bch::{BchAddress, BchTransaction};
+use tcx_bch::BchAddress;
+use tcx_btc_kin::{BtcKinAddress, BtcKinTxInput, BtcKinTxOutput, WIFDisplay};
+use tcx_chain::{key_hash_from_mnemonic, key_hash_from_private_key, Keystore, KeystoreGuard};
 use tcx_btc_fork::{
     BtcForkAddress, BtcForkSegWitTransaction, BtcForkSignedTxOutput, BtcForkTransaction,
     BtcForkTxInput, WifDisplay,
@@ -110,7 +111,7 @@ fn derive_account<'a, 'b>(keystore: &mut Keystore, derivation: &Derivation) -> R
 
     match derivation.chain_type.as_str() {
         "BITCOINCASH" => keystore.derive_coin::<BchAddress>(&coin_info),
-        "LITECOIN" => keystore.derive_coin::<BtcForkAddress>(&coin_info),
+        "LITECOIN" | "BITCOIN" => keystore.derive_coin::<BtcKinAddress>(&coin_info),
         "TRON" => keystore.derive_coin::<TrxAddress>(&coin_info),
         "NERVOS" => keystore.derive_coin::<CkbAddress>(&coin_info),
         "POLKADOT" | "KUSAMA" => keystore.derive_coin::<SubstrateAddress>(&coin_info),
@@ -344,7 +345,7 @@ pub(crate) fn export_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
     let guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
 
     tcx_ensure!(
-        guard.keystore().determinable(),
+        guard.keystore().derivable(),
         format_err!("{}", "private_keystore_cannot_export_mnemonic")
     );
 
@@ -698,6 +699,23 @@ pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(format_err!("unsupported_chain")),
     }
 }
+/*
+fn sign_tx_with_keystore<Address, Input:Message, Output:Message>(&param: SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+    let input: Input = Input::decode(
+        param
+            .input
+            .as_ref()
+            .expect("tx_input")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("SignTxParam");
+
+    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
+    encode_message(signed_tx)
+}
+ */
 
 pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignParam = SignParam::decode(data).expect("SignTxParam");
@@ -793,7 +811,7 @@ pub(crate) fn sign_btc_fork_transaction(
     param: &SignParam,
     keystore: &mut Keystore,
 ) -> Result<Vec<u8>> {
-    let input: BtcForkTxInput = BtcForkTxInput::decode(
+    let input: BtcKinTxInput = BtcKinTxInput::decode(
         param
             .input
             .as_ref()
@@ -803,27 +821,8 @@ pub(crate) fn sign_btc_fork_transaction(
             .as_slice(),
     )
     .expect("BitcoinForkTransactionInput");
-    let coin = coin_info_from_param(&param.chain_type, &input.network, &input.seg_wit, "")?;
 
-    let signed_tx: BtcForkSignedTxOutput = if param.chain_type.as_str() == "BITCOINCASH" {
-        if !BchAddress::is_valid(&input.to, &coin) {
-            return Err(format_err!("address_invalid"));
-        }
-        let tran = BchTransaction::new(input, coin);
-        keystore.sign_transaction(&param.chain_type, &param.address, &tran)?
-    } else if input.seg_wit.as_str() != "NONE" {
-        if !BtcForkAddress::is_valid(&input.to, &coin) {
-            return Err(format_err!("address_invalid"));
-        }
-        let tran = BtcForkSegWitTransaction::new(input, coin);
-        keystore.sign_transaction(&param.chain_type, &param.address, &tran)?
-    } else {
-        if !BtcForkAddress::is_valid(&input.to, &coin) {
-            return Err(format_err!("address_invalid"));
-        }
-        let tran = BtcForkTransaction::new(input, coin);
-        keystore.sign_transaction(&param.chain_type, &param.address, &tran)?
-    };
+    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
     encode_message(signed_tx)
 }
 
@@ -1018,7 +1017,7 @@ pub(crate) fn export_substrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
 
         // !!! Warning !!! HDKeystore only can export raw sr25519 key,
         // but polkadotjs keystore needs a Ed25519 expanded secret key.
-        if keystore.determinable() {
+        if keystore.derivable() {
             return Err(format_err!("{}", "hd_wallet_cannot_export_keystore"));
         }
         meta = keystore.meta().clone();
@@ -1291,6 +1290,8 @@ pub(crate) fn sign_transaction(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn sign_eth_transaction(param: &SignParam, private_key: &[u8]) -> Result<Vec<u8>> {
+    todo!()
+    /*
     let eth_tx_input: EthTxInput = EthTxInput::decode(
         param
             .input
@@ -1309,9 +1310,13 @@ pub(crate) fn sign_eth_transaction(param: &SignParam, private_key: &[u8]) -> Res
     let eth_tx_output: Result<EthTxOutput> =
         task::block_on(async { eth_tx_input.sign_transaction(private_key).await });
     encode_message(eth_tx_output?)
+
+     */
 }
 
 pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
+    todo!()
+    /*
     let param: SignParam = SignParam::decode(data).expect("EthPersonalSignParam");
 
     let keystore = IMTKeystore::must_find_wallet_by_id(&param.id)?;
@@ -1336,9 +1341,12 @@ pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
         task::block_on(async { input.sign_message(private_key.as_slice()).await });
 
     encode_message(sign_result?)
+     */
 }
 
 pub(crate) fn eth_ec_sign(data: &[u8]) -> Result<Vec<u8>> {
+    todo!()
+    /*
     let param: SignParam = SignParam::decode(data).expect("EthMessageSignParam");
 
     let keystore = IMTKeystore::must_find_wallet_by_id(&param.id)?;
@@ -1363,6 +1371,8 @@ pub(crate) fn eth_ec_sign(data: &[u8]) -> Result<Vec<u8>> {
         task::block_on(async { input.ec_sign(private_key.as_slice()).await });
 
     encode_message(sign_result?)
+
+     */
 }
 
 pub(crate) fn eth_recover_address(data: &[u8]) -> Result<Vec<u8>> {

@@ -221,8 +221,8 @@ mod tests {
     use tcx_wallet::{constants, model};
 
     use std::fs;
-    use tcx_btc_fork::transaction::BtcForkTxInput;
-    use tcx_btc_fork::transaction::Utxo;
+    use tcx_btc_kin::transaction::BtcKinTxInput;
+    use tcx_btc_kin::transaction::InputDetail;
 
     use sp_core::ByteArray;
     use sp_runtime::traits::Verify;
@@ -2800,26 +2800,21 @@ mod tests {
                 let ret = call_api("keystore_common_derive", param).unwrap();
                 let rsp: AccountsResponse = AccountsResponse::decode(ret.as_slice()).unwrap();
 
-                let unspents = vec![Utxo {
+                let inputs = vec![InputDetail {
                     tx_hash: "a477af6b2667c29670467e4e0728b685ee07b240235771862318e29ddbe58458"
                         .to_string(),
                     vout: 0,
                     amount: 1000000,
                     address: "mszYqVnqKoQx4jcTdJXxwKAissE3Jbrrc1".to_string(),
-                    script_pub_key: "76a91488d9931ea73d60eaf7e5671efc0552b912911f2a88ac"
-                        .to_string(),
                     derived_path: "0/0".to_string(),
-                    sequence: 0,
                 }];
-                let tx_input = BtcForkTxInput {
+                let tx_input = BtcKinTxInput {
+                    inputs,
                     to: "invalid_address".to_string(),
                     amount: 500000,
-                    unspents,
                     fee: 100000,
-                    change_address_index: 1u32,
-                    change_address: "".to_string(),
-                    network: "TESTNET".to_string(),
-                    seg_wit: "NONE".to_string(),
+                    change_address_index: Some(1u32),
+                    op_return: None,
                 };
                 let input_value = encode_message(tx_input).unwrap();
                 let tx = SignParam {

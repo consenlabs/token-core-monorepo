@@ -7,7 +7,7 @@ use core::result;
 
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use tcx_btc_fork::{BtcForkAddress, PubKeyScript, ScriptPubKeyComponent};
+use tcx_btc_kin::{BtcKinAddress, ScriptPubkey};
 use tcx_chain::Address;
 use tcx_constants::CoinInfo;
 use tcx_primitive::TypedPublicKey;
@@ -69,7 +69,7 @@ impl BchAddress {
 
 impl Address for BchAddress {
     fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<String> {
-        let addr = BtcForkAddress::from_public_key(public_key, coin)?;
+        let addr = BtcKinAddress::from_public_key(public_key, coin)?;
         legacy_to_bch(&addr)
     }
 
@@ -96,21 +96,9 @@ impl Display for BchAddress {
     }
 }
 
-impl PubKeyScript for BchAddress {
-    fn script_pub_key(&self) -> Script {
+impl ScriptPubkey for BchAddress {
+    fn script_pubkey(&self) -> Script {
         self.0.script_pubkey()
-    }
-}
-
-impl ScriptPubKeyComponent for BchAddress {
-    fn address_script_like(_target_addr: &str, pub_key: &bitcoin::PublicKey) -> Result<Script> {
-        Ok(BtcAddress::p2pkh(&pub_key, Network::Bitcoin).script_pubkey())
-    }
-
-    fn address_script_pub_key(target_addr: &str) -> Result<Script> {
-        let target_addr = BchAddress::convert_to_legacy_if_need(target_addr)?;
-        let addr = BtcAddress::from_str(&target_addr)?;
-        Ok(addr.script_pubkey())
     }
 }
 
@@ -118,7 +106,7 @@ impl ScriptPubKeyComponent for BchAddress {
 mod tests {
     use crate::address::{remove_bch_prefix, BchAddress};
 
-    use tcx_btc_fork::WifDisplay;
+    use tcx_btc_kin::WIFDisplay;
     use tcx_chain::Address;
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType};

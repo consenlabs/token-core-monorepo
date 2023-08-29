@@ -264,11 +264,11 @@ impl Ss58Codec for Bip32DeterministicPrivateKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ToHex;
     use crate::{
         Bip32DeterministicPrivateKey, Bip32DeterministicPublicKey, Derive, DeterministicPrivateKey,
         PrivateKey, Ss58Codec,
     };
+    use crate::{FromHex, ToHex};
     use bip39::{Language, Mnemonic, Seed};
 
     fn default_seed() -> Seed {
@@ -336,5 +336,32 @@ mod tests {
         let xpub = Bip32DeterministicPublicKey::from_ss58check_with_version("xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8");
         assert!(xpub.is_ok());
         assert_eq!(xpub.unwrap().0.to_hex(), "03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77");
+    }
+
+    #[test]
+    fn from_hex() {
+        let xpub = Bip32DeterministicPublicKey::from_ss58check_with_version("xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8");
+        assert!(xpub.is_ok());
+
+        let r= Bip32DeterministicPublicKey::from_hex("03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77").unwrap();
+        assert_eq!(r.to_string(), "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8");
+    }
+
+    #[test]
+    fn export_and_import() {
+        let dpks= [
+           "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8",
+           "tpubDCpWeoTY6x4BR2PqoTFJnEdfYbjnC4G8VvKoDUPFjt2dvZJWkMRxLST1pbVW56P7zY3L5jq9MRSeff2xsLnvf9qBBN9AgvrhwfZgw5dJG6R",
+           "tpubDEbvpFLnzUaeKimACznAJmoi8JDktEudB7EK4BnJFD4jTBqxBprwZrBAEEVrSZbEL2nFELm7cH6o81z9FQ3nwrSR7Rebj4jxGFsB5BLq1EY",
+           "xpub6Bs32Yr5Phs3gB6rdNrG4az7Jgr1YKGmKXSV8i4Py4mKd7jUzag8EN6u2gTN1dYHshgL3AmJM6n1enwR1dUnQUr8nDG23G22oDtzGRopACX",
+           "vpub5ZbhUa5EheCJVJLskohSBEyL1qSAxZpMNCN36aQeHHt1jndkpeeiV48YHNiQGafTu5dPZz5e1RyjHzWu8vpAj4vixVUt1rhkrFJR8Fp2EF1"
+        ];
+
+        for dpk in dpks.iter() {
+            let (dpk, _) = Bip32DeterministicPublicKey::from_ss58check_with_version(dpk).unwrap();
+            let hex = dpk.to_hex();
+            let dpk2 = Bip32DeterministicPublicKey::from_hex(&hex).unwrap();
+            assert_eq!(dpk.to_string(), dpk2.to_string());
+        }
     }
 }

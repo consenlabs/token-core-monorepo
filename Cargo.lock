@@ -6613,7 +6613,6 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 name = "tcx"
 version = "0.1.0"
 dependencies = [
- "async-std",
  "base58",
  "base64 0.13.1",
  "bytes 1.4.0",
@@ -6634,7 +6633,7 @@ dependencies = [
  "strum 0.25.0",
  "tcx-atom",
  "tcx-bch",
- "tcx-btc-fork",
+ "tcx-btc-kin",
  "tcx-chain",
  "tcx-ckb",
  "tcx-common",
@@ -6680,7 +6679,7 @@ dependencies = [
  "secp256k1 0.24.3",
  "serde",
  "serde_json",
- "tcx-btc-fork",
+ "tcx-btc-kin",
  "tcx-chain",
  "tcx-constants",
  "tcx-primitive",
@@ -6688,7 +6687,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tcx-btc-fork"
+name = "tcx-btc-kin"
 version = "0.1.0"
 dependencies = [
  "base64 0.13.1",

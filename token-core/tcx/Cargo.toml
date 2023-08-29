@@ -8,7 +8,7 @@ edition = "2018"
 tcx-proto = { path = "../tcx-proto" }
 tcx-crypto = { path = "../tcx-crypto", features = ["cache_dk"] }
 tcx-chain = { path = "../tcx-chain", features = ["cache_dk"] }
-tcx-btc-fork = {path = "../tcx-btc-fork"}
+tcx-btc-kin = {path = "../tcx-btc-kin"}
 tcx-bch = {path = "../tcx-bch"}
 tcx-tron = {path = "../tcx-tron"}
 tcx-ckb = {path = "../tcx-ckb"}
@@ -41,7 +41,6 @@ base64 = "0.13.1"
 base58 = "0.2.0"
 parking_lot = "0.12.1"
 ethers = "2.0.3"
-async-std = "1.12.0"
 
 strum = { version = "0.25", features = ["derive"] }
 

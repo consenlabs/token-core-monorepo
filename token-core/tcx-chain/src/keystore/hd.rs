@@ -194,10 +194,6 @@ impl HdKeystore {
                 .deterministic_public_key()
                 .to_hex(),
         };
-        // let ext_pub_key = root
-        //     .derive(&account_path)?
-        //     .deterministic_public_key()
-        //     .to_hex();
 
         let account = Account {
             address,
@@ -242,6 +238,7 @@ mod tests {
 
     use crate::Source;
     use std::string::ToString;
+    use tcx_constants::CurveType::Curve25519;
     use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_primitive::TypedPublicKey;
 
@@ -301,6 +298,57 @@ mod tests {
             let ks = HdKeystore::from_mnemonic(mn, TEST_PASSWORD, Metadata::default());
             assert!(ks.is_err());
             assert_eq!(err, format!("{}", ks.err().unwrap()));
+        }
+    }
+
+    #[test]
+    pub fn bip44_49() {
+        let mut keystore =
+            HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        let _ = keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+
+        let coin_infos = [
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/44'/0'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/49'/0'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            },
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/49'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            },
+        ];
+
+        let excepts = [
+            "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8",
+            "tpubDCpWeoTY6x4BR2PqoTFJnEdfYbjnC4G8VvKoDUPFjt2dvZJWkMRxLST1pbVW56P7zY3L5jq9MRSeff2xsLnvf9qBBN9AgvrhwfZgw5dJG6R",
+            "ypub6Wdz1gzMKLnPxXti2GbSjQGXSqrA5NMKNP3C5JS2ZJKRDEecuZH8AhSvYQs4dZHi7b6Yind7bLekuTH9fNbJcH1MXMy9meoifu2wST55sav",
+            "upub5E4woDJohDBJ2trk6HqhsvEeZXtjjWMAbHV4LWRhfR9thcpfkjJbBRnvBS21L2JjsZAGC6LhkqAoYgD5VHSXBRNW7gszbiGJP7B6CR35QhD",
+        ];
+
+        for (i, coin_info) in coin_infos.iter().enumerate() {
+            let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
+            let dpk = acc.deterministic_public_key().unwrap();
+            assert_eq!(dpk.to_string(), excepts[i]);
         }
     }
 

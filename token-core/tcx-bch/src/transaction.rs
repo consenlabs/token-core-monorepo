@@ -2,11 +2,9 @@ use crate::address::BchAddress;
 use crate::Result;
 use bitcoin::Transaction;
 use std::str::FromStr;
-use tcx_btc_fork::bip143_with_forkid::SighashComponentsWithForkId;
-use tcx_btc_fork::signer::{LegacyTransactionSignComponent, SignHasher};
-use tcx_btc_fork::transaction::Utxo;
-use tcx_btc_fork::BitcoinForkSinger;
-use tcx_btc_fork::PubKeyScript;
+use tcx_btc_kin::bip143_with_forkid::SighashComponentsWithForkId;
+use tcx_btc_kin::transaction::InputDetail;
+use tcx_btc_kin::PubKeyScript;
 
 const BCH_FORK_ID: u32 = 0x41;
 
@@ -26,9 +24,6 @@ impl SignHasher for BchSignHasher {
         Ok((hash, BCH_FORK_ID))
     }
 }
-
-pub type BchTransaction =
-    BitcoinForkSinger<BchAddress, LegacyTransactionSignComponent<BchSignHasher>>;
 
 #[cfg(test)]
 mod tests {
