@@ -1,0 +1,13 @@
+syntax = "proto3";
+package transaction;
+
+// FUNCTION: sign_tx(SignParam{input: AtomTxInput}): AtomTxOutput
+message AtomTxInput {
+    // hex string
+    string rawData = 1;
+}
+
+message AtomTxOutput {
+    // hex string
+    string signature = 1;
+}

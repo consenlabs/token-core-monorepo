@@ -399,6 +399,16 @@ pub struct PublicKeyResult {
     #[prost(string, tag = "4")]
     pub public_key: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct KeystoreUpdateAccount {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub account_name: ::prost::alloc::string::String,
+}
 /// only support two types
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]

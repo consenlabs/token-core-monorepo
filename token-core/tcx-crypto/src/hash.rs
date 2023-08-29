@@ -1,3 +1,4 @@
+use bitcoin_hashes::{ripemd160, Hash};
 use digest::Digest;
 use sha2::Sha256;
 
@@ -13,6 +14,14 @@ pub fn hex_dsha256(hex: &str) -> String {
 pub fn str_dsha256(str: &str) -> String {
     let key_data = str.as_bytes();
     hex::encode(dsha256(&key_data))
+}
+
+pub fn sha256(bytes: &[u8]) -> Vec<u8> {
+    Sha256::digest(&bytes).to_vec()
+}
+
+pub fn ripemd160(bytes: &[u8]) -> Vec<u8> {
+    ripemd160::Hash::hash(bytes).to_vec()
 }
 
 #[cfg(test)]

@@ -4,11 +4,24 @@ use serde_json::Value;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
+use tcx_atom::address::{AtomAddress, AtomChainFactory};
+use tcx_eos::address::EosAddress;
+use tcx_eos::transaction::{EosMessageInput, EosTxInput};
+use tcx_eos::EosChainFactory;
+use tcx_crypto::crypto::SCryptParams;
 use tcx_primitive::{get_account_path, private_key_without_version, FromHex, TypedPrivateKey};
+use tcx_wallet::model::V3;
 
 use tcx_bch::BchAddress;
 use tcx_btc_kin::{BtcKinAddress, BtcKinTxInput, BtcKinTxOutput, WIFDisplay};
 use tcx_chain::{key_hash_from_mnemonic, key_hash_from_private_key, Keystore, KeystoreGuard};
+use tcx_btc_fork::{
+    BtcForkAddress, BtcForkSegWitTransaction, BtcForkSignedTxOutput, BtcForkTransaction,
+    BtcForkTxInput, WifDisplay,
+};
+use tcx_chain::{
+    key_hash_from_mnemonic, key_hash_from_private_key, ChainFactory, Keystore, KeystoreGuard,
+};
 use tcx_chain::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
 use tcx_ckb::{CkbAddress, CkbTxInput};
 use tcx_crypto::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
@@ -21,8 +34,8 @@ use crate::api::{
     AccountResponse, AccountsResponse, DerivedKeyResult, ExportPrivateKeyParam, HdStoreCreateParam,
     HdStoreImportParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonDeriveParam,
     KeystoreCommonExistsParam, KeystoreCommonExistsResult, KeystoreCommonExportResult,
-    PrivateKeyStoreExportParam, PrivateKeyStoreImportParam, PublicKeyParam, PublicKeyResult,
-    Response, WalletKeyParam, WalletResult, ZksyncPrivateKeyFromSeedParam,
+    KeystoreUpdateAccount, PrivateKeyStoreExportParam, PrivateKeyStoreImportParam, PublicKeyParam,
+    PublicKeyResult, Response, WalletKeyParam, WalletResult, ZksyncPrivateKeyFromSeedParam,
     ZksyncPrivateKeyFromSeedResult, ZksyncPrivateKeyToPubkeyHashParam,
     ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult,
 };
@@ -33,6 +46,7 @@ use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
 use crate::IS_DEBUG;
 use base58::ToBase58;
+use tcx_atom::transaction::AtomTxInput;
 use tcx_chain::tcx_ensure;
 use tcx_chain::Address;
 use tcx_chain::{MessageSigner, TransactionSigner};
@@ -58,12 +72,24 @@ use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
 use tcx_tron::transaction::{TronMessageInput, TronTxInput};
 use tcx_wallet::identity::Identity;
 use tcx_wallet::imt_keystore::{IMTKeystore, WALLET_KEYSTORE_DIR};
+use tcx_wallet::v3_keystore::import_wallet_from_keystore;
 use tcx_wallet::wallet_api::{
     CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
     GenerateMnemonicResult, GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes,
-    RecoverIdentityParam, RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult, Wallet,
+    RecoverIdentityParam, RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult,
+    V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput, Wallet,
 };
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
+
+fn create_chain_factory(chain: &str) -> Result<Box<dyn ChainFactory>> {
+    match chain {
+        "EOS" => Ok(Box::new(EosChainFactory {})),
+        "COSMOS" => Ok(Box::new(AtomChainFactory {})),
+        _ => Err(format_err!("unknow_chain_factory")),
+    }
+}
+
+const NO_PK_CHAINS: &[&str] = &["COSMOS"];
 
 pub(crate) fn encode_message(msg: impl Message) -> Result<Vec<u8>> {
     if *IS_DEBUG.read() {
@@ -92,6 +118,8 @@ fn derive_account<'a, 'b>(keystore: &mut Keystore, derivation: &Derivation) -> R
         "TEZOS" => keystore.derive_coin::<TezosAddress>(&coin_info),
         "FILECOIN" => keystore.derive_coin::<FilecoinAddress>(&coin_info),
         "ETHEREUM2" => keystore.derive_coin::<Eth2Address>(&coin_info),
+        "COSMOS" => keystore.derive_coin::<AtomAddress>(&coin_info),
+        "EOS" => keystore.derive_coin::<EosAddress>(&coin_info),
         _ => Err(format_err!("unsupported_chain")),
     }
 }
@@ -424,6 +452,11 @@ pub(crate) fn private_key_store_import(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn private_key_store_export(data: &[u8]) -> Result<Vec<u8>> {
     let param: PrivateKeyStoreExportParam =
         PrivateKeyStoreExportParam::decode(data).expect("private_key_store_export");
+
+    if NO_PK_CHAINS.contains(&param.chain_type.as_str()) {
+        return Err(format_err!("chain_cannot_export_private_key"));
+    }
+
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
@@ -458,6 +491,12 @@ pub(crate) fn private_key_store_export(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: ExportPrivateKeyParam =
         ExportPrivateKeyParam::decode(data).expect("export_private_key");
+
+    // TODO: refactor using ChainFactory
+    if NO_PK_CHAINS.contains(&param.chain_type.as_str()) {
+        return Err(format_err!("chain_cannot_export_private_key"));
+    }
+
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
@@ -490,7 +529,6 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
     };
 
     // private_key prefix is only about chain type and network
-    let _coin_info = coin_info_from_param(&param.chain_type, &param.network, "", "")?;
     let value = if ["TRON", "POLKADOT", "KUSAMA"].contains(&param.chain_type.as_str()) {
         Ok(pk_hex.to_string())
     } else if "FILECOIN".contains(&param.chain_type.as_str()) {
@@ -656,6 +694,8 @@ pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
         "POLKADOT" | "KUSAMA" => sign_substrate_tx_raw(&param, guard.keystore_mut()),
         "FILECOIN" => sign_filecoin_tx(&param, guard.keystore_mut()),
         "TEZOS" => sign_tezos_tx_raw(&param, guard.keystore_mut()),
+        "COSMOS" => sign_cosmos_tx(&param, guard.keystore_mut()),
+        "EOS" => sign_eos_tx(&param, guard.keystore_mut()),
         _ => Err(format_err!("unsupported_chain")),
     }
 }
@@ -677,6 +717,30 @@ fn sign_tx_with_keystore<Address, Input:Message, Output:Message>(&param: SignPar
 }
  */
 
+pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignParam = SignParam::decode(data).expect("SignTxParam");
+
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(format_err!("{}", "wallet_not_found")),
+    }?;
+
+    let mut guard = match param.key.clone().unwrap() {
+        Key::Password(password) => KeystoreGuard::unlock_by_password(keystore, &password)?,
+        Key::DerivedKey(derived_key) => {
+            KeystoreGuard::unlock_by_derived_key(keystore, &derived_key)?
+        }
+    };
+
+    match param.chain_type.as_str() {
+        "TRON" => sign_tron_message(&param, guard.keystore_mut()),
+        "EOS" => sign_eos_message(&param, guard.keystore_mut()),
+        _ => Err(format_err!("unsupported_chain")),
+    }
+}
+
+// TODO: replacing with ChainFactory
 pub(crate) fn get_public_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: PublicKeyParam = PublicKeyParam::decode(data).expect("PublicKeyParam");
 
@@ -718,7 +782,12 @@ pub(crate) fn get_public_key(data: &[u8]) -> Result<Vec<u8>> {
             ret.public_key = hex::encode(pub_key);
             encode_message(ret)
         }
-        _ => Err(format_err!("unsupported_chain")),
+        _ => {
+            let encoder =
+                create_chain_factory(&param.chain_type.to_uppercase())?.create_public_key_encoder();
+            ret.public_key = encoder.encode(&pub_key)?;
+            encode_message(ret)
+        }
     }
 }
 
@@ -788,7 +857,74 @@ pub(crate) fn sign_tron_tx(param: &SignParam, keystore: &mut Keystore) -> Result
     encode_message(signed_tx)
 }
 
-pub(crate) fn tron_sign_message(data: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn sign_cosmos_tx(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+    let input: AtomTxInput = AtomTxInput::decode(
+        param
+            .input
+            .as_ref()
+            .expect("tx_input")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("AtomTxInput");
+    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
+
+    encode_message(signed_tx)
+}
+
+pub(crate) fn sign_eos_tx(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+    let input = EosTxInput::decode(
+        param
+            .input
+            .as_ref()
+            .expect("tx_input")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("EosTxInput");
+    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
+
+    encode_message(signed_tx)
+}
+
+pub(crate) fn sign_eos_message(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+    let input = EosMessageInput::decode(
+        param
+            .input
+            .as_ref()
+            .expect("eos_message_input")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("EosMessageInput");
+    let signed_message = keystore.sign_message(&param.chain_type, &param.address, &input)?;
+
+    encode_message(signed_message)
+}
+
+pub(crate) fn sign_tron_message(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+    let input: TronMessageInput = TronMessageInput::decode(
+        param
+            .input
+            .as_ref()
+            .expect("TronMessageInput")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("TronMessageInput");
+    let signed_message = keystore.sign_message(&param.chain_type, &param.address, &input)?;
+    encode_message(signed_message)
+}
+
+#[deprecated(
+    since = "2.5.1",
+    note = "Please use the sign_message route function instead"
+)]
+pub(crate) fn sign_tron_message_legacy(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignParam = SignParam::decode(data).expect("SignParam");
 
     let mut map = KEYSTORE_MAP.write();
@@ -1037,31 +1173,33 @@ fn create_wallets(wallets: Vec<ImtKeystore>) -> Vec<Wallet> {
 pub(crate) fn get_current_identity() -> Result<Vec<u8>> {
     let current_identity = Identity::get_current_identity()?;
     let wallets = current_identity.get_wallets()?;
+    let im_token_meta = current_identity.im_token_meta;
     let identity_metadata = MetadataRes {
-        name: current_identity.im_token_meta.name,
-        password_hint: current_identity.im_token_meta.password_hint,
-        chain_type: current_identity.im_token_meta.chain_type,
-        timestamp: current_identity.im_token_meta.timestamp as u64,
-        network: current_identity.im_token_meta.network,
-        backup: current_identity.im_token_meta.backup.unwrap_or(vec![]),
-        source: current_identity.im_token_meta.source,
-        mode: current_identity.im_token_meta.mode,
-        wallet_type: current_identity.im_token_meta.wallet_type,
-        seg_wit: current_identity.im_token_meta.seg_wit,
+        name: im_token_meta.name,
+        password_hint: im_token_meta.password_hint,
+        chain_type: im_token_meta.chain_type.unwrap_or("".to_string()),
+        timestamp: im_token_meta.timestamp as u64,
+        network: im_token_meta.network,
+        backup: im_token_meta.backup.unwrap_or(vec![]),
+        source: im_token_meta.source,
+        mode: im_token_meta.mode,
+        wallet_type: im_token_meta.wallet_type,
+        seg_wit: im_token_meta.seg_wit,
     };
     let mut ret_wallet = vec![];
     for wallet in wallets {
+        let temp_metadata = wallet.im_token_meta.unwrap();
         let wallet_metadata = MetadataRes {
-            name: wallet.im_token_meta.name,
-            password_hint: wallet.im_token_meta.password_hint,
-            chain_type: wallet.im_token_meta.chain_type,
-            timestamp: wallet.im_token_meta.timestamp as u64,
-            network: wallet.im_token_meta.network,
-            backup: wallet.im_token_meta.backup.unwrap_or(vec![]),
-            source: wallet.im_token_meta.source,
-            mode: wallet.im_token_meta.mode,
-            wallet_type: wallet.im_token_meta.wallet_type,
-            seg_wit: wallet.im_token_meta.seg_wit,
+            name: temp_metadata.name,
+            password_hint: temp_metadata.password_hint,
+            chain_type: temp_metadata.chain_type.unwrap_or("".to_string()),
+            timestamp: temp_metadata.timestamp as u64,
+            network: temp_metadata.network,
+            backup: temp_metadata.backup.unwrap_or(vec![]),
+            source: temp_metadata.source,
+            mode: temp_metadata.mode,
+            wallet_type: temp_metadata.wallet_type,
+            seg_wit: temp_metadata.seg_wit,
         };
         let imt_keystore = ImtKeystore {
             id: wallet.id,
@@ -1243,4 +1381,52 @@ pub(crate) fn eth_recover_address(data: &[u8]) -> Result<Vec<u8>> {
     let result: Result<EthRecoverAddressOutput> = input.recover_address();
 
     encode_message(result?)
+}
+
+pub(crate) fn eos_update_account(data: &[u8]) -> Result<Vec<u8>> {
+    let param: KeystoreUpdateAccount =
+        KeystoreUpdateAccount::decode(data).expect("eos_update_account params");
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(format_err!("{}", "wallet_not_found")),
+    }?;
+
+    // todo: use ErrorKind
+    tcx_ensure!(
+        keystore.verify_password(&param.password),
+        format_err!("password_incorrect")
+    );
+
+    tcx_eos::address::eos_update_account(keystore, &param.account_name)?;
+    flush_keystore(&keystore)?;
+    let rsp = Response {
+        is_success: true,
+        error: "".to_string(),
+    };
+    encode_message(rsp)
+}
+
+pub(crate) fn eth_v3keystore_import(data: &[u8]) -> Result<Vec<u8>> {
+    let input: V3KeystoreImportInput =
+        V3KeystoreImportInput::decode(data).expect("V3KeystoreImportInput");
+    let v3_keystore = import_wallet_from_keystore(input)?;
+    let metadata = v3_keystore.im_token_meta.unwrap();
+    let ret_wallet: WalletResult = WalletResult {
+        id: v3_keystore.id,
+        created_at: metadata.timestamp as i64,
+        source: metadata.source,
+        name: metadata.name,
+        accounts: vec![],
+    };
+    encode_message(ret_wallet)
+}
+
+pub(crate) fn eth_v3keystore_export(data: &[u8]) -> Result<Vec<u8>> {
+    let input: V3KeystoreExportInput =
+        V3KeystoreExportInput::decode(data).expect("V3KeystoreExportInput");
+    let keystore = IMTKeystore::must_find_wallet_by_id(&input.id)?;
+    let json = keystore.export_keystore(&input.password)?;
+    let output = V3KeystoreExportOutput { json };
+    encode_message(output)
 }

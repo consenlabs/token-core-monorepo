@@ -48,7 +48,6 @@ impl TraitTransactionSigner<TronTxInput, TronTxOutput> for Keystore {
         address: &str,
         tx: &TronTxInput,
     ) -> Result<TronTxOutput> {
-        //        let mut raw = tx.raw.clone();
         let data = hex::decode(&tx.raw_data)?;
         let hash = Hash::hash(&data);
 

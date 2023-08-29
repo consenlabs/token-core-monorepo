@@ -42,11 +42,11 @@ pub fn key_hash_from_mnemonic(mnemonic: &str) -> Result<String> {
 impl HdKeystore {
     pub const VERSION: i64 = 11000i64;
 
-    pub(crate) fn store(&self) -> &Store {
+    pub fn store(&self) -> &Store {
         &self.store
     }
 
-    pub(crate) fn store_mut(&mut self) -> &mut Store {
+    pub fn store_mut(&mut self) -> &mut Store {
         &mut self.store
     }
 

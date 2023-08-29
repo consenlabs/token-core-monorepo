@@ -231,6 +231,7 @@ impl Identity {
             password_hint.clone(),
             FROM_NEW_IDENTITY,
             network,
+            None,
             seg_wit,
         )?;
         let mut identity_keystore =
@@ -262,6 +263,7 @@ impl Identity {
             password_hint.clone(),
             FROM_RECOVERED_IDENTITY,
             network,
+            None,
             seg_wit,
         )?;
         let mut identity_keystore = IdentityKeystore::new(metadata, password, mnemonic_phrase)?;
@@ -286,7 +288,7 @@ impl Identity {
         password: &str,
     ) -> SelfResult<IMTKeystore> {
         let mut metadata = Metadata::default();
-        metadata.chain_type = CHAIN_TYPE_ETHEREUM.to_string();
+        metadata.chain_type = Some(CHAIN_TYPE_ETHEREUM.to_string());
         metadata.password_hint = password_hint;
         metadata.source = source.to_string();
         metadata.name = "ETH".to_string();

@@ -14,6 +14,8 @@ tcx-tron = {path = "../tcx-tron"}
 tcx-ckb = {path = "../tcx-ckb"}
 tcx-filecoin = {path = "../tcx-filecoin"}
 tcx-substrate = {path = "../tcx-substrate"}
+tcx-atom = {path = "../tcx-atom"}
+tcx-eos = {path = "../tcx-eos"}
 tcx-primitive = { path = "../tcx-primitive" }
 tcx-constants = { path = "../tcx-constants"}
 tcx-tezos = {path = "../tcx-tezos"}
@@ -39,6 +41,8 @@ base64 = "0.13.1"
 base58 = "0.2.0"
 parking_lot = "0.12.1"
 ethers = "2.0.3"
+
+strum = { version = "0.25", features = ["derive"] }
 
 [lib]
 name = "tcx"

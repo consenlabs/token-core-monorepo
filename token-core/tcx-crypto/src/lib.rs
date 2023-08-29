@@ -1,6 +1,7 @@
 pub mod aes;
 pub mod crypto;
 pub mod hash;
+pub mod hex;
 pub mod numberic_util;
 
 use core::result;
