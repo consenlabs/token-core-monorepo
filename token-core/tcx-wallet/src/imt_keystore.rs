@@ -1,5 +1,6 @@
 use crate::constants::CHAIN_TYPE_ETHEREUM;
 use crate::model::Metadata;
+use crate::model::V3;
 use crate::Error;
 use crate::Result;
 use bip39::{Language, Mnemonic};
@@ -9,7 +10,10 @@ use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tcx_crypto::crypto::KdfType;
+use tcx_crypto::crypto::SCryptParams;
 use tcx_crypto::{Crypto, EncPair, Key, Pbkdf2Params};
+use tcx_primitive::Secp256k1PrivateKey;
 // use tcx_eth::address::EthAddress;
 use parking_lot::RwLock;
 use std::collections::HashMap;
@@ -27,13 +31,16 @@ lazy_static! {
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct IMTKeystore {
-    pub crypto: Crypto<Pbkdf2Params>,
+    pub crypto: Crypto<KdfType>,
     pub id: String,
     pub version: u32,
     pub address: String,
-    pub mnemonic_path: String,
-    pub enc_mnemonic: EncPair,
-    pub im_token_meta: Metadata,
+    #[serde(skip_serializing)]
+    pub mnemonic_path: Option<String>,
+    #[serde(skip_serializing)]
+    pub enc_mnemonic: Option<EncPair>,
+    #[serde(skip_serializing)]
+    pub im_token_meta: Option<Metadata>,
 }
 
 impl IMTKeystore {
@@ -49,7 +56,7 @@ impl IMTKeystore {
             Bip32DeterministicPrivateKey::from_mnemonic(mnemonic_phrase)?;
         let bip32_deterministic_private_key = bip32_deterministic_private_key.derive(path)?;
 
-        let mut crypto: Crypto<Pbkdf2Params> = Crypto::new_by_10240_round(
+        let mut crypto: Crypto<KdfType> = Crypto::new_by_10240_round(
             password,
             bip32_deterministic_private_key
                 .private_key()
@@ -67,7 +74,7 @@ impl IMTKeystore {
             .to_uncompressed();
 
         let address = get_address(
-            metadata.chain_type.as_str(),
+            metadata.chain_type.as_ref().unwrap(),
             metadata.is_main_net(),
             publick_key.as_slice(),
         )?;
@@ -77,9 +84,9 @@ impl IMTKeystore {
             id: Uuid::new_v4().as_hyphenated().to_string(),
             version: VERSION,
             address,
-            mnemonic_path: path.to_string(),
-            enc_mnemonic,
-            im_token_meta: metadata.clone(),
+            mnemonic_path: Some(path.to_string()),
+            enc_mnemonic: Some(enc_mnemonic),
+            im_token_meta: Some(metadata.clone()),
         })
     }
 
@@ -139,6 +146,19 @@ impl IMTKeystore {
         }
         Ok(())
     }
+
+    pub fn export_keystore(&self, password: &str) -> Result<String> {
+        // let keystore = IMTKeystore::must_find_wallet_by_id(id)?;
+        if !self.verify_password(password) {
+            return Err(Error::WalletInvalidPassword.into());
+        }
+        let json = self.to_json()?;
+        Ok(json)
+    }
+
+    pub fn verify_password(&self, password: &str) -> bool {
+        self.crypto.verify_password(password)
+    }
 }
 
 fn get_address(chain_type: &str, _is_mainnet: bool, public_key: &[u8]) -> Result<String> {
@@ -170,7 +190,7 @@ mod test {
     #[test]
     fn test_create_v3_mnemonic_keystore() {
         let mut metadata = Metadata::default();
-        metadata.chain_type = CHAIN_TYPE_ETHEREUM.to_string();
+        metadata.chain_type = Some(CHAIN_TYPE_ETHEREUM.to_string());
         metadata.password_hint = Some(PASSWORD_HINT.to_string());
         metadata.source = FROM_NEW_IDENTITY.to_string();
         metadata.name = "ETH".to_string();

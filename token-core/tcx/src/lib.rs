@@ -3,6 +3,7 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 use handler::sign_message;
+use handler::{eth_sign_message, eth_v3keystore_export, eth_v3keystore_import};
 use prost::Message;
 
 pub mod api;
@@ -146,6 +147,8 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "eth_ec_sign" => landingpad(|| eth_ec_sign(&action.param.unwrap().value)),
         "eth_recover_address" => landingpad(|| eth_recover_address(&action.param.unwrap().value)),
         "eos_update_account" => landingpad(|| eos_update_account(&action.param.unwrap().value)),
+        "eth_keystore_import" => landingpad(|| eth_v3keystore_import(&action.param.unwrap().value)),
+        "eth_keystore_export" => landingpad(|| eth_v3keystore_export(&action.param.unwrap().value)),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {
@@ -242,7 +245,8 @@ mod tests {
     use tcx_wallet::wallet_api::{
         CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
         GenerateMnemonicResult, GetCurrentIdentityResult, RecoverIdentityParam,
-        RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult,
+        RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult, V3KeystoreExportInput,
+        V3KeystoreExportOutput, V3KeystoreImportInput,
     };
 
     static OTHER_MNEMONIC: &'static str =
@@ -3580,6 +3584,57 @@ mod tests {
                 recover_output.address,
                 "6031564e7b2f5cc33737807b2e58daff870b590b"
             );
+        })
+    }
+
+    #[test]
+    pub fn test_eth_keystore_import() {
+        run_test(|| {
+            let param = CreateIdentityParam {
+                name: sample_key::NAME.to_string(),
+                password: sample_key::PASSWORD.to_string(),
+                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
+                network: model::NETWORK_TESTNET.to_string(),
+                seg_wit: None,
+            };
+            let ret = call_api("create_identity", param).unwrap();
+            let create_result: CreateIdentityResult =
+                CreateIdentityResult::decode(ret.as_slice()).unwrap();
+            assert!(create_result.ipfs_id.len() > 0);
+            assert!(create_result.identifier.len() > 0);
+
+            // let keystore = r#"{"address":"6344e16b7733e5211a6b8b5ac1c5628b06d20560",
+            //     "id":"7abda3f2-fa83-415f-a000-6b8af5b8f05a",
+            //     "crypto":{
+            //         "ciphertext":"b28ad9edbeb57f89d32476c2f1415cb328276c573d14a4096faea6588a6931de",
+            //         "cipherparams":{"iv":"647980eb665ea204e97c5c829f2b4aba"},
+            //         "kdf":"scrypt",
+            //         "kdfparams":{"r":8,"p":1,"n":8192,"dklen":32,"salt":"47b199e0082bf2a8fc7ae724f272e7daf2c62a5dc0d01da160d6c6411d2a49ea"},
+            //         "mac":"a0cf4479d4e46fbc228bc9f7d10786a4501f36dfef591c316d8503f0e450f242",
+            //         "cipher":"aes-128-ctr"
+            //     },
+            //     "version":3}"#.to_string();
+            let keystore = r#"{"crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"eccde5515c1f9c833ee76ae3c354d1a2"},"ciphertext":"dda14dd1946c89ca85425f588eb32c545061bd022a9e873aa021de64b6f3b2d5","kdf":"pbkdf2","kdfparams":{"c":10240,"dklen":32,"prf":"hmac-sha256","salt":"3d327145c38932079d5400443fd612fe3e685ae13355d2897a78ea58ab8abda8"},"mac":"9e65da279df5d067c6fa9c4e7a689634885142d2106e7ef592cdb973dc1a22e3"},"id":"dea8739a-bd34-401b-9aaf-a92c1a7c381c","version":3,"address":"436ee8da3d1185a55f183d6e2363bad5aad36a13"}"#.to_string();
+            let param = V3KeystoreImportInput {
+                keystore,
+                password: "abcd1234".to_string(),
+                overwrite: true,
+                name: "ETH".to_string(),
+                chain_type: "ETHEREUM".to_string(),
+                source: "KEYSTORE".to_string(),
+            };
+
+            let ret = call_api("eth_keystore_import", param).unwrap();
+            let import_result: WalletResult = WalletResult::decode(ret.as_slice()).unwrap();
+            println!("{}", import_result.id);
+            // assert_eq!(import_result.id, "7abda3f2-fa83-415f-a000-6b8af5b8f05a");
+            let param = V3KeystoreExportInput {
+                password: "abcd1234".to_string(),
+                id: import_result.id,
+            };
+            let ret = call_api("eth_keystore_export", param).unwrap();
+            let export_result = V3KeystoreExportOutput::decode(ret.as_slice()).unwrap();
+            println!("{}", export_result.json);
         })
     }
 }

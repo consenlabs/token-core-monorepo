@@ -39,7 +39,7 @@ struct CipherParams {
 }
 
 pub trait KdfParams: Default {
-    fn kdf_key() -> String;
+    fn kdf_key(&self) -> String;
     fn validate(&self) -> Result<()>;
     fn generate_derived_key(&self, password: &[u8], out: &mut [u8]);
     fn set_salt(&mut self, salt: &str);
@@ -67,7 +67,7 @@ impl Default for Pbkdf2Params {
 }
 
 impl KdfParams for Pbkdf2Params {
-    fn kdf_key() -> String {
+    fn kdf_key(&self) -> String {
         "pbkdf2".to_owned()
     }
 
@@ -116,7 +116,7 @@ impl Default for SCryptParams {
 }
 
 impl KdfParams for SCryptParams {
-    fn kdf_key() -> String {
+    fn kdf_key(&self) -> String {
         "scrypt".to_owned()
     }
 
@@ -180,6 +180,7 @@ pub struct Crypto<T: KdfParams> {
     cipherparams: CipherParams,
     ciphertext: String,
     kdf: String,
+    #[serde(flatten)]
     kdfparams: T,
     mac: String,
     #[serde(skip)]
@@ -199,7 +200,7 @@ where
             cipher: "aes-128-ctr".to_owned(),
             cipherparams: CipherParams { iv: iv.to_hex() },
             ciphertext: String::from(""),
-            kdf: T::kdf_key(),
+            kdf: param.kdf_key(),
             kdfparams: param,
             mac: String::from(""),
             cached_derived_key: None,
@@ -226,8 +227,35 @@ where
             cipher: "aes-128-ctr".to_owned(),
             cipherparams: CipherParams { iv: iv.to_hex() },
             ciphertext: String::from(""),
-            kdf: T::kdf_key(),
+            kdf: param.kdf_key(),
             kdfparams: param,
+            mac: String::from(""),
+            cached_derived_key: None,
+        };
+
+        let derived_key = crypto
+            .generate_derived_key(password)
+            .expect("new crypto generate_derived_key");
+
+        let ciphertext = crypto.encrypt(password, origin);
+        crypto.ciphertext = ciphertext.to_hex();
+        let mac = Self::generate_mac(&derived_key, &ciphertext);
+        crypto.mac = mac.to_hex();
+        crypto
+    }
+
+    pub fn new_by_10240_round2(password: &str, origin: &[u8]) -> Crypto<KdfType> {
+        let mut param = Pbkdf2Params::default();
+        param.set_round(10240);
+        param.set_salt(&numberic_util::random_iv(32).to_hex());
+        let iv = numberic_util::random_iv(16);
+
+        let mut crypto: Crypto<KdfType> = Crypto {
+            cipher: "aes-128-ctr".to_owned(),
+            cipherparams: CipherParams { iv: iv.to_hex() },
+            ciphertext: String::from(""),
+            kdf: param.kdf_key(),
+            kdfparams: KdfType::Pbkdf2(param),
             mac: String::from(""),
             cached_derived_key: None,
         };
@@ -355,6 +383,54 @@ where
 
     pub fn clear_cache_derived_key(&mut self) {
         self.cached_derived_key = None;
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum KdfType {
+    #[serde(rename = "kdfparams")]
+    Pbkdf2(Pbkdf2Params),
+    #[serde(rename = "scryptparams")]
+    Scrypt(SCryptParams),
+}
+
+impl Default for KdfType {
+    fn default() -> Self {
+        KdfType::Pbkdf2(Pbkdf2Params::default())
+    }
+}
+
+impl KdfParams for KdfType {
+    fn kdf_key(&self) -> String {
+        match self {
+            KdfType::Pbkdf2(_) => "pbkdf2".to_owned(),
+            KdfType::Scrypt(_) => "scrypt".to_owned(),
+        }
+    }
+
+    fn validate(&self) -> Result<()> {
+        match self {
+            KdfType::Pbkdf2(pbkdf2) => pbkdf2.validate(),
+            KdfType::Scrypt(scrypt) => scrypt.validate(),
+        }
+    }
+    fn generate_derived_key(&self, password: &[u8], out: &mut [u8]) {
+        match self {
+            KdfType::Pbkdf2(pbkdf2) => pbkdf2.generate_derived_key(password, out),
+            KdfType::Scrypt(scrypt) => scrypt.generate_derived_key(password, out),
+        }
+    }
+    fn set_salt(&mut self, salt: &str) {
+        match self {
+            KdfType::Pbkdf2(pbkdf2) => pbkdf2.set_salt(salt),
+            KdfType::Scrypt(scrypt) => scrypt.set_salt(salt),
+        }
+    }
+    fn set_round(&mut self, round_number: u32) {
+        match self {
+            KdfType::Pbkdf2(pbkdf2) => pbkdf2.set_round(round_number),
+            KdfType::Scrypt(scrypt) => scrypt.set_round(round_number),
+        }
     }
 }
 

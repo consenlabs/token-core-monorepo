@@ -9,7 +9,9 @@ use tcx_atom::address::{AtomAddress, AtomChainFactory};
 use tcx_eos::address::EosAddress;
 use tcx_eos::transaction::{EosMessageInput, EosTxInput};
 use tcx_eos::EosChainFactory;
+use tcx_crypto::crypto::SCryptParams;
 use tcx_primitive::{get_account_path, private_key_without_version, FromHex, TypedPrivateKey};
+use tcx_wallet::model::V3;
 
 use tcx_bch::{BchAddress, BchTransaction};
 use tcx_btc_fork::{
@@ -69,10 +71,12 @@ use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
 use tcx_tron::transaction::{TronMessageInput, TronTxInput};
 use tcx_wallet::identity::Identity;
 use tcx_wallet::imt_keystore::{IMTKeystore, WALLET_KEYSTORE_DIR};
+use tcx_wallet::v3_keystore::import_wallet_from_keystore;
 use tcx_wallet::wallet_api::{
     CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
     GenerateMnemonicResult, GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes,
-    RecoverIdentityParam, RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult, Wallet,
+    RecoverIdentityParam, RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult,
+    V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput, Wallet,
 };
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
 
@@ -1170,31 +1174,33 @@ fn create_wallets(wallets: Vec<ImtKeystore>) -> Vec<Wallet> {
 pub(crate) fn get_current_identity() -> Result<Vec<u8>> {
     let current_identity = Identity::get_current_identity()?;
     let wallets = current_identity.get_wallets()?;
+    let im_token_meta = current_identity.im_token_meta;
     let identity_metadata = MetadataRes {
-        name: current_identity.im_token_meta.name,
-        password_hint: current_identity.im_token_meta.password_hint,
-        chain_type: current_identity.im_token_meta.chain_type,
-        timestamp: current_identity.im_token_meta.timestamp as u64,
-        network: current_identity.im_token_meta.network,
-        backup: current_identity.im_token_meta.backup.unwrap_or(vec![]),
-        source: current_identity.im_token_meta.source,
-        mode: current_identity.im_token_meta.mode,
-        wallet_type: current_identity.im_token_meta.wallet_type,
-        seg_wit: current_identity.im_token_meta.seg_wit,
+        name: im_token_meta.name,
+        password_hint: im_token_meta.password_hint,
+        chain_type: im_token_meta.chain_type.unwrap_or("".to_string()),
+        timestamp: im_token_meta.timestamp as u64,
+        network: im_token_meta.network,
+        backup: im_token_meta.backup.unwrap_or(vec![]),
+        source: im_token_meta.source,
+        mode: im_token_meta.mode,
+        wallet_type: im_token_meta.wallet_type,
+        seg_wit: im_token_meta.seg_wit,
     };
     let mut ret_wallet = vec![];
     for wallet in wallets {
+        let temp_metadata = wallet.im_token_meta.unwrap();
         let wallet_metadata = MetadataRes {
-            name: wallet.im_token_meta.name,
-            password_hint: wallet.im_token_meta.password_hint,
-            chain_type: wallet.im_token_meta.chain_type,
-            timestamp: wallet.im_token_meta.timestamp as u64,
-            network: wallet.im_token_meta.network,
-            backup: wallet.im_token_meta.backup.unwrap_or(vec![]),
-            source: wallet.im_token_meta.source,
-            mode: wallet.im_token_meta.mode,
-            wallet_type: wallet.im_token_meta.wallet_type,
-            seg_wit: wallet.im_token_meta.seg_wit,
+            name: temp_metadata.name,
+            password_hint: temp_metadata.password_hint,
+            chain_type: temp_metadata.chain_type.unwrap_or("".to_string()),
+            timestamp: temp_metadata.timestamp as u64,
+            network: temp_metadata.network,
+            backup: temp_metadata.backup.unwrap_or(vec![]),
+            source: temp_metadata.source,
+            mode: temp_metadata.mode,
+            wallet_type: temp_metadata.wallet_type,
+            seg_wit: temp_metadata.seg_wit,
         };
         let imt_keystore = ImtKeystore {
             id: wallet.id,
@@ -1389,4 +1395,28 @@ pub(crate) fn eos_update_account(data: &[u8]) -> Result<Vec<u8>> {
         error: "".to_string(),
     };
     encode_message(rsp)
+}
+
+pub(crate) fn eth_v3keystore_import(data: &[u8]) -> Result<Vec<u8>> {
+    let input: V3KeystoreImportInput =
+        V3KeystoreImportInput::decode(data).expect("V3KeystoreImportInput");
+    let v3_keystore = import_wallet_from_keystore(input)?;
+    let metadata = v3_keystore.im_token_meta.unwrap();
+    let ret_wallet: WalletResult = WalletResult {
+        id: v3_keystore.id,
+        created_at: metadata.timestamp as i64,
+        source: metadata.source,
+        name: metadata.name,
+        accounts: vec![],
+    };
+    encode_message(ret_wallet)
+}
+
+pub(crate) fn eth_v3keystore_export(data: &[u8]) -> Result<Vec<u8>> {
+    let input: V3KeystoreExportInput =
+        V3KeystoreExportInput::decode(data).expect("V3KeystoreExportInput");
+    let keystore = IMTKeystore::must_find_wallet_by_id(&input.id)?;
+    let json = keystore.export_keystore(&input.password)?;
+    let output = V3KeystoreExportOutput { json };
+    encode_message(output)
 }
