@@ -199,3 +199,10 @@ message PublicKeyResult {
     string address = 3;
     string publicKey = 4;
 }
+
+
+message KeystoreUpdateAccount {
+    string id = 1;
+    string password = 2;
+    string accountName = 3;
+}

@@ -9,6 +9,8 @@ members=[
     "token-core/tcx-btc-fork",
     "token-core/tcx-bch",
     "token-core/tcx-ckb",
+    "token-core/tcx-atom",
+    "token-core/tcx-eos",
     "token-core/tcx-substrate",
     "token-core/tcx-filecoin",
     "token-core/tcx",
