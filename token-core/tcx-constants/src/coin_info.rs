@@ -4,6 +4,10 @@ use failure::format_err;
 
 use parking_lot::RwLock;
 
+pub enum Coin {
+    Ethereum { path: String, chainId: i32 },
+}
+
 /// Blockchain basic config
 ///
 /// NOTE: Unique key field is `symbol`

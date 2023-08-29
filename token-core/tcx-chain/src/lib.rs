@@ -65,4 +65,7 @@ pub trait ChainFactory {
     fn create_hash_signer(&self) -> Box<dyn HashSigner> {
         unimplemented!()
     }
+
+    // Address is not Object Safety trait ref: https://doc.rust-lang.org/reference/items/traits.html#object-safety
+    // fn create_address_encoder(&self) -> Box<dyn Address>;
 }
