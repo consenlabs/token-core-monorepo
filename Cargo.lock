@@ -6900,6 +6900,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "tcx-migration"
+version = "0.1.0"
+dependencies = [
+ "async-std",
+ "base58",
+ "base64 0.13.1",
+ "bytes 1.4.0",
+ "ethers",
+ "failure",
+ "hex 0.4.3",
+ "lazy_static",
+ "libc",
+ "log",
+ "parking_lot",
+ "prost 0.11.8",
+ "prost-types 0.11.8",
+ "serde",
+ "serde_json",
+ "tcx-atom",
+ "tcx-chain",
+ "tcx-common",
+ "tcx-constants",
+ "tcx-crypto",
+ "tcx-eos",
+ "tcx-eth",
+ "tcx-eth2",
+ "tcx-primitive",
+ "tcx-proto",
+ "tcx-tezos",
+]
+
+[[package]]
 name = "tcx-primitive"
 version = "0.1.0"
 dependencies = [

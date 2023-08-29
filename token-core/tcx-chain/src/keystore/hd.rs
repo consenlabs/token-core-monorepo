@@ -177,7 +177,7 @@ impl HdKeystore {
         })
     }
 
-    pub(crate) fn derive_coin<A: Address>(&mut self, coin_info: &CoinInfo) -> Result<Account> {
+    pub fn derive_coin<A: Address>(&mut self, coin_info: &CoinInfo) -> Result<Account> {
         let cache = self.cache.as_ref().ok_or(Error::KeystoreLocked)?;
 
         let root = TypedDeterministicPrivateKey::from_mnemonic(coin_info.curve, &cache.mnemonic)?;

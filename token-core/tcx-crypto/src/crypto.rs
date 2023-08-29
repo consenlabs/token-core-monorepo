@@ -3,6 +3,7 @@ use crate::numberic_util;
 use crate::Error;
 use crate::Result;
 use bitcoin_hashes::hex::{FromHex, ToHex};
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::env;
 use tiny_keccak::Hasher;
@@ -20,6 +21,7 @@ fn default_kdf_rounds() -> u32 {
     }
 }
 
+#[derive(Clone)]
 pub enum Key {
     Password(String),
     DerivedKey(String),
@@ -38,6 +40,7 @@ struct CipherParams {
     iv: String,
 }
 
+// TODO: refactor KdfParams using Enum
 pub trait KdfParams: Default {
     fn kdf_key(&self) -> String;
     fn validate(&self) -> Result<()>;
