@@ -22,7 +22,7 @@ pub struct Response {
 }
 /// FUNCTION: init_token_core_x(InitTokenCoreXParam)
 ///
-/// initialize tcx by passing keystore folder and xpub encryption params
+/// initialize tcx by passing fixtures folder and xpub encryption params
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct InitTokenCoreXParam {
@@ -38,7 +38,7 @@ pub struct InitTokenCoreXParam {
 ///
 /// // FUNCTION: export_private_key(ExportPrivateKeyParam): KeystoreCommonExportResult
 /// //
-/// // export the private key from a private key keystore or a hd keystore
+/// // export the private key from a private key fixtures or a hd fixtures
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExportPrivateKeyParam {
@@ -60,7 +60,7 @@ pub struct ExportPrivateKeyParam {
 ///
 /// // FUNCTION: keystore_common_verify(WalletKeyParam) -> Response
 /// //
-/// // verify the password of the keystore
+/// // verify the password of the fixtures
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct WalletKeyParam {
@@ -109,7 +109,7 @@ pub struct ZksyncPrivateKeyToPubkeyHashResult {
 }
 /// FUNCTION: hd_store_create(HdStoreCreateParam): WalletResult
 ///
-/// create a new hd keystore
+/// create a new hd fixtures
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HdStoreCreateParam {
@@ -136,7 +136,7 @@ pub struct WalletResult {
 }
 /// FUNCTION: hd_store_import(HdStoreImportParam): WalletResult
 ///
-/// create a new hd keystore by mnemonic
+/// create a new hd fixtures by mnemonic
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HdStoreImportParam {
@@ -155,7 +155,7 @@ pub struct HdStoreImportParam {
 }
 /// FUNCTION: hd_store_derive(HdStoreDeriveParam): AccountsResponse
 ///
-/// derive new accounts from a hd keystore
+/// derive new accounts from a hd fixtures
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeystoreCommonDeriveParam {
@@ -205,7 +205,7 @@ pub struct AccountsResponse {
 }
 /// FUNCTION: hd_store_export(KeystoreCommonExportResult): KeystoreCommonExistsResult
 ///
-/// export the mnemonic from a hd keystore
+/// export the mnemonic from a hd fixtures
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeystoreCommonExportResult {
@@ -218,7 +218,7 @@ pub struct KeystoreCommonExportResult {
 }
 /// FUNCTION: private_key_store_import(PrivateKeyStoreImportParam): WalletResult
 ///
-/// create a new private key keystore by a private key
+/// create a new private key fixtures by a private key
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PrivateKeyStoreImportParam {
@@ -237,7 +237,7 @@ pub struct PrivateKeyStoreImportParam {
 }
 /// FUNCTION: private_key_store_export(PrivateKeyStoreExportParam): KeystoreCommonExportResult
 ///
-/// export the private key from a private key keystore
+/// export the private key from a private key fixtures
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PrivateKeyStoreExportParam {
@@ -252,7 +252,7 @@ pub struct PrivateKeyStoreExportParam {
 }
 /// FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): KeystoreCommonExistsResult
 ///
-/// Check is there a keystore was generate by the special privateKey or mnemonic
+/// Check is there a fixtures was generate by the special privateKey or mnemonic
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeystoreCommonExistsParam {
@@ -273,7 +273,7 @@ pub struct KeystoreCommonExistsResult {
 }
 /// FUNCTION: keystore_common_accounts(KeystoreCommonAccountsParam): AccountsResponse
 ///
-/// List all accounts from the keystore
+/// List all accounts from the fixtures
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeystoreCommonAccountsParam {

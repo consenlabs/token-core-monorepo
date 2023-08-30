@@ -16,7 +16,7 @@ pub use self::{
 };
 
 use crate::signer::ChainSigner;
-use tcx_crypto::{Crypto, Key, Pbkdf2Params};
+use tcx_crypto::{Crypto, Key};
 use tcx_primitive::{TypedDeterministicPublicKey, TypedPrivateKey, TypedPublicKey};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -25,7 +25,7 @@ pub struct Store {
     pub id: String,
     pub version: i64,
     pub key_hash: String,
-    pub crypto: Crypto<Pbkdf2Params>,
+    pub crypto: Crypto,
     pub active_accounts: Vec<Account>,
 
     #[serde(rename = "imTokenMeta")]
@@ -64,7 +64,7 @@ fn transform_mnemonic_error(err: failure::Error) -> Error {
     }
 }
 
-/// Account that presents one blockchain wallet on a keystore
+/// Account that presents one blockchain wallet on a fixtures
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct Account {
@@ -120,7 +120,7 @@ pub enum Source {
     RecoveredIdentity,
 }
 
-/// Metadata of keystore, for presenting wallet data
+/// Metadata of fixtures, for presenting wallet data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Metadata {

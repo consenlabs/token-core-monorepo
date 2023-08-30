@@ -31,7 +31,7 @@ lazy_static! {
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct IMTKeystore {
-    pub crypto: Crypto<KdfType>,
+    pub crypto: Crypto,
     pub id: String,
     pub version: u32,
     pub address: String,
@@ -56,7 +56,7 @@ impl IMTKeystore {
             Bip32DeterministicPrivateKey::from_mnemonic(mnemonic_phrase)?;
         let bip32_deterministic_private_key = bip32_deterministic_private_key.derive(path)?;
 
-        let mut crypto: Crypto<KdfType> = Crypto::new_by_10240_round(
+        let mut crypto: Crypto = Crypto::new(
             password,
             bip32_deterministic_private_key
                 .private_key()
@@ -148,7 +148,7 @@ impl IMTKeystore {
     }
 
     pub fn export_keystore(&self, password: &str) -> Result<String> {
-        // let keystore = IMTKeystore::must_find_wallet_by_id(id)?;
+        // let fixtures = IMTKeystore::must_find_wallet_by_id(id)?;
         if !self.verify_password(password) {
             return Err(Error::WalletInvalidPassword.into());
         }

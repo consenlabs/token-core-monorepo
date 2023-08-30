@@ -133,7 +133,7 @@ fn scrypt_param_from_encoded(encoded: &[u8]) -> Result<(scrypt::Params, Vec<u8>)
 
     let inner_params = scrypt::Params::new(log_n as u8, r, p).expect("init scrypt params");
     if n != PJS_SCRYPT_N || p != PJS_SCRYPT_P || r != PJS_SCRYPT_R {
-        Err(format_err!("Pjs keystore invalid params"))
+        Err(format_err!("Pjs fixtures invalid params"))
     } else {
         Ok((inner_params, salt.to_vec()))
     }

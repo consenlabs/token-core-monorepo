@@ -47,7 +47,7 @@ export default async function (params) {
   await waitFor(id('export-privateKey')).toExist().withTimeout(2000)
   await toHaveText('export-privateKey', privateKey)
 
-  // keystore
+  // fixtures
   await id('keystoreCommonVerify').tap()
   await waitFor(id('verifySuccess')).toExist().withTimeout(2000)
 

@@ -240,7 +240,7 @@ fn _import_wallet_from_mnemonic(v: &Value) -> Result<String> {
 ```rust
 fn _sign_transaction(json_str: &str) -> Result<String> {
     let v: Value = serde_json::from_str(json_str).unwrap();
-    // parse arguments and get keystore
+    // parse arguments and get fixtures
     match chain_type {
         "BITCOINCASH" | "LITECOIN" | "LITECOIN-TESTNET" => _sign_btc_fork_transaction(json_str, keystore, password),
         _ => Err(format_err!("{}", "chain_type_not_support")),

@@ -114,16 +114,16 @@ fn derive_account<'a, 'b>(keystore: &mut Keystore, derivation: &Derivation) -> R
 
     /*
     match derivation.chain_type.as_str() {
-        "BITCOINCASH" => keystore.derive_coin::<BchAddress>(&coin_info),
-        "LITECOIN" | "BITCOIN" => keystore.derive_coin::<BtcKinAddress>(&coin_info),
-        "TRON" => keystore.derive_coin::<TronAddress>(&coin_info),
-        "NERVOS" => keystore.derive_coin::<CkbAddress>(&coin_info),
-        "POLKADOT" | "KUSAMA" => keystore.derive_coin::<SubstrateAddress>(&coin_info),
-        "TEZOS" => keystore.derive_coin::<TezosAddress>(&coin_info),
-        "FILECOIN" => keystore.derive_coin::<FilecoinAddress>(&coin_info),
-        "ETHEREUM2" => keystore.derive_coin::<Eth2Address>(&coin_info),
-        "COSMOS" => keystore.derive_coin::<AtomAddress>(&coin_info),
-        "EOS" => keystore.derive_coin::<EosAddress>(&coin_info),
+        "BITCOINCASH" => fixtures.derive_coin::<BchAddress>(&coin_info),
+        "LITECOIN" | "BITCOIN" => fixtures.derive_coin::<BtcKinAddress>(&coin_info),
+        "TRON" => fixtures.derive_coin::<TronAddress>(&coin_info),
+        "NERVOS" => fixtures.derive_coin::<CkbAddress>(&coin_info),
+        "POLKADOT" | "KUSAMA" => fixtures.derive_coin::<SubstrateAddress>(&coin_info),
+        "TEZOS" => fixtures.derive_coin::<TezosAddress>(&coin_info),
+        "FILECOIN" => fixtures.derive_coin::<FilecoinAddress>(&coin_info),
+        "ETHEREUM2" => fixtures.derive_coin::<Eth2Address>(&coin_info),
+        "COSMOS" => fixtures.derive_coin::<AtomAddress>(&coin_info),
+        "EOS" => fixtures.derive_coin::<EosAddress>(&coin_info),
         _ => Err(format_err!("unsupported_chain")),
     }
      */
@@ -784,7 +784,7 @@ pub(crate) fn get_public_key(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 /*
-pub(crate) fn sign_filecoin_tx(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+pub(crate) fn sign_filecoin_tx(param: &SignParam, fixtures: &mut Keystore) -> Result<Vec<u8>> {
     let input: UnsignedMessage = UnsignedMessage::decode(
         param
             .input
@@ -796,13 +796,13 @@ pub(crate) fn sign_filecoin_tx(param: &SignParam, keystore: &mut Keystore) -> Re
     )
     .expect("FilecoinTxIn");
 
-    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
+    let signed_tx = fixtures.sign_transaction(&param.chain_type, &param.address, &input)?;
     encode_message(signed_tx)
 }
 
 pub(crate) fn sign_btc_fork_transaction(
     param: &SignParam,
-    keystore: &mut Keystore,
+    fixtures: &mut Keystore,
 ) -> Result<Vec<u8>> {
     let input: BtcKinTxInput = BtcKinTxInput::decode(
         param
@@ -815,11 +815,11 @@ pub(crate) fn sign_btc_fork_transaction(
     )
     .expect("BitcoinForkTransactionInput");
 
-    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
+    let signed_tx = fixtures.sign_transaction(&param.chain_type, &param.address, &input)?;
     encode_message(signed_tx)
 }
 
-pub(crate) fn sign_nervos_ckb(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+pub(crate) fn sign_nervos_ckb(param: &SignParam, fixtures: &mut Keystore) -> Result<Vec<u8>> {
     let input: CkbTxInput = CkbTxInput::decode(
         param
             .input
@@ -830,11 +830,11 @@ pub(crate) fn sign_nervos_ckb(param: &SignParam, keystore: &mut Keystore) -> Res
             .as_slice(),
     )
     .expect("CkbTxInput");
-    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
+    let signed_tx = fixtures.sign_transaction(&param.chain_type, &param.address, &input)?;
     encode_message(signed_tx)
 }
 
-pub(crate) fn sign_tron_tx(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+pub(crate) fn sign_tron_tx(param: &SignParam, fixtures: &mut Keystore) -> Result<Vec<u8>> {
     let input: TronTxInput = TronTxInput::decode(
         param
             .input
@@ -845,12 +845,12 @@ pub(crate) fn sign_tron_tx(param: &SignParam, keystore: &mut Keystore) -> Result
             .as_slice(),
     )
     .expect("TronTxInput");
-    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
+    let signed_tx = fixtures.sign_transaction(&param.chain_type, &param.address, &input)?;
 
     encode_message(signed_tx)
 }
 
-pub(crate) fn sign_cosmos_tx(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+pub(crate) fn sign_cosmos_tx(param: &SignParam, fixtures: &mut Keystore) -> Result<Vec<u8>> {
     let input: AtomTxInput = AtomTxInput::decode(
         param
             .input
@@ -861,12 +861,12 @@ pub(crate) fn sign_cosmos_tx(param: &SignParam, keystore: &mut Keystore) -> Resu
             .as_slice(),
     )
     .expect("AtomTxInput");
-    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
+    let signed_tx = fixtures.sign_transaction(&param.chain_type, &param.address, &input)?;
 
     encode_message(signed_tx)
 }
 
-pub(crate) fn sign_eos_tx(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
+pub(crate) fn sign_eos_tx(param: &SignParam, fixtures: &mut Keystore) -> Result<Vec<u8>> {
     let input = EosTxInput::decode(
         param
             .input
@@ -877,7 +877,7 @@ pub(crate) fn sign_eos_tx(param: &SignParam, keystore: &mut Keystore) -> Result<
             .as_slice(),
     )
     .expect("EosTxInput");
-    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
+    let signed_tx = fixtures.sign_transaction(&param.chain_type, &param.address, &input)?;
 
     encode_message(signed_tx)
 }
@@ -1010,7 +1010,7 @@ pub(crate) fn export_substrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
         }?;
 
         // !!! Warning !!! HDKeystore only can export raw sr25519 key,
-        // but polkadotjs keystore needs a Ed25519 expanded secret key.
+        // but polkadotjs fixtures needs a Ed25519 expanded secret key.
         if keystore.derivable() {
             return Err(format_err!("{}", "hd_wallet_cannot_export_keystore"));
         }
@@ -1313,7 +1313,7 @@ pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
     /*
     let param: SignParam = SignParam::decode(data).expect("EthPersonalSignParam");
 
-    let keystore = IMTKeystore::must_find_wallet_by_id(&param.id)?;
+    let fixtures = IMTKeystore::must_find_wallet_by_id(&param.id)?;
     let password = match param.key.clone().unwrap() {
         Key::Password(password) => password,
         _ => {
@@ -1321,7 +1321,7 @@ pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
         }
     };
 
-    let private_key = keystore.decrypt_main_key(password.as_str())?;
+    let private_key = fixtures.decrypt_main_key(password.as_str())?;
 
     let input: EthMessageInput = EthMessageInput::decode(
         param
@@ -1343,7 +1343,7 @@ pub(crate) fn eth_ec_sign(data: &[u8]) -> Result<Vec<u8>> {
     /*
     let param: SignParam = SignParam::decode(data).expect("EthMessageSignParam");
 
-    let keystore = IMTKeystore::must_find_wallet_by_id(&param.id)?;
+    let fixtures = IMTKeystore::must_find_wallet_by_id(&param.id)?;
     let password = match param.key.clone().unwrap() {
         Key::Password(password) => password,
         _ => {
@@ -1351,7 +1351,7 @@ pub(crate) fn eth_ec_sign(data: &[u8]) -> Result<Vec<u8>> {
         }
     };
 
-    let private_key = keystore.decrypt_main_key(password.as_str())?;
+    let private_key = fixtures.decrypt_main_key(password.as_str())?;
 
     let input: EthMessageInput = EthMessageInput::decode(
         param

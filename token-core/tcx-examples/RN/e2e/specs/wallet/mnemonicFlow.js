@@ -1,7 +1,7 @@
 /**
  * mnemonic flow test
  *
- * import -> export -> repeat import -> verify keystore -> delete
+ * import -> export -> repeat import -> verify fixtures -> delete
  */
 
 import importMnemonic from './base/importMnemonic'

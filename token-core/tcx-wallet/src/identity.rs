@@ -19,7 +19,7 @@ use std::fs;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
-use tcx_crypto::{Crypto, EncPair, Key, Pbkdf2Params};
+use tcx_crypto::{Crypto, EncPair, Key};
 use uuid::Uuid;
 
 lazy_static! {
@@ -33,7 +33,7 @@ pub const VERSION: u32 = 1000;
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct IdentityKeystore {
-    pub crypto: Crypto<Pbkdf2Params>,
+    pub crypto: Crypto,
     pub id: String,
     pub version: u32,
     pub enc_auth_key: EncPair,
@@ -104,8 +104,7 @@ impl IdentityKeystore {
         let master_prikey_bytes = master_key.encode();
         let master_prikey_bytes = base58::check_encode_slice(master_prikey_bytes.as_slice());
 
-        let mut crypto: Crypto<Pbkdf2Params> =
-            Crypto::new_by_10240_round(password, master_prikey_bytes.as_bytes());
+        let mut crypto: Crypto = Crypto::new(password, master_prikey_bytes.as_bytes());
         let enc_auth_key = crypto.derive_enc_pair(password, authentication_key.as_slice())?;
         let enc_mnemonic = crypto.derive_enc_pair(password, mnemonic.phrase().as_bytes())?;
         crypto.clear_cache_derived_key();

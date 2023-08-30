@@ -32,7 +32,7 @@ impl IMTKeystore {
                 .as_slice(),
         )?;
 
-        let crypto: Crypto<KdfType> = Crypto::new_by_10240_round(password, private_key);
+        let crypto: Crypto = Crypto::new(password, private_key);
 
         let id = if id.is_some() {
             id.unwrap().to_string()

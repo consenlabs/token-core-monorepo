@@ -2258,7 +2258,7 @@ mod tests {
             assert_eq!(keystore.meta.name, "i_can_save_name");
             assert!(keystore.meta.when_created > 1594102917);
 
-            // assert_eq!(keystore_ret.keystore, "");
+            // assert_eq!(keystore_ret.fixtures, "");
             remove_created_wallet(&wallet_ret.id);
         })
     }
@@ -3600,7 +3600,7 @@ mod tests {
             assert!(create_result.ipfs_id.len() > 0);
             assert!(create_result.identifier.len() > 0);
 
-            // let keystore = r#"{"address":"6344e16b7733e5211a6b8b5ac1c5628b06d20560",
+            // let fixtures = r#"{"address":"6344e16b7733e5211a6b8b5ac1c5628b06d20560",
             //     "id":"7abda3f2-fa83-415f-a000-6b8af5b8f05a",
             //     "crypto":{
             //         "ciphertext":"b28ad9edbeb57f89d32476c2f1415cb328276c573d14a4096faea6588a6931de",

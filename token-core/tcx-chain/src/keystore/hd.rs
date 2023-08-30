@@ -162,7 +162,7 @@ impl HdKeystore {
 
         let key_hash = key_hash_from_mnemonic(mnemonic)?;
 
-        let crypto: Crypto<Pbkdf2Params> = Crypto::new(password, mnemonic.as_bytes());
+        let crypto: Crypto = Crypto::new(password, mnemonic.as_bytes());
         Ok(HdKeystore {
             store: Store {
                 key_hash,

@@ -115,7 +115,7 @@ impl PrivateKeystore {
         let key_data: Vec<u8> = hex::decode(private_key).expect("hex can't decode");
         let key_hash = key_hash_from_private_key(&key_data);
         //        let pk_bytes = hex::decode(private_key).expect("valid private_key");
-        let crypto: Crypto<Pbkdf2Params> = Crypto::new(password, &key_data);
+        let crypto: Crypto = Crypto::new(password, &key_data);
 
         let store = Store {
             key_hash,
