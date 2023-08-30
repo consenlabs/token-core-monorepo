@@ -526,10 +526,10 @@ mod tests {
     #[test]
     fn test_json() {
         let keystore: Keystore = Keystore::from_json(HD_KEYSTORE_JSON).unwrap();
-        assert_eq!(1, keystore.accounts().len());
+        assert_eq!(keystore.accounts().len(), 1);
         assert_eq!(
-            "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r",
-            keystore.accounts().first().unwrap().address
+            keystore.accounts().first().unwrap().address,
+            "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r"
         );
 
         assert_eq!(
@@ -538,10 +538,10 @@ mod tests {
         );
 
         let keystore: Keystore = Keystore::from_json(PK_KEYSTORE_JSON).unwrap();
-        assert_eq!(1, keystore.accounts().len());
+        assert_eq!(keystore.accounts().len(), 1);
         assert_eq!(
+            keystore.accounts().first().unwrap().address,
             "TXo4VDm8Qc5YBSjPhu8pMaxzTApSvLshWG",
-            keystore.accounts().first().unwrap().address
         );
 
         assert_eq!(
@@ -588,7 +588,7 @@ mod tests {
         let ret = keystore
             .sign_hash(&msg, "TRON", "TXo4VDm8Qc5YBSjPhu8pMaxzTApSvLshWG", None)
             .unwrap();
-        assert_eq!("30450221008d4920cb3a5a46a3f76845e823c9531f4a882eac4ffd61bfeaa29646999a83d302205c4c5537816911a8b0eb5f0e7ea09839c37e9e22bace8404d23d064c84d403d5", hex::encode(ret));
+        assert_eq!(hex::encode(ret), "30450221008d4920cb3a5a46a3f76845e823c9531f4a882eac4ffd61bfeaa29646999a83d302205c4c5537816911a8b0eb5f0e7ea09839c37e9e22bace8404d23d064c84d403d5");
     }
 
     #[test]
@@ -598,7 +598,7 @@ mod tests {
         keystore.set_id("test_set_id");
         assert_eq!("test_set_id", keystore.id());
         assert_eq!("test-wallet", keystore.meta().name);
-        assert!(keystore.determinable());
+        assert!(keystore.derivable());
         assert_eq!(
             "efbe00a55ddd4c5350e295a9533d28f93cac001bfdad8cf4275140461ea03e9e",
             keystore.key_hash()
@@ -718,14 +718,14 @@ mod tests {
     fn test_create() {
         let hd_store = HdKeystore::new(TEST_PASSWORD, Metadata::default());
         let keystore = Hd(hd_store);
-        assert_eq!(0, keystore.accounts().len());
-        assert!(keystore.determinable());
+        assert_eq!(keystore.accounts().len(), 0);
+        assert!(keystore.derivable());
 
         let hd_store =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
         let keystore = Hd(hd_store);
-        assert_eq!(0, keystore.accounts().len());
-        assert!(keystore.determinable());
+        assert_eq!(keystore.accounts().len(), 0);
+        assert!(keystore.derivable());
         assert_eq!(
             keystore.key_hash(),
             "512115eca3ae86646aeb06861d551e403b543509"
@@ -743,8 +743,8 @@ mod tests {
             meta,
         );
         let keystore = PrivateKey(pk_store);
-        assert_eq!(0, keystore.accounts().len());
-        assert!(!keystore.determinable());
+        assert_eq!(keystore.accounts().len(), 0);
+        assert!(!keystore.derivable());
 
         let ret = HdKeystore::from_mnemonic(
             format!("{} hello", TEST_MNEMONIC).as_str(),
@@ -756,6 +756,6 @@ mod tests {
 
     #[test]
     fn test_default_source() {
-        assert_eq!(Source::Mnemonic, metadata_default_source());
+        assert_eq!(metadata_default_source(), Source::Mnemonic);
     }
 }

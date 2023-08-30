@@ -183,7 +183,6 @@ pub struct Crypto<T: KdfParams> {
     cipherparams: CipherParams,
     ciphertext: String,
     kdf: String,
-    #[serde(flatten)]
     kdfparams: T,
     mac: String,
     #[serde(skip)]

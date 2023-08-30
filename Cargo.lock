@@ -6903,7 +6903,6 @@ dependencies = [
 name = "tcx-migration"
 version = "0.1.0"
 dependencies = [
- "async-std",
  "base58",
  "base64 0.13.1",
  "bytes 1.4.0",

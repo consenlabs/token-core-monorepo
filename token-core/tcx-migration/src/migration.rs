@@ -13,7 +13,7 @@ use tcx_eth::address::EthAddress;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct LegacyMnemonicKeystore<T: KdfParams> {
+pub struct LegacyKeystore<T: KdfParams> {
     id: String,
     #[serde(bound(deserialize = "Crypto<T>: Deserialize<'de>"))]
     crypto: Crypto<T>,
@@ -23,9 +23,9 @@ pub struct LegacyMnemonicKeystore<T: KdfParams> {
     im_token_meta: Metadata,
 }
 
-pub enum KdfAlgo {
-    SCrypt,
-    Pbkdf2,
+pub enum Kdf {
+    SCrypt(Pbkdf2Params),
+    Pbkdf2(SCryptParams),
 }
 
 impl fmt::Display for KdfAlgo {
@@ -210,7 +210,17 @@ mod tests {
     use super::LegacyKeystore;
 
     #[test]
-    fn test_migration() {
+    fn test_bitcoin() {
+        let keystore_str =
+            include_str!("../test/keystore/02a55ab6-554a-4e78-bc26-6a7acced7e5e.json");
+        let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
+        let keystore = ks.migrate(&Key::Password("imtoken1".to_string())).unwrap();
+
+        assert_eq!(keystore.accounts().len(), 1);
+    }
+
+    #[test]
+    fn test_eth() {
         let eth_keystore = r#"{
       "crypto": {
         "cipher": "aes-128-ctr",
