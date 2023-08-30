@@ -220,10 +220,7 @@ impl HdKeystore {
     }
 
     pub(crate) fn account(&self, symbol: &str, address: &str) -> Option<&Account> {
-        self.store
-            .active_accounts
-            .iter()
-            .find(|acc| acc.address == address && acc.coin == symbol)
+        self.store.account(symbol, address)
     }
 
     pub(crate) fn verify_password(&self, password: &str) -> bool {
@@ -241,6 +238,8 @@ mod tests {
     use std::string::ToString;
     use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_primitive::TypedPublicKey;
+
+    use crate::keystore::tests::MockAddress;
 
     // A mnemonic word separated by a full-width or half-width space
     static MNEMONIC_WITH_WHITESPACE: &'static str =
@@ -264,31 +263,6 @@ mod tests {
         assert_eq!(meta.name, expected.name);
         assert_eq!(meta.password_hint, expected.password_hint);
         assert_eq!(meta.source, expected.source);
-    }
-
-    #[derive(Clone, PartialEq, Eq)]
-    struct MockAddress();
-    impl Address for MockAddress {
-        fn from_public_key(_pk: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
-            Ok(MockAddress())
-        }
-
-        fn is_valid(_address: &str, _coin: &CoinInfo) -> bool {
-            true
-        }
-    }
-
-    impl FromStr for MockAddress {
-        type Err = failure::Error;
-        fn from_str(_s: &str) -> std::result::Result<Self, Self::Err> {
-            Ok(MockAddress {})
-        }
-    }
-
-    impl ToString for MockAddress {
-        fn to_string(&self) -> String {
-            "mock_address".to_string()
-        }
     }
 
     #[test]
@@ -392,7 +366,7 @@ mod tests {
         let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
 
         let expected = Account {
-            address: "mock_address".to_string(),
+            address: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
             ext_pub_key: "03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77".to_string(),
             network: "MAINNET".to_string(),
@@ -467,7 +441,7 @@ mod tests {
         let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
 
         let expected = Account {
-            address: "mock_address".to_string(),
+            address: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
             ext_pub_key: "03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77".to_string(),
             network: "MAINNET".to_string(),

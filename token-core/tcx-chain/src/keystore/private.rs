@@ -101,10 +101,7 @@ impl PrivateKeystore {
 
     /// Find an account by coin symbol
     pub(crate) fn account(&self, symbol: &str, address: &str) -> Option<&Account> {
-        self.store
-            .active_accounts
-            .iter()
-            .find(|acc| acc.coin == symbol && acc.address == address)
+        self.store.account(symbol, address)
     }
 
     pub(crate) fn verify_password(&self, password: &str) -> bool {

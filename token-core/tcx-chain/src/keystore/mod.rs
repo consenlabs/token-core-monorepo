@@ -32,6 +32,14 @@ pub struct Store {
     pub meta: Metadata,
 }
 
+impl Store {
+    pub fn account(&self, coin: &str, address: &str) -> Option<&Account> {
+        self.active_accounts
+            .iter()
+            .find(|a| a.coin == coin && a.address == address)
+    }
+}
+
 #[derive(Fail, Debug, PartialEq)]
 pub enum Error {
     #[fail(display = "mnemonic_invalid")]
@@ -52,6 +60,8 @@ pub enum Error {
     InvalidVersion,
     #[fail(display = "pkstore_can_not_add_other_curve_account")]
     PkstoreCannotAddOtherCurveAccount,
+    #[fail(display = "merge_with_different_key")]
+    MergeWithDifferentKey,
 }
 
 fn transform_mnemonic_error(err: failure::Error) -> Error {
@@ -159,6 +169,22 @@ pub enum Keystore {
 }
 
 impl Keystore {
+    pub fn merge(&mut self, other: &Keystore) -> Result<()> {
+        if self.key_hash() != other.key_hash() {
+            return Err(Error::MergeWithDifferentKey.into());
+        }
+
+        let store = self.store_mut();
+
+        for account in other.accounts() {
+            if store.account(&account.coin, &account.address).is_none() {
+                store.active_accounts.push(account.clone());
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn from_private_key(private_key: &str, password: &str, meta: Metadata) -> Keystore {
         Keystore::PrivateKey(PrivateKeystore::from_private_key(
             private_key,
@@ -199,8 +225,8 @@ impl Keystore {
         self.store().meta.clone()
     }
 
-    pub fn key_hash(&self) -> String {
-        self.store().key_hash.to_string()
+    pub fn key_hash(&self) -> &str {
+        &self.store().key_hash
     }
 
     pub fn unlock_by_password(&mut self, password: &str) -> Result<()> {
@@ -424,15 +450,41 @@ impl ChainSigner for Keystore {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use crate::keystore::Keystore::{Hd, PrivateKey};
-    use crate::{ChainSigner, HdKeystore, Keystore, Metadata, PrivateKeystore, Source};
+    use crate::{Address, ChainSigner, HdKeystore, Keystore, Metadata, PrivateKeystore, Source};
     use serde_json::Value;
     use std::str::FromStr;
 
     use crate::keystore::metadata_default_source;
-    use tcx_constants::{coin_info_from_param, CoinInfo, TEST_MNEMONIC, TEST_PASSWORD};
-    use tcx_primitive::{Ss58Codec, ToHex};
+    use crate::Result;
+    use tcx_constants::{coin_info_from_param, CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_primitive::{Ss58Codec, ToHex, TypedPublicKey};
+
+    #[derive(Clone, PartialEq, Eq)]
+    pub(crate) struct MockAddress(Vec<u8>);
+    impl Address for MockAddress {
+        fn from_public_key(pk: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
+            Ok(MockAddress(pk.to_bytes()))
+        }
+
+        fn is_valid(_address: &str, _coin: &CoinInfo) -> bool {
+            true
+        }
+    }
+
+    impl FromStr for MockAddress {
+        type Err = failure::Error;
+        fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+            Ok(MockAddress(hex::decode(s).unwrap()))
+        }
+    }
+
+    impl ToString for MockAddress {
+        fn to_string(&self) -> String {
+            hex::encode(&self.0)
+        }
+    }
 
     static HD_KEYSTORE_JSON: &'static str = r#"
         {
@@ -522,6 +574,41 @@ mod tests {
   }
 }
     "#;
+
+    #[test]
+    fn test_merge() {
+        let mut ks1 =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        ks1.unlock_by_password(TEST_PASSWORD).unwrap();
+        let coin_info = CoinInfo {
+            coin: "BITCOIN".to_owned(),
+            derivation_path: "m/44'/0'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_owned(),
+            seg_wit: "NONE".to_owned(),
+        };
+
+        ks1.derive_coin::<MockAddress>(&coin_info);
+
+        let mut ks2 =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        ks2.unlock_by_password(TEST_PASSWORD).unwrap();
+
+        ks2.derive_coin::<MockAddress>(&coin_info);
+
+        let coin_info = CoinInfo {
+            coin: "BITCOIN".to_owned(),
+            derivation_path: "m/44'/0'/1'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_owned(),
+            seg_wit: "NONE".to_owned(),
+        };
+        ks2.derive_coin::<MockAddress>(&coin_info);
+
+        ks1.merge(&ks2).unwrap();
+
+        assert_eq!(ks1.accounts().len(), 2);
+    }
 
     #[test]
     fn test_json() {
