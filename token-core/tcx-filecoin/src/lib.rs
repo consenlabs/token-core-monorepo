@@ -32,3 +32,13 @@ pub enum Error {
     #[fail(display = "invalid_number")]
     InvalidNumber,
 }
+
+pub mod filecoin {
+    pub static CHAINS: [&'static str; 1] = ["FILECOIN"];
+
+    pub type Address = crate::FilecoinAddress;
+
+    pub type TransactionInput = crate::UnsignedMessage;
+
+    pub type TransactionOutput = crate::SignedMessage;
+}

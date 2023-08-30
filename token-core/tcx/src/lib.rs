@@ -27,6 +27,7 @@ use crate::handler::{
 };
 
 mod filemanager;
+mod macros;
 
 use crate::handler::{
     create_identity, eth_ec_sign, eth_recover_address, export_identity, export_substrate_keystore,
@@ -222,12 +223,12 @@ mod tests {
 
     use std::fs;
     use tcx_btc_kin::transaction::BtcKinTxInput;
-    use tcx_btc_kin::transaction::InputDetail;
 
     use sp_core::ByteArray;
     use sp_runtime::traits::Verify;
     use std::fs::File;
     use std::io::Read;
+    use tcx_btc_kin::Utxo;
     use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
     use tcx_constants::sample_key::MNEMONIC;
     use tcx_eth::transaction::{
@@ -2778,7 +2779,8 @@ mod tests {
     #[test]
     pub fn test_sign_btc_fork_invalid_address() {
         run_test(|| {
-            let chain_types = vec!["BITCOINCASH", "LITECOIN"];
+            //            let chain_types = vec!["BITCOINCASH", "LITECOIN"];
+            let chain_types = vec!["BITCOIN", "LITECOIN", "BITCOINCASH"];
 
             let import_result: WalletResult = import_default_wallet();
 
@@ -2800,7 +2802,7 @@ mod tests {
                 let ret = call_api("keystore_common_derive", param).unwrap();
                 let rsp: AccountsResponse = AccountsResponse::decode(ret.as_slice()).unwrap();
 
-                let inputs = vec![InputDetail {
+                let inputs = vec![Utxo {
                     tx_hash: "a477af6b2667c29670467e4e0728b685ee07b240235771862318e29ddbe58458"
                         .to_string(),
                     vout: 0,

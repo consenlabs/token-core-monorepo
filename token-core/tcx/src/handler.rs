@@ -6,12 +6,11 @@ use std::io::Read;
 use std::path::Path;
 use tcx_atom::address::{AtomAddress, AtomChainFactory};
 use tcx_eos::address::EosAddress;
-use tcx_eos::transaction::{EosMessageInput, EosTxInput};
 use tcx_eos::EosChainFactory;
 use tcx_primitive::{get_account_path, private_key_without_version, FromHex, TypedPrivateKey};
 
 use tcx_bch::BchAddress;
-use tcx_btc_kin::{BtcKinAddress, BtcKinTxInput, BtcKinTxOutput, WIFDisplay};
+use tcx_btc_kin::{BtcKinAddress, WIFDisplay};
 use tcx_chain::{
     key_hash_from_mnemonic, key_hash_from_private_key, ChainFactory, Keystore, KeystoreGuard,
 };
@@ -44,10 +43,11 @@ use tcx_chain::tcx_ensure;
 use tcx_chain::Address;
 use tcx_chain::{MessageSigner, TransactionSigner};
 use tcx_constants::coin_info::coin_info_from_param;
-use tcx_constants::CurveType;
+use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::hash::dsha256;
 use tcx_crypto::KDF_ROUNDS;
+use tcx_eos::transaction::EosMessageInput;
 use tcx_eth::transaction::{
     EthMessageInput, EthMessageOutput, EthRecoverAddressInput, EthRecoverAddressOutput, EthTxInput,
     EthTxOutput,
@@ -73,6 +73,14 @@ use tcx_wallet::wallet_api::{
     V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput, Wallet,
 };
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
+
+use crate::macros::use_chains;
+
+use_chains!(
+    tcx_btc_kin::bitcoin,
+    tcx_btc_kin::omni,
+    tcx_filecoin::filecoin
+);
 
 fn create_chain_factory(chain: &str) -> Result<Box<dyn ChainFactory>> {
     match chain {
@@ -102,6 +110,9 @@ fn derive_account<'a, 'b>(keystore: &mut Keystore, derivation: &Derivation) -> R
     )?;
     coin_info.derivation_path = derivation.path.to_owned();
 
+    derive_account_internal(&coin_info, keystore)
+
+    /*
     match derivation.chain_type.as_str() {
         "BITCOINCASH" => keystore.derive_coin::<BchAddress>(&coin_info),
         "LITECOIN" | "BITCOIN" => keystore.derive_coin::<BtcKinAddress>(&coin_info),
@@ -115,6 +126,7 @@ fn derive_account<'a, 'b>(keystore: &mut Keystore, derivation: &Derivation) -> R
         "EOS" => keystore.derive_coin::<EosAddress>(&coin_info),
         _ => Err(format_err!("unsupported_chain")),
     }
+     */
 }
 
 pub fn init_token_core_x(data: &[u8]) -> Result<()> {
@@ -680,6 +692,9 @@ pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
         }
     };
 
+    sign_transaction_internal(&param, guard.keystore_mut())
+
+    /*
     match param.chain_type.as_str() {
         "BITCOINCASH" | "LITECOIN" => sign_btc_fork_transaction(&param, guard.keystore_mut()),
         "TRON" => sign_tron_tx(&param, guard.keystore_mut()),
@@ -691,24 +706,8 @@ pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
         "EOS" => sign_eos_tx(&param, guard.keystore_mut()),
         _ => Err(format_err!("unsupported_chain")),
     }
+     */
 }
-/*
-fn sign_tx_with_keystore<Address, Input:Message, Output:Message>(&param: SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
-    let input: Input = Input::decode(
-        param
-            .input
-            .as_ref()
-            .expect("tx_input")
-            .value
-            .clone()
-            .as_slice(),
-    )
-    .expect("SignTxParam");
-
-    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
-    encode_message(signed_tx)
-}
- */
 
 pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignParam = SignParam::decode(data).expect("SignTxParam");
@@ -784,6 +783,7 @@ pub(crate) fn get_public_key(data: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
+/*
 pub(crate) fn sign_filecoin_tx(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
     let input: UnsignedMessage = UnsignedMessage::decode(
         param
@@ -881,6 +881,7 @@ pub(crate) fn sign_eos_tx(param: &SignParam, keystore: &mut Keystore) -> Result<
 
     encode_message(signed_tx)
 }
+ */
 
 pub(crate) fn sign_eos_message(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
     let input = EosMessageInput::decode(
