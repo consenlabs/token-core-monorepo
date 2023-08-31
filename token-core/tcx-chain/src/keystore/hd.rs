@@ -58,7 +58,9 @@ impl HdKeystore {
         let mnemonic_bytes = self
             .store
             .crypto
-            .decrypt(Key::Password(password.to_owned()))?;
+            .use_key(Key::Password(password.to_owned()))?
+            .plaintext()?;
+
         self.cache_mnemonic(mnemonic_bytes)
     }
 
@@ -66,7 +68,9 @@ impl HdKeystore {
         let mnemonic_bytes = self
             .store
             .crypto
-            .decrypt(Key::DerivedKey(derived_key.to_owned()))?;
+            .use_key(Key::DerivedKey(derived_key.to_owned()))?
+            .plaintext()?;
+
         self.cache_mnemonic(mnemonic_bytes)
     }
 

@@ -64,8 +64,9 @@ impl IMTKeystore {
                 .to_bytes()
                 .as_slice(),
         );
-        let enc_mnemonic = crypto.derive_enc_pair(password, mnemonic_phrase.as_bytes())?;
-        crypto.clear_cache_derived_key();
+        let enc_mnemonic = crypto
+            .use_key(Key::Password(password.to_owned()))?
+            .encrypt_with_random_iv(mnemonic_phrase.as_bytes())?;
         metadata.timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_micros();
 
         let publick_key = bip32_deterministic_private_key
@@ -106,7 +107,9 @@ impl IMTKeystore {
     }
 
     pub fn decrypt_main_key(&self, password: &str) -> Result<Vec<u8>> {
-        self.crypto.decrypt(Key::Password(password.to_owned()))
+        self.crypto
+            .use_key(Key::Password(password.to_owned()))?
+            .plaintext()
     }
 }
 

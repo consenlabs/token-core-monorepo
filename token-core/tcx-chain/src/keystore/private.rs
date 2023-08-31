@@ -157,8 +157,8 @@ impl PrivateKeystore {
         Ok(hex::encode(&vec))
     }
 
-    fn decrypt_private_key(&self, key: Key) -> Result<Vec<u8>> {
-        self.store.crypto.decrypt(key)
+    fn decrypt_private_key(&mut self, key: Key) -> Result<Vec<u8>> {
+        self.store.crypto.use_key(key)?.plaintext()
     }
 }
 

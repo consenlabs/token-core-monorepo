@@ -165,11 +165,98 @@ pub struct Crypto {
     #[serde(flatten)]
     kdf: KdfType,
     mac: String,
-    #[serde(skip)]
-    cached_derived_key: Option<CacheDerivedKey>,
+}
+
+pub struct Unlocker<'a> {
+    pub crypto: &'a Crypto,
+    password: Option<String>,
+    derived_key: Vec<u8>,
+}
+
+fn encrypt(plaintext: &[u8], derived_key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
+    let key = &derived_key[0..16];
+    super::aes::ctr::decrypt_nopadding(plaintext, key, iv)
+}
+
+fn decrypt(ciphertext: &[u8], derived_key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
+    let key = &derived_key[0..16];
+    super::aes::ctr::encrypt_nopadding(ciphertext, key, iv)
+}
+
+fn generate_mac(derived_key: &[u8], ciphertext: &[u8]) -> Vec<u8> {
+    let result = [&derived_key[16..32], ciphertext].concat();
+    let mut keccak = tiny_keccak::Keccak::v256();
+    keccak.update(result.as_slice());
+    let mut output = [0u8; 32];
+    keccak.finalize(&mut output);
+    output.to_vec()
+}
+
+fn encrypt_with_random_iv(derived_key: &[u8], plaintext: &[u8]) -> Result<EncPair> {
+    let iv = numberic_util::random_iv(16);
+    let ciphertext = encrypt(plaintext, derived_key, &iv)?;
+    Ok(EncPair {
+        enc_str: ciphertext.to_hex(),
+        nonce: iv.to_hex(),
+    })
+}
+
+fn decrypt_enc_pair(derived_key: &[u8], enc_pair: &EncPair) -> Result<Vec<u8>> {
+    let ciphertext: Vec<u8> = FromHex::from_hex(&enc_pair.enc_str).unwrap();
+    let iv: Vec<u8> = FromHex::from_hex(&enc_pair.nonce).unwrap();
+
+    decrypt(&ciphertext, derived_key, &iv)
+}
+
+impl<'a> Unlocker<'a> {
+    pub fn derived_key(&self) -> &[u8] {
+        return &self.derived_key;
+    }
+
+    pub fn plaintext(&self) -> Result<Vec<u8>> {
+        self.crypto.decrypt(self.derived_key())
+    }
+
+    pub fn encrypt_with_random_iv(&self, plaintext: &[u8]) -> Result<EncPair> {
+        encrypt_with_random_iv(&self.derived_key, plaintext)
+    }
+
+    pub fn decrypt_enc_pair(&self, enc_pair: &EncPair) -> Result<Vec<u8>> {
+        decrypt_enc_pair(&self.derived_key, enc_pair)
+    }
 }
 
 impl Crypto {
+    pub fn use_key(&self, key: Key) -> Result<Unlocker> {
+        match key {
+            Key::Password(password) => {
+                let derived_key = self.derive_key(&password)?;
+                if self.mac != "" && !self.verify_derived_key(&derived_key) {
+                    return Err(Error::PasswordIncorrect.into());
+                }
+
+                Ok(Unlocker {
+                    crypto: self,
+                    password: Some(password),
+                    derived_key,
+                })
+            }
+            Key::DerivedKey(derived_key) => {
+                let derived_key = hex::decode(&derived_key)?;
+
+                if !self.verify_derived_key(&hex::decode(&derived_key)?) {
+                    return Err(Error::PasswordIncorrect.into());
+                }
+
+                Ok(Unlocker {
+                    crypto: self,
+                    password: None,
+                    derived_key,
+                })
+            }
+        }
+    }
+
     pub fn new(password: &str, origin: &[u8]) -> Crypto {
         let mut param = Pbkdf2Params::default();
         param.salt = numberic_util::random_iv(32).to_hex();
@@ -177,7 +264,7 @@ impl Crypto {
         Self::new_with_kdf(password, origin, KdfType::Pbkdf2(param))
     }
 
-    pub fn new_with_kdf(password: &str, origin: &[u8], kdf: KdfType) -> Crypto {
+    pub fn new_with_kdf(password: &str, plaintext: &[u8], kdf: KdfType) -> Crypto {
         let iv = numberic_util::random_iv(16);
 
         let mut crypto = Crypto {
@@ -186,129 +273,44 @@ impl Crypto {
             ciphertext: String::from(""),
             kdf,
             mac: String::from(""),
-            cached_derived_key: None,
         };
 
-        let derived_key = crypto.derive_key(password).expect("new crypto derive_key");
+        let derived_key = crypto.derive_key(password).expect("derive key");
+        let ciphertext = crypto.encrypt(&derived_key, plaintext).expect("encrypt");
+        let mac = generate_mac(&derived_key, &ciphertext);
 
-        let ciphertext = crypto.encrypt(password, origin);
         crypto.ciphertext = ciphertext.to_hex();
-        let mac = Self::generate_mac(&derived_key, &ciphertext);
         crypto.mac = mac.to_hex();
+
         crypto
     }
 
-    pub fn derive_key(&self, key: &str) -> Result<Vec<u8>> {
-        if let Some(ckd) = &self.cached_derived_key {
-            ckd.get_derived_key(key)
-        } else {
-            let mut derived_key: Credential = [0u8; CREDENTIAL_LEN];
-            self.kdf.derive_key(key.as_bytes(), &mut derived_key);
-            if &self.mac != "" && !self.verify_derived_key(&derived_key) {
-                return Err(Error::PasswordIncorrect.into());
-            }
-            Ok(derived_key.to_vec())
-        }
+    fn derive_key(&self, password: &str) -> Result<Vec<u8>> {
+        let mut derived_key: Credential = [0u8; CREDENTIAL_LEN];
+        self.kdf.derive_key(password.as_bytes(), &mut derived_key);
+        Ok(derived_key.to_vec())
     }
 
-    pub fn decrypt(&self, key: Key) -> Result<Vec<u8>> {
-        let encrypted: Vec<u8> = FromHex::from_hex(&self.ciphertext).expect("ciphertext");
+    fn decrypt(&self, derived_key: &[u8]) -> Result<Vec<u8>> {
+        let ciphertext: Vec<u8> = FromHex::from_hex(&self.ciphertext).expect("ciphertext");
         let iv: Vec<u8> = FromHex::from_hex(&self.cipherparams.iv).expect("iv");
-        self.decrypt_data(key, &encrypted, &iv)
+        decrypt(&ciphertext, derived_key, &iv)
     }
 
-    fn encrypt(&self, password: &str, origin: &[u8]) -> Vec<u8> {
-        let derived_key = self
-            .derive_key(password)
-            .expect("crypto::encrypt must no error");
-        let key = &derived_key[0..16];
+    fn encrypt(&self, derived_key: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
         let iv: Vec<u8> = FromHex::from_hex(&self.cipherparams.iv).unwrap();
-        super::aes::ctr::encrypt_nopadding(origin, key, &iv)
-            .expect("encrypt_nopadding key or iv's length must be 16")
-    }
-
-    pub fn derive_enc_pair(&self, password: &str, origin: &[u8]) -> Result<EncPair> {
-        let iv = numberic_util::random_iv(16);
-        let encrypted_data = self.encrypt_data(password, origin, &iv)?;
-        Ok(EncPair {
-            enc_str: encrypted_data.to_hex(),
-            nonce: iv.to_hex(),
-        })
-    }
-
-    pub fn decrypt_enc_pair(&self, key: Key, enc_pair: &EncPair) -> Result<Vec<u8>> {
-        let encrypted: Vec<u8> = FromHex::from_hex(&enc_pair.enc_str).unwrap();
-        let iv: Vec<u8> = FromHex::from_hex(&enc_pair.nonce).unwrap();
-        self.decrypt_data(key, &encrypted, &iv)
+        encrypt(plaintext, derived_key, &iv)
     }
 
     pub fn verify_password(&self, password: &str) -> bool {
         let derived_key_ret = self.derive_key(password);
-
         derived_key_ret.is_ok() && self.verify_derived_key(&derived_key_ret.expect(""))
-    }
-
-    fn encrypt_data(&self, password: &str, origin: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
-        let derived_key = self.derive_key(password)?;
-
-        if !self.verify_derived_key(&derived_key) {
-            return Err(Error::PasswordIncorrect.into());
-        }
-
-        let key = &derived_key[0..16];
-        super::aes::ctr::encrypt_nopadding(origin, key, &iv)
-    }
-
-    fn decrypt_data(&self, key: Key, encrypted: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
-        let derived_key: Vec<u8> = match key {
-            Key::Password(password) => {
-                let dk = self.derive_key(&password)?;
-                if !self.verify_derived_key(&dk) {
-                    return Err(Error::PasswordIncorrect.into());
-                } else {
-                    dk
-                }
-            }
-            Key::DerivedKey(dk) => {
-                if !(cfg!(feature = "cache_dk")) {
-                    return Err(Error::CachedDkFeatureNotSupport.into());
-                } else {
-                    let dk = hex::decode(dk)?;
-                    if !self.verify_derived_key(&dk) {
-                        return Err(Error::DerivedKeyNotMatched.into());
-                    } else {
-                        dk
-                    }
-                }
-            }
-        };
-
-        let key = &derived_key[0..16];
-        super::aes::ctr::decrypt_nopadding(encrypted, key, &iv)
     }
 
     pub fn verify_derived_key(&self, dk: &[u8]) -> bool {
         let cipher_bytes = Vec::from_hex(&self.ciphertext).expect("vec::from_hex");
-        let mac = Self::generate_mac(&dk, &cipher_bytes);
+        let mac = generate_mac(&dk, &cipher_bytes);
         self.mac == mac.to_hex()
-    }
-
-    fn generate_mac(derived_key: &[u8], ciphertext: &[u8]) -> Vec<u8> {
-        let result = [&derived_key[16..32], ciphertext].concat();
-        let mut keccak = tiny_keccak::Keccak::v256();
-        keccak.update(result.as_slice());
-        let mut output = [0u8; 32];
-        keccak.finalize(&mut output);
-        output.to_vec()
-    }
-
-    pub fn cache_derived_key(&mut self, key: &str, derived_key: &[u8]) {
-        let cdk = CacheDerivedKey::new(key, derived_key);
-        self.cached_derived_key = Some(cdk);
-    }
-
-    pub fn clear_cache_derived_key(&mut self) {
-        self.cached_derived_key = None;
     }
 }
 
@@ -407,11 +409,13 @@ mod tests {
     fn test_decrypt_crypto() {
         let crypto: Crypto = Crypto::new(TEST_PASSWORD, "TokenCoreX".as_bytes());
         let cipher_bytes = crypto
-            .decrypt(Key::Password(TEST_PASSWORD.to_owned()))
-            .expect("cipher bytes");
+            .use_key(Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap()
+            .plaintext()
+            .unwrap();
         assert_eq!("TokenCoreX", String::from_utf8(cipher_bytes).unwrap());
 
-        let ret = crypto.decrypt(Key::Password("WrongPassword".to_owned()));
+        let ret = crypto.use_key(Key::Password("WrongPassword".to_owned()));
         assert!(ret.is_err());
         let err = ret.err().unwrap();
         assert_eq!(
@@ -424,28 +428,24 @@ mod tests {
     fn test_enc_pair() {
         let crypto: Crypto = Crypto::new(TEST_PASSWORD, "TokenCoreX".as_bytes());
         let enc_pair = crypto
-            .derive_enc_pair(TEST_PASSWORD, "TokenCoreX".as_bytes())
+            .use_key(Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap()
+            .encrypt_with_random_iv("TokenCoreX".as_bytes())
             .unwrap();
 
         assert_ne!("", enc_pair.nonce);
         assert_ne!("", enc_pair.enc_str);
 
         let decrypted_bytes = crypto
-            .decrypt_enc_pair(Key::Password(TEST_PASSWORD.to_owned()), &enc_pair)
+            .use_key(Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap()
+            .decrypt_enc_pair(&enc_pair)
             .unwrap();
         let decrypted = String::from_utf8(decrypted_bytes).unwrap();
 
         assert_eq!("TokenCoreX", decrypted);
 
-        let ret = crypto.decrypt_enc_pair(Key::Password("WrongPassword".to_owned()), &enc_pair);
-        assert!(ret.is_err());
-        let err = ret.err().unwrap();
-        assert_eq!(
-            Error::PasswordIncorrect,
-            err.downcast::<crate::Error>().unwrap()
-        );
-
-        let ret = crypto.derive_enc_pair("WrongPassword", &hex::decode("01020304").unwrap());
+        let ret = crypto.use_key(Key::Password("WrongPassword".to_owned()));
         assert!(ret.is_err());
         let err = ret.err().unwrap();
         assert_eq!(
@@ -529,7 +529,9 @@ mod tests {
 
         let crypto: Crypto = serde_json::from_str(data).unwrap();
         let result = crypto
-            .decrypt(Key::Password("Insecure Pa55w0rd".to_owned()))
+            .use_key(Key::Password("Insecure Pa55w0rd".to_owned()))
+            .unwrap()
+            .plaintext()
             .unwrap();
         let wif = String::from_utf8(result).unwrap();
         assert_eq!("L2hfzPyVC1jWH7n2QLTe7tVTb6btg9smp5UVzhEBxLYaSFF7sCZB", wif)

@@ -251,11 +251,13 @@ impl Keystore {
     }
 
     #[cfg(feature = "cache_dk")]
-    pub fn get_derived_key(&self, password: &str) -> Result<String> {
-        self.store()
-            .crypto
-            .derive_key(password)
-            .map(|arr| hex::encode(arr))
+    pub fn get_derived_key(&mut self, password: &str) -> Result<String> {
+        Ok(hex::encode(
+            self.store_mut()
+                .crypto
+                .use_key(Key::Password(password.to_owned()))?
+                .derived_key(),
+        ))
     }
 
     pub fn is_locked(&self) -> bool {
