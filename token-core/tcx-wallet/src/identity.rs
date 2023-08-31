@@ -105,7 +105,7 @@ impl IdentityKeystore {
         let master_prikey_bytes = base58::check_encode_slice(master_prikey_bytes.as_slice());
 
         let mut crypto: Crypto = Crypto::new(password, master_prikey_bytes.as_bytes());
-        let unlocker = crypto.use_key(Key::Password(password.to_string()))?;
+        let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
 
         let enc_auth_key = unlocker.encrypt_with_random_iv(authentication_key.as_slice())?;
         let enc_mnemonic = unlocker.encrypt_with_random_iv(mnemonic.phrase().as_bytes())?;
@@ -148,7 +148,7 @@ impl IdentityKeystore {
     pub fn export_identity(&self, password: &str) -> SelfResult<String> {
         let decrypt_data = self
             .crypto
-            .use_key(Key::Password(password.to_string()))?
+            .use_key(&Key::Password(password.to_string()))?
             .plaintext()?;
         Ok(String::from_utf8(decrypt_data)?)
     }

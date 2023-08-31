@@ -255,7 +255,7 @@ impl Keystore {
         Ok(hex::encode(
             self.store_mut()
                 .crypto
-                .use_key(Key::Password(password.to_owned()))?
+                .use_key(&Key::Password(password.to_owned()))?
                 .derived_key(),
         ))
     }

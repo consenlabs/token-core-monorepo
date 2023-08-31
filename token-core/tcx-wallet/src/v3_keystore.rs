@@ -58,7 +58,7 @@ impl IMTKeystore {
     ) -> Result<IMTKeystore> {
         let decrypted = self
             .crypto
-            .use_key(Key::Password(old_password.to_string()))?
+            .use_key(&Key::Password(old_password.to_string()))?
             .plaintext()?;
         Ok(IMTKeystore::create_v3_privkey_keystore(
             &mut self.im_token_meta.as_mut().unwrap(),
@@ -80,7 +80,7 @@ impl IMTKeystore {
 
         let private_key = self
             .crypto
-            .use_key(Key::Password(password.to_string()))?
+            .use_key(&Key::Password(password.to_string()))?
             .plaintext()?;
 
         let private_key = Secp256k1PrivateKey::from_slice(&private_key)?;
@@ -103,7 +103,7 @@ pub fn import_wallet_from_keystore(input: V3KeystoreImportInput) -> Result<IMTKe
     keystore.validate(&input.password)?;
     let private_key = keystore
         .crypto
-        .use_key(Key::Password(input.password.to_owned()))?
+        .use_key(&Key::Password(input.password.to_owned()))?
         .plaintext()?;
     //私钥校验
 

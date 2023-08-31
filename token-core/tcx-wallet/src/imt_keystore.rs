@@ -65,7 +65,7 @@ impl IMTKeystore {
                 .as_slice(),
         );
         let enc_mnemonic = crypto
-            .use_key(Key::Password(password.to_owned()))?
+            .use_key(&Key::Password(password.to_owned()))?
             .encrypt_with_random_iv(mnemonic_phrase.as_bytes())?;
         metadata.timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_micros();
 
@@ -108,7 +108,7 @@ impl IMTKeystore {
 
     pub fn decrypt_main_key(&self, password: &str) -> Result<Vec<u8>> {
         self.crypto
-            .use_key(Key::Password(password.to_owned()))?
+            .use_key(&Key::Password(password.to_owned()))?
             .plaintext()
     }
 }

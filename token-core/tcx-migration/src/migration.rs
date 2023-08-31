@@ -4,12 +4,12 @@ use std::str::FromStr;
 use failure::format_err;
 use serde::{Deserialize, Serialize};
 use tcx_atom::address::AtomAddress;
-use tcx_chain::{Account, HdKeystore, Result, Source};
+use tcx_chain::{key_hash_from_mnemonic, Account, HdKeystore, Result, Source};
 use tcx_constants::CoinInfo;
 use tcx_crypto::{Crypto, EncPair, KdfParams, Key};
 
 use tcx_btc_kin::address::BtcKinAddress;
-use tcx_chain::keystore::{Keystore, Metadata};
+use tcx_chain::keystore::{Keystore, Metadata, Store};
 use tcx_eos::address::EosAddress;
 use tcx_eth::address::EthAddress;
 
@@ -106,30 +106,39 @@ impl LegacyKeystore {
         Ok(serde_json::from_str(&keystore_str)?)
     }
 
-    pub fn migrate_to_hd(&self, key: Key) -> Result<Keystore> {
-        let mnemonic_data = self
+    pub fn migrate_to_hd(&self, key: &Key) -> Result<Keystore> {
+        let unlocker = self.crypto.use_key(key)?;
+        let mnemonic_data = unlocker.decrypt_enc_pair(&self.enc_mnemonic)?;
+        let mnemonic = String::from_utf8(mnemonic_data.to_owned())?;
+        let key_hash = key_hash_from_mnemonic(&mnemonic)?;
+
+        let mut store = Store {
+            id: self.id.to_string(),
+            version: HdKeystore::VERSION,
+            key_hash: key_hash.to_string(),
+            crypto: self.crypto.clone(),
+            active_accounts: vec![],
+            meta: self.im_token_meta.to_metadata(),
+        };
+
+        let derived_key = unlocker.derived_key();
+        store
             .crypto
-            .use_key(key.clone())?
-            .decrypt_enc_pair(&self.enc_mnemonic)?;
-        let mnemonic = String::from_utf8(mnemonic_data)?;
-        if let Key::Password(password) = key {
-            let mut hd_keystore =
-                Keystore::from_mnemonic(&mnemonic, &password, self.im_token_meta.to_metadata())?;
-            hd_keystore.store_mut().id = self.id.to_string();
-            hd_keystore.unlock_by_password(&password)?;
+            .dangerous_rewrite_plaintext(&derived_key, &mnemonic_data)
+            .expect("encrypt");
 
-            self.derive_account(&mut hd_keystore)?;
+        let mut keystore = Keystore::Hd(HdKeystore::from_store(store));
+        keystore.unlock(&key)?;
 
-            return Ok(hd_keystore);
-        } else {
-            return Err(format_err!("derived_key_not_support"));
-        }
+        self.derive_account(&mut keystore)?;
+
+        Ok(keystore)
     }
 
-    pub fn migrate_to_private(&self, key: Key) -> Result<Keystore> {
+    pub fn migrate_to_private(&self, key: &Key) -> Result<Keystore> {
         let mnemonic_data = self
             .crypto
-            .use_key(key.clone())?
+            .use_key(key)?
             .decrypt_enc_pair((&self.enc_mnemonic))?;
         let mnemonic = String::from_utf8(mnemonic_data)?;
         if let Key::Password(password) = key {

@@ -24,15 +24,15 @@ pub struct PrivateKeystore {
 impl PrivateKeystore {
     pub const VERSION: i64 = 11001i64;
 
-    pub(crate) fn store(&self) -> &Store {
+    pub fn store(&self) -> &Store {
         &self.store
     }
 
-    pub(crate) fn store_mut(&mut self) -> &mut Store {
+    pub fn store_mut(&mut self) -> &mut Store {
         &mut self.store
     }
 
-    pub(crate) fn from_store(store: Store) -> Self {
+    pub fn from_store(store: Store) -> Self {
         PrivateKeystore {
             store,
             private_key: None,
@@ -40,13 +40,14 @@ impl PrivateKeystore {
     }
 
     pub(crate) fn unlock_by_password(&mut self, password: &str) -> Result<()> {
-        self.private_key = Some(self.decrypt_private_key(Key::Password(password.to_owned()))?);
+        self.private_key = Some(self.decrypt_private_key(&Key::Password(password.to_owned()))?);
 
         Ok(())
     }
 
     pub(crate) fn unlock_by_derived_key(&mut self, derived_key: &str) -> Result<()> {
-        self.private_key = Some(self.decrypt_private_key(Key::DerivedKey(derived_key.to_owned()))?);
+        self.private_key =
+            Some(self.decrypt_private_key(&Key::DerivedKey(derived_key.to_owned()))?);
 
         Ok(())
     }
@@ -157,7 +158,7 @@ impl PrivateKeystore {
         Ok(hex::encode(&vec))
     }
 
-    fn decrypt_private_key(&mut self, key: Key) -> Result<Vec<u8>> {
+    fn decrypt_private_key(&self, key: &Key) -> Result<Vec<u8>> {
         self.store.crypto.use_key(key)?.plaintext()
     }
 }

@@ -50,7 +50,7 @@ impl HdKeystore {
         &mut self.store
     }
 
-    pub(crate) fn from_store(store: Store) -> Self {
+    pub fn from_store(store: Store) -> Self {
         HdKeystore { store, cache: None }
     }
 
@@ -58,7 +58,7 @@ impl HdKeystore {
         let mnemonic_bytes = self
             .store
             .crypto
-            .use_key(Key::Password(password.to_owned()))?
+            .use_key(&Key::Password(password.to_owned()))?
             .plaintext()?;
 
         self.cache_mnemonic(mnemonic_bytes)
@@ -68,7 +68,7 @@ impl HdKeystore {
         let mnemonic_bytes = self
             .store
             .crypto
-            .use_key(Key::DerivedKey(derived_key.to_owned()))?
+            .use_key(&Key::DerivedKey(derived_key.to_owned()))?
             .plaintext()?;
 
         self.cache_mnemonic(mnemonic_bytes)

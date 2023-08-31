@@ -227,22 +227,22 @@ impl<'a> Unlocker<'a> {
 }
 
 impl Crypto {
-    pub fn use_key(&self, key: Key) -> Result<Unlocker> {
+    pub fn use_key(&self, key: &Key) -> Result<Unlocker> {
         match key {
             Key::Password(password) => {
-                let derived_key = self.derive_key(&password)?;
+                let derived_key = self.derive_key(password)?;
                 if self.mac != "" && !self.verify_derived_key(&derived_key) {
                     return Err(Error::PasswordIncorrect.into());
                 }
 
                 Ok(Unlocker {
                     crypto: self,
-                    password: Some(password),
+                    password: Some(password.to_owned()),
                     derived_key,
                 })
             }
             Key::DerivedKey(derived_key) => {
-                let derived_key = hex::decode(&derived_key)?;
+                let derived_key = hex::decode(derived_key)?;
 
                 if !self.verify_derived_key(&hex::decode(&derived_key)?) {
                     return Err(Error::PasswordIncorrect.into());
@@ -283,6 +283,23 @@ impl Crypto {
         crypto.mac = mac.to_hex();
 
         crypto
+    }
+
+    /*
+     * used to update the ciphertext, but without changing the the derived key.
+     */
+    pub fn dangerous_rewrite_plaintext(
+        &mut self,
+        derived_key: &[u8],
+        plaintext: &[u8],
+    ) -> Result<()> {
+        let ciphertext = self.encrypt(&derived_key, plaintext).expect("encrypt");
+        let mac = generate_mac(&derived_key, &ciphertext);
+
+        self.ciphertext = ciphertext.to_hex();
+        self.mac = mac.to_hex();
+
+        Ok(())
     }
 
     fn derive_key(&self, password: &str) -> Result<Vec<u8>> {
@@ -409,13 +426,13 @@ mod tests {
     fn test_decrypt_crypto() {
         let crypto: Crypto = Crypto::new(TEST_PASSWORD, "TokenCoreX".as_bytes());
         let cipher_bytes = crypto
-            .use_key(Key::Password(TEST_PASSWORD.to_owned()))
+            .use_key(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap()
             .plaintext()
             .unwrap();
         assert_eq!("TokenCoreX", String::from_utf8(cipher_bytes).unwrap());
 
-        let ret = crypto.use_key(Key::Password("WrongPassword".to_owned()));
+        let ret = crypto.use_key(&Key::Password("WrongPassword".to_owned()));
         assert!(ret.is_err());
         let err = ret.err().unwrap();
         assert_eq!(
@@ -428,7 +445,7 @@ mod tests {
     fn test_enc_pair() {
         let crypto: Crypto = Crypto::new(TEST_PASSWORD, "TokenCoreX".as_bytes());
         let enc_pair = crypto
-            .use_key(Key::Password(TEST_PASSWORD.to_owned()))
+            .use_key(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap()
             .encrypt_with_random_iv("TokenCoreX".as_bytes())
             .unwrap();
@@ -437,7 +454,7 @@ mod tests {
         assert_ne!("", enc_pair.enc_str);
 
         let decrypted_bytes = crypto
-            .use_key(Key::Password(TEST_PASSWORD.to_owned()))
+            .use_key(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap()
             .decrypt_enc_pair(&enc_pair)
             .unwrap();
@@ -445,7 +462,7 @@ mod tests {
 
         assert_eq!("TokenCoreX", decrypted);
 
-        let ret = crypto.use_key(Key::Password("WrongPassword".to_owned()));
+        let ret = crypto.use_key(&Key::Password("WrongPassword".to_owned()));
         assert!(ret.is_err());
         let err = ret.err().unwrap();
         assert_eq!(
@@ -529,7 +546,7 @@ mod tests {
 
         let crypto: Crypto = serde_json::from_str(data).unwrap();
         let result = crypto
-            .use_key(Key::Password("Insecure Pa55w0rd".to_owned()))
+            .use_key(&Key::Password("Insecure Pa55w0rd".to_owned()))
             .unwrap()
             .plaintext()
             .unwrap();
