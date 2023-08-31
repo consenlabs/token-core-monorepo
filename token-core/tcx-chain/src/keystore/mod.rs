@@ -254,7 +254,7 @@ impl Keystore {
     pub fn get_derived_key(&self, password: &str) -> Result<String> {
         self.store()
             .crypto
-            .generate_derived_key(password)
+            .derive_key(password)
             .map(|arr| hex::encode(arr))
     }
 
