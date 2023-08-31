@@ -210,13 +210,8 @@ impl HdKeystore {
             public_key: Some(hex::encode(public_key.to_bytes())),
         };
 
-        if let Some(_) = self
-            .store
-            .active_accounts
-            .iter()
-            .find(|x| x.address == account.address && x.coin == account.coin)
-        {
-            return Ok(account);
+        if let Some(account) = self.account(&account.coin, &account.address) {
+            return Ok(account.clone());
         } else {
             self.store.active_accounts.push(account.clone());
             Ok(account)

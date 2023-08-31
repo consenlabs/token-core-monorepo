@@ -58,6 +58,31 @@ pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
     result.map_err(|_| Error::InvalidHexValue.into())
 }
 
+pub mod nervos {
+    use tcx_chain::{Account, Keystore};
+    use tcx_constants::{CoinInfo, CurveType};
+
+    pub const CHAINS: [&'static str; 1] = ["NERVOS"];
+
+    pub type Address = crate::address::CkbAddress;
+    pub type TransactionInput = crate::transaction::CkbTxInput;
+    pub type TransactionOutput = crate::transaction::CkbTxOutput;
+
+    pub fn enable_account(
+        _: &str,
+        index: u32,
+        keystore: &mut Keystore,
+    ) -> Result<Vec<Account>, failure::Error> {
+        keystore.derive_coins::<crate::CkbAddress>(&[CoinInfo {
+            coin: "NERVOS".to_string(),
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+        }])
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::hex_to_bytes;

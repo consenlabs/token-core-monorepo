@@ -23,3 +23,38 @@ pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
     };
     result.map_err(|_| Error::InvalidHexValue.into())
 }
+
+pub mod ethereum2 {
+    use crate::address::Eth2Address;
+    use tcx_chain::{Account, Keystore};
+    use tcx_constants::{CoinInfo, CurveType};
+
+    pub const CHAINS: [&'static str; 1] = ["ETHEREUM2"];
+
+    pub type Address = Eth2Address;
+    //   pub type TransactionInput = crate::transaction::EthTxInput;
+    //  pub type TransactionOutput = crate::transaction::EthTxOutput;
+
+    pub fn enable_account(
+        _: &str,
+        index: u32,
+        keystore: &mut Keystore,
+    ) -> Result<Vec<Account>, failure::Error> {
+        keystore.derive_coins::<Address>(&[
+            CoinInfo {
+                coin: "ETHEREUM2".to_string(),
+                derivation_path: "m/12381/3600/0/0".to_string(),
+                curve: CurveType::BLS,
+                network: "MAINNET".to_string(),
+                seg_wit: "".to_string(),
+            },
+            CoinInfo {
+                coin: "ETHEREUM2".to_string(),
+                derivation_path: "m/12381/3600/0/0".to_string(),
+                curve: CurveType::BLS,
+                network: "TESTNET".to_string(),
+                seg_wit: "".to_string(),
+            },
+        ])
+    }
+}

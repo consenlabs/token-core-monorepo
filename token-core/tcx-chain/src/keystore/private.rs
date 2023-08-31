@@ -87,13 +87,8 @@ impl PrivateKeystore {
         let sk = self.private_key.as_ref().unwrap();
 
         let account = Self::private_key_to_account::<A>(coin_info, sk)?;
-        if let Some(_) = self
-            .store
-            .active_accounts
-            .iter()
-            .find(|x| x.address == account.address && x.coin == account.coin)
-        {
-            return Ok(account);
+        if let Some(account) = self.account(&account.coin, &account.address) {
+            Ok(account.clone())
         } else {
             self.store.active_accounts.push(account.clone());
             Ok(account)

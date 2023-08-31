@@ -4,7 +4,10 @@ use std::str::FromStr;
 use failure::format_err;
 use serde::{Deserialize, Serialize};
 use tcx_atom::address::AtomAddress;
-use tcx_chain::{key_hash_from_mnemonic, Account, HdKeystore, Result, Source};
+use tcx_chain::{
+    key_hash_from_mnemonic, key_hash_from_private_key, Account, HdKeystore, PrivateKeystore,
+    Result, Source,
+};
 use tcx_constants::CoinInfo;
 use tcx_crypto::{Crypto, EncPair, KdfParams, Key};
 
@@ -136,23 +139,58 @@ impl LegacyKeystore {
     }
 
     pub fn migrate_to_private(&self, key: &Key) -> Result<Keystore> {
-        let mnemonic_data = self
+        let unlocker = self.crypto.use_key(key)?;
+        let private_key = unlocker.plaintext()?;
+        let private_key: Vec<u8> = String::from_utf8(private_key)?.into();
+        let key_hash = key_hash_from_private_key(&private_key);
+
+        let mut store = Store {
+            id: self.id.to_string(),
+            version: PrivateKeystore::VERSION,
+            key_hash: key_hash.to_string(),
+            crypto: self.crypto.clone(),
+            active_accounts: vec![],
+            meta: self.im_token_meta.to_metadata(),
+        };
+
+        let unlocker = self.crypto.use_key(key)?;
+        let derived_key = unlocker.derived_key();
+        store
             .crypto
-            .use_key(key)?
-            .decrypt_enc_pair((&self.enc_mnemonic))?;
-        let mnemonic = String::from_utf8(mnemonic_data)?;
-        if let Key::Password(password) = key {
-            let mut hd_keystore =
-                Keystore::from_mnemonic(&mnemonic, &password, self.im_token_meta.to_metadata())?;
-            hd_keystore.store_mut().id = self.id.to_string();
-            hd_keystore.unlock_by_password(&password)?;
+            .dangerous_rewrite_plaintext(&derived_key, &private_key)
+            .expect("encrypt");
 
-            self.derive_account(&mut hd_keystore)?;
+        let mut keystore = Keystore::PrivateKey(PrivateKeystore::from_store(store));
+        keystore.unlock(&key)?;
 
-            return Ok(hd_keystore);
-        } else {
-            return Err(format_err!("derived_key_not_support"));
+        self.derive_account(&mut keystore)?;
+
+        Ok(keystore)
+    }
+
+    pub fn migrate_identity_wallets(
+        &self,
+        key: &Key,
+        new_keystore: &mut Keystore,
+        need_clone: bool,
+    ) -> Result<Keystore> {
+        let mut keystore = self.migrate_to_hd(key)?;
+        keystore.unlock(key)?;
+
+        // generate old 4 chain accounts
+        tcx_btc_kin::bitcoin::enable_account("BITCOIN", 0, &mut keystore)?;
+        tcx_atom::cosmos::add_account("COSMOS", 0, &mut keystore)?;
+        tcx_eth::ethereum::enable_account("ETHEREUM", 0, &mut keystore)?;
+        tcx_eos::eos::enable_account("EOS", 0, &mut keystore)?;
+
+        new_keystore.merge(&keystore)?;
+
+        if need_clone {
+            new_keystore.store_mut().crypto = keystore.store().crypto.clone();
+            new_keystore.store_mut().id = keystore.id().to_string();
         }
+
+        Ok(keystore)
     }
 
     fn dangeous_copy_crypto_to_keystore(&self, keystore: &mut Keystore) {

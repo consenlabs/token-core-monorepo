@@ -207,7 +207,7 @@ impl Keystore {
         self.store_mut().id = id.to_string()
     }
 
-    fn store(&self) -> &Store {
+    pub fn store(&self) -> &Store {
         match self {
             Keystore::PrivateKey(ks) => ks.store(),
             Keystore::Hd(ks) => ks.store(),
@@ -318,6 +318,16 @@ impl Keystore {
             Keystore::PrivateKey(ks) => ks.derive_coin::<A>(coin_info),
             Keystore::Hd(ks) => ks.derive_coin::<A>(coin_info),
         }
+    }
+
+    pub fn derive_coins<A: Address>(&mut self, coin_infos: &[CoinInfo]) -> Result<Vec<Account>> {
+        let mut accounts = vec![];
+
+        for coin_info in coin_infos {
+            accounts.push(self.derive_coin::<A>(coin_info)?);
+        }
+
+        Ok(accounts)
     }
 
     pub fn find_private_key(&mut self, symbol: &str, address: &str) -> Result<TypedPrivateKey> {

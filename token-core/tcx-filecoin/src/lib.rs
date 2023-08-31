@@ -34,6 +34,9 @@ pub enum Error {
 }
 
 pub mod filecoin {
+    use tcx_chain::{Account, Keystore};
+    use tcx_constants::{CoinInfo, CurveType};
+
     pub static CHAINS: [&'static str; 1] = ["FILECOIN"];
 
     pub type Address = crate::FilecoinAddress;
@@ -41,4 +44,27 @@ pub mod filecoin {
     pub type TransactionInput = crate::UnsignedMessage;
 
     pub type TransactionOutput = crate::SignedMessage;
+
+    pub fn enable_account(
+        _: &str,
+        index: u32,
+        keystore: &mut Keystore,
+    ) -> Result<Vec<Account>, failure::Error> {
+        keystore.derive_coins::<Address>(&[
+            CoinInfo {
+                coin: "FILECOIN".to_string(),
+                derivation_path: format!("m/44'/461'/{}'/0/0", index),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "".to_string(),
+            },
+            CoinInfo {
+                coin: "FILECOIN".to_string(),
+                derivation_path: "m/44'/461'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "".to_string(),
+            },
+        ])
+    }
 }

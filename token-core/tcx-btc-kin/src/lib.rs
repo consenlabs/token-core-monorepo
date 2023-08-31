@@ -42,11 +42,68 @@ pub enum Error {
 }
 
 pub mod bitcoin {
+    use tcx_chain::{Account, Keystore};
+    use tcx_constants::CoinInfo;
+
     pub const CHAINS: [&'static str; 2] = ["BITCOIN", "LITECOIN"];
 
     pub type Address = crate::BtcKinAddress;
     pub type TransactionInput = crate::transaction::BtcKinTxInput;
     pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
+
+    pub fn enable_account(
+        coin: &str,
+        index: u32,
+        keystore: &mut Keystore,
+    ) -> Result<Vec<Account>, failure::Error> {
+        let coin_type = match coin {
+            "BITCOIN" => 0,
+            "LITECOIN" => 2,
+            _ => 1,
+        };
+
+        let all_coin_infos = |coin_type: u32| {
+            let network = if coin_type == 1 { "TESTNET" } else { "MAINNET" };
+
+            vec![
+                CoinInfo {
+                    coin: coin.to_string(),
+                    derivation_path: format!("m/44'/{}'/{}'/0/0", coin_type, index),
+                    curve: tcx_constants::CurveType::SECP256k1,
+                    network: network.to_string(),
+                    seg_wit: "NONE".to_string(),
+                },
+                CoinInfo {
+                    coin: coin.to_string(),
+                    derivation_path: format!("m/46'/{}'/{}'/0/0", coin_type, index),
+                    curve: tcx_constants::CurveType::SECP256k1,
+                    network: network.to_string(),
+                    seg_wit: "P2WPKH".to_string(),
+                },
+                CoinInfo {
+                    coin: coin.to_string(),
+                    derivation_path: format!("m/84'/{}'/{}'/0/0", coin_type, index),
+                    curve: tcx_constants::CurveType::SECP256k1,
+                    network: network.to_string(),
+                    seg_wit: "SEGWIT".to_string(),
+                },
+                CoinInfo {
+                    coin: coin.to_string(),
+                    derivation_path: format!("m/86'/{}'/{}'/0/0", coin_type, index),
+                    curve: tcx_constants::CurveType::SECP256k1,
+                    network: network.to_string(),
+                    seg_wit: "P2TR".to_string(),
+                },
+            ]
+        };
+
+        let mut accounts =
+            keystore.derive_coins::<crate::BtcKinAddress>(&all_coin_infos(coin_type))?;
+        accounts
+            .extend_from_slice(&keystore.derive_coins::<crate::BtcKinAddress>(&all_coin_infos(1))?);
+
+        Ok(accounts)
+    }
 }
 
 pub mod omni {

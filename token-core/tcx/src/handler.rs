@@ -79,7 +79,15 @@ use crate::macros::use_chains;
 use_chains!(
     tcx_btc_kin::bitcoin,
     tcx_btc_kin::omni,
-    tcx_filecoin::filecoin
+    tcx_filecoin::filecoin,
+    tcx_eos::eos,
+    tcx_ckb::nervos,
+    tcx_eth::ethereum,
+    tcx_eth2::ethereum2,
+    tcx_atom::cosmos,
+    tcx_substrate::polkadot,
+    tcx_tezos::tezos,
+    tcx_tron::tron
 );
 
 fn create_chain_factory(chain: &str) -> Result<Box<dyn ChainFactory>> {
