@@ -1,49 +1,50 @@
 use std::str::FromStr;
+use tcx_btc_kin::Error;
 use tcx_chain::{Address, Keystore, TransactionSigner};
 use tcx_constants::CoinInfo;
 use tcx_primitive::TypedPublicKey;
 
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct FakeInput {}
+pub struct UnsupportedInput {}
 
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct FakeOutput {}
+pub struct UnsupportedOutput {}
 
-impl TransactionSigner<FakeInput, FakeOutput> for Keystore {
+impl TransactionSigner<UnsupportedInput, UnsupportedOutput> for Keystore {
     fn sign_transaction(
         &mut self,
         _chain_type: &str,
         _address: &str,
-        _input: &FakeInput,
-    ) -> std::result::Result<FakeOutput, failure::Error> {
-        Ok(FakeOutput {})
+        _input: &UnsupportedInput,
+    ) -> std::result::Result<UnsupportedOutput, failure::Error> {
+        Err(Error::UnsupportedChain.into())
     }
 }
 
 #[derive(Clone, PartialEq, Eq)]
-pub struct FakeAddress();
+pub struct UnsupportedAddress();
 
-impl Address for FakeAddress {
-    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> tcx_chain::Result<Self> {
-        Ok(FakeAddress {})
+impl Address for UnsupportedAddress {
+    fn from_public_key(_public_key: &TypedPublicKey, _coin: &CoinInfo) -> tcx_chain::Result<Self> {
+        Err(Error::UnsupportedChain.into())
     }
 
-    fn is_valid(address: &str, coin: &CoinInfo) -> bool {
+    fn is_valid(_address: &str, _coin: &CoinInfo) -> bool {
         false
     }
 }
 
-impl FromStr for FakeAddress {
+impl FromStr for UnsupportedAddress {
     type Err = failure::Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(FakeAddress())
+    fn from_str(_s: &str) -> Result<Self, Self::Err> {
+        Err(Error::UnsupportedChain.into())
     }
 }
 
-impl ToString for FakeAddress {
+impl ToString for UnsupportedAddress {
     fn to_string(&self) -> String {
         "".to_string()
     }
@@ -51,13 +52,11 @@ impl ToString for FakeAddress {
 
 macro_rules! use_chains {
     ($($chain:path),*) => {
-        use crate::macros::FakeOutput;
-        use crate::macros::FakeInput;
-        use crate::macros::FakeAddress;
+        use crate::macros::{UnsupportedInput, UnsupportedOutput, UnsupportedAddress};
 
         fn sign_transaction_internal(params: &SignParam, keystore: &mut Keystore) -> std::result::Result<Vec<u8>, failure::Error> {
-            type TransactionInput = FakeInput;
-            type TransactionOutput = FakeOutput;
+            type TransactionInput = UnsupportedInput;
+            type TransactionOutput = UnsupportedOutput;
 
             $({
                 use $chain::*;
@@ -82,7 +81,7 @@ macro_rules! use_chains {
         }
 
         fn derive_account_internal(coin_info:&CoinInfo, keystore: &mut Keystore) -> Result<Account> {
-            type Address = FakeAddress;
+            type Address = UnsupportedAddress;
 
             $({
                 use $chain::*;

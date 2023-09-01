@@ -4,21 +4,19 @@ use serde_json::Value;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
-use tcx_atom::address::{AtomAddress, AtomChainFactory};
-use tcx_eos::address::EosAddress;
+use tcx_atom::address::AtomChainFactory;
+
 use tcx_eos::EosChainFactory;
 use tcx_primitive::{get_account_path, private_key_without_version, FromHex, TypedPrivateKey};
 
-use tcx_bch::BchAddress;
-use tcx_btc_kin::{BtcKinAddress, WIFDisplay};
+use tcx_btc_kin::WIFDisplay;
 use tcx_chain::{
     key_hash_from_mnemonic, key_hash_from_private_key, ChainFactory, Keystore, KeystoreGuard,
 };
 use tcx_chain::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
-use tcx_ckb::{CkbAddress, CkbTxInput};
+
 use tcx_crypto::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
-use tcx_filecoin::{FilecoinAddress, KeyInfo, UnsignedMessage};
-use tcx_tron::TronAddress;
+use tcx_filecoin::KeyInfo;
 
 use crate::api::keystore_common_derive_param::Derivation;
 use crate::api::sign_param::Key;
@@ -38,9 +36,9 @@ use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
 use crate::IS_DEBUG;
 use base58::ToBase58;
-use tcx_atom::transaction::AtomTxInput;
+
 use tcx_chain::tcx_ensure;
-use tcx_chain::Address;
+
 use tcx_chain::{MessageSigner, TransactionSigner};
 use tcx_constants::coin_info::coin_info_from_param;
 use tcx_constants::{CoinInfo, CurveType};
@@ -48,21 +46,18 @@ use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::hash::dsha256;
 use tcx_crypto::KDF_ROUNDS;
 use tcx_eos::transaction::EosMessageInput;
-use tcx_eth::transaction::{
-    EthMessageInput, EthMessageOutput, EthRecoverAddressInput, EthRecoverAddressOutput, EthTxInput,
-    EthTxOutput,
-};
-use tcx_eth2::address::Eth2Address;
+use tcx_eth::transaction::{EthRecoverAddressInput, EthRecoverAddressOutput};
+
 use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
 use tcx_substrate::{
     decode_substrate_keystore, encode_substrate_keystore, ExportSubstrateKeystoreResult,
-    SubstrateAddress, SubstrateKeystore, SubstrateKeystoreParam, SubstrateRawTxIn,
+    SubstrateKeystore, SubstrateKeystoreParam, SubstrateRawTxIn,
 };
-use tcx_tezos::address::TezosAddress;
+
 use tcx_tezos::transaction::TezosRawTxIn;
 use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
-use tcx_tron::transaction::{TronMessageInput, TronTxInput};
+use tcx_tron::transaction::TronMessageInput;
 use tcx_wallet::identity::Identity;
 use tcx_wallet::imt_keystore::{IMTKeystore, WALLET_KEYSTORE_DIR};
 use tcx_wallet::v3_keystore::import_wallet_from_keystore;
@@ -701,20 +696,6 @@ pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
     };
 
     sign_transaction_internal(&param, guard.keystore_mut())
-
-    /*
-    match param.chain_type.as_str() {
-        "BITCOINCASH" | "LITECOIN" => sign_btc_fork_transaction(&param, guard.keystore_mut()),
-        "TRON" => sign_tron_tx(&param, guard.keystore_mut()),
-        "NERVOS" => sign_nervos_ckb(&param, guard.keystore_mut()),
-        "POLKADOT" | "KUSAMA" => sign_substrate_tx_raw(&param, guard.keystore_mut()),
-        "FILECOIN" => sign_filecoin_tx(&param, guard.keystore_mut()),
-        "TEZOS" => sign_tezos_tx_raw(&param, guard.keystore_mut()),
-        "COSMOS" => sign_cosmos_tx(&param, guard.keystore_mut()),
-        "EOS" => sign_eos_tx(&param, guard.keystore_mut()),
-        _ => Err(format_err!("unsupported_chain")),
-    }
-     */
 }
 
 pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
@@ -790,106 +771,6 @@ pub(crate) fn get_public_key(data: &[u8]) -> Result<Vec<u8>> {
         }
     }
 }
-
-/*
-pub(crate) fn sign_filecoin_tx(param: &SignParam, fixtures: &mut Keystore) -> Result<Vec<u8>> {
-    let input: UnsignedMessage = UnsignedMessage::decode(
-        param
-            .input
-            .as_ref()
-            .expect("invalid_message")
-            .value
-            .clone()
-            .as_slice(),
-    )
-    .expect("FilecoinTxIn");
-
-    let signed_tx = fixtures.sign_transaction(&param.chain_type, &param.address, &input)?;
-    encode_message(signed_tx)
-}
-
-pub(crate) fn sign_btc_fork_transaction(
-    param: &SignParam,
-    fixtures: &mut Keystore,
-) -> Result<Vec<u8>> {
-    let input: BtcKinTxInput = BtcKinTxInput::decode(
-        param
-            .input
-            .as_ref()
-            .expect("tx_input")
-            .value
-            .clone()
-            .as_slice(),
-    )
-    .expect("BitcoinForkTransactionInput");
-
-    let signed_tx = fixtures.sign_transaction(&param.chain_type, &param.address, &input)?;
-    encode_message(signed_tx)
-}
-
-pub(crate) fn sign_nervos_ckb(param: &SignParam, fixtures: &mut Keystore) -> Result<Vec<u8>> {
-    let input: CkbTxInput = CkbTxInput::decode(
-        param
-            .input
-            .as_ref()
-            .expect("tx_iput")
-            .value
-            .clone()
-            .as_slice(),
-    )
-    .expect("CkbTxInput");
-    let signed_tx = fixtures.sign_transaction(&param.chain_type, &param.address, &input)?;
-    encode_message(signed_tx)
-}
-
-pub(crate) fn sign_tron_tx(param: &SignParam, fixtures: &mut Keystore) -> Result<Vec<u8>> {
-    let input: TronTxInput = TronTxInput::decode(
-        param
-            .input
-            .as_ref()
-            .expect("tx_input")
-            .value
-            .clone()
-            .as_slice(),
-    )
-    .expect("TronTxInput");
-    let signed_tx = fixtures.sign_transaction(&param.chain_type, &param.address, &input)?;
-
-    encode_message(signed_tx)
-}
-
-pub(crate) fn sign_cosmos_tx(param: &SignParam, fixtures: &mut Keystore) -> Result<Vec<u8>> {
-    let input: AtomTxInput = AtomTxInput::decode(
-        param
-            .input
-            .as_ref()
-            .expect("tx_input")
-            .value
-            .clone()
-            .as_slice(),
-    )
-    .expect("AtomTxInput");
-    let signed_tx = fixtures.sign_transaction(&param.chain_type, &param.address, &input)?;
-
-    encode_message(signed_tx)
-}
-
-pub(crate) fn sign_eos_tx(param: &SignParam, fixtures: &mut Keystore) -> Result<Vec<u8>> {
-    let input = EosTxInput::decode(
-        param
-            .input
-            .as_ref()
-            .expect("tx_input")
-            .value
-            .clone()
-            .as_slice(),
-    )
-    .expect("EosTxInput");
-    let signed_tx = fixtures.sign_transaction(&param.chain_type, &param.address, &input)?;
-
-    encode_message(signed_tx)
-}
- */
 
 pub(crate) fn sign_eos_message(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
     let input = EosMessageInput::decode(
@@ -974,21 +855,6 @@ pub(crate) fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(ret)
 }
 
-pub(crate) fn sign_substrate_tx_raw(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
-    let input: SubstrateRawTxIn = SubstrateRawTxIn::decode(
-        param
-            .input
-            .as_ref()
-            .expect("raw_tx_input")
-            .value
-            .clone()
-            .as_slice(),
-    )
-    .expect("SubstrateTxIn");
-    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
-    encode_message(signed_tx)
-}
-
 pub(crate) fn import_substrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let param: SubstrateKeystoreParam = SubstrateKeystoreParam::decode(data)?;
     let ks: SubstrateKeystore = serde_json::from_str(&param.keystore)?;
@@ -1007,7 +873,7 @@ pub(crate) fn import_substrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn export_substrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
-    let param: ExportPrivateKeyParam = ExportPrivateKeyParam::decode(data.clone())?;
+    let param: ExportPrivateKeyParam = ExportPrivateKeyParam::decode(data)?;
     let meta: Metadata;
     {
         let map = KEYSTORE_MAP.read();
@@ -1069,21 +935,6 @@ pub(crate) fn unlock_then_crash(data: &[u8]) -> Result<Vec<u8>> {
 
     let _guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
     panic!("test_unlock_then_crash");
-}
-
-pub(crate) fn sign_tezos_tx_raw(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
-    let input: TezosRawTxIn = TezosRawTxIn::decode(
-        param
-            .input
-            .as_ref()
-            .expect("raw_tx_input")
-            .value
-            .clone()
-            .as_slice(),
-    )
-    .expect("TezosRawTxIn");
-    let signed_tx = keystore.sign_transaction(&param.chain_type, &param.address, &input)?;
-    encode_message(signed_tx)
 }
 
 pub(crate) fn zksync_private_key_from_seed(data: &[u8]) -> Result<Vec<u8>> {
@@ -1291,7 +1142,7 @@ pub(crate) fn sign_transaction(data: &[u8]) -> Result<Vec<u8>> {
     Ok(result)
 }
 
-pub(crate) fn sign_eth_transaction(param: &SignParam, private_key: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn sign_eth_transaction(_param: &SignParam, _private_key: &[u8]) -> Result<Vec<u8>> {
     todo!()
     /*
     let eth_tx_input: EthTxInput = EthTxInput::decode(
@@ -1316,7 +1167,7 @@ pub(crate) fn sign_eth_transaction(param: &SignParam, private_key: &[u8]) -> Res
      */
 }
 
-pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn eth_sign_message(_data: &[u8]) -> Result<Vec<u8>> {
     todo!()
     /*
     let param: SignParam = SignParam::decode(data).expect("EthPersonalSignParam");
@@ -1346,7 +1197,7 @@ pub(crate) fn eth_sign_message(data: &[u8]) -> Result<Vec<u8>> {
      */
 }
 
-pub(crate) fn eth_ec_sign(data: &[u8]) -> Result<Vec<u8>> {
+pub(crate) fn eth_ec_sign(_data: &[u8]) -> Result<Vec<u8>> {
     todo!()
     /*
     let param: SignParam = SignParam::decode(data).expect("EthMessageSignParam");
