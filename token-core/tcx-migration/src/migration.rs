@@ -12,6 +12,7 @@ use tcx_constants::CoinInfo;
 use tcx_crypto::{Crypto, EncPair, KdfParams, Key};
 
 use tcx_btc_kin::address::BtcKinAddress;
+use tcx_btc_kin::Error;
 use tcx_chain::keystore::{Keystore, Metadata, Store};
 use tcx_eos::address::EosAddress;
 use tcx_eth::address::EthAddress;
@@ -45,26 +46,47 @@ pub struct LegacyKeystore {
     version: i32,
     id: String,
     crypto: Crypto,
-    enc_mnemonic: EncPair,
+    enc_mnemonic: Option<EncPair>,
     address: String,
-    mnemonic_path: String,
+    mnemonic_path: Option<String>,
     im_token_meta: OldMetadata,
 }
 
 impl LegacyKeystore {
     fn real_derivation_path(&self) -> String {
         match self.version {
-            44 => self.mnemonic_path.clone() + "/0/0",
-            10001 => self.mnemonic_path.clone() + "/0'/0/0",
-            _ => self.mnemonic_path.clone(),
+            44 => {
+                self.mnemonic_path
+                    .as_ref()
+                    .expect("the mnemonic path must be set")
+                    .clone()
+                    + "/0/0"
+            }
+            _ => self
+                .mnemonic_path
+                .as_ref()
+                .expect("the mnemonic path must be set")
+                .clone(),
         }
     }
+
+    fn has_mnemonic(&self) -> bool {
+        self.enc_mnemonic.is_some()
+    }
+
     pub fn derive_account(&self, keystore: &mut Keystore) -> Result<Account> {
+        let mut derivation_path;
+        if self.has_mnemonic() {
+            derivation_path = self.real_derivation_path();
+        } else {
+            derivation_path = "".to_string();
+        }
+
         match self.im_token_meta.chain_type.as_str() {
             "ETHEREUM" => {
                 let coin_info = CoinInfo {
                     coin: "ETHEREUM".to_string(),
-                    derivation_path: self.real_derivation_path(),
+                    derivation_path,
                     curve: tcx_constants::CurveType::SECP256k1,
                     network: "".to_string(),
                     seg_wit: "".to_string(),
@@ -74,7 +96,7 @@ impl LegacyKeystore {
             "BITCOIN" => {
                 let coin_info = CoinInfo {
                     coin: "BITCOIN".to_string(),
-                    derivation_path: self.real_derivation_path(),
+                    derivation_path,
                     curve: tcx_constants::CurveType::SECP256k1,
                     network: self.im_token_meta.network.clone().unwrap_or("".to_string()),
                     seg_wit: self.im_token_meta.seg_wit.clone().unwrap_or("".to_string()),
@@ -84,7 +106,7 @@ impl LegacyKeystore {
             "EOS" => {
                 let coin_info = CoinInfo {
                     coin: "EOS".to_string(),
-                    derivation_path: self.real_derivation_path(),
+                    derivation_path,
                     curve: tcx_constants::CurveType::SECP256k1,
                     network: self.im_token_meta.network.clone().unwrap_or("".to_string()),
                     seg_wit: "".to_string(),
@@ -94,7 +116,7 @@ impl LegacyKeystore {
             "COSMOS" => {
                 let coin_info = CoinInfo {
                     coin: "COSMOS".to_string(),
-                    derivation_path: self.mnemonic_path.clone(),
+                    derivation_path,
                     curve: tcx_constants::CurveType::SECP256k1,
                     network: "".to_string(),
                     seg_wit: "".to_string(),
@@ -102,16 +124,25 @@ impl LegacyKeystore {
 
                 Ok(keystore.derive_coin::<AtomAddress>(&coin_info)?)
             }
-            _ => unimplemented!(),
+            _ => Err(Error::UnsupportedChain.into()),
         }
     }
     pub fn from_json_str(keystore_str: &str) -> Result<LegacyKeystore> {
-        Ok(serde_json::from_str(&keystore_str)?)
+        let keystore: LegacyKeystore = serde_json::from_str(&keystore_str)?;
+        if keystore.version != 44 && keystore.version != 1 && keystore.version != 3 {
+            return Err(format_err!("unsupported version {}", keystore.version));
+        }
+
+        Ok(keystore)
     }
 
     pub fn migrate_to_hd(&self, key: &Key) -> Result<Keystore> {
         let unlocker = self.crypto.use_key(key)?;
-        let mnemonic_data = unlocker.decrypt_enc_pair(&self.enc_mnemonic)?;
+        let mnemonic_data = unlocker.decrypt_enc_pair(
+            self.enc_mnemonic
+                .as_ref()
+                .expect("the mnemonic must be set"),
+        )?;
         let mnemonic = String::from_utf8(mnemonic_data.to_owned())?;
         let key_hash = key_hash_from_mnemonic(&mnemonic)?;
 
@@ -193,7 +224,7 @@ impl LegacyKeystore {
         Ok(keystore)
     }
 
-    fn dangeous_copy_crypto_to_keystore(&self, keystore: &mut Keystore) {
+    fn dangerous_copy_crypto_to_keystore(&self, keystore: &mut Keystore) {
         keystore.store_mut().crypto = self.crypto.clone();
     }
 }
@@ -212,16 +243,40 @@ mod tests {
 
     use super::LegacyKeystore;
 
+    fn v44_bitcoin() -> &'static str {
+        include_str!("../test/fixtures/02a55ab6-554a-4e78-bc26-6a7acced7e5e.json")
+    }
+
+    fn unsupported_eos() -> &'static str {
+        include_str!("../test/fixtures/7f5406be-b5ee-4497-948c-877deab8c994.json")
+    }
+
     #[test]
-    fn test_eos_with_password() {
-        let keystore_str =
-            include_str!("../test/fixtures/7f5406be-b5ee-4497-948c-877deab8c994.json");
+    fn test_is_same_derived_key() {
+        let keystore_str = v44_bitcoin();
         let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
         let keystore = ks
-            .migrate_to_hd(&Key::Password("password".to_string()))
+            .migrate_to_hd(&Key::Password("imtoken1".to_string()))
             .unwrap();
 
-        assert_eq!(keystore.accounts().len(), 1);
+        let unlocker1 = ks
+            .crypto
+            .use_key(&Key::Password("imtoken1".to_string()))
+            .unwrap();
+        let unlocker2 = keystore
+            .store()
+            .crypto
+            .use_key(&Key::Password("imtoken1".to_string()))
+            .unwrap();
+
+        assert_eq!(unlocker1.derived_key(), unlocker2.derived_key());
+    }
+
+    #[test]
+    fn test_unsupported_version() {
+        let keystore_str = unsupported_eos();
+        let ks = LegacyKeystore::from_json_str(keystore_str);
+        assert!(ks.is_err());
     }
 
     #[test]

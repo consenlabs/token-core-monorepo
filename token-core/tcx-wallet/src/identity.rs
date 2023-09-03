@@ -3,23 +3,31 @@ use crate::imt_keystore::{IMTKeystore, WALLETS, WALLET_KEYSTORE_DIR};
 use crate::model::{Metadata, FROM_NEW_IDENTITY, FROM_RECOVERED_IDENTITY};
 use crate::wallet_api::{CreateIdentityParam, RecoverIdentityParam};
 use crate::Error;
-use crate::Result as SelfResult;
+use crate::Result;
 use bip39::{Language, Mnemonic, Seed};
+use bitcoin::consensus::{Decodable, Encodable};
+use bitcoin::hashes::hex::{FromHex, ToHex};
 use bitcoin::network::constants::Network;
 use bitcoin::util::base58;
 use bitcoin::util::bip32::ExtendedPrivKey;
 use bitcoin::util::key::PrivateKey;
+use bitcoin::VarInt;
+use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use hmac_sha256::HMAC;
 use lazy_static::lazy_static;
 use multihash::{Code, MultihashDigest};
 use parking_lot::RwLock;
-use secp256k1::Secp256k1;
+use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
+use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::{Cursor, Read, Write};
 use std::path::Path;
+use tcx_common::{keccak256, merkle_hash, random_u8_16, sha256};
+use tcx_crypto::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
 use tcx_crypto::{Crypto, EncPair, Key};
+use tcx_primitive::{PrivateKey as TraitPrivateKey, Secp256k1PrivateKey};
 use uuid::Uuid;
 
 lazy_static! {
@@ -51,7 +59,7 @@ impl IdentityKeystore {
         metadata: Metadata,
         password: &str,
         mnemonic_phrase: &str,
-    ) -> SelfResult<IdentityKeystore> {
+    ) -> Result<IdentityKeystore> {
         let network_type = match metadata.is_main_net() {
             true => Network::Bitcoin,
             _ => Network::Testnet,
@@ -126,7 +134,11 @@ impl IdentityKeystore {
         Ok(identity_keystore)
     }
 
-    pub fn to_json(&self) -> SelfResult<String> {
+    pub fn calculate_ipfs_id(pub_key: &PublicKey) -> String {
+        base58::encode_slice(sha256(&pub_key.serialize()[..]).as_slice())
+    }
+
+    pub fn to_json(&self) -> Result<String> {
         Ok(serde_json::to_string(&self)?)
     }
 
@@ -135,7 +147,7 @@ impl IdentityKeystore {
         *identity_keystore_obj = self.to_owned();
     }
 
-    pub fn flush(&self) -> SelfResult<()> {
+    pub fn flush(&self) -> Result<()> {
         let json = self.to_json()?;
         let file_dir = WALLET_KEYSTORE_DIR.read();
         let ks_path = format!("{}/{}", file_dir, IDENTITY_KEYSTORE_FILE_NAME);
@@ -145,7 +157,7 @@ impl IdentityKeystore {
         Ok(())
     }
 
-    pub fn export_identity(&self, password: &str) -> SelfResult<String> {
+    pub fn export_identity(&self, password: &str) -> Result<String> {
         let decrypt_data = self
             .crypto
             .use_key(&Key::Password(password.to_string()))?
@@ -153,7 +165,7 @@ impl IdentityKeystore {
         Ok(String::from_utf8(decrypt_data)?)
     }
 
-    pub fn delete_identity(&self, password: &str) -> SelfResult<()> {
+    pub fn delete_identity(&self, password: &str) -> Result<()> {
         if !self.crypto.verify_password(password) {
             return Err(Error::WalletInvalidPassword.into());
         }
@@ -168,7 +180,96 @@ impl IdentityKeystore {
         Ok(())
     }
 
-    pub fn get_wallets(&self) -> SelfResult<Vec<IMTKeystore>> {
+    pub fn encrypt_ipfs(&self, plaintext: &str, timestamp: u32) -> Result<String> {
+        let iv: [u8; 16] = random_u8_16();
+
+        let mut header = Vec::new();
+
+        header.write_u8(0x03)?;
+        header.write_u32::<LittleEndian>(timestamp)?;
+        header.write_all(&iv)?;
+
+        let enc_key = Vec::from_hex(&self.enc_key)?;
+
+        let ciphertext = encrypt_pkcs7(plaintext.as_bytes(), &enc_key[0..16], &iv)?;
+        let hash = keccak256(&merkle_hash(&ciphertext));
+        let signature = Secp256k1PrivateKey::from_slice(&enc_key)?.sign_recoverable(&hash)?;
+
+        let var_len = VarInt(ciphertext.len() as u64);
+
+        let mut payload = vec![];
+        payload.write_all(&header)?;
+        var_len.consensus_encode(&mut payload)?;
+        payload.write_all(&ciphertext)?;
+        payload.write_all(&signature)?;
+
+        Ok(payload.to_hex())
+    }
+
+    pub fn decrypt_ipfs(&self, ciphertext: &str) -> Result<String> {
+        let ciphertext = Vec::<u8>::from_hex(ciphertext)?;
+        if ciphertext.len() <= 21 {
+            return Err(Error::InvalidEncryptionData.into());
+        }
+
+        let mut rdr = Cursor::new(&ciphertext);
+        let mut header = vec![];
+        rdr.read_exact(&mut header)?;
+
+        let version = rdr.read_u8()?;
+        if version != 0x03 {
+            return Err(Error::UnsupportEncryptionDataVersion.into());
+        }
+        header.write_u8(version)?;
+        header.write_u32::<LittleEndian>(rdr.read_u32::<LittleEndian>()?)?;
+
+        let mut iv = [0u8; 16];
+        rdr.read(&mut iv)?;
+
+        let mut signature = [0u8; 64];
+        rdr.read(&mut signature)?;
+
+        let recover_id = RecoveryId::from_i32(rdr.read_u8()? as i32)?;
+
+        let var_len = VarInt::consensus_decode(&mut rdr)?;
+        if var_len.0 as usize != ciphertext.len() - 21 - 65 {
+            return Err(Error::InvalidEncryptionData.into());
+        }
+
+        let mut enc_data = vec![0u8; var_len.0 as usize];
+        rdr.read(&mut enc_data)?;
+
+        let message = Message::from_slice(&keccak256(&merkle_hash(&enc_data)))?;
+        let sig = RecoverableSignature::from_compact(&signature, recover_id)?;
+        let pub_key = Secp256k1::new().recover_ecdsa(&message, &sig)?;
+        let ipfs_id = Self::calculate_ipfs_id(&pub_key);
+
+        if self.ipfs_id != ipfs_id {
+            return Err(Error::InvalidEncryptionDataSignature.into());
+        }
+
+        let enc_key = Vec::from_hex(&self.enc_key)?;
+        let plaintext = decrypt_pkcs7(&enc_data, &enc_key[..16], &iv)?;
+
+        Ok(plaintext.to_hex())
+    }
+
+    pub fn sign_authentication_message(
+        &self,
+        access_time: u64,
+        device_token: &str,
+        password: &str,
+    ) -> Result<String> {
+        let unlocker = self.crypto.use_key(&Key::Password(password.to_string()))?;
+        let enc_auth_key = unlocker.decrypt_enc_pair(&self.enc_auth_key)?;
+        Ok(Secp256k1PrivateKey::from_slice(&enc_auth_key)?
+            .sign_recoverable(&keccak256(
+                format!("{}.{}.{}", access_time, device_token, self.identifier).as_bytes(),
+            ))?
+            .to_hex())
+    }
+
+    pub fn get_wallets(&self) -> Result<Vec<IMTKeystore>> {
         let ids = &self.wallet_ids;
         let dir = WALLET_KEYSTORE_DIR.read();
 
@@ -199,7 +300,7 @@ impl IdentityKeystore {
 pub struct Identity();
 
 impl Identity {
-    pub fn get_current_identity() -> SelfResult<IdentityKeystore> {
+    pub fn get_current_identity() -> Result<IdentityKeystore> {
         let mut identity_keystore_obj = IDENTITY_KEYSTORE.write();
         if !identity_keystore_obj.id.is_empty() {
             return Ok(identity_keystore_obj.to_owned());
@@ -219,7 +320,7 @@ impl Identity {
         Ok(identity_keystore)
     }
 
-    pub fn create_identity(param: CreateIdentityParam) -> SelfResult<IdentityKeystore> {
+    pub fn create_identity(param: CreateIdentityParam) -> Result<IdentityKeystore> {
         let name = param.name.as_str();
         let password = param.password.as_str();
         let password_hint = param.password_hint;
@@ -252,7 +353,7 @@ impl Identity {
         Ok(identity_keystore)
     }
 
-    pub fn recover_identity(param: RecoverIdentityParam) -> SelfResult<IdentityKeystore> {
+    pub fn recover_identity(param: RecoverIdentityParam) -> Result<IdentityKeystore> {
         let name = param.name.as_str();
         let password = param.password.as_str();
         let password_hint = param.password_hint;
@@ -287,7 +388,7 @@ impl Identity {
         source: &str,
         mnemonic_phrase: &str,
         password: &str,
-    ) -> SelfResult<IMTKeystore> {
+    ) -> Result<IMTKeystore> {
         let mut metadata = Metadata::default();
         metadata.chain_type = Some(CHAIN_TYPE_ETHEREUM.to_string());
         metadata.password_hint = password_hint;
@@ -309,8 +410,36 @@ mod test {
     use crate::identity::Identity;
     use crate::model::FROM_NEW_IDENTITY;
     use crate::wallet_api::{CreateIdentityParam, RecoverIdentityParam};
-    use tcx_constants::sample_key;
     use tcx_constants::sample_key::{MNEMONIC, NAME, PASSWORD, PASSWORD_HINT};
+    use tcx_constants::{sample_key, TEST_MNEMONIC};
+    #[test]
+    fn test_ipfs() {
+        let param = RecoverIdentityParam {
+            name: NAME.to_string(),
+            mnemonic: MNEMONIC.to_string(),
+            password: PASSWORD.to_string(),
+            password_hint: Some(PASSWORD_HINT.to_string()),
+            network: "TESTNET".to_string(),
+            seg_wit: None,
+        };
+        let keystore = Identity::recover_identity(param)?;
+
+        // header: data, iv, encrypted data
+        let test_cases = [
+            ("imToken", "11111111111111111111111111111111", "0340b2495a1111111111111111111111111111111110b6602c68084bdd08dae796657aa6854ad13312fedc88f5b6f16c56b3e755dde125a1c4775db536ac0442ac942f9634c777f3ae5ca39f6abcae4bd6c87e54ab29ae0062b04d917b32e8d7c88eeb6261301b"),
+            ("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "11111111111111111111111111111111", "0340b2495a11111111111111111111111111111111708b7e9486a339f6c482ec9d3786dd9f99222fa64753bc2e7d246b0fed9c2153b8a5dcc59ea3e320aa153ceefdd909e8484d215121a9b8416d395de38313ef65b9e27d2ba0cc17bf29c5b26fa5aa5be1a2500b017f06cdd001e8cd908c5a48f10962880a61b4704754fd6bbe3b5a1a8332376651c28205a02574ed95a70363e0d1031d133c8d2376808b74ffd78b831ec659b44e9f3d3734d26abd44dda88fac86d1a5f0128f77d0558fb1ef6d2cc8f9541c"),
+            ("a", "11111111111111111111111111111111", "0340b2495a111111111111111111111111111111111084e741e2b83ec644e844985088fd58d8449cb690cd7389d74e3be1ccdca755b0235c90431b7635a441944d880bd52c860b109b7a05a960192719eb3f294ec1b72f5dfd1b8f4c6e992b9c3add7c7c1b871b"),
+            ("A", "11111111111111111111111111111111", "0340b2495a1111111111111111111111111111111110de32f176b67269ddfe24b2162eae14968d2eafcb53ec5741a07a1d65dc10189e0f6b4c199e98b02fcb9ec744b134cecc4ae8bfbf79e7703781c259eab9ee2fa31f887b24d04b37b7c5aa49a3ff2a8d5e1b"),
+            ("a", "11111111111111111111111111111111", "0340b2495a111111111111111111111111111111111084e741e2b83ec644e844985088fd58d8449cb690cd7389d74e3be1ccdca755b0235c90431b7635a441944d880bd52c860b109b7a05a960192719eb3f294ec1b72f5dfd1b8f4c6e992b9c3add7c7c1b871b"),
+            ("a", "22222222222222222222222222222222", "0340b2495a22222222222222222222222222222222102906146aa78fadd4abac01d9aa34dbd66463220fa0a98b9212594e7624a34bb20ba50df75cb04362f8dcfe7a8c44b2b5740a2d66de015d867e609463482686959ebba6047600562fa82e94ee905f1d291c"),
+        ];
+
+        let unix_timestamp = 1514779200u64;
+        for t in test_cases {
+            assert_eq!(keystore.encrypt_ipfs(t.0, unix_timestamp, t.1), t.2);
+            assert_eq!(identity.decrypt_ipfs(t.2), t.0);
+        }
+    }
 
     #[test]
     fn test_create_identity() {

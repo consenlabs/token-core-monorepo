@@ -82,7 +82,7 @@ use_chains!(
     tcx_atom::cosmos,
     tcx_substrate::polkadot,
     tcx_tezos::tezos,
-    tcx_tron::tron
+    tcx_tron::tron,
 );
 
 fn create_chain_factory(chain: &str) -> Result<Box<dyn ChainFactory>> {
@@ -114,22 +114,6 @@ fn derive_account<'a, 'b>(keystore: &mut Keystore, derivation: &Derivation) -> R
     coin_info.derivation_path = derivation.path.to_owned();
 
     derive_account_internal(&coin_info, keystore)
-
-    /*
-    match derivation.chain_type.as_str() {
-        "BITCOINCASH" => fixtures.derive_coin::<BchAddress>(&coin_info),
-        "LITECOIN" | "BITCOIN" => fixtures.derive_coin::<BtcKinAddress>(&coin_info),
-        "TRON" => fixtures.derive_coin::<TronAddress>(&coin_info),
-        "NERVOS" => fixtures.derive_coin::<CkbAddress>(&coin_info),
-        "POLKADOT" | "KUSAMA" => fixtures.derive_coin::<SubstrateAddress>(&coin_info),
-        "TEZOS" => fixtures.derive_coin::<TezosAddress>(&coin_info),
-        "FILECOIN" => fixtures.derive_coin::<FilecoinAddress>(&coin_info),
-        "ETHEREUM2" => fixtures.derive_coin::<Eth2Address>(&coin_info),
-        "COSMOS" => fixtures.derive_coin::<AtomAddress>(&coin_info),
-        "EOS" => fixtures.derive_coin::<EosAddress>(&coin_info),
-        _ => Err(format_err!("unsupported_chain")),
-    }
-     */
 }
 
 pub fn init_token_core_x(data: &[u8]) -> Result<()> {

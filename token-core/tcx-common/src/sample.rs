@@ -10,20 +10,7 @@ use hmac_sha256;
 use secp256k1::{ecdsa::Signature, KeyPair, Message, PublicKey, Secp256k1, SecretKey};
 use sha2::{Digest, Sha256};
 
-//sha256
-fn sha256(data: &[u8]) -> Vec<u8> {
-    let mut hasher = Sha256::new();
-    hasher.update(data);
-    hasher.finalize().to_vec()
-}
 
-//hmacsha256
-fn hmacsha256(data: &[u8], key: &[u8]) -> Vec<u8> {
-    // let hmac_hash = hmac_sha256::HMAC::mac(data, key).into_bytes().to_vec();
-    let mut mac = hmac_sha256::HMAC::new(key);
-    mac.update(data);
-    mac.finalize().to_vec()
-}
 
 //secp256k1 sign
 fn secp256k1_sign(key: &[u8], message: &[u8]) -> Vec<u8> {

@@ -6767,10 +6767,10 @@ dependencies = [
  "hex 0.4.3",
  "hmac-sha256",
  "keccak-hash",
+ "rand 0.8.5",
  "regex 1.9.3",
  "rust-crypto",
  "secp256k1 0.27.0",
- "sha2 0.10.6",
  "tiny-bip39 1.0.0",
 ]
 
@@ -7062,6 +7062,7 @@ name = "tcx-wallet"
 version = "0.1.0"
 dependencies = [
  "bitcoin",
+ "byteorder 1.4.3",
  "eth-keystore",
  "failure",
  "hex 0.4.3",

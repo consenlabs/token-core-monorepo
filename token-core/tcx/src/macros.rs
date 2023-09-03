@@ -51,7 +51,7 @@ impl ToString for UnsupportedAddress {
 }
 
 macro_rules! use_chains {
-    ($($chain:path),*) => {
+    ($($chain:path),+ $(,)?) => {
         use crate::macros::{UnsupportedInput, UnsupportedOutput, UnsupportedAddress};
 
         fn sign_transaction_internal(params: &SignParam, keystore: &mut Keystore) -> std::result::Result<Vec<u8>, failure::Error> {
@@ -92,7 +92,6 @@ macro_rules! use_chains {
 
             Err(format_err!("unsupported chain type: {}", coin_info.coin))
         }
-
     };
 }
 

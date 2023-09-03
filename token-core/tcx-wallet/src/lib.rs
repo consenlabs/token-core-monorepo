@@ -25,4 +25,10 @@ pub enum Error {
     WalletInvalidPassword,
     #[fail(display = "invalid_mnemonic")]
     InvalidMnemonic,
+    #[fail(display = "unsupport_encryption_data_version")]
+    UnsupportEncryptionDataVersion,
+    #[fail(display = "invalid_encryption_data_signature")]
+    InvalidEncryptionDataSignature,
+    #[fail(display = "invalid_encryption_data")]
+    InvalidEncryptionData,
 }
