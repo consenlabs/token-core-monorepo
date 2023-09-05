@@ -3,17 +3,19 @@ use keccak_hash::keccak;
 use regex::Regex;
 use std::str::FromStr;
 use tcx_chain::Address;
+use tcx_common::keccak256;
 use tcx_constants::CoinInfo;
 use tcx_primitive::TypedPublicKey;
 
 #[derive(PartialEq, Eq, Clone)]
-pub struct EthAddress(String);
+pub struct EthAddress(Vec<u8>);
 
 impl Address for EthAddress {
     fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
-        let public_key_bytes = public_key.to_bytes();
-        let address = EthAddress::get_address_from_pubkey(public_key_bytes.as_slice())?;
-        Ok(address)
+        let bytes = public_key.as_secp256k1()?.to_uncompressed();
+        let pubkey_hash = keccak256(bytes[1..].as_ref());
+        let addr_bytes = pubkey_hash[12..].to_vec();
+        Ok(EthAddress(addr_bytes))
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
@@ -23,14 +25,15 @@ impl Address for EthAddress {
 
 impl ToString for EthAddress {
     fn to_string(&self) -> String {
-        self.0.clone()
+        format!("0x{}", hex::encode(&self.0))
     }
 }
 
 impl FromStr for EthAddress {
     type Err = failure::Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        Ok(EthAddress(s.to_string()))
+        let bytes = hex::decode(&s[2..])?;
+        Ok(EthAddress(bytes))
     }
 }
 
@@ -60,14 +63,6 @@ pub fn is_valid_address(address: &str) -> bool {
     true
 }
 
-impl EthAddress {
-    pub fn get_address_from_pubkey(public_key: &[u8]) -> Result<Self> {
-        let pubkey_hash = keccak::<&[u8]>(public_key[1..].as_ref());
-        let addr_bytes = &pubkey_hash[12..];
-        Ok(EthAddress(hex::encode(addr_bytes)))
-    }
-}
-
 #[cfg(test)]
 mod test {
     use crate::address::EthAddress;
@@ -92,11 +87,10 @@ mod test {
             seg_wit: "".to_string(),
         };
         let address = EthAddress::from_public_key(&typed_public_key, &coin_info).unwrap();
-        assert_eq!(address, "ef678007d18427e6022059dbc264f27507cd1ffc");
-        let address =
-            EthAddress::get_address_from_pubkey(typed_public_key.to_bytes().as_slice()).unwrap();
-        assert_eq!(address, "ef678007d18427e6022059dbc264f27507cd1ffc");
-        let is_valid = EthAddress::is_valid("ef678007d18427e6022059dbc264f27507cd1ffc", &coin_info);
+        assert_eq!(address, "0xef678007d18427e6022059dbc264f27507cd1ffc");
+
+        let is_valid =
+            EthAddress::is_valid("0xef678007d18427e6022059dbc264f27507cd1ffc", &coin_info);
         assert_eq!(is_valid, true);
     }
 }

@@ -136,7 +136,15 @@ impl LegacyKeystore {
         Ok(keystore)
     }
 
-    pub fn migrate_to_hd(&self, key: &Key) -> Result<Keystore> {
+    pub fn migrate(&self, key: &Key) -> Result<Keystore> {
+        if self.has_mnemonic() {
+            self.migrate_to_hd(key)
+        } else {
+            self.migrate_to_private(key)
+        }
+    }
+
+    fn migrate_to_hd(&self, key: &Key) -> Result<Keystore> {
         let unlocker = self.crypto.use_key(key)?;
         let mnemonic_data = unlocker.decrypt_enc_pair(
             self.enc_mnemonic
@@ -169,10 +177,9 @@ impl LegacyKeystore {
         Ok(keystore)
     }
 
-    pub fn migrate_to_private(&self, key: &Key) -> Result<Keystore> {
+    fn migrate_to_private(&self, key: &Key) -> Result<Keystore> {
         let unlocker = self.crypto.use_key(key)?;
         let private_key = unlocker.plaintext()?;
-        let private_key: Vec<u8> = String::from_utf8(private_key)?.into();
         let key_hash = key_hash_from_private_key(&private_key);
 
         let mut store = Store {
@@ -210,7 +217,7 @@ impl LegacyKeystore {
 
         // generate old 4 chain accounts
         tcx_btc_kin::bitcoin::enable_account("BITCOIN", 0, &mut keystore)?;
-        tcx_atom::cosmos::add_account("COSMOS", 0, &mut keystore)?;
+        tcx_atom::cosmos::enable_account("COSMOS", 0, &mut keystore)?;
         tcx_eth::ethereum::enable_account("ETHEREUM", 0, &mut keystore)?;
         tcx_eos::eos::enable_account("EOS", 0, &mut keystore)?;
 
@@ -222,10 +229,6 @@ impl LegacyKeystore {
         }
 
         Ok(keystore)
-    }
-
-    fn dangerous_copy_crypto_to_keystore(&self, keystore: &mut Keystore) {
-        keystore.store_mut().crypto = self.crypto.clone();
     }
 }
 
@@ -243,7 +246,7 @@ mod tests {
 
     use super::LegacyKeystore;
 
-    fn v44_bitcoin() -> &'static str {
+    fn v44_bitcoin_mnemonic_1() -> &'static str {
         include_str!("../test/fixtures/02a55ab6-554a-4e78-bc26-6a7acced7e5e.json")
     }
 
@@ -251,13 +254,31 @@ mod tests {
         include_str!("../test/fixtures/7f5406be-b5ee-4497-948c-877deab8c994.json")
     }
 
+    fn v3_eos_private_key() -> &'static str {
+        include_str!("../test/fixtures/42c275c6-957a-49e8-9eb3-43c21cbf583f.json")
+    }
+
+    fn v44_bitcoin_mnemonic_2() -> &'static str {
+        include_str!("../test/fixtures/3831346d-0b81-405b-89cf-cdb1d010430e.json")
+    }
+
+    fn v3_eth_private_key() -> &'static str {
+        include_str!("../test/fixtures/045861fe-0e9b-4069-92aa-0ac03cad55e0.json")
+    }
+
+    fn v3_eth_mnemonic() -> &'static str {
+        include_str!("../test/fixtures/175169f7-5a35-4df7-93c1-1ff612168e71.json")
+    }
+
+    fn identity() -> &'static str {
+        include_str!("../test/fixtures/identity.json")
+    }
+
     #[test]
     fn test_is_same_derived_key() {
-        let keystore_str = v44_bitcoin();
+        let keystore_str = v44_bitcoin_mnemonic_1();
         let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
-        let keystore = ks
-            .migrate_to_hd(&Key::Password("imtoken1".to_string()))
-            .unwrap();
+        let keystore = ks.migrate(&Key::Password("imtoken1".to_string())).unwrap();
 
         let unlocker1 = ks
             .crypto
@@ -281,13 +302,12 @@ mod tests {
 
     #[test]
     fn test_bitcoin_with_password() {
-        let keystore_str =
-            include_str!("../test/fixtures/02a55ab6-554a-4e78-bc26-6a7acced7e5e.json");
+        let keystore_str = v44_bitcoin_mnemonic_1();
         let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
-        let keystore = ks
-            .migrate_to_hd(&Key::Password("imtoken1".to_string()))
-            .unwrap();
+        let keystore = ks.migrate(&Key::Password("imtoken1".to_string())).unwrap();
         assert_eq!(keystore.accounts().len(), 1);
+        assert_eq!(keystore.derivable(), true);
+        assert_eq!(keystore.id(), "02a55ab6-554a-4e78-bc26-6a7acced7e5e");
 
         assert!(keystore
             .account("BITCOIN", "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN")
@@ -295,51 +315,34 @@ mod tests {
     }
 
     #[test]
-    fn test_eth_with_password() {
-        let eth_keystore = r#"{
-      "crypto": {
-        "cipher": "aes-128-ctr",
-        "cipherparams": {
-          "iv": "3a442e8b02843edf71b8d3a9c9da2c3b"
-        },
-        "ciphertext": "fcbcceae1d239f9575c55f4c4f81eeba44a6ad9d948f544af2ffee9efef2c038",
-        "kdf": "pbkdf2",
-        "kdfparams": {
-          "c": 65535,
-          "dklen": 32,
-          "prf": "hmac-sha256",
-          "salt": "fa141145a343d9b6c7e2f12e0e56d564bc4d1b46cd48e8f7d898779e06357f1f"
-        },
-        "mac": "50ee3b40129c5f18f9ff6982db0eb18504ea2e8f3d96e4ac062b4eb5849cf011"
-      },
-      "id": "175169f7-5a35-4df7-93c1-1ff612168e71",
-      "version": 3,
-      "address": "6031564e7b2f5cc33737807b2e58daff870b590b",
-      "encMnemonic": {
-        "encStr": "267bda938e4edbf7c420e89c59c6862f9127c7275d012b1b607f9e91ddb94574e81e94f6d8155e3c85ede03f584e09916122f03c72b67a1f96ddbf291beb46894d9a02d30170a9444692",
-        "nonce": "3cfe9f0b32b5d592e5fab54bd28863cd"
-      },
-      "mnemonicPath": "m/44'/60'/0'/0/0",
-      "imTokenMeta": {
-        "backup": [],
-        "chainType": "ETHEREUM",
-        "name": "ETH",
-        "passwordHint": "",
-        "source": "RECOVERED_IDENTITY",
-        "timestamp": 1519611221,
-        "walletType": "V3"
-      }
-    }"#;
-
-        let legacy_kesytore = LegacyKeystore::from_json_str(eth_keystore).unwrap();
-        let keystore = legacy_kesytore
-            .migrate_to_hd(&Key::Password("imtoken1".to_string()))
+    fn test_v3_ethereum_private_key() {
+        let keystore_str = v3_eth_private_key();
+        let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
+        let keystore = ks
+            .migrate(&Key::Password("Insecure Pa55w0rd".to_string()))
             .unwrap();
+        assert_eq!(keystore.accounts().len(), 1);
+        assert_eq!(keystore.derivable(), false);
+        assert_eq!(keystore.id(), "045861fe-0e9b-4069-92aa-0ac03cad55e0");
+
+        println!("{}", keystore.to_json());
+
+        assert!(keystore
+            .account("ETHEREUM", "0x41983f2e3af196c1df429a3ff5cdecc45c82c600")
+            .is_some());
+    }
+
+    #[test]
+    fn test_v3_ethereum_mnemonic() {
+        let keystore_str = v3_eth_mnemonic();
+        let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
+        let keystore = ks.migrate(&Key::Password("imtoken1".to_string())).unwrap();
 
         assert_eq!(keystore.accounts().len(), 1);
+        assert_eq!(keystore.derivable(), true);
+        assert_eq!(keystore.id(), "175169f7-5a35-4df7-93c1-1ff612168e71");
         assert!(keystore
-            .account("ETHEREUM", "6031564e7b2f5cc33737807b2e58daff870b590b")
+            .account("ETHEREUM", "0x6031564e7b2f5cc33737807b2e58daff870b590b")
             .is_some());
-        assert_eq!(keystore.id(), "175169f7-5a35-4df7-93c1-1ff612168e71")
     }
 }
