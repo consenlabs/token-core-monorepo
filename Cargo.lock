@@ -6632,7 +6632,6 @@ dependencies = [
  "sp-runtime",
  "strum 0.25.0",
  "tcx-atom",
- "tcx-bch",
  "tcx-btc-kin",
  "tcx-chain",
  "tcx-ckb",
@@ -6665,25 +6664,6 @@ dependencies = [
  "tcx-constants",
  "tcx-crypto",
  "tcx-primitive",
-]
-
-[[package]]
-name = "tcx-bch"
-version = "0.1.0"
-dependencies = [
- "bch_addr",
- "bitcoin",
- "bitcoin_hashes",
- "failure",
- "hex 0.4.3",
- "secp256k1 0.24.3",
- "serde",
- "serde_json",
- "tcx-btc-kin",
- "tcx-chain",
- "tcx-constants",
- "tcx-primitive",
- "tiny-bip39 0.7.3",
 ]
 
 [[package]]
