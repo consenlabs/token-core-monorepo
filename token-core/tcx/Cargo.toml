@@ -9,7 +9,6 @@ tcx-proto = { path = "../tcx-proto" }
 tcx-crypto = { path = "../tcx-crypto", features = ["cache_dk"] }
 tcx-chain = { path = "../tcx-chain", features = ["cache_dk"] }
 tcx-btc-kin = {path = "../tcx-btc-kin"}
-tcx-bch = {path = "../tcx-bch"}
 tcx-tron = {path = "../tcx-tron"}
 tcx-ckb = {path = "../tcx-ckb"}
 tcx-filecoin = {path = "../tcx-filecoin"}
