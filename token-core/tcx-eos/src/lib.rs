@@ -14,6 +14,10 @@ pub mod eos {
     pub type TransactionInput = crate::transaction::EosTxInput;
     pub type TransactionOutput = crate::transaction::EosTxOutput;
 
+    pub type MessageInput = crate::transaction::EosMessageInput;
+
+    pub type MessageOutput = crate::transaction::EosMessageOutput;
+
     pub fn enable_account(
         _: &str,
         index: u32,

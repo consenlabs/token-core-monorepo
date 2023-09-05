@@ -698,11 +698,7 @@ pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
         }
     };
 
-    match param.chain_type.as_str() {
-        "TRON" => sign_tron_message(&param, guard.keystore_mut()),
-        "EOS" => sign_eos_message(&param, guard.keystore_mut()),
-        _ => Err(format_err!("unsupported_chain")),
-    }
+    sign_message_internal(&param, guard.keystore_mut())
 }
 
 // TODO: replacing with ChainFactory
@@ -754,37 +750,6 @@ pub(crate) fn get_public_key(data: &[u8]) -> Result<Vec<u8>> {
             encode_message(ret)
         }
     }
-}
-
-pub(crate) fn sign_eos_message(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
-    let input = EosMessageInput::decode(
-        param
-            .input
-            .as_ref()
-            .expect("eos_message_input")
-            .value
-            .clone()
-            .as_slice(),
-    )
-    .expect("EosMessageInput");
-    let signed_message = keystore.sign_message(&param.chain_type, &param.address, &input)?;
-
-    encode_message(signed_message)
-}
-
-pub(crate) fn sign_tron_message(param: &SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
-    let input: TronMessageInput = TronMessageInput::decode(
-        param
-            .input
-            .as_ref()
-            .expect("TronMessageInput")
-            .value
-            .clone()
-            .as_slice(),
-    )
-    .expect("TronMessageInput");
-    let signed_message = keystore.sign_message(&param.chain_type, &param.address, &input)?;
-    encode_message(signed_message)
 }
 
 #[deprecated(

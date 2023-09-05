@@ -7,8 +7,6 @@ use bitcoin::util::taproot::{TapLeafHash, TapSighashHash};
 use bitcoin::{EcdsaSighashType, SchnorrSighashType, Script, Sighash, Transaction, TxOut};
 use bitcoin_hashes::{sha256d, Hash};
 use std::io;
-use std::io::Cursor;
-use tcx_common::Hash256;
 
 pub const SIGHASH_ANYONECANPAY: u32 = 0x80;
 

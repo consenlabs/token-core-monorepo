@@ -16,6 +16,7 @@ use tcx_btc_kin::Error;
 use tcx_chain::keystore::{Keystore, Metadata, Store};
 use tcx_eos::address::EosAddress;
 use tcx_eth::address::EthAddress;
+use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -179,7 +180,12 @@ impl LegacyKeystore {
 
     fn migrate_to_private(&self, key: &Key) -> Result<Keystore> {
         let unlocker = self.crypto.use_key(key)?;
-        let private_key = unlocker.plaintext()?;
+        let mut private_key = unlocker.plaintext()?;
+        if private_key.len() != 32 {
+            private_key =
+                Secp256k1PrivateKey::from_wif(&String::from_utf8_lossy(&private_key))?.to_bytes()
+        }
+
         let key_hash = key_hash_from_private_key(&private_key);
 
         let mut store = Store {
@@ -272,6 +278,18 @@ mod tests {
 
     fn identity() -> &'static str {
         include_str!("../test/fixtures/identity.json")
+    }
+
+    #[test]
+    fn test_eos_private_key() {
+        let keystore_str = v3_eos_private_key();
+        let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
+        let mut keystore = ks.migrate(&Key::Password("password".to_string())).unwrap();
+        keystore
+            .unlock(&Key::Password("password".to_string()))
+            .unwrap();
+
+        assert_eq!(keystore.accounts().len(), 1);
     }
 
     #[test]

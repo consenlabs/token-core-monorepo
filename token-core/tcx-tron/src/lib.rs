@@ -22,6 +22,10 @@ pub mod tron {
     pub type TransactionInput = crate::transaction::TronTxInput;
     pub type TransactionOutput = crate::transaction::TronTxOutput;
 
+    pub type MessageInput = crate::transaction::TronMessageInput;
+
+    pub type MessageOutput = crate::transaction::TronMessageOutput;
+
     pub fn enable_account(
         coin: &str,
         index: u32,
