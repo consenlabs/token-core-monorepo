@@ -1,8 +1,8 @@
 mod hash;
 mod rand;
 
-pub use hash::*;
-pub use rand::*;
+pub use crate::hash::*;
+pub use crate::rand::*;
 
 pub mod util;
 use std::result;

@@ -1,8 +1,10 @@
 #![feature(let_chains)]
 
 pub mod address;
+pub mod bch_address;
+mod bitcoin_cash_sighash;
+mod sighash;
 
-pub mod bip143_with_forkid;
 pub mod network;
 pub mod signer;
 pub mod transaction;
@@ -23,9 +25,17 @@ extern crate core;
 
 pub type Result<T> = result::Result<T, failure::Error>;
 
-pub use address::{BtcKinAddress, ScriptPubkey, WIFDisplay};
+pub use address::{BtcKinAddress, WIFDisplay};
+pub use bch_address::BchAddress;
 pub use network::BtcKinNetwork;
 pub use transaction::{BtcKinTxInput, BtcKinTxOutput, OmniTxInput, Utxo};
+
+pub const BITCOIN: &'static str = "BITCOIN";
+pub const BITCOINCASH: &'static str = "BITCOINCASH";
+
+pub const LITECOIN: &'static str = "LITECOIN";
+
+pub const OMNI: &'static str = "OMNI";
 
 #[derive(Fail, Debug)]
 pub enum Error {
@@ -39,13 +49,22 @@ pub enum Error {
     InvalidUtxo,
     #[fail(display = "invalid_address")]
     InvalidAddress,
+    #[fail(display = "bch_convert_to_legacy_address_failed# address: {}", _0)]
+    ConvertToLegacyAddressFailed(String),
+    #[fail(display = "bch_convert_to_cash_address_failed# address: {}", _0)]
+    ConvertToCashAddressFailed(String),
+    #[fail(display = "construct_bch_address_failed# address: {}", _0)]
+    ConstructBchAddressFailed(String),
+    #[fail(display = "unsupported_taproot")]
+    UnsupportedTaproot,
 }
 
 pub mod bitcoin {
+    use crate::{BtcKinAddress, BITCOIN, LITECOIN};
     use tcx_chain::{Account, Keystore};
     use tcx_constants::CoinInfo;
 
-    pub const CHAINS: [&'static str; 2] = ["BITCOIN", "LITECOIN"];
+    pub const CHAINS: [&'static str; 2] = [BITCOIN, LITECOIN];
 
     pub type Address = crate::BtcKinAddress;
     pub type TransactionInput = crate::transaction::BtcKinTxInput;
@@ -57,57 +76,113 @@ pub mod bitcoin {
         keystore: &mut Keystore,
     ) -> Result<Vec<Account>, failure::Error> {
         let coin_type = match coin {
-            "BITCOIN" => 0,
-            "LITECOIN" => 2,
-            _ => 1,
+            BITCOIN => 0,
+            LITECOIN => 2,
+            _ => Err(format_err!("unsupported coin"))?,
         };
 
-        let all_coin_infos = |coin_type: u32| {
-            let network = if coin_type == 1 { "TESTNET" } else { "MAINNET" };
+        keystore.derive_coins::<BtcKinAddress>(&[
+            CoinInfo {
+                coin: coin.to_string(),
+                derivation_path: format!("m/44'/{}'/{}'/0/0", coin_type, index),
+                curve: tcx_constants::CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                coin: coin.to_string(),
+                derivation_path: format!("m/49'/{}'/{}'/0/0", coin_type, index),
+                curve: tcx_constants::CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            },
+            CoinInfo {
+                coin: coin.to_string(),
+                derivation_path: format!("m/84'/{}'/{}'/0/0", coin_type, index),
+                curve: tcx_constants::CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "SEGWIT".to_string(),
+            },
+            CoinInfo {
+                coin: coin.to_string(),
+                derivation_path: format!("m/86'/{}'/{}'/0/0", coin_type, index),
+                curve: tcx_constants::CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "P2TR".to_string(),
+            },
+            CoinInfo {
+                coin: coin.to_string(),
+                derivation_path: format!("m/44'/1'/{}'/0/0", index),
+                curve: tcx_constants::CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                coin: coin.to_string(),
+                derivation_path: format!("m/49'/1'/{}'/0/0", index),
+                curve: tcx_constants::CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            },
+            CoinInfo {
+                coin: coin.to_string(),
+                derivation_path: format!("m/84'/1'/{}'/0/0", index),
+                curve: tcx_constants::CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "SEGWIT".to_string(),
+            },
+            CoinInfo {
+                coin: coin.to_string(),
+                derivation_path: format!("m/86'/1'/{}'/0/0", coin_type),
+                curve: tcx_constants::CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "P2TR".to_string(),
+            },
+        ])
+    }
+}
 
-            vec![
-                CoinInfo {
-                    coin: coin.to_string(),
-                    derivation_path: format!("m/44'/{}'/{}'/0/0", coin_type, index),
-                    curve: tcx_constants::CurveType::SECP256k1,
-                    network: network.to_string(),
-                    seg_wit: "NONE".to_string(),
-                },
-                CoinInfo {
-                    coin: coin.to_string(),
-                    derivation_path: format!("m/46'/{}'/{}'/0/0", coin_type, index),
-                    curve: tcx_constants::CurveType::SECP256k1,
-                    network: network.to_string(),
-                    seg_wit: "P2WPKH".to_string(),
-                },
-                CoinInfo {
-                    coin: coin.to_string(),
-                    derivation_path: format!("m/84'/{}'/{}'/0/0", coin_type, index),
-                    curve: tcx_constants::CurveType::SECP256k1,
-                    network: network.to_string(),
-                    seg_wit: "SEGWIT".to_string(),
-                },
-                CoinInfo {
-                    coin: coin.to_string(),
-                    derivation_path: format!("m/86'/{}'/{}'/0/0", coin_type, index),
-                    curve: tcx_constants::CurveType::SECP256k1,
-                    network: network.to_string(),
-                    seg_wit: "P2TR".to_string(),
-                },
-            ]
-        };
+pub mod bitcoincash {
+    use crate::BITCOINCASH;
+    use tcx_chain::{Account, Keystore};
+    use tcx_constants::{CoinInfo, CurveType};
 
-        let mut accounts =
-            keystore.derive_coins::<crate::BtcKinAddress>(&all_coin_infos(coin_type))?;
-        accounts
-            .extend_from_slice(&keystore.derive_coins::<crate::BtcKinAddress>(&all_coin_infos(1))?);
+    pub static CHAINS: [&'static str; 1] = [BITCOINCASH];
 
-        Ok(accounts)
+    pub type Address = crate::BchAddress;
+
+    pub type TransactionInput = crate::transaction::BtcKinTxInput;
+
+    pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
+
+    pub fn enable_account(
+        _: &str,
+        index: u32,
+        keystore: &mut Keystore,
+    ) -> Result<Vec<Account>, failure::Error> {
+        keystore.derive_coins::<crate::BchAddress>(&[
+            CoinInfo {
+                coin: BITCOINCASH.to_string(),
+                derivation_path: format!("m/44'/145'/{}'/0/0", index),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                coin: BITCOINCASH.to_string(),
+                derivation_path: format!("m/44'/1'/{}'/0/0", index),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+        ])
     }
 }
 
 pub mod omni {
-    pub static CHAINS: [&'static str; 1] = ["OMNI"];
+    use crate::OMNI;
+
+    pub static CHAINS: [&'static str; 1] = [OMNI];
 
     pub type Address = crate::BtcKinAddress;
 

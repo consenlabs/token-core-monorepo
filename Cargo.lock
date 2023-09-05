@@ -6691,6 +6691,7 @@ name = "tcx-btc-kin"
 version = "0.1.0"
 dependencies = [
  "base64 0.13.1",
+ "bch_addr",
  "bech32 0.9.1",
  "bitcoin",
  "bitcoin_hashes",
@@ -6708,6 +6709,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tcx-chain",
+ "tcx-common",
  "tcx-constants",
  "tcx-crypto",
  "tcx-primitive",

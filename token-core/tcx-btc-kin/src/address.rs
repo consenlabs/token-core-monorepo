@@ -1,9 +1,5 @@
 use core::fmt;
 
-pub trait ScriptPubkey: Sized {
-    fn script_pubkey(&self) -> Script;
-}
-
 use core::result;
 use std::convert::TryFrom;
 use std::fmt::{Debug, Display, Formatter};
@@ -31,6 +27,10 @@ use crate::Result;
 
 pub trait WIFDisplay {
     fn fmt(&self, coin_info: &CoinInfo) -> Result<String>;
+}
+
+pub trait ScriptPubkey {
+    fn script_pubkey(&self) -> Script;
 }
 
 impl WIFDisplay for TypedPrivateKey {
@@ -170,17 +170,23 @@ fn decode_base58(addr: &str) -> result::Result<Vec<u8>, LibAddressError> {
     }
 }
 
-impl FromStr for BtcKinAddress {
-    type Err = LibAddressError;
+impl ScriptPubkey for BtcKinAddress {
+    fn script_pubkey(&self) -> Script {
+        self.script_pubkey()
+    }
+}
 
-    fn from_str(s: &str) -> result::Result<BtcKinAddress, LibAddressError> {
+impl FromStr for BtcKinAddress {
+    type Err = failure::Error;
+
+    fn from_str(s: &str) -> Result<BtcKinAddress> {
         // try bech32
         let bech32_network = bech32_network(s);
         if let Some(network) = bech32_network {
             // decode as bech32
             let (_, payload, _) = bech32::decode(s)?;
             if payload.is_empty() {
-                return Err(LibAddressError::EmptyBech32Payload);
+                return Err(LibAddressError::EmptyBech32Payload.into());
             }
 
             // Get the script version and program (converted from 5-bit to 8-bit)
@@ -191,15 +197,15 @@ impl FromStr for BtcKinAddress {
 
             // Generic segwit checks.
             if version.to_u8() > 16 {
-                return Err(LibAddressError::InvalidWitnessVersion(version.to_u8()));
+                return Err(LibAddressError::InvalidWitnessVersion(version.to_u8()).into());
             }
             if program.len() < 2 || program.len() > 40 {
-                return Err(LibAddressError::InvalidWitnessProgramLength(program.len()));
+                return Err(LibAddressError::InvalidWitnessProgramLength(program.len()).into());
             }
 
             // Specific segwit v0 check.
             if version.to_u8() == 0 && (program.len() != 20 && program.len() != 32) {
-                return Err(LibAddressError::InvalidSegwitV0ProgramLength(program.len()));
+                return Err(LibAddressError::InvalidSegwitV0ProgramLength(program.len()).into());
             }
             let payload = Payload::WitnessProgram {
                 version: WitnessVersion::try_from(version.to_u8())?,
@@ -226,7 +232,7 @@ impl FromStr for BtcKinAddress {
             }
         }
 
-        Err(LibAddressError::UnrecognizedScript)
+        Err(LibAddressError::UnrecognizedScript.into())
     }
 }
 
@@ -276,12 +282,6 @@ impl Display for BtcKinAddress {
                 bech32::ToBase32::write_base32(&prog, &mut bech32_writer)
             }
         }
-    }
-}
-
-impl ScriptPubkey for BtcKinAddress {
-    fn script_pubkey(&self) -> Script {
-        self.payload.script_pubkey()
     }
 }
 

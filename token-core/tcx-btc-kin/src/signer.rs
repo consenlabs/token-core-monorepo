@@ -1,4 +1,6 @@
+use std::borrow::Cow::Borrowed;
 use std::io::Write;
+use std::marker::PhantomData;
 use std::str::FromStr;
 
 use bitcoin::blockdata::script::Builder;
@@ -20,24 +22,26 @@ use secp256k1::{Message, Secp256k1};
 use tcx_chain::keystore::Error as KeystoreError;
 use tcx_chain::Address;
 use tcx_chain::{Keystore, TransactionSigner};
-use tcx_primitive::{Derive, PrivateKey, PublicKey, Secp256k1PrivateKey};
+use tcx_primitive::{Derive, PrivateKey, PublicKey, Secp256k1PrivateKey, TypedPrivateKey};
 
-use crate::address::BtcKinAddress;
+use crate::address::{BtcKinAddress, ScriptPubkey};
+use crate::bitcoin_cash_sighash::BitcoinCashSighash;
+use crate::sighash::TxSignatureHasher;
 use crate::transaction::{BtcKinTxInput, BtcKinTxOutput, OmniTxInput, Utxo};
-use crate::Result;
+use crate::{BchAddress, Result, BITCOIN, BITCOINCASH};
 
 use super::Error;
 
 const MIN_TX_FEE: u64 = 546;
 
-pub struct TxSigner<'a> {
+pub struct TxSigner {
     tx: Transaction,
     prevouts: Vec<TxOut>,
     private_keys: Vec<Secp256k1PrivateKey>,
-    sighash_cache: SighashCache<&'a Transaction>,
+    sighash_cache: Box<dyn TxSignatureHasher>,
 }
 
-impl<'a> TxSigner<'a> {
+impl TxSigner {
     fn hash160(&self, input: &[u8]) -> hash160::Hash {
         hash160::Hash::hash(input)
     }
@@ -45,14 +49,21 @@ impl<'a> TxSigner<'a> {
         let key = &self.private_keys[index];
         let prevout = &self.prevouts[index];
 
-        let hash = self.sighash_cache.legacy_signature_hash(
+        let hash = self.sighash_cache.legacy_hash(
             index,
             &prevout.script_pubkey,
+            prevout.value,
             EcdsaSighashType::All.to_u32(),
         )?;
         let sig = key.sign(&hash)?;
 
-        let sig = [sig, vec![1]].concat();
+        let sig = [
+            sig,
+            vec![self
+                .sighash_cache
+                .consensus_sighash_type(EcdsaSighashType::All.to_u32()) as u8],
+        ]
+        .concat();
 
         self.tx.input[index].script_sig = Builder::new()
             .push_slice(&sig)
@@ -71,7 +82,7 @@ impl<'a> TxSigner<'a> {
             self.hash160(&pub_key.to_compressed()),
         ));
 
-        let hash = self.sighash_cache.segwit_signature_hash(
+        let hash = self.sighash_cache.segwit_hash(
             index,
             &script.p2wpkh_script_code().expect("must be v0_p2wpkh"),
             prevout.value,
@@ -81,7 +92,13 @@ impl<'a> TxSigner<'a> {
 
         let tx_input = &mut self.tx.input[index];
 
-        let sig = [sig, vec![1]].concat();
+        let sig = [
+            sig,
+            vec![self
+                .sighash_cache
+                .consensus_sighash_type(EcdsaSighashType::All.to_u32()) as u8],
+        ]
+        .concat();
 
         tx_input.witness.push(sig);
         tx_input.witness.push(pub_key.to_bytes());
@@ -94,7 +111,7 @@ impl<'a> TxSigner<'a> {
         let key = &self.private_keys[index];
         let prevout = &self.prevouts[index];
 
-        let hash = self.sighash_cache.segwit_signature_hash(
+        let hash = self.sighash_cache.segwit_hash(
             index,
             &prevout
                 .script_pubkey
@@ -107,7 +124,13 @@ impl<'a> TxSigner<'a> {
 
         let tx_input = &mut self.tx.input[index];
 
-        let sig = [sig, vec![1]].concat();
+        let sig = [
+            sig,
+            vec![self
+                .sighash_cache
+                .consensus_sighash_type(EcdsaSighashType::All.to_u32()) as u8],
+        ]
+        .concat();
         tx_input.witness.push(sig);
         tx_input.witness.push(key.public_key().to_bytes());
 
@@ -122,7 +145,7 @@ impl<'a> TxSigner<'a> {
             bitcoin::schnorr::UntweakedKeyPair::from_seckey_slice(&secp, &key.to_bytes())?
                 .tap_tweak(&secp, None);
 
-        let hash = self.sighash_cache.taproot_signature_hash(
+        let hash = self.sighash_cache.taproot_hash(
             index,
             &Prevouts::All(&self.prevouts.clone()),
             None,
@@ -159,17 +182,18 @@ impl<'a> TxSigner<'a> {
     }
 }
 
-pub struct KinTransaction {
+pub struct KinTransaction<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> {
     inputs: Vec<Utxo>,
     amount: u64,
     fee: u64,
-    to: Script,
-    change_script: Script,
+    to: String,
+    change_address_index: Option<u32>,
     op_return: Option<String>,
+    phantom: PhantomData<T>,
 }
 
-impl KinTransaction {
-    fn tx_outs(&self) -> Result<Vec<TxOut>> {
+impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T> {
+    fn tx_outs(&self, change_script: Script) -> Result<Vec<TxOut>> {
         let mut total_amount = 0u64;
 
         for input in &self.inputs {
@@ -184,9 +208,11 @@ impl KinTransaction {
 
         let mut tx_outs: Vec<TxOut> = vec![];
 
+        let to = T::from_str(&self.to)?.script_pubkey();
+
         tx_outs.push(TxOut {
-            value: self.amount as u64,
-            script_pubkey: self.to.clone(),
+            value: self.amount,
+            script_pubkey: to,
         });
 
         let change_amount = total_amount - self.amount - self.fee;
@@ -194,7 +220,7 @@ impl KinTransaction {
         if change_amount >= MIN_TX_FEE {
             tx_outs.push(TxOut {
                 value: change_amount,
-                script_pubkey: self.change_script.clone(),
+                script_pubkey: change_script,
             });
         }
 
@@ -208,97 +234,34 @@ impl KinTransaction {
         Ok(tx_outs)
     }
 
-    pub fn sign(
+    pub fn prepare_tx(
         &self,
-        version: i32,
-        private_keys: Vec<Secp256k1PrivateKey>,
-    ) -> Result<BtcKinTxOutput> {
+        keystore: &mut Keystore,
+        symbol: &str,
+        address: &str,
+    ) -> Result<(Script, Vec<Secp256k1PrivateKey>, i32, Vec<TxOut>, Vec<TxIn>)> {
         let mut prevouts = vec![];
         let mut tx_inputs: Vec<TxIn> = vec![];
 
-        for inp in self.inputs.iter() {
-            prevouts.push(TxOut {
-                value: inp.amount,
-                script_pubkey: BtcKinAddress::from_str(&inp.address)?.script_pubkey(),
-            });
-
-            tx_inputs.push(TxIn {
-                previous_output: OutPoint {
-                    txid: bitcoin::hash_types::Txid::from_hex(&inp.tx_hash)?,
-                    vout: inp.vout,
-                },
-                script_sig: Script::new(),
-                sequence: Sequence::MAX,
-                witness: Witness::default(),
-            });
-        }
-
-        let tx_outs = self.tx_outs()?;
-
-        let tx = Transaction {
-            version,
-            lock_time: PackedLockTime::ZERO,
-            input: tx_inputs.clone(),
-            output: tx_outs.clone(),
-        };
-
-        //Only for sighash cache
-        let tx_clone = Transaction {
-            version,
-            lock_time: PackedLockTime::ZERO,
-            input: tx_inputs,
-            output: tx_outs,
-        };
-
-        let mut singer = TxSigner {
-            tx,
-            prevouts,
-            private_keys,
-            sighash_cache: SighashCache::new(&tx_clone),
-        };
-
-        singer.sign()?;
-        let tx = singer.tx;
-        let tx_bytes = serialize(&tx);
-        let tx_hash = tx.txid().to_hex();
-        let wtx_hash = tx.wtxid().to_hex();
-
-        Ok(BtcKinTxOutput {
-            raw_tx: tx_bytes.to_hex(),
-            wtx_hash,
-            tx_hash,
-        })
-    }
-}
-
-impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
-    fn sign_transaction(
-        &mut self,
-        symbol: &str,
-        address: &str,
-        tx: &BtcKinTxInput,
-    ) -> Result<BtcKinTxOutput> {
-        let account = self
+        let account = keystore
             .account(symbol, address)
             .ok_or(KeystoreError::AccountNotFound)?;
         let coin_info = account.coin_info();
 
-        if tx.inputs.len() == 0 {
+        if self.inputs.len() == 0 {
             return Err(Error::InvalidUtxo.into());
         }
 
-        let change_script = if let Some(change_address_index) = tx.change_address_index && self.derivable() {
+        let change_script = if let Some(change_address_index) = self.change_address_index && keystore.derivable() {
             let dpk = account.deterministic_public_key()?;
             let pub_key = dpk
                 .derive(format!("1/{}", change_address_index).as_str())?
                 .public_key();
-            let change_address = BtcKinAddress::from_public_key(&pub_key, &coin_info)?;
-            change_address.script_pubkey()
-        } else {
-            BtcKinAddress::from_str(&tx.inputs[0].address)?.script_pubkey()
-        };
 
-        let to = BtcKinAddress::from_str(&tx.to)?.script_pubkey();
+           T::from_public_key(&pub_key, &coin_info)?.script_pubkey()
+        } else {
+           T::from_str(&self.inputs[0].address)?.script_pubkey()
+        };
 
         let mut sks = vec![];
 
@@ -327,9 +290,9 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
         ];
 
         let mut version = 1;
-        for acc in self.accounts().iter() {
+        for acc in keystore.accounts().iter() {
             if acc.coin == coin_info.coin && acc.network == coin_info.network {
-                let script_pubkey = BtcKinAddress::from_str(&acc.address)?.script_pubkey();
+                let script_pubkey = T::from_str(&acc.address)?.script_pubkey();
                 prepares.iter_mut().for_each(|x| {
                     if (x.is_matched)(&script_pubkey) {
                         x.address = Some(acc.address.clone());
@@ -338,21 +301,36 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
             }
         }
 
-        for x in tx.inputs.iter() {
-            let script_pubkey = BtcKinAddress::from_str(&x.address)?.script_pubkey();
+        for x in self.inputs.iter() {
+            let script_pubkey = T::from_str(&x.address)?.script_pubkey();
 
             if !script_pubkey.is_p2pkh() {
                 version = 2
             }
 
-            if x.derived_path.len() > 0 && self.derivable() {
+            prevouts.push(TxOut {
+                value: x.amount,
+                script_pubkey: script_pubkey.clone(),
+            });
+
+            tx_inputs.push(TxIn {
+                previous_output: OutPoint {
+                    txid: bitcoin::hash_types::Txid::from_hex(&x.tx_hash)?,
+                    vout: x.vout,
+                },
+                script_sig: Script::new(),
+                sequence: Sequence::MAX,
+                witness: Witness::default(),
+            });
+
+            if x.derived_path.len() > 0 && keystore.derivable() {
                 let matched = prepares
                     .iter()
                     .filter(|y| (y.is_matched)(&script_pubkey))
                     .next();
                 if let Some(defined_key) = matched && let Some(address) = &defined_key.address {
                     sks.push(
-                        self.find_private_key_by_path(symbol, address, &x.derived_path)?
+                        keystore.find_private_key_by_path(symbol, address, &x.derived_path)?
                             .as_secp256k1()?
                             .clone(),
                     );
@@ -361,23 +339,102 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
                 }
             } else {
                 sks.push(
-                    self.find_private_key(symbol, &x.address)?
+                    keystore
+                        .find_private_key(symbol, &x.address)?
                         .as_secp256k1()?
                         .clone(),
                 );
             }
         }
 
-        let kin_tx = KinTransaction {
-            inputs: tx.inputs.clone(),
-            amount: tx.amount,
-            fee: tx.fee,
-            to,
-            change_script,
-            op_return: tx.op_return.clone(),
+        Ok((change_script, sks, version, prevouts, tx_inputs))
+    }
+
+    pub fn sign(
+        &self,
+        keystore: &mut Keystore,
+        coin: &str,
+        address: &str,
+    ) -> Result<BtcKinTxOutput> {
+        let (change_script, private_keys, version, prevouts, tx_inputs) =
+            self.prepare_tx(keystore, coin, address)?;
+
+        let tx_outs = self.tx_outs(change_script)?;
+
+        let tx = Transaction {
+            version,
+            lock_time: PackedLockTime::ZERO,
+            input: tx_inputs.clone(),
+            output: tx_outs.clone(),
         };
 
-        kin_tx.sign(version, sks)
+        //Only for txsighash
+        let tx_clone = Transaction {
+            version,
+            lock_time: PackedLockTime::ZERO,
+            input: tx_inputs,
+            output: tx_outs,
+        };
+
+        let sighash_cache: Box<dyn TxSignatureHasher>;
+        if coin == BITCOINCASH {
+            sighash_cache = Box::new(BitcoinCashSighash::new(tx_clone, 0x40));
+        } else {
+            sighash_cache = Box::new(SighashCache::new(Box::new(tx_clone)));
+        }
+
+        let mut singer = TxSigner {
+            tx,
+            prevouts,
+            private_keys,
+            sighash_cache,
+        };
+
+        singer.sign()?;
+
+        let tx = singer.tx;
+        let tx_bytes = serialize(&tx);
+        let tx_hash = tx.txid().to_hex();
+        let wtx_hash = tx.wtxid().to_hex();
+
+        Ok(BtcKinTxOutput {
+            raw_tx: tx_bytes.to_hex(),
+            wtx_hash,
+            tx_hash,
+        })
+    }
+}
+
+impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
+    fn sign_transaction(
+        &mut self,
+        symbol: &str,
+        address: &str,
+        tx: &BtcKinTxInput,
+    ) -> Result<BtcKinTxOutput> {
+        if symbol == BITCOINCASH {
+            let kin_tx = KinTransaction {
+                inputs: tx.inputs.clone(),
+                amount: tx.amount,
+                fee: tx.fee,
+                to: tx.to.clone(),
+                change_address_index: tx.change_address_index,
+                op_return: tx.op_return.clone(),
+                phantom: PhantomData::<BchAddress>,
+            };
+            kin_tx.sign(self, symbol, address)
+        } else {
+            let kin_tx = KinTransaction {
+                inputs: tx.inputs.clone(),
+                amount: tx.amount,
+                fee: tx.fee,
+                to: tx.to.clone(),
+                change_address_index: tx.change_address_index,
+                op_return: tx.op_return.clone(),
+                phantom: PhantomData::<BtcKinAddress>,
+            };
+            kin_tx.sign(self, symbol, address)
+        }
     }
 }
 
@@ -398,8 +455,8 @@ impl TransactionSigner<OmniTxInput, BtcKinTxOutput> for Keystore {
             let mut wtr = Vec::new();
             wtr.write(&hex::decode("6f6d6e6900000000").unwrap())
                 .unwrap();
-            wtr.write_u32::<BigEndian>(tx.property_id as u32).unwrap();
-            wtr.write_u64::<BigEndian>(tx.amount as u64).unwrap();
+            wtr.write_u32::<BigEndian>(tx.property_id).unwrap();
+            wtr.write_u64::<BigEndian>(tx.amount).unwrap();
             wtr.to_hex()
         };
 
@@ -425,29 +482,13 @@ mod tests {
     use tcx_primitive::Secp256k1PrivateKey;
 
     use crate::address::BtcKinAddress;
+    use crate::{BITCOIN, LITECOIN};
 
     use super::*;
 
     fn setup(keystore: &mut Keystore) {
-        let need_setup = [
-            ("BITCOIN", "MAINNET", "NONE"),
-            ("BITCOIN", "MAINNET", "P2WPKH"),
-            ("BITCOIN", "MAINNET", "SEGWIT"),
-            ("BITCOIN", "MAINNET", "P2TR"),
-            ("BITCOIN", "TESTNET", "NONE"),
-            ("BITCOIN", "TESTNET", "P2WPKH"),
-            ("BITCOIN", "TESTNET", "SEGWIT"),
-            ("BITCOIN", "TESTNET", "P2TR"),
-            ("LITECOIN", "MAINNET", "NONE"),
-            ("LITECOIN", "MAINNET", "P2WPKH"),
-            ("LITECOIN", "TESTNET", "NONE"),
-            ("LITECOIN", "TESTNET", "P2WPKH"),
-        ];
-
-        for i in need_setup {
-            let coin_info = coin_info_from_param(i.0, i.1, i.2, "").unwrap();
-            let account = &keystore.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
-        }
+        crate::bitcoin::enable_account(BITCOIN, 0, keystore).unwrap();
+        crate::bitcoin::enable_account(LITECOIN, 0, keystore).unwrap();
     }
 
     fn hex_keystore(hex: &str) -> Keystore {
@@ -569,6 +610,51 @@ mod tests {
                 .sign_transaction("OMNI", "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB", &tx_input)
                 .unwrap();
             assert_eq!(actual.raw_tx, "02000000000101784c9fa8ef8756b8acdbcfa154fbafc4b973cb239c87f499f1f960e5d06faf9b0100000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffff0322020000000000001976a91455bdc1b42e3bed851959846ddf600e96125423e088ac228a4d010000000017a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f78759870000000000000000166a146f6d6e69000000000000001f00000002540be4000247304402207e9c6d232084c9a0bcfa1f36184e6b044912e88630ebe624679642a99692529102202318c4c3a42d5656d300a42dc7796c5e0a6e9d1fb13465279fbe58bcd13345460121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc00000000");
+        }
+    }
+
+    mod bitcoincash {
+        use crate::{bitcoincash, BtcKinTxInput, Utxo, BITCOINCASH};
+        use tcx_chain::{Keystore, Metadata, TransactionSigner};
+        use tcx_constants::TEST_PASSWORD;
+
+        #[test]
+        pub fn test_bch_signer() {
+            let inputs = vec![Utxo {
+                tx_hash: "09c3a49c1d01f6341c43ea43dd0de571664a45b4e7d9211945cb3046006a98e2"
+                    .to_string(),
+                vout: 0,
+                amount: 100000,
+                address: "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r".to_string(),
+                derived_path: "1/0".to_string(),
+            }];
+
+            let tx_input = BtcKinTxInput {
+                to: "qq40fskqshxem2gvz0xkf34ww3h6zwv4dcr7pm0z6s".to_string(),
+                amount: 93454,
+                inputs,
+                fee: 6000,
+                op_return: None,
+                change_address_index: Some(1u32),
+            };
+
+            let mut ks = Keystore::from_private_key(
+                "b0dabbf9ffed224fbca3b41a9e446b3d0b6240c6d2957197a8ab75bbf2e1a5d4",
+                TEST_PASSWORD,
+                Metadata::default(),
+            );
+            ks.unlock_by_password(TEST_PASSWORD).unwrap();
+            bitcoincash::enable_account(BITCOINCASH, 0, &mut ks).unwrap();
+
+            let actual = ks
+                .sign_transaction(
+                    BITCOINCASH,
+                    "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r",
+                    &tx_input,
+                )
+                .unwrap();
+
+            assert_eq!(actual.raw_tx, "0100000001e2986a004630cb451921d9e7b4454a6671e50ddd43ea431c34f6011d9ca4c309000000006a473044022064fb81c11181e6604aa56b29ed65e31680fc1203f5afb6f67c5437f2d68192d9022022282d6c3c35ffdf64a427df5e134aa0edb8528efb6151cb1c3b21422fdfd6e041210251492dfb299f21e426307180b577f927696b6df0b61883215f88eb9685d3d449ffffffff020e6d0100000000001976a9142af4c2c085cd9da90c13cd64c6ae746fa139956e88ac22020000000000001976a914bedf37acf35504c9bfd18b09d989d0fb23fd269688ac00000000");
         }
     }
 

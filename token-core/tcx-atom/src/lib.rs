@@ -12,7 +12,7 @@ pub mod cosmos {
     pub type TransactionInput = crate::transaction::AtomTxInput;
     pub type TransactionOutput = crate::transaction::AtomTxOutput;
 
-    pub fn add_account(
+    pub fn enable_account(
         _: &str,
         index: u32,
         keystore: &mut Keystore,
