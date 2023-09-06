@@ -18,8 +18,8 @@ use std::result;
 use crate::error_handling::{landingpad, LAST_BACKTRACE, LAST_ERROR};
 #[allow(deprecated)]
 use crate::handler::{
-    encode_message, eos_update_account, eth_sign_message, export_mnemonic, export_private_key,
-    get_derived_key, hd_store_create, hd_store_export, hd_store_import, keystore_common_accounts,
+    encode_message, eos_update_account, export_mnemonic, export_private_key, get_derived_key,
+    hd_store_create, hd_store_export, hd_store_import, keystore_common_accounts,
     keystore_common_delete, keystore_common_derive, keystore_common_exists, keystore_common_verify,
     private_key_store_export, private_key_store_import, sign_tron_message_legacy, sign_tx,
     unlock_then_crash, zksync_private_key_from_seed, zksync_private_key_to_pubkey_hash,
@@ -32,8 +32,7 @@ mod macros;
 use crate::handler::{
     create_identity, eth_ec_sign, eth_recover_address, export_identity, export_substrate_keystore,
     generate_mnemonic, get_current_identity, get_public_key, import_substrate_keystore,
-    recover_identity, remove_identity, sign_bls_to_execution_change, sign_transaction,
-    substrate_keystore_exists,
+    recover_identity, remove_identity, sign_bls_to_execution_change, substrate_keystore_exists,
 };
 use parking_lot::RwLock;
 
@@ -143,8 +142,6 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "recover_identity" => landingpad(|| recover_identity(&action.param.unwrap().value)),
         "export_identity" => landingpad(|| export_identity(&action.param.unwrap().value)),
         "remove_identity" => landingpad(|| remove_identity(&action.param.unwrap().value)),
-        "sign_transaction" => landingpad(|| sign_transaction(&action.param.unwrap().value)),
-        "eth_sign_message" => landingpad(|| eth_sign_message(&action.param.unwrap().value)),
         "eth_ec_sign" => landingpad(|| eth_ec_sign(&action.param.unwrap().value)),
         "eth_recover_address" => landingpad(|| eth_recover_address(&action.param.unwrap().value)),
         "eos_update_account" => landingpad(|| eos_update_account(&action.param.unwrap().value)),
@@ -3348,19 +3345,17 @@ mod tests {
     #[test]
     pub fn test_sign_ethereum_legacy_tx() {
         run_test(|| {
-            let param = RecoverIdentityParam {
-                name: sample_key::NAME.to_string(),
-                mnemonic: MNEMONIC.to_string(),
-                password: sample_key::PASSWORD.to_string(),
-                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
-                network: model::NETWORK_TESTNET.to_string(),
-                seg_wit: None,
+            let derivation = Derivation {
+                chain_type: "ETHEREUM".to_string(),
+                path: "m/44'/60'/0'/0/0".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "".to_string(),
             };
-            let ret = call_api("recover_identity", param).unwrap();
-            let recover_result: RecoverIdentityResult =
-                RecoverIdentityResult::decode(ret.as_slice()).unwrap();
-            assert!(recover_result.ipfs_id.len() > 0);
-            assert!(recover_result.identifier.len() > 0);
+
+            let wallet = import_and_derive(derivation);
+
             //legacy transaction
             let eth_tx_input = EthTxInput {
                 nonce: "8".to_string(),
@@ -3377,16 +3372,16 @@ mod tests {
             };
             let input_value = encode_message(eth_tx_input).unwrap();
             let param = SignParam {
-                id: recover_result.wallets.get(0).unwrap().id.clone(),
+                id: wallet.id.to_string(),
                 chain_type: "ETHEREUM".to_string(),
-                address: recover_result.wallets.get(0).unwrap().address.clone(),
+                address: wallet.accounts.first().unwrap().address.to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
                 }),
                 key: Some(sign_param::Key::Password(sample_key::PASSWORD.to_string())),
             };
-            let ret = call_api("sign_transaction", param).unwrap();
+            let ret = call_api("sign_tx", param).unwrap();
             let output: EthTxOutput = EthTxOutput::decode(ret.as_slice()).unwrap();
             assert_eq!(
                 output.tx_hash,
@@ -3399,19 +3394,17 @@ mod tests {
     #[test]
     pub fn test_sign_ethereum_eip1559_tx() {
         run_test(|| {
-            let param = RecoverIdentityParam {
-                name: sample_key::NAME.to_string(),
-                mnemonic: MNEMONIC.to_string(),
-                password: sample_key::PASSWORD.to_string(),
-                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
-                network: model::NETWORK_TESTNET.to_string(),
-                seg_wit: None,
+            let derivation = Derivation {
+                chain_type: "ETHEREUM".to_string(),
+                path: "m/44'/60'/0'/0/0".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "".to_string(),
             };
-            let ret = call_api("recover_identity", param).unwrap();
-            let recover_result: RecoverIdentityResult =
-                RecoverIdentityResult::decode(ret.as_slice()).unwrap();
-            assert!(recover_result.ipfs_id.len() > 0);
-            assert!(recover_result.identifier.len() > 0);
+
+            let wallet = import_and_derive(derivation);
+
             //eip1559 transaction
             let eth_tx_input = EthTxInput {
                 nonce: "8".to_string(),
@@ -3428,16 +3421,16 @@ mod tests {
             };
             let input_value = encode_message(eth_tx_input).unwrap();
             let param = SignParam {
-                id: recover_result.wallets.get(0).unwrap().id.clone(),
+                id: wallet.id.to_string(),
                 chain_type: "ETHEREUM".to_string(),
-                address: recover_result.wallets.get(0).unwrap().address.clone(),
+                address: wallet.accounts.first().unwrap().address.to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
                 }),
                 key: Some(sign_param::Key::Password(sample_key::PASSWORD.to_string())),
             };
-            let ret = call_api("sign_transaction", param).unwrap();
+            let ret = call_api("sign_tx", param).unwrap();
             let output: EthTxOutput = EthTxOutput::decode(ret.as_slice()).unwrap();
             assert_eq!(
                 output.tx_hash,
@@ -3450,19 +3443,16 @@ mod tests {
     #[test]
     pub fn test_sign_ethereum_eip1559_tx2() {
         run_test(|| {
-            let param = RecoverIdentityParam {
-                name: sample_key::NAME.to_string(),
-                mnemonic: MNEMONIC.to_string(),
-                password: sample_key::PASSWORD.to_string(),
-                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
-                network: model::NETWORK_TESTNET.to_string(),
-                seg_wit: None,
+            let derivation = Derivation {
+                chain_type: "ETHEREUM".to_string(),
+                path: "m/44'/60'/0'/0/0".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "".to_string(),
             };
-            let ret = call_api("recover_identity", param).unwrap();
-            let recover_result: RecoverIdentityResult =
-                RecoverIdentityResult::decode(ret.as_slice()).unwrap();
-            assert!(recover_result.ipfs_id.len() > 0);
-            assert!(recover_result.identifier.len() > 0);
+
+            let wallet = import_and_derive(derivation);
             //eip1559 transaction
             let mut access_list = vec![];
             access_list.push(AccessList {
@@ -3502,16 +3492,16 @@ mod tests {
             };
             let input_value = encode_message(eth_tx_input).unwrap();
             let param = SignParam {
-                id: recover_result.wallets.get(0).unwrap().id.clone(),
+                id: wallet.id.to_string(),
                 chain_type: "ETHEREUM".to_string(),
-                address: recover_result.wallets.get(0).unwrap().address.clone(),
+                address: wallet.accounts.first().unwrap().address.to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
                 }),
                 key: Some(sign_param::Key::Password(sample_key::PASSWORD.to_string())),
             };
-            let ret = call_api("sign_transaction", param).unwrap();
+            let ret = call_api("sign_tx", param).unwrap();
             let output: EthTxOutput = EthTxOutput::decode(ret.as_slice()).unwrap();
             assert_eq!(
                 output.tx_hash,
