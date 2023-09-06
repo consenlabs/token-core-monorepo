@@ -15,8 +15,10 @@ pub mod ethereum {
     pub const CHAINS: [&'static str; 1] = ["ETHEREUM"];
 
     pub type Address = EthAddress;
-    //   pub type TransactionInput = crate::transaction::EthTxInput;
-    //  pub type TransactionOutput = crate::transaction::EthTxOutput;
+    pub type TransactionInput = crate::transaction::EthTxInput;
+    pub type TransactionOutput = crate::transaction::EthTxOutput;
+    pub type MessageInput = crate::transaction::EthMessageInput;
+    pub type MessageOutput = crate::transaction::EthMessageOutput;
 
     pub fn enable_account(
         _: &str,

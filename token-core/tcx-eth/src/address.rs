@@ -1,5 +1,6 @@
 use crate::Result;
-use keccak_hash::keccak;
+use ethers::utils::ConversionError::InvalidAddressChecksum;
+use failure::format_err;
 use regex::Regex;
 use std::str::FromStr;
 use tcx_chain::Address;
@@ -32,25 +33,33 @@ impl ToString for EthAddress {
 impl FromStr for EthAddress {
     type Err = failure::Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        if !is_valid_address(s) {
+            return Err(format_err!("invalid_address"));
+        }
+
         let bytes = hex::decode(&s[2..])?;
         Ok(EthAddress(bytes))
     }
 }
 
 pub fn is_valid_address(address: &str) -> bool {
-    if address.is_empty() || address.len() != 42 || !address.starts_with("0x") {
+    if address.len() != 42 && !address.starts_with("0x") {
         return false;
     }
 
-    let eth_addr_regex = Regex::new(r"^(0x)?[0-9a-fA-F]{40}$").unwrap();
-    if !eth_addr_regex.is_match(address.as_ref()) {
+    let eth_addr_regex = Regex::new(r"^0x[0-9a-fA-F]{40}$").unwrap();
+    if !eth_addr_regex.is_match(address) {
         return false;
+    }
+
+    if address.to_lowercase() == address {
+        return true;
     }
 
     let address = &address[2..];
     let lower_address_bytes = address.to_lowercase();
     let mut hash = [0u8; 32];
-    keccak_hash::keccak_256(lower_address_bytes.as_bytes(), &mut hash);
+    let hash = keccak256(lower_address_bytes.as_bytes());
     let hash_str = hex::encode(hash);
 
     for (i, c) in address.chars().enumerate() {
@@ -60,6 +69,7 @@ pub fn is_valid_address(address: &str) -> bool {
             return false;
         }
     }
+
     true
 }
 
@@ -87,10 +97,22 @@ mod test {
             seg_wit: "".to_string(),
         };
         let address = EthAddress::from_public_key(&typed_public_key, &coin_info).unwrap();
-        assert_eq!(address, "0xef678007d18427e6022059dbc264f27507cd1ffc");
+        assert_eq!(
+            address.to_string(),
+            "0xef678007d18427e6022059dbc264f27507cd1ffc"
+        );
 
         let is_valid =
             EthAddress::is_valid("0xef678007d18427e6022059dbc264f27507cd1ffc", &coin_info);
         assert_eq!(is_valid, true);
+
+        assert_eq!(
+            EthAddress::is_valid("0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5", &coin_info),
+            true
+        );
+        assert_eq!(
+            EthAddress::is_valid("0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfE5", &coin_info),
+            false
+        );
     }
 }
