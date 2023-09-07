@@ -373,18 +373,14 @@ impl Transaction {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());
         }
         //path
-        let path_bytes = sign_param.path.as_bytes();
-        let mut tlv_path = vec![];
-        tlv_path.push(0x02);
-        tlv_path.push(path_bytes.len() as u8);
-        tlv_path.extend(path_bytes);
+        let tlv_path = gen_tlv_data(0x02, sign_param.path.as_bytes())?;
 
         //total number
         let sign_number = input.messages.len();
-        let mut tlv_total_number = vec![];
-        tlv_total_number.push(0x04);
-        tlv_total_number.push(0x02);
-        tlv_total_number.extend(hex::decode(format!("{:04X}", sign_number))?);
+        let tlv_total_number = gen_tlv_data(
+            0x04,
+            hex::decode(format!("{:04X}", sign_number))?.as_slice(),
+        )?;
 
         let mut singatures = vec![];
         for (index, msg) in input.messages.iter().enumerate() {
@@ -412,26 +408,22 @@ impl Transaction {
 
             let mut data: Vec<u8> = Vec::new();
             //signature
-            data.push(0x00);
-            data.push(sdk_prikey_signature.len() as u8);
-            data.extend(sdk_prikey_signature.as_slice());
+            let tlv_signature = gen_tlv_data(0x00, sdk_prikey_signature.as_slice())?;
+            data.extend(tlv_signature);
             //hash
-            data.push(0x01);
-            data.push(hash.len() as u8);
-            data.extend(hash.iter());
+            data.extend(gen_tlv_data(0x01, &hash)?);
             //path
             data.extend(tlv_path.clone());
             //index
-            data.push(0x03);
-            data.push(0x02);
-            data.extend(hex::decode(format!("{:04X}", index + 1))?);
+            let tlv_index =
+                gen_tlv_data(0x03, hex::decode(format!("{:04X}", index + 1))?.as_slice())?;
+            data.extend(tlv_index);
             //total number
             data.extend(tlv_total_number.clone());
 
             let p1 = if index == 0 { 0x00 } else { 0x80 };
             let p2 = if index == sign_number - 1 { 0x80 } else { 0x00 };
             let sign_apdu = EthApdu::batch_personal_sign(p1, p2, data);
-            println!("sign_apdu:{}", sign_apdu);
 
             let sign_response = send_apdu(sign_apdu)?;
             ApduCheck::check_response(&sign_response)?;
@@ -454,6 +446,17 @@ impl Transaction {
             signatures: singatures,
         })
     }
+}
+
+fn gen_tlv_data(tag: u8, data: &[u8]) -> EthResult<Vec<u8>> {
+    if data.len() > 255 {
+        return Err(CoinError::InvalidParam.into());
+    }
+    let mut tlv_data = vec![];
+    tlv_data.push(tag);
+    tlv_data.push(data.len() as u8);
+    tlv_data.extend(data);
+    Ok(tlv_data)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -487,7 +490,6 @@ impl UnverifiedTransaction {
         }
         let hash = keccak(&rlp_bytes);
         self.hash = hash;
-        println!("hash:{}", &hex::encode(&hash));
         self
     }
 
