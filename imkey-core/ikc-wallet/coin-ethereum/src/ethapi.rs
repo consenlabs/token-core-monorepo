@@ -49,3 +49,15 @@ pub struct EthMessageOutput {
     #[prost(string, tag = "1")]
     pub signature: std::string::String,
 }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EthBatchMessageInput {
+    #[prost(string, repeated, tag = "1")]
+    pub messages: ::std::vec::Vec<std::string::String>,
+    #[prost(bool, tag = "2")]
+    pub is_personal_sign: bool,
+}
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EthBatchMessageOutput {
+    #[prost(string, repeated, tag = "1")]
+    pub signatures: ::std::vec::Vec<std::string::String>,
+}

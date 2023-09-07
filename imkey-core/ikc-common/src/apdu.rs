@@ -151,6 +151,16 @@ impl EthApdu {
     pub fn personal_sign(path: &str) -> String {
         Apdu::sign_digest(0x55, 0x00, 0x00, path)
     }
+
+    pub fn batch_personal_sign(p1: u8, p2: u8, data: Vec<u8>) -> String {
+        if data.len() as u32 > LC_MAX {
+            panic!("data to long");
+        }
+        let mut apdu = ApduHeader::new(0x80, 0x57, p1, p2, data.len() as u8).to_array();
+        apdu.extend(data.iter());
+        apdu.push(0x00);
+        apdu.to_hex().to_uppercase()
+    }
 }
 
 pub struct EosApdu();

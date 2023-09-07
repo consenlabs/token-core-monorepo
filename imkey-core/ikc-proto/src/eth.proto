@@ -33,3 +33,12 @@ message EthMessageInput {
 message EthMessageOutput {
     string signature = 1;
 }
+
+message EthBatchMessageInput {
+    repeated string messages = 1;
+    bool isPersonalSign = 2;
+}
+
+message EthBatchMessageOutput {
+    repeated string signatures = 1;
+}

@@ -7,6 +7,7 @@ use ring::digest;
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
 use secp256k1::{Message, PublicKey as PublicKey2, Secp256k1, SecretKey, Signature};
 use std::str::FromStr;
+use tiny_keccak::Hasher;
 
 pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
     let ret_data;
@@ -127,6 +128,14 @@ pub fn get_account_path(path: &str) -> Result<String> {
         children.remove(children.len() - 1);
     }
     Ok(children.join("/"))
+}
+
+pub fn keccak_256_hash(value: &[u8]) -> Vec<u8> {
+    let mut keccak256 = tiny_keccak::Keccak::v256();
+    keccak256.update(&value);
+    let mut hash = [0u8; 256 / 8];
+    keccak256.finalize(&mut hash);
+    hash.to_vec()
 }
 
 #[cfg(test)]

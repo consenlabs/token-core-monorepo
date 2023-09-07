@@ -1,20 +1,21 @@
 use crate::address::EthAddress;
-use crate::ethapi::{EthMessageInput, EthMessageOutput, EthTxOutput};
+use crate::ethapi::{
+    EthBatchMessageInput, EthBatchMessageOutput, EthMessageInput, EthMessageOutput, EthTxOutput,
+};
 use crate::types::{Action, Signature};
 use crate::Result as EthResult;
 use ethereum_types::{Address, H256, U256};
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EthApdu};
 use ikc_common::error::CoinError;
 use ikc_common::path::check_path_validity;
-use ikc_common::utility::{hex_to_bytes, is_valid_hex, secp256k1_sign};
+use ikc_common::utility::{hex_to_bytes, is_valid_hex, keccak_256_hash, secp256k1_sign};
 use ikc_common::{constants, utility, SignParam};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use keccak_hash::keccak;
 use lazy_static::lazy_static;
-use rlp::{self, DecoderError, Encodable, Rlp, RlpStream};
-use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
-use secp256k1::{self, Message as SecpMessage, Signature as SecpSignature};
+use rlp::{self, Encodable, RlpStream};
+use secp256k1::{self, Signature as SecpSignature};
 use tiny_keccak::Hasher;
 
 lazy_static! {
@@ -350,6 +351,108 @@ impl Transaction {
         signature.push_str(&format!("{:02x}", &v));
 
         Ok(EthMessageOutput { signature })
+    }
+
+    pub fn batch_message_sign(
+        input: EthBatchMessageInput,
+        sign_param: &SignParam,
+    ) -> EthResult<EthBatchMessageOutput> {
+        check_path_validity(&sign_param.path)?;
+
+        let select_apdu = EthApdu::select_applet();
+        let select_result = send_apdu(select_apdu)?;
+        ApduCheck::check_response(&select_result)?;
+
+        //sender address check
+        let msg_pubkey = EthApdu::get_xpub(&sign_param.path, false);
+        let res_msg_pubkey = send_apdu(msg_pubkey)?;
+        let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
+        let address_main = EthAddress::address_from_pubkey(pubkey_raw.clone()).unwrap();
+        let address_checksummed = EthAddress::address_checksummed(&address_main);
+        if &address_checksummed != &sign_param.sender {
+            return Err(CoinError::ImkeyAddressMismatchWithPath.into());
+        }
+        //path
+        let path_bytes = sign_param.path.as_bytes();
+        let mut tlv_path = vec![];
+        tlv_path.push(0x02);
+        tlv_path.push(path_bytes.len() as u8);
+        tlv_path.extend(path_bytes);
+
+        //total number
+        let sign_number = input.messages.len();
+        let mut tlv_total_number = vec![];
+        tlv_total_number.push(0x04);
+        tlv_total_number.push(0x02);
+        tlv_total_number.extend(hex::decode(format!("{:04X}", sign_number))?);
+
+        let mut singatures = vec![];
+        for (index, msg) in input.messages.iter().enumerate() {
+            let message = if is_valid_hex(&msg) {
+                let value = if msg.to_lowercase().starts_with("0x") {
+                    &msg[2..]
+                } else {
+                    msg.as_str()
+                };
+                hex::decode(value)?
+            } else {
+                msg.as_bytes().to_vec()
+            };
+
+            let mut sign_data = vec![];
+            if input.is_personal_sign {
+                sign_data
+                    .extend(format!("Ethereum Signed Message:\n{}", &message.len()).as_bytes());
+            }
+            sign_data.extend(message);
+            let hash = keccak_256_hash(&sign_data.as_ref());
+
+            let key_manager_obj = KEY_MANAGER.lock();
+            let sdk_prikey_signature = secp256k1_sign(&key_manager_obj.pri_key, &hash)?;
+
+            let mut data: Vec<u8> = Vec::new();
+            //signature
+            data.push(0x00);
+            data.push(sdk_prikey_signature.len() as u8);
+            data.extend(sdk_prikey_signature.as_slice());
+            //hash
+            data.push(0x01);
+            data.push(hash.len() as u8);
+            data.extend(hash.iter());
+            //path
+            data.extend(tlv_path.clone());
+            //index
+            data.push(0x03);
+            data.push(0x02);
+            data.extend(hex::decode(format!("{:04X}", index + 1))?);
+            //total number
+            data.extend(tlv_total_number.clone());
+
+            let p1 = if index == 0 { 0x00 } else { 0x80 };
+            let p2 = if index == sign_number - 1 { 0x80 } else { 0x00 };
+            let sign_apdu = EthApdu::batch_personal_sign(p1, p2, data);
+            println!("sign_apdu:{}", sign_apdu);
+
+            let sign_response = send_apdu(sign_apdu)?;
+            ApduCheck::check_response(&sign_response)?;
+
+            let sign_compact = hex::decode(&sign_response[2..130]).unwrap();
+            let mut signature_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
+            signature_obj.normalize_s();
+            let normalizes_sig_vec = signature_obj.serialize_compact();
+
+            let rec_id = utility::retrieve_recid(&hash, &normalizes_sig_vec, &pubkey_raw).unwrap();
+            let rec_id = rec_id.to_i32();
+            let v = rec_id + 27;
+
+            let mut signature = hex::encode(&normalizes_sig_vec.as_ref());
+            signature.push_str(&format!("{:02x}", &v));
+
+            singatures.push(signature);
+        }
+        Ok(EthBatchMessageOutput {
+            signatures: singatures,
+        })
     }
 }
 
@@ -1265,6 +1368,38 @@ mod tests {
         assert_eq!(
             tx_result.tx_hash,
             "0x09fa41c4d6b92482506c8c56f65b217cc3398821caec7695683110997426db01".to_string()
+        );
+    }
+
+    #[test]
+    fn test_batch_personal_sign() {
+        bind_test();
+
+        let sign_param = SignParam {
+            chain_type: "ETHEREUM".to_string(),
+            path: constants::ETH_PATH.to_string(),
+            network: "".to_string(),
+            input: None,
+            payment: "".to_string(),
+            receiver: "".to_string(),
+            sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
+            fee: "".to_string(),
+        };
+        let mut messages = vec![];
+        messages.push(hex::encode("Hello imKey".as_bytes()));
+        messages.push("0x8d61d40bb0761526fe24d84199321d5e9f6542e56c52018c401b963d64ef21678c18563a3eba889229ab078a8a1baed22226913f".to_string());
+        let input = EthBatchMessageInput {
+            is_personal_sign: true,
+            messages,
+        };
+        let output = Transaction::batch_message_sign(input, &sign_param).unwrap();
+        assert_eq!(
+            output.signatures[0],
+            "d928f76ad80d63003c189b095078d94ae068dc2f18a5cafd97b3a630d7bc47465bd6f1e74de2e88c05b271e1c5a8b93564d9d8842c207482b20634d68f2d54e51b".to_string()
+        );
+        assert_eq!(
+            output.signatures[1],
+            "35a94616ce12ddb79f6d351c2644c0fa2f496bd152b17102a5672359f583373b6dd5d2a60f5d9909cf84e6af7dc40176179c819a7cbd9b199f4c2e868530293f1b".to_string()
         );
     }
 }
