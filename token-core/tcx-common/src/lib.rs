@@ -1,8 +1,11 @@
 mod hash;
 mod rand;
 
+mod time;
+
 pub use crate::hash::*;
 pub use crate::rand::*;
+pub use crate::time::*;
 
 pub mod util;
 use std::result;

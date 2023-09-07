@@ -41,15 +41,15 @@ pub mod cbc {
     use block_modes::block_padding::Pkcs7;
     use block_modes::{BlockMode, Cbc};
 
-    type Aes128Cbc = Cbc<Aes128, Pkcs7>;
-
+    #[inline]
     pub fn encrypt_pkcs7(data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
-        let cipher = Aes128Cbc::new_var(key, iv)?;
+        let cipher = Cbc::<Aes128, Pkcs7>::new_var(key, iv)?;
         Ok(cipher.encrypt_vec(data))
     }
 
+    #[inline]
     pub fn decrypt_pkcs7(encrypted: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
-        let cipher = Aes128Cbc::new_var(key, iv)?;
+        let cipher = Cbc::<Aes128, Pkcs7>::new_var(key, iv)?;
         cipher
             .decrypt_vec(encrypted)
             .map_err(|_| Error::InvalidCiphertext.into())

@@ -1,9 +1,11 @@
 use rand::Rng;
 
+#[inline]
 pub fn random_u8_16() -> [u8; 16] {
     rand::thread_rng().gen::<[u8; 16]>()
 }
 
+#[inline]
 pub fn random_u8_32() -> [u8; 32] {
     rand::thread_rng().gen::<[u8; 32]>()
 }

@@ -24,7 +24,8 @@ use std::fs;
 use std::fs::File;
 use std::io::{Cursor, Read, Write};
 use std::path::Path;
-use tcx_common::{keccak256, merkle_hash, random_u8_16, sha256};
+use std::time::{SystemTime, UNIX_EPOCH};
+use tcx_common::{keccak256, merkle_hash, random_u8_16, sha256, unix_timestamp};
 use tcx_crypto::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
 use tcx_crypto::{Crypto, EncPair, Key};
 use tcx_primitive::{PrivateKey as TraitPrivateKey, Secp256k1PrivateKey};
@@ -107,6 +108,7 @@ impl IdentityKeystore {
         );
         let multihash =
             Code::Sha2_256.digest(enc_private_key.public_key(&secp).to_bytes().as_slice());
+        println!("ipfs11 === {}", hex::encode(&multihash.to_bytes()));
         let ipfs_id = base58::encode_slice(&multihash.to_bytes());
 
         let master_prikey_bytes = master_key.encode();
@@ -135,7 +137,8 @@ impl IdentityKeystore {
     }
 
     pub fn calculate_ipfs_id(pub_key: &PublicKey) -> String {
-        base58::encode_slice(sha256(&pub_key.serialize()[..]).as_slice())
+        let multihash = Code::Sha2_256.digest(&pub_key.serialize_uncompressed());
+        base58::encode_slice(&multihash.to_bytes())
     }
 
     pub fn to_json(&self) -> Result<String> {
@@ -180,20 +183,29 @@ impl IdentityKeystore {
         Ok(())
     }
 
-    pub fn encrypt_ipfs(&self, plaintext: &str, timestamp: u32) -> Result<String> {
+    fn encrypt_ipfs(&self, plaintext: &str) -> Result<String> {
         let iv: [u8; 16] = random_u8_16();
-
+        self.encrypt_ipfs_wth_timestamp_iv(plaintext, unix_timestamp(), &iv)
+    }
+    fn encrypt_ipfs_wth_timestamp_iv(
+        &self,
+        plaintext: &str,
+        timestamp: u64,
+        iv: &[u8; 16],
+    ) -> Result<String> {
         let mut header = Vec::new();
 
         header.write_u8(0x03)?;
-        header.write_u32::<LittleEndian>(timestamp)?;
-        header.write_all(&iv)?;
+        header.write_all(&timestamp.to_le_bytes()[..4]);
+        header.write_all(iv)?;
 
         let enc_key = Vec::from_hex(&self.enc_key)?;
 
-        let ciphertext = encrypt_pkcs7(plaintext.as_bytes(), &enc_key[0..16], &iv)?;
-        let hash = keccak256(&merkle_hash(&ciphertext));
-        let signature = Secp256k1PrivateKey::from_slice(&enc_key)?.sign_recoverable(&hash)?;
+        let ciphertext = encrypt_pkcs7(plaintext.as_bytes(), &enc_key[0..16], iv)?;
+        let hash = keccak256(&[header.clone(), merkle_hash(&ciphertext).to_vec()].concat());
+        let mut signature = Secp256k1PrivateKey::from_slice(&enc_key)?.sign_recoverable(&hash)?;
+        //ETH-compatible ec_recover, in chain_id = 1 case, v = 27 + rec_id
+        signature[64] += 27;
 
         let var_len = VarInt(ciphertext.len() as u64);
 
@@ -214,7 +226,6 @@ impl IdentityKeystore {
 
         let mut rdr = Cursor::new(&ciphertext);
         let mut header = vec![];
-        rdr.read_exact(&mut header)?;
 
         let version = rdr.read_u8()?;
         if version != 0x03 {
@@ -225,21 +236,30 @@ impl IdentityKeystore {
 
         let mut iv = [0u8; 16];
         rdr.read(&mut iv)?;
+        header.write(&iv)?;
 
-        let mut signature = [0u8; 64];
-        rdr.read(&mut signature)?;
-
-        let recover_id = RecoveryId::from_i32(rdr.read_u8()? as i32)?;
+        println!("{}", header.len());
 
         let var_len = VarInt::consensus_decode(&mut rdr)?;
-        if var_len.0 as usize != ciphertext.len() - 21 - 65 {
+        if var_len.0 as usize != ciphertext.len() - 21 - 65 - var_len.len() {
             return Err(Error::InvalidEncryptionData.into());
         }
 
         let mut enc_data = vec![0u8; var_len.0 as usize];
         rdr.read(&mut enc_data)?;
 
-        let message = Message::from_slice(&keccak256(&merkle_hash(&enc_data)))?;
+        let mut signature = [0u8; 64];
+        rdr.read(&mut signature)?;
+
+        let recover_id = RecoveryId::from_i32(rdr.read_u8()? as i32 - 27)?;
+
+        let hash = keccak256(
+            [header, merkle_hash(&enc_data).to_vec()]
+                .concat()
+                .as_slice(),
+        );
+
+        let message = Message::from_slice(&hash)?;
         let sig = RecoverableSignature::from_compact(&signature, recover_id)?;
         let pub_key = Secp256k1::new().recover_ecdsa(&message, &sig)?;
         let ipfs_id = Self::calculate_ipfs_id(&pub_key);
@@ -251,7 +271,7 @@ impl IdentityKeystore {
         let enc_key = Vec::from_hex(&self.enc_key)?;
         let plaintext = decrypt_pkcs7(&enc_data, &enc_key[..16], &iv)?;
 
-        Ok(plaintext.to_hex())
+        Ok(String::from_utf8(plaintext)?)
     }
 
     pub fn sign_authentication_message(
@@ -422,7 +442,7 @@ mod test {
             network: "TESTNET".to_string(),
             seg_wit: None,
         };
-        let keystore = Identity::recover_identity(param)?;
+        let keystore = Identity::recover_identity(param).unwrap();
 
         // header: data, iv, encrypted data
         let test_cases = [
@@ -436,8 +456,14 @@ mod test {
 
         let unix_timestamp = 1514779200u64;
         for t in test_cases {
-            assert_eq!(keystore.encrypt_ipfs(t.0, unix_timestamp, t.1), t.2);
-            assert_eq!(identity.decrypt_ipfs(t.2), t.0);
+            let iv: [u8; 16] = hex::decode(t.1).unwrap().try_into().unwrap();
+            assert_eq!(
+                keystore
+                    .encrypt_ipfs_wth_timestamp_iv(t.0, unix_timestamp, &iv)
+                    .unwrap(),
+                t.2
+            );
+            assert_eq!(keystore.decrypt_ipfs(t.2).unwrap(), t.0);
         }
     }
 
