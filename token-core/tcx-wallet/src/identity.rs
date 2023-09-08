@@ -108,7 +108,6 @@ impl IdentityKeystore {
         );
         let multihash =
             Code::Sha2_256.digest(enc_private_key.public_key(&secp).to_bytes().as_slice());
-        println!("ipfs11 === {}", hex::encode(&multihash.to_bytes()));
         let ipfs_id = base58::encode_slice(&multihash.to_bytes());
 
         let master_prikey_bytes = master_key.encode();
@@ -183,7 +182,7 @@ impl IdentityKeystore {
         Ok(())
     }
 
-    fn encrypt_ipfs(&self, plaintext: &str) -> Result<String> {
+    pub fn encrypt_ipfs(&self, plaintext: &str) -> Result<String> {
         let iv: [u8; 16] = random_u8_16();
         self.encrypt_ipfs_wth_timestamp_iv(plaintext, unix_timestamp(), &iv)
     }
@@ -238,8 +237,6 @@ impl IdentityKeystore {
         rdr.read(&mut iv)?;
         header.write(&iv)?;
 
-        println!("{}", header.len());
-
         let var_len = VarInt::consensus_decode(&mut rdr)?;
         if var_len.0 as usize != ciphertext.len() - 21 - 65 - var_len.len() {
             return Err(Error::InvalidEncryptionData.into());
@@ -282,11 +279,11 @@ impl IdentityKeystore {
     ) -> Result<String> {
         let unlocker = self.crypto.use_key(&Key::Password(password.to_string()))?;
         let enc_auth_key = unlocker.decrypt_enc_pair(&self.enc_auth_key)?;
-        Ok(Secp256k1PrivateKey::from_slice(&enc_auth_key)?
-            .sign_recoverable(&keccak256(
-                format!("{}.{}.{}", access_time, device_token, self.identifier).as_bytes(),
-            ))?
-            .to_hex())
+        let mut signature = Secp256k1PrivateKey::from_slice(&enc_auth_key)?.sign_recoverable(
+            &keccak256(format!("{}.{}.{}", access_time, self.identifier, device_token).as_bytes()),
+        )?;
+        signature[64] += 27;
+        Ok(format!("0x{}", signature.to_hex()))
     }
 
     pub fn get_wallets(&self) -> Result<Vec<IMTKeystore>> {
@@ -464,6 +461,31 @@ mod test {
                 t.2
             );
             assert_eq!(keystore.decrypt_ipfs(t.2).unwrap(), t.0);
+        }
+    }
+
+    #[test]
+    fn test_authentication() {
+        let test_cases =  [
+            ("MAINNET", "0x120cc977f9023c90635144bd0f4c8b85ff8aa23c003edcced9449f0465d05e954bccf9c114484e472c1837b0394f1933ad78ec8050673099e8bf5e9329737fe01c"),
+            ("TESTNET", "0x663ace6d60225f6d1a71d25735c66646f71977a9f25f709fca162db3c664a1e161881a51a8034c240dd8f0093285fd6245f65246708546e8eadd592f995daeb11c"),
+        ];
+
+        for item in test_cases {
+            let param = RecoverIdentityParam {
+                name: NAME.to_string(),
+                mnemonic: MNEMONIC.to_string(),
+                password: PASSWORD.to_string(),
+                password_hint: Some(PASSWORD_HINT.to_string()),
+                network: item.0.to_string(),
+                seg_wit: None,
+            };
+            let keystore = Identity::recover_identity(param).unwrap();
+
+            let actual = keystore
+                .sign_authentication_message(1514736000, "12345ABCDE", PASSWORD)
+                .unwrap();
+            assert_eq!(actual, item.1);
         }
     }
 

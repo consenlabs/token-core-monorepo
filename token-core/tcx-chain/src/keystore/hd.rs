@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::hash::dsha256;
-use tcx_crypto::{Crypto, Key, Pbkdf2Params};
+use tcx_crypto::{Crypto, Key};
 use tcx_primitive::{
     generate_mnemonic, get_account_path, Derive, ToHex, TypedDeterministicPrivateKey,
     TypedDeterministicPublicKey, TypedPrivateKey,

@@ -30,9 +30,11 @@ mod filemanager;
 mod macros;
 
 use crate::handler::{
-    create_identity, eth_ec_sign, eth_recover_address, export_identity, export_substrate_keystore,
-    generate_mnemonic, get_current_identity, get_public_key, import_substrate_keystore,
-    recover_identity, remove_identity, sign_bls_to_execution_change, substrate_keystore_exists,
+    create_identity, decrypt_data_from_ipfs, encrypt_data_to_ipfs, eth_ec_sign,
+    eth_recover_address, export_identity, export_substrate_keystore, generate_mnemonic,
+    get_current_identity, get_public_key, import_substrate_keystore, recover_identity,
+    remove_identity, sign_authentication_message, sign_bls_to_execution_change,
+    substrate_keystore_exists,
 };
 use parking_lot::RwLock;
 
@@ -83,7 +85,6 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "keystore_common_derive" => {
             landingpad(|| keystore_common_derive(&action.param.unwrap().value))
         }
-
         "private_key_store_import" => {
             landingpad(|| private_key_store_import(&action.param.unwrap().value))
         }
@@ -103,7 +104,6 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "keystore_common_accounts" => {
             landingpad(|| keystore_common_accounts(&action.param.unwrap().value))
         }
-
         "sign_tx" => landingpad(|| sign_tx(&action.param.unwrap().value)),
         "get_public_key" => landingpad(|| get_public_key(&action.param.unwrap().value)),
         // use the sign_msg instead
@@ -147,6 +147,13 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "eos_update_account" => landingpad(|| eos_update_account(&action.param.unwrap().value)),
         "eth_keystore_import" => landingpad(|| eth_v3keystore_import(&action.param.unwrap().value)),
         "eth_keystore_export" => landingpad(|| eth_v3keystore_export(&action.param.unwrap().value)),
+        "encrypt_data_to_ipfs" => landingpad(|| encrypt_data_to_ipfs(&action.param.unwrap().value)),
+        "decrypt_data_from_ipfs" => {
+            landingpad(|| decrypt_data_from_ipfs(&action.param.unwrap().value))
+        }
+        "sign_authentication_message" => {
+            landingpad(|| sign_authentication_message(&action.param.unwrap().value))
+        }
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {
@@ -3623,5 +3630,20 @@ mod tests {
             let export_result = V3KeystoreExportOutput::decode(ret.as_slice()).unwrap();
             println!("{}", export_result.json);
         })
+    }
+
+    #[test]
+    fn test_encrypt_data_to_ipfs() {
+        todo!()
+    }
+
+    #[test]
+    fn test_decrypt_data_from_ipfs() {
+        todo!()
+    }
+
+    #[test]
+    fn test_sign_authentication_message() {
+        todo!()
     }
 }

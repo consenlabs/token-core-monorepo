@@ -1,7 +1,7 @@
 use super::Account;
 use super::{Address, Metadata};
 use tcx_constants::CoinInfo;
-use tcx_crypto::{Crypto, Key, Pbkdf2Params};
+use tcx_crypto::{Crypto, Key};
 
 use super::Error;
 use super::Result;

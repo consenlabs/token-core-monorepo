@@ -62,10 +62,12 @@ use tcx_wallet::identity::Identity;
 use tcx_wallet::imt_keystore::{IMTKeystore, WALLET_KEYSTORE_DIR};
 use tcx_wallet::v3_keystore::import_wallet_from_keystore;
 use tcx_wallet::wallet_api::{
-    CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
-    GenerateMnemonicResult, GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes,
-    RecoverIdentityParam, RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult,
-    V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput, Wallet,
+    CreateIdentityParam, CreateIdentityResult, DecryptDataFromIpfsParam, EncryptDataToIpfsParam,
+    EncryptDataToIpfsResult, ExportIdentityParam, ExportIdentityResult, GenerateMnemonicResult,
+    GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes, RecoverIdentityParam,
+    RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult,
+    SignAuthenticationMessageParam, SignAuthenticationMessageResult, V3KeystoreExportInput,
+    V3KeystoreExportOutput, V3KeystoreImportInput, Wallet,
 };
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
 
@@ -1155,4 +1157,46 @@ pub(crate) fn eth_v3keystore_export(data: &[u8]) -> Result<Vec<u8>> {
     let json = keystore.export_keystore(&input.password)?;
     let output = V3KeystoreExportOutput { json };
     encode_message(output)
+}
+
+pub(crate) fn encrypt_data_to_ipfs(data: &[u8]) -> Result<Vec<u8>> {
+    let input = EncryptDataToIpfsParam::decode(data).expect("EncryptDataToIpfsParam");
+    let identity = Identity::get_current_identity()?;
+    let ciphertext = identity.encrypt_ipfs(&input.content)?;
+
+    let output = EncryptDataToIpfsResult {
+        identifier: identity.identifier.to_string(),
+        encrypted: ciphertext,
+    };
+
+    encode_message(output)
+}
+
+pub(crate) fn decrypt_data_from_ipfs(data: &[u8]) -> Result<Vec<u8>> {
+    let input = DecryptDataFromIpfsParam::decode(data).expect("EncryptDataToIpfsParam");
+    let identity = Identity::get_current_identity()?;
+    let ciphertext = identity.decrypt_ipfs(&input.encrypted)?;
+
+    let output = EncryptDataToIpfsResult {
+        identifier: identity.identifier.to_string(),
+        encrypted: ciphertext,
+    };
+
+    encode_message(output)
+}
+
+pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
+    let input =
+        SignAuthenticationMessageParam::decode(data).expect("SignAuthenticationMessageParam");
+    let identity = Identity::get_current_identity()?;
+
+    let signature = identity.sign_authentication_message(
+        input.access_time,
+        &input.identifier,
+        &input.device_token,
+    )?;
+    encode_message(SignAuthenticationMessageResult {
+        signature,
+        access_time: input.access_time,
+    })
 }

@@ -136,7 +136,7 @@ struct CacheDerivedKey {
 }
 
 impl CacheDerivedKey {
-    pub fn new(key: &str, derived_key: &[u8]) -> CacheDerivedKey {
+    pub fn new(key: &str, derived_key: &[u8]) -> Self {
         CacheDerivedKey {
             hashed_key: Self::hash(key),
             derived_key: derived_key.to_vec(),
@@ -169,7 +169,6 @@ pub struct Crypto {
 
 pub struct Unlocker<'a> {
     pub crypto: &'a Crypto,
-    password: Option<String>,
     derived_key: Vec<u8>,
 }
 
@@ -237,7 +236,6 @@ impl Crypto {
 
                 Ok(Unlocker {
                     crypto: self,
-                    password: Some(password.to_owned()),
                     derived_key,
                 })
             }
@@ -250,7 +248,6 @@ impl Crypto {
 
                 Ok(Unlocker {
                     crypto: self,
-                    password: None,
                     derived_key,
                 })
             }

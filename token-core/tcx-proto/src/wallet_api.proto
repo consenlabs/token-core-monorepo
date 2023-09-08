@@ -109,3 +109,38 @@ message V3KeystoreExportInput {
 message V3KeystoreExportOutput {
     string json = 1;
 }
+
+message EncryptDataToIpfsParam {
+    string identifier = 1;
+    string content = 2;
+}
+
+message EncryptDataToIpfsResult {
+    string identifier = 1;
+    string encrypted = 2;
+}
+
+message DecryptDataFromIpfsParam {
+    string identifier = 1;
+    string encrypted = 2;
+}
+
+message DecryptDataFromIpfsResult {
+    string identifier = 1;
+    string content = 2;
+}
+
+message SignAuthenticationMessageParam {
+    uint64 accessTime = 1;
+    string identifier = 2 ;
+    string deviceToken = 3;
+    string password = 4;
+}
+
+message SignAuthenticationMessageResult {
+    uint64 accessTime = 1;
+    string signature = 2;
+}
+
+
+
