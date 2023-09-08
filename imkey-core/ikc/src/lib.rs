@@ -253,6 +253,21 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
             }
         }),
 
+        "batch_sign_message" => landingpad(|| {
+            let param: SignParam = SignParam::decode(action.param.unwrap().value.as_slice())
+                .expect("unpack sign_message param error");
+            match param.chain_type.as_str() {
+                "ETHEREUM" => ethereum_signer::sign_eth_message(
+                    param.clone().input.unwrap().value.as_slice(),
+                    &param,
+                ),
+                _ => Err(format_err!(
+                    "batch sign message is not supported the chain {}",
+                    param.chain_type
+                )),
+            }
+        }),
+
         // btc
         "calc_external_address" => landingpad(|| {
             let param: ExternalAddressParam =
@@ -405,7 +420,7 @@ mod tests {
             DeviceManage::bind_check(&"../test-data".to_string()).unwrap_or_default();
         // DeviceManage::bind_acquire(&"".to_string()).unwrap();
         // device::device_manager::app_delete("BCH");
-        device::device_manager::app_download("BTC");
+        // device::device_manager::app_download("BTC");
         let ret_hex = unsafe {
             _to_str(call_imkey_api(_to_c_char(&"0a077369676e5f747812e6030a10636f6d6d6f6e2e5369676e506172616d12d1030a0b424954434f494e4341534812116d2f3434272f313435272f30272f302f301a074d41494e4e455422b2020a19627463666f726b6170692e427463466f726b5478496e7075741294020a2a71707a36376763776139616738346c6a6d6d6e33753774636a6d39726b63326a66636a6b32717a66637510a08d061aaa010a4061346439666561373337636236633030326337613833666235383531613366373566306163646437626237663137373232633162323465653765306232336461100018c09a0c222a7171687979616a75323270637967783870683035716a6e787978616c686d65736b796371706d67786e302a323736613931343265343237363563353238333832323063373064646634303461363632316262666265663330623138386163320020c6032801322a7171687979616a75323270637967783870683035716a6e787978616c686d65736b796371706d67786e303a044e4f4e452a09302e30303120424348322a71707a36376763776139616738346c6a6d6d6e33753774636a6d39726b63326a66636a6b32717a6663753a2a7171687979616a75323270637967783870683035716a6e787978616c686d65736b796371706d67786e30420e302e303030303034353420424348")))
         };

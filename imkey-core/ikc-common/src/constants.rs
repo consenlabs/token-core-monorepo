@@ -117,3 +117,5 @@ pub const ETH_TRANSACTION_TYPE_EIP2718: &str = "01";
 pub const ETH_TRANSACTION_TYPE_EIP1559: &str = "02";
 
 pub const ETH_MAX_SUPPORT_PAYMENT_LEN: usize = 255;
+
+pub const ETH_BATCH_SIGN_MAX_MESSAGE_NUMBER: usize = 1000;

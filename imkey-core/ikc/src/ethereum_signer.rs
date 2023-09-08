@@ -1,6 +1,6 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
-use coin_ethereum::ethapi::{EthMessageInput, EthTxInput};
+use coin_ethereum::ethapi::{EthBatchMessageInput, EthMessageInput, EthTxInput};
 use coin_ethereum::transaction::{AccessListItem, Transaction};
 use coin_ethereum::types::Action;
 use ethereum_types::{Address, H256, U256, U64};
@@ -118,11 +118,18 @@ pub fn sign_eth_message(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> 
     encode_message(signed)
 }
 
+pub fn batch_eth_message_sign(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
+    let input: EthBatchMessageInput =
+        EthBatchMessageInput::decode(data).expect("imkey_illegal_param");
+    let signed = Transaction::batch_message_sign(input, sign_param)?;
+    encode_message(signed)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ethereum_signer::sign_eth_transaction;
-    use coin_ethereum::ethapi::{AccessList, EthTxInput, EthTxOutput};
+    use coin_ethereum::ethapi::{AccessList, EthBatchMessageOutput, EthTxInput, EthTxOutput};
     use ethereum_types::{Address, U256};
     use hex;
     use ikc_common::constants;
@@ -479,6 +486,35 @@ mod tests {
         assert_eq!(
             output.tx_hash,
             "0x09fa41c4d6b92482506c8c56f65b217cc3398821caec7695683110997426db01".to_string()
+        );
+    }
+
+    #[test]
+    fn test_eth_batch_message_sign() {
+        bind_test();
+        let sign_param = SignParam {
+            chain_type: "ETHEREUM".to_string(),
+            path: constants::ETH_PATH.to_string(),
+            network: "".to_string(),
+            input: None,
+            payment: "".to_string(),
+            receiver: "".to_string(),
+            sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
+            fee: "".to_string(),
+        };
+        let mut messages = vec![];
+        messages.push(hex::encode("Hello imKey".as_bytes()));
+        let input = EthBatchMessageInput {
+            is_personal_sign: true,
+            messages,
+        };
+        let data = encode_message(input.to_owned()).unwrap();
+        let res = batch_eth_message_sign(&data.as_ref(), &sign_param);
+        let output: EthBatchMessageOutput =
+            EthBatchMessageOutput::decode(res.unwrap().as_ref()).expect("imkey_illegal_param");
+        assert_eq!(
+            output.signatures[0],
+            "d928f76ad80d63003c189b095078d94ae068dc2f18a5cafd97b3a630d7bc47465bd6f1e74de2e88c05b271e1c5a8b93564d9d8842c207482b20634d68f2d54e51b".to_string()
         );
     }
 }

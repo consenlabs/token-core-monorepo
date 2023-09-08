@@ -6,6 +6,7 @@ use crate::types::{Action, Signature};
 use crate::Result as EthResult;
 use ethereum_types::{Address, H256, U256};
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EthApdu};
+use ikc_common::constants::ETH_BATCH_SIGN_MAX_MESSAGE_NUMBER;
 use ikc_common::error::CoinError;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{hex_to_bytes, is_valid_hex, keccak_256_hash, secp256k1_sign};
@@ -357,6 +358,9 @@ impl Transaction {
         input: EthBatchMessageInput,
         sign_param: &SignParam,
     ) -> EthResult<EthBatchMessageOutput> {
+        if input.messages.len() > ETH_BATCH_SIGN_MAX_MESSAGE_NUMBER {
+            return Err(CoinError::ImkeyExceededMessageNumber.into());
+        }
         check_path_validity(&sign_param.path)?;
 
         let select_apdu = EthApdu::select_applet();
@@ -1376,17 +1380,7 @@ mod tests {
     #[test]
     fn test_batch_personal_sign() {
         bind_test();
-
-        let sign_param = SignParam {
-            chain_type: "ETHEREUM".to_string(),
-            path: constants::ETH_PATH.to_string(),
-            network: "".to_string(),
-            input: None,
-            payment: "".to_string(),
-            receiver: "".to_string(),
-            sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
-            fee: "".to_string(),
-        };
+        let sign_param = gen_sign_param();
         let mut messages = vec![];
         messages.push(hex::encode("Hello imKey".as_bytes()));
         messages.push("0x8d61d40bb0761526fe24d84199321d5e9f6542e56c52018c401b963d64ef21678c18563a3eba889229ab078a8a1baed22226913f".to_string());
@@ -1403,5 +1397,104 @@ mod tests {
             output.signatures[1],
             "35a94616ce12ddb79f6d351c2644c0fa2f496bd152b17102a5672359f583373b6dd5d2a60f5d9909cf84e6af7dc40176179c819a7cbd9b199f4c2e868530293f1b".to_string()
         );
+    }
+
+    #[test]
+    fn test_batch_message_sign() {
+        bind_test();
+        let sign_param = gen_sign_param();
+        let mut messages = vec![];
+        messages.push(hex::encode("Hello imKey".as_bytes()));
+        messages.push("0x8d61d40bb0761526fe24d84199321d5e9f6542e56c52018c401b963d64ef21678c18563a3eba889229ab078a8a1baed22226913f".to_string());
+        let input = EthBatchMessageInput {
+            is_personal_sign: false,
+            messages,
+        };
+        let output = Transaction::batch_message_sign(input, &sign_param).unwrap();
+        assert_eq!(
+            output.signatures[0],
+            "57c976d1fa15c7e833fd340bcb3a96974060ed555369d443449ac4429c1933433afa5304d1cfcb6799403f2b97a1e83309b98fae8ad5fade62335664d90e819f1b".to_string()
+        );
+        assert_eq!(
+            output.signatures[1],
+            "3d8ba5e7375900476d715b479938e48a2e46e59f8e2e12673adb5e3df78a622050053ae0183f5e555e5db34ff43293de255f384709bd3fe6e00b8239c7f1a3561c".to_string()
+        );
+    }
+
+    #[test]
+    fn test_batch_personal_sign_bignumber() {
+        bind_test();
+        let sign_param = gen_sign_param();
+        let mut messages = vec![];
+        for _i in 0..500 {
+            messages.push(hex::encode("Hello imKey".as_bytes()));
+        }
+        let input = EthBatchMessageInput {
+            is_personal_sign: true,
+            messages,
+        };
+        let start_time = std::time::SystemTime::now();
+        let output = Transaction::batch_message_sign(input, &sign_param);
+        let end_time = std::time::SystemTime::now();
+        let elapsed_time = end_time.duration_since(start_time).unwrap();
+        let total_seconds = elapsed_time.as_secs();
+        let hours = total_seconds / 3600;
+        let minutes = (total_seconds % 3600) / 60;
+        let seconds = total_seconds % 60;
+
+        println!(
+            "Elapsed time: {} hours, {} minutes, {} seconds",
+            hours, minutes, seconds
+        );
+        assert!(output.is_ok());
+        let output = output.unwrap();
+        assert_eq!(
+            output.signatures[0],
+            "d928f76ad80d63003c189b095078d94ae068dc2f18a5cafd97b3a630d7bc47465bd6f1e74de2e88c05b271e1c5a8b93564d9d8842c207482b20634d68f2d54e51b".to_string()
+        );
+        assert_eq!(output.signatures.len(), 100);
+    }
+
+    #[test]
+    #[should_panic(expected = "imkey_address_mismatch_with_path")]
+    fn test_batch_message_sign_error_sender() {
+        let mut sign_param = gen_sign_param();
+        sign_param.sender = "1111111111111111111111111111111111111111".to_string();
+        let messages = vec![hex::encode("Hello imKey".as_bytes())];
+        let input = EthBatchMessageInput {
+            is_personal_sign: true,
+            messages,
+        };
+        let output = Transaction::batch_message_sign(input, &sign_param);
+        assert!(output.is_err());
+    }
+
+    #[test]
+    #[should_panic(expected = "imkey_exceeded_message_number")]
+    fn test_batch_message_sign_exceeded_message_number() {
+        let sign_param = gen_sign_param();
+        let mut messages = vec![];
+        for _i in 0..1001 {
+            messages.push(hex::encode("Hello imKey".as_bytes()));
+        }
+        let input = EthBatchMessageInput {
+            is_personal_sign: true,
+            messages,
+        };
+        let output = Transaction::batch_message_sign(input, &sign_param);
+        assert!(output.is_err());
+    }
+
+    fn gen_sign_param() -> SignParam {
+        SignParam {
+            chain_type: "ETHEREUM".to_string(),
+            path: constants::ETH_PATH.to_string(),
+            network: "".to_string(),
+            input: None,
+            payment: "".to_string(),
+            receiver: "".to_string(),
+            sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
+            fee: "".to_string(),
+        }
     }
 }

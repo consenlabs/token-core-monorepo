@@ -82,4 +82,6 @@ pub enum CoinError {
     InvalidVersion,
     #[fail(display = "invalid addr length")]
     InvalidAddrLength,
+    #[fail(display = "imkey_exceeded_message_number")]
+    ImkeyExceededMessageNumber,
 }
