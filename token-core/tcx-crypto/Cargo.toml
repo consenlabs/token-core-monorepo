@@ -2,7 +2,7 @@
 name = "tcx-crypto"
 version = "0.1.0"
 authors = ["Neal Xu <imxuneal@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 tcx-constants = {path="../tcx-constants"}

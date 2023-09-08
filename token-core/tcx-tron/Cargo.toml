@@ -2,7 +2,7 @@
 name = "tcx-tron"
 version = "0.1.0"
 authors = ["tyrone <2125081@qq.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 tcx-crypto = { path = "../tcx-crypto" }
