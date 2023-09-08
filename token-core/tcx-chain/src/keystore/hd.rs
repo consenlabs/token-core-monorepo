@@ -377,7 +377,12 @@ mod tests {
 
         assert_eq!(acc, expected);
         assert_eq!(
-            keystore.account("BITCOIN", "mock_address").unwrap(),
+            keystore
+                .account(
+                    "BITCOIN",
+                    "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868"
+                )
+                .unwrap(),
             &expected
         );
     }
@@ -391,7 +396,9 @@ mod tests {
         let decrypted_bytes = keystore
             .store
             .crypto
-            .decrypt(Key::Password(TEST_PASSWORD.to_owned()))
+            .use_key(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap()
+            .plaintext()
             .unwrap();
         let decrypted_mnemonic = String::from_utf8(decrypted_bytes).unwrap();
         assert_eq!(decrypted_mnemonic, TEST_MNEMONIC);
@@ -452,7 +459,12 @@ mod tests {
 
         assert_eq!(acc, expected);
         assert_eq!(
-            keystore.account("BITCOIN", "mock_address").unwrap(),
+            keystore
+                .account(
+                    "BITCOIN",
+                    "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868"
+                )
+                .unwrap(),
             &expected
         );
         assert_eq!(keystore.store.active_accounts.len(), 1);
