@@ -20,7 +20,7 @@ tcx-constants = { path = "../tcx-constants"}
 tcx-tezos = {path = "../tcx-tezos"}
 tcx-eth2 = {path = "../tcx-eth2"}
 zksync-crypto = {path = "../zksync-crypto"}
-tcx-wallet = {path = "../tcx-wallet" }
+tcx-identity = {path = "../tcx-identity" }
 tcx-eth = {path = "../tcx-eth" }
 tcx-common = {path = "../tcx-common" }
 #zksync-crypto = { git="https://github.com/consenlabs/zksync", branch="hotfix/compatible_with_tcx" }

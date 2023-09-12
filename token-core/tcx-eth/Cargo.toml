@@ -10,7 +10,6 @@ tcx-chain = {path = "../tcx-chain"}
 tcx-primitive = {path = "../tcx-primitive"}
 tcx-constants = {path = "../tcx-constants"}
 tcx-common = {path = "../tcx-common"}
-tcx-wallet = {path = "../tcx-wallet"}
 
 failure = "0.1.8"
 keccak-hash = "0.10.0"

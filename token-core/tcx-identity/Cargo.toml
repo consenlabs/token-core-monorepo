@@ -1,5 +1,5 @@
 [package]
-name = "tcx-wallet"
+name = "tcx-identity"
 version = "0.1.0"
 edition = "2021"
 

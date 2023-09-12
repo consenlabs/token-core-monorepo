@@ -55,13 +55,10 @@ use tcx_substrate::{
     SubstrateKeystore, SubstrateKeystoreParam, SubstrateRawTxIn,
 };
 
-use tcx_tezos::transaction::TezosRawTxIn;
-use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
-use tcx_tron::transaction::TronMessageInput;
-use tcx_wallet::identity::Identity;
-use tcx_wallet::imt_keystore::{IMTKeystore, WALLET_KEYSTORE_DIR};
-use tcx_wallet::v3_keystore::import_wallet_from_keystore;
-use tcx_wallet::wallet_api::{
+use tcx_identity::identity::Identity;
+use tcx_identity::imt_keystore::{IMTKeystore, WALLET_KEYSTORE_DIR};
+use tcx_identity::v3_keystore::import_wallet_from_keystore;
+use tcx_identity::wallet_api::{
     CreateIdentityParam, CreateIdentityResult, DecryptDataFromIpfsParam, EncryptDataToIpfsParam,
     EncryptDataToIpfsResult, ExportIdentityParam, ExportIdentityResult, GenerateMnemonicResult,
     GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes, RecoverIdentityParam,
@@ -69,6 +66,9 @@ use tcx_wallet::wallet_api::{
     SignAuthenticationMessageParam, SignAuthenticationMessageResult, V3KeystoreExportInput,
     V3KeystoreExportOutput, V3KeystoreImportInput, Wallet,
 };
+use tcx_tezos::transaction::TezosRawTxIn;
+use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
+use tcx_tron::transaction::TronMessageInput;
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
 
 use crate::macros::use_chains;
