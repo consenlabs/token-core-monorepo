@@ -223,7 +223,7 @@ mod tests {
     use tcx_chain::Keystore;
     use tcx_constants::sample_key;
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
-    use tcx_wallet::{constants, model};
+    use tcx_identity::{constants, model};
 
     use std::fs;
     use tcx_btc_kin::transaction::BtcKinTxInput;
@@ -241,18 +241,18 @@ mod tests {
     };
     use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
     use tcx_filecoin::{SignedMessage, UnsignedMessage};
+    use tcx_identity::wallet_api::{
+        CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
+        GenerateMnemonicResult, GetCurrentIdentityResult, RecoverIdentityParam,
+        RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult, V3KeystoreExportInput,
+        V3KeystoreExportOutput, V3KeystoreImportInput,
+    };
     use tcx_substrate::{
         ExportSubstrateKeystoreResult, SubstrateKeystore, SubstrateKeystoreParam, SubstrateRawTxIn,
         SubstrateTxOut,
     };
     use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
     use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
-    use tcx_wallet::wallet_api::{
-        CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
-        GenerateMnemonicResult, GetCurrentIdentityResult, RecoverIdentityParam,
-        RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult, V3KeystoreExportInput,
-        V3KeystoreExportOutput, V3KeystoreImportInput,
-    };
 
     static OTHER_MNEMONIC: &'static str =
         "calm release clay imitate top extend close draw quiz refuse shuffle injury";
