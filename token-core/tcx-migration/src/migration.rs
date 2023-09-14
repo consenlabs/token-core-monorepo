@@ -128,6 +128,7 @@ impl LegacyKeystore {
             _ => Err(Error::UnsupportedChain.into()),
         }
     }
+
     pub fn from_json_str(keystore_str: &str) -> Result<LegacyKeystore> {
         let keystore: LegacyKeystore = serde_json::from_str(&keystore_str)?;
         if keystore.version != 44 && keystore.version != 1 && keystore.version != 3 {
@@ -138,11 +139,13 @@ impl LegacyKeystore {
     }
 
     pub fn migrate(&self, key: &Key) -> Result<Keystore> {
-        if self.has_mnemonic() {
-            self.migrate_to_hd(key)
+        let mut keystore = if self.has_mnemonic() {
+            self.migrate_to_hd(key)?
         } else {
-            self.migrate_to_private(key)
-        }
+            self.migrate_to_private(key)?
+        };
+        self.derive_account(&mut keystore)?;
+        Ok(keystore)
     }
 
     fn migrate_to_hd(&self, key: &Key) -> Result<Keystore> {
@@ -172,8 +175,6 @@ impl LegacyKeystore {
 
         let mut keystore = Keystore::Hd(HdKeystore::from_store(store));
         keystore.unlock(&key)?;
-
-        self.derive_account(&mut keystore)?;
 
         Ok(keystore)
     }
@@ -207,8 +208,6 @@ impl LegacyKeystore {
         let mut keystore = Keystore::PrivateKey(PrivateKeystore::from_store(store));
         keystore.unlock(&key)?;
 
-        self.derive_account(&mut keystore)?;
-
         Ok(keystore)
     }
 
@@ -216,7 +215,6 @@ impl LegacyKeystore {
         &self,
         key: &Key,
         new_keystore: &mut Keystore,
-        need_clone: bool,
     ) -> Result<Keystore> {
         let mut keystore = self.migrate_to_hd(key)?;
         keystore.unlock(key)?;
@@ -227,12 +225,12 @@ impl LegacyKeystore {
         tcx_eth::ethereum::enable_account("ETHEREUM", 0, &mut keystore)?;
         tcx_eos::eos::enable_account("EOS", 0, &mut keystore)?;
 
+        // TODO: Create identity wallets
+
         new_keystore.merge(&keystore)?;
 
-        if need_clone {
-            new_keystore.store_mut().crypto = keystore.store().crypto.clone();
-            new_keystore.store_mut().id = keystore.id().to_string();
-        }
+        new_keystore.store_mut().crypto = keystore.store().crypto.clone();
+        new_keystore.store_mut().id = keystore.id().to_string();
 
         Ok(keystore)
     }

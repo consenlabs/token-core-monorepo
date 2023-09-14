@@ -22,10 +22,11 @@ use crate::api::keystore_common_derive_param::Derivation;
 use crate::api::sign_param::Key;
 use crate::api::{
     AccountResponse, AccountsResponse, DerivedKeyResult, ExportPrivateKeyParam, HdStoreCreateParam,
-    HdStoreImportParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonDeriveParam,
-    KeystoreCommonExistsParam, KeystoreCommonExistsResult, KeystoreCommonExportResult,
-    KeystoreUpdateAccount, PrivateKeyStoreExportParam, PrivateKeyStoreImportParam, PublicKeyParam,
-    PublicKeyResult, Response, WalletKeyParam, WalletResult, ZksyncPrivateKeyFromSeedParam,
+    HdStoreImportParam, IdentityMigrationParam, KeyType, KeystoreCommonAccountsParam,
+    KeystoreCommonDeriveParam, KeystoreCommonExistsParam, KeystoreCommonExistsResult,
+    KeystoreCommonExportResult, KeystoreMigrationParam, KeystoreUpdateAccount,
+    PrivateKeyStoreExportParam, PrivateKeyStoreImportParam, PublicKeyParam, PublicKeyResult,
+    Response, WalletKeyParam, WalletResult, ZksyncPrivateKeyFromSeedParam,
     ZksyncPrivateKeyFromSeedResult, ZksyncPrivateKeyToPubkeyHashParam,
     ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult,
 };
@@ -66,6 +67,7 @@ use tcx_identity::wallet_api::{
     SignAuthenticationMessageParam, SignAuthenticationMessageResult, V3KeystoreExportInput,
     V3KeystoreExportOutput, V3KeystoreImportInput, Wallet,
 };
+use tcx_migration::migration::LegacyKeystore;
 use tcx_tezos::transaction::TezosRawTxIn;
 use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
 use tcx_tron::transaction::TronMessageInput;
@@ -1200,3 +1202,30 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
         access_time: input.access_time,
     })
 }
+
+// pub(crate) fn migrate_identity_keystore(data: &[u8]) -> Result<Vec<u8>> {
+//     let param =
+//         IdentityMigrationParam::decode(data).expect("IdentityMigrationParam");
+//         // Lega
+//     // let identity = Identity::get_current_identity()?;
+//     let legach_keystore = LegacyKeystore::from_json_str(&param.json_str)?;
+//     let mut map = KEYSTORE_MAP.write();
+//     let tcx_keystore: &mut Keystore = match map.get_mut(&param.tcx_id) {
+//         Some(keystore) => Ok(keystore),
+//         _ => Err(format_err!("{}", "wallet_not_found")),
+//     }?;
+
+//     let key = if param.derived_key.is_empty() { Key::Password(param.password)} else {Key::DerivedKey(param.derived_key)};
+
+//     let keystore = legach_keystore.migrate_identity_wallets(key, &mut tcx_keystore)?;
+//     flush_keystore(&keystore);
+//     // let signature = identity.sign_authentication_message(
+//     //     input.access_time,
+//     //     &input.identifier,
+//     //     &input.device_token,
+//     // )?;
+//     encode_message(SignAuthenticationMessageResult {
+//         signature,
+//         access_time: param.access_time,
+//     })
+// }

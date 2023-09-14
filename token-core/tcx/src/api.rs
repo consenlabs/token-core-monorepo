@@ -474,3 +474,31 @@ pub struct BiometricModeResult {
     #[prost(string, tag = "1")]
     pub mode: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct IdentityMigrationParam {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub tcx_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub derived_key: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub json_str: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct KeystoreMigrationParam {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub tcx_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub derived_key: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub json_str: ::prost::alloc::string::String,
+}

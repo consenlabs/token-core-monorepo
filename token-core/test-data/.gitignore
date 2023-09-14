@@ -3,3 +3,6 @@
 !.gitignore
 !default_keystore_hd.json
 !default_keystore_pk.json
+!wallets
+!wallets/*
+!wallets/imkey/*

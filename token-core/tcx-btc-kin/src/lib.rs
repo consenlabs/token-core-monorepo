@@ -10,7 +10,6 @@ pub mod signer;
 pub mod transaction;
 
 use core::result;
-use serde::{Deserialize, Serialize};
 
 #[macro_use]
 extern crate failure;

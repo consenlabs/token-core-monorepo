@@ -8,21 +8,22 @@ edition = "2021"
 tcx-proto = { path = "../tcx-proto" }
 tcx-crypto = { path = "../tcx-crypto", features = ["cache_dk"] }
 tcx-chain = { path = "../tcx-chain", features = ["cache_dk"] }
-tcx-btc-kin = {path = "../tcx-btc-kin"}
-tcx-tron = {path = "../tcx-tron"}
-tcx-ckb = {path = "../tcx-ckb"}
-tcx-filecoin = {path = "../tcx-filecoin"}
-tcx-substrate = {path = "../tcx-substrate"}
-tcx-atom = {path = "../tcx-atom"}
-tcx-eos = {path = "../tcx-eos"}
+tcx-btc-kin = { path = "../tcx-btc-kin" }
+tcx-tron = { path = "../tcx-tron" }
+tcx-ckb = { path = "../tcx-ckb" }
+tcx-filecoin = { path = "../tcx-filecoin" }
+tcx-substrate = { path = "../tcx-substrate" }
+tcx-atom = { path = "../tcx-atom" }
+tcx-eos = { path = "../tcx-eos" }
 tcx-primitive = { path = "../tcx-primitive" }
-tcx-constants = { path = "../tcx-constants"}
-tcx-tezos = {path = "../tcx-tezos"}
-tcx-eth2 = {path = "../tcx-eth2"}
-zksync-crypto = {path = "../zksync-crypto"}
-tcx-identity = {path = "../tcx-identity" }
-tcx-eth = {path = "../tcx-eth" }
-tcx-common = {path = "../tcx-common" }
+tcx-constants = { path = "../tcx-constants" }
+tcx-tezos = { path = "../tcx-tezos" }
+tcx-eth2 = { path = "../tcx-eth2" }
+zksync-crypto = { path = "../zksync-crypto" }
+tcx-identity = { path = "../tcx-identity" }
+tcx-eth = { path = "../tcx-eth" }
+tcx-common = { path = "../tcx-common" }
+tcx-migration = { path = "../tcx-migration" }
 #zksync-crypto = { git="https://github.com/consenlabs/zksync", branch="hotfix/compatible_with_tcx" }
 
 prost = "0.11.2"

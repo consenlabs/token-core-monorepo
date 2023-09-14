@@ -6449,6 +6449,7 @@ dependencies = [
  "tcx-eth2",
  "tcx-filecoin",
  "tcx-identity",
+ "tcx-migration",
  "tcx-primitive",
  "tcx-proto",
  "tcx-substrate",
