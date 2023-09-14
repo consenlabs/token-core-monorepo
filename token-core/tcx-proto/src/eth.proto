@@ -27,7 +27,13 @@ message EthTxOutput {
 
 message EthMessageInput {
   string message = 1;
-  optional bool isHex = 2;
+  SignatureType signatureType = 2;
+  optional bool isHex = 3;
+}
+
+enum SignatureType {
+  PersonalSign = 0;
+  EcSign = 1;
 }
 
 message EthMessageOutput {

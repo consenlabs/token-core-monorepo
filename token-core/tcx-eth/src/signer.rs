@@ -1,6 +1,6 @@
 use crate::transaction::{
     EthMessageInput, EthMessageOutput, EthRecoverAddressInput, EthRecoverAddressOutput, EthTxInput,
-    EthTxOutput,
+    EthTxOutput, SignatureType,
 };
 use crate::Result;
 use ethereum_types::{Address, H256, U256, U64};
@@ -34,7 +34,11 @@ impl MessageSigner<EthMessageInput, EthMessageOutput> for Keystore {
         message: &EthMessageInput,
     ) -> tcx_chain::Result<EthMessageOutput> {
         let private_key = self.find_private_key(symbol, address)?;
-        message.sign_message(&private_key.to_bytes())
+        if message.signature_type == SignatureType::PersonalSign as i32 {
+            message.sign_message(&private_key.to_bytes())
+        } else {
+            message.ec_sign(&private_key.to_bytes())
+        }
     }
 }
 
@@ -136,6 +140,7 @@ impl EthMessageInput {
         } else {
             self.message.as_bytes().to_vec()
         };
+
         let h256_hash = H256(keccak256(&message));
         let sign_result = wallet.sign_hash(h256_hash)?;
         let signature = format!("0x{}", sign_result.to_string());
@@ -175,7 +180,7 @@ fn parse_u64(s: &str) -> Result<U64> {
 mod test {
     use crate::ethereum::enable_account;
     use crate::transaction::{
-        AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput,
+        AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput, SignatureType,
     };
     use tcx_chain::{Keystore, MessageSigner, Metadata, TransactionSigner};
 
@@ -618,6 +623,7 @@ mod test {
     fn test_sign_message() {
         let message = EthMessageInput {
             message: "Hello imToken".to_string(),
+            signature_type: SignatureType::PersonalSign as i32,
             is_hex: None,
         };
         let mut keystore =
@@ -636,6 +642,7 @@ mod test {
 
         let message = EthMessageInput {
             message: "ef678007d18427e6022059dbc264f27507cd1ffc".to_string(),
+            signature_type: SignatureType::PersonalSign as i32,
             is_hex: None,
         };
         let output: EthMessageOutput = keystore
@@ -651,29 +658,38 @@ mod test {
         );
     }
 
-    /*
     #[test]
     fn test_ec_sign() {
         let params = EthMessageInput {
             message: "Hello imToken".to_string(),
+            signature_type: SignatureType::EcSign as i32,
             is_hex: Some(false),
         };
-        let private_key =
-            hex::decode("3c9229289a6125f7fdf1885a77bb12c37a8d3b4962d936f7e3084dece32a3ca1")
-                .unwrap();
-        let sign_output: EthMessageOutput =
-            task::block_on(async { params.ec_sign(private_key.as_slice()).await }).unwrap();
+        let mut keystore =
+            private_key_store("3c9229289a6125f7fdf1885a77bb12c37a8d3b4962d936f7e3084dece32a3ca1");
+        let sign_output = keystore
+            .sign_message(
+                "ETHEREUM",
+                "0xed54a7c1d8634bb589f24bb7f05a5554b36f9618",
+                &params,
+            )
+            .unwrap();
         assert_eq!(
             sign_output.signature,
             "0x648081bc111e6116769bdb4396eebe17f58d3eddc0aeb04a868990deac9dfa2f322514a380fa66e0e864faaac6ef936092cdc022f5fd7d61cb501193ede537b31b"
         );
-
         let params = EthMessageInput {
             message: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
+            signature_type: SignatureType::EcSign as i32,
             is_hex: Some(false),
         };
-        let sign_output: EthMessageOutput =
-            task::block_on(async { params.ec_sign(private_key.as_slice()).await }).unwrap();
+        let sign_output = keystore
+            .sign_message(
+                "ETHEREUM",
+                "0xed54a7c1d8634bb589f24bb7f05a5554b36f9618",
+                &params,
+            )
+            .unwrap();
         assert_eq!(
             sign_output.signature,
             "0x65e4952899a8dcadf3a65a11bdac0f0cfdf93e0bae5c67674c78a72631de524d3cafe27ea71c86aa3fd838c6a50a0b09d6ece85a6dcf3ce85c30fdc51380ebdf1b"
@@ -681,10 +697,16 @@ mod test {
 
         let params = EthMessageInput {
             message: "0000000000000000".to_string(),
+            signature_type: SignatureType::EcSign as i32,
             is_hex: Some(true),
         };
-        let sign_output: EthMessageOutput =
-            task::block_on(async { params.ec_sign(private_key.as_slice()).await }).unwrap();
+        let sign_output = keystore
+            .sign_message(
+                "ETHEREUM",
+                "0xed54a7c1d8634bb589f24bb7f05a5554b36f9618",
+                &params,
+            )
+            .unwrap();
         assert_eq!(
             sign_output.signature,
             "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
@@ -692,15 +714,19 @@ mod test {
 
         let params = EthMessageInput {
             message: "0x0000000000000000".to_string(),
+            signature_type: SignatureType::EcSign as i32,
             is_hex: Some(true),
         };
-        let sign_output: EthMessageOutput =
-            task::block_on(async { params.ec_sign(private_key.as_slice()).await }).unwrap();
+        let sign_output = keystore
+            .sign_message(
+                "ETHEREUM",
+                "0xed54a7c1d8634bb589f24bb7f05a5554b36f9618",
+                &params,
+            )
+            .unwrap();
         assert_eq!(
             sign_output.signature,
             "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
         );
     }
-
-     */
 }
