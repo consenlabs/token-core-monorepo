@@ -407,13 +407,7 @@ impl Transaction {
             sign_data.extend(message);
             let hash = keccak_256_hash(&sign_data.as_ref());
 
-            let key_manager_obj = KEY_MANAGER.lock();
-            let sdk_prikey_signature = secp256k1_sign(&key_manager_obj.pri_key, &hash)?;
-
             let mut data: Vec<u8> = Vec::new();
-            //signature
-            let tlv_signature = gen_tlv_data(0x00, sdk_prikey_signature.as_slice())?;
-            data.extend(tlv_signature);
             //hash
             data.extend(gen_tlv_data(0x01, &hash)?);
             //path
@@ -425,9 +419,18 @@ impl Transaction {
             //total number
             data.extend(tlv_total_number.clone());
 
+            let key_manager_obj = KEY_MANAGER.lock();
+            let sdk_prikey_signature = secp256k1_sign(&key_manager_obj.pri_key, &data)?;
+
+            let mut req_data = vec![];
+            //signature
+            let tlv_signature = gen_tlv_data(0x00, sdk_prikey_signature.as_slice())?;
+            req_data.extend(tlv_signature);
+            req_data.extend(data);
+
             let p1 = if index == 0 { 0x00 } else { 0x80 };
             let p2 = if index == sign_number - 1 { 0x80 } else { 0x00 };
-            let sign_apdu = EthApdu::batch_personal_sign(p1, p2, data);
+            let sign_apdu = EthApdu::batch_personal_sign(p1, p2, req_data);
 
             let sign_response = send_apdu(sign_apdu)?;
             ApduCheck::check_response(&sign_response)?;
@@ -1433,26 +1436,14 @@ mod tests {
             is_personal_sign: true,
             messages,
         };
-        let start_time = std::time::SystemTime::now();
         let output = Transaction::batch_message_sign(input, &sign_param);
-        let end_time = std::time::SystemTime::now();
-        let elapsed_time = end_time.duration_since(start_time).unwrap();
-        let total_seconds = elapsed_time.as_secs();
-        let hours = total_seconds / 3600;
-        let minutes = (total_seconds % 3600) / 60;
-        let seconds = total_seconds % 60;
-
-        println!(
-            "Elapsed time: {} hours, {} minutes, {} seconds",
-            hours, minutes, seconds
-        );
         assert!(output.is_ok());
         let output = output.unwrap();
         assert_eq!(
             output.signatures[0],
             "d928f76ad80d63003c189b095078d94ae068dc2f18a5cafd97b3a630d7bc47465bd6f1e74de2e88c05b271e1c5a8b93564d9d8842c207482b20634d68f2d54e51b".to_string()
         );
-        assert_eq!(output.signatures.len(), 100);
+        assert_eq!(output.signatures.len(), 500);
     }
 
     #[test]

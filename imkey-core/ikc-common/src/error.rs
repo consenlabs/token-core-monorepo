@@ -34,6 +34,8 @@ pub enum ApduError {
     ImkeyInMenuPage,
     #[fail(display = "imkey_pin_not_verified")]
     ImkeyPinNotVerified,
+    #[fail(display = "imkey_signature_cancelled")]
+    ImkeySignatureCancelled,
 }
 
 #[derive(Fail, Debug, PartialOrd, PartialEq)]
