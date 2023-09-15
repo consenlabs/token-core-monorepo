@@ -8,6 +8,7 @@ use bitcoin_hashes::sha256::Hash;
 use bitcoin_hashes::Hash as TraitHash;
 
 use failure::format_err;
+use tcx_common::utf8_or_hex_to_bytes;
 
 use crate::keccak;
 
@@ -69,16 +70,8 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
         address: &str,
         message: &TronMessageInput,
     ) -> Result<TronMessageOutput> {
-        let data = match message.is_hex {
-            true => {
-                let mut raw_hex: String = message.value.to_owned();
-                if raw_hex.to_uppercase().starts_with("0X") {
-                    raw_hex.replace_range(..2, "")
-                }
-                hex::decode(&raw_hex)?
-            }
-            false => message.value.as_bytes().to_vec(),
-        };
+        let data = utf8_or_hex_to_bytes(&message.value)?;
+
         let header = match message.is_tron_header {
             true => "\x19TRON Signed Message:\n32".as_bytes(),
             false => "\x19Ethereum Signed Message:\n32".as_bytes(),

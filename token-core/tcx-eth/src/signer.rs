@@ -12,7 +12,7 @@ use ethers::utils::{hash_message, keccak256};
 use keccak_hash::keccak;
 use std::str::FromStr;
 use tcx_chain::{Keystore, MessageSigner, TransactionSigner};
-use tcx_common::util::{hex_to_bytes, string_to_bytes};
+use tcx_common::{hex_to_bytes, utf8_or_hex_to_bytes};
 
 impl TransactionSigner<EthTxInput, EthTxOutput> for Keystore {
     fn sign_transaction(
@@ -125,8 +125,8 @@ impl EthTxInput {
 impl EthMessageInput {
     pub fn sign_message(&self, private_key: &[u8]) -> Result<EthMessageOutput> {
         let wallet = LocalWallet::from_bytes(private_key)?;
-        let message_bytes = string_to_bytes(self.message.as_str())?;
-        let message_hash = hash_message(message_bytes);
+        let message = utf8_or_hex_to_bytes(&self.message)?;
+        let message_hash = hash_message(message);
         let sign_result = wallet.sign_hash(message_hash)?;
 
         let signature = format!("{}{}", "0x", sign_result.to_string());
@@ -135,11 +135,7 @@ impl EthMessageInput {
 
     pub fn ec_sign(&self, private_key: &[u8]) -> Result<EthMessageOutput> {
         let wallet = LocalWallet::from_bytes(private_key)?;
-        let message = if self.is_hex.is_some() && self.is_hex.unwrap() == true {
-            hex_to_bytes(self.message.as_str())?
-        } else {
-            self.message.as_bytes().to_vec()
-        };
+        let message = utf8_or_hex_to_bytes(&self.message)?;
 
         let h256_hash = H256(keccak256(&message));
         let sign_result = wallet.sign_hash(h256_hash)?;
@@ -151,11 +147,7 @@ impl EthMessageInput {
 impl EthRecoverAddressInput {
     pub fn recover_address(&self) -> Result<EthRecoverAddressOutput> {
         let signature = Signature::from_str(&self.signature)?;
-        let message = if self.is_hex.is_some() && self.is_hex.unwrap() == true {
-            hex_to_bytes(self.message.as_str())?
-        } else {
-            self.message.as_bytes().to_vec()
-        };
+        let message = utf8_or_hex_to_bytes(&self.message)?;
         let h256_hash = H256(keccak256(&message));
         let address = signature.recover(h256_hash)?;
         Ok(EthRecoverAddressOutput {
@@ -624,7 +616,6 @@ mod test {
         let message = EthMessageInput {
             message: "Hello imToken".to_string(),
             signature_type: SignatureType::PersonalSign as i32,
-            is_hex: None,
         };
         let mut keystore =
             private_key_store("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6");
@@ -641,9 +632,8 @@ mod test {
         );
 
         let message = EthMessageInput {
-            message: "ef678007d18427e6022059dbc264f27507cd1ffc".to_string(),
+            message: "0xef678007d18427e6022059dbc264f27507cd1ffc".to_string(),
             signature_type: SignatureType::PersonalSign as i32,
-            is_hex: None,
         };
         let output: EthMessageOutput = keystore
             .sign_message(
@@ -663,7 +653,6 @@ mod test {
         let params = EthMessageInput {
             message: "Hello imToken".to_string(),
             signature_type: SignatureType::EcSign as i32,
-            is_hex: Some(false),
         };
         let mut keystore =
             private_key_store("3c9229289a6125f7fdf1885a77bb12c37a8d3b4962d936f7e3084dece32a3ca1");
@@ -681,7 +670,6 @@ mod test {
         let params = EthMessageInput {
             message: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
             signature_type: SignatureType::EcSign as i32,
-            is_hex: Some(false),
         };
         let sign_output = keystore
             .sign_message(
@@ -698,7 +686,6 @@ mod test {
         let params = EthMessageInput {
             message: "0000000000000000".to_string(),
             signature_type: SignatureType::EcSign as i32,
-            is_hex: Some(true),
         };
         let sign_output = keystore
             .sign_message(
@@ -715,7 +702,6 @@ mod test {
         let params = EthMessageInput {
             message: "0x0000000000000000".to_string(),
             signature_type: SignatureType::EcSign as i32,
-            is_hex: Some(true),
         };
         let sign_output = keystore
             .sign_message(

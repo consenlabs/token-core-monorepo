@@ -19,10 +19,8 @@ message EosTxOutput {
   repeated SigData sigData = 1;
 }
 
-
 message EosMessageInput {
-  bool isHex = 1;
-  string data = 2;
+  string data = 1;
 }
 
 message EosMessageOutput {

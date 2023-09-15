@@ -6,6 +6,7 @@ mod time;
 pub use crate::hash::*;
 pub use crate::rand::*;
 pub use crate::time::*;
+pub use crate::util::*;
 
 pub mod util;
 use std::result;

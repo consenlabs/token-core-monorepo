@@ -47,8 +47,6 @@ pub struct EthMessageInput {
     pub message: ::prost::alloc::string::String,
     #[prost(enumeration = "SignatureType", tag = "2")]
     pub signature_type: i32,
-    #[prost(bool, optional, tag = "3")]
-    pub is_hex: ::core::option::Option<bool>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -63,8 +61,6 @@ pub struct EthRecoverAddressInput {
     pub message: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub signature: ::prost::alloc::string::String,
-    #[prost(bool, optional, tag = "3")]
-    pub is_hex: ::core::option::Option<bool>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

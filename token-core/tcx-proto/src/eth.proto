@@ -28,7 +28,6 @@ message EthTxOutput {
 message EthMessageInput {
   string message = 1;
   SignatureType signatureType = 2;
-  optional bool isHex = 3;
 }
 
 enum SignatureType {
@@ -43,7 +42,6 @@ message EthMessageOutput {
 message EthRecoverAddressInput {
   string message = 1;
   string signature = 2;
-  optional bool isHex = 3;
 }
 
 message EthRecoverAddressOutput {

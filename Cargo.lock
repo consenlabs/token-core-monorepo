@@ -6865,6 +6865,7 @@ dependencies = [
  "serde_json",
  "sha3",
  "tcx-chain",
+ "tcx-common",
  "tcx-constants",
  "tcx-crypto",
  "tcx-primitive",

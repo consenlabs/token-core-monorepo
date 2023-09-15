@@ -53,12 +53,13 @@ impl MessageSigner<EosMessageInput, EosMessageOutput> for Keystore {
         address: &str,
         message: &EosMessageInput,
     ) -> Result<EosMessageOutput> {
-        let data_hashed = if message.is_hex {
+        let data_hashed = if message.data.starts_with("0x") {
             hex::hex_to_bytes(&message.data)?
         } else {
             let bytes = message.data.as_bytes();
             hash::sha256(bytes)
         };
+
         let sign_result =
             self.sign_recoverable_hash(data_hashed.as_slice(), symbol, address, None)?;
         // EOS need v r s
