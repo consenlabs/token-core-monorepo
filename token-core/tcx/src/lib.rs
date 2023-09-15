@@ -27,15 +27,19 @@ use crate::handler::{
 };
 
 mod filemanager;
+mod identity;
 mod macros;
 
-use crate::handler::{
-    create_identity, decrypt_data_from_ipfs, encrypt_data_to_ipfs, eth_ec_sign,
-    eth_recover_address, export_identity, export_substrate_keystore, generate_mnemonic,
-    get_current_identity, get_public_key, import_substrate_keystore, recover_identity,
-    remove_identity, sign_authentication_message, sign_bls_to_execution_change,
-    substrate_keystore_exists,
+use crate::identity::{
+    create_identity, decrypt_data_from_ipfs, encrypt_data_to_ipfs, export_identity,
+    get_current_identity, recover_identity, remove_identity, sign_authentication_message,
 };
+
+use crate::handler::{
+    eth_recover_address, export_substrate_keystore, generate_mnemonic, get_public_key,
+    import_substrate_keystore, sign_bls_to_execution_change, substrate_keystore_exists,
+};
+
 use parking_lot::RwLock;
 
 extern crate serde_json;
@@ -142,7 +146,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "recover_identity" => landingpad(|| recover_identity(&action.param.unwrap().value)),
         "export_identity" => landingpad(|| export_identity(&action.param.unwrap().value)),
         "remove_identity" => landingpad(|| remove_identity(&action.param.unwrap().value)),
-        "eth_ec_sign" => landingpad(|| eth_ec_sign(&action.param.unwrap().value)),
+        //migrate to sign_message "eth_ec_sign" => landingpad(|| eth_ec_sign(&action.param.unwrap().value)),
         "eth_recover_address" => landingpad(|| eth_recover_address(&action.param.unwrap().value)),
         "eos_update_account" => landingpad(|| eos_update_account(&action.param.unwrap().value)),
         "eth_keystore_import" => landingpad(|| eth_v3keystore_import(&action.param.unwrap().value)),
