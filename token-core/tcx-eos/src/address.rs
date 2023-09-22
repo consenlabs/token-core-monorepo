@@ -1,62 +1,74 @@
-use base58::ToBase58;
-use failure::format_err;
+use base58::{FromBase58, ToBase58};
 use regex::Regex;
 use std::str::FromStr;
-use tcx_chain::Keystore;
-use tcx_chain::{tcx_ensure, Address, ChainFactory, PublicKeyEncoder, Result};
+use tcx_chain::{Address, ChainFactory, PublicKeyEncoder, Result};
+use tcx_common::CommonError;
 use tcx_constants::CoinInfo;
 use tcx_crypto::hash;
-use tcx_primitive::{PublicKey, Secp256k1PublicKey, TypedPublicKey};
+use tcx_primitive::{PublicKey, TypedPublicKey};
 
 #[derive(PartialEq, Eq, Clone)]
-pub struct EosAddress(String);
+pub struct EosAddress {
+    pubkey_bytes: Vec<u8>,
+    checksum: Vec<u8>,
+}
 
 impl Address for EosAddress {
-    fn from_public_key(_public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
-        // EOS address is registered by user, not from public key
-        Ok(EosAddress("".to_string()))
+    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
+        let pubkey_bytes = public_key.to_bytes();
+        let hashed_bytes = hash::ripemd160(&pubkey_bytes);
+        let checksum = hashed_bytes[..4].to_vec();
+
+        Ok(EosAddress {
+            pubkey_bytes,
+            checksum,
+        })
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
-        let re = Regex::new(r"^[1-5a-z.]{1,12}$").expect("eos account regex");
-
-        re.is_match(address)
+        let r = EosAddress::from_str(address);
+        r.is_ok()
     }
 }
 
 impl FromStr for EosAddress {
     type Err = failure::Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        Ok(EosAddress(s.to_string()))
+        if s.starts_with("EOS") {
+            let s = &s[3..];
+            let bytes = s.from_base58().map_err(|_| CommonError::InvalidAddress)?;
+            let checksum = bytes[bytes.len() - 4..].to_vec();
+            let pubkey_bytes = bytes[..bytes.len() - 4].to_vec();
+
+            let hashed_bytes = hash::ripemd160(&pubkey_bytes);
+            let expected_checksum = hashed_bytes[..4].to_vec();
+            if checksum != expected_checksum {
+                return Err(CommonError::InvalidAddressChecksum.into());
+            }
+
+            Ok(EosAddress {
+                pubkey_bytes,
+                checksum,
+            })
+        } else {
+            Err(CommonError::InvalidAddress.into())
+        }
     }
 }
 
 impl ToString for EosAddress {
     fn to_string(&self) -> String {
-        self.0.clone()
+        let mut bytes = vec![];
+        bytes.extend_from_slice(&self.pubkey_bytes);
+        bytes.extend_from_slice(&self.checksum);
+        format!("EOS{}", bytes.to_base58())
     }
-}
-
-pub fn eos_update_account(ks: &mut Keystore, account_name: &str) -> tcx_chain::Result<()> {
-    tcx_ensure!(
-        EosAddress::is_valid(account_name, &CoinInfo::default()),
-        format_err!("eos_account_name_invalid")
-    );
-    let store = ks.store_mut();
-    let acc = store
-        .active_accounts
-        .iter_mut()
-        .find(|acc| acc.coin == "EOS");
-    if let Some(acc) = acc {
-        acc.address = account_name.to_string();
-    }
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-
     use crate::address::EosAddress;
+    use std::str::FromStr;
     use tcx_chain::{Address, ChainFactory, PublicKeyEncoder};
 
     use tcx_constants::{CoinInfo, CurveType};
@@ -75,15 +87,17 @@ mod tests {
     }
 
     #[test]
-    fn test_address_is_valid() {
-        let invalid_addresses = vec!["accountnameaccountname", "accountname6", "AccountName"];
-        for addr in invalid_addresses {
-            assert!(!EosAddress::is_valid(addr, &get_test_coin()), "{}", addr);
-        }
+    fn test_address() {
+        let tests = [
+            "EOS88XhiiP7Cu5TmAUJqHbyuhyYgd6sei68AU266PyetDDAtjmYWF",
+            "EOS5varo7aGmCFQw77DNiiWUj3YQA7ZmWUMC4NDDXeeaeEAXk436S",
+            "EOS6w47YkvVGLzvKeozV5ZK34QApCmALrwoH2Dwhnirs5TZ9mg5io",
+            "EOS5varo7aGmCFQw77DNiiWUj3YQA7ZmWUMC4NDDXeeaeEAXk436S",
+        ];
 
-        let valid_addresses = vec!["imtoken.1111", "accountname1"];
-        for addr in valid_addresses {
-            assert!(EosAddress::is_valid(addr, &get_test_coin()));
+        for i in tests {
+            let addr = EosAddress::from_str(i).unwrap();
+            assert_eq!(addr.to_string(), i);
         }
     }
 }

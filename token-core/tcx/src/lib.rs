@@ -18,9 +18,9 @@ use std::result;
 use crate::error_handling::{landingpad, LAST_BACKTRACE, LAST_ERROR};
 #[allow(deprecated)]
 use crate::handler::{
-    encode_message, eos_update_account, export_mnemonic, export_private_key, get_derived_key,
-    hd_store_create, hd_store_export, hd_store_import, keystore_common_accounts,
-    keystore_common_delete, keystore_common_derive, keystore_common_exists, keystore_common_verify,
+    encode_message, export_mnemonic, export_private_key, get_derived_key, hd_store_create,
+    hd_store_export, hd_store_import, keystore_common_accounts, keystore_common_delete,
+    keystore_common_derive, keystore_common_exists, keystore_common_verify,
     private_key_store_export, private_key_store_import, sign_tron_message_legacy, sign_tx,
     unlock_then_crash, zksync_private_key_from_seed, zksync_private_key_to_pubkey_hash,
     zksync_sign_musig,
@@ -148,7 +148,6 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "remove_identity" => landingpad(|| remove_identity(&action.param.unwrap().value)),
         //migrate to sign_message "eth_ec_sign" => landingpad(|| eth_ec_sign(&action.param.unwrap().value)),
         "eth_recover_address" => landingpad(|| eth_recover_address(&action.param.unwrap().value)),
-        "eos_update_account" => landingpad(|| eos_update_account(&action.param.unwrap().value)),
         "eth_keystore_import" => landingpad(|| eth_v3keystore_import(&action.param.unwrap().value)),
         "eth_keystore_export" => landingpad(|| eth_v3keystore_export(&action.param.unwrap().value)),
         "encrypt_data_to_ipfs" => landingpad(|| encrypt_data_to_ipfs(&action.param.unwrap().value)),
@@ -1976,60 +1975,6 @@ mod tests {
             let output: AtomTxOutput = AtomTxOutput::decode(ret.as_slice()).unwrap();
             let expected_sig = "355fWQ00dYitAZj6+EmnAgYEX1g7QtUrX/kQIqCbv05TCz0dfsWcMgXWVnr1l/I2hrjjQkiLRMoeRrmnqT2CZA==";
             assert_eq!(expected_sig, output.signature);
-            remove_created_wallet(&wallet.id);
-        })
-    }
-
-    #[test]
-    pub fn test_eos_update_account() {
-        run_test(|| {
-            let derivation = Derivation {
-                chain_type: "EOS".to_string(),
-                path: "m/44'/194'/0'/0/0".to_string(),
-                network: "MAINNET".to_string(),
-                seg_wit: "".to_string(),
-                chain_id: "".to_string(),
-                curve: "SECP256k1".to_string(),
-            };
-
-            let wallet = import_and_derive(derivation);
-
-            let file_path = format!("/tmp/imtoken/wallets/{}.json", wallet.id);
-            let ks_str = fs::read_to_string(&file_path).expect("read ks file");
-            assert!(ks_str.contains(r#""address":"""#));
-
-            let update_param = KeystoreUpdateAccount {
-                id: wallet.id.to_string(),
-                password: "WRONG_PASSWORD".to_string(),
-                account_name: "666666".to_string(),
-            };
-            let ret = call_api("eos_update_account", update_param);
-
-            assert!(ret.is_err());
-            assert_eq!(format!("{}", ret.err().unwrap()), "password_incorrect");
-
-            let update_param = KeystoreUpdateAccount {
-                id: wallet.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
-                account_name: "666666".to_string(),
-            };
-            let ret = call_api("eos_update_account", update_param);
-
-            assert!(ret.is_err());
-            assert_eq!(
-                format!("{}", ret.err().unwrap()),
-                "eos_account_name_invalid"
-            );
-
-            let update_param = KeystoreUpdateAccount {
-                id: wallet.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
-                account_name: "account.123".to_string(),
-            };
-            let ret = call_api("eos_update_account", update_param);
-            let ks_str = fs::read_to_string(&file_path).expect("read ks file");
-            assert!(ks_str.contains(r#""address":"account.123""#));
-
             remove_created_wallet(&wallet.id);
         })
     }

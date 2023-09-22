@@ -10,6 +10,7 @@ tcx-crypto = { path = "../tcx-crypto" }
 tcx-chain = { path = "../tcx-chain" }
 tcx-primitive = { path = "../tcx-primitive" }
 tcx-constants = { path = "../tcx-constants" }
+tcx-common = {path = "../tcx-common"}
 
 failure = "0.1.8"
 regex = "1.9.3"

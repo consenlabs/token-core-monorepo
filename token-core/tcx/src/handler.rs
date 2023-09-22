@@ -953,30 +953,6 @@ pub(crate) fn eth_recover_address(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(result?)
 }
 
-pub(crate) fn eos_update_account(data: &[u8]) -> Result<Vec<u8>> {
-    let param: KeystoreUpdateAccount =
-        KeystoreUpdateAccount::decode(data).expect("eos_update_account params");
-    let mut map = KEYSTORE_MAP.write();
-    let keystore: &mut Keystore = match map.get_mut(&param.id) {
-        Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
-    }?;
-
-    // todo: use ErrorKind
-    tcx_ensure!(
-        keystore.verify_password(&param.password),
-        format_err!("password_incorrect")
-    );
-
-    tcx_eos::address::eos_update_account(keystore, &param.account_name)?;
-    flush_keystore(&keystore)?;
-    let rsp = Response {
-        is_success: true,
-        error: "".to_string(),
-    };
-    encode_message(rsp)
-}
-
 pub(crate) fn eth_v3keystore_import(data: &[u8]) -> Result<Vec<u8>> {
     let input: V3KeystoreImportInput =
         V3KeystoreImportInput::decode(data).expect("V3KeystoreImportInput");

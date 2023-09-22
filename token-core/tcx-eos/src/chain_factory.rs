@@ -95,7 +95,14 @@ mod tests {
         let coin_info = &get_test_coin();
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
         keystore.derive_coin::<EosAddress>(coin_info).unwrap();
-        let private_key_hex = keystore.export_private_key("EOS", "", None).unwrap();
+        println!("{}", keystore.to_json());
+        let private_key_hex = keystore
+            .export_private_key(
+                "EOS",
+                "EOS88XhiiP7Cu5TmAUJqHbyuhyYgd6sei68AU266PyetDDAtjmYWF",
+                None,
+            )
+            .unwrap();
         let bytes = tcx_crypto::hex::hex_to_bytes(&private_key_hex).unwrap();
         let encoder = EosPrivateKeyEncoder {};
         assert_eq!(
