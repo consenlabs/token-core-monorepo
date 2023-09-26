@@ -29,6 +29,5 @@ num-integer = "0.1"
 byteorder = "1.4.3"
 bytebuffer = "0.2.1"
 hex = "0.4.3"
-sha3 = "0.10.6"
 digest = "0.10.6"
 

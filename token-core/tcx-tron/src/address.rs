@@ -1,7 +1,7 @@
 use bitcoin::util::base58;
 use core::str::FromStr;
 
-use crate::keccak;
+use tcx_common::keccak256;
 
 use tcx_chain::Address;
 use tcx_chain::Result;
@@ -16,7 +16,7 @@ impl Address for TronAddress {
         let pk = public_key.as_secp256k1()?;
         let bytes = pk.to_uncompressed();
 
-        let hash = keccak(&bytes[1..]);
+        let hash = keccak256(&bytes[1..]);
         let hex: Vec<u8> = [vec![0x41], hash[12..32].to_vec()].concat();
         Ok(TronAddress(base58::check_encode_slice(&hex)))
     }

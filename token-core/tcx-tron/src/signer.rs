@@ -8,9 +8,7 @@ use bitcoin_hashes::sha256::Hash;
 use bitcoin_hashes::Hash as TraitHash;
 
 use failure::format_err;
-use tcx_common::utf8_or_hex_to_bytes;
-
-use crate::keccak;
+use tcx_common::{keccak256, utf8_or_hex_to_bytes};
 
 // http://jsoneditoronline.org/index.html?id=2b86a8503ba641bebed73f32b4ac9c42
 //{
@@ -78,7 +76,7 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
         };
         let to_hash = [header, &data].concat();
 
-        let hash = keccak(&to_hash);
+        let hash = keccak256(&to_hash);
         let mut sign_result = self.sign_recoverable_hash(&hash[..], symbol, address, None)?;
         sign_result[64] = sign_result[64] + 27;
         Ok(TronMessageOutput {
@@ -166,7 +164,7 @@ mod tests {
         let header = "\x19TRON Signed Message:\n32".as_bytes();
         let to_signed = [header.to_vec(), message].concat();
 
-        let hash = keccak(&to_signed);
+        let hash = keccak256(&to_signed);
         let mut signed = sk.sign_recoverable(&hash).unwrap();
         signed[64] = signed[64] + 27;
         assert_eq!("7209610445e867cf2a36ea301bb5d1fbc3da597fd2ce4bb7fa64796fbf0620a4175e9f841cbf60d12c26737797217c0082fdb3caa8e44079e04ec3f93e86bbea1c", hex::encode(&signed))

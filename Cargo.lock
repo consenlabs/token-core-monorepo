@@ -6864,7 +6864,6 @@ dependencies = [
  "secp256k1 0.24.3",
  "serde",
  "serde_json",
- "sha3",
  "tcx-chain",
  "tcx-common",
  "tcx-constants",
