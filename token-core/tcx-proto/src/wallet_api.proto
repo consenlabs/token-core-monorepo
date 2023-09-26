@@ -1,8 +1,6 @@
 syntax = "proto3";
 package wallet_api;
 
-import "google/protobuf/any.proto";
-
 message GenerateMnemonicResult {
     string mnemonic = 1;
 }
@@ -12,7 +10,7 @@ message CreateIdentityParam {
     string password = 2;
     optional string passwordHint = 3;
     string network = 4;
-    optional string segWit = 5;
+    string segWit = 5;
 }
 
 message CreateIdentityResult {
@@ -27,6 +25,15 @@ message Wallet{
     uint64 createdAt = 3;
     string source = 4;
     string chainType = 5;
+    optional ExternalAddress externalAddress = 6;
+    optional string encXPub = 7;
+    optional string segWit = 8;
+}
+
+message ExternalAddress {
+    string address = 1;
+    string type = 2;
+    string derivedPath = 3;
 }
 
 message GetCurrentIdentityResult {
@@ -73,7 +80,7 @@ message RecoverIdentityParam {
     string password = 3;
     optional string passwordHint = 4;
     string network = 5;
-    optional string segWit = 6;
+    string segWit = 6;
 }
 
 message RecoverIdentityResult {

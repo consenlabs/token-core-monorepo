@@ -2,8 +2,8 @@ use std::ffi::{CStr, CString};
 
 use std::os::raw::c_char;
 
-use handler::sign_message;
-use handler::{eth_v3keystore_export, eth_v3keystore_import};
+use handler::{calc_external_address, sign_message};
+// use handler::{eth_v3keystore_export, eth_v3keystore_import};
 use prost::Message;
 
 pub mod api;
@@ -30,15 +30,18 @@ mod filemanager;
 mod identity;
 mod macros;
 
-use crate::identity::{
-    create_identity, decrypt_data_from_ipfs, encrypt_data_to_ipfs, export_identity,
-    get_current_identity, recover_identity, remove_identity, sign_authentication_message,
-};
-
 use crate::handler::{
-    eth_recover_address, export_substrate_keystore, generate_mnemonic, get_public_key,
+    eth_ec_sign, eth_recover_address, export_substrate_keystore, generate_mnemonic, get_public_key,
     import_substrate_keystore, sign_bls_to_execution_change, substrate_keystore_exists,
 };
+
+// use crate::handler::{
+//     create_identity, decrypt_data_from_ipfs, encrypt_data_to_ipfs, eth_ec_sign,
+//     eth_recover_address, export_identity, export_substrate_keystore, generate_mnemonic,
+//     get_current_identity, get_public_key, import_substrate_keystore, recover_identity,
+//     remove_identity, sign_authentication_message, sign_bls_to_execution_change,
+//     substrate_keystore_exists,
+// };
 
 use parking_lot::RwLock;
 
@@ -108,6 +111,9 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "keystore_common_accounts" => {
             landingpad(|| keystore_common_accounts(&action.param.unwrap().value))
         }
+        "calc_external_address" => {
+            landingpad(|| calc_external_address(&action.param.unwrap().value))
+        }
         "sign_tx" => landingpad(|| sign_tx(&action.param.unwrap().value)),
         "get_public_key" => landingpad(|| get_public_key(&action.param.unwrap().value)),
         // use the sign_msg instead
@@ -141,22 +147,23 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
             landingpad(|| sign_bls_to_execution_change(&action.param.unwrap().value))
         }
         "generate_mnemonic" => landingpad(|| generate_mnemonic()),
-        "create_identity" => landingpad(|| create_identity(&action.param.unwrap().value)),
-        "get_current_identity" => landingpad(|| get_current_identity()),
-        "recover_identity" => landingpad(|| recover_identity(&action.param.unwrap().value)),
-        "export_identity" => landingpad(|| export_identity(&action.param.unwrap().value)),
-        "remove_identity" => landingpad(|| remove_identity(&action.param.unwrap().value)),
-        //migrate to sign_message "eth_ec_sign" => landingpad(|| eth_ec_sign(&action.param.unwrap().value)),
-        "eth_recover_address" => landingpad(|| eth_recover_address(&action.param.unwrap().value)),
-        "eth_keystore_import" => landingpad(|| eth_v3keystore_import(&action.param.unwrap().value)),
-        "eth_keystore_export" => landingpad(|| eth_v3keystore_export(&action.param.unwrap().value)),
-        "encrypt_data_to_ipfs" => landingpad(|| encrypt_data_to_ipfs(&action.param.unwrap().value)),
-        "decrypt_data_from_ipfs" => {
-            landingpad(|| decrypt_data_from_ipfs(&action.param.unwrap().value))
-        }
-        "sign_authentication_message" => {
-            landingpad(|| sign_authentication_message(&action.param.unwrap().value))
-        }
+        // "create_identity" => landingpad(|| create_identity(&action.param.unwrap().value)),
+        // "get_current_identity" => landingpad(|| get_current_identity()),
+        // "recover_identity" => landingpad(|| recover_identity(&action.param.unwrap().value)),
+        // "export_identity" => landingpad(|| export_identity(&action.param.unwrap().value)),
+        // "remove_identity" => landingpad(|| remove_identity(&action.param.unwrap().value)),
+        // "eth_ec_sign" => landingpad(|| eth_ec_sign(&action.param.unwrap().value)),
+        // "eth_recover_address" => landingpad(|| eth_recover_address(&action.param.unwrap().value)),
+        // "eos_update_account" => landingpad(|| eos_update_account(&action.param.unwrap().value)),
+        // "eth_keystore_import" => landingpad(|| eth_v3keystore_import(&action.param.unwrap().value)),
+        // "eth_keystore_export" => landingpad(|| eth_v3keystore_export(&action.param.unwrap().value)),
+        // "encrypt_data_to_ipfs" => landingpad(|| encrypt_data_to_ipfs(&action.param.unwrap().value)),
+        // "decrypt_data_from_ipfs" => {
+        //     landingpad(|| decrypt_data_from_ipfs(&action.param.unwrap().value))
+        // }
+        // "sign_authentication_message" => {
+        //     landingpad(|| sign_authentication_message(&action.param.unwrap().value))
+        // }
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {
@@ -223,7 +230,7 @@ mod tests {
     use crate::handler::hd_store_import;
     use crate::handler::{encode_message, private_key_store_import};
     use prost::Message;
-    use tcx_chain::Keystore;
+    use tcx_chain::{Keystore, Source};
     use tcx_constants::sample_key;
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_identity::{constants, model};
@@ -469,6 +476,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 password_hint: "".to_string(),
                 name: "aaa".to_string(),
+                source: "MNEMONIC".to_string(),
             };
 
             let ret = call_api("hd_store_create", param).unwrap();
@@ -3156,147 +3164,147 @@ mod tests {
         })
     }
 
-    #[test]
-    pub fn test_identity_wallet_create() {
-        run_test(|| {
-            let param = CreateIdentityParam {
-                name: sample_key::NAME.to_string(),
-                password: sample_key::PASSWORD.to_string(),
-                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
-                network: model::NETWORK_TESTNET.to_string(),
-                seg_wit: None,
-            };
-            let ret = call_api("create_identity", param).unwrap();
-            let create_result: CreateIdentityResult =
-                CreateIdentityResult::decode(ret.as_slice()).unwrap();
-            assert!(create_result.ipfs_id.len() > 0);
-            assert!(create_result.identifier.len() > 0);
+    // #[test]
+    // pub fn test_identity_wallet_create() {
+    //     run_test(|| {
+    //         let param = CreateIdentityParam {
+    //             name: sample_key::NAME.to_string(),
+    //             password: sample_key::PASSWORD.to_string(),
+    //             password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
+    //             network: model::NETWORK_TESTNET.to_string(),
+    //             seg_wit: None,
+    //         };
+    //         let ret = call_api("create_identity", param).unwrap();
+    //         let create_result: CreateIdentityResult =
+    //             CreateIdentityResult::decode(ret.as_slice()).unwrap();
+    //         assert!(create_result.ipfs_id.len() > 0);
+    //         assert!(create_result.identifier.len() > 0);
 
-            let param = CreateIdentityParam {
-                name: sample_key::NAME.to_string(),
-                password: sample_key::PASSWORD.to_string(),
-                password_hint: None,
-                network: model::NETWORK_TESTNET.to_string(),
-                seg_wit: None,
-            };
-            let ret = call_api("create_identity", param).unwrap();
-            let create_result: CreateIdentityResult =
-                CreateIdentityResult::decode(ret.as_slice()).unwrap();
-            assert!(create_result.ipfs_id.len() > 0);
-            assert!(create_result.identifier.len() > 0);
-            assert_eq!(create_result.wallets.len(), 1);
-            let wallets = create_result.wallets.get(0).unwrap();
-            assert_eq!(wallets.chain_type, "ETHEREUM");
+    //         let param = CreateIdentityParam {
+    //             name: sample_key::NAME.to_string(),
+    //             password: sample_key::PASSWORD.to_string(),
+    //             password_hint: None,
+    //             network: model::NETWORK_TESTNET.to_string(),
+    //             seg_wit: None,
+    //         };
+    //         let ret = call_api("create_identity", param).unwrap();
+    //         let create_result: CreateIdentityResult =
+    //             CreateIdentityResult::decode(ret.as_slice()).unwrap();
+    //         assert!(create_result.ipfs_id.len() > 0);
+    //         assert!(create_result.identifier.len() > 0);
+    //         assert_eq!(create_result.wallets.len(), 1);
+    //         let wallets = create_result.wallets.get(0).unwrap();
+    //         assert_eq!(wallets.chain_type, "ETHEREUM");
 
-            let param = CreateIdentityParam {
-                name: sample_key::NAME.to_string(),
-                password: sample_key::PASSWORD.to_string(),
-                password_hint: None,
-                network: model::NETWORK_MAINNET.to_string(),
-                seg_wit: None,
-            };
-            let ret = call_api("create_identity", param).unwrap();
-            let create_result: CreateIdentityResult =
-                CreateIdentityResult::decode(ret.as_slice()).unwrap();
-            assert!(create_result.ipfs_id.len() > 0);
-            assert!(create_result.identifier.len() > 0);
+    //         let param = CreateIdentityParam {
+    //             name: sample_key::NAME.to_string(),
+    //             password: sample_key::PASSWORD.to_string(),
+    //             password_hint: None,
+    //             network: model::NETWORK_MAINNET.to_string(),
+    //             seg_wit: None,
+    //         };
+    //         let ret = call_api("create_identity", param).unwrap();
+    //         let create_result: CreateIdentityResult =
+    //             CreateIdentityResult::decode(ret.as_slice()).unwrap();
+    //         assert!(create_result.ipfs_id.len() > 0);
+    //         assert!(create_result.identifier.len() > 0);
 
-            let ret_bytes = call_api("get_current_identity", ()).unwrap();
-            let ret: GetCurrentIdentityResult =
-                GetCurrentIdentityResult::decode(ret_bytes.as_slice()).unwrap();
-            assert_eq!(ret.wallets.len(), 1);
-            let wallet = ret.wallets.get(0).unwrap();
-            assert_eq!(
-                wallet.metadata.clone().unwrap().chain_type,
-                constants::CHAIN_TYPE_ETHEREUM
-            )
-        })
-    }
+    //         let ret_bytes = call_api("get_current_identity", ()).unwrap();
+    //         let ret: GetCurrentIdentityResult =
+    //             GetCurrentIdentityResult::decode(ret_bytes.as_slice()).unwrap();
+    //         assert_eq!(ret.wallets.len(), 1);
+    //         let wallet = ret.wallets.get(0).unwrap();
+    //         assert_eq!(
+    //             wallet.metadata.clone().unwrap().chain_type,
+    //             constants::CHAIN_TYPE_ETHEREUM
+    //         )
+    //     })
+    // }
 
-    #[test]
-    pub fn test_recover_identity_on_testnet() {
-        run_test(|| {
-            let param = RecoverIdentityParam {
-                name: sample_key::NAME.to_string(),
-                mnemonic: sample_key::MNEMONIC.to_string(),
-                password: sample_key::PASSWORD.to_string(),
-                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
-                network: model::NETWORK_TESTNET.to_string(),
-                seg_wit: None,
-            };
-            let ret = call_api("recover_identity", param).unwrap();
-            let recover_result: RecoverIdentityResult =
-                RecoverIdentityResult::decode(ret.as_slice()).unwrap();
-            assert_eq!(
-                recover_result.ipfs_id,
-                "QmSTTidyfa4np9ak9BZP38atuzkCHy4K59oif23f4dNAGU"
-            );
-            assert_eq!(
-                recover_result.identifier,
-                "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg"
-            );
+    // #[test]
+    // pub fn test_recover_identity_on_testnet() {
+    //     run_test(|| {
+    //         let param = RecoverIdentityParam {
+    //             name: sample_key::NAME.to_string(),
+    //             mnemonic: sample_key::MNEMONIC.to_string(),
+    //             password: sample_key::PASSWORD.to_string(),
+    //             password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
+    //             network: model::NETWORK_TESTNET.to_string(),
+    //             seg_wit: None,
+    //         };
+    //         let ret = call_api("recover_identity", param).unwrap();
+    //         let recover_result: RecoverIdentityResult =
+    //             RecoverIdentityResult::decode(ret.as_slice()).unwrap();
+    //         assert_eq!(
+    //             recover_result.ipfs_id,
+    //             "QmSTTidyfa4np9ak9BZP38atuzkCHy4K59oif23f4dNAGU"
+    //         );
+    //         assert_eq!(
+    //             recover_result.identifier,
+    //             "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg"
+    //         );
 
-            let wallet = recover_result.wallets.get(0).unwrap();
-            assert_eq!(wallet.chain_type, constants::CHAIN_TYPE_ETHEREUM);
-            assert_eq!(wallet.address, "6031564e7b2f5cc33737807b2e58daff870b590b");
-        })
-    }
+    //         let wallet = recover_result.wallets.get(0).unwrap();
+    //         assert_eq!(wallet.chain_type, constants::CHAIN_TYPE_ETHEREUM);
+    //         assert_eq!(wallet.address, "6031564e7b2f5cc33737807b2e58daff870b590b");
+    //     })
+    // }
 
-    #[test]
-    pub fn test_export_identity() {
-        run_test(|| {
-            let param = RecoverIdentityParam {
-                name: sample_key::NAME.to_string(),
-                mnemonic: MNEMONIC.to_string(),
-                password: sample_key::PASSWORD.to_string(),
-                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
-                network: model::NETWORK_TESTNET.to_string(),
-                seg_wit: None,
-            };
-            let ret = call_api("recover_identity", param).unwrap();
-            let recover_result: RecoverIdentityResult =
-                RecoverIdentityResult::decode(ret.as_slice()).unwrap();
-            assert!(recover_result.ipfs_id.len() > 0);
-            assert!(recover_result.identifier.len() > 0);
+    // #[test]
+    // pub fn test_export_identity() {
+    //     run_test(|| {
+    //         let param = RecoverIdentityParam {
+    //             name: sample_key::NAME.to_string(),
+    //             mnemonic: MNEMONIC.to_string(),
+    //             password: sample_key::PASSWORD.to_string(),
+    //             password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
+    //             network: model::NETWORK_TESTNET.to_string(),
+    //             seg_wit: None,
+    //         };
+    //         let ret = call_api("recover_identity", param).unwrap();
+    //         let recover_result: RecoverIdentityResult =
+    //             RecoverIdentityResult::decode(ret.as_slice()).unwrap();
+    //         assert!(recover_result.ipfs_id.len() > 0);
+    //         assert!(recover_result.identifier.len() > 0);
 
-            let param = ExportIdentityParam {
-                identifier: recover_result.identifier.to_owned(),
-                password: sample_key::PASSWORD.to_string(),
-            };
-            let ret = call_api("export_identity", param).unwrap();
-            let export_result: ExportIdentityResult =
-                ExportIdentityResult::decode(ret.as_slice()).unwrap();
-            assert_eq!(export_result.mnemonic, MNEMONIC);
-            assert_eq!(recover_result.identifier, export_result.identifier);
-        })
-    }
+    //         let param = ExportIdentityParam {
+    //             identifier: recover_result.identifier.to_owned(),
+    //             password: sample_key::PASSWORD.to_string(),
+    //         };
+    //         let ret = call_api("export_identity", param).unwrap();
+    //         let export_result: ExportIdentityResult =
+    //             ExportIdentityResult::decode(ret.as_slice()).unwrap();
+    //         assert_eq!(export_result.mnemonic, MNEMONIC);
+    //         assert_eq!(recover_result.identifier, export_result.identifier);
+    //     })
+    // }
 
-    #[test]
-    pub fn test_delete_identity() {
-        run_test(|| {
-            let param = CreateIdentityParam {
-                name: sample_key::NAME.to_string(),
-                password: sample_key::PASSWORD.to_string(),
-                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
-                network: model::NETWORK_TESTNET.to_string(),
-                seg_wit: None,
-            };
-            let ret = call_api("create_identity", param).unwrap();
-            let create_result: CreateIdentityResult =
-                CreateIdentityResult::decode(ret.as_slice()).unwrap();
-            assert!(create_result.ipfs_id.len() > 0);
-            assert!(create_result.identifier.len() > 0);
+    // #[test]
+    // pub fn test_delete_identity() {
+    //     run_test(|| {
+    //         let param = CreateIdentityParam {
+    //             name: sample_key::NAME.to_string(),
+    //             password: sample_key::PASSWORD.to_string(),
+    //             password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
+    //             network: model::NETWORK_TESTNET.to_string(),
+    //             seg_wit: None,
+    //         };
+    //         let ret = call_api("create_identity", param).unwrap();
+    //         let create_result: CreateIdentityResult =
+    //             CreateIdentityResult::decode(ret.as_slice()).unwrap();
+    //         assert!(create_result.ipfs_id.len() > 0);
+    //         assert!(create_result.identifier.len() > 0);
 
-            let remove_identity_param = RemoveIdentityParam {
-                identifier: create_result.identifier.to_owned(),
-                password: sample_key::PASSWORD.to_string(),
-            };
-            let ret = call_api("remove_identity", remove_identity_param).unwrap();
-            let remove_result: RemoveIdentityResult =
-                RemoveIdentityResult::decode(ret.as_slice()).unwrap();
-            assert_eq!(remove_result.identifier, create_result.identifier);
-        })
-    }
+    //         let remove_identity_param = RemoveIdentityParam {
+    //             identifier: create_result.identifier.to_owned(),
+    //             password: sample_key::PASSWORD.to_string(),
+    //         };
+    //         let ret = call_api("remove_identity", remove_identity_param).unwrap();
+    //         let remove_result: RemoveIdentityResult =
+    //             RemoveIdentityResult::decode(ret.as_slice()).unwrap();
+    //         assert_eq!(remove_result.identifier, create_result.identifier);
+    //     })
+    // }
 
     #[test]
     pub fn test_sign_ethereum_legacy_tx() {
@@ -3467,132 +3475,132 @@ mod tests {
         })
     }
 
-    #[test]
-    pub fn test_eth_ec_sign() {
-        run_test(|| {
-            let param = RecoverIdentityParam {
-                name: sample_key::NAME.to_string(),
-                mnemonic: MNEMONIC.to_string(),
-                password: sample_key::PASSWORD.to_string(),
-                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
-                network: model::NETWORK_TESTNET.to_string(),
-                seg_wit: None,
-            };
-            let ret = call_api("recover_identity", param).unwrap();
-            let recover_result: RecoverIdentityResult =
-                RecoverIdentityResult::decode(ret.as_slice()).unwrap();
-            assert!(recover_result.ipfs_id.len() > 0);
-            assert!(recover_result.identifier.len() > 0);
-            let eth_message_input = EthMessageInput {
-                message: "Hello imToken".to_string(),
-                is_hex: None,
-            };
-            let input_value = encode_message(eth_message_input).unwrap();
-            let param = SignParam {
-                id: recover_result.wallets.get(0).unwrap().id.clone(),
-                chain_type: "ETHEREUM".to_string(),
-                address: recover_result.wallets.get(0).unwrap().address.clone(),
-                input: Some(::prost_types::Any {
-                    type_url: "imtoken".to_string(),
-                    value: input_value,
-                }),
-                key: Some(sign_param::Key::Password(sample_key::PASSWORD.to_string())),
-            };
-            let ret = call_api("eth_ec_sign", param).unwrap();
-            let output: EthMessageOutput = EthMessageOutput::decode(ret.as_slice()).unwrap();
-            assert_eq!(output.signature.to_owned(), "0x509afc633572c8f1885ec217cf1a42fb87a2c341217dbfcc21417e2dce357c0b41116412d1dd51af86ed25920ce6b5648d80d77bbbba8c79d68476bdffd773a31b");
+    // #[test]
+    // pub fn test_eth_ec_sign() {
+    //     run_test(|| {
+    //         let param = RecoverIdentityParam {
+    //             name: sample_key::NAME.to_string(),
+    //             mnemonic: MNEMONIC.to_string(),
+    //             password: sample_key::PASSWORD.to_string(),
+    //             password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
+    //             network: model::NETWORK_TESTNET.to_string(),
+    //             seg_wit: None,
+    //         };
+    //         let ret = call_api("recover_identity", param).unwrap();
+    //         let recover_result: RecoverIdentityResult =
+    //             RecoverIdentityResult::decode(ret.as_slice()).unwrap();
+    //         assert!(recover_result.ipfs_id.len() > 0);
+    //         assert!(recover_result.identifier.len() > 0);
+    //         let eth_message_input = EthMessageInput {
+    //             message: "Hello imToken".to_string(),
+    //             is_hex: None,
+    //         };
+    //         let input_value = encode_message(eth_message_input).unwrap();
+    //         let param = SignParam {
+    //             id: recover_result.wallets.get(0).unwrap().id.clone(),
+    //             chain_type: "ETHEREUM".to_string(),
+    //             address: recover_result.wallets.get(0).unwrap().address.clone(),
+    //             input: Some(::prost_types::Any {
+    //                 type_url: "imtoken".to_string(),
+    //                 value: input_value,
+    //             }),
+    //             key: Some(sign_param::Key::Password(sample_key::PASSWORD.to_string())),
+    //         };
+    //         let ret = call_api("eth_ec_sign", param).unwrap();
+    //         let output: EthMessageOutput = EthMessageOutput::decode(ret.as_slice()).unwrap();
+    //         assert_eq!(output.signature.to_owned(), "0x509afc633572c8f1885ec217cf1a42fb87a2c341217dbfcc21417e2dce357c0b41116412d1dd51af86ed25920ce6b5648d80d77bbbba8c79d68476bdffd773a31b");
 
-            let recover_input = EthRecoverAddressInput {
-                message: "Hello imToken".to_string(),
-                signature: output.signature.to_owned(),
-                is_hex: None,
-            };
-            let ret = call_api("eth_recover_address", recover_input).unwrap();
-            let recover_output: EthRecoverAddressOutput =
-                EthRecoverAddressOutput::decode(ret.as_slice()).unwrap();
-            assert_eq!(
-                recover_output.address,
-                "6031564e7b2f5cc33737807b2e58daff870b590b"
-            );
+    //         let recover_input = EthRecoverAddressInput {
+    //             message: "Hello imToken".to_string(),
+    //             signature: output.signature.to_owned(),
+    //             is_hex: None,
+    //         };
+    //         let ret = call_api("eth_recover_address", recover_input).unwrap();
+    //         let recover_output: EthRecoverAddressOutput =
+    //             EthRecoverAddressOutput::decode(ret.as_slice()).unwrap();
+    //         assert_eq!(
+    //             recover_output.address,
+    //             "6031564e7b2f5cc33737807b2e58daff870b590b"
+    //         );
 
-            let recover_input = EthRecoverAddressInput {
-                message: hex::encode("Hello imToken".as_bytes()),
-                signature: output.signature,
-                is_hex: Some(true),
-            };
-            let ret = call_api("eth_recover_address", recover_input).unwrap();
-            let recover_output: EthRecoverAddressOutput =
-                EthRecoverAddressOutput::decode(ret.as_slice()).unwrap();
-            assert_eq!(
-                recover_output.address,
-                "6031564e7b2f5cc33737807b2e58daff870b590b"
-            );
-        })
-    }
+    //         let recover_input = EthRecoverAddressInput {
+    //             message: hex::encode("Hello imToken".as_bytes()),
+    //             signature: output.signature,
+    //             is_hex: Some(true),
+    //         };
+    //         let ret = call_api("eth_recover_address", recover_input).unwrap();
+    //         let recover_output: EthRecoverAddressOutput =
+    //             EthRecoverAddressOutput::decode(ret.as_slice()).unwrap();
+    //         assert_eq!(
+    //             recover_output.address,
+    //             "6031564e7b2f5cc33737807b2e58daff870b590b"
+    //         );
+    //     })
+    // }
 
-    #[test]
-    pub fn test_eth_keystore_import() {
-        run_test(|| {
-            let param = CreateIdentityParam {
-                name: sample_key::NAME.to_string(),
-                password: sample_key::PASSWORD.to_string(),
-                password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
-                network: model::NETWORK_TESTNET.to_string(),
-                seg_wit: None,
-            };
-            let ret = call_api("create_identity", param).unwrap();
-            let create_result: CreateIdentityResult =
-                CreateIdentityResult::decode(ret.as_slice()).unwrap();
-            assert!(create_result.ipfs_id.len() > 0);
-            assert!(create_result.identifier.len() > 0);
+    // #[test]
+    // pub fn test_eth_keystore_import() {
+    //     run_test(|| {
+    //         let param = CreateIdentityParam {
+    //             name: sample_key::NAME.to_string(),
+    //             password: sample_key::PASSWORD.to_string(),
+    //             password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
+    //             network: model::NETWORK_TESTNET.to_string(),
+    //             seg_wit: None,
+    //         };
+    //         let ret = call_api("create_identity", param).unwrap();
+    //         let create_result: CreateIdentityResult =
+    //             CreateIdentityResult::decode(ret.as_slice()).unwrap();
+    //         assert!(create_result.ipfs_id.len() > 0);
+    //         assert!(create_result.identifier.len() > 0);
 
-            // let fixtures = r#"{"address":"6344e16b7733e5211a6b8b5ac1c5628b06d20560",
-            //     "id":"7abda3f2-fa83-415f-a000-6b8af5b8f05a",
-            //     "crypto":{
-            //         "ciphertext":"b28ad9edbeb57f89d32476c2f1415cb328276c573d14a4096faea6588a6931de",
-            //         "cipherparams":{"iv":"647980eb665ea204e97c5c829f2b4aba"},
-            //         "kdf":"scrypt",
-            //         "kdfparams":{"r":8,"p":1,"n":8192,"dklen":32,"salt":"47b199e0082bf2a8fc7ae724f272e7daf2c62a5dc0d01da160d6c6411d2a49ea"},
-            //         "mac":"a0cf4479d4e46fbc228bc9f7d10786a4501f36dfef591c316d8503f0e450f242",
-            //         "cipher":"aes-128-ctr"
-            //     },
-            //     "version":3}"#.to_string();
-            let keystore = r#"{"crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"eccde5515c1f9c833ee76ae3c354d1a2"},"ciphertext":"dda14dd1946c89ca85425f588eb32c545061bd022a9e873aa021de64b6f3b2d5","kdf":"pbkdf2","kdfparams":{"c":10240,"dklen":32,"prf":"hmac-sha256","salt":"3d327145c38932079d5400443fd612fe3e685ae13355d2897a78ea58ab8abda8"},"mac":"9e65da279df5d067c6fa9c4e7a689634885142d2106e7ef592cdb973dc1a22e3"},"id":"dea8739a-bd34-401b-9aaf-a92c1a7c381c","version":3,"address":"436ee8da3d1185a55f183d6e2363bad5aad36a13"}"#.to_string();
-            let param = V3KeystoreImportInput {
-                keystore,
-                password: "abcd1234".to_string(),
-                overwrite: true,
-                name: "ETH".to_string(),
-                chain_type: "ETHEREUM".to_string(),
-                source: "KEYSTORE".to_string(),
-            };
+    //         // let fixtures = r#"{"address":"6344e16b7733e5211a6b8b5ac1c5628b06d20560",
+    //         //     "id":"7abda3f2-fa83-415f-a000-6b8af5b8f05a",
+    //         //     "crypto":{
+    //         //         "ciphertext":"b28ad9edbeb57f89d32476c2f1415cb328276c573d14a4096faea6588a6931de",
+    //         //         "cipherparams":{"iv":"647980eb665ea204e97c5c829f2b4aba"},
+    //         //         "kdf":"scrypt",
+    //         //         "kdfparams":{"r":8,"p":1,"n":8192,"dklen":32,"salt":"47b199e0082bf2a8fc7ae724f272e7daf2c62a5dc0d01da160d6c6411d2a49ea"},
+    //         //         "mac":"a0cf4479d4e46fbc228bc9f7d10786a4501f36dfef591c316d8503f0e450f242",
+    //         //         "cipher":"aes-128-ctr"
+    //         //     },
+    //         //     "version":3}"#.to_string();
+    //         let keystore = r#"{"crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"eccde5515c1f9c833ee76ae3c354d1a2"},"ciphertext":"dda14dd1946c89ca85425f588eb32c545061bd022a9e873aa021de64b6f3b2d5","kdf":"pbkdf2","kdfparams":{"c":10240,"dklen":32,"prf":"hmac-sha256","salt":"3d327145c38932079d5400443fd612fe3e685ae13355d2897a78ea58ab8abda8"},"mac":"9e65da279df5d067c6fa9c4e7a689634885142d2106e7ef592cdb973dc1a22e3"},"id":"dea8739a-bd34-401b-9aaf-a92c1a7c381c","version":3,"address":"436ee8da3d1185a55f183d6e2363bad5aad36a13"}"#.to_string();
+    //         let param = V3KeystoreImportInput {
+    //             keystore,
+    //             password: "abcd1234".to_string(),
+    //             overwrite: true,
+    //             name: "ETH".to_string(),
+    //             chain_type: "ETHEREUM".to_string(),
+    //             source: "KEYSTORE".to_string(),
+    //         };
 
-            let ret = call_api("eth_keystore_import", param).unwrap();
-            let import_result: WalletResult = WalletResult::decode(ret.as_slice()).unwrap();
-            println!("{}", import_result.id);
-            // assert_eq!(import_result.id, "7abda3f2-fa83-415f-a000-6b8af5b8f05a");
-            let param = V3KeystoreExportInput {
-                password: "abcd1234".to_string(),
-                id: import_result.id,
-            };
-            let ret = call_api("eth_keystore_export", param).unwrap();
-            let export_result = V3KeystoreExportOutput::decode(ret.as_slice()).unwrap();
-            println!("{}", export_result.json);
-        })
-    }
+    //         let ret = call_api("eth_keystore_import", param).unwrap();
+    //         let import_result: WalletResult = WalletResult::decode(ret.as_slice()).unwrap();
+    //         println!("{}", import_result.id);
+    //         // assert_eq!(import_result.id, "7abda3f2-fa83-415f-a000-6b8af5b8f05a");
+    //         let param = V3KeystoreExportInput {
+    //             password: "abcd1234".to_string(),
+    //             id: import_result.id,
+    //         };
+    //         let ret = call_api("eth_keystore_export", param).unwrap();
+    //         let export_result = V3KeystoreExportOutput::decode(ret.as_slice()).unwrap();
+    //         println!("{}", export_result.json);
+    //     })
+    // }
 
-    #[test]
-    fn test_encrypt_data_to_ipfs() {
-        todo!()
-    }
+    // #[test]
+    // fn test_encrypt_data_to_ipfs() {
+    //     todo!()
+    // }
 
-    #[test]
-    fn test_decrypt_data_from_ipfs() {
-        todo!()
-    }
+    // #[test]
+    // fn test_decrypt_data_from_ipfs() {
+    //     todo!()
+    // }
 
-    #[test]
-    fn test_sign_authentication_message() {
-        todo!()
-    }
+    // #[test]
+    // fn test_sign_authentication_message() {
+    //     todo!()
+    // }
 }

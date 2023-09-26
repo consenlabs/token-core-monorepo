@@ -1,5 +1,6 @@
 use bip39::{Language, Mnemonic, Seed};
 
+use tcx_identity::identity::Identity;
 use uuid::Uuid;
 
 use super::Account;
@@ -167,6 +168,8 @@ impl HdKeystore {
         let key_hash = key_hash_from_mnemonic(mnemonic)?;
 
         let crypto: Crypto = Crypto::new(password, mnemonic.as_bytes());
+        let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
+        let identity = Identity::new(mnemonic, &unlocker)?;
         Ok(HdKeystore {
             store: Store {
                 key_hash,
@@ -175,6 +178,7 @@ impl HdKeystore {
                 version: Self::VERSION,
                 active_accounts: vec![],
                 meta,
+                identity: Some(identity),
             },
 
             cache: None,
@@ -220,6 +224,10 @@ impl HdKeystore {
 
     pub(crate) fn account(&self, symbol: &str, address: &str) -> Option<&Account> {
         self.store.account(symbol, address)
+    }
+
+    pub fn identity(&self) -> Option<&Identity> {
+        self.store().identity.as_ref()
     }
 
     pub(crate) fn verify_password(&self, password: &str) -> bool {

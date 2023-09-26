@@ -10,7 +10,7 @@ tcx-primitive = { path = "../tcx-primitive" }
 tcx-crypto = { path = "../tcx-crypto"}
 tcx-constants = { path = "../tcx-constants"}
 #tcx-eth = {path = "../tcx-eth"}
-tcx-chain = {path = "../tcx-chain"}
+# tcx-chain = {path = "../tcx-chain"}
 tcx-common = {path = "../tcx-common"}
 
 failure = "0.1.8"

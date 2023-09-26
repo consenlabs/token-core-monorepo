@@ -14,8 +14,8 @@ lazy_static! {
     pub static ref IS_DEBUG: RwLock<bool> = RwLock::new(false);
 }
 
-const WALLET_V1_DIR: &str = "wallets";
-const WALLET_V2_DIR: &str = "walletsV2";
+pub const WALLET_V1_DIR: &str = "wallets";
+pub const WALLET_V2_DIR: &str = "walletsV2";
 
 pub fn copy_to_v2_if_need() -> Result<()> {
     let base = KEYSTORE_BASE_DIR.read();

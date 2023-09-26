@@ -16,6 +16,7 @@ use tcx_btc_kin::Error;
 use tcx_chain::keystore::{Keystore, Metadata, Store};
 use tcx_eos::address::EosAddress;
 use tcx_eth::address::EthAddress;
+use tcx_identity::identity::Identity;
 use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -158,12 +159,14 @@ impl LegacyKeystore {
         let mnemonic = String::from_utf8(mnemonic_data.to_owned())?;
         let key_hash = key_hash_from_mnemonic(&mnemonic)?;
 
+        let identity = Identity::new(&mnemonic, &unlocker)?;
         let mut store = Store {
             id: self.id.to_string(),
             version: HdKeystore::VERSION,
             key_hash: key_hash.to_string(),
             crypto: self.crypto.clone(),
             active_accounts: vec![],
+            identity: Some(identity),
             meta: self.im_token_meta.to_metadata(),
         };
 
@@ -196,6 +199,7 @@ impl LegacyKeystore {
             crypto: self.crypto.clone(),
             active_accounts: vec![],
             meta: self.im_token_meta.to_metadata(),
+            identity: None,
         };
 
         let unlocker = self.crypto.use_key(key)?;

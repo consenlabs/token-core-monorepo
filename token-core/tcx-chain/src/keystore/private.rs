@@ -117,6 +117,7 @@ impl PrivateKeystore {
             id: Uuid::new_v4().as_hyphenated().to_string(),
             version: PrivateKeystore::VERSION,
             active_accounts: vec![],
+            identity: None,
         };
 
         PrivateKeystore {
