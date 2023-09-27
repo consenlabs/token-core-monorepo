@@ -54,9 +54,9 @@ pub fn clean_keystore() {
 }
 
 pub fn cache_keystore(keystore: Keystore) {
-    KEYSTORE_MAP
-        .write()
-        .insert(keystore.id().to_owned(), keystore);
+    let mut map = KEYSTORE_MAP.write();
+    map.remove(&keystore.id());
+    map.insert(keystore.id().to_owned(), keystore);
 }
 
 pub fn flush_keystore(ks: &Keystore) -> Result<()> {

@@ -23,13 +23,13 @@ use crate::api::sign_param::Key;
 use crate::api::{
     AccountResponse, AccountsResponse, CalcExternalAddressParam, CalcExternalAddressResult,
     DerivedKeyResult, ExportPrivateKeyParam, HdStoreCreateParam, HdStoreImportParam,
-    IdentityMigrationParam, IdentityResult, KeyType, KeystoreCommonAccountsParam,
-    KeystoreCommonDeriveParam, KeystoreCommonExistsParam, KeystoreCommonExistsResult,
-    KeystoreCommonExportResult, KeystoreMigrationParam, KeystoreUpdateAccount,
-    PrivateKeyStoreExportParam, PrivateKeyStoreImportParam, PublicKeyParam, PublicKeyResult,
-    Response, WalletKeyParam, WalletResult, ZksyncPrivateKeyFromSeedParam,
-    ZksyncPrivateKeyFromSeedResult, ZksyncPrivateKeyToPubkeyHashParam,
-    ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult,
+    IdentityResult, KeyType, KeystoreCommonAccountsParam, KeystoreCommonDeriveParam,
+    KeystoreCommonExistsParam, KeystoreCommonExistsResult, KeystoreCommonExportResult,
+    KeystoreMigrationParam, KeystoreUpdateAccount, PrivateKeyStoreExportParam,
+    PrivateKeyStoreImportParam, PublicKeyParam, PublicKeyResult, Response, WalletKeyParam,
+    WalletResult, ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
+    ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam,
+    ZksyncSignMusigResult,
 };
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
@@ -1254,29 +1254,45 @@ pub(crate) fn calc_external_address(data: &[u8]) -> Result<Vec<u8>> {
     })
 }
 
-// pub(crate) fn migrate_identity_keystore(data: &[u8]) -> Result<Vec<u8>> {
-//     let param =
-//         IdentityMigrationParam::decode(data).expect("IdentityMigrationParam");
-//         // Lega
-//     // let identity = Identity::get_current_identity()?;
-//     let legach_keystore = LegacyKeystore::from_json_str(&param.json_str)?;
-//     let mut map = KEYSTORE_MAP.write();
-//     let tcx_keystore: &mut Keystore = match map.get_mut(&param.tcx_id) {
-//         Some(keystore) => Ok(keystore),
-//         _ => Err(format_err!("{}", "wallet_not_found")),
-//     }?;
+pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
+    let param = KeystoreMigrationParam::decode(data).expect("KeystoreMigrationParam");
+    let json_str = fs::read_to_string(format!("{}/{}.json", WALLET_FILE_DIR.read(), param.id))?;
+    let legacy_keystore = LegacyKeystore::from_json_str(&json_str)?;
 
-//     let key = if param.derived_key.is_empty() { Key::Password(param.password)} else {Key::DerivedKey(param.derived_key)};
+    let mut tcx_ks: Option<Keystore> = None;
+    {
+        let map = KEYSTORE_MAP.read();
+        if param.tcx_id.len() > 0 {
+            tcx_ks = map.get(&param.tcx_id).and_then(|ks| Some(ks.clone()))
+        }
+    }
 
-//     let keystore = legach_keystore.migrate_identity_wallets(key, &mut tcx_keystore)?;
-//     flush_keystore(&keystore);
-//     // let signature = identity.sign_authentication_message(
-//     //     input.access_time,
-//     //     &input.identifier,
-//     //     &input.device_token,
-//     // )?;
-//     encode_message(SignAuthenticationMessageResult {
-//         signature,
-//         access_time: param.access_time,
-//     })
-// }
+    let key = if param.derived_key.is_empty() {
+        tcx_crypto::Key::Password(param.password)
+    } else {
+        tcx_crypto::Key::DerivedKey(param.derived_key)
+    };
+
+    let keystore = legacy_keystore.migrate_identity_wallets(&key, tcx_ks)?;
+    flush_keystore(&keystore)?;
+    let accounts = keystore
+        .accounts()
+        .iter()
+        .map(|acc| AccountResponse {
+            chain_type: acc.coin.to_string(),
+            address: acc.address.to_string(),
+            path: acc.derivation_path.to_string(),
+            extended_xpub_key: acc.ext_pub_key.to_string(),
+        })
+        .collect::<Vec<AccountResponse>>();
+    let ret = encode_message(WalletResult {
+        id: keystore.id().to_string(),
+        name: keystore.meta().name.to_string(),
+        source: keystore.meta().source.to_string(),
+        accounts,
+        created_at: keystore.meta().timestamp,
+        identity: None,
+    });
+    cache_keystore(keystore);
+    ret
+}

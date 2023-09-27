@@ -16,8 +16,10 @@ use byteorder::ByteOrder;
 
 use bip39::{Language, Mnemonic};
 
+#[derive(Clone)]
 pub struct Bip32DeterministicPrivateKey(ExtendedPrivKey);
 
+#[derive(Clone)]
 pub struct Bip32DeterministicPublicKey(ExtendedPubKey);
 
 impl From<Bip32Error> for KeyError {

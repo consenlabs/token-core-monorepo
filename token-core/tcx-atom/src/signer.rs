@@ -57,7 +57,6 @@ mod tests {
         let ks = guard.keystore_mut();
 
         let account = ks.derive_coin::<AtomAddress>(&coin_info).unwrap().clone();
-        println!("account {:?}", account);
 
         let signed_tx: AtomTxOutput = ks.sign_transaction("COSMOS", &account.address, &tx)?;
 

@@ -306,6 +306,7 @@ impl Derive for TypedDeterministicPublicKey {
     }
 }
 
+#[derive(Clone)]
 pub enum TypedDeterministicPrivateKey {
     Bip32Sepc256k1(Bip32DeterministicPrivateKey),
     SubSr25519(Sr25519PrivateKey),

@@ -12,8 +12,10 @@ use crate::{
 };
 use bip39::{Language, Mnemonic};
 
+#[derive(Clone)]
 pub struct Ed25519DeterministicPrivateKey(EdExtPrivateKey);
 
+#[derive(Clone)]
 pub struct Ed25519DeterministicPublicKey(EdPublicKey);
 
 impl Ed25519DeterministicPrivateKey {

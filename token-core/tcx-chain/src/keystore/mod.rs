@@ -1,4 +1,5 @@
 use super::Result;
+use std::fmt;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -147,6 +148,19 @@ impl FromStr for Source {
     }
 }
 
+impl fmt::Display for Source {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Source::Wif => write!(f, "WIF"),
+            Source::Private => write!(f, "PRIVATE"),
+            Source::Keystore => write!(f, "KEYSTORE"),
+            Source::Mnemonic => write!(f, "MNEMONIC"),
+            Source::NewIdentity => write!(f, "NEW_IDENTITY"),
+            Source::RecoveredIdentity => write!(f, "RECOVER_IDENTITY"),
+        }
+    }
+}
+
 /// Metadata of fixtures, for presenting wallet data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -180,6 +194,7 @@ impl Default for Metadata {
     }
 }
 
+#[derive(Clone)]
 pub enum Keystore {
     PrivateKey(PrivateKeystore),
     Hd(HdKeystore),

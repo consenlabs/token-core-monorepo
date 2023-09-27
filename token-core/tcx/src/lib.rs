@@ -2,7 +2,7 @@ use std::ffi::{CStr, CString};
 
 use std::os::raw::c_char;
 
-use handler::{calc_external_address, sign_message};
+use handler::{calc_external_address, migrate_keystore, sign_message};
 // use handler::{eth_v3keystore_export, eth_v3keystore_import};
 use prost::Message;
 
@@ -164,6 +164,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         // "sign_authentication_message" => {
         //     landingpad(|| sign_authentication_message(&action.param.unwrap().value))
         // }
+        "migrate_keystore" => landingpad(|| migrate_keystore(&action.param.unwrap().value)),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {

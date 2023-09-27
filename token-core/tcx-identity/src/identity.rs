@@ -109,13 +109,13 @@ impl Identity {
         let ipfs_id = base58::encode_slice(&multihash.to_bytes());
 
         let master_prikey_bytes = master_key.encode();
-        let master_prikey_bytes = base58::check_encode_slice(master_prikey_bytes.as_slice());
+        // let master_prikey_bytes = base58::check_encode_slice(master_prikey_bytes.as_slice());
 
         // let mut crypto: Crypto = Crypto::new(password, master_prikey_bytes.as_bytes());
         // let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
 
         let enc_auth_key = unlocker.encrypt_with_random_iv(authentication_key.as_slice())?;
-        let enc_mnemonic = unlocker.encrypt_with_random_iv(mnemonic.phrase().as_bytes())?;
+        // let enc_mnemonic = unlocker.encrypt_with_random_iv(mnemonic.phrase().as_bytes())?;
 
         // let identity_keystore = IdentityKeystore {
         //     crypto,

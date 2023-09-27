@@ -20,11 +20,13 @@ use tcx_primitive::{
     TypedDeterministicPublicKey, TypedPrivateKey,
 };
 
+#[derive(Clone)]
 struct Cache {
     mnemonic: String,
     keys: HashMap<String, TypedDeterministicPrivateKey>,
 }
 
+#[derive(Clone)]
 pub struct HdKeystore {
     store: Store,
     cache: Option<Cache>,
