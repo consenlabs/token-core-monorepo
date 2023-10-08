@@ -71,6 +71,9 @@ impl BtcApdu {
 
     pub fn btc_sign(index: u8, hash_type: u8, path: &str) -> String {
         let path_bytes = path.as_bytes();
+        if path_bytes.len() as u32 > LC_MAX {
+            panic!("data to long");
+        }
         let mut apdu =
             ApduHeader::new(0x80, 0x42, index, hash_type, path_bytes.len() as u8).to_array();
         apdu.extend(path_bytes.iter());
@@ -364,6 +367,9 @@ impl BtcForkApdu {
 
     pub fn btc_fork_sign(ins: u8, index: u8, hash_type: u8, path: &str) -> String {
         let path_bytes = path.as_bytes();
+        if path_bytes.len() as u32 > LC_MAX {
+            panic!("data to long");
+        }
         let mut apdu =
             ApduHeader::new(0x80, ins, index, hash_type, path_bytes.len() as u8).to_array();
         apdu.extend(path_bytes.iter());

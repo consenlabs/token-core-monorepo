@@ -14,7 +14,7 @@ pub const TSM_ACTION_COS_UPGRADE: &str = "/seCosUpdate";
 pub const TSM_ACTION_COS_CHECK_UPDATE: &str = "/cosCheckUpdate";
 
 //apud related constant
-pub const LC_MAX: u32 = 245;
+pub const LC_MAX: u32 = 239;
 
 pub const ETH_AID: &str = "695F657468";
 pub const EOS_AID: &str = "695F656F73";
