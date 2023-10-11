@@ -27,21 +27,18 @@ use crate::handler::{
 };
 
 mod filemanager;
-mod identity;
+// mod identity;
 mod macros;
 
+// use crate::identity::{
+//     create_identity, decrypt_data_from_ipfs, encrypt_data_to_ipfs, export_identity,
+//     get_current_identity, recover_identity, remove_identity, sign_authentication_message,
+// };
+
 use crate::handler::{
-    eth_ec_sign, eth_recover_address, export_substrate_keystore, generate_mnemonic, get_public_key,
+    eth_recover_address, export_substrate_keystore, generate_mnemonic, get_public_key,
     import_substrate_keystore, sign_bls_to_execution_change, substrate_keystore_exists,
 };
-
-// use crate::handler::{
-//     create_identity, decrypt_data_from_ipfs, encrypt_data_to_ipfs, eth_ec_sign,
-//     eth_recover_address, export_identity, export_substrate_keystore, generate_mnemonic,
-//     get_current_identity, get_public_key, import_substrate_keystore, recover_identity,
-//     remove_identity, sign_authentication_message, sign_bls_to_execution_change,
-//     substrate_keystore_exists,
-// };
 
 use parking_lot::RwLock;
 
@@ -2628,25 +2625,21 @@ mod tests {
                 (TronMessageInput {
                     value: "645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76"
                         .to_string(),
-                    is_hex: true,
                     is_tron_header: true,
                 }, "16417c6489da3a88ef980bf0a42551b9e76181d03e7334548ab3cb36e7622a484482722882a29e2fe4587b95c739a68624ebf9ada5f013a9340d883f03fcf9af1b"),
                 (TronMessageInput {
                     value: "0x645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76"
                         .to_string(),
-                    is_hex: true,
                     is_tron_header: true,
                 }, "16417c6489da3a88ef980bf0a42551b9e76181d03e7334548ab3cb36e7622a484482722882a29e2fe4587b95c739a68624ebf9ada5f013a9340d883f03fcf9af1b"),
                 (TronMessageInput {
                     value: "645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76"
                         .to_string(),
-                    is_hex: true,
                     is_tron_header: false,
                 }, "06ff3c5f98b8e8e257f47a66ce8e953c7a7d0f96eb6687da6a98b66a36c2a725759cab3df94d014bd17760328adf860649303c68c4fa6644d9f307e2f32cc3311c"),
                 (TronMessageInput {
                     value: "abcdef"
                         .to_string(),
-                    is_hex: false,
                     is_tron_header: true,
                 }, "a87eb6ae7e97621b6ba2e2f70db31fe0c744c6adcfdc005044026506b70ac11a33f415f4478b6cf84af32b3b5d70a13a77e53287613449b345bb16fe012c04081b"),
             ];
@@ -2692,7 +2685,6 @@ mod tests {
             let input = TronMessageInput {
                 value: "645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76"
                     .to_string(),
-                is_hex: true,
                 is_tron_header: true,
             };
 
