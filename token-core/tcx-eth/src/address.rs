@@ -1,5 +1,5 @@
 use crate::Result;
-use ethers::utils::ConversionError::InvalidAddressChecksum;
+use ethereum_types::H160;
 use failure::format_err;
 use regex::Regex;
 use std::str::FromStr;
@@ -9,14 +9,15 @@ use tcx_constants::CoinInfo;
 use tcx_primitive::TypedPublicKey;
 
 #[derive(PartialEq, Eq, Clone)]
-pub struct EthAddress(Vec<u8>);
+pub struct EthAddress(H160);
 
 impl Address for EthAddress {
     fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
         let bytes = public_key.as_secp256k1()?.to_uncompressed();
         let pubkey_hash = keccak256(bytes[1..].as_ref());
         let addr_bytes = pubkey_hash[12..].to_vec();
-        Ok(EthAddress(addr_bytes))
+        let addr = H160::from_slice(&addr_bytes);
+        Ok(EthAddress(addr))
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
@@ -26,7 +27,7 @@ impl Address for EthAddress {
 
 impl ToString for EthAddress {
     fn to_string(&self) -> String {
-        format!("0x{}", hex::encode(&self.0))
+        ethers::utils::to_checksum(&self.0, None)
     }
 }
 
@@ -38,7 +39,8 @@ impl FromStr for EthAddress {
         }
 
         let bytes = hex::decode(&s[2..])?;
-        Ok(EthAddress(bytes))
+        let addr = H160::from_slice(&bytes);
+        Ok(EthAddress(addr))
     }
 }
 
@@ -58,7 +60,6 @@ pub fn is_valid_address(address: &str) -> bool {
 
     let address = &address[2..];
     let lower_address_bytes = address.to_lowercase();
-    let mut hash = [0u8; 32];
     let hash = keccak256(lower_address_bytes.as_bytes());
     let hash_str = hex::encode(hash);
 
@@ -85,10 +86,10 @@ mod test {
         let private_key_bytes =
             hex::decode("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6")
                 .unwrap();
-        let mut secp256k1_privateKey =
+        let mut secp256k1_private_key =
             Secp256k1PrivateKey::from_slice(private_key_bytes.as_slice()).unwrap();
-        secp256k1_privateKey.0.compressed = false;
-        let typed_public_key = TypedPrivateKey::Secp256k1(secp256k1_privateKey).public_key();
+        secp256k1_private_key.0.compressed = false;
+        let typed_public_key = TypedPrivateKey::Secp256k1(secp256k1_private_key).public_key();
         let coin_info = CoinInfo {
             coin: "ETHEREUM".to_string(),
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
@@ -99,7 +100,7 @@ mod test {
         let address = EthAddress::from_public_key(&typed_public_key, &coin_info).unwrap();
         assert_eq!(
             address.to_string(),
-            "0xef678007d18427e6022059dbc264f27507cd1ffc"
+            "0xef678007D18427E6022059Dbc264f27507CD1ffC"
         );
 
         let is_valid =

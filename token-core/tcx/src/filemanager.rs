@@ -30,19 +30,27 @@ pub fn copy_to_v2_if_need() -> Result<()> {
             return Err(format_err!("keystore_dir_v2_missing"));
         };
 
+        if let Ok(meta) = path.metadata() {
+            if meta.is_dir() {
+                continue;
+            }
+        }
+
         let file_name_oss = path.file_name();
         let file_name_opt = file_name_oss.to_str();
         let Some(file_name) = file_name_opt else {
             return Err(format_err!("keystore_dir_v2_missing"));
         };
 
-        if file_name.ends_with(".json") {
-            let v1_file = path.path();
-            let v2_file_str = format!("{}/{}", v2_path, file_name);
-            let v2_file = Path::new(&v2_file_str);
-            if !v2_file.exists() {
-                fs::copy(v1_file, v2_file)?;
-            }
+        let v1_file = path.path();
+        let v2_file_str = if file_name.ends_with(".json") {
+            format!("{}/{}", v2_path, file_name)
+        } else {
+            format!("{}/{}.json", v2_path, file_name)
+        };
+        let v2_file = Path::new(&v2_file_str);
+        if !v2_file.exists() {
+            fs::copy(v1_file, v2_file)?;
         }
     }
 
@@ -99,6 +107,7 @@ mod tests {
             "045861fe-0e9b-4069-92aa-0ac03cad55e0.json",
             "175169f7-5a35-4df7-93c1-1ff612168e71.json",
             "3831346d-0b81-405b-89cf-cdb1d010430e.json",
+            "5991857a-2488-4546-b730-463a5f84ea6a.json",
             "identity.json",
         ];
 

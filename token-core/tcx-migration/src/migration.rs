@@ -2,7 +2,7 @@ use core::fmt;
 use std::{fs, str::FromStr};
 
 use failure::format_err;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use tcx_atom::address::AtomAddress;
 use tcx_chain::{
     key_hash_from_mnemonic, key_hash_from_private_key, Account, HdKeystore, PrivateKeystore,
@@ -19,24 +19,38 @@ use tcx_eth::address::EthAddress;
 use tcx_identity::identity::Identity;
 use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum NumberOrNumberStr {
+    Number(i64),
+    NumberStr(String),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OldMetadata {
     pub name: String,
-    pub chain_type: String,
+    pub chain_type: Option<String>,
+    pub chain: Option<String>,
     pub network: Option<String>,
     pub password_hint: String,
-    pub timestamp: i64,
+    pub timestamp: NumberOrNumberStr,
     pub source: Source,
     pub seg_wit: Option<String>,
 }
 
 impl OldMetadata {
     pub fn to_metadata(&self) -> Metadata {
+        let timestamp = match &self.timestamp {
+            NumberOrNumberStr::Number(num) => num.clone(),
+            NumberOrNumberStr::NumberStr(str) => {
+                f64::from_str(&str).expect("f64 from timestamp") as i64
+            }
+        };
         Metadata {
             name: self.name.clone(),
             password_hint: self.password_hint.clone(),
-            timestamp: self.timestamp,
+            timestamp: timestamp,
             source: self.source,
         }
     }
@@ -84,7 +98,17 @@ impl LegacyKeystore {
             derivation_path = "".to_string();
         }
 
-        match self.im_token_meta.chain_type.as_str() {
+        let chain_type = if self.im_token_meta.chain_type.is_some() {
+            self.im_token_meta.chain_type.as_ref().unwrap().to_string()
+        } else {
+            self.im_token_meta
+                .chain
+                .as_ref()
+                .expect("meta chain")
+                .to_string()
+        };
+
+        match chain_type.as_str() {
             "ETHEREUM" => {
                 let coin_info = CoinInfo {
                     coin: "ETHEREUM".to_string(),
@@ -291,6 +315,10 @@ mod tests {
         include_str!("../test/fixtures/identity.json")
     }
 
+    fn ios_metadata() -> &'static str {
+        include_str!("../test/fixtures/5991857a-2488-4546-b730-463a5f84ea6a")
+    }
+
     #[test]
     fn test_eos_private_key() {
         let keystore_str = v3_eos_private_key();
@@ -416,6 +444,20 @@ mod tests {
             .is_some());
         assert!(keystore
             .account("TRON", "TY2uroBeZ5trA9QT96aEWj32XLkAAhQ9R2")
+            .is_some());
+    }
+
+    #[test]
+    fn test_ios_metadata() {
+        let keystore_str = ios_metadata();
+        let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
+        let keystore = ks.migrate(&Key::Password("imtoken1".to_string())).unwrap();
+
+        assert_eq!(keystore.accounts().len(), 1);
+        assert_eq!(keystore.derivable(), true);
+        assert_eq!(keystore.id(), "5991857a-2488-4546-b730-463a5f84ea6a");
+        assert!(keystore
+            .account("ETHEREUM", "0x6031564e7b2f5cc33737807b2e58daff870b590b")
             .is_some());
     }
 }
