@@ -448,7 +448,7 @@ impl Apdu {
                     (data.len() as u32 - LC_MAX as u32 * (size - 1 as u32)) as u8,
                 )
             } else {
-                (0x00, 0xE5)
+                (0x00, LC_MAX as u8)
             };
             let apdu_header = ApduHeader::new(0x80, ins, p1, p2, lc);
             apdu.extend(apdu_header.to_array().iter());
