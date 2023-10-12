@@ -22,11 +22,14 @@ use crate::api::keystore_common_derive_param::Derivation;
 use crate::api::sign_param::Key;
 use crate::api::{
     AccountResponse, AccountsResponse, CalcExternalAddressParam, CalcExternalAddressResult,
-    DerivedKeyResult, ExportPrivateKeyParam, HdStoreCreateParam, HdStoreImportParam,
-    IdentityResult, KeyType, KeystoreCommonAccountsParam, KeystoreCommonDeriveParam,
-    KeystoreCommonExistsParam, KeystoreCommonExistsResult, KeystoreCommonExportResult,
-    KeystoreMigrationParam, KeystoreUpdateAccount, PrivateKeyStoreExportParam,
-    PrivateKeyStoreImportParam, PublicKeyParam, PublicKeyResult, Response, WalletKeyParam,
+    DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DerivedKeyResult, EncryptDataToIpfsParam,
+    EncryptDataToIpfsResult, ExportPrivateKeyParam, GenerateMnemonicResult, HdStoreCreateParam,
+    HdStoreImportParam, IdentityResult, KeyType, KeystoreCommonAccountsParam,
+    KeystoreCommonDeriveParam, KeystoreCommonExistsParam, KeystoreCommonExistsResult,
+    KeystoreCommonExportResult, KeystoreMigrationParam, PrivateKeyStoreExportParam,
+    PrivateKeyStoreImportParam, PublicKeyParam, PublicKeyResult, RemoveWalletsParam,
+    RemoveWalletsResult, Response, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
+    V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput, WalletKeyParam,
     WalletResult, ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
     ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam,
     ZksyncSignMusigResult,
@@ -34,7 +37,7 @@ use crate::api::{
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
 use crate::filemanager::{
-    cache_keystore, clean_keystore, copy_to_v2_if_need, flush_keystore, KEYSTORE_BASE_DIR,
+    self, cache_keystore, clean_keystore, copy_to_v2_if_need, flush_keystore, KEYSTORE_BASE_DIR,
     WALLET_FILE_DIR, WALLET_V2_DIR,
 };
 use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
@@ -60,17 +63,17 @@ use tcx_substrate::{
     SubstrateKeystore, SubstrateKeystoreParam, SubstrateRawTxIn,
 };
 
-use tcx_identity::identity::Identity;
+use tcx_chain::identity::Identity;
 // use tcx_identity::imt_keystore::{IMTKeystore, WALLET_KEYSTORE_DIR};
 // use tcx_identity::v3_keystore::import_wallet_from_keystore;
-use tcx_identity::wallet_api::{
-    CreateIdentityParam, CreateIdentityResult, DecryptDataFromIpfsParam, EncryptDataToIpfsParam,
-    EncryptDataToIpfsResult, ExportIdentityParam, ExportIdentityResult, GenerateMnemonicResult,
-    GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes, RecoverIdentityParam,
-    RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult,
-    SignAuthenticationMessageParam, SignAuthenticationMessageResult, V3KeystoreExportInput,
-    V3KeystoreExportOutput, V3KeystoreImportInput, Wallet,
-};
+// use tcx_identity::wallet_api::{
+//     CreateIdentityParam, CreateIdentityResult, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
+//     EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExportIdentityParam, ExportIdentityResult,
+//     GenerateMnemonicResult, GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes,
+//     RecoverIdentityParam, RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult,
+//     SignAuthenticationMessageParam, SignAuthenticationMessageResult, V3KeystoreExportInput,
+//     V3KeystoreExportOutput, V3KeystoreImportInput, Wallet,
+// };
 use tcx_migration::migration::LegacyKeystore;
 use tcx_tezos::transaction::TezosRawTxIn;
 use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
@@ -1091,18 +1094,24 @@ pub(crate) fn generate_mnemonic() -> Result<Vec<u8>> {
 //     encode_message(result)
 // }
 
-// pub(crate) fn remove_identity(data: &[u8]) -> Result<Vec<u8>> {
-//     let param: RemoveIdentityParam = RemoveIdentityParam::decode(data)?;
-//     let identity = Identity::get_current_identity()?;
-//     if identity.identifier != param.identifier {
-//         return Err(format_err!("invalid_identity"));
-//     }
-//     identity.delete_identity(param.password.as_str())?;
-//     let result = RemoveIdentityResult {
-//         identifier: param.identifier,
-//     };
-//     encode_message(result)
-// }
+// TODO: may rename to remove wallets?
+pub(crate) fn remove_wallets(data: &[u8]) -> Result<Vec<u8>> {
+    let param: RemoveWalletsParam = RemoveWalletsParam::decode(data)?;
+    let map = KEYSTORE_MAP.read();
+    let Some(identity_ks) = map.values().find(|ks| ks.identity().is_some() && ks.identity().unwrap().identifier == param.identifier) else {
+        return Err(failure::format_err!("identity not found"));
+    };
+
+    if !identity_ks.verify_password(&param.password) {
+        return Err(failure::format_err!("password_incorrect"));
+    }
+    filemanager::delete_keystore_files()?;
+
+    let result = RemoveWalletsResult {
+        identifier: param.identifier,
+    };
+    encode_message(result)
+}
 
 pub(crate) fn eth_ec_sign(_data: &[u8]) -> Result<Vec<u8>> {
     todo!()
@@ -1191,50 +1200,83 @@ pub(crate) fn eth_recover_address(data: &[u8]) -> Result<Vec<u8>> {
 //     encode_message(output)
 // }
 
-// pub(crate) fn encrypt_data_to_ipfs(data: &[u8]) -> Result<Vec<u8>> {
-//     let input = EncryptDataToIpfsParam::decode(data).expect("EncryptDataToIpfsParam");
-//     let identity = Identity::get_current_identity()?;
-//     let ciphertext = identity.encrypt_ipfs(&input.content)?;
+pub(crate) fn encrypt_data_to_ipfs(data: &[u8]) -> Result<Vec<u8>> {
+    let param = EncryptDataToIpfsParam::decode(data).expect("EncryptDataToIpfsParam");
+    // let identity = Identity::get_current_identity()?;
+    // let ciphertext = identity.encrypt_ipfs(&input.content)?;
+    // Identity::encrypt_ipfs(&self, plaintext)
 
-//     let output = EncryptDataToIpfsResult {
-//         identifier: identity.identifier.to_string(),
-//         encrypted: ciphertext,
-//     };
+    let map = KEYSTORE_MAP.read();
+    let Some(identity_ks) = map.values().find(|ks| ks.identity().is_some() && ks.identity().unwrap().identifier == param.identifier) else {
+        return Err(failure::format_err!("identity not found"));
+    };
 
-//     encode_message(output)
-// }
+    let cipher_text = identity_ks
+        .identity()
+        .unwrap()
+        .encrypt_ipfs(&param.content)?;
 
-// pub(crate) fn decrypt_data_from_ipfs(data: &[u8]) -> Result<Vec<u8>> {
-//     let input = DecryptDataFromIpfsParam::decode(data).expect("EncryptDataToIpfsParam");
-//     let identity = Identity::get_current_identity()?;
-//     let ciphertext = identity.decrypt_ipfs(&input.encrypted)?;
+    let output = EncryptDataToIpfsResult {
+        identifier: param.identifier.to_string(),
+        encrypted: cipher_text,
+    };
 
-//     let output = EncryptDataToIpfsResult {
-//         identifier: identity.identifier.to_string(),
-//         encrypted: ciphertext,
-//     };
+    encode_message(output)
+}
 
-//     encode_message(output)
-// }
+pub(crate) fn decrypt_data_from_ipfs(data: &[u8]) -> Result<Vec<u8>> {
+    let param = DecryptDataFromIpfsParam::decode(data).expect("DecryptDataFromIpfsParam");
+    // let identity = Identity::get_current_identity()?;
+    // let ciphertext = identity.decrypt_ipfs(&input.encrypted)?;
+    // let map = KEYSTORE_MAP.read();
+    // let Some(identity_ks) = map.values().find(|ks| ks.identity().is_some() && ks.identity().unwrap().identifier == param.identifier) else {
+    //     return Err(failure::format_err!("identity not found"));
+    // };
 
-// pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
-//     let input =
-//         SignAuthenticationMessageParam::decode(data).expect("SignAuthenticationMessageParam");
-//     let identity = Identity::get_current_identity()?;
+    let map = KEYSTORE_MAP.read();
+    let Some(identity_ks) = map.values().find(|ks| ks.identity().is_some() && ks.identity().unwrap().identifier == param.identifier) else {
+        return Err(failure::format_err!("identity not found"));
+    };
 
-//     let signature = identity.sign_authentication_message(
-//         input.access_time,
-//         &input.identifier,
-//         &input.device_token,
-//     )?;
-//     encode_message(SignAuthenticationMessageResult {
-//         signature,
-//         access_time: input.access_time,
-//     })
-// }
+    let content = identity_ks
+        .identity()
+        .unwrap()
+        .decrypt_ipfs(&param.encrypted)?;
+
+    let output = DecryptDataFromIpfsResult {
+        identifier: param.identifier.to_string(),
+        content,
+    };
+
+    encode_message(output)
+}
+
+pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
+    let param =
+        SignAuthenticationMessageParam::decode(data).expect("SignAuthenticationMessageParam");
+
+    let map = KEYSTORE_MAP.read();
+    let Some(identity_ks) = map.values().find(|ks| ks.identity().is_some() && ks.identity().unwrap().identifier == param.identifier) else {
+            return Err(failure::format_err!("identity not found"));
+        };
+
+    let key = tcx_crypto::Key::Password(param.password);
+    let unlocker = identity_ks.use_key(&key)?;
+
+    let signature = identity_ks
+        .identity()
+        .unwrap()
+        .sign_authentication_message(param.access_time, &param.device_token, &unlocker)?;
+
+    encode_message(SignAuthenticationMessageResult {
+        signature,
+        access_time: param.access_time,
+    })
+}
 
 pub(crate) fn calc_external_address(data: &[u8]) -> Result<Vec<u8>> {
-    let param = CalcExternalAddressParam::decode(data).expect("CalcExternalAddressParam");
+    let param: CalcExternalAddressParam =
+        CalcExternalAddressParam::decode(data).expect("CalcExternalAddressParam");
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),

@@ -1,6 +1,7 @@
 mod hash;
 mod rand;
 
+mod errors;
 mod time;
 
 pub use crate::errors::*;
@@ -9,7 +10,6 @@ pub use crate::rand::*;
 pub use crate::time::*;
 pub use crate::util::*;
 
-mod errors;
 pub mod util;
 
 use std::result;

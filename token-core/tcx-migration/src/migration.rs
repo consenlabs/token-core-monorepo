@@ -13,10 +13,10 @@ use tcx_crypto::{Crypto, EncPair, KdfParams, Key};
 
 use tcx_btc_kin::address::BtcKinAddress;
 use tcx_btc_kin::Error;
+use tcx_chain::identity::Identity;
 use tcx_chain::keystore::{Keystore, Metadata, Store};
 use tcx_eos::address::EosAddress;
 use tcx_eth::address::EthAddress;
-use tcx_identity::identity::Identity;
 use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

@@ -1,6 +1,6 @@
 use bip39::{Language, Mnemonic, Seed};
 
-use tcx_identity::identity::Identity;
+use crate::identity::Identity;
 use uuid::Uuid;
 
 use super::Account;

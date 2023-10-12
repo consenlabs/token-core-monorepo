@@ -20,7 +20,6 @@ tcx-constants = { path = "../tcx-constants" }
 tcx-tezos = { path = "../tcx-tezos" }
 tcx-eth2 = { path = "../tcx-eth2" }
 zksync-crypto = { path = "../zksync-crypto" }
-tcx-identity = { path = "../tcx-identity" }
 tcx-eth = { path = "../tcx-eth" }
 tcx-common = { path = "../tcx-common" }
 tcx-migration = { path = "../tcx-migration" }

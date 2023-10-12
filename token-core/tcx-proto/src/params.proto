@@ -222,8 +222,74 @@ message PublicKeyResult {
 }
 
 
-message KeystoreUpdateAccount {
+// message KeystoreUpdateAccount {
+//     string id = 1;
+//     string password = 2;
+//     string accountName = 3;
+// }
+
+
+
+
+message RemoveWalletsParam {
+    string identifier = 1;
+    string password = 2;
+}
+
+message RemoveWalletsResult {
+    string identifier = 1;
+}
+
+message V3KeystoreImportInput {
+    string keystore = 1;
+    string password = 2;
+    bool overwrite = 3;
+    string name = 4;
+    string chainType = 5;
+    string source = 6;
+}
+
+message V3KeystoreExportInput {
     string id = 1;
     string password = 2;
-    string accountName = 3;
+}
+
+message V3KeystoreExportOutput {
+    string json = 1;
+}
+
+message EncryptDataToIpfsParam {
+    string identifier = 1;
+    string content = 2;
+}
+
+message EncryptDataToIpfsResult {
+    string identifier = 1;
+    string encrypted = 2;
+}
+
+message DecryptDataFromIpfsParam {
+    string identifier = 1;
+    string encrypted = 2;
+}
+
+message DecryptDataFromIpfsResult {
+    string identifier = 1;
+    string content = 2;
+}
+
+message SignAuthenticationMessageParam {
+    uint64 accessTime = 1;
+    string identifier = 2 ;
+    string deviceToken = 3;
+    string password = 4;
+}
+
+message SignAuthenticationMessageResult {
+    uint64 accessTime = 1;
+    string signature = 2;
+}
+
+message GenerateMnemonicResult {
+    string mnemonic = 1;
 }

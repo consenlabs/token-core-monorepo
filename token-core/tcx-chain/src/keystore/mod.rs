@@ -10,15 +10,16 @@ mod private;
 use serde::{Deserialize, Serialize};
 
 use tcx_constants::{CoinInfo, CurveType};
+use tcx_crypto::crypto::Unlocker;
 
 pub use self::{
     guard::KeystoreGuard, hd::key_hash_from_mnemonic, hd::HdKeystore,
     private::key_hash_from_private_key, private::PrivateKeystore,
 };
 
+use crate::identity::Identity;
 use crate::signer::ChainSigner;
 use tcx_crypto::{Crypto, Key};
-use tcx_identity::identity::Identity;
 use tcx_primitive::{TypedDeterministicPublicKey, TypedPrivateKey, TypedPublicKey};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -280,6 +281,10 @@ impl Keystore {
             Key::Password(password) => self.unlock_by_password(password),
             Key::DerivedKey(dk) => self.unlock_by_derived_key(dk),
         }
+    }
+
+    pub fn use_key(&self, key: &Key) -> Result<Unlocker> {
+        self.store().crypto.use_key(key)
     }
 
     #[cfg(feature = "cache_dk")]

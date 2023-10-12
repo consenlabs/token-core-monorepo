@@ -2,7 +2,10 @@ use std::ffi::{CStr, CString};
 
 use std::os::raw::c_char;
 
-use handler::{calc_external_address, migrate_keystore, sign_message};
+use handler::{
+    calc_external_address, decrypt_data_from_ipfs, encrypt_data_to_ipfs, migrate_keystore,
+    remove_wallets, sign_authentication_message, sign_message,
+};
 // use handler::{eth_v3keystore_export, eth_v3keystore_import};
 use prost::Message;
 
@@ -148,19 +151,19 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         // "get_current_identity" => landingpad(|| get_current_identity()),
         // "recover_identity" => landingpad(|| recover_identity(&action.param.unwrap().value)),
         // "export_identity" => landingpad(|| export_identity(&action.param.unwrap().value)),
-        // "remove_identity" => landingpad(|| remove_identity(&action.param.unwrap().value)),
+        "remove_wallets" => landingpad(|| remove_wallets(&action.param.unwrap().value)),
         // "eth_ec_sign" => landingpad(|| eth_ec_sign(&action.param.unwrap().value)),
         // "eth_recover_address" => landingpad(|| eth_recover_address(&action.param.unwrap().value)),
         // "eos_update_account" => landingpad(|| eos_update_account(&action.param.unwrap().value)),
         // "eth_keystore_import" => landingpad(|| eth_v3keystore_import(&action.param.unwrap().value)),
         // "eth_keystore_export" => landingpad(|| eth_v3keystore_export(&action.param.unwrap().value)),
-        // "encrypt_data_to_ipfs" => landingpad(|| encrypt_data_to_ipfs(&action.param.unwrap().value)),
-        // "decrypt_data_from_ipfs" => {
-        //     landingpad(|| decrypt_data_from_ipfs(&action.param.unwrap().value))
-        // }
-        // "sign_authentication_message" => {
-        //     landingpad(|| sign_authentication_message(&action.param.unwrap().value))
-        // }
+        "encrypt_data_to_ipfs" => landingpad(|| encrypt_data_to_ipfs(&action.param.unwrap().value)),
+        "decrypt_data_from_ipfs" => {
+            landingpad(|| decrypt_data_from_ipfs(&action.param.unwrap().value))
+        }
+        "sign_authentication_message" => {
+            landingpad(|| sign_authentication_message(&action.param.unwrap().value))
+        }
         "migrate_keystore" => landingpad(|| migrate_keystore(&action.param.unwrap().value)),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
@@ -215,23 +218,27 @@ mod tests {
 
     use crate::api::keystore_common_derive_param::Derivation;
     use crate::api::{
-        sign_param, AccountsResponse, DerivedKeyResult, ExportPrivateKeyParam, HdStoreCreateParam,
+        sign_param, AccountResponse, AccountsResponse, CalcExternalAddressParam,
+        CalcExternalAddressResult, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
+        DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExportPrivateKeyParam,
+        GenerateMnemonicResult, HdStoreCreateParam, HdStoreImportParam, IdentityResult,
         InitTokenCoreXParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonDeriveParam,
         KeystoreCommonExistsParam, KeystoreCommonExistsResult, KeystoreCommonExportResult,
-        KeystoreUpdateAccount, PrivateKeyStoreExportParam, PrivateKeyStoreImportParam,
-        PublicKeyParam, PublicKeyResult, Response, SignParam, WalletKeyParam,
-        ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
+        KeystoreMigrationParam, PrivateKeyStoreExportParam, PrivateKeyStoreImportParam,
+        PublicKeyParam, PublicKeyResult, RemoveWalletsParam, RemoveWalletsResult, Response,
+        SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignParam,
+        V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput, WalletKeyParam,
+        WalletResult, ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
         ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult,
         ZksyncSignMusigParam, ZksyncSignMusigResult,
     };
-    use crate::api::{HdStoreImportParam, WalletResult};
     use crate::handler::hd_store_import;
     use crate::handler::{encode_message, private_key_store_import};
     use prost::Message;
     use tcx_chain::{Keystore, Source};
     use tcx_constants::sample_key;
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
-    use tcx_identity::{constants, model};
+    // use tcx_identity::{constants, model};
 
     use std::fs;
     use tcx_btc_kin::transaction::BtcKinTxInput;
@@ -249,12 +256,12 @@ mod tests {
     };
     use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
     use tcx_filecoin::{SignedMessage, UnsignedMessage};
-    use tcx_identity::wallet_api::{
-        CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
-        GenerateMnemonicResult, GetCurrentIdentityResult, RecoverIdentityParam,
-        RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult, V3KeystoreExportInput,
-        V3KeystoreExportOutput, V3KeystoreImportInput,
-    };
+    // use tcx_identity::wallet_api::{
+    //     CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
+    //     GenerateMnemonicResult, GetCurrentIdentityResult, RecoverIdentityParam,
+    //     RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult, V3KeystoreExportInput,
+    //     V3KeystoreExportOutput, V3KeystoreImportInput,
+    // };
     use tcx_substrate::{
         ExportSubstrateKeystoreResult, SubstrateKeystore, SubstrateKeystoreParam, SubstrateRawTxIn,
         SubstrateTxOut,

@@ -59,9 +59,9 @@ fn main() {
     env::set_var("OUT_DIR", "../tcx-eth2/src");
     prost_build::compile_protos(&["src/eth2.proto"], &["src/"]).unwrap();
 
-    //tcx-identity
-    env::set_var("OUT_DIR", "../tcx-identity/src");
-    prost_build::compile_protos(&["src/wallet_api.proto"], &["src/"]).unwrap();
+    // //tcx-identity
+    // env::set_var("OUT_DIR", "../tcx-identity/src");
+    // prost_build::compile_protos(&["src/wallet_api.proto"], &["src/"]).unwrap();
 
     //tcx-eth
     env::set_var("OUT_DIR", "../tcx-eth/src");

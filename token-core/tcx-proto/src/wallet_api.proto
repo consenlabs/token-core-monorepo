@@ -1,9 +1,6 @@
 syntax = "proto3";
 package wallet_api;
 
-message GenerateMnemonicResult {
-    string mnemonic = 1;
-}
 
 message CreateIdentityParam {
     string name = 1;
@@ -90,64 +87,6 @@ message RecoverIdentityResult {
     repeated Wallet wallets = 4;
 }
 
-message RemoveIdentityParam {
-    string identifier = 1;
-    string password = 2;
-}
-
-message RemoveIdentityResult {
-    string identifier = 1;
-}
-
-message V3KeystoreImportInput {
-    string keystore = 1;
-    string password = 2;
-    bool overwrite = 3;
-    string name = 4;
-    string chainType = 5;
-    string source = 6;
-}
-
-message V3KeystoreExportInput {
-    string id = 1;
-    string password = 2;
-}
-
-message V3KeystoreExportOutput {
-    string json = 1;
-}
-
-message EncryptDataToIpfsParam {
-    string identifier = 1;
-    string content = 2;
-}
-
-message EncryptDataToIpfsResult {
-    string identifier = 1;
-    string encrypted = 2;
-}
-
-message DecryptDataFromIpfsParam {
-    string identifier = 1;
-    string encrypted = 2;
-}
-
-message DecryptDataFromIpfsResult {
-    string identifier = 1;
-    string content = 2;
-}
-
-message SignAuthenticationMessageParam {
-    uint64 accessTime = 1;
-    string identifier = 2 ;
-    string deviceToken = 3;
-    string password = 4;
-}
-
-message SignAuthenticationMessageResult {
-    uint64 accessTime = 1;
-    string signature = 2;
-}
 
 
 

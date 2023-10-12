@@ -17,7 +17,6 @@ members=[
     "token-core/tcx-tezos",
     "token-core/tcx-tester",
     "token-core/tcx-eth2",
-    "token-core/tcx-identity",
     "token-core/tcx-eth",
     "token-core/zksync-crypto",
     "token-core/tcx-common",
