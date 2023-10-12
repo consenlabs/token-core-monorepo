@@ -1,11 +1,9 @@
-use core::fmt;
-use std::{fs, str::FromStr};
-
 use failure::format_err;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use tcx_atom::address::AtomAddress;
 use tcx_constants::CoinInfo;
-use tcx_crypto::{Crypto, EncPair, KdfParams, Key};
+use tcx_crypto::{Crypto, EncPair, Key};
 use tcx_keystore::{
     key_hash_from_mnemonic, key_hash_from_private_key, Account, HdKeystore, PrivateKeystore,
     Result, Source,
@@ -91,7 +89,7 @@ impl LegacyKeystore {
     }
 
     pub fn derive_account(&self, keystore: &mut Keystore) -> Result<Account> {
-        let mut derivation_path;
+        let derivation_path;
         if self.has_mnemonic() {
             derivation_path = self.real_derivation_path();
         } else {

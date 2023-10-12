@@ -165,6 +165,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
             landingpad(|| sign_authentication_message(&action.param.unwrap().value))
         }
         "migrate_keystore" => landingpad(|| migrate_keystore(&action.param.unwrap().value)),
+        "eth_recover_address" => landingpad(|| eth_recover_address(&action.param.unwrap().value)),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {

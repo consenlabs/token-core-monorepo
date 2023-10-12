@@ -1,4 +1,3 @@
-use crate::hash::hex_dsha256;
 use crate::numberic_util;
 use crate::Error;
 use crate::Result;
@@ -129,6 +128,7 @@ impl KdfParams for SCryptParams {
     }
 }
 
+/*
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct CacheDerivedKey {
     hashed_key: String,
@@ -155,6 +155,7 @@ impl CacheDerivedKey {
         }
     }
 }
+ */
 
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]

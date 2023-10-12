@@ -1,4 +1,3 @@
-use std::borrow::Cow::Borrowed;
 use std::io::Write;
 use std::marker::PhantomData;
 use std::str::FromStr;

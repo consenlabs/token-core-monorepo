@@ -33,9 +33,9 @@ pub struct MockMessageOutput {}
 impl MessageSigner<MockMessageInput, MockMessageOutput> for Keystore {
     fn sign_message(
         &mut self,
-        symbol: &str,
-        address: &str,
-        message: &MockMessageInput,
+        _symbol: &str,
+        _address: &str,
+        _message: &MockMessageInput,
     ) -> tcx_keystore::Result<MockMessageOutput> {
         Err(format_err!("unsupported_chain"))
     }
@@ -75,6 +75,7 @@ macro_rules! use_chains {
     ($($chain:path),+ $(,)?) => {
         use crate::macros::{MockTransactionInput, MockTransactionOutput, MockAddress, MockMessageInput, MockMessageOutput};
 
+        #[allow(dead_code)]
         fn sign_transaction_internal(params: &SignParam, keystore: &mut Keystore) -> std::result::Result<Vec<u8>, failure::Error> {
             type TransactionInput = MockTransactionInput;
             type TransactionOutput = MockTransactionOutput;
@@ -104,6 +105,7 @@ macro_rules! use_chains {
             Err(format_err!("unsupported_chain"))
         }
 
+        #[allow(dead_code)]
         fn derive_account_internal(coin_info:&CoinInfo, keystore: &mut Keystore) -> Result<Account> {
             type Address = MockAddress;
             let faker_address = std::any::TypeId::of::<MockAddress>();

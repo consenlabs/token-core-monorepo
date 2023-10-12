@@ -15,12 +15,8 @@ use tcx_constants::CurveType;
 
 #[derive(Fail, Debug, PartialEq)]
 pub enum KeyError {
-    #[fail(display = "invalid_ecdsa")]
-    InvalidEcdsa,
     #[fail(display = "invalid_child_number_format")]
     InvalidChildNumberFormat,
-    #[fail(display = "overflow_child_number")]
-    OverflowChildNumber,
     #[fail(display = "invalid_derivation_path_format")]
     InvalidDerivationPathFormat,
     #[fail(display = "invalid_signature")]

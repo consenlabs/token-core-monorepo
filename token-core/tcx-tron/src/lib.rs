@@ -19,13 +19,13 @@ pub mod tron {
     pub type MessageOutput = crate::transaction::TronMessageOutput;
 
     pub fn enable_account(
-        coin: &str,
+        _: &str,
         index: u32,
         keystore: &mut Keystore,
     ) -> Result<Vec<Account>, failure::Error> {
         keystore.derive_coins::<Address>(&[CoinInfo {
             coin: "TRON".to_string(),
-            derivation_path: "m/44'/195'/0'/0/0".to_string(),
+            derivation_path: format!("m/44'/195'/{}'/0/0", index),
             curve: CurveType::SECP256k1,
             network: "".to_string(),
             seg_wit: "".to_string(),

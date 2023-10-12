@@ -3,7 +3,6 @@ use bitcoin::psbt::Prevouts;
 use bitcoin::util::sighash::{Annex, SighashCache};
 use bitcoin::util::taproot::{TapLeafHash, TapSighashHash};
 use bitcoin::{EcdsaSighashType, SchnorrSighashType, Script, Sighash, Transaction, TxOut};
-use tcx_common::Hash256;
 
 pub trait TxSignatureHasher {
     fn consensus_sighash_type(&self, base_type: u32) -> u32;
@@ -52,7 +51,7 @@ impl TxSignatureHasher for SighashCache<Box<Transaction>> {
         &mut self,
         input_index: usize,
         script_code: &Script,
-        value: u64,
+        _: u64,
         sighash_type: u32,
     ) -> Result<Sighash> {
         Ok(self.legacy_signature_hash(input_index, script_code, sighash_type)?)

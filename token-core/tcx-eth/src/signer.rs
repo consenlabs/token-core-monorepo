@@ -4,7 +4,7 @@ use crate::transaction::{
 };
 use crate::Result;
 use ethereum_types::{Address, H256, U256, U64};
-use ethers::signers::{LocalWallet, Signer};
+use ethers::signers::LocalWallet;
 use ethers::types::transaction::eip2718::TypedTransaction;
 use ethers::types::transaction::eip2930::{AccessList, AccessListItem};
 use ethers::types::{Bytes, Eip1559TransactionRequest, Signature, TransactionRequest};

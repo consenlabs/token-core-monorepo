@@ -37,7 +37,7 @@ pub mod tezos {
     pub type TransactionOutput = crate::transaction::TezosTxOut;
 
     pub fn enable_account(
-        coin: &str,
+        _: &str,
         index: u32,
         keystore: &mut Keystore,
     ) -> Result<Vec<Account>, failure::Error> {

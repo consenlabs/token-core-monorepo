@@ -37,20 +37,20 @@ pub mod ethereum2 {
 
     pub fn enable_account(
         _: &str,
-        index: u32,
+        _: u32,
         keystore: &mut Keystore,
     ) -> Result<Vec<Account>, failure::Error> {
         keystore.derive_coins::<Address>(&[
             CoinInfo {
                 coin: "ETHEREUM2".to_string(),
-                derivation_path: "m/12381/3600/0/0".to_string(),
+                derivation_path: format!("m/12381/3600/0/0"),
                 curve: CurveType::BLS,
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
             },
             CoinInfo {
                 coin: "ETHEREUM2".to_string(),
-                derivation_path: "m/12381/3600/0/0".to_string(),
+                derivation_path: format!("m/12381/3600/0/0"),
                 curve: CurveType::BLS,
                 network: "TESTNET".to_string(),
                 seg_wit: "".to_string(),

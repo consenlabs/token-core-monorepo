@@ -14,23 +14,15 @@ use bitcoin::util::key::PrivateKey;
 use bitcoin::VarInt;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use hmac_sha256::HMAC;
-use lazy_static::lazy_static;
 use multihash::{Code, MultihashDigest};
-use parking_lot::RwLock;
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
-use secp256k1::{Message, PublicKey, Secp256k1, SecretKey};
+use secp256k1::{Message, PublicKey, Secp256k1};
 use serde::{Deserialize, Serialize};
-use std::fs;
-use std::fs::File;
 use std::io::{Cursor, Read, Write};
-use std::path::Path;
-use std::time::{SystemTime, UNIX_EPOCH};
-use tcx_common::{keccak256, merkle_hash, random_u8_16, sha256, unix_timestamp};
+use tcx_common::{keccak256, merkle_hash, random_u8_16, unix_timestamp};
 use tcx_crypto::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
-use tcx_crypto::crypto::Unlocker;
-use tcx_crypto::{Crypto, EncPair, Key};
+use tcx_crypto::{crypto::Unlocker, EncPair};
 use tcx_primitive::{PrivateKey as TraitPrivateKey, Secp256k1PrivateKey};
-use uuid::Uuid;
 
 // lazy_static! {
 //     pub static ref IDENTITY_KEYSTORE: RwLock<IdentityKeystore> =
@@ -107,28 +99,7 @@ impl Identity {
         let multihash =
             Code::Sha2_256.digest(enc_private_key.public_key(&secp).to_bytes().as_slice());
         let ipfs_id = base58::encode_slice(&multihash.to_bytes());
-
-        let master_prikey_bytes = master_key.encode();
-        // let master_prikey_bytes = base58::check_encode_slice(master_prikey_bytes.as_slice());
-
-        // let mut crypto: Crypto = Crypto::new(password, master_prikey_bytes.as_bytes());
-        // let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
-
         let enc_auth_key = unlocker.encrypt_with_random_iv(authentication_key.as_slice())?;
-        // let enc_mnemonic = unlocker.encrypt_with_random_iv(mnemonic.phrase().as_bytes())?;
-
-        // let identity_keystore = IdentityKeystore {
-        //     crypto,
-        //     id: Uuid::new_v4().as_hyphenated().to_string(),
-        //     version: VERSION,
-        //     enc_auth_key,
-        //     enc_key: hex::encode(enc_key_bytes),
-        //     enc_mnemonic,
-        //     identifier,
-        //     ipfs_id,
-        //     wallet_ids: vec![],
-        //     im_token_meta: metadata,
-        // };
 
         Ok(Identity {
             enc_auth_key,
@@ -198,7 +169,7 @@ impl Identity {
         let mut header = Vec::new();
 
         header.write_u8(0x03)?;
-        header.write_all(&timestamp.to_le_bytes()[..4]);
+        header.write_all(&timestamp.to_le_bytes()[..4])?;
         header.write_all(iv)?;
 
         let enc_key = Vec::from_hex(&self.enc_key)?;

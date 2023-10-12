@@ -52,7 +52,6 @@ use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::hash::dsha256;
 use tcx_crypto::KDF_ROUNDS;
-use tcx_eos::transaction::EosMessageInput;
 use tcx_eth::transaction::{EthRecoverAddressInput, EthRecoverAddressOutput};
 use tcx_keystore::{MessageSigner, TransactionSigner};
 
@@ -60,10 +59,9 @@ use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionCha
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
 use tcx_substrate::{
     decode_substrate_keystore, encode_substrate_keystore, ExportSubstrateKeystoreResult,
-    SubstrateKeystore, SubstrateKeystoreParam, SubstrateRawTxIn,
+    SubstrateKeystore, SubstrateKeystoreParam,
 };
 
-use tcx_keystore::identity::Identity;
 // use tcx_identity::imt_keystore::{IMTKeystore, WALLET_KEYSTORE_DIR};
 // use tcx_identity::v3_keystore::import_wallet_from_keystore;
 // use tcx_identity::wallet_api::{
@@ -75,7 +73,6 @@ use tcx_keystore::identity::Identity;
 //     V3KeystoreExportOutput, V3KeystoreImportInput, Wallet,
 // };
 use tcx_migration::migration::LegacyKeystore;
-use tcx_tezos::transaction::TezosRawTxIn;
 use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
 use tcx_tron::transaction::TronMessageInput;
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
@@ -749,7 +746,7 @@ pub(crate) fn get_public_key(data: &[u8]) -> Result<Vec<u8>> {
     }?;
 
     let account = keystore.account(&param.chain_type, &param.address);
-    let mut pub_key = vec![];
+    let pub_key;
     if let Some(acc) = account {
         tcx_ensure!(
             acc.public_key.is_some(),
@@ -1113,37 +1110,6 @@ pub(crate) fn remove_wallets(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(result)
 }
 
-pub(crate) fn eth_ec_sign(_data: &[u8]) -> Result<Vec<u8>> {
-    todo!()
-    /*
-    let param: SignParam = SignParam::decode(data).expect("EthMessageSignParam");
-
-    let fixtures = IMTKeystore::must_find_wallet_by_id(&param.id)?;
-    let password = match param.key.clone().unwrap() {
-        Key::Password(password) => password,
-        _ => {
-            return Err(format_err!("key_type_error"));
-        }
-    };
-
-    let private_key = fixtures.decrypt_main_key(password.as_str())?;
-
-    let input: EthMessageInput = EthMessageInput::decode(
-        param
-            .input
-            .expect("EthMessageInput")
-            .value
-            .clone()
-            .as_slice(),
-    )?;
-    let sign_result: Result<EthMessageOutput> =
-        task::block_on(async { input.ec_sign(private_key.as_slice()).await });
-
-    encode_message(sign_result?)
-
-     */
-}
-
 pub(crate) fn eth_recover_address(data: &[u8]) -> Result<Vec<u8>> {
     let input: EthRecoverAddressInput =
         EthRecoverAddressInput::decode(data).expect("EthRecoverAddressParam");
@@ -1151,30 +1117,6 @@ pub(crate) fn eth_recover_address(data: &[u8]) -> Result<Vec<u8>> {
 
     encode_message(result?)
 }
-
-// pub(crate) fn eos_update_account(data: &[u8]) -> Result<Vec<u8>> {
-//     let param: KeystoreUpdateAccount =
-//         KeystoreUpdateAccount::decode(data).expect("eos_update_account params");
-//     let mut map = KEYSTORE_MAP.write();
-//     let keystore: &mut Keystore = match map.get_mut(&param.id) {
-//         Some(keystore) => Ok(keystore),
-//         _ => Err(format_err!("{}", "wallet_not_found")),
-//     }?;
-
-//     // todo: use ErrorKind
-//     tcx_ensure!(
-//         keystore.verify_password(&param.password),
-//         format_err!("password_incorrect")
-//     );
-
-//     tcx_eos::address::eos_update_account(keystore, &param.account_name)?;
-//     flush_keystore(&keystore)?;
-//     let rsp = Response {
-//         is_success: true,
-//         error: "".to_string(),
-//     };
-//     encode_message(rsp)
-// }
 
 // pub(crate) fn eth_v3keystore_import(data: &[u8]) -> Result<Vec<u8>> {
 //     let input: V3KeystoreImportInput =
