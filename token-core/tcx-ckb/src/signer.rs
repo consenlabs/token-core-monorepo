@@ -1,11 +1,11 @@
-use tcx_chain::{Keystore, Result, TransactionSigner};
+use tcx_keystore::{Keystore, Result, TransactionSigner};
 
 use crate::hash::new_blake2b;
 use crate::serializer::Serializer;
 use crate::transaction::{CachedCell, CkbTxInput, CkbTxOutput, OutPoint, Witness};
 use crate::{hex_to_bytes, Error};
 use std::collections::HashMap;
-use tcx_chain::ChainSigner;
+use tcx_keystore::ChainSigner;
 
 use lazy_static::lazy_static;
 
@@ -194,8 +194,8 @@ impl TransactionSigner<CkbTxInput, CkbTxOutput> for Keystore {
 mod tests {
     use crate::address::CkbAddress;
     use crate::transaction::{CachedCell, CellInput, CkbTxInput, OutPoint, Script, Witness};
-    use tcx_chain::{Keystore, Metadata, TransactionSigner};
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::{Keystore, Metadata, TransactionSigner};
 
     #[test]
     fn test_sign_transaction() {

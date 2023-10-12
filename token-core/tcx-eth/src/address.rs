@@ -3,9 +3,9 @@ use ethereum_types::H160;
 use failure::format_err;
 use regex::Regex;
 use std::str::FromStr;
-use tcx_chain::Address;
 use tcx_common::keccak256;
 use tcx_constants::CoinInfo;
+use tcx_keystore::Address;
 use tcx_primitive::TypedPublicKey;
 
 #[derive(PartialEq, Eq, Clone)]
@@ -77,8 +77,8 @@ pub fn is_valid_address(address: &str) -> bool {
 #[cfg(test)]
 mod test {
     use crate::address::EthAddress;
-    use tcx_chain::Address;
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::Address;
     use tcx_primitive::{PrivateKey, Secp256k1PrivateKey, TypedPrivateKey};
 
     #[test]

@@ -19,7 +19,7 @@ extern crate num_integer;
 extern crate num_traits;
 
 #[macro_use]
-extern crate tcx_chain;
+extern crate tcx_keystore;
 extern crate core;
 
 pub type Result<T> = result::Result<T, failure::Error>;
@@ -27,7 +27,7 @@ pub type Result<T> = result::Result<T, failure::Error>;
 pub use address::{BtcKinAddress, WIFDisplay};
 pub use bch_address::BchAddress;
 pub use network::BtcKinNetwork;
-use tcx_chain::{Address, Keystore};
+use tcx_keystore::{Address, Keystore};
 use tcx_primitive::{
     Bip32DeterministicPublicKey, Derive, DeterministicPublicKey, FromHex, TypedPublicKey,
 };
@@ -64,8 +64,8 @@ pub enum Error {
 
 pub mod bitcoin {
     use crate::{BtcKinAddress, BITCOIN, LITECOIN};
-    use tcx_chain::{Account, Keystore};
     use tcx_constants::CoinInfo;
+    use tcx_keystore::{Account, Keystore};
 
     pub const CHAINS: [&'static str; 2] = [BITCOIN, LITECOIN];
 
@@ -172,8 +172,8 @@ pub fn calc_btc_change_address(
 
 pub mod bitcoincash {
     use crate::BITCOINCASH;
-    use tcx_chain::{Account, Keystore};
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::{Account, Keystore};
 
     pub static CHAINS: [&'static str; 1] = [BITCOINCASH];
 
@@ -225,10 +225,10 @@ mod tests {
 
     use serde_json::Value;
 
-    use tcx_chain::KeystoreGuard;
-    use tcx_chain::{HdKeystore, Keystore, Metadata};
     use tcx_constants::CurveType;
     use tcx_constants::{CoinInfo, TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_keystore::KeystoreGuard;
+    use tcx_keystore::{HdKeystore, Keystore, Metadata};
 
     const BIP_PATH: &str = "m/44'/145'/0'";
 

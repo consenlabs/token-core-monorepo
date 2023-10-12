@@ -1,8 +1,8 @@
 use crate::transaction::{TezosRawTxIn, TezosTxOut};
 use bitcoin::util::base58;
 use blake2b_simd::Params;
-use tcx_chain::{ChainSigner, Keystore, TransactionSigner as TraitTransactionSigner};
 use tcx_constants::Result;
+use tcx_keystore::{ChainSigner, Keystore, TransactionSigner as TraitTransactionSigner};
 
 impl TraitTransactionSigner<TezosRawTxIn, TezosTxOut> for Keystore {
     fn sign_transaction(

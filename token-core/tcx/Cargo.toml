@@ -7,7 +7,7 @@ edition = "2021"
 [dependencies]
 tcx-proto = { path = "../tcx-proto" }
 tcx-crypto = { path = "../tcx-crypto", features = ["cache_dk"] }
-tcx-chain = { path = "../tcx-chain", features = ["cache_dk"] }
+tcx-keystore = { path = "../tcx-keystore", features = ["cache_dk"] }
 tcx-btc-kin = { path = "../tcx-btc-kin" }
 tcx-tron = { path = "../tcx-tron" }
 tcx-ckb = { path = "../tcx-ckb" }

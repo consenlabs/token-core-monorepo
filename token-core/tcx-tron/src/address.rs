@@ -3,9 +3,9 @@ use core::str::FromStr;
 
 use tcx_common::keccak256;
 
-use tcx_chain::Address;
-use tcx_chain::Result;
 use tcx_constants::CoinInfo;
+use tcx_keystore::Address;
+use tcx_keystore::Result;
 use tcx_primitive::TypedPublicKey;
 
 #[derive(PartialEq, Eq, Clone)]
@@ -49,9 +49,9 @@ impl ToString for TronAddress {
 mod tests {
     use super::Address;
     use crate::TronAddress;
-    use tcx_chain::Address as TraitAddress;
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::Address as TraitAddress;
     use tcx_primitive::TypedPublicKey;
 
     #[test]

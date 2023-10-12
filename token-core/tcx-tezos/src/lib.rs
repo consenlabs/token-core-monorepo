@@ -2,7 +2,7 @@ pub mod address;
 pub mod signer;
 pub mod transaction;
 use bitcoin::util::base58;
-use tcx_chain::Result;
+use tcx_keystore::Result;
 use tcx_primitive::{Ed25519PrivateKey, PrivateKey, PublicKey};
 
 pub fn build_tezos_base58_private_key(sk: &str) -> Result<String> {
@@ -27,8 +27,8 @@ pub fn pars_tezos_private_key(private_key: &str) -> Result<Vec<u8>> {
 }
 
 pub mod tezos {
-    use tcx_chain::{Account, Keystore};
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::{Account, Keystore};
 
     pub const CHAINS: [&'static str; 1] = ["TEZOS"];
 

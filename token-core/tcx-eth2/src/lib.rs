@@ -5,7 +5,7 @@ mod bls_to_execution_change;
 pub mod signer;
 pub mod transaction;
 use failure::Fail;
-use tcx_chain::Result;
+use tcx_keystore::Result;
 
 #[derive(Fail, Debug, PartialEq)]
 pub enum Error {
@@ -26,8 +26,8 @@ pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
 
 pub mod ethereum2 {
     use crate::address::Eth2Address;
-    use tcx_chain::{Account, Keystore};
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::{Account, Keystore};
 
     pub const CHAINS: [&'static str; 1] = ["ETHEREUM2"];
 

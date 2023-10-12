@@ -17,8 +17,8 @@ extern crate failure;
 extern crate serde_json;
 
 pub mod polkadot {
-    use tcx_chain::{Account, Keystore};
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::{Account, Keystore};
 
     pub const CHAINS: [&'static str; 2] = ["POLKADOT", "KUSAMA"];
 

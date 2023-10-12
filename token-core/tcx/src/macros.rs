@@ -1,6 +1,6 @@
 use std::str::FromStr;
-use tcx_chain::{Address, Keystore, MessageSigner, TransactionSigner};
 use tcx_constants::CoinInfo;
+use tcx_keystore::{Address, Keystore, MessageSigner, TransactionSigner};
 use tcx_primitive::TypedPublicKey;
 
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -36,7 +36,7 @@ impl MessageSigner<MockMessageInput, MockMessageOutput> for Keystore {
         symbol: &str,
         address: &str,
         message: &MockMessageInput,
-    ) -> tcx_chain::Result<MockMessageOutput> {
+    ) -> tcx_keystore::Result<MockMessageOutput> {
         Err(format_err!("unsupported_chain"))
     }
 }
@@ -45,7 +45,10 @@ impl MessageSigner<MockMessageInput, MockMessageOutput> for Keystore {
 pub struct MockAddress();
 
 impl Address for MockAddress {
-    fn from_public_key(_public_key: &TypedPublicKey, _coin: &CoinInfo) -> tcx_chain::Result<Self> {
+    fn from_public_key(
+        _public_key: &TypedPublicKey,
+        _coin: &CoinInfo,
+    ) -> tcx_keystore::Result<Self> {
         Err(format_err!("unsupported_chain"))
     }
 

@@ -2,8 +2,8 @@ use crate::transaction::{SubstrateRawTxIn, SubstrateTxOut};
 use crate::{PAYLOAD_HASH_THRESHOLD, SIGNATURE_TYPE_SR25519};
 use sp_core::blake2_256;
 
-use tcx_chain::{ChainSigner, Keystore, TransactionSigner as TraitTransactionSigner};
 use tcx_constants::Result;
+use tcx_keystore::{ChainSigner, Keystore, TransactionSigner as TraitTransactionSigner};
 
 pub(crate) fn hash_unsigned_payload(payload: &[u8]) -> Result<Vec<u8>> {
     if payload.len() > PAYLOAD_HASH_THRESHOLD {

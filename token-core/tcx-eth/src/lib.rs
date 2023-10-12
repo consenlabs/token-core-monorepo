@@ -8,8 +8,8 @@ pub type Result<T> = result::Result<T, failure::Error>;
 
 pub mod ethereum {
     use crate::address::EthAddress;
-    use tcx_chain::{Account, Keystore};
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::{Account, Keystore};
 
     pub const CHAINS: [&'static str; 1] = ["ETHEREUM"];
 

@@ -1,9 +1,9 @@
 use core::str::FromStr;
 
 use bech32::{FromBase32, ToBase32, Variant};
-use tcx_chain::{Address, ChainFactory, PublicKeyEncoder, Result};
 use tcx_constants::CoinInfo;
 use tcx_crypto::hash;
+use tcx_keystore::{Address, ChainFactory, PublicKeyEncoder, Result};
 use tcx_primitive::TypedPublicKey;
 
 // size of address
@@ -77,7 +77,7 @@ impl ChainFactory for AtomChainFactory {
 mod tests {
 
     use crate::address::AtomAddress;
-    use tcx_chain::Address;
+    use tcx_keystore::Address;
 
     use tcx_constants::{CoinInfo, CurveType};
     use tcx_crypto::hex;
