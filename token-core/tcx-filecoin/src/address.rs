@@ -1,5 +1,5 @@
-use tcx_chain::{Address, Result};
 use tcx_constants::CoinInfo;
+use tcx_keystore::{Address, Result};
 use tcx_primitive::{PublicKey, TypedPublicKey};
 
 use forest_address::Address as ForestAddress;
@@ -104,8 +104,8 @@ impl ToString for FilecoinAddress {
 #[cfg(test)]
 mod tests {
     use crate::address::FilecoinAddress;
-    use tcx_chain::{Address, Keystore, Metadata};
     use tcx_constants::{coin_info_from_param, CoinInfo, CurveType};
+    use tcx_keystore::{Address, Keystore, Metadata};
     use tcx_primitive::TypedPublicKey;
 
     #[test]

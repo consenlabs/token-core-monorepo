@@ -34,8 +34,8 @@ pub enum Error {
 }
 
 pub mod filecoin {
-    use tcx_chain::{Account, Keystore};
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::{Account, Keystore};
 
     pub static CHAINS: [&'static str; 1] = ["FILECOIN"];
 

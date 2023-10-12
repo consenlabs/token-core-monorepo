@@ -1,10 +1,10 @@
 use base58::{FromBase58, ToBase58};
 use regex::Regex;
 use std::str::FromStr;
-use tcx_chain::{Address, ChainFactory, PublicKeyEncoder, Result};
 use tcx_common::CommonError;
 use tcx_constants::CoinInfo;
 use tcx_crypto::hash;
+use tcx_keystore::{Address, ChainFactory, PublicKeyEncoder, Result};
 use tcx_primitive::{PublicKey, TypedPublicKey};
 
 #[derive(PartialEq, Eq, Clone)]
@@ -69,7 +69,7 @@ impl ToString for EosAddress {
 mod tests {
     use crate::address::EosAddress;
     use std::str::FromStr;
-    use tcx_chain::{Address, ChainFactory, PublicKeyEncoder};
+    use tcx_keystore::{Address, ChainFactory, PublicKeyEncoder};
 
     use tcx_constants::{CoinInfo, CurveType};
     use tcx_primitive::{

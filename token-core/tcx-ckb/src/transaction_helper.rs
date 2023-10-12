@@ -4,7 +4,7 @@ use crate::transaction::{Script, Witness};
 use super::Error;
 use crate::hash::blake2b_256;
 use crate::hex_to_bytes;
-use tcx_chain::Result;
+use tcx_keystore::Result;
 
 impl Script {
     pub fn serialize_hash_type(&self) -> Result<Vec<u8>> {

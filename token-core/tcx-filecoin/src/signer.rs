@@ -9,8 +9,8 @@ use forest_vm::Serialized;
 use num_bigint_chainsafe::BigInt;
 use std::convert::TryFrom;
 use std::str::FromStr;
-use tcx_chain::{ChainSigner, Keystore, Result, TransactionSigner};
 use tcx_constants::CurveType;
+use tcx_keystore::{ChainSigner, Keystore, Result, TransactionSigner};
 
 impl TryFrom<&UnsignedMessage> for ForestUnsignedMessage {
     type Error = crate::Error;
@@ -107,8 +107,8 @@ impl TransactionSigner<UnsignedMessage, SignedMessage> for Keystore {
 #[cfg(test)]
 mod tests {
     use crate::{FilecoinAddress, KeyInfo, UnsignedMessage};
-    use tcx_chain::{Keystore, Metadata, TransactionSigner};
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::{Keystore, Metadata, TransactionSigner};
 
     #[test]
     fn test_sign_spec256k1() {

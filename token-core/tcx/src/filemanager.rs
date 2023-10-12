@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-use tcx_chain::Keystore;
+use tcx_keystore::Keystore;
 
 use crate::error_handling::Result;
 

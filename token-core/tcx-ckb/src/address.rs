@@ -1,8 +1,8 @@
 use crate::hash::blake2b_160;
 use bech32::{FromBase32, ToBase32, Variant};
 use std::str::FromStr;
-use tcx_chain::{Address, Result};
 use tcx_constants::CoinInfo;
+use tcx_keystore::{Address, Result};
 use tcx_primitive::TypedPublicKey;
 
 // TYPE should be u5
@@ -82,7 +82,7 @@ impl ToString for CkbAddress {
 #[cfg(test)]
 mod tests {
     use crate::address::CkbAddress;
-    use tcx_chain::Address;
+    use tcx_keystore::Address;
 
     use tcx_constants::{CoinInfo, CurveType};
     use tcx_primitive::TypedPublicKey;

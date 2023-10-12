@@ -8,8 +8,8 @@ use core::result;
 
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-use tcx_chain::Address;
 use tcx_constants::CoinInfo;
+use tcx_keystore::Address;
 use tcx_primitive::TypedPublicKey;
 
 fn remove_bch_prefix(addr: &str) -> String {
@@ -108,9 +108,9 @@ mod tests {
     use super::{remove_bch_prefix, BchAddress};
 
     use crate::address::WIFDisplay;
-    use tcx_chain::Address;
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::Address;
     use tcx_primitive::{PrivateKey, Secp256k1PrivateKey, TypedPublicKey};
     use tcx_primitive::{PublicKey, TypedPrivateKey};
 

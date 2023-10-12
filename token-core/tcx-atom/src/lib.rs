@@ -3,8 +3,8 @@ pub mod signer;
 pub mod transaction;
 
 pub mod cosmos {
-    use tcx_chain::{Account, Keystore};
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::{Account, Keystore};
 
     pub const CHAINS: [&'static str; 1] = ["COSMOS"];
 

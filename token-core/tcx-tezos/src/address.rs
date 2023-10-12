@@ -1,9 +1,9 @@
 use bitcoin::util::base58;
 use blake2b_simd::Params;
 use std::str::FromStr;
-use tcx_chain::Address;
-use tcx_chain::Result;
 use tcx_constants::CoinInfo;
+use tcx_keystore::Address;
+use tcx_keystore::Result;
 use tcx_primitive::TypedPublicKey;
 
 #[derive(PartialEq, Eq, Clone)]
@@ -70,8 +70,8 @@ pub fn sha256_hash(data: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 mod test {
     use crate::address::TezosAddress;
-    use tcx_chain::Address;
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::Address;
     use tcx_primitive::TypedPublicKey;
 
     #[test]

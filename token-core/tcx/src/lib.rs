@@ -235,9 +235,9 @@ mod tests {
     use crate::handler::hd_store_import;
     use crate::handler::{encode_message, private_key_store_import};
     use prost::Message;
-    use tcx_chain::{Keystore, Source};
     use tcx_constants::sample_key;
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_keystore::{Keystore, Source};
     // use tcx_identity::{constants, model};
 
     use std::fs;

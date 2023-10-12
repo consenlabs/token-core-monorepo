@@ -1,5 +1,5 @@
 use crate::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
-use tcx_chain::{
+use tcx_keystore::{
     ChainSigner, Keystore, MessageSigner as TraitMessageSigner, Result,
     TransactionSigner as TraitTransactionSigner,
 };
@@ -90,9 +90,9 @@ mod tests {
     use super::*;
     use crate::address::TronAddress;
 
-    use tcx_chain::{HdKeystore, Keystore, KeystoreGuard, Metadata};
     use tcx_constants::{CoinInfo, TEST_PASSWORD};
     use tcx_constants::{CurveType, TEST_MNEMONIC};
+    use tcx_keystore::{HdKeystore, Keystore, KeystoreGuard, Metadata};
     use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
 
     #[test]

@@ -4,19 +4,19 @@ use std::{fs, str::FromStr};
 use failure::format_err;
 use serde::{Deserialize, Deserializer, Serialize};
 use tcx_atom::address::AtomAddress;
-use tcx_chain::{
+use tcx_constants::CoinInfo;
+use tcx_crypto::{Crypto, EncPair, KdfParams, Key};
+use tcx_keystore::{
     key_hash_from_mnemonic, key_hash_from_private_key, Account, HdKeystore, PrivateKeystore,
     Result, Source,
 };
-use tcx_constants::CoinInfo;
-use tcx_crypto::{Crypto, EncPair, KdfParams, Key};
 
 use tcx_btc_kin::address::BtcKinAddress;
 use tcx_btc_kin::Error;
-use tcx_chain::identity::Identity;
-use tcx_chain::keystore::{Keystore, Metadata, Store};
 use tcx_eos::address::EosAddress;
 use tcx_eth::address::EthAddress;
+use tcx_keystore::identity::Identity;
+use tcx_keystore::keystore::{Keystore, Metadata, Store};
 use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -270,9 +270,6 @@ impl LegacyKeystore {
 #[cfg(test)]
 mod tests {
     use serde_json::Value;
-    use tcx_chain::keystore::Store;
-    use tcx_chain::HdKeystore;
-    use tcx_chain::{Keystore, KeystoreGuard, Metadata, PrivateKeystore, Source};
     use tcx_constants::TEST_PASSWORD;
     use tcx_constants::{CoinInfo, TEST_MNEMONIC};
     use tcx_crypto::crypto::SCryptParams;
@@ -280,6 +277,9 @@ mod tests {
     use tcx_crypto::Crypto;
     use tcx_crypto::Pbkdf2Params;
     use tcx_crypto::{EncPair, Key};
+    use tcx_keystore::keystore::Store;
+    use tcx_keystore::HdKeystore;
+    use tcx_keystore::{Keystore, KeystoreGuard, Metadata, PrivateKeystore, Source};
 
     use super::LegacyKeystore;
 

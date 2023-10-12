@@ -11,8 +11,8 @@ use ethers::types::{Bytes, Eip1559TransactionRequest, Signature, TransactionRequ
 use ethers::utils::{hash_message, keccak256};
 use keccak_hash::keccak;
 use std::str::FromStr;
-use tcx_chain::{Keystore, MessageSigner, TransactionSigner};
 use tcx_common::{hex_to_bytes, utf8_or_hex_to_bytes};
+use tcx_keystore::{Keystore, MessageSigner, TransactionSigner};
 
 impl TransactionSigner<EthTxInput, EthTxOutput> for Keystore {
     fn sign_transaction(
@@ -20,7 +20,7 @@ impl TransactionSigner<EthTxInput, EthTxOutput> for Keystore {
         symbol: &str,
         address: &str,
         tx: &EthTxInput,
-    ) -> tcx_chain::Result<EthTxOutput> {
+    ) -> tcx_keystore::Result<EthTxOutput> {
         let private_key = self.find_private_key(symbol, address)?;
         tx.sign_transaction(&private_key.to_bytes())
     }
@@ -32,7 +32,7 @@ impl MessageSigner<EthMessageInput, EthMessageOutput> for Keystore {
         symbol: &str,
         address: &str,
         message: &EthMessageInput,
-    ) -> tcx_chain::Result<EthMessageOutput> {
+    ) -> tcx_keystore::Result<EthMessageOutput> {
         let private_key = self.find_private_key(symbol, address)?;
         if message.signature_type == SignatureType::PersonalSign as i32 {
             message.sign_message(&private_key.to_bytes())
@@ -174,7 +174,7 @@ mod test {
     use crate::transaction::{
         AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput, SignatureType,
     };
-    use tcx_chain::{Keystore, MessageSigner, Metadata, TransactionSigner};
+    use tcx_keystore::{Keystore, MessageSigner, Metadata, TransactionSigner};
 
     fn private_key_store(key: &str) -> Keystore {
         let mut ks = Keystore::from_private_key(key, "imToken1", Metadata::default());

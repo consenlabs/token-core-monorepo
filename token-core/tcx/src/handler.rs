@@ -10,10 +10,10 @@ use tcx_eos::EosChainFactory;
 use tcx_primitive::{get_account_path, private_key_without_version, FromHex, TypedPrivateKey};
 
 use tcx_btc_kin::WIFDisplay;
-use tcx_chain::{
+use tcx_keystore::{
     key_hash_from_mnemonic, key_hash_from_private_key, ChainFactory, Keystore, KeystoreGuard,
 };
-use tcx_chain::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
+use tcx_keystore::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
 
 use tcx_crypto::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
 use tcx_filecoin::KeyInfo;
@@ -45,9 +45,8 @@ use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 use crate::IS_DEBUG;
 use base58::ToBase58;
 
-use tcx_chain::tcx_ensure;
+use tcx_keystore::tcx_ensure;
 
-use tcx_chain::{MessageSigner, TransactionSigner};
 use tcx_constants::coin_info::coin_info_from_param;
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::aes::cbc::encrypt_pkcs7;
@@ -55,6 +54,7 @@ use tcx_crypto::hash::dsha256;
 use tcx_crypto::KDF_ROUNDS;
 use tcx_eos::transaction::EosMessageInput;
 use tcx_eth::transaction::{EthRecoverAddressInput, EthRecoverAddressOutput};
+use tcx_keystore::{MessageSigner, TransactionSigner};
 
 use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
@@ -63,7 +63,7 @@ use tcx_substrate::{
     SubstrateKeystore, SubstrateKeystoreParam, SubstrateRawTxIn,
 };
 
-use tcx_chain::identity::Identity;
+use tcx_keystore::identity::Identity;
 // use tcx_identity::imt_keystore::{IMTKeystore, WALLET_KEYSTORE_DIR};
 // use tcx_identity::v3_keystore::import_wallet_from_keystore;
 // use tcx_identity::wallet_api::{

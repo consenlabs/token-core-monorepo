@@ -6,7 +6,7 @@ use crate::transaction::{
 use crate::{Error, Result};
 use keccak_hash;
 use regex::Regex;
-use tcx_chain::{ChainSigner, Keystore};
+use tcx_keystore::{ChainSigner, Keystore};
 
 impl SignBlsToExecutionChangeParam {
     pub fn sign_bls_to_execution_change(
