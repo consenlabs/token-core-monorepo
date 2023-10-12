@@ -5,8 +5,8 @@ pub mod transaction;
 pub use crate::address::TronAddress;
 
 pub mod tron {
-    use tcx_chain::{Account, Keystore};
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::{Account, Keystore};
 
     pub const CHAINS: [&'static str; 1] = ["TRON"];
 

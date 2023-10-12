@@ -15,6 +15,7 @@ pub fn key_hash_from_private_key(data: &[u8]) -> String {
     hex::encode(dsha256(data)[..20].to_vec())
 }
 
+#[derive(Clone)]
 pub struct PrivateKeystore {
     store: Store,
 
@@ -117,6 +118,7 @@ impl PrivateKeystore {
             id: Uuid::new_v4().as_hyphenated().to_string(),
             version: PrivateKeystore::VERSION,
             active_accounts: vec![],
+            identity: None,
         };
 
         PrivateKeystore {

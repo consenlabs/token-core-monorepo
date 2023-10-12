@@ -9,7 +9,7 @@ use failure::Fail;
 
 pub use address::CkbAddress;
 pub use serializer::Serializer;
-use tcx_chain::Result;
+use tcx_keystore::Result;
 pub use transaction::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
 
 #[derive(Fail, Debug, PartialEq)]
@@ -59,8 +59,8 @@ pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
 }
 
 pub mod nervos {
-    use tcx_chain::{Account, Keystore};
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::{Account, Keystore};
 
     pub const CHAINS: [&'static str; 1] = ["NERVOS"];
 

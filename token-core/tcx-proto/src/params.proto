@@ -12,6 +12,12 @@ message HdStoreCreateParam {
     string password = 1;
     string passwordHint = 2;
     string name = 3;
+    string source = 4;
+}
+
+message IdentityResult {
+    string identifier = 1;
+    string ipfsId = 2;
 }
 
 message WalletResult {
@@ -20,6 +26,7 @@ message WalletResult {
     string source = 3;
     repeated AccountResponse accounts = 4;
     int64 createdAt = 5;
+    optional IdentityResult identity = 6;
 }
 
 // FUNCTION: hd_store_import(HdStoreImportParam): WalletResult
@@ -148,44 +155,58 @@ message SignParam {
 /// Other
 // TODO: annotate following message usage
 
-// btc-fork
-message ExternalAddressParam {
+
+message CalcExternalAddressParam {
     string id = 1;
-    string chainType = 2;
-    uint32 externalIdx = 3;
+    string network = 2;
+    string segWit = 3;
+    uint32 externalIdx = 4;
 }
 
-message ExternalAddressResult {
+message CalcExternalAddressResult {
     string address = 1;
-    string derivedPath = 2;
-    string type = 3;
+    string type = 2;
+    string derivedPath = 3;
 }
 
-message ExternalAddressExtra {
-    string encXpub = 1;
-    message ExternalAddress {
-        string address = 1;
-        string derivedPath = 2;
-        string type = 3;
-    }
-    ExternalAddress externalAddress = 2;
-}
+// btc-fork
+// message ExternalAddressParam {
+//     string id = 1;
+//     string chainType = 2;
+//     uint32 externalIdx = 3;
+// }
 
-message BtcForkDeriveExtraParam {
-    string network = 1;
-    string segWit = 2;
-}
+// message ExternalAddressResult {
+//     string address = 1;
+//     string derivedPath = 2;
+//     string type = 3;
+// }
 
-message HdStoreExtendedPublicKeyParam {
-    string id = 1;
-    string password = 2;
-    string chainType = 3;
-    string address = 4;
-}
+// message ExternalAddressExtra {
+//     string encXpub = 1;
+//     message ExternalAddress {
+//         string address = 1;
+//         string derivedPath = 2;
+//         string type = 3;
+//     }
+//     ExternalAddress externalAddress = 2;
+// }
 
-message HdStoreExtendedPublicKeyResponse {
-    string extendedPublicKey = 1;
-}
+// message BtcForkDeriveExtraParam {
+//     string network = 1;
+//     string segWit = 2;
+// }
+
+// message HdStoreExtendedPublicKeyParam {
+//     string id = 1;
+//     string password = 2;
+//     string chainType = 3;
+//     string address = 4;
+// }
+
+// message HdStoreExtendedPublicKeyResponse {
+//     string extendedPublicKey = 1;
+// }
 
 message PublicKeyParam {
     string id = 1;
@@ -201,8 +222,74 @@ message PublicKeyResult {
 }
 
 
-message KeystoreUpdateAccount {
+// message KeystoreUpdateAccount {
+//     string id = 1;
+//     string password = 2;
+//     string accountName = 3;
+// }
+
+
+
+
+message RemoveWalletsParam {
+    string identifier = 1;
+    string password = 2;
+}
+
+message RemoveWalletsResult {
+    string identifier = 1;
+}
+
+message V3KeystoreImportInput {
+    string keystore = 1;
+    string password = 2;
+    bool overwrite = 3;
+    string name = 4;
+    string chainType = 5;
+    string source = 6;
+}
+
+message V3KeystoreExportInput {
     string id = 1;
     string password = 2;
-    string accountName = 3;
+}
+
+message V3KeystoreExportOutput {
+    string json = 1;
+}
+
+message EncryptDataToIpfsParam {
+    string identifier = 1;
+    string content = 2;
+}
+
+message EncryptDataToIpfsResult {
+    string identifier = 1;
+    string encrypted = 2;
+}
+
+message DecryptDataFromIpfsParam {
+    string identifier = 1;
+    string encrypted = 2;
+}
+
+message DecryptDataFromIpfsResult {
+    string identifier = 1;
+    string content = 2;
+}
+
+message SignAuthenticationMessageParam {
+    uint64 accessTime = 1;
+    string identifier = 2 ;
+    string deviceToken = 3;
+    string password = 4;
+}
+
+message SignAuthenticationMessageResult {
+    uint64 accessTime = 1;
+    string signature = 2;
+}
+
+message GenerateMnemonicResult {
+    string mnemonic = 1;
 }

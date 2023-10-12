@@ -17,8 +17,8 @@ use bitcoin::{Address as LibAddress, Script};
 use bitcoin_hashes::Hash;
 use secp256k1::Secp256k1;
 
-use tcx_chain::Address;
 use tcx_constants::CoinInfo;
+use tcx_keystore::Address;
 use tcx_primitive::{Ss58Codec, TypedPrivateKey, TypedPublicKey};
 
 use crate::network::BtcKinNetwork;
@@ -294,7 +294,7 @@ mod tests {
     use tcx_primitive::{Bip32DeterministicPrivateKey, Derive, DeterministicPrivateKey, Ss58Codec};
 
     use crate::address::BtcKinAddress;
-    use crate::tcx_chain::Address;
+    use crate::tcx_keystore::Address;
     use crate::BtcKinNetwork;
 
     #[test]

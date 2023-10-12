@@ -1,7 +1,7 @@
 use std::str::FromStr;
-use tcx_chain::Address;
-use tcx_chain::Result;
 use tcx_constants::CoinInfo;
+use tcx_keystore::Address;
+use tcx_keystore::Result;
 use tcx_primitive::TypedPublicKey;
 
 #[derive(PartialEq, Eq, Clone)]
@@ -47,8 +47,8 @@ impl FromStr for Eth2Address {
 #[cfg(test)]
 mod test {
     use crate::address::Eth2Address;
-    use tcx_chain::Address;
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::Address;
 
     #[test]
     fn is_valid_test() {

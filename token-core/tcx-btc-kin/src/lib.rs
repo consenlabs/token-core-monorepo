@@ -19,7 +19,7 @@ extern crate num_integer;
 extern crate num_traits;
 
 #[macro_use]
-extern crate tcx_chain;
+extern crate tcx_keystore;
 extern crate core;
 
 pub type Result<T> = result::Result<T, failure::Error>;
@@ -27,6 +27,10 @@ pub type Result<T> = result::Result<T, failure::Error>;
 pub use address::{BtcKinAddress, WIFDisplay};
 pub use bch_address::BchAddress;
 pub use network::BtcKinNetwork;
+use tcx_keystore::{Address, Keystore};
+use tcx_primitive::{
+    Bip32DeterministicPublicKey, Derive, DeterministicPublicKey, FromHex, TypedPublicKey,
+};
 pub use transaction::{BtcKinTxInput, BtcKinTxOutput, OmniTxInput, Utxo};
 
 pub const BITCOIN: &'static str = "BITCOIN";
@@ -60,8 +64,8 @@ pub enum Error {
 
 pub mod bitcoin {
     use crate::{BtcKinAddress, BITCOIN, LITECOIN};
-    use tcx_chain::{Account, Keystore};
     use tcx_constants::CoinInfo;
+    use tcx_keystore::{Account, Keystore};
 
     pub const CHAINS: [&'static str; 2] = [BITCOIN, LITECOIN];
 
@@ -141,10 +145,35 @@ pub mod bitcoin {
     }
 }
 
+pub fn calc_btc_change_address(
+    ks: &Keystore,
+    seg_wit: &str,
+    network: &str,
+    external_idx: u32,
+) -> Result<(String, String)> {
+    let account = ks
+        .accounts()
+        .iter()
+        .find(|x| x.coin == "BITCOIN" && x.seg_wit == seg_wit && x.network == network);
+    let Some(acc) = account else {
+        return Err(format_err!("wallet_not_found"));
+    };
+
+    let xpub = acc.ext_pub_key.to_string();
+    let acc_path = acc.derivation_path.to_string();
+    let external_path = format!("0/{}", external_idx);
+    let change_path = format!("{}/{}", acc_path, external_path);
+    let account_xpub = Bip32DeterministicPublicKey::from_hex(&xpub)?;
+    let public_key = account_xpub.derive(&change_path)?.public_key();
+    let typed_pk = TypedPublicKey::Secp256k1(public_key);
+    let address = BtcKinAddress::from_public_key(&typed_pk, &acc.coin_info())?;
+    Ok((address.to_string(), external_path))
+}
+
 pub mod bitcoincash {
     use crate::BITCOINCASH;
-    use tcx_chain::{Account, Keystore};
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::{Account, Keystore};
 
     pub static CHAINS: [&'static str; 1] = [BITCOINCASH];
 
@@ -196,10 +225,10 @@ mod tests {
 
     use serde_json::Value;
 
-    use tcx_chain::KeystoreGuard;
-    use tcx_chain::{HdKeystore, Keystore, Metadata};
     use tcx_constants::CurveType;
     use tcx_constants::{CoinInfo, TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_keystore::KeystoreGuard;
+    use tcx_keystore::{HdKeystore, Keystore, Metadata};
 
     const BIP_PATH: &str = "m/44'/145'/0'";
 

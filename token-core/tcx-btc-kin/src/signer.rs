@@ -19,9 +19,9 @@ use bitcoin_hashes::Hash;
 use byteorder::{BigEndian, WriteBytesExt};
 use secp256k1::{Message, Secp256k1};
 
-use tcx_chain::keystore::Error as KeystoreError;
-use tcx_chain::Address;
-use tcx_chain::{Keystore, TransactionSigner};
+use tcx_keystore::keystore::Error as KeystoreError;
+use tcx_keystore::Address;
+use tcx_keystore::{Keystore, TransactionSigner};
 use tcx_primitive::{Derive, PrivateKey, PublicKey, Secp256k1PrivateKey, TypedPrivateKey};
 
 use crate::address::{BtcKinAddress, ScriptPubkey};
@@ -475,10 +475,10 @@ impl TransactionSigner<OmniTxInput, BtcKinTxOutput> for Keystore {
 
 #[cfg(test)]
 mod tests {
-    use tcx_chain::Metadata;
-    use tcx_chain::{Keystore, TransactionSigner};
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD, TEST_WIF};
+    use tcx_keystore::Metadata;
+    use tcx_keystore::{Keystore, TransactionSigner};
     use tcx_primitive::Secp256k1PrivateKey;
 
     use crate::address::BtcKinAddress;
@@ -615,8 +615,8 @@ mod tests {
 
     mod bitcoincash {
         use crate::{bitcoincash, BtcKinTxInput, Utxo, BITCOINCASH};
-        use tcx_chain::{Keystore, Metadata, TransactionSigner};
         use tcx_constants::TEST_PASSWORD;
+        use tcx_keystore::{Keystore, Metadata, TransactionSigner};
 
         #[test]
         pub fn test_bch_signer() {

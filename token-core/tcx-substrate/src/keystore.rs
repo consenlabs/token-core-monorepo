@@ -2,7 +2,7 @@ use crate::SubstrateAddress;
 use rand::Rng;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::convert::TryInto;
-use tcx_chain::Address;
+use tcx_keystore::Address;
 
 use byteorder::LittleEndian;
 use byteorder::{ReadBytesExt, WriteBytesExt};

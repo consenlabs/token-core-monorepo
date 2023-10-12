@@ -1,5 +1,5 @@
 use crate::transaction::{AtomTxInput, AtomTxOutput};
-use tcx_chain::{ChainSigner, Keystore, Result, TransactionSigner as TraitTransactionSigner};
+use tcx_keystore::{ChainSigner, Keystore, Result, TransactionSigner as TraitTransactionSigner};
 
 use tcx_crypto::{hash, hex};
 
@@ -31,9 +31,9 @@ mod tests {
     use super::*;
     use crate::address::AtomAddress;
 
-    use tcx_chain::{HdKeystore, Keystore, KeystoreGuard, Metadata};
     use tcx_constants::{CoinInfo, TEST_PASSWORD};
     use tcx_constants::{CurveType, TEST_MNEMONIC};
+    use tcx_keystore::{HdKeystore, Keystore, KeystoreGuard, Metadata};
 
     #[test]
     fn sign_transaction() -> core::result::Result<(), failure::Error> {
@@ -57,7 +57,6 @@ mod tests {
         let ks = guard.keystore_mut();
 
         let account = ks.derive_coin::<AtomAddress>(&coin_info).unwrap().clone();
-        println!("account {:?}", account);
 
         let signed_tx: AtomTxOutput = ks.sign_transaction("COSMOS", &account.address, &tx)?;
 

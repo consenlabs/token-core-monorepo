@@ -1,11 +1,5 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GenerateMnemonicResult {
-    #[prost(string, tag = "1")]
-    pub mnemonic: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateIdentityParam {
     #[prost(string, tag = "1")]
     pub name: ::prost::alloc::string::String,
@@ -15,8 +9,8 @@ pub struct CreateIdentityParam {
     pub password_hint: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, tag = "4")]
     pub network: ::prost::alloc::string::String,
-    #[prost(string, optional, tag = "5")]
-    pub seg_wit: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, tag = "5")]
+    pub seg_wit: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -41,6 +35,22 @@ pub struct Wallet {
     pub source: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
     pub chain_type: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "6")]
+    pub external_address: ::core::option::Option<ExternalAddress>,
+    #[prost(string, optional, tag = "7")]
+    pub enc_x_pub: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, optional, tag = "8")]
+    pub seg_wit: ::core::option::Option<::prost::alloc::string::String>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExternalAddress {
+    #[prost(string, tag = "1")]
+    pub address: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub r#type: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub derived_path: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -121,8 +131,8 @@ pub struct RecoverIdentityParam {
     pub password_hint: ::core::option::Option<::prost::alloc::string::String>,
     #[prost(string, tag = "5")]
     pub network: ::prost::alloc::string::String,
-    #[prost(string, optional, tag = "6")]
-    pub seg_wit: ::core::option::Option<::prost::alloc::string::String>,
+    #[prost(string, tag = "6")]
+    pub seg_wit: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -135,100 +145,4 @@ pub struct RecoverIdentityResult {
     pub ipfs_id: ::prost::alloc::string::String,
     #[prost(message, repeated, tag = "4")]
     pub wallets: ::prost::alloc::vec::Vec<Wallet>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RemoveIdentityParam {
-    #[prost(string, tag = "1")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RemoveIdentityResult {
-    #[prost(string, tag = "1")]
-    pub identifier: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct V3KeystoreImportInput {
-    #[prost(string, tag = "1")]
-    pub keystore: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(bool, tag = "3")]
-    pub overwrite: bool,
-    #[prost(string, tag = "4")]
-    pub name: ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
-    pub chain_type: ::prost::alloc::string::String,
-    #[prost(string, tag = "6")]
-    pub source: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct V3KeystoreExportInput {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct V3KeystoreExportOutput {
-    #[prost(string, tag = "1")]
-    pub json: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EncryptDataToIpfsParam {
-    #[prost(string, tag = "1")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub content: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EncryptDataToIpfsResult {
-    #[prost(string, tag = "1")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub encrypted: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DecryptDataFromIpfsParam {
-    #[prost(string, tag = "1")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub encrypted: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DecryptDataFromIpfsResult {
-    #[prost(string, tag = "1")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub content: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SignAuthenticationMessageParam {
-    #[prost(uint64, tag = "1")]
-    pub access_time: u64,
-    #[prost(string, tag = "2")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub device_token: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub password: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SignAuthenticationMessageResult {
-    #[prost(uint64, tag = "1")]
-    pub access_time: u64,
-    #[prost(string, tag = "2")]
-    pub signature: ::prost::alloc::string::String,
 }

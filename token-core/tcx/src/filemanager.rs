@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
-use tcx_chain::Keystore;
+use tcx_keystore::Keystore;
 
 use crate::error_handling::Result;
 
@@ -14,8 +14,8 @@ lazy_static! {
     pub static ref IS_DEBUG: RwLock<bool> = RwLock::new(false);
 }
 
-const WALLET_V1_DIR: &str = "wallets";
-const WALLET_V2_DIR: &str = "walletsV2";
+pub const WALLET_V1_DIR: &str = "wallets";
+pub const WALLET_V2_DIR: &str = "walletsV2";
 
 pub fn copy_to_v2_if_need() -> Result<()> {
     let base = KEYSTORE_BASE_DIR.read();
@@ -30,19 +30,27 @@ pub fn copy_to_v2_if_need() -> Result<()> {
             return Err(format_err!("keystore_dir_v2_missing"));
         };
 
+        if let Ok(meta) = path.metadata() {
+            if meta.is_dir() {
+                continue;
+            }
+        }
+
         let file_name_oss = path.file_name();
         let file_name_opt = file_name_oss.to_str();
         let Some(file_name) = file_name_opt else {
             return Err(format_err!("keystore_dir_v2_missing"));
         };
 
-        if file_name.ends_with(".json") {
-            let v1_file = path.path();
-            let v2_file_str = format!("{}/{}", v2_path, file_name);
-            let v2_file = Path::new(&v2_file_str);
-            if !v2_file.exists() {
-                fs::copy(v1_file, v2_file)?;
-            }
+        let v1_file = path.path();
+        let v2_file_str = if file_name.ends_with(".json") {
+            format!("{}/{}", v2_path, file_name)
+        } else {
+            format!("{}/{}.json", v2_path, file_name)
+        };
+        let v2_file = Path::new(&v2_file_str);
+        if !v2_file.exists() {
+            fs::copy(v1_file, v2_file)?;
         }
     }
 
@@ -54,9 +62,9 @@ pub fn clean_keystore() {
 }
 
 pub fn cache_keystore(keystore: Keystore) {
-    KEYSTORE_MAP
-        .write()
-        .insert(keystore.id().to_owned(), keystore);
+    let mut map = KEYSTORE_MAP.write();
+    map.remove(&keystore.id());
+    map.insert(keystore.id().to_owned(), keystore);
 }
 
 pub fn flush_keystore(ks: &Keystore) -> Result<()> {
@@ -75,6 +83,14 @@ pub fn delete_keystore_file(wid: &str) -> Result<()> {
     let ks_path = format!("{}/{}.json", file_dir, wid);
     let path = Path::new(&ks_path);
     fs::remove_file(path)?;
+    Ok(())
+}
+
+pub fn delete_keystore_files() -> Result<()> {
+    let file_dir = WALLET_FILE_DIR.read();
+    let dir_str = file_dir.as_str();
+    let path = Path::new(&dir_str);
+    fs::remove_dir(path)?;
     Ok(())
 }
 
@@ -99,6 +115,7 @@ mod tests {
             "045861fe-0e9b-4069-92aa-0ac03cad55e0.json",
             "175169f7-5a35-4df7-93c1-1ff612168e71.json",
             "3831346d-0b81-405b-89cf-cdb1d010430e.json",
+            "5991857a-2488-4546-b730-463a5f84ea6a.json",
             "identity.json",
         ];
 

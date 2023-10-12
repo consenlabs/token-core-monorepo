@@ -2,8 +2,8 @@ use sp_core::crypto::Ss58AddressFormat;
 use sp_core::crypto::Ss58Codec;
 use sp_core::sr25519::Public;
 use std::str::FromStr;
-use tcx_chain::Address;
 use tcx_constants::{CoinInfo, Result};
+use tcx_keystore::Address;
 use tcx_primitive::{PublicKey, Sr25519PublicKey, TypedPublicKey};
 
 #[derive(PartialEq, Eq, Clone)]

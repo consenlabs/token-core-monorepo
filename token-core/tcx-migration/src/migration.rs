@@ -1,41 +1,56 @@
 use core::fmt;
-use std::str::FromStr;
+use std::{fs, str::FromStr};
 
 use failure::format_err;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use tcx_atom::address::AtomAddress;
-use tcx_chain::{
+use tcx_constants::CoinInfo;
+use tcx_crypto::{Crypto, EncPair, KdfParams, Key};
+use tcx_keystore::{
     key_hash_from_mnemonic, key_hash_from_private_key, Account, HdKeystore, PrivateKeystore,
     Result, Source,
 };
-use tcx_constants::CoinInfo;
-use tcx_crypto::{Crypto, EncPair, KdfParams, Key};
 
 use tcx_btc_kin::address::BtcKinAddress;
 use tcx_btc_kin::Error;
-use tcx_chain::keystore::{Keystore, Metadata, Store};
 use tcx_eos::address::EosAddress;
 use tcx_eth::address::EthAddress;
+use tcx_keystore::identity::Identity;
+use tcx_keystore::keystore::{Keystore, Metadata, Store};
 use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(untagged)]
+pub enum NumberOrNumberStr {
+    Number(i64),
+    NumberStr(String),
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OldMetadata {
     pub name: String,
-    pub chain_type: String,
+    pub chain_type: Option<String>,
+    pub chain: Option<String>,
     pub network: Option<String>,
     pub password_hint: String,
-    pub timestamp: i64,
+    pub timestamp: NumberOrNumberStr,
     pub source: Source,
     pub seg_wit: Option<String>,
 }
 
 impl OldMetadata {
     pub fn to_metadata(&self) -> Metadata {
+        let timestamp = match &self.timestamp {
+            NumberOrNumberStr::Number(num) => num.clone(),
+            NumberOrNumberStr::NumberStr(str) => {
+                f64::from_str(&str).expect("f64 from timestamp") as i64
+            }
+        };
         Metadata {
             name: self.name.clone(),
             password_hint: self.password_hint.clone(),
-            timestamp: self.timestamp,
+            timestamp: timestamp,
             source: self.source,
         }
     }
@@ -83,7 +98,17 @@ impl LegacyKeystore {
             derivation_path = "".to_string();
         }
 
-        match self.im_token_meta.chain_type.as_str() {
+        let chain_type = if self.im_token_meta.chain_type.is_some() {
+            self.im_token_meta.chain_type.as_ref().unwrap().to_string()
+        } else {
+            self.im_token_meta
+                .chain
+                .as_ref()
+                .expect("meta chain")
+                .to_string()
+        };
+
+        match chain_type.as_str() {
             "ETHEREUM" => {
                 let coin_info = CoinInfo {
                     coin: "ETHEREUM".to_string(),
@@ -158,12 +183,14 @@ impl LegacyKeystore {
         let mnemonic = String::from_utf8(mnemonic_data.to_owned())?;
         let key_hash = key_hash_from_mnemonic(&mnemonic)?;
 
+        let identity = Identity::new(&mnemonic, &unlocker)?;
         let mut store = Store {
             id: self.id.to_string(),
             version: HdKeystore::VERSION,
             key_hash: key_hash.to_string(),
             crypto: self.crypto.clone(),
             active_accounts: vec![],
+            identity: Some(identity),
             meta: self.im_token_meta.to_metadata(),
         };
 
@@ -196,6 +223,7 @@ impl LegacyKeystore {
             crypto: self.crypto.clone(),
             active_accounts: vec![],
             meta: self.im_token_meta.to_metadata(),
+            identity: None,
         };
 
         let unlocker = self.crypto.use_key(key)?;
@@ -214,7 +242,7 @@ impl LegacyKeystore {
     pub fn migrate_identity_wallets(
         &self,
         key: &Key,
-        new_keystore: &mut Keystore,
+        new_keystore: Option<Keystore>,
     ) -> Result<Keystore> {
         let mut keystore = self.migrate_to_hd(key)?;
         keystore.unlock(key)?;
@@ -226,11 +254,14 @@ impl LegacyKeystore {
         tcx_eos::eos::enable_account("EOS", 0, &mut keystore)?;
 
         // TODO: Create identity wallets
+        if let Some(exists_keystore) = new_keystore {
+            // TODO Backup old file
+            keystore.merge(&exists_keystore)?;
 
-        new_keystore.merge(&keystore)?;
-
-        new_keystore.store_mut().crypto = keystore.store().crypto.clone();
-        new_keystore.store_mut().id = keystore.id().to_string();
+            // exists_keystore.store_mut().crypto = keystore.store().crypto.clone();
+            // exists_keystore.store_mut().id = keystore.id().to_string();
+            // keystore.store_mut().id = wallet_id.to_string();
+        }
 
         Ok(keystore)
     }
@@ -239,14 +270,16 @@ impl LegacyKeystore {
 #[cfg(test)]
 mod tests {
     use serde_json::Value;
-    use tcx_chain::{Keystore, KeystoreGuard, Metadata, PrivateKeystore, Source};
-    use tcx_constants::TEST_MNEMONIC;
     use tcx_constants::TEST_PASSWORD;
+    use tcx_constants::{CoinInfo, TEST_MNEMONIC};
     use tcx_crypto::crypto::SCryptParams;
     use tcx_crypto::hex;
     use tcx_crypto::Crypto;
     use tcx_crypto::Pbkdf2Params;
     use tcx_crypto::{EncPair, Key};
+    use tcx_keystore::keystore::Store;
+    use tcx_keystore::HdKeystore;
+    use tcx_keystore::{Keystore, KeystoreGuard, Metadata, PrivateKeystore, Source};
 
     use super::LegacyKeystore;
 
@@ -274,8 +307,16 @@ mod tests {
         include_str!("../test/fixtures/175169f7-5a35-4df7-93c1-1ff612168e71.json")
     }
 
+    fn tcx_ks() -> &'static str {
+        include_str!("../test/fixtures/b05a0ff9-885a-4a31-9d82-6477d34d1e37.json")
+    }
+
     fn identity() -> &'static str {
         include_str!("../test/fixtures/identity.json")
+    }
+
+    fn ios_metadata() -> &'static str {
+        include_str!("../test/fixtures/5991857a-2488-4546-b730-463a5f84ea6a")
     }
 
     #[test]
@@ -357,6 +398,64 @@ mod tests {
         assert_eq!(keystore.accounts().len(), 1);
         assert_eq!(keystore.derivable(), true);
         assert_eq!(keystore.id(), "175169f7-5a35-4df7-93c1-1ff612168e71");
+        assert!(keystore
+            .account("ETHEREUM", "0x6031564e7b2f5cc33737807b2e58daff870b590b")
+            .is_some());
+    }
+
+    #[test]
+    fn test_migrate_dk_keystore() {
+        let keystore_str = v3_eth_mnemonic();
+        let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
+
+        let derived_key_hex = "3223cd3abf2422d0ad3503f73aaa6e7e36a555385c6825b383908c1e8acf5e9d9a4c751809473c75599a632fe5b1437f51a3a848e054d9c170f8c3b5c5701b8b";
+        let keystore = ks
+            .migrate_identity_wallets(&Key::DerivedKey(derived_key_hex.to_string()), None)
+            .unwrap();
+
+        assert_eq!(keystore.accounts().len(), 11);
+        assert_eq!(keystore.derivable(), true);
+        assert_eq!(keystore.id(), "175169f7-5a35-4df7-93c1-1ff612168e71");
+        assert!(keystore
+            .account("ETHEREUM", "0x6031564e7b2f5cc33737807b2e58daff870b590b")
+            .is_some());
+    }
+
+    #[test]
+    fn test_migrate_dk_exists_keystore() {
+        let keystore_str = v3_eth_mnemonic();
+        let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
+
+        let existed_ks = Keystore::from_json(tcx_ks()).unwrap();
+
+        let derived_key_hex = "3223cd3abf2422d0ad3503f73aaa6e7e36a555385c6825b383908c1e8acf5e9d9a4c751809473c75599a632fe5b1437f51a3a848e054d9c170f8c3b5c5701b8b";
+        let keystore = ks
+            .migrate_identity_wallets(
+                &Key::DerivedKey(derived_key_hex.to_string()),
+                Some(existed_ks),
+            )
+            .unwrap();
+
+        assert_eq!(keystore.accounts().len(), 12);
+        assert_eq!(keystore.derivable(), true);
+        assert_eq!(keystore.id(), "175169f7-5a35-4df7-93c1-1ff612168e71");
+        assert!(keystore
+            .account("ETHEREUM", "0x6031564e7b2f5cc33737807b2e58daff870b590b")
+            .is_some());
+        assert!(keystore
+            .account("TRON", "TY2uroBeZ5trA9QT96aEWj32XLkAAhQ9R2")
+            .is_some());
+    }
+
+    #[test]
+    fn test_ios_metadata() {
+        let keystore_str = ios_metadata();
+        let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
+        let keystore = ks.migrate(&Key::Password("imtoken1".to_string())).unwrap();
+
+        assert_eq!(keystore.accounts().len(), 1);
+        assert_eq!(keystore.derivable(), true);
+        assert_eq!(keystore.id(), "5991857a-2488-4546-b730-463a5f84ea6a");
         assert!(keystore
             .account("ETHEREUM", "0x6031564e7b2f5cc33737807b2e58daff870b590b")
             .is_some());

@@ -230,6 +230,7 @@ impl Crypto {
         match key {
             Key::Password(password) => {
                 let derived_key = self.derive_key(password)?;
+
                 if self.mac != "" && !self.verify_derived_key(&derived_key) {
                     return Err(Error::PasswordIncorrect.into());
                 }
@@ -239,10 +240,10 @@ impl Crypto {
                     derived_key,
                 })
             }
-            Key::DerivedKey(derived_key) => {
-                let derived_key = hex::decode(derived_key)?;
+            Key::DerivedKey(derived_key_hex) => {
+                let derived_key = hex::decode(derived_key_hex)?;
 
-                if !self.verify_derived_key(&hex::decode(&derived_key)?) {
+                if !self.verify_derived_key(&derived_key) {
                     return Err(Error::PasswordIncorrect.into());
                 }
 

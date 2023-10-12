@@ -1,4 +1,5 @@
 use super::Result;
+use std::fmt;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -9,16 +10,17 @@ mod private;
 use serde::{Deserialize, Serialize};
 
 use tcx_constants::{CoinInfo, CurveType};
+use tcx_crypto::crypto::Unlocker;
 
 pub use self::{
     guard::KeystoreGuard, hd::key_hash_from_mnemonic, hd::HdKeystore,
     private::key_hash_from_private_key, private::PrivateKeystore,
 };
 
+use crate::identity::Identity;
 use crate::signer::ChainSigner;
 use tcx_crypto::{Crypto, Key};
 use tcx_primitive::{TypedDeterministicPublicKey, TypedPrivateKey, TypedPublicKey};
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Store {
@@ -26,6 +28,7 @@ pub struct Store {
     pub version: i64,
     pub key_hash: String,
     pub crypto: Crypto,
+    pub identity: Option<Identity>,
     pub active_accounts: Vec<Account>,
 
     #[serde(rename = "imTokenMeta")]
@@ -130,6 +133,35 @@ pub enum Source {
     RecoveredIdentity,
 }
 
+impl FromStr for Source {
+    type Err = failure::Error;
+
+    fn from_str(input: &str) -> std::result::Result<Source, Self::Err> {
+        match input {
+            "WIF" => Ok(Source::Wif),
+            "PRIVATE" => Ok(Source::Private),
+            "KEYSTORE" => Ok(Source::Keystore),
+            "MNEMONIC" => Ok(Source::Mnemonic),
+            "NEW_IDENTITY" => Ok(Source::NewIdentity),
+            "RECOVER_IDENTITY" => Ok(Source::RecoveredIdentity),
+            _ => Err(format_err!("unknown_source")),
+        }
+    }
+}
+
+impl fmt::Display for Source {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Source::Wif => write!(f, "WIF"),
+            Source::Private => write!(f, "PRIVATE"),
+            Source::Keystore => write!(f, "KEYSTORE"),
+            Source::Mnemonic => write!(f, "MNEMONIC"),
+            Source::NewIdentity => write!(f, "NEW_IDENTITY"),
+            Source::RecoveredIdentity => write!(f, "RECOVER_IDENTITY"),
+        }
+    }
+}
+
 /// Metadata of fixtures, for presenting wallet data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -163,6 +195,7 @@ impl Default for Metadata {
     }
 }
 
+#[derive(Clone)]
 pub enum Keystore {
     PrivateKey(PrivateKeystore),
     Hd(HdKeystore),
@@ -248,6 +281,10 @@ impl Keystore {
             Key::Password(password) => self.unlock_by_password(password),
             Key::DerivedKey(dk) => self.unlock_by_derived_key(dk),
         }
+    }
+
+    pub fn use_key(&self, key: &Key) -> Result<Unlocker> {
+        self.store().crypto.use_key(key)
     }
 
     #[cfg(feature = "cache_dk")]
@@ -366,6 +403,13 @@ impl Keystore {
         match self {
             Keystore::Hd(ks) => ks.find_deterministic_public_key(symbol, address),
             _ => Err(Error::CannotDeriveKey.into()),
+        }
+    }
+
+    pub fn identity(&self) -> Option<&Identity> {
+        match self {
+            Keystore::Hd(ks) => ks.store().identity.as_ref(),
+            Keystore::PrivateKey(_) => None,
         }
     }
 

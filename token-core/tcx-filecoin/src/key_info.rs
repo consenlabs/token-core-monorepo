@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use tcx_chain::Result;
 use tcx_constants::CurveType;
+use tcx_keystore::Result;
 
 use super::Error;
 
