@@ -142,3 +142,14 @@ pub struct IsBlStatusRes {
     #[prost(bool, tag = "1")]
     pub check_result: bool,
 }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BleCheckUpdateRes {
+    #[prost(string, tag = "1")]
+    pub seid: std::string::String,
+    #[prost(bool, tag = "2")]
+    pub is_latest: bool,
+    #[prost(string, tag = "3")]
+    pub latest_cos_version: std::string::String,
+    #[prost(string, tag = "5")]
+    pub description: std::string::String,
+}

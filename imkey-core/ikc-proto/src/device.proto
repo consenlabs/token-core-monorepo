@@ -107,3 +107,10 @@ message CosCheckUpdateRes {
 message IsBlStatusRes {
     bool check_result = 1;
 }
+
+message BleCheckUpdateRes {
+    string seid = 1;
+    bool is_latest = 2;
+    string latest_cos_version = 3;
+    string description = 5;
+}

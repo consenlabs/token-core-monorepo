@@ -562,6 +562,8 @@ impl ApduCheck {
             "F080" => Err(ApduError::ImkeyInMenuPage.into()),
             "F081" => Err(ApduError::ImkeyPinNotVerified.into()),
             "6F01" => Err(ApduError::ImkeyBluetoothChannelError.into()),
+            "90A5" => Err(ApduError::ImkeyBleUpgradeCancel.into()),
+            "905A" => Ok(()),
             _ => Err(format_err!("imkey_command_execute_fail_{}", response_data)), //Err(ApduError::ImkeyCommandExecuteFail.into())
         }
     }
