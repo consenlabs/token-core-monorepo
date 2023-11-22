@@ -28,7 +28,7 @@ pub use keystore::{
     KeystoreGuard, Metadata, PrivateKeystore, Source,
 };
 
-pub use signer::{ChainSigner, HashSigner, MessageSigner, TransactionSigner};
+pub use signer::{ChainSigner, HashSigner, MessageSigner, Signer, TransactionSigner};
 
 pub type Result<T> = result::Result<T, failure::Error>;
 

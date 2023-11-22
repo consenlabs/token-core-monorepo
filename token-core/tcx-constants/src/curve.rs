@@ -23,4 +23,17 @@ impl CurveType {
             CurveType::BLS => "BLS",
         }
     }
+
+    pub fn from_str(value: &str) -> CurveType {
+        match value {
+            "SECP256k1" => CurveType::SECP256k1,
+            "ED25519" => CurveType::ED25519,
+            "ED25519Blake2bNano" => CurveType::ED25519Blake2bNano,
+            "SubSr25519" => CurveType::SubSr25519,
+            "Curve25519" => CurveType::Curve25519,
+            "NIST256p1" => CurveType::NIST256p1,
+            "BLS" => CurveType::BLS,
+            _ => panic!("Invalid curve type"),
+        }
+    }
 }

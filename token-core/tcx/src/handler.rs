@@ -12,6 +12,7 @@ use tcx_primitive::{get_account_path, private_key_without_version, FromHex, Type
 use tcx_btc_kin::WIFDisplay;
 use tcx_keystore::{
     key_hash_from_mnemonic, key_hash_from_private_key, ChainFactory, Keystore, KeystoreGuard,
+    Signer,
 };
 use tcx_keystore::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
 
@@ -23,16 +24,17 @@ use crate::api::sign_param::Key;
 use crate::api::{
     AccountResponse, AccountsResponse, CalcExternalAddressParam, CalcExternalAddressResult,
     DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DerivedKeyResult, EncryptDataToIpfsParam,
-    EncryptDataToIpfsResult, ExportPrivateKeyParam, GenerateMnemonicResult, HdStoreCreateParam,
-    HdStoreImportParam, IdentityResult, KeyType, KeystoreCommonAccountsParam,
-    KeystoreCommonDeriveParam, KeystoreCommonExistsParam, KeystoreCommonExistsResult,
-    KeystoreCommonExportResult, KeystoreMigrationParam, PrivateKeyStoreExportParam,
-    PrivateKeyStoreImportParam, PublicKeyParam, PublicKeyResult, RemoveWalletsParam,
+    EncryptDataToIpfsResult, ExportPrivateKeyParam, ExtendedPublicKeyParamPoc,
+    ExtendedPublicKeyResultPoc, GenerateMnemonicResult, HdStoreCreateParam, HdStoreImportParam,
+    IdentityResult, KeyType, KeystoreCommonAccountsParam, KeystoreCommonDeriveParam,
+    KeystoreCommonExistsParam, KeystoreCommonExistsResult, KeystoreCommonExportResult,
+    KeystoreMigrationParam, PrivateKeyStoreExportParam, PrivateKeyStoreImportParam, PublicKeyParam,
+    PublicKeyParamPoc, PublicKeyResult, PublicKeyResultPoc, RemoveWalletsParam,
     RemoveWalletsResult, Response, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
-    V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput, WalletKeyParam,
-    WalletResult, ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
-    ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam,
-    ZksyncSignMusigResult,
+    SignParamPoc, SignResultPoc, V3KeystoreExportInput, V3KeystoreExportOutput,
+    V3KeystoreImportInput, WalletKeyParam, WalletResult, ZksyncPrivateKeyFromSeedParam,
+    ZksyncPrivateKeyFromSeedResult, ZksyncPrivateKeyToPubkeyHashParam,
+    ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult,
 };
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
@@ -44,6 +46,7 @@ use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
 use crate::IS_DEBUG;
 use base58::ToBase58;
+use tcx_common::hex_to_bytes;
 
 use tcx_keystore::tcx_ensure;
 
@@ -714,6 +717,65 @@ pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
     };
 
     sign_transaction_internal(&param, guard.keystore_mut())
+}
+
+pub(crate) fn secp256k1_ecdsa_sign_recoverable_poc(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignParamPoc = SignParamPoc::decode(data).expect("SignParamPoc");
+
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(format_err!("{}", "wallet_not_found")),
+    }?;
+
+    let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+    let signature = guard
+        .keystore_mut()
+        .secp256k1_ecdsa_sign_recoverable(&hex_to_bytes(&param.hash)?, &param.derivation_path)?;
+    encode_message(SignResultPoc {
+        signature: hex::encode(signature),
+    })
+}
+
+pub(crate) fn get_public_key_poc(data: &[u8]) -> Result<Vec<u8>> {
+    let param: PublicKeyParamPoc = PublicKeyParamPoc::decode(data).expect("PublicKeyParamPoc");
+
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(format_err!("{}", "wallet_not_found")),
+    }?;
+
+    let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+    let public_key = guard
+        .keystore_mut()
+        .get_public_key(CurveType::from_str(&param.curve), &param.derivation_path)
+        .expect("PublicKeyProcessed");
+
+    encode_message(PublicKeyResultPoc {
+        public_key: hex::encode(public_key.to_bytes()),
+    })
+}
+
+pub(crate) fn get_extended_public_key_poc(data: &[u8]) -> Result<Vec<u8>> {
+    let param: ExtendedPublicKeyParamPoc =
+        ExtendedPublicKeyParamPoc::decode(data).expect("ExtendedPublicKeyParamPoc");
+
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(format_err!("{}", "wallet_not_found")),
+    }?;
+
+    let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+    let public_key = guard
+        .keystore_mut()
+        .get_deterministic_public_key(CurveType::from_str(&param.curve), &param.derivation_path)
+        .expect("ExtendedPublicKeyProcessed");
+
+    encode_message(ExtendedPublicKeyResultPoc {
+        extended_public_key: public_key.to_string(),
+    })
 }
 
 pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {

@@ -35,6 +35,60 @@ pub struct InitTokenCoreXParam {
     #[prost(bool, tag = "4")]
     pub is_debug: bool,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignParamPoc {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub hash: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub derivation_path: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignResultPoc {
+    #[prost(string, tag = "1")]
+    pub signature: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PublicKeyParamPoc {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub derivation_path: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub curve: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PublicKeyResultPoc {
+    #[prost(string, tag = "1")]
+    pub public_key: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExtendedPublicKeyParamPoc {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub derivation_path: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub curve: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExtendedPublicKeyResultPoc {
+    #[prost(string, tag = "1")]
+    pub extended_public_key: ::prost::alloc::string::String,
+}
 ///
 /// // FUNCTION: export_private_key(ExportPrivateKeyParam): KeystoreCommonExportResult
 /// //

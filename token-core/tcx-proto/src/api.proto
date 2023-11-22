@@ -31,6 +31,40 @@ message InitTokenCoreXParam {
     bool isDebug = 4;
 }
 
+message SignParamPoc {
+    string id = 1;
+    string password = 2;
+    string hash = 3;
+    string derivation_path = 4;
+}
+
+message SignResultPoc {
+    string signature = 1;
+}
+
+message PublicKeyParamPoc {
+    string id = 1;
+    string password = 2;
+    string derivation_path = 3;
+    string curve = 4;
+}
+
+message PublicKeyResultPoc {
+    string public_key = 1;
+}
+
+message ExtendedPublicKeyParamPoc {
+    string id = 1;
+    string password = 2;
+    string derivation_path = 3;
+    string curve = 4;
+}
+
+message ExtendedPublicKeyResultPoc {
+    string extended_public_key = 1;
+}
+
+
 //
 //// FUNCTION: export_private_key(ExportPrivateKeyParam): KeystoreCommonExportResult
 ////

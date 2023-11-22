@@ -1,6 +1,6 @@
 use super::Account;
 use super::{Address, Metadata};
-use tcx_constants::CoinInfo;
+use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::{Crypto, Key};
 
 use super::Error;
@@ -147,6 +147,12 @@ impl PrivateKeystore {
         };
 
         Ok(acc)
+    }
+
+    pub(crate) fn get_private_key_with_curve(&self, curve: CurveType) -> Result<TypedPrivateKey> {
+        tcx_ensure!(self.private_key.is_some(), Error::KeystoreLocked);
+        let vec = self.private_key.as_ref().unwrap().to_vec();
+        TypedPrivateKey::from_slice(curve, &vec)
     }
 
     pub(crate) fn private_key(&self) -> Result<String> {

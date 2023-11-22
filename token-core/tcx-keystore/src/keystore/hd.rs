@@ -26,6 +26,31 @@ struct Cache {
     keys: HashMap<String, TypedDeterministicPrivateKey>,
 }
 
+impl Cache {
+    fn get_cache_key(derivation_path: &str, curve: CurveType) -> String {
+        format!("{}-{}", derivation_path, curve.as_str())
+    }
+
+    pub fn get_or_insert<F>(
+        &mut self,
+        key: &str,
+        curve: CurveType,
+        f: F,
+    ) -> Result<TypedDeterministicPrivateKey>
+    where
+        F: FnOnce() -> Result<TypedDeterministicPrivateKey>,
+    {
+        let cache_key = Cache::get_cache_key(key, curve);
+        if self.keys.contains_key(&cache_key) {
+            Ok(self.keys[key].clone())
+        } else {
+            let k = f()?;
+            self.keys.insert(cache_key, k.clone());
+            Ok(k)
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct HdKeystore {
     store: Store,
@@ -127,6 +152,55 @@ impl HdKeystore {
             .ok_or(Error::AccountNotFound)?;
 
         TypedDeterministicPublicKey::from_hex(account.curve, &account.ext_pub_key)
+    }
+
+    pub(crate) fn get_deterministic_public_key(
+        &mut self,
+        curve: CurveType,
+        derivation_path: &str,
+    ) -> Result<TypedDeterministicPublicKey> {
+        let cache = self.cache.as_mut().ok_or(Error::KeystoreLocked)?;
+        let mnemonic = cache.mnemonic.clone();
+
+        //todo cache account derived key for performance
+        cache
+            .get_or_insert(derivation_path, curve, || {
+                let root = TypedDeterministicPrivateKey::from_mnemonic(curve, &mnemonic)?;
+                root.derive(derivation_path)
+            })
+            .map(|k| k.deterministic_public_key())
+    }
+
+    pub(crate) fn get_deterministic_private_key(
+        &mut self,
+        curve: CurveType,
+        derivation_path: &str,
+    ) -> Result<TypedDeterministicPrivateKey> {
+        let cache = self.cache.as_mut().ok_or(Error::KeystoreLocked)?;
+        let mnemonic = cache.mnemonic.clone();
+
+        //todo cache account derived key for performance
+        cache.get_or_insert(derivation_path, curve, || {
+            let root = TypedDeterministicPrivateKey::from_mnemonic(curve, &mnemonic)?;
+            root.derive(derivation_path)
+        })
+    }
+
+    pub(crate) fn get_private_key_by_derivation_path(
+        &mut self,
+        curve: CurveType,
+        derivation_path: &str,
+    ) -> Result<TypedPrivateKey> {
+        let cache = self.cache.as_mut().ok_or(Error::KeystoreLocked)?;
+        let mnemonic = cache.mnemonic.clone();
+
+        //todo cache account derived key for performance
+        cache
+            .get_or_insert(derivation_path, curve, || {
+                let root = TypedDeterministicPrivateKey::from_mnemonic(curve, &mnemonic)?;
+                root.derive(derivation_path)
+            })
+            .map(|k| k.private_key())
     }
 
     pub(crate) fn find_private_key_by_path(

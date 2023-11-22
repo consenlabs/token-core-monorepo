@@ -15,6 +15,18 @@ pub trait HashSigner {
     fn sign(&self, ks: &mut Keystore, symbol: &str, address: &str, hash: &[u8]) -> Result<Vec<u8>>;
 }
 
+pub trait Signer {
+    fn secp256k1_ecdsa_sign_recoverable(
+        &mut self,
+        hash: &[u8],
+        derivation_path: &str,
+    ) -> Result<Vec<u8>>;
+
+    fn bls_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>>;
+
+    fn schnorr_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>>;
+}
+
 pub trait ChainSigner {
     fn sign_recoverable_hash(
         &mut self,

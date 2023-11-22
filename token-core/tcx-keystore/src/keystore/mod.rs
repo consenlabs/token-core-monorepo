@@ -1,4 +1,4 @@
-use super::Result;
+use super::{Result, Signer};
 use std::fmt;
 use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -386,14 +386,31 @@ impl Keystore {
         }
     }
 
-    /*
-    pub fn find_public_key(&mut self, symbol: &str, address:&str) -> Result<TypedPublicKey> {
+    pub fn get_public_key(
+        &mut self,
+        curve: CurveType,
+        derivation_path: &str,
+    ) -> Result<TypedPublicKey> {
+        let private_key = match self {
+            Keystore::PrivateKey(ks) => ks.get_private_key_with_curve(CurveType::SECP256k1)?,
+            Keystore::Hd(ks) => {
+                ks.get_private_key_by_derivation_path(CurveType::SECP256k1, derivation_path)?
+            }
+        };
+
+        Ok(private_key.public_key())
+    }
+
+    pub fn get_deterministic_public_key(
+        &mut self,
+        curve: CurveType,
+        derivation_path: &str,
+    ) -> Result<TypedDeterministicPublicKey> {
         match self {
-            Keystore::Hd(ks) => ks.find_public_key(symbol, address),
+            Keystore::Hd(ks) => ks.get_deterministic_public_key(curve, derivation_path),
             _ => Err(Error::CannotDeriveKey.into()),
         }
     }
-    */
 
     pub fn find_deterministic_public_key(
         &mut self,
@@ -452,6 +469,31 @@ impl Keystore {
             Keystore::PrivateKey(ks) => serde_json::to_string(ks.store()).unwrap(),
             Keystore::Hd(ks) => serde_json::to_string(ks.store()).unwrap(),
         }
+    }
+}
+
+impl Signer for Keystore {
+    fn secp256k1_ecdsa_sign_recoverable(
+        &mut self,
+        hash: &[u8],
+        derivation_path: &str,
+    ) -> Result<Vec<u8>> {
+        let private_key = match self {
+            Keystore::PrivateKey(ks) => ks.get_private_key_with_curve(CurveType::SECP256k1)?,
+            Keystore::Hd(ks) => {
+                ks.get_private_key_by_derivation_path(CurveType::SECP256k1, derivation_path)?
+            }
+        };
+
+        private_key.sign_recoverable(hash)
+    }
+
+    fn bls_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>> {
+        todo!()
+    }
+
+    fn schnorr_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>> {
+        todo!()
     }
 }
 
