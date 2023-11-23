@@ -318,6 +318,7 @@ mod tests {
     use std::str::FromStr;
 
     use crate::{Keystore, Source};
+    use bitcoin_hashes::hex::ToHex;
     use std::string::ToString;
     use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_primitive::TypedPublicKey;
@@ -514,6 +515,23 @@ mod tests {
     //            hex::encode(seed)
     //        );
     //    }
+
+    #[test]
+    fn get_private_key_by_derivation_path() {
+        let mut keystore =
+            HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+
+        let public_key = keystore
+            .get_private_key_by_derivation_path(CurveType::SECP256k1, "m/44'/118'/0'/0/0'")
+            .unwrap();
+
+        assert_eq!(
+            "49389a85697c8e5ce78fe04d4f6bbf691216ef22101120c73853ba9e4d3105d0",
+            public_key.to_bytes().to_hex()
+        );
+    }
 
     #[test]
     fn derive_key_at_paths() {
