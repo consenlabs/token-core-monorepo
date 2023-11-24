@@ -4,9 +4,7 @@ use schnorrkel::SecretKey;
 use std::convert::TryFrom;
 
 use sp_core::sr25519::{Pair, Public};
-use sp_core::{Pair as TraitPair, Public as TraitPublic};
-
-//use sp_core::crypto::Ss58Codec;
+use sp_core::Pair as TraitPair;
 
 #[derive(Clone)]
 pub struct Sr25519PublicKey(pub Public);

@@ -1,9 +1,7 @@
+use crate::api::{AddressParam, AddressResult, PubKeyParam, PubKeyResult};
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use coin_cosmos::address::CosmosAddress;
-
-use crate::api::{AddressParam, AddressResult, PubKeyParam, PubKeyResult};
-use prost::Message;
 
 pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
     let address = CosmosAddress::get_address(&param.path)?;

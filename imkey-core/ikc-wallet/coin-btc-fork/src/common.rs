@@ -6,14 +6,11 @@ use bitcoin::util::base58;
 use bitcoin::util::bip32::{ChainCode, ChildNumber, ExtendedPubKey};
 use bitcoin::Network;
 use bitcoin::{Address, PublicKey};
-use bitcoin_hashes::hex::ToHex;
-use bitcoin_hashes::sha256d::Hash as Hash256;
-use bitcoin_hashes::Hash;
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
 use ikc_common::utility::sha256_hash;
 use ikc_transport::message::send_apdu;
-use secp256k1::{Message, PublicKey as Secp256k1PublicKey, Secp256k1, Signature};
+use secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use std::convert::TryFrom;
 use std::str::FromStr;
 
@@ -110,13 +107,15 @@ pub fn secp256k1_sign_verify(public: &[u8], signed: &[u8], message: &[u8]) -> Re
     let mut sig_obj = Signature::from_der(signed)?;
     sig_obj.normalize_s();
     //verify
-    Ok(secp.verify(&message_obj, &sig_obj, &public_obj).is_ok())
+    Ok(secp
+        .verify_ecdsa(&message_obj, &sig_obj, &public_obj)
+        .is_ok())
 }
 
 /**
 get address version
 */
-pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
+pub fn get_address_version(_network: Network, address: &str) -> Result<u8> {
     let address_bytes = base58::from(address)?;
     Ok(address_bytes.as_slice()[0])
 }

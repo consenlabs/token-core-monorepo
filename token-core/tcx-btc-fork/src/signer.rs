@@ -1,10 +1,6 @@
 use tcx_chain::{Keystore, TransactionSigner};
 
-use bitcoin::{
-    LockTime, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn, TxOut, Witness,
-};
-// use bitcoin_hashes::sha256d::Hash as Hash256;
-// use bitcoin_hashes::{sha256d, Hash};
+use bitcoin::{OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn, TxOut, Witness};
 use bitcoin_hashes::Hash;
 
 use crate::Result;

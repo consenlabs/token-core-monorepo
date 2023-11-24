@@ -1,7 +1,5 @@
 use crate::Result;
-// use bech32::bech32::Bech32;
 use bech32::{encode, ToBase32, Variant};
-use bitcoin::bech32::convert_bits;
 use bitcoin_hashes::hex::{FromHex, ToHex};
 use bitcoin_hashes::{hash160, Hash};
 use hex;

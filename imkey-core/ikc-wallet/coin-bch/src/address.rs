@@ -61,7 +61,7 @@ impl BchAddress {
         }
     }
 
-    pub fn get_pub_key(network: Network, path: &str) -> Result<String> {
+    pub fn get_pub_key(_network: Network, path: &str) -> Result<String> {
         //path check
         check_path_validity(path)?;
 

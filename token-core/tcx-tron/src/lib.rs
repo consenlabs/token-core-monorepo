@@ -4,7 +4,7 @@ pub mod transaction;
 
 pub use crate::address::Address as TrxAddress;
 
-use sha3::{Digest, Keccak256, Sha3_256};
+use sha3::{Digest, Keccak256};
 
 pub fn keccak(bytes: &[u8]) -> Vec<u8> {
     let mut hasher = Keccak256::new();

@@ -2,9 +2,7 @@ use crate::hex_to_bytes;
 use lazy_static::lazy_static;
 use ssz_rs::prelude::*;
 use ssz_rs::{Node, Vector};
-use std::collections::HashMap;
-use std::convert::{TryFrom, TryInto};
-use std::str::FromStr;
+use std::convert::TryFrom;
 
 const DOMAIN_LEN: usize = 32;
 const DOMAIN_TYPE_LEN: usize = 4;
@@ -118,8 +116,6 @@ pub struct BLSToExecutionRequest {
 #[cfg(test)]
 mod test {
     use crate::bls_to_execution_change::BLSToExecutionRequest;
-    use crate::transaction::SignBlsToExecutionChangeParam;
-    use tcx_chain::Keystore;
 
     #[test]
     fn test_generate_bls_to_execution_change_hash() {

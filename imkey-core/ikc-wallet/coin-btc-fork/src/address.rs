@@ -18,8 +18,6 @@ use ikc_common::path::check_path_validity;
 use bech32::{u5, ToBase32, Variant};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-// use bitcoin::hashes::Hash;
-use ikc_common::utility::hex_to_bytes;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BtcForkAddress {
@@ -272,7 +270,7 @@ impl FromStr for BtcForkAddress {
                     Payload::ScriptHash(ScriptHash::from_slice(&data[1..]).unwrap()),
                 )
             }
-            x => {
+            _ => {
                 return Err(CoinError::InvalidVersion.into());
             }
         };
@@ -306,7 +304,7 @@ impl Display for BtcForkAddress {
                     &mut bech32_writer,
                     u5::try_from_u8(ver.to_num()).unwrap(),
                 )?;
-                bech32::ToBase32::write_base32(&prog, &mut bech32_writer)
+                ToBase32::write_base32(&prog, &mut bech32_writer)
             }
         }
     }

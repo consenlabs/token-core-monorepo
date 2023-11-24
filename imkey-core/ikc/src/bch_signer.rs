@@ -1,10 +1,8 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use bitcoin::Network;
-
 use coin_bch::transaction::{BchTransaction, Utxo};
 use coin_btc_fork::btcforkapi::{BtcForkTxInput, BtcForkTxOutput};
-use ikc_common::utility::hex_to_bytes;
 use ikc_common::SignParam;
 use prost::Message;
 
