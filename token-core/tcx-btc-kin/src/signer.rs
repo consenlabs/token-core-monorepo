@@ -19,7 +19,7 @@ use byteorder::{BigEndian, WriteBytesExt};
 use secp256k1::{Message, Secp256k1};
 
 use tcx_keystore::keystore::Error as KeystoreError;
-use tcx_keystore::Address;
+use tcx_keystore::{Address, SignatureParameters};
 use tcx_keystore::{Keystore, TransactionSigner};
 use tcx_primitive::{Derive, PrivateKey, PublicKey, Secp256k1PrivateKey, TypedPrivateKey};
 
@@ -236,16 +236,10 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
     pub fn prepare_tx(
         &self,
         keystore: &mut Keystore,
-        symbol: &str,
-        address: &str,
+        sign_context: &SignatureParameters,
     ) -> Result<(Script, Vec<Secp256k1PrivateKey>, i32, Vec<TxOut>, Vec<TxIn>)> {
         let mut prevouts = vec![];
         let mut tx_inputs: Vec<TxIn> = vec![];
-
-        let account = keystore
-            .account(symbol, address)
-            .ok_or(KeystoreError::AccountNotFound)?;
-        let coin_info = account.coin_info();
 
         if self.inputs.len() == 0 {
             return Err(Error::InvalidUtxo.into());
@@ -352,8 +346,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
     pub fn sign(
         &self,
         keystore: &mut Keystore,
-        coin: &str,
-        address: &str,
+        sign_context: &SignatureParameters,
     ) -> Result<BtcKinTxOutput> {
         let (change_script, private_keys, version, prevouts, tx_inputs) =
             self.prepare_tx(keystore, coin, address)?;
@@ -407,11 +400,10 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
 impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
     fn sign_transaction(
         &mut self,
-        symbol: &str,
-        address: &str,
+        sign_context: &SignatureParameters,
         tx: &BtcKinTxInput,
     ) -> Result<BtcKinTxOutput> {
-        if symbol == BITCOINCASH {
+        if sign_context.chain_type == BITCOINCASH {
             let kin_tx = KinTransaction {
                 inputs: tx.inputs.clone(),
                 amount: tx.amount,
@@ -421,7 +413,7 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
                 op_return: tx.op_return.clone(),
                 phantom: PhantomData::<BchAddress>,
             };
-            kin_tx.sign(self, symbol, address)
+            kin_tx.sign(self, sign_context)
         } else {
             let kin_tx = KinTransaction {
                 inputs: tx.inputs.clone(),
@@ -432,7 +424,7 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
                 op_return: tx.op_return.clone(),
                 phantom: PhantomData::<BtcKinAddress>,
             };
-            kin_tx.sign(self, symbol, address)
+            kin_tx.sign(self, sign_context)
         }
     }
 }

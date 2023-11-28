@@ -1,13 +1,20 @@
 use crate::{Keystore, Result};
+use tcx_constants::CurveType;
+
+pub struct SignatureParameters {
+    pub curve: CurveType,
+    pub derivation_path: String,
+    pub chain_type: String,
+}
 
 pub trait TransactionSigner<Input, Output> {
-    fn sign_transaction(&mut self, symbol: &str, address: &str, tx: &Input) -> Result<Output>;
+    fn sign_transaction(&mut self, params: &SignatureParameters, tx: &Input) -> Result<Output>;
 }
 
 //pub trait Message: Sized {}
 //pub trait SignedMessage: Sized {}
 pub trait MessageSigner<Input, Output> {
-    fn sign_message(&mut self, symbol: &str, address: &str, message: &Input) -> Result<Output>;
+    fn sign_message(&mut self, params: &SignatureParameters, message: &Input) -> Result<Output>;
 }
 
 // The ec_sign
@@ -31,25 +38,22 @@ pub trait ChainSigner {
     fn sign_recoverable_hash(
         &mut self,
         data: &[u8],
-        symbol: &str,
-        address: &str,
-        path: Option<&str>,
+        curve: CurveType,
+        derivation_path: &str,
     ) -> Result<Vec<u8>>;
 
     fn sign_hash(
         &mut self,
         data: &[u8],
-        symbol: &str,
-        address: &str,
-        path: Option<&str>,
+        curve: CurveType,
+        derivation_path: &str,
     ) -> Result<Vec<u8>>;
 
     fn sign_specified_hash(
         &mut self,
         data: &[u8],
-        symbol: &str,
-        address: &str,
-        path: Option<&str>,
+        curve: CurveType,
+        derivation_path: &str,
         dst: &str,
     ) -> Result<Vec<u8>>;
 }

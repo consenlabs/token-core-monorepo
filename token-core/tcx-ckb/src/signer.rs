@@ -1,4 +1,4 @@
-use tcx_keystore::{Keystore, Result, TransactionSigner};
+use tcx_keystore::{Keystore, Result, SignatureParameters, Signer, TransactionSigner};
 
 use crate::hash::new_blake2b;
 use crate::serializer::Serializer;
@@ -8,11 +8,11 @@ use std::collections::HashMap;
 use tcx_keystore::ChainSigner;
 
 use lazy_static::lazy_static;
+use tcx_constants::CurveType;
 
 pub struct CkbTxSigner<'a> {
-    ks: &'a mut dyn ChainSigner,
-    symbol: &'a str,
-    address: &'a str,
+    ks: &'a mut Keystore,
+    sign_context: &'a SignatureParameters,
 }
 
 lazy_static! {
@@ -96,15 +96,14 @@ impl<'a> CkbTxSigner<'a> {
 
         let opt_path = if path.len() > 0 { Some(path) } else { None };
 
-        empty_witness.lock = format!(
-            "0x{}",
-            hex::encode(self.ks.sign_recoverable_hash(
-                &result,
-                self.symbol,
-                self.address,
-                opt_path
-            )?)
-        );
+        empty_witness.lock =
+            format!(
+                "0x{}",
+                hex::encode(self.ks.secp256k1_ecdsa_sign_recoverable(
+                    &result,
+                    &self.sign_context.derivation_path
+                )?)
+            );
 
         Ok(empty_witness)
     }
@@ -137,8 +136,7 @@ impl<'a> CkbTxSigner<'a> {
 impl TransactionSigner<CkbTxInput, CkbTxOutput> for Keystore {
     fn sign_transaction(
         &mut self,
-        symbol: &str,
-        address: &str,
+        params: &SignatureParameters,
         tx: &CkbTxInput,
     ) -> Result<CkbTxOutput> {
         if tx.witnesses.len() == 0 {
@@ -174,8 +172,7 @@ impl TransactionSigner<CkbTxInput, CkbTxOutput> for Keystore {
 
         let mut signer = CkbTxSigner {
             ks: self,
-            symbol,
-            address,
+            sign_context: params,
         };
 
         let signed_witnesses =

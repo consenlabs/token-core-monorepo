@@ -130,30 +130,6 @@ impl HdKeystore {
         Ok(cache.mnemonic.to_string())
     }
 
-    pub(crate) fn find_private_key(&self, symbol: &str, address: &str) -> Result<TypedPrivateKey> {
-        let cache = self.cache.as_ref().ok_or(Error::KeystoreLocked)?;
-
-        let account = self
-            .account(symbol, address)
-            .ok_or(Error::AccountNotFound)?;
-
-        let root = TypedDeterministicPrivateKey::from_mnemonic(account.curve, &cache.mnemonic)?;
-
-        Ok(root.derive(&account.derivation_path)?.private_key())
-    }
-
-    pub(crate) fn find_deterministic_public_key(
-        &mut self,
-        symbol: &str,
-        address: &str,
-    ) -> Result<TypedDeterministicPublicKey> {
-        let account = self
-            .account(symbol, address)
-            .ok_or(Error::AccountNotFound)?;
-
-        TypedDeterministicPublicKey::from_hex(account.curve, &account.ext_pub_key)
-    }
-
     pub(crate) fn get_deterministic_public_key(
         &mut self,
         curve: CurveType,
@@ -186,7 +162,7 @@ impl HdKeystore {
         })
     }
 
-    pub(crate) fn get_private_key_by_derivation_path(
+    pub(crate) fn get_private_key(
         &mut self,
         curve: CurveType,
         derivation_path: &str,
@@ -203,6 +179,7 @@ impl HdKeystore {
             .map(|k| k.private_key())
     }
 
+    /*
     pub(crate) fn find_private_key_by_path(
         &mut self,
         symbol: &str,
@@ -231,6 +208,7 @@ impl HdKeystore {
 
         Ok(esk.derive(relative_path)?.private_key())
     }
+     */
 
     pub fn new(password: &str, meta: Metadata) -> HdKeystore {
         let mnemonic = generate_mnemonic();
@@ -252,7 +230,6 @@ impl HdKeystore {
                 crypto,
                 id: Uuid::new_v4().as_hyphenated().to_string(),
                 version: Self::VERSION,
-                active_accounts: vec![],
                 meta,
                 identity: Some(identity),
             },
@@ -290,16 +267,7 @@ impl HdKeystore {
             public_key: Some(hex::encode(public_key.to_bytes())),
         };
 
-        if let Some(account) = self.account(&account.coin, &account.address) {
-            return Ok(account.clone());
-        } else {
-            self.store.active_accounts.push(account.clone());
-            Ok(account)
-        }
-    }
-
-    pub(crate) fn account(&self, symbol: &str, address: &str) -> Option<&Account> {
-        self.store.account(symbol, address)
+        return Ok(account.clone());
     }
 
     pub fn identity(&self) -> Option<&Identity> {
@@ -363,7 +331,6 @@ mod tests {
 
         assert_eq!(store.version, 11000);
         assert_ne!(store.id, "");
-        assert_eq!(store.active_accounts.len(), 0);
     }
 
     #[test]
@@ -461,15 +428,6 @@ mod tests {
         };
 
         assert_eq!(acc, expected);
-        assert_eq!(
-            keystore
-                .account(
-                    "BITCOIN",
-                    "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868"
-                )
-                .unwrap(),
-            &expected
-        );
     }
 
     #[test]
@@ -487,7 +445,6 @@ mod tests {
             .unwrap();
         let decrypted_mnemonic = String::from_utf8(decrypted_bytes).unwrap();
         assert_eq!(decrypted_mnemonic, TEST_MNEMONIC);
-        assert_eq!(keystore.store.active_accounts.len(), 0);
 
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
 
@@ -560,15 +517,5 @@ mod tests {
         };
 
         assert_eq!(acc, expected);
-        assert_eq!(
-            keystore
-                .account(
-                    "BITCOIN",
-                    "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868"
-                )
-                .unwrap(),
-            &expected
-        );
-        assert_eq!(keystore.store.active_accounts.len(), 1);
     }
 }

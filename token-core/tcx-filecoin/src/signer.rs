@@ -10,7 +10,7 @@ use num_bigint_chainsafe::BigInt;
 use std::convert::TryFrom;
 use std::str::FromStr;
 use tcx_constants::CurveType;
-use tcx_keystore::{ChainSigner, Keystore, Result, TransactionSigner};
+use tcx_keystore::{ChainSigner, Keystore, Result, SignatureParameters, Signer, TransactionSigner};
 
 impl TryFrom<&UnsignedMessage> for ForestUnsignedMessage {
     type Error = crate::Error;
@@ -51,29 +51,21 @@ impl TryFrom<&UnsignedMessage> for ForestUnsignedMessage {
 impl TransactionSigner<UnsignedMessage, SignedMessage> for Keystore {
     fn sign_transaction(
         &mut self,
-        symbol: &str,
-        address: &str,
+        sign_context: &SignatureParameters,
         tx: &UnsignedMessage,
     ) -> Result<SignedMessage> {
         let unsigned_message = forest_message::UnsignedMessage::try_from(tx)?;
 
-        let account = self.account(symbol, address);
         let signature_type;
-
-        if account.is_none() {
-            return Err(Error::CannotFoundAccount.into());
-        }
 
         let signature;
         let mut cid: Cid = unsigned_message.cid()?;
-        match account.unwrap().curve {
+        match sign_context.curve {
             CurveType::SECP256k1 => {
                 signature_type = 1;
-                signature = self.sign_recoverable_hash(
+                signature = self.secp256k1_ecdsa_sign_recoverable(
                     &digest(&cid.to_bytes(), HashSize::Default),
-                    symbol,
-                    address,
-                    None,
+                    &sign_context.derivation_path,
                 )?;
 
                 let forest_sig = forest_crypto::Signature::new_secp256k1(signature.clone());
@@ -87,7 +79,7 @@ impl TransactionSigner<UnsignedMessage, SignedMessage> for Keystore {
             }
             CurveType::BLS => {
                 signature_type = 2;
-                signature = self.sign_hash(&cid.to_bytes(), symbol, address, None)?;
+                signature = self.bls_sign(&cid.to_bytes(), &sign_context.derivation_path)?;
                 cid = unsigned_message.cid()?;
             }
             _ => return Err(Error::InvalidCurveType.into()),

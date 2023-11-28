@@ -29,18 +29,9 @@ pub struct Store {
     pub key_hash: String,
     pub crypto: Crypto,
     pub identity: Option<Identity>,
-    pub active_accounts: Vec<Account>,
 
     #[serde(rename = "imTokenMeta")]
     pub meta: Metadata,
-}
-
-impl Store {
-    pub fn account(&self, coin: &str, address: &str) -> Option<&Account> {
-        self.active_accounts
-            .iter()
-            .find(|a| a.coin == coin && a.address == address)
-    }
 }
 
 #[derive(Fail, Debug, PartialEq)]
@@ -202,22 +193,6 @@ pub enum Keystore {
 }
 
 impl Keystore {
-    pub fn merge(&mut self, other: &Keystore) -> Result<()> {
-        if self.key_hash() != other.key_hash() {
-            return Err(Error::MergeWithDifferentKey.into());
-        }
-
-        let store = self.store_mut();
-
-        for account in other.accounts() {
-            if store.account(&account.coin, &account.address).is_none() {
-                store.active_accounts.push(account.clone());
-            }
-        }
-
-        Ok(())
-    }
-
     pub fn from_private_key(private_key: &str, password: &str, meta: Metadata) -> Keystore {
         Keystore::PrivateKey(PrivateKeystore::from_private_key(
             private_key,
@@ -318,31 +293,6 @@ impl Keystore {
         }
     }
 
-    pub fn export_private_key(
-        &mut self,
-        coin: &str,
-        main_address: &str,
-        path: Option<&str>,
-    ) -> Result<String> {
-        match self {
-            Keystore::PrivateKey(pk_store) => {
-                let _ = pk_store
-                    .account(coin, main_address)
-                    .ok_or(Error::AccountNotFound)?;
-                pk_store.private_key()
-            }
-            Keystore::Hd(hd_store) => {
-                let typed_pk = if let Some(path) = path {
-                    hd_store.find_private_key_by_path(coin, main_address, path)?
-                } else {
-                    hd_store.find_private_key(coin, main_address)?
-                };
-
-                Ok(hex::encode(typed_pk.to_bytes()))
-            }
-        }
-    }
-
     pub fn lock(&mut self) {
         match self {
             Keystore::PrivateKey(ks) => ks.lock(),
@@ -367,22 +317,14 @@ impl Keystore {
         Ok(accounts)
     }
 
-    pub fn find_private_key(&mut self, symbol: &str, address: &str) -> Result<TypedPrivateKey> {
-        match self {
-            Keystore::PrivateKey(ks) => ks.find_private_key(address),
-            Keystore::Hd(ks) => ks.find_private_key(symbol, address),
-        }
-    }
-
-    pub fn find_private_key_by_path(
+    pub fn get_private_key(
         &mut self,
-        symbol: &str,
-        address: &str,
-        path: &str,
+        curve: CurveType,
+        derivation_path: &str,
     ) -> Result<TypedPrivateKey> {
         match self {
-            Keystore::Hd(ks) => ks.find_private_key_by_path(symbol, address, path),
-            Keystore::PrivateKey(ks) => ks.find_private_key(address),
+            Keystore::PrivateKey(ks) => ks.get_private_key(curve),
+            Keystore::Hd(ks) => ks.get_private_key(curve, derivation_path),
         }
     }
 
@@ -392,10 +334,8 @@ impl Keystore {
         derivation_path: &str,
     ) -> Result<TypedPublicKey> {
         let private_key = match self {
-            Keystore::PrivateKey(ks) => ks.get_private_key_with_curve(CurveType::SECP256k1)?,
-            Keystore::Hd(ks) => {
-                ks.get_private_key_by_derivation_path(CurveType::SECP256k1, derivation_path)?
-            }
+            Keystore::PrivateKey(ks) => ks.get_private_key(curve)?,
+            Keystore::Hd(ks) => ks.get_private_key(curve, derivation_path)?,
         };
 
         Ok(private_key.public_key())
@@ -414,11 +354,11 @@ impl Keystore {
 
     pub fn find_deterministic_public_key(
         &mut self,
-        symbol: &str,
-        address: &str,
+        curve: CurveType,
+        derivation_path: &str,
     ) -> Result<TypedDeterministicPublicKey> {
         match self {
-            Keystore::Hd(ks) => ks.find_deterministic_public_key(symbol, address),
+            Keystore::Hd(ks) => ks.get_deterministic_public_key(curve, derivation_path),
             _ => Err(Error::CannotDeriveKey.into()),
         }
     }
@@ -427,20 +367,6 @@ impl Keystore {
         match self {
             Keystore::Hd(ks) => ks.store().identity.as_ref(),
             Keystore::PrivateKey(_) => None,
-        }
-    }
-
-    pub fn account(&self, symbol: &str, address: &str) -> Option<&Account> {
-        match self {
-            Keystore::PrivateKey(ks) => ks.account(symbol, address),
-            Keystore::Hd(ks) => ks.account(symbol, address),
-        }
-    }
-
-    pub fn accounts(&self) -> &[Account] {
-        match self {
-            Keystore::PrivateKey(ks) => ks.store().active_accounts.as_slice(),
-            Keystore::Hd(ks) => ks.store().active_accounts.as_slice(),
         }
     }
 
@@ -479,10 +405,8 @@ impl Signer for Keystore {
         derivation_path: &str,
     ) -> Result<Vec<u8>> {
         let private_key = match self {
-            Keystore::PrivateKey(ks) => ks.get_private_key_with_curve(CurveType::SECP256k1)?,
-            Keystore::Hd(ks) => {
-                ks.get_private_key_by_derivation_path(CurveType::SECP256k1, derivation_path)?
-            }
+            Keystore::PrivateKey(ks) => ks.get_private_key(CurveType::SECP256k1)?,
+            Keystore::Hd(ks) => ks.get_private_key(CurveType::SECP256k1, derivation_path)?,
         };
 
         private_key.sign_recoverable(hash)
@@ -501,49 +425,31 @@ impl ChainSigner for Keystore {
     fn sign_recoverable_hash(
         &mut self,
         data: &[u8],
-        symbol: &str,
-        address: &str,
-        path: Option<&str>,
+        curve: CurveType,
+        derivation_path: &str,
     ) -> Result<Vec<u8>> {
-        let private_key = if path.is_some() {
-            self.find_private_key_by_path(symbol, address, path.unwrap())?
-        } else {
-            self.find_private_key(symbol, address)?
-        };
-        private_key.sign_recoverable(data)
+        self.get_private_key(curve, derivation_path)?
+            .sign_recoverable(data)
     }
 
     fn sign_hash(
         &mut self,
         data: &[u8],
-        symbol: &str,
-        address: &str,
-        path: Option<&str>,
+        curve: CurveType,
+        derivation_path: &str,
     ) -> Result<Vec<u8>> {
-        let private_key = if path.is_some() {
-            self.find_private_key_by_path(symbol, address, path.unwrap())?
-        } else {
-            self.find_private_key(symbol, address)?
-        };
-
-        private_key.sign(data)
+        self.get_private_key(curve, derivation_path)?.sign(data)
     }
 
     fn sign_specified_hash(
         &mut self,
         data: &[u8],
-        symbol: &str,
-        address: &str,
-        path: Option<&str>,
+        curve: CurveType,
+        derivation_path: &str,
         dst: &str,
     ) -> Result<Vec<u8>> {
-        let private_key = if path.is_some() {
-            self.find_private_key_by_path(symbol, address, path.unwrap())?
-        } else {
-            self.find_private_key(symbol, address)?
-        };
-
-        private_key.sign_specified_hash(data, dst)
+        self.get_private_key(curve, derivation_path)?
+            .sign_specified_hash(data, dst)
     }
 }
 

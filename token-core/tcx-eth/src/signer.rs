@@ -12,16 +12,17 @@ use ethers::utils::{hash_message, keccak256};
 use keccak_hash::keccak;
 use std::str::FromStr;
 use tcx_common::{hex_to_bytes, utf8_or_hex_to_bytes};
-use tcx_keystore::{Keystore, MessageSigner, TransactionSigner};
+use tcx_constants::CurveType;
+use tcx_keystore::{Keystore, MessageSigner, SignatureParameters, TransactionSigner};
 
 impl TransactionSigner<EthTxInput, EthTxOutput> for Keystore {
     fn sign_transaction(
         &mut self,
-        symbol: &str,
-        address: &str,
+        sign_context: &SignatureParameters,
         tx: &EthTxInput,
     ) -> tcx_keystore::Result<EthTxOutput> {
-        let private_key = self.find_private_key(symbol, address)?;
+        let private_key =
+            self.get_private_key(sign_context.curve, &sign_context.derivation_path)?;
         tx.sign_transaction(&private_key.to_bytes())
     }
 }
@@ -29,11 +30,11 @@ impl TransactionSigner<EthTxInput, EthTxOutput> for Keystore {
 impl MessageSigner<EthMessageInput, EthMessageOutput> for Keystore {
     fn sign_message(
         &mut self,
-        symbol: &str,
-        address: &str,
+        sign_context: &SignatureParameters,
         message: &EthMessageInput,
     ) -> tcx_keystore::Result<EthMessageOutput> {
-        let private_key = self.find_private_key(symbol, address)?;
+        let private_key =
+            self.get_private_key(sign_context.curve, &sign_context.derivation_path)?;
         if message.signature_type == SignatureType::PersonalSign as i32 {
             message.sign_message(&private_key.to_bytes())
         } else {

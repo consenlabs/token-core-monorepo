@@ -61,44 +61,22 @@ impl PrivateKeystore {
         self.private_key.is_none()
     }
 
-    pub(crate) fn find_private_key(&self, address: &str) -> Result<TypedPrivateKey> {
+    pub(crate) fn get_private_key(&self, curve: CurveType) -> Result<TypedPrivateKey> {
         tcx_ensure!(self.private_key.is_some(), Error::KeystoreLocked);
-
-        let account = self
-            .store
-            .active_accounts
-            .iter()
-            .find(|acc| acc.address == address)
-            .ok_or(Error::AccountNotFound)?;
 
         let private_key = self.private_key.as_ref().unwrap().as_slice();
 
-        TypedPrivateKey::from_slice(account.curve, private_key)
+        TypedPrivateKey::from_slice(curve, private_key)
     }
 
     pub(crate) fn derive_coin<A: Address>(&mut self, coin_info: &CoinInfo) -> Result<Account> {
         tcx_ensure!(self.private_key.is_some(), Error::KeystoreLocked);
 
-        if self.store.active_accounts.len() > 0
-            && self.store.active_accounts[0].curve != coin_info.curve
-        {
-            return Err(Error::PkstoreCannotAddOtherCurveAccount.into());
-        }
-
         let sk = self.private_key.as_ref().unwrap();
 
         let account = Self::private_key_to_account::<A>(coin_info, sk)?;
-        if let Some(account) = self.account(&account.coin, &account.address) {
-            Ok(account.clone())
-        } else {
-            self.store.active_accounts.push(account.clone());
-            Ok(account)
-        }
-    }
 
-    /// Find an account by coin symbol
-    pub(crate) fn account(&self, symbol: &str, address: &str) -> Option<&Account> {
-        self.store.account(symbol, address)
+        Ok(account)
     }
 
     pub(crate) fn verify_password(&self, password: &str) -> bool {
@@ -117,7 +95,6 @@ impl PrivateKeystore {
             meta,
             id: Uuid::new_v4().as_hyphenated().to_string(),
             version: PrivateKeystore::VERSION,
-            active_accounts: vec![],
             identity: None,
         };
 
@@ -185,6 +162,5 @@ mod tests {
         );
         assert_eq!(keystore.store.version, 11001);
         assert_ne!(keystore.store.id, "");
-        assert_eq!(keystore.store.active_accounts.len(), 0);
     }
 }

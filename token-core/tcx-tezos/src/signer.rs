@@ -1,14 +1,15 @@
 use crate::transaction::{TezosRawTxIn, TezosTxOut};
 use bitcoin::util::base58;
 use blake2b_simd::Params;
-use tcx_constants::Result;
-use tcx_keystore::{ChainSigner, Keystore, TransactionSigner as TraitTransactionSigner};
+use tcx_constants::{CurveType, Result};
+use tcx_keystore::{
+    ChainSigner, Keystore, SignatureParameters, Signer, TransactionSigner as TraitTransactionSigner,
+};
 
 impl TraitTransactionSigner<TezosRawTxIn, TezosTxOut> for Keystore {
     fn sign_transaction(
         &mut self,
-        symbol: &str,
-        address: &str,
+        params: &SignatureParameters,
         tx: &TezosRawTxIn,
     ) -> Result<TezosTxOut> {
         let raw_data_bytes = if tx.raw_data.starts_with("0x") {
@@ -18,14 +19,14 @@ impl TraitTransactionSigner<TezosRawTxIn, TezosTxOut> for Keystore {
         };
 
         //Blake2b hash
-        let mut params = Params::new();
-        params.hash_length(32);
+        let mut blake2b_params = Params::new();
+        blake2b_params.hash_length(32);
         //add watermark https://gitlab.com/tezos/tezos/-/issues/199
         let mut hash_message: Vec<u8> = vec![0x03];
         hash_message.extend(hex::decode(&raw_data_bytes)?.as_slice());
-        let hash_result = params.hash(hash_message.as_slice());
+        let hash_result = blake2b_params.hash(hash_message.as_slice());
         let sign_result =
-            self.sign_recoverable_hash(hash_result.as_bytes(), symbol, address, None)?;
+            self.secp256k1_ecdsa_sign_recoverable(hash_result.as_bytes(), &params.derivation_path)?;
 
         //tezos ed25519 signature prefix
         let edsig_prefix: [u8; 5] = [9, 245, 205, 134, 18];

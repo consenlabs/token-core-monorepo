@@ -3,7 +3,9 @@ use crate::{PAYLOAD_HASH_THRESHOLD, SIGNATURE_TYPE_SR25519};
 use sp_core::blake2_256;
 
 use tcx_constants::Result;
-use tcx_keystore::{ChainSigner, Keystore, TransactionSigner as TraitTransactionSigner};
+use tcx_keystore::{
+    ChainSigner, Keystore, SignatureParameters, Signer, TransactionSigner as TraitTransactionSigner,
+};
 
 pub(crate) fn hash_unsigned_payload(payload: &[u8]) -> Result<Vec<u8>> {
     if payload.len() > PAYLOAD_HASH_THRESHOLD {
@@ -16,8 +18,7 @@ pub(crate) fn hash_unsigned_payload(payload: &[u8]) -> Result<Vec<u8>> {
 impl TraitTransactionSigner<SubstrateRawTxIn, SubstrateTxOut> for Keystore {
     fn sign_transaction(
         &mut self,
-        symbol: &str,
-        address: &str,
+        params: &SignatureParameters,
         tx: &SubstrateRawTxIn,
     ) -> Result<SubstrateTxOut> {
         let raw_data_bytes = if tx.raw_data.starts_with("0x") {
@@ -28,7 +29,7 @@ impl TraitTransactionSigner<SubstrateRawTxIn, SubstrateTxOut> for Keystore {
         let raw_data_bytes = hex::decode(&raw_data_bytes)?;
         let hash = hash_unsigned_payload(&raw_data_bytes)?;
 
-        let sig = self.sign_recoverable_hash(&hash, symbol, address, None)?;
+        let sig = self.secp256k1_ecdsa_sign_recoverable(&hash, &params.derivation_path)?;
 
         let sig_with_type = [vec![SIGNATURE_TYPE_SR25519], sig].concat();
 

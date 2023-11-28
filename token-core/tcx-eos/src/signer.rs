@@ -1,7 +1,8 @@
 use crate::transaction::{EosMessageInput, EosMessageOutput, EosTxInput, EosTxOutput, SigData};
 use base58::ToBase58;
+use tcx_constants::CurveType;
 use tcx_keystore::{
-    ChainSigner, Keystore, MessageSigner, Result, TransactionSigner as TraitTransactionSigner,
+    ChainSigner, Keystore, MessageSigner, Result, SignatureParameters, Signer, TransactionSigner,
 };
 
 use tcx_crypto::{hash, hex};
@@ -13,11 +14,10 @@ fn serial_eos_sig(sig: &[u8]) -> String {
     format!("SIG_K1_{}", data.to_base58())
 }
 
-impl TraitTransactionSigner<EosTxInput, EosTxOutput> for Keystore {
+impl TransactionSigner<EosTxInput, EosTxOutput> for Keystore {
     fn sign_transaction(
         &mut self,
-        symbol: &str,
-        address: &str,
+        params: &SignatureParameters,
         tx: &EosTxInput,
     ) -> Result<EosTxOutput> {
         let chain_id_bytes = hex::hex_to_bytes(&tx.chain_id)?;
@@ -33,8 +33,8 @@ impl TraitTransactionSigner<EosTxInput, EosTxOutput> for Keystore {
             ]
             .concat();
             let hashed_tx = hash::sha256(&tx_with_chain_id);
-            let sign_result =
-                self.sign_recoverable_hash(hashed_tx.as_slice(), symbol, address, None)?;
+            let sign_result = self
+                .secp256k1_ecdsa_sign_recoverable(hashed_tx.as_slice(), &params.derivation_path)?;
             // EOS need v r s
             let eos_sig = [sign_result[64..].to_vec(), sign_result[..64].to_vec()].concat();
             eos_sigs.push(SigData {
@@ -49,8 +49,7 @@ impl TraitTransactionSigner<EosTxInput, EosTxOutput> for Keystore {
 impl MessageSigner<EosMessageInput, EosMessageOutput> for Keystore {
     fn sign_message(
         &mut self,
-        symbol: &str,
-        address: &str,
+        params: &SignatureParameters,
         message: &EosMessageInput,
     ) -> Result<EosMessageOutput> {
         let data_hashed = if message.data.starts_with("0x") {
@@ -61,7 +60,7 @@ impl MessageSigner<EosMessageInput, EosMessageOutput> for Keystore {
         };
 
         let sign_result =
-            self.sign_recoverable_hash(data_hashed.as_slice(), symbol, address, None)?;
+            self.secp256k1_ecdsa_sign_recoverable(data_hashed.as_slice(), &params.derivation_path)?;
         // EOS need v r s
         let eos_sig = [sign_result[64..].to_vec(), sign_result[..64].to_vec()].concat();
         Ok(EosMessageOutput {

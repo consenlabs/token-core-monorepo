@@ -1,7 +1,7 @@
 use crate::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 use tcx_keystore::{
-    ChainSigner, Keystore, MessageSigner as TraitMessageSigner, Result,
-    TransactionSigner as TraitTransactionSigner,
+    ChainSigner, Keystore, MessageSigner as TraitMessageSigner, Result, SignatureParameters,
+    Signer, TransactionSigner as TraitTransactionSigner,
 };
 
 use bitcoin_hashes::sha256::Hash;
@@ -9,6 +9,7 @@ use bitcoin_hashes::Hash as TraitHash;
 
 use failure::format_err;
 use tcx_common::{keccak256, utf8_or_hex_to_bytes};
+use tcx_constants::CurveType;
 
 // http://jsoneditoronline.org/index.html?id=2b86a8503ba641bebed73f32b4ac9c42
 //{
@@ -43,14 +44,14 @@ use tcx_common::{keccak256, utf8_or_hex_to_bytes};
 impl TraitTransactionSigner<TronTxInput, TronTxOutput> for Keystore {
     fn sign_transaction(
         &mut self,
-        symbol: &str,
-        address: &str,
+        sign_context: &SignatureParameters,
         tx: &TronTxInput,
     ) -> Result<TronTxOutput> {
         let data = hex::decode(&tx.raw_data)?;
         let hash = Hash::hash(&data);
 
-        let sign_result = self.sign_recoverable_hash(&hash[..], symbol, address, None);
+        let sign_result =
+            self.secp256k1_ecdsa_sign_recoverable(&hash[..], &sign_context.derivation_path);
 
         match sign_result {
             Ok(r) => Ok(TronTxOutput {
@@ -64,8 +65,7 @@ impl TraitTransactionSigner<TronTxInput, TronTxOutput> for Keystore {
 impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
     fn sign_message(
         &mut self,
-        symbol: &str,
-        address: &str,
+        sign_context: &SignatureParameters,
         message: &TronMessageInput,
     ) -> Result<TronMessageOutput> {
         let data = utf8_or_hex_to_bytes(&message.value)?;
@@ -77,7 +77,8 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
         let to_hash = [header, &data].concat();
 
         let hash = keccak256(&to_hash);
-        let mut sign_result = self.sign_recoverable_hash(&hash[..], symbol, address, None)?;
+        let mut sign_result =
+            self.secp256k1_ecdsa_sign_recoverable(&hash[..], &sign_context.derivation_path)?;
         sign_result[64] = sign_result[64] + 27;
         Ok(TronMessageOutput {
             signature: hex::encode(sign_result),

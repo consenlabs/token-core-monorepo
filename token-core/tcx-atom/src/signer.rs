@@ -1,24 +1,28 @@
 use crate::transaction::{AtomTxInput, AtomTxOutput};
-use tcx_keystore::{ChainSigner, Keystore, Result, TransactionSigner as TraitTransactionSigner};
+use tcx_keystore::{
+    ChainSigner, Keystore, Result, SignatureParameters, Signer,
+    TransactionSigner as TraitTransactionSigner,
+};
 
 use tcx_crypto::{hash, hex};
 
 use base64;
 use failure::format_err;
+use tcx_constants::CurveType;
 
 const SIG_LEN: usize = 64;
 
 impl TraitTransactionSigner<AtomTxInput, AtomTxOutput> for Keystore {
     fn sign_transaction(
         &mut self,
-        symbol: &str,
-        address: &str,
+        params: &SignatureParameters,
         tx: &AtomTxInput,
     ) -> Result<AtomTxOutput> {
         let data = hex::hex_to_bytes(&tx.raw_data)?;
         let hash = hash::sha256(&data);
 
-        let sign_result = self.sign_recoverable_hash(&hash[..], symbol, address, None)?;
+        let sign_result =
+            self.secp256k1_ecdsa_sign_recoverable(&hash[..], &params.derivation_path)?;
 
         Ok(AtomTxOutput {
             signature: (base64::encode(&sign_result[..SIG_LEN])),
