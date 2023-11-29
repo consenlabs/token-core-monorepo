@@ -18,11 +18,10 @@ use tcx_keystore::{Keystore, MessageSigner, SignatureParameters, TransactionSign
 impl TransactionSigner<EthTxInput, EthTxOutput> for Keystore {
     fn sign_transaction(
         &mut self,
-        sign_context: &SignatureParameters,
+        params: &SignatureParameters,
         tx: &EthTxInput,
     ) -> tcx_keystore::Result<EthTxOutput> {
-        let private_key =
-            self.get_private_key(sign_context.curve, &sign_context.derivation_path)?;
+        let private_key = self.get_private_key(params.curve, &params.derivation_path)?;
         tx.sign_transaction(&private_key.to_bytes())
     }
 }
@@ -30,11 +29,10 @@ impl TransactionSigner<EthTxInput, EthTxOutput> for Keystore {
 impl MessageSigner<EthMessageInput, EthMessageOutput> for Keystore {
     fn sign_message(
         &mut self,
-        sign_context: &SignatureParameters,
+        params: &SignatureParameters,
         message: &EthMessageInput,
     ) -> tcx_keystore::Result<EthMessageOutput> {
-        let private_key =
-            self.get_private_key(sign_context.curve, &sign_context.derivation_path)?;
+        let private_key = self.get_private_key(params.curve, &params.derivation_path)?;
         if message.signature_type == SignatureType::PersonalSign as i32 {
             message.sign_message(&private_key.to_bytes())
         } else {
@@ -175,7 +173,9 @@ mod test {
     use crate::transaction::{
         AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput, SignatureType,
     };
-    use tcx_keystore::{Keystore, MessageSigner, Metadata, TransactionSigner};
+    use ethers::types::Sign;
+    use tcx_constants::CurveType;
+    use tcx_keystore::{Keystore, MessageSigner, Metadata, SignatureParameters, TransactionSigner};
 
     fn private_key_store(key: &str) -> Keystore {
         let mut ks = Keystore::from_private_key(key, "imToken1", Metadata::default());
@@ -202,13 +202,13 @@ mod test {
         };
         let mut keystore =
             private_key_store("cce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2");
-        let tx_output = keystore
-            .sign_transaction(
-                "ETHEREUM",
-                "0x6031564e7b2f5cc33737807b2e58daff870b590b",
-                &tx,
-            )
-            .unwrap();
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+        };
+
+        let tx_output = keystore.sign_transaction(&params, &tx).unwrap();
 
         assert_eq!(
             tx_output.tx_hash,
@@ -234,13 +234,13 @@ mod test {
         };
         let mut keystore =
             private_key_store("4646464646464646464646464646464646464646464646464646464646464646");
-        let tx_output = keystore
-            .sign_transaction(
-                "ETHERUEM",
-                "0x9d8a62f656a8d1615c1294fd71e9cfb3e4855a4f",
-                &tx,
-            )
-            .unwrap();
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+        };
+
+        let tx_output = keystore.sign_transaction(&params, &tx).unwrap();
 
         assert_eq!(
             tx_output.tx_hash,
@@ -266,13 +266,13 @@ mod test {
         };
         let mut keystore =
             private_key_store("cce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2");
-        let tx_output = keystore
-            .sign_transaction(
-                "ETHEREUM",
-                "0x6031564e7b2f5cc33737807b2e58daff870b590b",
-                &tx,
-            )
-            .unwrap();
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+        };
+
+        let tx_output = keystore.sign_transaction(&params, &tx).unwrap();
         assert_eq!(
             tx_output.tx_hash,
             "0x812824e60c60f8d46aa5e211c8e4a50baf92350c98c83e71c379d273ce0a0787"
@@ -292,13 +292,7 @@ mod test {
             max_priority_fee_per_gas: "163".to_string(),
             access_list: vec![],
         };
-        let tx_output: EthTxOutput = keystore
-            .sign_transaction(
-                "ETHEREUM",
-                "0x6031564e7b2f5cc33737807b2e58daff870b590b",
-                &tx,
-            )
-            .unwrap();
+        let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
         assert_eq!(
             tx_output.tx_hash,
             "0x90b1a2325ee4acb953e67a9b05c5b7048dc30ac222f8736b82ea4222b5a5721e"
@@ -320,13 +314,7 @@ mod test {
         };
         let mut keystore =
             private_key_store("0626687a500e27ffca881fe129541f1a2033aedd32186a0540c10e3d0588b4f7");
-        let tx_output: EthTxOutput = keystore
-            .sign_transaction(
-                "ETHEREUM",
-                "0xc259458219cfe60e3fc5b00ee5cdf47d6d57300b",
-                &tx,
-            )
-            .unwrap();
+        let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
         assert_eq!(
             tx_output.tx_hash,
             "0xa8b660bec405dca182e526401b03aab04f0f3547ba7382e89f73bb3b3aae0829"
@@ -357,13 +345,7 @@ mod test {
         };
         let mut keystore =
             private_key_store("c69e17f597758c69dc181956060bef908e5a89fc00313aac0da6e387121648c2");
-        let tx_output: EthTxOutput = keystore
-            .sign_transaction(
-                "ETHEREUM",
-                "0x35e89ac4593d9797a0237fe576f3150f0613641d",
-                &tx,
-            )
-            .unwrap();
+        let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
         assert_eq!(
             tx_output.tx_hash,
             "0x0a0b6c71e52fcb14ba60e271e71c410783beb2448e06822c5f148f9d3fe796c3"
@@ -393,13 +375,7 @@ mod test {
         };
         let mut keystore =
             private_key_store("272bbc8b388511b2fb17315ec77c802187368e82459081e0ce3229ed30b8001c");
-        let tx_output: EthTxOutput = keystore
-            .sign_transaction(
-                "ETHEREUM",
-                "0xc51f408dfde742e15c6e09eead8a6f9ea5956164",
-                &tx,
-            )
-            .unwrap();
+        let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
         assert_eq!(
             tx_output.tx_hash,
             "0xdec9d2ca302a5421a9ab5ce568899eb2dae6ba89b2051a5e15be8506246524c4"
@@ -426,13 +402,7 @@ mod test {
         };
         let mut keystore =
             private_key_store("1515a472fde48c24c6e7f565397e683f3c3a33cb57bcd3bffc06444081aac1fb");
-        let tx_output: EthTxOutput = keystore
-            .sign_transaction(
-                "ETHEREUM",
-                "0x9c2adfb5ee684241ecf48dff9cba057255a610dd",
-                &tx,
-            )
-            .unwrap();
+        let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
         assert_eq!(
             tx_output.tx_hash,
             "0x6dc6942e91746d1df6637b32cc7e3d4ec3bbe943d85cd8e32a30d6b6367558ed"
@@ -473,13 +443,7 @@ mod test {
         };
         let mut keystore =
             private_key_store("d639ec503c8acc27d2a57a4477864d43aad1bf84c2270f47207ca372c7dc480b");
-        let tx_output: EthTxOutput = keystore
-            .sign_transaction(
-                "ETHEREUM",
-                "0x59e359a6ffdd7b5ad0be3228a69cabbcd573f9d6",
-                &tx,
-            )
-            .unwrap();
+        let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
         assert_eq!(
             tx_output.tx_hash,
             "0xf512934c8e6d1d1436488c9584eeb9b2d8bf1a8bc361d268c2a55aa31fb6f3c3"
@@ -504,13 +468,13 @@ mod test {
         };
         let mut keystore =
             private_key_store("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6");
-        let tx_output: EthTxOutput = keystore
-            .sign_transaction(
-                "ETHEREUM",
-                "0xef678007d18427e6022059dbc264f27507cd1ffc",
-                &tx,
-            )
-            .unwrap();
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+        };
+
+        let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
         assert_eq!(
             tx_output.tx_hash,
             "0x1a3c3947ea626e00d6ff1493bcf929b9320d15ff088046990ef88a45f7d37623"
@@ -535,13 +499,12 @@ mod test {
         };
         let mut keystore =
             private_key_store("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6");
-        let tx_output: EthTxOutput = keystore
-            .sign_transaction(
-                "ETHEREUM",
-                "0xef678007d18427e6022059dbc264f27507cd1ffc",
-                &tx,
-            )
-            .unwrap();
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+        };
+        let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
 
         assert_eq!(
             tx_output.tx_hash,
@@ -567,13 +530,13 @@ mod test {
         };
         let mut keystore =
             private_key_store("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6");
-        let tx_output: EthTxOutput = keystore
-            .sign_transaction(
-                "ETHEREUM",
-                "0xef678007d18427e6022059dbc264f27507cd1ffc",
-                &tx,
-            )
-            .unwrap();
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+        };
+
+        let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
         assert_eq!(
             tx_output.tx_hash,
             "0x0e3cc87e9f4924a01edc5e09c27f9b1f9fcdb1c6a2a637fb28fd9efe39af42b0"
@@ -598,13 +561,12 @@ mod test {
         };
         let mut keystore =
             private_key_store("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6");
-        let tx_output: EthTxOutput = keystore
-            .sign_transaction(
-                "ETHEREUM",
-                "0xef678007d18427e6022059dbc264f27507cd1ffc",
-                &tx,
-            )
-            .unwrap();
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+        };
+        let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
         assert_eq!(
             tx_output.tx_hash,
             "0x66617e83ddfb63b5853e18a99af169651ad07ff5ca2eae812d9b79ceedda1174"
@@ -620,13 +582,13 @@ mod test {
         };
         let mut keystore =
             private_key_store("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6");
-        let output: EthMessageOutput = keystore
-            .sign_message(
-                "ETHEREUM",
-                "0xef678007d18427e6022059dbc264f27507cd1ffc",
-                &message,
-            )
-            .unwrap();
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+        };
+
+        let output: EthMessageOutput = keystore.sign_message(&params, &message).unwrap();
         assert_eq!(
             output.signature,
             "0x1be38ff0ab0e6d97cba73cf61421f0641628be8ee91dcb2f73315e7fdf4d0e2770b0cb3cc7350426798d43f0fb05602664a28bb2c9fcf46a07fa1c8c4e322ec01b"
@@ -636,13 +598,7 @@ mod test {
             message: "0xef678007d18427e6022059dbc264f27507cd1ffc".to_string(),
             signature_type: SignatureType::PersonalSign as i32,
         };
-        let output: EthMessageOutput = keystore
-            .sign_message(
-                "ETHEREUM",
-                "0xef678007d18427e6022059dbc264f27507cd1ffc",
-                &message,
-            )
-            .unwrap();
+        let output: EthMessageOutput = keystore.sign_message(&params, &message).unwrap();
         assert_eq!(
             output.signature,
             "0xb12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b"
@@ -651,66 +607,47 @@ mod test {
 
     #[test]
     fn test_ec_sign() {
-        let params = EthMessageInput {
+        let message = EthMessageInput {
             message: "Hello imToken".to_string(),
             signature_type: SignatureType::EcSign as i32,
         };
         let mut keystore =
             private_key_store("3c9229289a6125f7fdf1885a77bb12c37a8d3b4962d936f7e3084dece32a3ca1");
-        let sign_output = keystore
-            .sign_message(
-                "ETHEREUM",
-                "0xed54a7c1d8634bb589f24bb7f05a5554b36f9618",
-                &params,
-            )
-            .unwrap();
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+        };
+        let sign_output = keystore.sign_message(&params, &message).unwrap();
         assert_eq!(
             sign_output.signature,
             "0x648081bc111e6116769bdb4396eebe17f58d3eddc0aeb04a868990deac9dfa2f322514a380fa66e0e864faaac6ef936092cdc022f5fd7d61cb501193ede537b31b"
         );
-        let params = EthMessageInput {
+        let message = EthMessageInput {
             message: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
             signature_type: SignatureType::EcSign as i32,
         };
-        let sign_output = keystore
-            .sign_message(
-                "ETHEREUM",
-                "0xed54a7c1d8634bb589f24bb7f05a5554b36f9618",
-                &params,
-            )
-            .unwrap();
+        let sign_output = keystore.sign_message(&params, &message).unwrap();
         assert_eq!(
             sign_output.signature,
             "0x65e4952899a8dcadf3a65a11bdac0f0cfdf93e0bae5c67674c78a72631de524d3cafe27ea71c86aa3fd838c6a50a0b09d6ece85a6dcf3ce85c30fdc51380ebdf1b"
         );
 
-        let params = EthMessageInput {
+        let message = EthMessageInput {
             message: "0000000000000000".to_string(),
             signature_type: SignatureType::EcSign as i32,
         };
-        let sign_output = keystore
-            .sign_message(
-                "ETHEREUM",
-                "0xed54a7c1d8634bb589f24bb7f05a5554b36f9618",
-                &params,
-            )
-            .unwrap();
+        let sign_output = keystore.sign_message(&params, &message).unwrap();
         assert_eq!(
             sign_output.signature,
             "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
         );
 
-        let params = EthMessageInput {
+        let message = EthMessageInput {
             message: "0x0000000000000000".to_string(),
             signature_type: SignatureType::EcSign as i32,
         };
-        let sign_output = keystore
-            .sign_message(
-                "ETHEREUM",
-                "0xed54a7c1d8634bb589f24bb7f05a5554b36f9618",
-                &params,
-            )
-            .unwrap();
+        let sign_output = keystore.sign_message(&params, &message).unwrap();
         assert_eq!(
             sign_output.signature,
             "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"

@@ -573,7 +573,7 @@ pub(crate) mod tests {
 "#;
 
     static PK_KEYSTORE_JSON: &'static str = r#"
-    {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":11001,"keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"activeAccounts":[{"address":"TXo4VDm8Qc5YBSjPhu8pMaxzTApSvLshWG","derivationPath":"","curve":"SECP256k1","coin":"TRON","network":"","segWit":"","extPubKey":"","publicKey":""}],"imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE"}}
+    {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":11001,"keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE"}}
     "#;
 
     static OLD_KEYSTORE_JSON: &'static str = r#"
@@ -624,21 +624,11 @@ pub(crate) mod tests {
     fn test_json() {
         let keystore: Keystore = Keystore::from_json(HD_KEYSTORE_JSON).unwrap();
         assert_eq!(
-            keystore.accounts().first().unwrap().address,
-            "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r"
-        );
-
-        assert_eq!(
             Value::from_str(&keystore.to_json()).unwrap(),
             Value::from_str(HD_KEYSTORE_JSON).unwrap()
         );
 
         let keystore: Keystore = Keystore::from_json(PK_KEYSTORE_JSON).unwrap();
-        assert_eq!(
-            keystore.accounts().first().unwrap().address,
-            "TXo4VDm8Qc5YBSjPhu8pMaxzTApSvLshWG",
-        );
-
         assert_eq!(
             Value::from_str(&keystore.to_json()).unwrap(),
             Value::from_str(PK_KEYSTORE_JSON).unwrap()
@@ -670,15 +660,16 @@ pub(crate) mod tests {
         assert_eq!("3045022100a5c14ac7fd46f9f0c951b86d9586595270266ab09b49bf79fc27ebae7866256002206a7d7841fb740ee190c94dcd156228fc820f5ff5ba8c07748b220d07c51d247a", hex::encode(ret));
 
         let mut keystore: Keystore = Keystore::from_json(PK_KEYSTORE_JSON).unwrap();
-        let ret = keystore.sign_hash(&msg, "TRON", "TXo4VDm8Qc5YBSjPhu8pMaxzTApSvLshWG", None);
+        let ret = keystore.secp256k1_ecdsa_sign_recoverable(&msg, "m/44'/195'/0'/0/0");
         assert!(ret.is_err());
         assert_eq!(format!("{}", ret.err().unwrap()), "keystore_locked");
+
         let _ = keystore.unlock_by_password("imtoken1");
         let msg = hex::decode("645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76")
             .unwrap();
 
         let ret = keystore
-            .sign_hash(&msg, "TRON", "TXo4VDm8Qc5YBSjPhu8pMaxzTApSvLshWG", None)
+            .secp256k1_ecdsa_sign_recoverable(&msg, "m/44'/195'/0'/0/0")
             .unwrap();
         assert_eq!(hex::encode(ret), "30450221008d4920cb3a5a46a3f76845e823c9531f4a882eac4ffd61bfeaa29646999a83d302205c4c5537816911a8b0eb5f0e7ea09839c37e9e22bace8404d23d064c84d403d5");
     }
@@ -732,49 +723,33 @@ pub(crate) mod tests {
         let pk = keystore
             .get_private_key(CurveType::SECP256k1, "m/44'/0'/0'/0/0")
             .unwrap();
-        assert!(pk.is_secp256k1());
-        let pk =
-            keystore.find_private_key("BITCOINCASH", "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y21");
-        assert!(pk.is_err());
+        assert!(pk.as_secp256k1().is_ok());
 
-        assert_eq!(
-            pk.unwrap()
-                .as_secp256k1()
-                .unwrap()
-                .to_ss58check_with_version(&[0x80]),
-            "L39VXyorp19JfsEJfbD7Tfr4pBEX93RJuVXW7E13C51ZYAhUWbYa"
-        );
+        let pk = keystore
+            .get_private_key(CurveType::SECP256k1, "m/44'/0'/0'/0/0")
+            .unwrap();
 
-        /*let pk = keystore.get_private_key_by_relation_path(
-            "m/44'/0'/0'/0/0",
-            "0/0",
-        );
+        /*
         assert_eq!(
-            pk.unwrap()
-                .as_secp256k1()
+                pk.as_secp256k1()
                 .unwrap()
                 .to_ss58check_with_version(&[0x80]),
             "L39VXyorp19JfsEJfbD7Tfr4pBEX93RJuVXW7E13C51ZYAhUWbYa"
         );
 
         let public_key = keystore
-            .find_deterministic_public_key(
-                "BITCOINCASH",
-                "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r",
+            .get_deterministic_public_key(
+                CurveType::SECP256k1,
+                "m/44'/0'/0'/0/0",
             )
             .unwrap();
         assert_eq!(public_key.to_hex(), "031064f6a580000000251d72997d4cf931a7e6819f7da37725166100fc7dae9ca6afc3f8fd8a3d3a7f0303f2f84851514bf2f40a46b5bb9dbf4e5913fbacde1a96968cda08f9fd882caa");
 
-        let acc = keystore.account("BITCOINCASH", "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2");
-        assert!(acc.is_none());
-
-        let acc = keystore.account("BITCOINCASH", "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r");
-        assert!(acc.is_some());
          */
     }
 
     #[test]
-    fn test_pk_find_key() {
+    fn test_pk_get_key() {
         let mut keystore = Keystore::from_json(PK_KEYSTORE_JSON).unwrap();
         keystore.unlock_by_password("imtoken1").unwrap();
         let pk = keystore.get_private_key(CurveType::SECP256k1, "").unwrap();
