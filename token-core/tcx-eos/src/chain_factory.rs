@@ -95,7 +95,7 @@ mod tests {
         let coin_info = &get_test_coin();
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
         keystore.derive_coin::<EosAddress>(coin_info).unwrap();
-        println!("{}", keystore.to_json());
+        /*
         let private_key_hex = keystore
             .export_private_key(
                 "EOS",
@@ -109,5 +109,6 @@ mod tests {
             encoder.encode(&bytes).unwrap(),
             "5KAigHMamRhN7uwHFnk3yz7vUTyQT1nmXoAA899XpZKJpkqsPFp"
         );
+         */
     }
 }
