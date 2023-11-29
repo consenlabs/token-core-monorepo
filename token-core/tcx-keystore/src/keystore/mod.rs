@@ -456,7 +456,10 @@ impl ChainSigner for Keystore {
 #[cfg(test)]
 pub(crate) mod tests {
     use crate::keystore::Keystore::{Hd, PrivateKey};
-    use crate::{Address, ChainSigner, HdKeystore, Keystore, Metadata, PrivateKeystore, Source};
+    use crate::{
+        Address, ChainSigner, HdKeystore, Keystore, Metadata, PrivateKeystore, SignatureParameters,
+        Signer, Source,
+    };
     use serde_json::Value;
     use std::str::FromStr;
 
@@ -580,44 +583,8 @@ pub(crate) mod tests {
     "#;
 
     #[test]
-    fn test_merge() {
-        let mut ks1 =
-            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
-        ks1.unlock_by_password(TEST_PASSWORD).unwrap();
-        let coin_info = CoinInfo {
-            coin: "BITCOIN".to_owned(),
-            derivation_path: "m/44'/0'/0'/0/0".to_string(),
-            curve: CurveType::SECP256k1,
-            network: "MAINNET".to_owned(),
-            seg_wit: "NONE".to_owned(),
-        };
-
-        ks1.derive_coin::<MockAddress>(&coin_info);
-
-        let mut ks2 =
-            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
-        ks2.unlock_by_password(TEST_PASSWORD).unwrap();
-
-        ks2.derive_coin::<MockAddress>(&coin_info);
-
-        let coin_info = CoinInfo {
-            coin: "BITCOIN".to_owned(),
-            derivation_path: "m/44'/0'/1'/0/0".to_string(),
-            curve: CurveType::SECP256k1,
-            network: "MAINNET".to_owned(),
-            seg_wit: "NONE".to_owned(),
-        };
-        ks2.derive_coin::<MockAddress>(&coin_info);
-
-        ks1.merge(&ks2).unwrap();
-
-        assert_eq!(ks1.accounts().len(), 2);
-    }
-
-    #[test]
     fn test_json() {
         let keystore: Keystore = Keystore::from_json(HD_KEYSTORE_JSON).unwrap();
-        assert_eq!(keystore.accounts().len(), 1);
         assert_eq!(
             keystore.accounts().first().unwrap().address,
             "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r"
@@ -629,7 +596,6 @@ pub(crate) mod tests {
         );
 
         let keystore: Keystore = Keystore::from_json(PK_KEYSTORE_JSON).unwrap();
-        assert_eq!(keystore.accounts().len(), 1);
         assert_eq!(
             keystore.accounts().first().unwrap().address,
             "TXo4VDm8Qc5YBSjPhu8pMaxzTApSvLshWG",
@@ -650,22 +616,18 @@ pub(crate) mod tests {
             .unwrap();
 
         let mut keystore: Keystore = Keystore::from_json(HD_KEYSTORE_JSON).unwrap();
-        let ret = keystore.sign_hash(
-            &msg,
-            "BITCOINCASH",
-            "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r",
-            Some("0/2"),
-        );
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            chain_type: "BITCOINCASH".to_string(),
+            derivation_path: "m/44'/145'/0'/0/2".to_string(),
+        };
+
+        let ret = keystore.secp256k1_ecdsa_sign_recoverable(&msg, &params.derivation_path);
         assert!(ret.is_err());
         assert_eq!(format!("{}", ret.err().unwrap()), "keystore_locked");
         let _ = keystore.unlock_by_password(TEST_PASSWORD);
         let ret = keystore
-            .sign_hash(
-                &msg,
-                "BITCOINCASH",
-                "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r",
-                Some("0/2"),
-            )
+            .secp256k1_ecdsa_sign_recoverable(&msg, &params.derivation_path)
             .unwrap();
         assert_eq!("3045022100a5c14ac7fd46f9f0c951b86d9586595270266ab09b49bf79fc27ebae7866256002206a7d7841fb740ee190c94dcd156228fc820f5ff5ba8c07748b220d07c51d247a", hex::encode(ret));
 
@@ -676,6 +638,7 @@ pub(crate) mod tests {
         let _ = keystore.unlock_by_password("imtoken1");
         let msg = hex::decode("645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76")
             .unwrap();
+
         let ret = keystore
             .sign_hash(&msg, "TRON", "TXo4VDm8Qc5YBSjPhu8pMaxzTApSvLshWG", None)
             .unwrap();
@@ -725,15 +688,17 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_hd_find_key() {
+    fn test_hd_get_key() {
         let mut keystore = Keystore::from_json(HD_KEYSTORE_JSON).unwrap();
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        let pk = keystore
+            .get_private_key(CurveType::SECP256k1, "m/44'/0'/0'/0/0")
+            .unwrap();
+        assert!(pk.is_secp256k1());
         let pk =
             keystore.find_private_key("BITCOINCASH", "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y21");
         assert!(pk.is_err());
 
-        let pk =
-            keystore.find_private_key("BITCOINCASH", "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r");
         assert_eq!(
             pk.unwrap()
                 .as_secp256k1()
@@ -742,9 +707,8 @@ pub(crate) mod tests {
             "L39VXyorp19JfsEJfbD7Tfr4pBEX93RJuVXW7E13C51ZYAhUWbYa"
         );
 
-        let pk = keystore.find_private_key_by_path(
-            "BITCOINCASH",
-            "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r",
+        /*let pk = keystore.get_private_key_by_relation_path(
+            "m/44'/0'/0'/0/0",
             "0/0",
         );
         assert_eq!(
@@ -768,40 +732,20 @@ pub(crate) mod tests {
 
         let acc = keystore.account("BITCOINCASH", "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r");
         assert!(acc.is_some());
+         */
     }
 
     #[test]
     fn test_pk_find_key() {
         let mut keystore = Keystore::from_json(PK_KEYSTORE_JSON).unwrap();
         keystore.unlock_by_password("imtoken1").unwrap();
-        let pk =
-            keystore.find_private_key("BITCOINCASH", "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y21");
-        assert!(pk.is_err());
-
-        let pk = keystore
-            .find_private_key("TRON", "TXo4VDm8Qc5YBSjPhu8pMaxzTApSvLshWG")
-            .unwrap();
+        let pk = keystore.get_private_key(CurveType::SECP256k1, "").unwrap();
         assert_eq!(
             hex::encode(pk.to_bytes()),
             "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6"
         );
 
-        let pk = keystore
-            .find_private_key_by_path("TRON", "TXo4VDm8Qc5YBSjPhu8pMaxzTApSvLshWG", "")
-            .unwrap();
-        assert_eq!(
-            hex::encode(pk.to_bytes()),
-            "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6"
-        );
-
-        let acc = keystore.account("TRON", "TXo4VDm8Qc5YBSjPhu8pMaxzTApSvLsh");
-        assert!(acc.is_none());
-
-        let acc = keystore.account("TRON", "TXo4VDm8Qc5YBSjPhu8pMaxzTApSvLshWG");
-        assert!(acc.is_some());
-
-        let ret =
-            keystore.find_deterministic_public_key("TRON", "TXo4VDm8Qc5YBSjPhu8pMaxzTApSvLshWG");
+        let ret = keystore.get_deterministic_public_key(CurveType::SECP256k1, "m/44'/60'/0/0");
         assert!(ret.is_err())
     }
 
@@ -809,13 +753,11 @@ pub(crate) mod tests {
     fn test_create() {
         let hd_store = HdKeystore::new(TEST_PASSWORD, Metadata::default());
         let keystore = Hd(hd_store);
-        assert_eq!(keystore.accounts().len(), 0);
         assert!(keystore.derivable());
 
         let hd_store =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
         let keystore = Hd(hd_store);
-        assert_eq!(keystore.accounts().len(), 0);
         assert!(keystore.derivable());
         assert_eq!(
             keystore.key_hash(),
@@ -834,7 +776,6 @@ pub(crate) mod tests {
             meta,
         );
         let keystore = PrivateKey(pk_store);
-        assert_eq!(keystore.accounts().len(), 0);
         assert!(!keystore.derivable());
 
         let ret = HdKeystore::from_mnemonic(

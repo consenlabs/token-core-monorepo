@@ -125,13 +125,6 @@ impl PrivateKeystore {
 
         Ok(acc)
     }
-
-    pub(crate) fn get_private_key_with_curve(&self, curve: CurveType) -> Result<TypedPrivateKey> {
-        tcx_ensure!(self.private_key.is_some(), Error::KeystoreLocked);
-        let vec = self.private_key.as_ref().unwrap().to_vec();
-        TypedPrivateKey::from_slice(curve, &vec)
-    }
-
     pub(crate) fn private_key(&self) -> Result<String> {
         tcx_ensure!(self.private_key.is_some(), Error::KeystoreLocked);
         let vec = self.private_key.as_ref().unwrap().to_vec();

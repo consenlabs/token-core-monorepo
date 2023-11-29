@@ -481,7 +481,7 @@ mod tests {
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let public_key = keystore
-            .get_private_key_by_derivation_path(CurveType::SECP256k1, "m/44'/118'/0'/0/0'")
+            .get_private_key(CurveType::SECP256k1, "m/44'/118'/0'/0/0'")
             .unwrap();
 
         assert_eq!(
