@@ -39,9 +39,9 @@ mod macros;
 // };
 
 use crate::handler::{
-    eth_recover_address, export_substrate_keystore, generate_mnemonic, get_extended_public_key_poc,
-    get_public_key, get_public_key_poc, import_substrate_keystore,
-    secp256k1_ecdsa_sign_recoverable_poc, sign_bls_to_execution_change, substrate_keystore_exists,
+    eth_recover_address, export_substrate_keystore, generate_mnemonic, get_extended_public_keys,
+    get_public_key, get_public_keys, import_substrate_keystore, sign_bls_to_execution_change,
+    sign_hashes, substrate_keystore_exists,
 };
 
 use parking_lot::RwLock;
@@ -169,12 +169,10 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "eth_recover_address" => landingpad(|| eth_recover_address(&action.param.unwrap().value)),
 
         "get_extended_public_key_poc" => {
-            landingpad(|| get_extended_public_key_poc(&action.param.unwrap().value))
+            landingpad(|| get_extended_public_keys(&action.param.unwrap().value))
         }
-        "get_public_key_poc" => landingpad(|| get_public_key_poc(&action.param.unwrap().value)),
-        "secp256k1_ecdsa_sign_recoverable_poc" => {
-            landingpad(|| secp256k1_ecdsa_sign_recoverable_poc(&action.param.unwrap().value))
-        }
+        "get_public_keys" => landingpad(|| get_public_keys(&action.param.unwrap().value)),
+        "sign_hashes" => landingpad(|| sign_hashes(&action.param.unwrap().value)),
 
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };

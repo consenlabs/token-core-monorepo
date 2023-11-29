@@ -25,13 +25,14 @@ use crate::api::{
     AccountResponse, AccountsResponse, CalcExternalAddressParam, CalcExternalAddressResult,
     DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DerivedKeyResult, EncryptDataToIpfsParam,
     EncryptDataToIpfsResult, ExportPrivateKeyParam, ExtendedPublicKeyParamPoc,
-    ExtendedPublicKeyResultPoc, GenerateMnemonicResult, HdStoreCreateParam, HdStoreImportParam,
-    IdentityResult, KeyType, KeystoreCommonAccountsParam, KeystoreCommonDeriveParam,
-    KeystoreCommonExistsParam, KeystoreCommonExistsResult, KeystoreCommonExportResult,
-    KeystoreMigrationParam, PrivateKeyStoreExportParam, PrivateKeyStoreImportParam, PublicKeyParam,
-    PublicKeyParamPoc, PublicKeyResult, PublicKeyResultPoc, RemoveWalletsParam,
-    RemoveWalletsResult, Response, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
-    SignParamPoc, SignResultPoc, V3KeystoreExportInput, V3KeystoreExportOutput,
+    ExtendedPublicKeyResultPoc, GenerateMnemonicResult, GetExtendedPublicKeysParam,
+    GetPublicKeysParam, HdStoreCreateParam, HdStoreImportParam, IdentityResult, KeyType,
+    KeystoreCommonAccountsParam, KeystoreCommonDeriveParam, KeystoreCommonExistsParam,
+    KeystoreCommonExistsResult, KeystoreCommonExportResult, KeystoreMigrationParam,
+    PrivateKeyStoreExportParam, PrivateKeyStoreImportParam, PublicKeyParam, PublicKeyParamPoc,
+    PublicKeyResult, PublicKeyResultPoc, RemoveWalletsParam, RemoveWalletsResult, Response,
+    SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
+    SignHashesResult, SignParamPoc, SignResultPoc, V3KeystoreExportInput, V3KeystoreExportOutput,
     V3KeystoreImportInput, WalletKeyParam, WalletResult, ZksyncPrivateKeyFromSeedParam,
     ZksyncPrivateKeyFromSeedResult, ZksyncPrivateKeyToPubkeyHashParam,
     ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult,
@@ -721,8 +722,8 @@ pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
     sign_transaction_internal(&param, guard.keystore_mut())
 }
 
-pub(crate) fn secp256k1_ecdsa_sign_recoverable_poc(data: &[u8]) -> Result<Vec<u8>> {
-    let param: SignParamPoc = SignParamPoc::decode(data).expect("SignParamPoc");
+pub(crate) fn sign_hashes(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignHashesParam = SignHashesParam::decode(data).expect("SignHashesParam");
 
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
@@ -731,16 +732,27 @@ pub(crate) fn secp256k1_ecdsa_sign_recoverable_poc(data: &[u8]) -> Result<Vec<u8
     }?;
 
     let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
-    let signature = guard
-        .keystore_mut()
-        .secp256k1_ecdsa_sign_recoverable(&hex_to_bytes(&param.hash)?, &param.derivation_path)?;
-    encode_message(SignResultPoc {
-        signature: hex::encode(signature),
-    })
+    let signatures = param
+        .data_to_sign
+        .iter()
+        .map(|data_to_sign| {
+            let sig = guard.keystore_mut().sign_hash(
+                data_to_sign.hash,
+                &data_to_sign.path,
+                &data_to_sign.curve,
+                &data_to_sign.sig_alg,
+            )?;
+            format!("0x{}", hex::encode(sig))
+        })
+        .collect();
+    // let signature = guard
+    //     .keystore_mut()
+    //     .secp256k1_ecdsa_sign_recoverable(&hex_to_bytes(&param.hash)?, &param.derivation_path)?;
+    encode_message(SignHashesResult { signatures })
 }
 
-pub(crate) fn get_public_key_poc(data: &[u8]) -> Result<Vec<u8>> {
-    let param: PublicKeyParamPoc = PublicKeyParamPoc::decode(data).expect("PublicKeyParamPoc");
+pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
+    let param: GetPublicKeysParam = GetPublicKeysParam::decode(data).expect("GetPublicKeysParam");
 
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
@@ -749,19 +761,24 @@ pub(crate) fn get_public_key_poc(data: &[u8]) -> Result<Vec<u8>> {
     }?;
 
     let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
-    let public_key = guard
-        .keystore_mut()
-        .get_public_key(CurveType::from_str(&param.curve), &param.derivation_path)
-        .expect("PublicKeyProcessed");
+    let public_keys = param
+        .derivations
+        .iter()
+        .map(|derivation| {
+            let public_key = guard
+                .keystore_mut()
+                .get_public_key(CurveType::from_str(&derivation.curve), &derivation.path)
+                .expect("PublicKeyProcessed");
+            hex::encode(public_key.to_bytes())
+        })
+        .collect();
 
-    encode_message(PublicKeyResultPoc {
-        public_key: hex::encode(public_key.to_bytes()),
-    })
+    encode_message(GetPublicKeysResult { public_keys })
 }
 
-pub(crate) fn get_extended_public_key_poc(data: &[u8]) -> Result<Vec<u8>> {
-    let param: ExtendedPublicKeyParamPoc =
-        ExtendedPublicKeyParamPoc::decode(data).expect("ExtendedPublicKeyParamPoc");
+pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
+    let param: GetExtendedPublicKeysParam =
+        GetExtendedPublicKeysParam::decode(data).expect("ExtendedPublicKeyParamPoc");
 
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
@@ -770,13 +787,28 @@ pub(crate) fn get_extended_public_key_poc(data: &[u8]) -> Result<Vec<u8>> {
     }?;
 
     let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
-    let public_key = guard
-        .keystore_mut()
-        .get_deterministic_public_key(CurveType::from_str(&param.curve), &param.derivation_path)
-        .expect("ExtendedPublicKeyProcessed");
 
-    encode_message(ExtendedPublicKeyResultPoc {
-        extended_public_key: public_key.to_string(),
+    let extended_public_keys = param
+        .derivations
+        .iter()
+        .map(|derivation| {
+            let extended_public_key = guard
+                .keystore_mut()
+                .get_deterministic_public_key(
+                    CurveType::from_str(&derivation.curve),
+                    &derivation.path,
+                )
+                .expect("GetExtendedPublicKeysParam");
+            extended_public_key.to_string()
+        })
+        .collect();
+    // let public_key = guard
+    //     .keystore_mut()
+    //     .get_deterministic_public_key(CurveType::from_str(&param.curve), &param.derivation_path)
+    //     .expect("ExtendedPublicKeyProcessed");
+
+    encode_message(GetExtendedPublicKeysResult {
+        extended_public_keys,
     })
 }
 
@@ -799,7 +831,10 @@ pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
     sign_message_internal(&param, guard.keystore_mut())
 }
 
-// TODO: replacing with ChainFactory
+#[deprecated(
+    since = "2.6.0",
+    note = "Please use the get_public_keys route function instead"
+)]
 pub(crate) fn get_public_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: PublicKeyParam = PublicKeyParam::decode(data).expect("PublicKeyParam");
 

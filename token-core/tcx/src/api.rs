@@ -37,11 +37,38 @@ pub struct InitTokenCoreXParam {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SignParamPoc {
+pub struct SignHashesParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "3")]
+    pub data_to_sign: ::prost::alloc::vec::Vec<sign_hashes_param::DataToSign>,
+}
+/// Nested message and enum types in `SignHashesParam`.
+pub mod sign_hashes_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct DataToSign {
+        #[prost(string, tag = "1")]
+        pub hash: ::prost::alloc::string::String,
+        #[prost(string, tag = "2")]
+        pub path: ::prost::alloc::string::String,
+        #[prost(string, tag = "3")]
+        pub curve: ::prost::alloc::string::String,
+        #[prost(string, tag = "4")]
+        pub sig_alg: ::prost::alloc::string::String,
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignHashesResult {
+    #[prost(string, repeated, tag = "1")]
+    pub signatures: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignParamPoc {
     #[prost(string, tag = "3")]
     pub hash: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
@@ -55,39 +82,43 @@ pub struct SignResultPoc {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PublicKeyParamPoc {
+pub struct PublicKeyDerivation {
     #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
+    pub path: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub derivation_path: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
     pub curve: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PublicKeyResultPoc {
-    #[prost(string, tag = "1")]
-    pub public_key: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExtendedPublicKeyParamPoc {
+pub struct GetPublicKeysParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub derivation_path: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub curve: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "3")]
+    pub derivations: ::prost::alloc::vec::Vec<PublicKeyDerivation>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExtendedPublicKeyResultPoc {
+pub struct GetPublicKeysResult {
+    #[prost(string, repeated, tag = "1")]
+    pub public_keys: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetExtendedPublicKeysParam {
     #[prost(string, tag = "1")]
-    pub extended_public_key: ::prost::alloc::string::String,
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "3")]
+    pub derivations: ::prost::alloc::vec::Vec<PublicKeyDerivation>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetExtendedPublicKeysResult {
+    #[prost(string, repeated, tag = "1")]
+    pub extended_public_keys: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 ///
 /// // FUNCTION: export_private_key(ExportPrivateKeyParam): KeystoreCommonExportResult

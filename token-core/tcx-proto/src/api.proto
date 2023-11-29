@@ -31,9 +31,24 @@ message InitTokenCoreXParam {
     bool isDebug = 4;
 }
 
-message SignParamPoc {
+message SignHashesParam {
     string id = 1;
     string password = 2;
+    message DataToSign {
+        string hash = 1;
+        string path = 2;
+        string curve = 3;
+        string sigAlg = 4;
+    }
+    repeated DataToSign dataToSign = 3;
+}
+
+message SignHashesResult {
+    repeated string signatures = 1;
+}
+
+message SignParamPoc {
+    
     string hash = 3;
     string derivationPath = 4;
 }
@@ -42,26 +57,29 @@ message SignResultPoc {
     string signature = 1;
 }
 
-message PublicKeyParamPoc {
+message PublicKeyDerivation {
+    string path = 1;
+    string curve = 2;
+}
+
+message GetPublicKeysParam {
     string id = 1;
     string password = 2;
-    string derivationPath = 3;
-    string curve = 4;
+    repeated PublicKeyDerivation derivations = 3;
 }
 
-message PublicKeyResultPoc {
-    string publicKey = 1;
+message GetPublicKeysResult {
+   repeated string publicKeys = 1;
 }
 
-message ExtendedPublicKeyParamPoc {
+message GetExtendedPublicKeysParam {
     string id = 1;
     string password = 2;
-    string derivationPath = 3;
-    string curve = 4;
+    repeated PublicKeyDerivation derivations = 3;
 }
 
-message ExtendedPublicKeyResultPoc {
-    string extendedPublicKey = 1;
+message GetExtendedPublicKeysResult {
+    repeated string extendedPublicKeys = 1;
 }
 
 

@@ -23,6 +23,14 @@ pub trait HashSigner {
 }
 
 pub trait Signer {
+    fn sign_hash(
+        &mut self,
+        hash: &[u8],
+        derivation_path: &str,
+        curve: &str,
+        sig_alg: &str,
+    ) -> Result<Vec<u8>>;
+
     fn secp256k1_ecdsa_sign_recoverable(
         &mut self,
         hash: &[u8],

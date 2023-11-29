@@ -437,6 +437,19 @@ impl Keystore {
 }
 
 impl Signer for Keystore {
+    fn sign_hash(
+        &mut self,
+        hash: &[u8],
+        derivation_path: &str,
+        curve: &str,
+        sig_alg: &str,
+    ) -> Result<Vec<u8>> {
+        match (curve, sig_alg.to_uppercase().as_str()) {
+            ("SECP256k1", "ECDSA") => self.secp256k1_ecdsa_sign_recoverable(hash, derivation_path),
+            _ => Err(format_err!("unsupport sig alg")),
+        }
+    }
+
     fn secp256k1_ecdsa_sign_recoverable(
         &mut self,
         hash: &[u8],
