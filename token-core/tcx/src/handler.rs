@@ -198,6 +198,8 @@ pub(crate) fn hd_store_create(data: &[u8]) -> Result<Vec<u8>> {
     meta.name = param.name.to_owned();
     meta.password_hint = param.password_hint.to_owned();
     meta.source = param.source.parse()?;
+    // TODO: add network param
+    // meta.network = param.net
 
     let ks = HdKeystore::new(&param.password, meta);
 

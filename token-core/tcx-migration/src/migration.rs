@@ -14,7 +14,7 @@ use tcx_btc_kin::Error;
 use tcx_eos::address::EosAddress;
 use tcx_eth::address::EthAddress;
 use tcx_keystore::identity::Identity;
-use tcx_keystore::keystore::{Keystore, Metadata, Store};
+use tcx_keystore::keystore::{IdentityNetwork, Keystore, Metadata, Store};
 use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -45,11 +45,24 @@ impl OldMetadata {
                 f64::from_str(&str).expect("f64 from timestamp") as i64
             }
         };
+
+        let network = if self.network.is_some()
+            && self
+                .network
+                .as_ref()
+                .unwrap()
+                .eq_ignore_ascii_case("TESTNET")
+        {
+            IdentityNetwork::Testnet
+        } else {
+            IdentityNetwork::Mainnet
+        };
         Metadata {
             name: self.name.clone(),
             password_hint: self.password_hint.clone(),
             timestamp: timestamp,
             source: self.source,
+            network,
         }
     }
 }
@@ -180,8 +193,8 @@ impl LegacyKeystore {
         )?;
         let mnemonic = String::from_utf8(mnemonic_data.to_owned())?;
         let key_hash = key_hash_from_mnemonic(&mnemonic)?;
-
-        let identity = Identity::new(&mnemonic, &unlocker)?;
+        let meta = self.im_token_meta.to_metadata();
+        let identity = Identity::from_mnemonic(&mnemonic, &unlocker, &meta.network)?;
         let mut store = Store {
             id: self.id.to_string(),
             version: HdKeystore::VERSION,
@@ -189,7 +202,7 @@ impl LegacyKeystore {
             crypto: self.crypto.clone(),
             active_accounts: vec![],
             identity: Some(identity),
-            meta: self.im_token_meta.to_metadata(),
+            meta,
         };
 
         let derived_key = unlocker.derived_key();

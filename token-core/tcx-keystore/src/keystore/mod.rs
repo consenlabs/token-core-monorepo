@@ -153,6 +153,37 @@ impl fmt::Display for Source {
     }
 }
 
+/// Source to remember which format it comes from
+///
+/// NOTE: Identity related type is only for imToken App v2.x
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum IdentityNetwork {
+    Mainnet,
+    Testnet,
+}
+
+impl FromStr for IdentityNetwork {
+    type Err = failure::Error;
+
+    fn from_str(input: &str) -> std::result::Result<IdentityNetwork, Self::Err> {
+        match input {
+            "MAINNET" => Ok(IdentityNetwork::Mainnet),
+            "TESTNET" => Ok(IdentityNetwork::Testnet),
+            _ => Err(format_err!("unknown_source")),
+        }
+    }
+}
+
+impl fmt::Display for IdentityNetwork {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            IdentityNetwork::Mainnet => write!(f, "MAINNET"),
+            IdentityNetwork::Testnet => write!(f, "TESTNET"),
+        }
+    }
+}
+
 /// Metadata of fixtures, for presenting wallet data
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -163,6 +194,8 @@ pub struct Metadata {
     pub timestamp: i64,
     #[serde(default = "metadata_default_source")]
     pub source: Source,
+    #[serde(default = "metadata_default_network")]
+    pub network: IdentityNetwork,
 }
 
 fn metadata_default_time() -> i64 {
@@ -175,6 +208,10 @@ fn metadata_default_source() -> Source {
     Source::Mnemonic
 }
 
+fn metadata_default_network() -> IdentityNetwork {
+    IdentityNetwork::Mainnet
+}
+
 impl Default for Metadata {
     fn default() -> Self {
         Metadata {
@@ -182,6 +219,7 @@ impl Default for Metadata {
             password_hint: String::new(),
             timestamp: metadata_default_time(),
             source: Source::Mnemonic,
+            network: IdentityNetwork::Mainnet,
         }
     }
 }

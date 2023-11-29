@@ -5,6 +5,7 @@ use tcx_crypto::{Crypto, Key};
 
 use super::Error;
 use super::Result;
+use crate::identity::Identity;
 use crate::keystore::Store;
 
 use tcx_crypto::hash::dsha256;
@@ -84,10 +85,15 @@ impl PrivateKeystore {
     }
 
     pub fn from_private_key(private_key: &str, password: &str, meta: Metadata) -> PrivateKeystore {
-        let key_data: Vec<u8> = hex::decode(private_key).expect("hex can't decode");
+        let key_data: Vec<u8> = tcx_common::hex_to_bytes(private_key).expect("hex can't decode");
         let key_hash = key_hash_from_private_key(&key_data);
         //        let pk_bytes = hex::decode(private_key).expect("valid private_key");
         let crypto: Crypto = Crypto::new(password, &key_data);
+        let unlocker = crypto
+            .use_key(&Key::Password(password.to_string()))
+            .expect("create private keystore to get unlocker");
+        let identity = Identity::from_private_key(private_key, &unlocker, &meta.network)
+            .expect("identity from private key");
 
         let store = Store {
             key_hash,
@@ -95,7 +101,7 @@ impl PrivateKeystore {
             meta,
             id: Uuid::new_v4().as_hyphenated().to_string(),
             version: PrivateKeystore::VERSION,
-            identity: None,
+            identity: Some(identity),
         };
 
         PrivateKeystore {

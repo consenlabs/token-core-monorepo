@@ -223,7 +223,7 @@ impl HdKeystore {
 
         let crypto: Crypto = Crypto::new(password, mnemonic.as_bytes());
         let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
-        let identity = Identity::new(mnemonic, &unlocker)?;
+        let identity = Identity::from_mnemonic(mnemonic, &unlocker, &meta.network)?;
         Ok(HdKeystore {
             store: Store {
                 key_hash,
@@ -282,7 +282,7 @@ impl HdKeystore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::keystore::metadata_default_time;
+    use crate::keystore::{metadata_default_time, IdentityNetwork};
     use std::str::FromStr;
 
     use crate::{Keystore, Source};
@@ -310,6 +310,7 @@ mod tests {
             password_hint: String::new(),
             timestamp: metadata_default_time(),
             source: Source::Mnemonic,
+            network: IdentityNetwork::Mainnet,
         };
 
         assert_eq!(meta.name, expected.name);
