@@ -12,7 +12,7 @@ use tcx_primitive::{get_account_path, private_key_without_version, FromHex, Type
 use tcx_btc_kin::WIFDisplay;
 use tcx_keystore::{
     key_hash_from_mnemonic, key_hash_from_private_key, ChainFactory, Keystore, KeystoreGuard,
-    Signer,
+    SignatureParameters, Signer,
 };
 use tcx_keystore::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
 
@@ -879,9 +879,12 @@ pub(crate) fn sign_tron_message_legacy(data: &[u8]) -> Result<Vec<u8>> {
             .as_slice(),
     )
     .expect("TronMessageInput");
-    let signed_tx = guard
-        .keystore_mut()
-        .sign_message(&param.chain_type, &param.address, &input)?;
+    let sign_param = SignatureParameters {
+        curve: CurveType::from_str(&param.curve),
+        derivation_path: param.path.to_string(),
+        chain_type: param.chain_type.to_string(),
+    };
+    let signed_tx = guard.keystore_mut().sign_message(&sign_param, &input)?;
     encode_message(signed_tx)
 }
 

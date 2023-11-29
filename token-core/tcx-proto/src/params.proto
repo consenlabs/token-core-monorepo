@@ -54,6 +54,7 @@ message KeystoreCommonDeriveParam {
         string segWit = 4;
         string chainId = 5;
         string curve = 6;
+        string bech32Prefix = 7;
     }
     repeated Derivation derivations= 3;
 }
@@ -148,8 +149,9 @@ message SignParam {
         string derivedKey = 3;
     }
     string chainType = 4;
-    string address = 5;
-    google.protobuf.Any input = 6;
+    string path = 5;
+    string curve = 6;
+    google.protobuf.Any input = 7;
 }
 
 /// Other

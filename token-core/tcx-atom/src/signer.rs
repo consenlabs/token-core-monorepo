@@ -61,8 +61,13 @@ mod tests {
         let ks = guard.keystore_mut();
 
         let account = ks.derive_coin::<AtomAddress>(&coin_info).unwrap().clone();
+        let sign_params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/118'/0'/0/0".to_string(),
+            chain_type: "COSMOS".to_string(),
+        };
 
-        let signed_tx: AtomTxOutput = ks.sign_transaction("COSMOS", &account.address, &tx)?;
+        let signed_tx: AtomTxOutput = ks.sign_transaction(&sign_params, &tx)?;
 
         assert_eq!(signed_tx.signature, "355fWQ00dYitAZj6+EmnAgYEX1g7QtUrX/kQIqCbv05TCz0dfsWcMgXWVnr1l/I2hrjjQkiLRMoeRrmnqT2CZA==");
 

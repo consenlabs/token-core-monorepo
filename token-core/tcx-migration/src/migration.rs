@@ -200,7 +200,6 @@ impl LegacyKeystore {
             version: HdKeystore::VERSION,
             key_hash: key_hash.to_string(),
             crypto: self.crypto.clone(),
-            active_accounts: vec![],
             identity: Some(identity),
             meta,
         };
@@ -232,7 +231,6 @@ impl LegacyKeystore {
             version: PrivateKeystore::VERSION,
             key_hash: key_hash.to_string(),
             crypto: self.crypto.clone(),
-            active_accounts: vec![],
             meta: self.im_token_meta.to_metadata(),
             identity: None,
         };

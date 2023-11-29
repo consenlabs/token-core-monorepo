@@ -33,7 +33,7 @@ impl SignBlsToExecutionChangeParam {
             let signature = keystore.sign_specified_hash(
                 hex::decode(message)?.as_slice(),
                 "ETHEREUM2",
-                self.from_bls_pub_key.as_str(),
+                self.as_str(),
                 None,
                 "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_",
             )?;

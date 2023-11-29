@@ -1,6 +1,7 @@
 use std::str::FromStr;
 use tcx_constants::CoinInfo;
-use tcx_keystore::{Address, Keystore, MessageSigner, TransactionSigner};
+use tcx_constants::CurveType;
+use tcx_keystore::{Address, Keystore, MessageSigner, SignatureParameters, TransactionSigner};
 use tcx_primitive::TypedPublicKey;
 
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -14,8 +15,7 @@ pub struct MockTransactionOutput {}
 impl TransactionSigner<MockTransactionInput, MockTransactionOutput> for Keystore {
     fn sign_transaction(
         &mut self,
-        _chain_type: &str,
-        _address: &str,
+        _sign_param: &SignatureParameters,
         _input: &MockTransactionInput,
     ) -> std::result::Result<MockTransactionOutput, failure::Error> {
         Err(format_err!("unsupported_chain"))
@@ -33,8 +33,7 @@ pub struct MockMessageOutput {}
 impl MessageSigner<MockMessageInput, MockMessageOutput> for Keystore {
     fn sign_message(
         &mut self,
-        _symbol: &str,
-        _address: &str,
+        _sign_param: &SignatureParameters,
         _message: &MockMessageInput,
     ) -> tcx_keystore::Result<MockMessageOutput> {
         Err(format_err!("unsupported_chain"))
@@ -96,7 +95,13 @@ macro_rules! use_chains {
                             .as_slice(),
                     )
                     .expect("TransactionInput");
-                    let signed_tx: TransactionOutput = keystore.sign_transaction(&params.chain_type, &params.address, &input)?;
+                    let curve = CurveType::from_str(&params.curve);
+                    let sign_params = SignatureParameters {
+                        chain_type: params.chain_type.to_string(),
+                        derivation_path: params.path.to_string(),
+                        curve,
+                    };
+                    let signed_tx: TransactionOutput = keystore.sign_transaction(&sign_params, &input)?;
 
                     return encode_message(signed_tx)
                 }
@@ -139,8 +144,13 @@ macro_rules! use_chains {
                             .as_slice(),
                     )
                     .expect("MessageInput");
-
-                    let signed_message: MessageOutput = keystore.sign_message(&params.chain_type, &params.address, &input)?;
+                let curve = CurveType::from_str(&params.curve);
+                let sign_params = SignatureParameters {
+                    chain_type: params.chain_type.to_string(),
+                    derivation_path: params.path.to_string(),
+                    curve,
+                };
+                    let signed_message: MessageOutput = keystore.sign_message(&sign_prams, &input)?;
                     return encode_message(signed_message)
                 }
             })*

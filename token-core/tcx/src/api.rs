@@ -249,6 +249,8 @@ pub mod keystore_common_derive_param {
         pub chain_id: ::prost::alloc::string::String,
         #[prost(string, tag = "6")]
         pub curve: ::prost::alloc::string::String,
+        #[prost(string, tag = "7")]
+        pub bech32_prefix: ::prost::alloc::string::String,
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -358,8 +360,10 @@ pub struct SignParam {
     #[prost(string, tag = "4")]
     pub chain_type: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
-    pub address: ::prost::alloc::string::String,
-    #[prost(message, optional, tag = "6")]
+    pub path: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub curve: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "7")]
     pub input: ::core::option::Option<::prost_types::Any>,
     #[prost(oneof = "sign_param::Key", tags = "2, 3")]
     pub key: ::core::option::Option<sign_param::Key>,

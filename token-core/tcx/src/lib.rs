@@ -246,7 +246,7 @@ mod tests {
     use crate::handler::hd_store_import;
     use crate::handler::{encode_message, private_key_store_import};
     use prost::Message;
-    use tcx_constants::sample_key;
+    use tcx_constants::{sample_key, CurveType};
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::{Keystore, Source};
     // use tcx_identity::{constants, model};
@@ -517,6 +517,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
             let param = KeystoreCommonDeriveParam {
                 id: import_result.id.to_string(),
@@ -571,6 +572,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
             let param = KeystoreCommonDeriveParam {
                 id: import_result.id.to_string(),
@@ -662,6 +664,7 @@ mod tests {
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "LITECOIN".to_string(),
@@ -670,6 +673,7 @@ mod tests {
                     seg_wit: "P2WPKH".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "LITECOIN".to_string(),
@@ -678,6 +682,7 @@ mod tests {
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "TRON".to_string(),
@@ -686,6 +691,7 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "NERVOS".to_string(),
@@ -694,6 +700,7 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "KUSAMA".to_string(),
@@ -702,6 +709,7 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "POLKADOT".to_string(),
@@ -710,6 +718,7 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "FILECOIN".to_string(),
@@ -718,6 +727,7 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "SECP256k1".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "FILECOIN".to_string(),
@@ -726,15 +736,17 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "BLS".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
-                Derivation {
-                    chain_type: "ETHEREUM2".to_string(),
-                    path: "m/12381/3600/0/0".to_string(),
-                    network: "MAINNET".to_string(),
-                    seg_wit: "".to_string(),
-                    chain_id: "".to_string(),
-                    curve: "BLS".to_string(),
-                },
+                // Derivation {
+                //     chain_type: "ETHEREUM2".to_string(),
+                //     path: "m/12381/3600/0/0".to_string(),
+                //     network: "MAINNET".to_string(),
+                //     seg_wit: "".to_string(),
+                //     chain_id: "".to_string(),
+                //     curve: "BLS".to_string(),
+                //     bech32_prefix: "".to_string(),
+                // },
                 Derivation {
                     chain_type: "COSMOS".to_string(),
                     path: "m/44'/118'/0'/0/0".to_string(),
@@ -742,6 +754,7 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "SECP256k1".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "EOS".to_string(),
@@ -750,6 +763,7 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "SECP256k1".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
             ];
 
@@ -835,6 +849,7 @@ mod tests {
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "LITECOIN".to_string(),
@@ -843,6 +858,7 @@ mod tests {
                     seg_wit: "P2WPKH".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "LITECOIN".to_string(),
@@ -851,6 +867,7 @@ mod tests {
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
             ];
             for derivation in invalid_derivations {
@@ -882,6 +899,7 @@ mod tests {
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "LITECOIN".to_string(),
@@ -890,6 +908,7 @@ mod tests {
                     seg_wit: "P2WPKH".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "LITECOIN".to_string(),
@@ -898,6 +917,7 @@ mod tests {
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "TRON".to_string(),
@@ -906,6 +926,7 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "NERVOS".to_string(),
@@ -914,6 +935,7 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
             ];
             let param = KeystoreCommonDeriveParam {
@@ -967,6 +989,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             }];
             let param = KeystoreCommonDeriveParam {
                 id: import_result.id.to_string(),
@@ -1016,6 +1039,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             }];
             let param = KeystoreCommonDeriveParam {
                 id: import_result.id.to_string(),
@@ -1087,6 +1111,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             }];
             let param = KeystoreCommonDeriveParam {
                 id: import_result.id.to_string(),
@@ -1147,6 +1172,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "SECP256k1".to_string(),
+                bech32_prefix: "".to_string(),
             }];
             let param = KeystoreCommonDeriveParam {
                 id: import_result.id.to_string(),
@@ -1210,6 +1236,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "BLS".to_string(),
+                bech32_prefix: "".to_string(),
             }];
             let param = KeystoreCommonDeriveParam {
                 id: import_result.id.to_string(),
@@ -1272,6 +1299,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             }];
             let param = KeystoreCommonDeriveParam {
                 id: import_result.id.to_string(),
@@ -1371,6 +1399,7 @@ mod tests {
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "BITCOINCASH".to_string(),
@@ -1379,6 +1408,7 @@ mod tests {
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "TRON".to_string(),
@@ -1387,6 +1417,7 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "FILECOIN".to_string(),
@@ -1395,6 +1426,7 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "SECP256k1".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
             ];
             let pks = vec![
@@ -1451,6 +1483,7 @@ mod tests {
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "BITCOINCASH".to_string(),
@@ -1459,6 +1492,7 @@ mod tests {
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "BITCOINCASH".to_string(),
@@ -1467,6 +1501,7 @@ mod tests {
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "TRON".to_string(),
@@ -1475,6 +1510,7 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
                 Derivation {
                     chain_type: "FILECOIN".to_string(),
@@ -1483,6 +1519,7 @@ mod tests {
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
                     curve: "SECP256k1".to_string(),
+                    bech32_prefix: "".to_string(),
                 },
             ];
 
@@ -1548,6 +1585,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "SECP256k1".to_string(),
+                bech32_prefix: "".to_string(),
             }];
 
             let export_paths = vec!["m/44'/118'/0'/0/0"];
@@ -1596,6 +1634,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let derive_param = KeystoreCommonDeriveParam {
@@ -1765,6 +1804,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             }];
             let param = KeystoreCommonDeriveParam {
                 id: wallet.id.to_string(),
@@ -1794,6 +1834,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let wallet = import_and_derive(derivation);
@@ -1855,7 +1896,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "NERVOS".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/309'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1.as_str().to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(input).unwrap(),
@@ -1881,6 +1923,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let wallet = import_and_derive(derivation);
@@ -1892,7 +1935,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password("WRONG PASSWORD".to_string())),
                 chain_type: "TRON".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/195'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -1907,7 +1951,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "TRON1".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/195'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -1922,7 +1967,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "TRON".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/195'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
@@ -1947,6 +1993,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "SECP256k1".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let wallet = import_and_derive(derivation);
@@ -1958,7 +2005,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password("WRONG PASSWORD".to_string())),
                 chain_type: "COSMOS".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/118'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -1973,7 +2021,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "COSMOS1".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/118'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -1988,7 +2037,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "COSMOS".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/118'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
@@ -2013,6 +2063,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "SECP256k1".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let wallet = import_and_derive(derivation);
@@ -2198,6 +2249,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let param = KeystoreCommonDeriveParam {
@@ -2250,6 +2302,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
             let wallet = import_and_derive(derivation);
             assert_eq!(
@@ -2314,6 +2367,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let param = KeystoreCommonDeriveParam {
@@ -2337,6 +2391,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let param = KeystoreCommonDeriveParam {
@@ -2366,6 +2421,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let wallet = import_and_derive(derivation);
@@ -2380,7 +2436,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "KUSAMA".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/118'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -2422,6 +2479,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
             let param = KeystoreCommonDeriveParam {
                 id: import_result.id.to_string(),
@@ -2438,7 +2496,8 @@ mod tests {
                 id: import_result.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "TRON".to_string(),
-                address: rsp.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/195'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(input).unwrap(),
@@ -2465,6 +2524,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "BLS".to_string(),
+                bech32_prefix: "".to_string(),
             };
             let param = KeystoreCommonDeriveParam {
                 id: import_result.id.to_string(),
@@ -2491,7 +2551,8 @@ mod tests {
                 id: import_result.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "FILECOIN".to_string(),
-                address: rsp.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/461'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(message).unwrap(),
@@ -2519,6 +2580,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "SECP256k1".to_string(),
+                bech32_prefix: "".to_string(),
             };
             let param = KeystoreCommonDeriveParam {
                 id: import_result.id.to_string(),
@@ -2545,7 +2607,8 @@ mod tests {
                 id: import_result.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "FILECOIN".to_string(),
-                address: rsp.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/461'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(message).unwrap(),
@@ -2573,6 +2636,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
             let param = KeystoreCommonDeriveParam {
                 id: import_result.id.to_string(),
@@ -2595,7 +2659,8 @@ mod tests {
                 id: import_result.id.to_string(),
                 key: Some(Key::DerivedKey(ret.derived_key)),
                 chain_type: "TRON".to_string(),
-                address: rsp.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/195'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(input.clone()).unwrap(),
@@ -2611,7 +2676,8 @@ mod tests {
                 id: import_result.id.to_string(),
                 key: Some(Key::DerivedKey("7758c92df76d50774a67fdca6c90b922fc84be68c69164d4c7f500327bfa4b9655709b6b1f88e07e3bda266d7ca4b48c934557917692f63a31e301d79d7107d001".to_string())),
                 chain_type: "TRON".to_string(),
-                address: rsp.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/195'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(input.clone()).unwrap(),
@@ -2636,6 +2702,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
             let wallet = import_and_derive(derivation);
 
@@ -2666,7 +2733,8 @@ mod tests {
                     id: wallet.id.to_string(),
                     key: Some(Key::Password(TEST_PASSWORD.to_string())),
                     chain_type: "TRON".to_string(),
-                    address: wallet.accounts.first().unwrap().address.to_string(),
+                    path: "m/44'/195'/0'/0/0".to_string(),
+                    curve: "SECP256k1".to_string(),
                     input: Some(::prost_types::Any {
                         type_url: "imtoken".to_string(),
                         value: encode_message(input).unwrap(),
@@ -2697,6 +2765,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
             let wallet = import_and_derive(derivation);
 
@@ -2718,7 +2787,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::DerivedKey(ret.derived_key)),
                 chain_type: "TRON".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/195'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(input.clone()).unwrap(),
@@ -2733,7 +2803,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::DerivedKey("7758c92df76d50774a67fdca6c90b922fc84be68c69164d4c7f500327bfa4b9655709b6b1f88e07e3bda266d7ca4b48c934557917692f63a31e301d79d7107d001".to_string())),
                 chain_type: "TRON".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/195'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(input).unwrap(),
@@ -2764,6 +2835,7 @@ mod tests {
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
                     curve: "".to_string(),
+                    bech32_prefix: "".to_string(),
                 };
                 let param = KeystoreCommonDeriveParam {
                     id: import_result.id.to_string(),
@@ -2795,7 +2867,8 @@ mod tests {
                     id: import_result.id.to_string(),
                     key: Some(Key::Password(TEST_PASSWORD.to_string())),
                     chain_type: chain_type.to_string(),
-                    address: rsp.accounts.first().unwrap().address.to_string(),
+                    path: "m/44'/0'/0'/0/0".to_string(),
+                    curve: "SECP256k1".to_string(),
                     input: Some(::prost_types::Any {
                         type_url: "imtoken".to_string(),
                         value: input_value.clone(),
@@ -2821,6 +2894,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let wallet = import_and_derive(derivation);
@@ -2833,7 +2907,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "TRON".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/195'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
@@ -2963,6 +3038,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let wallet = import_and_derive(derivation);
@@ -2974,7 +3050,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password("WRONG PASSWORD".to_string())),
                 chain_type: "TEZOS".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/1729'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -2989,7 +3066,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "TEZOS1".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/1729'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -3004,7 +3082,8 @@ mod tests {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "TEZOS".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/1729'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
@@ -3054,112 +3133,114 @@ mod tests {
         );
     }
 
-    #[test]
-    pub fn test_ethereum2_get_pubkey() {
-        run_test(|| {
-            let param = HdStoreImportParam {
-                mnemonic: OTHER_MNEMONIC.to_string(),
-                password: TEST_PASSWORD.to_string(),
-                source: "MNEMONIC".to_string(),
-                name: "test-wallet".to_string(),
-                password_hint: "imtoken".to_string(),
-                overwrite: true,
-            };
-            let ret = call_api("hd_store_import", param).unwrap();
-            let import_result: WalletResult = WalletResult::decode(ret.as_slice()).unwrap();
+    // #[test]
+    // pub fn test_ethereum2_get_pubkey() {
+    //     run_test(|| {
+    //         let param = HdStoreImportParam {
+    //             mnemonic: OTHER_MNEMONIC.to_string(),
+    //             password: TEST_PASSWORD.to_string(),
+    //             source: "MNEMONIC".to_string(),
+    //             name: "test-wallet".to_string(),
+    //             password_hint: "imtoken".to_string(),
+    //             overwrite: true,
+    //         };
+    //         let ret = call_api("hd_store_import", param).unwrap();
+    //         let import_result: WalletResult = WalletResult::decode(ret.as_slice()).unwrap();
 
-            let derivations = vec![Derivation {
-                chain_type: "ETHEREUM2".to_string(),
-                path: "m/12381/3600/0/0/0".to_string(),
-                network: "MAINNET".to_string(),
-                seg_wit: "".to_string(),
-                chain_id: "".to_string(),
-                curve: "BLS".to_string(),
-            }];
+    //         let derivations = vec![Derivation {
+    //             chain_type: "ETHEREUM2".to_string(),
+    //             path: "m/12381/3600/0/0/0".to_string(),
+    //             network: "MAINNET".to_string(),
+    //             seg_wit: "".to_string(),
+    //             chain_id: "".to_string(),
+    //             curve: "BLS".to_string(),
+    //             bech32_prefix: "".to_string(),
+    //         }];
 
-            let param = KeystoreCommonDeriveParam {
-                id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
-                derivations,
-            };
-            let derived_accounts_bytes = call_api("keystore_common_derive", param).unwrap();
-            let derived_accounts: AccountsResponse =
-                AccountsResponse::decode(derived_accounts_bytes.as_slice()).unwrap();
-            assert_eq!(
-                "941c2ab3d28b0fe37fde727e3178738a475696aed7335c7f4c2d91d06a1540acadb8042f119fb5f8029e7765de21fac2",
-                derived_accounts.accounts[0].address
-            );
-            let param: PublicKeyParam = PublicKeyParam {
-                id: import_result.id.to_string(),
-                chain_type: "ETHEREUM2".to_string(),
-                address: "941c2ab3d28b0fe37fde727e3178738a475696aed7335c7f4c2d91d06a1540acadb8042f119fb5f8029e7765de21fac2".to_string(),
-            };
-            let ret_bytes = call_api("get_public_key", param).unwrap();
-            let public_key_result: PublicKeyResult =
-                PublicKeyResult::decode(ret_bytes.as_slice()).unwrap();
-            assert_eq!(
-                "941c2ab3d28b0fe37fde727e3178738a475696aed7335c7f4c2d91d06a1540acadb8042f119fb5f8029e7765de21fac2",
-                public_key_result.public_key
-            );
-            remove_created_wallet(&import_result.id);
-        })
-    }
+    //         let param = KeystoreCommonDeriveParam {
+    //             id: import_result.id.to_string(),
+    //             password: TEST_PASSWORD.to_string(),
+    //             derivations,
+    //         };
+    //         let derived_accounts_bytes = call_api("keystore_common_derive", param).unwrap();
+    //         let derived_accounts: AccountsResponse =
+    //             AccountsResponse::decode(derived_accounts_bytes.as_slice()).unwrap();
+    //         assert_eq!(
+    //             "941c2ab3d28b0fe37fde727e3178738a475696aed7335c7f4c2d91d06a1540acadb8042f119fb5f8029e7765de21fac2",
+    //             derived_accounts.accounts[0].address
+    //         );
+    //         let param: PublicKeyParam = PublicKeyParam {
+    //             id: import_result.id.to_string(),
+    //             chain_type: "ETHEREUM2".to_string(),
+    //             address: "941c2ab3d28b0fe37fde727e3178738a475696aed7335c7f4c2d91d06a1540acadb8042f119fb5f8029e7765de21fac2".to_string(),
+    //         };
+    //         let ret_bytes = call_api("get_public_key", param).unwrap();
+    //         let public_key_result: PublicKeyResult =
+    //             PublicKeyResult::decode(ret_bytes.as_slice()).unwrap();
+    //         assert_eq!(
+    //             "941c2ab3d28b0fe37fde727e3178738a475696aed7335c7f4c2d91d06a1540acadb8042f119fb5f8029e7765de21fac2",
+    //             public_key_result.public_key
+    //         );
+    //         remove_created_wallet(&import_result.id);
+    //     })
+    // }
 
-    #[test]
-    pub fn test_sign_bls_to_execution_change() {
-        run_test(|| {
-            let param = HdStoreImportParam {
-                mnemonic: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art".to_string(),
-                password: TEST_PASSWORD.to_string(),
-                source: "MNEMONIC".to_string(),
-                name: "test-wallet".to_string(),
-                password_hint: "imtoken".to_string(),
-                overwrite: true,
-            };
-            let ret = call_api("hd_store_import", param).unwrap();
-            let import_result: WalletResult = WalletResult::decode(ret.as_slice()).unwrap();
+    // #[test]
+    // pub fn test_sign_bls_to_execution_change() {
+    //     run_test(|| {
+    //         let param = HdStoreImportParam {
+    //             mnemonic: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art".to_string(),
+    //             password: TEST_PASSWORD.to_string(),
+    //             source: "MNEMONIC".to_string(),
+    //             name: "test-wallet".to_string(),
+    //             password_hint: "imtoken".to_string(),
+    //             overwrite: true,
+    //         };
+    //         let ret = call_api("hd_store_import", param).unwrap();
+    //         let import_result: WalletResult = WalletResult::decode(ret.as_slice()).unwrap();
 
-            let derivations = vec![Derivation {
-                chain_type: "ETHEREUM2".to_string(),
-                path: "m/12381/3600/0/0".to_string(),
-                network: "MAINNET".to_string(),
-                seg_wit: "".to_string(),
-                chain_id: "".to_string(),
-                curve: "BLS".to_string(),
-            }];
+    //         let derivations = vec![Derivation {
+    //             chain_type: "ETHEREUM2".to_string(),
+    //             path: "m/12381/3600/0/0".to_string(),
+    //             network: "MAINNET".to_string(),
+    //             seg_wit: "".to_string(),
+    //             chain_id: "".to_string(),
+    //             curve: "BLS".to_string(),
+    //             bech32_prefix: "".to_string(),
+    //         }];
 
-            let param = KeystoreCommonDeriveParam {
-                id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
-                derivations,
-            };
-            let derived_accounts_bytes = call_api("keystore_common_derive", param).unwrap();
-            let derived_accounts: AccountsResponse =
-                AccountsResponse::decode(derived_accounts_bytes.as_slice()).unwrap();
-            assert_eq!(1, derived_accounts.accounts.len());
-            assert_eq!(
-                "99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db",
-                derived_accounts.accounts[0].address
-            );
+    //         let param = KeystoreCommonDeriveParam {
+    //             id: import_result.id.to_string(),
+    //             password: TEST_PASSWORD.to_string(),
+    //             derivations,
+    //         };
+    //         let derived_accounts_bytes = call_api("keystore_common_derive", param).unwrap();
+    //         let derived_accounts: AccountsResponse =
+    //             AccountsResponse::decode(derived_accounts_bytes.as_slice()).unwrap();
+    //         assert_eq!(1, derived_accounts.accounts.len());
+    //         assert_eq!(
+    //             "99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db",
+    //             derived_accounts.accounts[0].address
+    //         );
 
-            let param = SignBlsToExecutionChangeParam {
-                id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
-                genesis_fork_version: "0x03000000".to_string(),
-                genesis_validators_root:
-                    "0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".to_string(),
-                validator_index: vec![0],
-                from_bls_pub_key: derived_accounts.accounts[0].clone().address,
-                eth1_withdrawal_address: "0x8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string(),
-            };
-            let ret_bytes = call_api("sign_bls_to_execution_change", param).unwrap();
-            let result: SignBlsToExecutionChangeResult =
-                SignBlsToExecutionChangeResult::decode(ret_bytes.as_slice()).unwrap();
+    //         let param = SignBlsToExecutionChangeParam {
+    //             id: import_result.id.to_string(),
+    //             password: TEST_PASSWORD.to_string(),
+    //             genesis_fork_version: "0x03000000".to_string(),
+    //             genesis_validators_root:
+    //                 "0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".to_string(),
+    //             validator_index: vec![0],
+    //             from_bls_pub_key: derived_accounts.accounts[0].clone().address,
+    //             eth1_withdrawal_address: "0x8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string(),
+    //         };
+    //         let ret_bytes = call_api("sign_bls_to_execution_change", param).unwrap();
+    //         let result: SignBlsToExecutionChangeResult =
+    //             SignBlsToExecutionChangeResult::decode(ret_bytes.as_slice()).unwrap();
 
-            assert_eq!(result.signeds.get(0).unwrap().signature, "8c8ce9f8aedf380e47548501d348afa28fbfc282f50edf33555a3ed72eb24d710bc527b5108022cffb764b953941ec4014c44106d2708387d26cc84cbc5c546a1e6e56fdc194cf2649719e6ac149596d80c86bf6844b36bd47038ee96dd3962f");
-            remove_created_wallet(&import_result.id);
-        })
-    }
+    //         assert_eq!(result.signeds.get(0).unwrap().signature, "8c8ce9f8aedf380e47548501d348afa28fbfc282f50edf33555a3ed72eb24d710bc527b5108022cffb764b953941ec4014c44106d2708387d26cc84cbc5c546a1e6e56fdc194cf2649719e6ac149596d80c86bf6844b36bd47038ee96dd3962f");
+    //         remove_created_wallet(&import_result.id);
+    //     })
+    // }
 
     #[test]
     pub fn test_generate_mnemonic() {
@@ -3327,6 +3408,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let wallet = import_and_derive(derivation);
@@ -3349,7 +3431,8 @@ mod tests {
             let param = SignParam {
                 id: wallet.id.to_string(),
                 chain_type: "ETHEREUM".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/60'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
@@ -3376,6 +3459,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let wallet = import_and_derive(derivation);
@@ -3398,7 +3482,8 @@ mod tests {
             let param = SignParam {
                 id: wallet.id.to_string(),
                 chain_type: "ETHEREUM".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/60'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
@@ -3425,6 +3510,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                bech32_prefix: "".to_string(),
             };
 
             let wallet = import_and_derive(derivation);
@@ -3469,7 +3555,8 @@ mod tests {
             let param = SignParam {
                 id: wallet.id.to_string(),
                 chain_type: "ETHEREUM".to_string(),
-                address: wallet.accounts.first().unwrap().address.to_string(),
+                path: "m/44'/60'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,

@@ -328,7 +328,7 @@ dependencies = [
  "byteorder 1.4.3",
  "cfg-if 1.0.0",
  "futures 0.3.27",
- "hex 0.4.3",
+ "hex",
  "num_cpus",
  "pairing_ce",
  "rand 0.4.6",
@@ -835,7 +835,7 @@ dependencies = [
  "bitcoin_hashes",
  "bytes 1.4.0",
  "failure",
- "hex 0.4.3",
+ "hex",
  "ikc-common",
  "ikc-device",
  "ikc-transport",
@@ -856,7 +856,7 @@ dependencies = [
  "bitcoin_hashes",
  "bytes 1.4.0",
  "failure",
- "hex 0.4.3",
+ "hex",
  "ikc-common",
  "ikc-device",
  "ikc-transport",
@@ -877,7 +877,7 @@ dependencies = [
  "bitcoin_hashes",
  "bytes 1.4.0",
  "failure",
- "hex 0.4.3",
+ "hex",
  "ikc-common",
  "ikc-device",
  "ikc-transport",
@@ -902,7 +902,7 @@ dependencies = [
  "blake2b-rs",
  "byteorder 1.4.3",
  "failure",
- "hex 0.4.3",
+ "hex",
  "ikc-common",
  "ikc-device",
  "ikc-transport",
@@ -921,7 +921,7 @@ dependencies = [
  "bitcoin_hashes",
  "bytes 1.4.0",
  "failure",
- "hex 0.4.3",
+ "hex",
  "ikc-common",
  "ikc-device",
  "ikc-transport",
@@ -946,7 +946,7 @@ dependencies = [
  "bitcoin_hashes",
  "bytes 1.4.0",
  "failure",
- "hex 0.4.3",
+ "hex",
  "ikc-common",
  "ikc-device",
  "ikc-transport",
@@ -964,7 +964,7 @@ dependencies = [
  "dotenv",
  "ethereum-types",
  "failure",
- "hex 0.4.3",
+ "hex",
  "ikc-common",
  "ikc-device",
  "ikc-transport",
@@ -1004,7 +1004,7 @@ dependencies = [
  "forest_encoding",
  "forest_message 0.6.1",
  "forest_vm",
- "hex 0.4.3",
+ "hex",
  "ikc-common",
  "ikc-device",
  "ikc-transport",
@@ -1026,7 +1026,7 @@ name = "coin-substrate"
 version = "0.1.0"
 dependencies = [
  "failure",
- "hex 0.4.3",
+ "hex",
  "ikc-common",
  "ikc-device",
  "ikc-transport",
@@ -1044,7 +1044,7 @@ dependencies = [
  "bitcoin",
  "blake2b_simd 1.0.1",
  "failure",
- "hex 0.4.3",
+ "hex",
  "ikc-common",
  "ikc-device",
  "ikc-transport",
@@ -1058,7 +1058,7 @@ version = "0.1.0"
 dependencies = [
  "bitcoin",
  "failure",
- "hex 0.4.3",
+ "hex",
  "ikc-common",
  "ikc-device",
  "ikc-transport",
@@ -1115,7 +1115,7 @@ dependencies = [
  "bs58 0.4.0",
  "digest 0.10.6",
  "generic-array 0.14.7",
- "hex 0.4.3",
+ "hex",
  "ripemd",
  "serde",
  "serde_derive",
@@ -1671,7 +1671,7 @@ checksum = "7c24f403d068ad0b359e577a77f92392118be3f3c927538f2bb544a5ecd828c6"
 dependencies = [
  "curve25519-dalek 3.2.0",
  "hashbrown",
- "hex 0.4.3",
+ "hex",
  "rand_core 0.6.4",
  "sha2 0.9.9",
  "zeroize",
@@ -1728,7 +1728,7 @@ checksum = "cf56acd72bb22d2824e66ae8e9e5ada4d0de17a69c7fd35569dde2ada8ec9116"
 dependencies = [
  "base64 0.13.1",
  "bytes 1.4.0",
- "hex 0.4.3",
+ "hex",
  "k256",
  "log",
  "rand 0.8.5",
@@ -1774,7 +1774,7 @@ dependencies = [
  "aes",
  "ctr 0.9.2",
  "digest 0.10.6",
- "hex 0.4.3",
+ "hex",
  "hmac 0.12.1",
  "pbkdf2 0.11.0",
  "rand 0.8.5",
@@ -1794,7 +1794,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7413c5f74cc903ea37386a8965a936cbeb334bd270862fdece542c1b2dcbc898"
 dependencies = [
  "ethereum-types",
- "hex 0.4.3",
+ "hex",
  "once_cell",
  "regex 1.9.3",
  "serde",
@@ -1874,7 +1874,7 @@ dependencies = [
  "ethers-core",
  "ethers-providers",
  "futures-util",
- "hex 0.4.3",
+ "hex",
  "once_cell",
  "pin-project",
  "serde",
@@ -1893,7 +1893,7 @@ dependencies = [
  "ethers-core",
  "ethers-etherscan",
  "eyre",
- "hex 0.4.3",
+ "hex",
  "prettyplease 0.2.6",
  "proc-macro2 1.0.60",
  "quote 1.0.28",
@@ -1915,7 +1915,7 @@ dependencies = [
  "Inflector",
  "ethers-contract-abigen",
  "ethers-core",
- "hex 0.4.3",
+ "hex",
  "proc-macro2 1.0.60",
  "quote 1.0.28",
  "serde_json",
@@ -1935,7 +1935,7 @@ dependencies = [
  "elliptic-curve",
  "ethabi",
  "generic-array 0.14.7",
- "hex 0.4.3",
+ "hex",
  "k256",
  "num_enum",
  "once_cell",
@@ -2010,7 +2010,7 @@ dependencies = [
  "futures-timer",
  "futures-util",
  "hashers",
- "hex 0.4.3",
+ "hex",
  "http",
  "instant",
  "once_cell",
@@ -2042,7 +2042,7 @@ dependencies = [
  "elliptic-curve",
  "eth-keystore",
  "ethers-core",
- "hex 0.4.3",
+ "hex",
  "rand 0.8.5",
  "sha2 0.10.6",
  "thiserror",
@@ -2059,7 +2059,7 @@ dependencies = [
  "dunce",
  "ethers-core",
  "glob",
- "hex 0.4.3",
+ "hex",
  "home",
  "md-5",
  "num_cpus",
@@ -2145,7 +2145,7 @@ checksum = "38107cbd8bac0d907d7e7513c9f68c95adbda9e6f6f6bdf3f5111c6ecac4fe47"
 dependencies = [
  "byteorder 1.4.3",
  "ff_derive_ce",
- "hex 0.4.3",
+ "hex",
  "rand 0.4.6",
 ]
 
@@ -2436,7 +2436,7 @@ dependencies = [
  "blake2s_simd 0.5.11",
  "byteorder 1.4.3",
  "digest 0.9.0",
- "hex 0.4.3",
+ "hex",
  "hmac 0.11.0",
  "itertools 0.9.0",
  "num-bigint 0.3.3",
@@ -2787,12 +2787,6 @@ checksum = "fed44880c466736ef9a5c5b5facefb5ed0785676d0c02d612db14e54f0d84286"
 
 [[package]]
 name = "hex"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "805026a5d0141ffc30abb3be3173848ad46a1b1664fe632428479619a3644d77"
-
-[[package]]
-name = "hex"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
@@ -3052,7 +3046,7 @@ dependencies = [
  "coin-tron",
  "ethereum-types",
  "failure",
- "hex 0.4.3",
+ "hex",
  "ikc-common",
  "ikc-device",
  "ikc-transport",
@@ -3075,7 +3069,7 @@ dependencies = [
  "block-modes",
  "bytes 1.4.0",
  "failure",
- "hex 0.4.3",
+ "hex",
  "hyper",
  "hyper-timeout",
  "hyper-tls",
@@ -3106,7 +3100,7 @@ dependencies = [
  "block-modes",
  "bytes 1.4.0",
  "failure",
- "hex 0.4.3",
+ "hex",
  "ikc-common",
  "ikc-transport",
  "lazy_static",
@@ -3141,7 +3135,7 @@ version = "0.1.0"
 dependencies = [
  "cargo-husky",
  "failure",
- "hex 0.4.3",
+ "hex",
  "hidapi",
  "lazy_static",
  "parking_lot",
@@ -3257,7 +3251,7 @@ dependencies = [
  "ed25519-dalek",
  "failure",
  "getrandom 0.1.16",
- "hex 0.4.3",
+ "hex",
  "hmac 0.9.0",
  "libsecp256k1 0.3.5",
  "multibase 0.8.0",
@@ -6222,32 +6216,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ssz_rs"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f923762d556417668b192ac2fdc9827ea21e6df011d8a0a7e68f3d5da095a675"
-dependencies = [
- "bitvec 1.0.1",
- "hex 0.4.3",
- "num-bigint 0.4.3",
- "serde",
- "sha2 0.9.9",
- "ssz_rs_derive",
- "thiserror",
-]
-
-[[package]]
-name = "ssz_rs_derive"
-version = "0.8.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c679ebd9c1ceeb0f9e5b839952b4a71bfe35a791b431ef7b3ee0b71b7588b565"
-dependencies = [
- "proc-macro2 1.0.60",
- "quote 1.0.28",
- "syn 1.0.109",
-]
-
-[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6348,7 +6316,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a04fc4f5cd35c700153b233f5575ccb3237e0f941fa5049d9e98254d10bf2fe"
 dependencies = [
  "fs2",
- "hex 0.4.3",
+ "hex",
  "home",
  "once_cell",
  "reqwest",
@@ -6421,7 +6389,7 @@ dependencies = [
  "bytes 1.4.0",
  "ethers",
  "failure",
- "hex 0.4.3",
+ "hex",
  "lazy_static",
  "libc",
  "log",
@@ -6442,7 +6410,6 @@ dependencies = [
  "tcx-crypto",
  "tcx-eos",
  "tcx-eth",
- "tcx-eth2",
  "tcx-filecoin",
  "tcx-keystore",
  "tcx-migration",
@@ -6481,7 +6448,7 @@ dependencies = [
  "byteorder 1.4.3",
  "bytes 1.4.0",
  "failure",
- "hex 0.4.3",
+ "hex",
  "mockall",
  "num-bigint 0.4.3",
  "num-integer",
@@ -6509,7 +6476,7 @@ dependencies = [
  "byteorder 1.4.3",
  "bytes 1.4.0",
  "failure",
- "hex 0.4.3",
+ "hex",
  "lazy_static",
  "prost 0.11.8",
  "tcx-constants",
@@ -6526,7 +6493,7 @@ dependencies = [
  "bitcoin",
  "ctr 0.9.2",
  "failure",
- "hex 0.4.3",
+ "hex",
  "hmac-sha256",
  "keccak-hash",
  "rand 0.8.5",
@@ -6558,7 +6525,7 @@ dependencies = [
  "crypto-mac 0.11.1",
  "digest 0.10.6",
  "failure",
- "hex 0.4.3",
+ "hex",
  "hmac 0.12.1",
  "lazy_static",
  "parking_lot",
@@ -6598,7 +6565,7 @@ dependencies = [
  "ethereum-types",
  "ethers",
  "failure",
- "hex 0.4.3",
+ "hex",
  "keccak-hash",
  "prost 0.11.8",
  "prost-types 0.11.8",
@@ -6609,26 +6576,6 @@ dependencies = [
  "tcx-keystore",
  "tcx-primitive",
  "tiny-keccak 2.0.2",
-]
-
-[[package]]
-name = "tcx-eth2"
-version = "0.1.0"
-dependencies = [
- "bytes 1.4.0",
- "failure",
- "hex 0.3.2",
- "keccak-hash",
- "lazy_static",
- "prost 0.11.8",
- "prost-types 0.11.8",
- "regex 1.9.3",
- "ssz_rs",
- "ssz_rs_derive",
- "tcx-constants",
- "tcx-crypto",
- "tcx-keystore",
- "tcx-primitive",
 ]
 
 [[package]]
@@ -6648,7 +6595,7 @@ dependencies = [
  "forest_encoding",
  "forest_message 0.7.2",
  "forest_vm",
- "hex 0.4.3",
+ "hex",
  "lazy_static",
  "prost 0.11.8",
  "serde",
@@ -6670,7 +6617,7 @@ dependencies = [
  "bytes 1.4.0",
  "cargo-husky",
  "failure",
- "hex 0.4.3",
+ "hex",
  "hmac-sha256",
  "lazy_static",
  "multihash 0.18.1",
@@ -6698,7 +6645,7 @@ dependencies = [
  "bytes 1.4.0",
  "ethers",
  "failure",
- "hex 0.4.3",
+ "hex",
  "lazy_static",
  "libc",
  "log",
@@ -6714,7 +6661,6 @@ dependencies = [
  "tcx-crypto",
  "tcx-eos",
  "tcx-eth",
- "tcx-eth2",
  "tcx-keystore",
  "tcx-primitive",
  "tcx-proto",
@@ -6734,7 +6680,7 @@ dependencies = [
  "digest 0.10.6",
  "ed25519-bip32",
  "failure",
- "hex 0.4.3",
+ "hex",
  "hex-literal",
  "hkdf 0.12.3",
  "iop-keyvault",
@@ -6772,7 +6718,7 @@ dependencies = [
  "byteorder 1.4.3",
  "bytes 1.4.0",
  "failure",
- "hex 0.4.3",
+ "hex",
  "parity-scale-codec",
  "prost 0.11.8",
  "prost-types 0.11.8",
@@ -6796,7 +6742,7 @@ name = "tcx-tester"
 version = "0.1.0"
 dependencies = [
  "bytes 1.4.0",
- "hex 0.4.3",
+ "hex",
  "prost 0.11.8",
  "tcx",
 ]
@@ -6809,7 +6755,7 @@ dependencies = [
  "blake2b_simd 1.0.1",
  "bytes 1.4.0",
  "failure",
- "hex 0.4.3",
+ "hex",
  "prost 0.11.8",
  "prost-types 0.11.8",
  "ring",
@@ -6830,7 +6776,7 @@ dependencies = [
  "bytes 1.4.0",
  "digest 0.10.6",
  "failure",
- "hex 0.4.3",
+ "hex",
  "hex-literal",
  "num-bigint 0.4.3",
  "num-integer",
@@ -7345,7 +7291,7 @@ checksum = "76f64bba2c53b04fcab63c01a7d7427eadc821e3bc48c34dc9ba29c501164b52"
 dependencies = [
  "byteorder 1.4.3",
  "crunchy",
- "hex 0.4.3",
+ "hex",
  "static_assertions",
 ]
 
@@ -8011,7 +7957,7 @@ version = "1.0.0"
 dependencies = [
  "console_error_panic_hook",
  "franklin-crypto",
- "hex 0.4.3",
+ "hex",
  "rand 0.4.6",
  "sha2 0.8.2",
  "wasm-bindgen",
