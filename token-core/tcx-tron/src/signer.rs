@@ -89,10 +89,7 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::address::TronAddress;
-
-    use tcx_constants::{CoinInfo, TEST_PASSWORD};
-    use tcx_constants::{CurveType, TEST_MNEMONIC};
+    use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::{HdKeystore, Keystore, KeystoreGuard, Metadata};
     use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
 
@@ -133,21 +130,15 @@ mod tests {
         let meta = Metadata::default();
         let mut keystore =
             Keystore::Hd(HdKeystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, meta).unwrap());
-
-        let coin_info = CoinInfo {
-            coin: "TRON".to_string(),
-            derivation_path: "m/44'/145'/0'/0/0".to_string(),
-            curve: CurveType::SECP256k1,
-            network: "".to_string(),
-            seg_wit: "".to_string(),
-        };
         let mut guard = KeystoreGuard::unlock_by_password(&mut keystore, TEST_PASSWORD).unwrap();
-
         let ks = guard.keystore_mut();
 
-        let account = ks.derive_coin::<TronAddress>(&coin_info).unwrap().clone();
-
-        let signed_tx: TronTxOutput = ks.sign_transaction("TRON", &account.address, &tx)?;
+        let sign_context = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/145'/0'/0/0".to_string(),
+            chain_type: "TRON".to_string(),
+        };
+        let signed_tx: TronTxOutput = ks.sign_transaction(&sign_context, &tx)?;
 
         assert_eq!(signed_tx.signatures[0], "beac4045c3ea5136b541a3d5ec2a3e5836d94f28a1371440a01258808612bc161b5417e6f5a342451303cda840f7e21bfaba1011fad5f63538cb8cc132a9768800");
 

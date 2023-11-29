@@ -98,9 +98,9 @@ impl TransactionSigner<UnsignedMessage, SignedMessage> for Keystore {
 
 #[cfg(test)]
 mod tests {
-    use crate::{FilecoinAddress, KeyInfo, UnsignedMessage};
-    use tcx_constants::{CoinInfo, CurveType};
-    use tcx_keystore::{Keystore, Metadata, TransactionSigner};
+    use crate::{KeyInfo, UnsignedMessage};
+    use tcx_constants::CurveType;
+    use tcx_keystore::{Keystore, Metadata, SignatureParameters, TransactionSigner};
 
     #[test]
     fn test_sign_spec256k1() {
@@ -124,21 +124,13 @@ mod tests {
             Keystore::from_private_key(&hex::encode(private_key), "Password", Metadata::default());
         ks.unlock_by_password("Password").unwrap();
 
-        let coin_info = CoinInfo {
-            coin: "FILECOIN".to_string(),
-            derivation_path: "".to_string(),
+        let sign_context = SignatureParameters {
             curve: CurveType::SECP256k1,
-            network: "MAINNET".to_string(),
-            seg_wit: "".to_string(),
+            derivation_path: "".to_string(),
+            chain_type: "FILECOIN".to_string(),
         };
-
-        let account = ks
-            .derive_coin::<FilecoinAddress>(&coin_info)
-            .unwrap()
-            .clone();
-
         let signed_message = ks
-            .sign_transaction("FILECOIN", &account.address, &unsigned_message)
+            .sign_transaction(&sign_context, &unsigned_message)
             .unwrap();
         let signature = signed_message.signature.unwrap();
 
@@ -172,21 +164,13 @@ mod tests {
             Keystore::from_private_key(&hex::encode(private_key), "Password", Metadata::default());
         ks.unlock_by_password("Password").unwrap();
 
-        let coin_info = CoinInfo {
-            coin: "FILECOIN".to_string(),
-            derivation_path: "".to_string(),
+        let sign_context = SignatureParameters {
             curve: CurveType::BLS,
-            network: "MAINNET".to_string(),
-            seg_wit: "".to_string(),
+            derivation_path: "".to_string(),
+            chain_type: "FILECOIN".to_string(),
         };
-
-        let account = ks
-            .derive_coin::<FilecoinAddress>(&coin_info)
-            .unwrap()
-            .clone();
-
         let signed_message = ks
-            .sign_transaction("FILECOIN", &account.address, &unsigned_message)
+            .sign_transaction(&sign_context, &unsigned_message)
             .unwrap();
         let signature = signed_message.signature.unwrap();
 
