@@ -135,16 +135,8 @@ impl HdKeystore {
         curve: CurveType,
         derivation_path: &str,
     ) -> Result<TypedDeterministicPublicKey> {
-        let cache = self.cache.as_mut().ok_or(Error::KeystoreLocked)?;
-        let mnemonic = cache.mnemonic.clone();
-
-        //todo cache account derived key for performance
-        cache
-            .get_or_insert(derivation_path, curve, || {
-                let root = TypedDeterministicPrivateKey::from_mnemonic(curve, &mnemonic)?;
-                root.derive(derivation_path)
-            })
-            .map(|k| k.deterministic_public_key())
+        let dpk = self.get_deterministic_private_key(curve, derivation_path)?;
+        Ok(dpk.deterministic_public_key())
     }
 
     pub(crate) fn get_deterministic_private_key(
@@ -155,7 +147,6 @@ impl HdKeystore {
         let cache = self.cache.as_mut().ok_or(Error::KeystoreLocked)?;
         let mnemonic = cache.mnemonic.clone();
 
-        //todo cache account derived key for performance
         cache.get_or_insert(derivation_path, curve, || {
             let root = TypedDeterministicPrivateKey::from_mnemonic(curve, &mnemonic)?;
             root.derive(derivation_path)
@@ -167,48 +158,9 @@ impl HdKeystore {
         curve: CurveType,
         derivation_path: &str,
     ) -> Result<TypedPrivateKey> {
-        let cache = self.cache.as_mut().ok_or(Error::KeystoreLocked)?;
-        let mnemonic = cache.mnemonic.clone();
-
-        //todo cache account derived key for performance
-        cache
-            .get_or_insert(derivation_path, curve, || {
-                let root = TypedDeterministicPrivateKey::from_mnemonic(curve, &mnemonic)?;
-                root.derive(derivation_path)
-            })
-            .map(|k| k.private_key())
+        let dpk = self.get_deterministic_private_key(curve, derivation_path)?;
+        Ok(dpk.private_key())
     }
-
-    /*
-    pub(crate) fn find_private_key_by_path(
-        &mut self,
-        symbol: &str,
-        main_address: &str,
-        relative_path: &str,
-    ) -> Result<TypedPrivateKey> {
-        let cache = self.cache.as_ref().ok_or(Error::KeystoreLocked)?;
-
-        if !cache.keys.contains_key(main_address) {
-            let account = self
-                .account(symbol, main_address)
-                .ok_or(Error::AccountNotFound)?;
-
-            let esk = TypedDeterministicPrivateKey::from_mnemonic(account.curve, &cache.mnemonic)?;
-
-            let k = esk.derive(&get_account_path(&account.derivation_path)?)?;
-
-            self.cache
-                .as_mut()
-                .unwrap()
-                .keys
-                .insert(main_address.to_owned(), k);
-        }
-
-        let esk = &self.cache.as_ref().unwrap().keys[main_address];
-
-        Ok(esk.derive(relative_path)?.private_key())
-    }
-     */
 
     pub fn new(password: &str, meta: Metadata) -> HdKeystore {
         let mnemonic = generate_mnemonic();

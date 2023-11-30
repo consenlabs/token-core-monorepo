@@ -16,12 +16,16 @@ use bitcoin_hashes::hex::FromHex as HashFromHex;
 use bitcoin_hashes::hex::ToHex as HashToHex;
 use bitcoin_hashes::Hash;
 use byteorder::{BigEndian, WriteBytesExt};
+use num_bigint::Sign;
 use secp256k1::{Message, Secp256k1};
+use tcx_constants::{CoinInfo, CurveType};
 
 use tcx_keystore::keystore::Error as KeystoreError;
 use tcx_keystore::{Address, SignatureParameters};
 use tcx_keystore::{Keystore, TransactionSigner};
-use tcx_primitive::{Derive, PrivateKey, PublicKey, Secp256k1PrivateKey, TypedPrivateKey};
+use tcx_primitive::{
+    get_account_path, Derive, PrivateKey, PublicKey, Secp256k1PrivateKey, TypedPrivateKey,
+};
 
 use crate::address::{BtcKinAddress, ScriptPubkey};
 use crate::bitcoin_cash_sighash::BitcoinCashSighash;
@@ -236,7 +240,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
     pub fn prepare_tx(
         &self,
         keystore: &mut Keystore,
-        sign_context: &SignatureParameters,
+        params: &SignatureParameters,
     ) -> Result<(Script, Vec<Secp256k1PrivateKey>, i32, Vec<TxOut>, Vec<TxIn>)> {
         let mut prevouts = vec![];
         let mut tx_inputs: Vec<TxIn> = vec![];
@@ -245,8 +249,17 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
             return Err(Error::InvalidUtxo.into());
         }
 
+        let account_path = get_account_path(&params.derivation_path)?;
+        let coin_info = CoinInfo {
+            coin: params.chain_type.clone(),
+            derivation_path: params.derivation_path.clone(),
+            curve: params.curve,
+            network: params.network.clone(),
+            seg_wit: params.seg_wit.clone(),
+        };
+
         let change_script = if let Some(change_address_index) = self.change_address_index && keystore.derivable() {
-            let dpk = account.deterministic_public_key()?;
+            let dpk = keystore.get_deterministic_public_key(params.curve, &account_path)?;
             let pub_key = dpk
                 .derive(format!("1/{}", change_address_index).as_str())?
                 .public_key();
@@ -258,41 +271,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
 
         let mut sks = vec![];
 
-        struct PreparePrivateKey {
-            address: Option<String>,
-            is_matched: fn(script_pubkey: &Script) -> bool,
-        }
-
-        let mut prepares = [
-            PreparePrivateKey {
-                address: None,
-                is_matched: |script_pubkey| script_pubkey.is_p2pkh(),
-            },
-            PreparePrivateKey {
-                address: None,
-                is_matched: |script_pubkey| script_pubkey.is_p2sh(),
-            },
-            PreparePrivateKey {
-                address: None,
-                is_matched: |script_pubkey| script_pubkey.is_v0_p2wpkh(),
-            },
-            PreparePrivateKey {
-                address: None,
-                is_matched: |script_pubkey| script_pubkey.is_v1_p2tr(),
-            },
-        ];
-
         let mut version = 1;
-        for acc in keystore.accounts().iter() {
-            if acc.coin == coin_info.coin && acc.network == coin_info.network {
-                let script_pubkey = T::from_str(&acc.address)?.script_pubkey();
-                prepares.iter_mut().for_each(|x| {
-                    if (x.is_matched)(&script_pubkey) {
-                        x.address = Some(acc.address.clone());
-                    }
-                })
-            }
-        }
 
         for x in self.inputs.iter() {
             let script_pubkey = T::from_str(&x.address)?.script_pubkey();
@@ -317,23 +296,16 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
             });
 
             if x.derived_path.len() > 0 && keystore.derivable() {
-                let matched = prepares
-                    .iter()
-                    .filter(|y| (y.is_matched)(&script_pubkey))
-                    .next();
-                if let Some(defined_key) = matched && let Some(address) = &defined_key.address {
-                    sks.push(
-                        keystore.find_private_key_by_path(symbol, address, &x.derived_path)?
-                            .as_secp256k1()?
-                            .clone(),
-                    );
-                } else {
-                    return Err(KeystoreError::AccountNotFound.into());
-                }
+                sks.push(
+                    keystore
+                        .get_private_key(CurveType::SECP256k1, &x.derived_path)?
+                        .as_secp256k1()?
+                        .clone(),
+                );
             } else {
                 sks.push(
                     keystore
-                        .find_private_key(symbol, &x.address)?
+                        .get_private_key(CurveType::SECP256k1, "")?
                         .as_secp256k1()?
                         .clone(),
                 );
@@ -346,10 +318,10 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
     pub fn sign(
         &self,
         keystore: &mut Keystore,
-        sign_context: &SignatureParameters,
+        params: &SignatureParameters,
     ) -> Result<BtcKinTxOutput> {
         let (change_script, private_keys, version, prevouts, tx_inputs) =
-            self.prepare_tx(keystore, coin, address)?;
+            self.prepare_tx(keystore, params)?;
 
         let tx_outs = self.tx_outs(change_script)?;
 
@@ -369,7 +341,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
         };
 
         let sighash_cache: Box<dyn TxSignatureHasher>;
-        if coin == BITCOINCASH {
+        if params.chain_type == BITCOINCASH {
             sighash_cache = Box::new(BitcoinCashSighash::new(tx_clone, 0x40));
         } else {
             sighash_cache = Box::new(SighashCache::new(Box::new(tx_clone)));
@@ -400,10 +372,10 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
 impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
     fn sign_transaction(
         &mut self,
-        sign_context: &SignatureParameters,
+        params: &SignatureParameters,
         tx: &BtcKinTxInput,
     ) -> Result<BtcKinTxOutput> {
-        if sign_context.chain_type == BITCOINCASH {
+        if params.chain_type == BITCOINCASH {
             let kin_tx = KinTransaction {
                 inputs: tx.inputs.clone(),
                 amount: tx.amount,
@@ -413,7 +385,7 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
                 op_return: tx.op_return.clone(),
                 phantom: PhantomData::<BchAddress>,
             };
-            kin_tx.sign(self, sign_context)
+            kin_tx.sign(self, params)
         } else {
             let kin_tx = KinTransaction {
                 inputs: tx.inputs.clone(),
@@ -424,7 +396,7 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
                 op_return: tx.op_return.clone(),
                 phantom: PhantomData::<BtcKinAddress>,
             };
-            kin_tx.sign(self, sign_context)
+            kin_tx.sign(self, params)
         }
     }
 }
@@ -432,8 +404,7 @@ impl TransactionSigner<BtcKinTxInput, BtcKinTxOutput> for Keystore {
 impl TransactionSigner<OmniTxInput, BtcKinTxOutput> for Keystore {
     fn sign_transaction(
         &mut self,
-        _: &str,
-        address: &str,
+        params: &SignatureParameters,
         tx: &OmniTxInput,
     ) -> Result<BtcKinTxOutput> {
         /*
@@ -460,7 +431,10 @@ impl TransactionSigner<OmniTxInput, BtcKinTxOutput> for Keystore {
             op_return: Some(create_omni_op_return()),
         };
 
-        self.sign_transaction("BITCOIN", address, &btc_tx)
+        let mut params = (*params).clone();
+        params.chain_type = BITCOIN.to_string();
+
+        self.sign_transaction(&params, &btc_tx)
     }
 }
 
@@ -477,15 +451,9 @@ mod tests {
 
     use super::*;
 
-    fn setup(keystore: &mut Keystore) {
-        crate::bitcoin::enable_account(BITCOIN, 0, keystore).unwrap();
-        crate::bitcoin::enable_account(LITECOIN, 0, keystore).unwrap();
-    }
-
     fn hex_keystore(hex: &str) -> Keystore {
         let mut keystore = Keystore::from_private_key(hex, TEST_PASSWORD, Metadata::default());
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
-        setup(&mut keystore);
         keystore
     }
 
@@ -502,7 +470,6 @@ mod tests {
         let mut keystore =
             Keystore::from_mnemonic(mnemonic, TEST_PASSWORD, Metadata::default()).unwrap();
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
-        setup(&mut keystore);
         keystore
     }
 
@@ -539,8 +506,16 @@ mod tests {
                 op_return: None,
             };
 
-            let actual =
-                ks.sign_transaction("BITCOIN", "n2ZNV88uQbede7C5M5jzi6SyG4GVuPpng6", &tx_input);
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: BITCOIN.to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "".to_string(),
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input);
+
             assert_eq!(
                 actual.err().unwrap().to_string(),
                 "amount_less_than_minimum"
@@ -550,6 +525,7 @@ mod tests {
 
     mod omni {
         use super::*;
+        use crate::OMNI;
 
         #[test]
         fn test_sign_with_hd_on_testnet() {
@@ -571,9 +547,15 @@ mod tests {
                 property_id: 31,
             };
 
-            let actual = ks
-                .sign_transaction("OMNI", "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN", &tx_input)
-                .unwrap();
+            let params = SignatureParameters {
+                chain_type: OMNI.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                curve: CurveType::SECP256k1,
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
             assert_eq!(actual.raw_tx, "010000000131204fa5fe40ef035e9a7330a15fae4483d2670c3af495596c08c515c895d10d000000006a4730440220138f0bb42eda662c061e285e4999ff8297fedaedcdbcb5f7b5166234a685d3560220116e7b55d242f384cf02891cbd3eb602935177128e62a1efe670c0bf063a90000121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff0322020000000000001976a91455bdc1b42e3bed851959846ddf600e96125423e088acd423e200000000001976a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688ac0000000000000000166a146f6d6e69000000000000001f00000002540be40000000000");
         }
 
@@ -597,17 +579,23 @@ mod tests {
                 property_id: 31,
             };
 
-            let actual = ks
-                .sign_transaction("OMNI", "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB", &tx_input)
-                .unwrap();
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: OMNI.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+                derivation_path: "m/49'/1'/0'/0/0".to_string(),
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
             assert_eq!(actual.raw_tx, "02000000000101784c9fa8ef8756b8acdbcfa154fbafc4b973cb239c87f499f1f960e5d06faf9b0100000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffff0322020000000000001976a91455bdc1b42e3bed851959846ddf600e96125423e088ac228a4d010000000017a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f78759870000000000000000166a146f6d6e69000000000000001f00000002540be4000247304402207e9c6d232084c9a0bcfa1f36184e6b044912e88630ebe624679642a99692529102202318c4c3a42d5656d300a42dc7796c5e0a6e9d1fb13465279fbe58bcd13345460121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc00000000");
         }
     }
 
     mod bitcoincash {
         use crate::{bitcoincash, BtcKinTxInput, Utxo, BITCOINCASH};
-        use tcx_constants::TEST_PASSWORD;
-        use tcx_keystore::{Keystore, Metadata, TransactionSigner};
+        use tcx_constants::{CurveType, TEST_PASSWORD};
+        use tcx_keystore::{Keystore, Metadata, SignatureParameters, TransactionSigner};
 
         #[test]
         pub fn test_bch_signer() {
@@ -635,15 +623,16 @@ mod tests {
                 Metadata::default(),
             );
             ks.unlock_by_password(TEST_PASSWORD).unwrap();
-            bitcoincash::enable_account(BITCOINCASH, 0, &mut ks).unwrap();
 
-            let actual = ks
-                .sign_transaction(
-                    BITCOINCASH,
-                    "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r",
-                    &tx_input,
-                )
-                .unwrap();
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: BITCOINCASH.to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "m/44'/145'/1'/0/0".to_string(),
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
             assert_eq!(actual.raw_tx, "0100000001e2986a004630cb451921d9e7b4454a6671e50ddd43ea431c34f6011d9ca4c309000000006a473044022064fb81c11181e6604aa56b29ed65e31680fc1203f5afb6f67c5437f2d68192d9022022282d6c3c35ffdf64a427df5e134aa0edb8528efb6151cb1c3b21422fdfd6e041210251492dfb299f21e426307180b577f927696b6df0b61883215f88eb9685d3d449ffffffff020e6d0100000000001976a9142af4c2c085cd9da90c13cd64c6ae746fa139956e88ac22020000000000001976a914bedf37acf35504c9bfd18b09d989d0fb23fd269688ac00000000");
         }
@@ -677,13 +666,15 @@ mod tests {
                 op_return: None,
             };
 
-            let actual = ks
-                .sign_transaction(
-                    "BITCOIN",
-                    "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4",
-                    &tx_input,
-                )
-                .unwrap();
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: BITCOIN.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "P2TR".to_string(),
+                derivation_path: "m/86'/1'/0'/0/0".to_string(),
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
             //Because of the schnorr signature is not determined, can't compare to the raw tx
             //please see https://blockstream.info/testnet/tx/b9d297c17be4fd659959a40fc6df7bf659f5f6e1b46c29d613d6fa25c711616b?expand
@@ -717,13 +708,15 @@ mod tests {
                 op_return: None,
             };
 
-            let actual = ks
-                .sign_transaction(
-                    "BITCOIN",
-                    "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4",
-                    &tx_input,
-                )
-                .unwrap();
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: BITCOIN.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "P2TR".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
             //Because of the schnorr signature is not determined, can't compare to the raw tx
             //please see https://blockstream.info/testnet/tx/0fb223cd2cd90830827ab235b752de841153d69a75649d8f92ffa2198d645852?expand
@@ -791,13 +784,15 @@ mod tests {
                 op_return: None,
             };
 
-            let actual = ks
-                .sign_transaction(
-                    "BITCOIN",
-                    "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4",
-                    &tx_input,
-                )
-                .unwrap();
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: BITCOIN.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
             let tx = Transaction::deserialize(&hex::decode(&actual.raw_tx).unwrap()).unwrap();
 
@@ -870,8 +865,15 @@ mod tests {
                 op_return: None,
             };
 
-            let actual =
-                ks.sign_transaction("BITCOIN", "n2ZNV88uQbede7C5M5jzi6SyG4GVuPpng6", &tx_input);
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: BITCOIN.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "".to_string(),
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input);
             assert_eq!(
                 actual.err().unwrap().to_string(),
                 "amount_less_than_minimum"
@@ -886,9 +888,7 @@ mod tests {
                 op_return: None,
             };
 
-            let actual = ks
-                .sign_transaction("BITCOIN", "n2ZNV88uQbede7C5M5jzi6SyG4GVuPpng6", &tx_input)
-                .unwrap();
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
             assert_eq!(actual.raw_tx, "0100000001f4642aab744137e7f74b0f9c3501799f806951210da8318b88c8135821b112e1000000006b4830450221009b4a952af51fa057b8e5fb2eb114d0396a0fcbd2912d49c557bb11fc4caa87440220664202cffe79927aaef08aef9a07a60d9cf3f07599b5333d2b31ff2a701974e6012102506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aabaffffffff01188cd003000000001976a914b6fc6ecf55a41b240fd26aaed696624009818d9988ac00000000");
 
@@ -901,9 +901,7 @@ mod tests {
                 op_return: None,
             };
 
-            let actual = ks
-                .sign_transaction("BITCOIN", "n2ZNV88uQbede7C5M5jzi6SyG4GVuPpng6", &tx_input)
-                .unwrap();
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
             assert_eq!(actual.raw_tx, "0100000001f4642aab744137e7f74b0f9c3501799f806951210da8318b88c8135821b112e1000000006b483045022100a2d7e684e61df275c35055952a37d0411964caf653172d947475153444ee1c20022038e1219322562864af183c9d4a9a376968b00efb8943ea84475799a23f412a3c012102506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aabaffffffff0200879303000000001976a914b6fc6ecf55a41b240fd26aaed696624009818d9988ac00093d00000000001976a914e6cfaab9a59ba187f0a45db0b169c21bb48f09b388ac00000000");
         }
 
@@ -955,9 +953,15 @@ mod tests {
                 op_return: None,
             };
 
-            let actual = ks
-                .sign_transaction("BITCOIN", "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN", &tx_input)
-                .unwrap();
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: BITCOIN.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
             assert_eq!(actual.raw_tx, "01000000047a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000006b483045022100c610f77f71cc8afcfbd46df8e3d564fb8fb0f2c041bdf0869512c461901a8ad802206b92460cccbcb2a525877db1b4b7530d9b85e135ce88424d1f5f345dc65b881401210312a0cb31ff52c480c049da26d0aaa600f47e9deee53d02fc2b0e9acf3c20fbdfffffffff31b5a9794dcaf82af1738745afe1ecf402ea4a93e71ae75c7d3d8bf7c78aef45010000006b483045022100dce4a4c3d79bf9392832f68da3cd2daf85ac7fa851402ecc9aaac69b8761941d02201e1fd6601812ea9e39c6df0030cb754d4c578ff48bc9db6072ba5207a4ebc2b60121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffffa92c40dfd195a188d87110557fb7f46dbbfb68c4bb8718f33dc31d61927ec614000000006b483045022100e1802d80d72f5f3be624df3ab668692777188a9255c58067840e4b73a5a61a99022025b23942deb21f5d1959aae85421299ecc9efefb250dbacb46a4130abd538d730121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffffb99a3e8884b14f330d2a444a4bc2a03af16804fb99b5e37ee892ed5db8b67f11010000006a47304402207b82a62ed0d35c9878e6a7946d04679c8a17a8dd0a856b5cc14928fe1e9b554a0220411dd1a61f8ac2a8d7564de84e2c8a2c2583986bd71ac316ade480b8d0b4fffd0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff0120d9ae2f000000001976a91455bdc1b42e3bed851959846ddf600e96125423e088ac00000000");
 
             let tx_input = BtcKinTxInput {
@@ -970,9 +974,7 @@ mod tests {
             };
 
             //contains change
-            let actual = ks
-                .sign_transaction("BITCOIN", "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN", &tx_input)
-                .unwrap();
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
             //see https://mempool.space/testnet/tx/3aa6ed94e29c01b96fe3a20c30825d161f421d5e2358eb1ceade43de533e1977#vin=0
             assert_eq!(
@@ -1030,9 +1032,15 @@ mod tests {
                 op_return: Some("1234".to_string()),
             };
 
-            let actual = ks
-                .sign_transaction("BITCOIN", "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN", &tx_input)
-                .unwrap();
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: BITCOIN.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
             assert_eq!(actual.raw_tx, "01000000047a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000006a473044022018bdc26d15552ddda446a07212c1cffcc259a51830a347b379c842d4823f76330220239a54e93e315778adcb2d96eb32688594764c471ceb28c811a4300916a875a901210312a0cb31ff52c480c049da26d0aaa600f47e9deee53d02fc2b0e9acf3c20fbdfffffffff31b5a9794dcaf82af1738745afe1ecf402ea4a93e71ae75c7d3d8bf7c78aef45010000006b483045022100ee3f5a4acbf595ccdeae6c7f31ed51c3595c5814b1098345db94b85fd4e681030220412a0f8da13a9df4447018637b0fe31d11a795b2c1f8174128d2fd0608269f9b0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffffa92c40dfd195a188d87110557fb7f46dbbfb68c4bb8718f33dc31d61927ec614000000006b483045022100f4be2b77fe1cb152e2c1868cedd4e3cf8f6af5b73b10fb4ba8ea95b279f10a37022023227ff8efde2a1dd72e4363fb75e3da80ae6c4f6c66cdf66e55b835c54549640121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffffb99a3e8884b14f330d2a444a4bc2a03af16804fb99b5e37ee892ed5db8b67f11010000006b483045022100a2561e13c430c8d136c13de0f34913e9c5c1d26f8b577a2fe206b9285538020f02204af7501eab7c562f868e5369fddc93f654fa80227166104a4ac11cf43cfe2caf0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff0220d9ae2f000000001976a91455bdc1b42e3bed851959846ddf600e96125423e088ac0000000000000000046a02123400000000")
         }
@@ -1069,9 +1077,15 @@ mod tests {
                 op_return: None,
             };
 
-            let actual = ks
-                .sign_transaction("BITCOIN", "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB", &tx_input)
-                .unwrap();
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: BITCOIN.to_string(),
+                network: "TESTNET".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                seg_wit: "P2SH".to_string(),
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
             assert_eq!(actual.raw_tx, "020000000001027f717276057e6012afa99385c18cc692397a666560520577679bf38c08b5cec20000000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffff74cdd54bc48333e1d2f108460284d137c39b6c417d9ff55a572a9550d428d69a00000000171600149d66aa6399de69d5c5ae19f9098047760251a854ffffffff01c05701000000000017a914b710f6e5049eaf0404c2f02f091dd5bb79fa135e870247304402205fd9dea5df0db5cc7b1d4b969f63b4526fb00fd5563ab91012cb511744a53d570220784abfe099a2b063b1cfc1f145fef2ffcb100b0891514fa164d357f0ef7ca6bb0121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc02483045022100b0246c12428dbf863fcc9060ab6fc46dc2135adaa6cf8117de49f9acecaccf6c022059377d05c9cab24b7dec14242ea3206cc1f464d5ff9904dca515fc71766507cd012103a241c8d13dd5c92475652c43bf56580fbf9f1e8bc0aa0132ddc8443c03062bb900000000");
 
@@ -1084,9 +1098,7 @@ mod tests {
                 op_return: None,
             };
 
-            let actual = ks
-                .sign_transaction("BITCOIN", "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB", &tx_input)
-                .unwrap();
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
             assert_eq!(actual.raw_tx, "020000000001027f717276057e6012afa99385c18cc692397a666560520577679bf38c08b5cec20000000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffff74cdd54bc48333e1d2f108460284d137c39b6c417d9ff55a572a9550d428d69a00000000171600149d66aa6399de69d5c5ae19f9098047760251a854ffffffff02803801000000000017a914b710f6e5049eaf0404c2f02f091dd5bb79fa135e87102700000000000017a914755fba51b5c443b9f16b1f86665dec10dd7a25c58702483045022100f0c66cd322e50f992ad34448fb3bf823066e5ffaa8e840a901058a863a4d950c02206cdafb1ad1ef4d938122b106069d8b435387e4d55711f50a46a8d91d9f674c550121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc02483045022100cfe92e4ad4fbfc13be20afc6f37429e26426257d015b409d28c260544e581b2c022028412816d1fef11093b474c2c662a25a4062f4e37d06ce66207863de98814a07012103a241c8d13dd5c92475652c43bf56580fbf9f1e8bc0aa0132ddc8443c03062bb900000000");
         }
@@ -1123,9 +1135,15 @@ mod tests {
                 op_return: Some("1234".to_string()),
             };
 
-            let actual = ks
-                .sign_transaction("BITCOIN", "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB", &tx_input)
-                .unwrap();
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: BITCOIN.to_string(),
+                network: "TESTNET".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
             assert_eq!(actual.raw_tx, "020000000001027f717276057e6012afa99385c18cc692397a666560520577679bf38c08b5cec20000000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffff74cdd54bc48333e1d2f108460284d137c39b6c417d9ff55a572a9550d428d69a00000000171600149d66aa6399de69d5c5ae19f9098047760251a854ffffffff02c05701000000000017a914b710f6e5049eaf0404c2f02f091dd5bb79fa135e870000000000000000046a021234024730440220527c098c320c54ac56445b757a76833f7a47229fa0fe2b179f55bd718822695e022060f48b05c46f8335266eade0fe503448ff4222efc7e84ef86a25abffbe02ead20121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc024730440220551ab42b94841b43e6118a6adb39a561f138ae9ee8d2c00ffa3886839afe66d2022046686666245b94b7272d7cbd17a6f20639532ddefafe0572ecc28dcb246d33f8012103a241c8d13dd5c92475652c43bf56580fbf9f1e8bc0aa0132ddc8443c03062bb900000000");
         }
@@ -1158,9 +1176,16 @@ mod tests {
 
             let mut keystore = Keystore::from_json(keystore_json).unwrap();
             let _ = keystore.unlock_by_password("imtoken1");
-            let actual = keystore
-                .sign_transaction("LITECOIN", "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN", &tx_input)
-                .unwrap();
+
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: LITECOIN.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+            };
+
+            let actual = keystore.sign_transaction(&params, &tx_input).unwrap();
             assert_eq!(
                 actual.tx_hash,
                 "e15054b5a45400796fe3f8605c7dd84ff6ec7e08f444969ba24fa1c285d10df9"
@@ -1202,9 +1227,16 @@ mod tests {
 
             let mut keystore = Keystore::from_json(keystore_json).unwrap();
             let _ = keystore.unlock_by_password("imtoken1");
-            let actual = keystore
-                .sign_transaction("LITECOIN", "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN", &tx_input)
-                .unwrap();
+
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: LITECOIN.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+            };
+
+            let actual = keystore.sign_transaction(&params, &tx_input).unwrap();
             assert_eq!(
                 actual.tx_hash,
                 "c8d5b9bda8a43a8cc04b1271c2fd5d92d45ed00b2a64193f531ee0f05f3afe96"
@@ -1237,9 +1269,15 @@ mod tests {
 
             let mut keystore = Keystore::from_json(keystore_json).unwrap();
             let _ = keystore.unlock_by_password("imtoken1");
-            let actual = keystore
-                .sign_transaction("LITECOIN", "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN", &tx_input)
-                .unwrap();
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: LITECOIN.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+            };
+
+            let actual = keystore.sign_transaction(&params, &tx_input).unwrap();
             assert_ne!(
                 actual.tx_hash,
                 "f90dd185c2a14fa29b9644f4087eecf64fd87d5c60f8e36f790054a4b55450e1"
@@ -1271,11 +1309,14 @@ mod tests {
 
             let mut keystore = Keystore::from_json(keystore_json).unwrap();
             let _ = keystore.unlock_by_password("imtoken1");
-            let ret = keystore.sign_transaction(
-                "LITECOIN",
-                "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN",
-                &tx_input,
-            );
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: LITECOIN.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+            };
+            let ret = keystore.sign_transaction(&params, &tx_input);
             assert!(ret.is_err());
             assert_eq!(
                 format!("{}", ret.err().unwrap()),
@@ -1307,11 +1348,14 @@ mod tests {
 
             let mut keystore = Keystore::from_json(keystore_json).unwrap();
             let _ = keystore.unlock_by_password("imtoken1");
-            let ret = keystore.sign_transaction(
-                "LITECOIN",
-                "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN",
-                &tx_input,
-            );
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: LITECOIN.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+            };
+            let ret = keystore.sign_transaction(&params, &tx_input);
             assert!(ret.is_err());
         }
 
@@ -1348,13 +1392,15 @@ mod tests {
                 Keystore::from_private_key(&prv_key, TEST_PASSWORD, Metadata::default());
             let coin_info = coin_info_from_param("LITECOIN", "TESTNET", "NONE", "").unwrap();
             let _ = keystore.unlock_by_password(TEST_PASSWORD).unwrap();
-            keystore.derive_coin::<BtcKinAddress>(&coin_info);
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: LITECOIN.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+            };
 
-            let ret = keystore.sign_transaction(
-                "LITECOIN",
-                "mszYqVnqKoQx4jcTdJXxwKAissE3Jbrrc1",
-                &tx_input,
-            );
+            let ret = keystore.sign_transaction(&params, &tx_input);
             assert!(ret.is_err());
             assert_eq!(
                 format!("{}", ret.err().unwrap()),
@@ -1385,11 +1431,15 @@ mod tests {
 
                 let mut ks = wif_keystore("mszYqVnqKoQx4jcTdJXxwKAissE3Jbrrc1");
 
-                let ret = ks.sign_transaction(
-                    "LITECOIN",
-                    "mszYqVnqKoQx4jcTdJXxwKAissE3Jbrrc1",
-                    &tx_input,
-                );
+                let params = SignatureParameters {
+                    curve: CurveType::SECP256k1,
+                    derivation_path: "".to_string(),
+                    chain_type: "".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
+                };
+
+                let ret = ks.sign_transaction(&params, &tx_input);
                 assert!(ret.is_err());
             }
         }
@@ -1415,9 +1465,15 @@ mod tests {
             let mut ks =
                 hex_keystore("f3731f49d830c109e054522df01a9378383814af5b01a9cd150511f12db39e6e");
 
-            let actual = ks
-                .sign_transaction("LITECOIN", "MV3hqxhhcGxCdeLXpZKRCabtUApRXixgid", &tx_input)
-                .unwrap();
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: BITCOIN.to_string(),
+                network: "MAINNET".to_string(),
+                derivation_path: "m/44'/0'/0'/0/0".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
             assert_eq!(actual.raw_tx, "020000000001018bba45b98e54a14d79ca2a5e253f727bff45cf58b5ac5421dd6a37756eb668e801000000171600147b03478d2f7c984179084baa38f790ed1d37629bffffffff01c01f2e010000000017a91400aff21f24bc08af58e41e4186d8492a10b84f9e8702483045022100d0cc3d94c7b7b34fdcc2adc4fd3f735560407581afd6caa11c8d04b963a048a00220777d98e0122fe97206875f49556a401dfc449739ec30e44cb9ed9b92a0b3ff1b01210209c629c64829ec2e99703600ee86c7161a9ed13213e714726210274c29cf780900000000");
         }
     }

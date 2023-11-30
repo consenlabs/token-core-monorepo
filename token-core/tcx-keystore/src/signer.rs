@@ -1,10 +1,25 @@
 use crate::{Keystore, Result};
 use tcx_constants::CurveType;
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct SignatureParameters {
     pub curve: CurveType,
     pub derivation_path: String,
     pub chain_type: String,
+    pub network: String,
+    pub seg_wit: String,
+}
+
+impl Default for SignatureParameters {
+    fn default() -> Self {
+        SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "".to_string(),
+            chain_type: "".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        }
+    }
 }
 
 pub trait TransactionSigner<Input, Output> {

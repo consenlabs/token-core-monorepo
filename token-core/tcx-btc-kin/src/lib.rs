@@ -72,79 +72,9 @@ pub mod bitcoin {
     pub type Address = crate::BtcKinAddress;
     pub type TransactionInput = crate::transaction::BtcKinTxInput;
     pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
-
-    pub fn enable_account(
-        coin: &str,
-        index: u32,
-        keystore: &mut Keystore,
-    ) -> Result<Vec<Account>, failure::Error> {
-        let coin_type = match coin {
-            BITCOIN => 0,
-            LITECOIN => 2,
-            _ => Err(format_err!("unsupported coin"))?,
-        };
-
-        keystore.derive_coins::<BtcKinAddress>(&[
-            CoinInfo {
-                coin: coin.to_string(),
-                derivation_path: format!("m/44'/{}'/{}'/0/0", coin_type, index),
-                curve: tcx_constants::CurveType::SECP256k1,
-                network: "MAINNET".to_string(),
-                seg_wit: "NONE".to_string(),
-            },
-            CoinInfo {
-                coin: coin.to_string(),
-                derivation_path: format!("m/49'/{}'/{}'/0/0", coin_type, index),
-                curve: tcx_constants::CurveType::SECP256k1,
-                network: "MAINNET".to_string(),
-                seg_wit: "P2WPKH".to_string(),
-            },
-            CoinInfo {
-                coin: coin.to_string(),
-                derivation_path: format!("m/84'/{}'/{}'/0/0", coin_type, index),
-                curve: tcx_constants::CurveType::SECP256k1,
-                network: "MAINNET".to_string(),
-                seg_wit: "SEGWIT".to_string(),
-            },
-            CoinInfo {
-                coin: coin.to_string(),
-                derivation_path: format!("m/86'/{}'/{}'/0/0", coin_type, index),
-                curve: tcx_constants::CurveType::SECP256k1,
-                network: "MAINNET".to_string(),
-                seg_wit: "P2TR".to_string(),
-            },
-            CoinInfo {
-                coin: coin.to_string(),
-                derivation_path: format!("m/44'/1'/{}'/0/0", index),
-                curve: tcx_constants::CurveType::SECP256k1,
-                network: "TESTNET".to_string(),
-                seg_wit: "NONE".to_string(),
-            },
-            CoinInfo {
-                coin: coin.to_string(),
-                derivation_path: format!("m/49'/1'/{}'/0/0", index),
-                curve: tcx_constants::CurveType::SECP256k1,
-                network: "TESTNET".to_string(),
-                seg_wit: "P2WPKH".to_string(),
-            },
-            CoinInfo {
-                coin: coin.to_string(),
-                derivation_path: format!("m/84'/1'/{}'/0/0", index),
-                curve: tcx_constants::CurveType::SECP256k1,
-                network: "TESTNET".to_string(),
-                seg_wit: "SEGWIT".to_string(),
-            },
-            CoinInfo {
-                coin: coin.to_string(),
-                derivation_path: format!("m/86'/1'/{}'/0/0", coin_type),
-                curve: tcx_constants::CurveType::SECP256k1,
-                network: "TESTNET".to_string(),
-                seg_wit: "P2TR".to_string(),
-            },
-        ])
-    }
 }
 
+/*
 pub fn calc_btc_change_address(
     ks: &Keystore,
     seg_wit: &str,
@@ -169,6 +99,7 @@ pub fn calc_btc_change_address(
     let address = BtcKinAddress::from_public_key(&typed_pk, &acc.coin_info())?;
     Ok((address.to_string(), external_path))
 }
+ */
 
 pub mod bitcoincash {
     use crate::BITCOINCASH;
