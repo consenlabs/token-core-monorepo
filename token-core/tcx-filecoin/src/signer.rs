@@ -10,7 +10,7 @@ use num_bigint_chainsafe::BigInt;
 use std::convert::TryFrom;
 use std::str::FromStr;
 use tcx_constants::CurveType;
-use tcx_keystore::{ChainSigner, Keystore, Result, SignatureParameters, Signer, TransactionSigner};
+use tcx_keystore::{Keystore, Result, SignatureParameters, Signer, TransactionSigner};
 
 impl TryFrom<&UnsignedMessage> for ForestUnsignedMessage {
     type Error = crate::Error;
@@ -61,7 +61,16 @@ impl TransactionSigner<UnsignedMessage, SignedMessage> for Keystore {
         let signature;
         let mut cid: Cid = unsigned_message.cid()?;
         match sign_context.curve {
-            CurveType::SECP256k1 => {
+            Some(CurveType::BLS) => {
+                signature_type = 2;
+                signature = self.bls_sign(
+                    &cid.to_bytes(),
+                    &sign_context.derivation_path,
+                    "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_",
+                )?;
+                cid = unsigned_message.cid()?;
+            }
+            _ => {
                 signature_type = 1;
                 signature = self.secp256k1_ecdsa_sign_recoverable(
                     &digest(&cid.to_bytes(), HashSize::Default),
@@ -77,12 +86,6 @@ impl TransactionSigner<UnsignedMessage, SignedMessage> for Keystore {
                     .cid()
                     .map_err(|_e| format_err!("{}", "forest_message cid error"))?;
             }
-            CurveType::BLS => {
-                signature_type = 2;
-                signature = self.bls_sign(&cid.to_bytes(), &sign_context.derivation_path)?;
-                cid = unsigned_message.cid()?;
-            }
-            _ => return Err(Error::InvalidCurveType.into()),
         }
 
         Ok(SignedMessage {
@@ -125,9 +128,9 @@ mod tests {
         ks.unlock_by_password("Password").unwrap();
 
         let sign_context = SignatureParameters {
-            curve: CurveType::SECP256k1,
-            derivation_path: "".to_string(),
-            chain_type: "FILECOIN".to_string(),
+            derivation_path: Some(tcx_constants::DerivationPath::FileCoin),
+            chain_type: tcx_constants::ChainType::Ethereum,
+            ..Default::default()
         };
         let signed_message = ks
             .sign_transaction(&sign_context, &unsigned_message)
@@ -165,9 +168,11 @@ mod tests {
         ks.unlock_by_password("Password").unwrap();
 
         let sign_context = SignatureParameters {
-            curve: CurveType::BLS,
-            derivation_path: "".to_string(),
-            chain_type: "FILECOIN".to_string(),
+            curve: Some(CurveType::BLS),
+            derivation_path: Some(tcx_constants::DerivationPath::FileCoinBls),
+            chain_type: tcx_constants::ChainType::FileCoin,
+            sig_alg: Some(tcx_constants::SigAlg::BlsSigBls12381g2Xmd),
+            ..Default::default()
         };
         let signed_message = ks
             .sign_transaction(&sign_context, &unsigned_message)

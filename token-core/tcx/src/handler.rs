@@ -90,7 +90,7 @@ use_chains!(
     tcx_eos::eos,
     tcx_ckb::nervos,
     tcx_eth::ethereum,
-    tcx_eth2::ethereum2,
+    // tcx_eth2::ethereum2,
     tcx_atom::cosmos,
     tcx_substrate::polkadot,
     tcx_tezos::tezos,

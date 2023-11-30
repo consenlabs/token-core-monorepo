@@ -95,7 +95,8 @@ macro_rules! use_chains {
                             .as_slice(),
                     )
                     .expect("TransactionInput");
-                    let curve = CurveType::from_str(&params.curve);
+                    let curve = CurveType::from_str(&params.curve).ok();
+                    let chain_type = ChainType::from_str(params.chain_type).ok();
                     let sign_params = SignatureParameters {
                         chain_type: params.chain_type.to_string(),
                         derivation_path: params.path.to_string(),
