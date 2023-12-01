@@ -249,7 +249,6 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
             return Err(Error::InvalidUtxo.into());
         }
 
-        let account_path = get_account_path(&params.derivation_path)?;
         let coin_info = CoinInfo {
             coin: params.chain_type.clone(),
             derivation_path: params.derivation_path.clone(),
@@ -259,6 +258,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
         };
 
         let change_script = if let Some(change_address_index) = self.change_address_index && keystore.derivable() {
+            let account_path = get_account_path(&params.derivation_path)?;
             let dpk = keystore.get_deterministic_public_key(params.curve, &account_path)?;
             let pub_key = dpk
                 .derive(format!("1/{}", change_address_index).as_str())?
@@ -536,7 +536,7 @@ mod tests {
                 vout: 0,
                 amount: 14824854,
                 address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                derived_path: "0/0".to_string(),
+                derived_path: "m/44'/1'/0'/0/0".to_string(),
             }];
 
             let tx_input = OmniTxInput {
@@ -568,7 +568,7 @@ mod tests {
                 vout: 1,
                 amount: 21863396,
                 address: "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB".to_string(),
-                derived_path: "0/0".to_string(),
+                derived_path: "m/49'/1'/0'/0/0".to_string(),
             }];
 
             let tx_input = OmniTxInput {
@@ -605,7 +605,7 @@ mod tests {
                 vout: 0,
                 amount: 100000,
                 address: "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r".to_string(),
-                derived_path: "1/0".to_string(),
+                derived_path: "m/44'/145'/0'/1/0".to_string(),
             }];
 
             let tx_input = BtcKinTxInput {
@@ -629,7 +629,7 @@ mod tests {
                 chain_type: BITCOINCASH.to_string(),
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                derivation_path: "m/44'/145'/1'/0/0".to_string(),
+                derivation_path: "m/44'/145'/0'/0/0".to_string(),
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
@@ -654,7 +654,7 @@ mod tests {
                 vout: 1,
                 amount: 100000,
                 address: "tb1qrfaf3g4elgykshfgahktyaqj2r593qkrae5v95".to_string(),
-                derived_path: "0/0".to_string(),
+                derived_path: "m/84'/1'/0'/0/0".to_string(),
             }];
 
             let tx_input = BtcKinTxInput {
@@ -696,7 +696,7 @@ mod tests {
                 amount: 523000,
                 address: "tb1pjvp6z9shfhfpafrnwen9j452cf8tdwpgc0hfnzvz62aqwr4qv92sg7qj9r"
                     .to_string(),
-                derived_path: "1/53".to_string(),
+                derived_path: "m/86'/1'/0'/1/53".to_string(),
             }];
 
             let tx_input = BtcKinTxInput {
@@ -713,7 +713,7 @@ mod tests {
                 chain_type: BITCOIN.to_string(),
                 network: "TESTNET".to_string(),
                 seg_wit: "P2TR".to_string(),
-                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                derivation_path: "m/86'/1'/0'/0/0".to_string(),
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
@@ -738,7 +738,7 @@ mod tests {
                     amount: 20000,
                     address: "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4"
                         .to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/86'/1'/0'/0/0".to_string(),
                 },
                 Utxo {
                     tx_hash: "aea080afe2cdeb23f0d9f546d386329addda5a6fdc521e02d74d5a4e4461dc4a"
@@ -747,7 +747,7 @@ mod tests {
                     amount: 283000,
                     address: "tb1pjvp6z9shfhfpafrnwen9j452cf8tdwpgc0hfnzvz62aqwr4qv92sg7qj9r"
                         .to_string(),
-                    derived_path: "1/53".to_string(),
+                    derived_path: "m/86'/1'/0'/1/53".to_string(),
                 },
                 Utxo {
                     tx_hash: "13dca25cc94c015067761f5cecf48dfb3afcaea78abeb28ce1b585bf4980cc12"
@@ -755,7 +755,7 @@ mod tests {
                     vout: 0,
                     amount: 100000,
                     address: "tb1qrfaf3g4elgykshfgahktyaqj2r593qkrae5v95".to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/84'/1'/0'/0/0".to_string(),
                 },
                 Utxo {
                     tx_hash: "0122f46a161ded9805d95930549b2e4d93a765ef3dd5f10052c68c9270659e72"
@@ -763,7 +763,7 @@ mod tests {
                     vout: 1,
                     amount: 100000,
                     address: "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB".to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/49'/1'/0'/0/0".to_string(),
                 },
                 Utxo {
                     tx_hash: "d8929d60667d2a717abd833828a899795c45c843352b3552322fcd75447226a1"
@@ -771,7 +771,7 @@ mod tests {
                     vout: 1,
                     amount: 100000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/44'/1'/0'/0/0".to_string(),
                 },
             ];
 
@@ -788,8 +788,8 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 chain_type: BITCOIN.to_string(),
                 network: "TESTNET".to_string(),
-                seg_wit: "NONE".to_string(),
-                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                seg_wit: "P2TR".to_string(),
+                derivation_path: "m/86'/1'/0'/0/0".to_string(),
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
@@ -916,7 +916,7 @@ mod tests {
                     vout: 0,
                     amount: 200000000,
                     address: "mh7jj2ELSQUvRQELbn9qyA4q5nADhmJmUC".to_string(),
-                    derived_path: "0/22".to_string(),
+                    derived_path: "m/44'/1'/0'/0/22".to_string(),
                 },
                 Utxo {
                     tx_hash: "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531"
@@ -924,7 +924,7 @@ mod tests {
                     vout: 1,
                     amount: 200000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/44'/1'/0'/0/0".to_string(),
                 },
                 Utxo {
                     tx_hash: "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9"
@@ -932,7 +932,7 @@ mod tests {
                     vout: 0,
                     amount: 200000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/44'/1'/0'/0/0".to_string(),
                 },
                 Utxo {
                     tx_hash: "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9"
@@ -940,7 +940,7 @@ mod tests {
                     vout: 1,
                     amount: 200000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/44'/1'/0'/0/0".to_string(),
                 },
             ];
 
@@ -973,7 +973,6 @@ mod tests {
                 op_return: None,
             };
 
-            //contains change
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
             //see https://mempool.space/testnet/tx/3aa6ed94e29c01b96fe3a20c30825d161f421d5e2358eb1ceade43de533e1977#vin=0
@@ -995,7 +994,7 @@ mod tests {
                     vout: 0,
                     amount: 200000000,
                     address: "mh7jj2ELSQUvRQELbn9qyA4q5nADhmJmUC".to_string(),
-                    derived_path: "0/22".to_string(),
+                    derived_path: "m/44'/1'/0'/0/22".to_string(),
                 },
                 Utxo {
                     tx_hash: "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531"
@@ -1003,7 +1002,7 @@ mod tests {
                     vout: 1,
                     amount: 200000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/44'/1'/0'/0/0".to_string(),
                 },
                 Utxo {
                     tx_hash: "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9"
@@ -1011,7 +1010,7 @@ mod tests {
                     vout: 0,
                     amount: 200000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/44'/1'/0'/0/0".to_string(),
                 },
                 Utxo {
                     tx_hash: "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9"
@@ -1019,7 +1018,7 @@ mod tests {
                     vout: 1,
                     amount: 200000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/44'/1'/0'/0/0".to_string(),
                 },
             ];
 
@@ -1056,7 +1055,7 @@ mod tests {
                     vout: 0,
                     amount: 50000,
                     address: "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB".to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/49'/1'/0'/0/0".to_string(),
                 },
                 Utxo {
                     tx_hash: "9ad628d450952a575af59f7d416c9bc337d184024608f1d2e13383c44bd5cd74"
@@ -1064,7 +1063,7 @@ mod tests {
                     vout: 0,
                     amount: 50000,
                     address: "2N54wJxopnWTvBfqgAPVWqXVEdaqoH7Suvf".to_string(),
-                    derived_path: "0/1".to_string(),
+                    derived_path: "m/49'/1'/0'/0/1".to_string(),
                 },
             ];
 
@@ -1081,8 +1080,8 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 chain_type: BITCOIN.to_string(),
                 network: "TESTNET".to_string(),
-                derivation_path: "m/44'/1'/0'/0/0".to_string(),
-                seg_wit: "P2SH".to_string(),
+                derivation_path: "m/49'/1'/0'/0/0".to_string(),
+                seg_wit: "P2WPKH".to_string(),
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
@@ -1114,7 +1113,7 @@ mod tests {
                     vout: 0,
                     amount: 50000,
                     address: "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB".to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/49'/1'/0'/0/0".to_string(),
                 },
                 Utxo {
                     tx_hash: "9ad628d450952a575af59f7d416c9bc337d184024608f1d2e13383c44bd5cd74"
@@ -1122,7 +1121,7 @@ mod tests {
                     vout: 0,
                     amount: 50000,
                     address: "2N54wJxopnWTvBfqgAPVWqXVEdaqoH7Suvf".to_string(),
-                    derived_path: "0/1".to_string(),
+                    derived_path: "m/49'/1'/0'/0/1".to_string(),
                 },
             ];
 
@@ -1139,7 +1138,7 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 chain_type: BITCOIN.to_string(),
                 network: "TESTNET".to_string(),
-                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                derivation_path: "m/49'/1'/0'/0/0".to_string(),
                 seg_wit: "P2WPKH".to_string(),
             };
 
@@ -1163,7 +1162,7 @@ mod tests {
                 vout: 0,
                 amount: 1000000,
                 address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                derived_path: "0/0".to_string(),
+                derived_path: "m/44'/1'/0'/0/0".to_string(),
             }];
             let tx_input = BtcKinTxInput {
                 to: "mmuf77YiGckWgfvd32viaj7EKfrUN1FdAz".to_string(),
@@ -1205,7 +1204,7 @@ mod tests {
                     vout: 0,
                     amount: 1000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/44'/1'/0'/0/0".to_string(),
                 },
                 Utxo {
                     tx_hash: "57c935201d6abf4b32151f9d96bfb51b058824a601011c3432e751b0a6d4a100"
@@ -1213,7 +1212,7 @@ mod tests {
                     vout: 0,
                     amount: 1000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "0/0".to_string(),
+                    derived_path: "m/44'/1'/0'/0/0".to_string(),
                 },
             ];
             let tx_input = BtcKinTxInput {
@@ -1256,7 +1255,7 @@ mod tests {
                 vout: 0,
                 amount: 1000000,
                 address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                derived_path: "0/1".to_string(),
+                derived_path: "m/44'/1'/0'/0/2".to_string(),
             }];
             let tx_input = BtcKinTxInput {
                 to: "mmuf77YiGckWgfvd32viaj7EKfrUN1FdAz".to_string(),

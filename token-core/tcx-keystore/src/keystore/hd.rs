@@ -42,7 +42,7 @@ impl Cache {
     {
         let cache_key = Cache::get_cache_key(key, curve);
         if self.keys.contains_key(&cache_key) {
-            Ok(self.keys[key].clone())
+            Ok(self.keys[&cache_key].clone())
         } else {
             let k = f()?;
             self.keys.insert(cache_key, k.clone());
