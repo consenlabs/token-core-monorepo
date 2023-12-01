@@ -181,7 +181,6 @@ mod test {
         let mut ks = Keystore::from_private_key(key, "imToken1", Metadata::default());
         ks.unlock_by_password("imToken1").unwrap();
         enable_account("ETHEREUM", 0, &mut ks).unwrap();
-        println!("{} {}", ks.to_json(), key);
         ks
     }
 
@@ -206,6 +205,8 @@ mod test {
             curve: CurveType::SECP256k1,
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let tx_output = keystore.sign_transaction(&params, &tx).unwrap();
@@ -238,6 +239,8 @@ mod test {
             curve: CurveType::SECP256k1,
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let tx_output = keystore.sign_transaction(&params, &tx).unwrap();
@@ -270,6 +273,8 @@ mod test {
             curve: CurveType::SECP256k1,
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let tx_output = keystore.sign_transaction(&params, &tx).unwrap();
@@ -472,6 +477,8 @@ mod test {
             curve: CurveType::SECP256k1,
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
@@ -503,6 +510,8 @@ mod test {
             curve: CurveType::SECP256k1,
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
         let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
 
@@ -534,6 +543,8 @@ mod test {
             curve: CurveType::SECP256k1,
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
@@ -565,6 +576,8 @@ mod test {
             curve: CurveType::SECP256k1,
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
         let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
         assert_eq!(
@@ -586,6 +599,8 @@ mod test {
             curve: CurveType::SECP256k1,
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output: EthMessageOutput = keystore.sign_message(&params, &message).unwrap();
@@ -617,6 +632,8 @@ mod test {
             curve: CurveType::SECP256k1,
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
         let sign_output = keystore.sign_message(&params, &message).unwrap();
         assert_eq!(
@@ -640,7 +657,7 @@ mod test {
         let sign_output = keystore.sign_message(&params, &message).unwrap();
         assert_eq!(
             sign_output.signature,
-            "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
+            "0xf85b21d47d4a828b0829bd3d0b7dbd19cb7fb8d75c24d03f424beddb38d6eb2456f3f438b18453826ce9eaf4b887a2e899e63e73c265dcd8ae0bc507184590a51c"
         );
 
         let message = EthMessageInput {
