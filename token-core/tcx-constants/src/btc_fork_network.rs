@@ -180,7 +180,8 @@ lazy_static! {
 
 // TODO: change BtcForNetwork string type to enum
 pub fn network_from_coin(coin_info: &CoinInfo) -> Option<BtcForkNetwork> {
-    network_from_param(&coin_info.coin, &coin_info.network, &coin_info.seg_wit)
+    // network_from_param(&coin_info.coin, &coin_info.network, &coin_info.seg_wit)
+    unimplemented!()
 }
 
 pub fn network_from_param(

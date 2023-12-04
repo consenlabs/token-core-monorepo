@@ -122,11 +122,11 @@ impl PrivateKeystore {
             address: address.to_string(),
             derivation_path: "".to_string(),
             curve: coin.curve,
-            coin: coin.coin.to_owned(),
-            network: coin.network.to_string(),
-            seg_wit: coin.seg_wit.to_string(),
+            chain_type: coin.coin.to_owned(),
+            network: coin.network,
+            seg_wit: coin.seg_wit,
             ext_pub_key: "".to_string(),
-            public_key: Some(hex::encode(pub_key.to_bytes())),
+            public_key: hex::encode(pub_key.to_bytes()),
         };
 
         Ok(acc)

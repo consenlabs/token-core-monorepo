@@ -526,7 +526,10 @@ mod tests {
     }
 
     mod omni {
-        use tcx_constants::coin_info::{Network, SegWit};
+        use tcx_constants::{
+            coin_info::{Network, SegWit},
+            ChainType,
+        };
 
         use super::*;
         use crate::OMNI;

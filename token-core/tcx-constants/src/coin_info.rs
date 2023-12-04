@@ -175,8 +175,8 @@ impl Default for CoinInfo {
             coin: ChainType::Bitcoin,
             derivation_path: Some(DerivationPath::Custom("".to_string())),
             curve: CurveType::SECP256k1,
-            network: Some(Network::Testnet),
-            seg_wit: Some(SegWit::None),
+            network: None,
+            seg_wit: None,
         }
     }
 }
@@ -481,5 +481,7 @@ mod tests {
     fn test_network_str() {
         assert_ne!("Mainnet", Network::Mainnet.to_string());
         assert_eq!("MAINNET", Network::Mainnet.to_string());
+        let network: Option<Network> = None;
+        // assert_eq!("", format!("{:?}", network.));
     }
 }

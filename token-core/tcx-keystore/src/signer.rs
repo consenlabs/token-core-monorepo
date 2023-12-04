@@ -2,7 +2,7 @@ use crate::{Keystore, Result};
 use tcx_constants::{
     coin_info::{ChainType, DerivationPath, SegWit},
     curve::SigAlg,
-    CurveType,
+    CurveType, Network,
 };
 
 #[derive(Debug, Clone, PartialEq)]

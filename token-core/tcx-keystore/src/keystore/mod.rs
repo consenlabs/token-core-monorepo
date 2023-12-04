@@ -9,7 +9,7 @@ mod private;
 
 use serde::{Deserialize, Serialize};
 
-use tcx_constants::{CoinInfo, CurveType};
+use tcx_constants::{ChainType, CoinInfo, CurveType, Network, SegWit};
 use tcx_crypto::crypto::Unlocker;
 
 pub use self::{
@@ -75,32 +75,32 @@ pub struct Account {
     pub address: String,
     pub derivation_path: String,
     pub curve: CurveType,
-    pub coin: String,
-    pub network: String,
-    pub seg_wit: String,
+    pub chain_type: ChainType,
+    pub network: Option<Network>,
+    pub seg_wit: Option<SegWit>,
     pub ext_pub_key: String,
-    pub public_key: Option<String>,
+    pub public_key: String,
 }
 
-impl Account {
-    pub fn coin_info(&self) -> CoinInfo {
-        CoinInfo {
-            coin: self.coin.clone(),
-            derivation_path: self.derivation_path.clone(),
-            curve: self.curve,
-            network: self.network.clone(),
-            seg_wit: self.seg_wit.clone(),
-        }
-    }
+// impl Account {
+//     pub fn coin_info(&self) -> CoinInfo {
+//         CoinInfo {
+//             coin: self.chain_type.clone(),
+//             derivation_path: self.derivation_path.clone(),
+//             curve: self.curve,
+//             network: self.network.clone(),
+//             seg_wit: self.seg_wit.clone(),
+//         }
+//     }
 
-    pub fn deterministic_public_key(&self) -> Result<TypedDeterministicPublicKey> {
-        if !self.ext_pub_key.is_empty() {
-            TypedDeterministicPublicKey::from_hex(self.curve, &self.ext_pub_key)
-        } else {
-            Err(Error::CannotDeriveKey.into())
-        }
-    }
-}
+//     pub fn deterministic_public_key(&self) -> Result<TypedDeterministicPublicKey> {
+//         if !self.ext_pub_key.is_empty() {
+//             TypedDeterministicPublicKey::from_hex(self.curve, &self.ext_pub_key)
+//         } else {
+//             Err(Error::CannotDeriveKey.into())
+//         }
+//     }
+// }
 
 /// Chain address interface, for encapsulate derivation
 pub trait Address: ToString + FromStr + Sized + Clone + PartialEq + Eq {
@@ -460,13 +460,13 @@ impl Signer for Keystore {
         private_key.sign_recoverable(hash)
     }
 
-    fn bls_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>> {
+    fn bls_sign(&mut self, hash: &[u8], derivation_path: &str, dst: &str) -> Result<Vec<u8>> {
         let private_key = match self {
             Keystore::PrivateKey(ks) => ks.get_private_key(CurveType::BLS)?,
             Keystore::Hd(ks) => ks.get_private_key(CurveType::BLS, derivation_path)?,
         };
 
-        private_key.sign(hash)
+        private_key.sign_specified_hash(hash, dst)
     }
 
     fn schnorr_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>> {

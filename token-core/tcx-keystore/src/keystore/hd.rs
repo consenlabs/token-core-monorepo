@@ -1,4 +1,5 @@
 use bip39::{Language, Mnemonic, Seed};
+use tcx_constants::DerivationPath;
 
 use crate::identity::Identity;
 use uuid::Uuid;
@@ -28,7 +29,7 @@ struct Cache {
 
 impl Cache {
     fn get_cache_key(derivation_path: &str, curve: CurveType) -> String {
-        format!("{}-{}", derivation_path, curve.as_str())
+        format!("{}-{}", derivation_path, curve)
     }
 
     pub fn get_or_insert<F>(
@@ -195,7 +196,12 @@ impl HdKeystore {
 
         let root = TypedDeterministicPrivateKey::from_mnemonic(coin_info.curve, &cache.mnemonic)?;
 
-        let private_key = root.derive(&coin_info.derivation_path)?.private_key();
+        let derivation_path = coin_info
+            .derivation_path
+            .as_ref()
+            .unwrap_or(&DerivationPath::Custom("".to_string()))
+            .to_string();
+        let private_key = root.derive(&derivation_path)?.private_key();
         let public_key = private_key.public_key();
 
         let address = A::from_public_key(&public_key, coin_info)?;
@@ -203,20 +209,21 @@ impl HdKeystore {
         let ext_pub_key = match coin_info.curve {
             CurveType::SubSr25519 | CurveType::BLS | CurveType::ED25519 => "".to_owned(),
             _ => root
-                .derive(&get_account_path(&coin_info.derivation_path)?)?
+                .derive(&get_account_path(&derivation_path)?)?
                 .deterministic_public_key()
                 .to_hex(),
         };
 
         let account = Account {
             address: address.to_string(),
-            derivation_path: coin_info.derivation_path.to_string(),
+            derivation_path,
             curve: coin_info.curve,
-            coin: coin_info.coin.to_string(),
-            network: coin_info.network.to_string(),
+            // TODO: change to chainType
+            chain_type: coin_info.coin,
+            network: coin_info.network,
             ext_pub_key,
-            seg_wit: coin_info.seg_wit.to_string(),
-            public_key: Some(hex::encode(public_key.to_bytes())),
+            seg_wit: coin_info.seg_wit,
+            public_key: hex::encode(public_key.to_bytes()),
         };
 
         return Ok(account.clone());
@@ -376,7 +383,7 @@ mod tests {
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
             curve: CurveType::SECP256k1,
-            coin: "BITCOIN".to_string(),
+            chain_type: "BITCOIN".to_string(),
             public_key: Some("026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string())
         };
 
@@ -465,7 +472,7 @@ mod tests {
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
             curve: CurveType::SECP256k1,
-            coin: "BITCOIN".to_string(),
+            chain_type: "BITCOIN".to_string(),
             public_key: Some("026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string())
         };
 
