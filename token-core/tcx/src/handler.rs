@@ -885,43 +885,43 @@ pub(crate) fn get_public_key(data: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
-#[deprecated(
-    since = "2.5.1",
-    note = "Please use the sign_message route function instead"
-)]
-pub(crate) fn sign_tron_message_legacy(data: &[u8]) -> Result<Vec<u8>> {
-    let param: SignParam = SignParam::decode(data).expect("SignParam");
+// #[deprecated(
+//     since = "2.5.1",
+//     note = "Please use the sign_message route function instead"
+// )]
+// pub(crate) fn sign_tron_message_legacy(data: &[u8]) -> Result<Vec<u8>> {
+//     let param: SignParam = SignParam::decode(data).expect("SignParam");
 
-    let mut map = KEYSTORE_MAP.write();
-    let keystore: &mut Keystore = match map.get_mut(&param.id) {
-        Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
-    }?;
+//     let mut map = KEYSTORE_MAP.write();
+//     let keystore: &mut Keystore = match map.get_mut(&param.id) {
+//         Some(keystore) => Ok(keystore),
+//         _ => Err(format_err!("{}", "wallet_not_found")),
+//     }?;
 
-    let mut guard = match param.key.unwrap() {
-        Key::Password(password) => KeystoreGuard::unlock_by_password(keystore, &password)?,
-        Key::DerivedKey(derived_key) => {
-            KeystoreGuard::unlock_by_derived_key(keystore, &derived_key)?
-        }
-    };
+//     let mut guard = match param.key.unwrap() {
+//         Key::Password(password) => KeystoreGuard::unlock_by_password(keystore, &password)?,
+//         Key::DerivedKey(derived_key) => {
+//             KeystoreGuard::unlock_by_derived_key(keystore, &derived_key)?
+//         }
+//     };
 
-    let input: TronMessageInput = TronMessageInput::decode(
-        param
-            .input
-            .expect("TronMessageInput")
-            .value
-            .clone()
-            .as_slice(),
-    )
-    .expect("TronMessageInput");
-    let sign_param = SignatureParameters {
-        curve: CurveType::from_str(&param.curve),
-        derivation_path: param.path.to_string(),
-        chain_type: param.chain_type.to_string(),
-    };
-    let signed_tx = guard.keystore_mut().sign_message(&sign_param, &input)?;
-    encode_message(signed_tx)
-}
+//     let input: TronMessageInput = TronMessageInput::decode(
+//         param
+//             .input
+//             .expect("TronMessageInput")
+//             .value
+//             .clone()
+//             .as_slice(),
+//     )
+//     .expect("TronMessageInput");
+//     let sign_param = SignatureParameters {
+//         curve: CurveType::from_str(&param.curve),
+//         derivation_path: param.path.to_string(),
+//         chain_type: param.chain_type.to_string(),
+//     };
+//     let signed_tx = guard.keystore_mut().sign_message(&sign_param, &input)?;
+//     encode_message(signed_tx)
+// }
 
 pub(crate) fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: WalletKeyParam = WalletKeyParam::decode(data).unwrap();

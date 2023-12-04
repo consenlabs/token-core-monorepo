@@ -1,6 +1,6 @@
 use std::str::FromStr;
 use tcx_constants::CoinInfo;
-use tcx_constants::CurveType;
+use tcx_constants::{CurveType, DerivationPath, Network, SegWit, SigAlg};
 use tcx_keystore::{Address, Keystore, MessageSigner, SignatureParameters, TransactionSigner};
 use tcx_primitive::TypedPublicKey;
 
@@ -70,6 +70,25 @@ impl ToString for MockAddress {
     }
 }
 
+impl From<SignParam> for SignatureParameters {
+    fn from(value: SignParam) -> Self {
+        let curve = CurveType::from_str(&params.curve).ok();
+        let chain_type = ChainType::from_str(params.chain_type).ok();
+        let derivation_path = DerivationPath::from_str(params.path).ok();
+        let network = Network::from_str(params.network).ok();
+        let seg_wit = SegWit::from_str(params.seg_wit).ok();
+        let sig_alg = SigAlt::from_str(params.sig_alg).ok();
+        SignatureParameters {
+            chain_type,
+            derivation_path,
+            curve,
+            network,
+            seg_wit,
+            sig_alg,
+        }
+    }
+}
+
 macro_rules! use_chains {
     ($($chain:path),+ $(,)?) => {
         use crate::macros::{MockTransactionInput, MockTransactionOutput, MockAddress, MockMessageInput, MockMessageOutput};
@@ -95,13 +114,8 @@ macro_rules! use_chains {
                             .as_slice(),
                     )
                     .expect("TransactionInput");
-                    let curve = CurveType::from_str(&params.curve).ok();
-                    let chain_type = ChainType::from_str(params.chain_type).ok();
-                    let sign_params = SignatureParameters {
-                        chain_type: params.chain_type.to_string(),
-                        derivation_path: params.path.to_string(),
-                        curve,
-                    };
+
+                    let sign_params = SignatureParameters::from(sign_params);
                     let signed_tx: TransactionOutput = keystore.sign_transaction(&sign_params, &input)?;
 
                     return encode_message(signed_tx)
@@ -145,12 +159,7 @@ macro_rules! use_chains {
                             .as_slice(),
                     )
                     .expect("MessageInput");
-                let curve = CurveType::from_str(&params.curve);
-                let sign_params = SignatureParameters {
-                    chain_type: params.chain_type.to_string(),
-                    derivation_path: params.path.to_string(),
-                    curve,
-                };
+                    let sign_params = SignatureParameters::from(sign_params);
                     let signed_message: MessageOutput = keystore.sign_message(&sign_prams, &input)?;
                     return encode_message(signed_message)
                 }
@@ -162,3 +171,5 @@ macro_rules! use_chains {
 }
 
 pub(crate) use use_chains;
+
+use crate::api::SignParam;
