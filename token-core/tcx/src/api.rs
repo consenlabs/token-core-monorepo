@@ -136,7 +136,7 @@ pub struct ExportPrivateKeyParam {
     #[prost(string, tag = "4")]
     pub network: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
-    pub main_address: ::prost::alloc::string::String,
+    pub curve: ::prost::alloc::string::String,
     #[prost(string, tag = "6")]
     pub path: ::prost::alloc::string::String,
 }
@@ -394,7 +394,11 @@ pub struct SignParam {
     pub path: ::prost::alloc::string::String,
     #[prost(string, tag = "6")]
     pub curve: ::prost::alloc::string::String,
-    #[prost(message, optional, tag = "7")]
+    #[prost(string, tag = "7")]
+    pub network: ::prost::alloc::string::String,
+    #[prost(string, tag = "8")]
+    pub seg_wit: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "9")]
     pub input: ::core::option::Option<::prost_types::Any>,
     #[prost(oneof = "sign_param::Key", tags = "2, 3")]
     pub key: ::core::option::Option<sign_param::Key>,

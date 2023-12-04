@@ -137,6 +137,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             derivation_path: "m/44'/145'/0'/0/0".to_string(),
             chain_type: "TRON".to_string(),
+            ..Default::default()
         };
         let signed_tx: TronTxOutput = ks.sign_transaction(&sign_context, &tx)?;
 

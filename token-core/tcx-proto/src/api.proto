@@ -92,7 +92,7 @@ message ExportPrivateKeyParam {
     string password = 2;
     string chainType = 3;
     string network = 4;
-    string mainAddress = 5;
+    string curve = 5;
     string path = 6;
 }
 //

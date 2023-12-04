@@ -128,6 +128,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             derivation_path: "".to_string(),
             chain_type: "FILECOIN".to_string(),
+            ..Default::default()
         };
         let signed_message = ks
             .sign_transaction(&sign_context, &unsigned_message)
@@ -168,6 +169,7 @@ mod tests {
             curve: CurveType::BLS,
             derivation_path: "".to_string(),
             chain_type: "FILECOIN".to_string(),
+            ..Default::default()
         };
         let signed_message = ks
             .sign_transaction(&sign_context, &unsigned_message)

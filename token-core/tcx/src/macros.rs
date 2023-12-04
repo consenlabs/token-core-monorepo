@@ -99,7 +99,10 @@ macro_rules! use_chains {
                     let sign_params = SignatureParameters {
                         chain_type: params.chain_type.to_string(),
                         derivation_path: params.path.to_string(),
+                        network: params.network.to_string(),
+                        seg_wit: params.seg_wit.to_string(),
                         curve,
+
                     };
                     let signed_tx: TransactionOutput = keystore.sign_transaction(&sign_params, &input)?;
 
@@ -148,9 +151,11 @@ macro_rules! use_chains {
                 let sign_params = SignatureParameters {
                     chain_type: params.chain_type.to_string(),
                     derivation_path: params.path.to_string(),
+                    network: params.network.to_string(),
+                    seg_wit: params.seg_wit.to_string(),
                     curve,
                 };
-                    let signed_message: MessageOutput = keystore.sign_message(&sign_prams, &input)?;
+                    let signed_message: MessageOutput = keystore.sign_message(&sign_params, &input)?;
                     return encode_message(signed_message)
                 }
             })*

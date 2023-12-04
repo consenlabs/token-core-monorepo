@@ -22,11 +22,10 @@ use crate::error_handling::{landingpad, LAST_BACKTRACE, LAST_ERROR};
 #[allow(deprecated)]
 use crate::handler::{
     encode_message, export_mnemonic, export_private_key, get_derived_key, hd_store_create,
-    hd_store_export, hd_store_import, keystore_common_accounts, keystore_common_delete,
-    keystore_common_derive, keystore_common_exists, keystore_common_verify,
-    private_key_store_export, private_key_store_import, sign_tron_message_legacy, sign_tx,
-    unlock_then_crash, zksync_private_key_from_seed, zksync_private_key_to_pubkey_hash,
-    zksync_sign_musig,
+    hd_store_export, hd_store_import, keystore_common_delete, keystore_common_derive,
+    keystore_common_exists, keystore_common_verify, private_key_store_export,
+    private_key_store_import, sign_tx, unlock_then_crash, zksync_private_key_from_seed,
+    zksync_private_key_to_pubkey_hash, zksync_sign_musig,
 };
 
 mod filemanager;
@@ -40,8 +39,7 @@ mod macros;
 
 use crate::handler::{
     eth_recover_address, export_substrate_keystore, generate_mnemonic, get_extended_public_keys,
-    get_public_key, get_public_keys, import_substrate_keystore, sign_bls_to_execution_change,
-    sign_hashes, substrate_keystore_exists,
+    get_public_keys, import_substrate_keystore, sign_hashes, substrate_keystore_exists,
 };
 
 use parking_lot::RwLock;
@@ -109,16 +107,16 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "keystore_common_exists" => {
             landingpad(|| keystore_common_exists(&action.param.unwrap().value))
         }
-        "keystore_common_accounts" => {
-            landingpad(|| keystore_common_accounts(&action.param.unwrap().value))
-        }
+        // "keystore_common_accounts" => {
+        //     landingpad(|| keystore_common_accounts(&action.param.unwrap().value))
+        // }
         "calc_external_address" => {
             landingpad(|| calc_external_address(&action.param.unwrap().value))
         }
         "sign_tx" => landingpad(|| sign_tx(&action.param.unwrap().value)),
-        "get_public_key" => landingpad(|| get_public_key(&action.param.unwrap().value)),
+        // "get_public_key" => landingpad(|| get_public_key(&action.param.unwrap().value)),
         // use the sign_msg instead
-        "tron_sign_msg" => landingpad(|| sign_tron_message_legacy(&action.param.unwrap().value)),
+        // "tron_sign_msg" => landingpad(|| sign_tron_message_legacy(&action.param.unwrap().value)),
         "sign_msg" => landingpad(|| sign_message(&action.param.unwrap().value)),
 
         "substrate_keystore_exists" => {
@@ -144,9 +142,9 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "zksync_private_key_to_pubkey_hash" => {
             landingpad(|| zksync_private_key_to_pubkey_hash(&action.param.unwrap().value))
         }
-        "sign_bls_to_execution_change" => {
-            landingpad(|| sign_bls_to_execution_change(&action.param.unwrap().value))
-        }
+        // "sign_bls_to_execution_change" => {
+        //     landingpad(|| sign_bls_to_execution_change(&action.param.unwrap().value))
+        // }
         "generate_mnemonic" => landingpad(|| generate_mnemonic()),
         // "create_identity" => landingpad(|| create_identity(&action.param.unwrap().value)),
         // "get_current_identity" => landingpad(|| get_current_identity()),
@@ -263,7 +261,7 @@ mod tests {
         AccessList, EthMessageInput, EthMessageOutput, EthRecoverAddressInput,
         EthRecoverAddressOutput, EthTxInput, EthTxOutput,
     };
-    use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
+    // use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
     use tcx_filecoin::{SignedMessage, UnsignedMessage};
     // use tcx_identity::wallet_api::{
     //     CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
@@ -1129,7 +1127,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "TEZOS".to_string(),
                 network: "".to_string(),
-                main_address: derived_accounts.accounts[0].address.to_string(),
+                curve: "SECP256k1".to_string(),
                 path: "m/44'/1729'/0'/0'".to_string(),
             };
 
@@ -1193,7 +1191,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "FILECOIN".to_string(),
                 network: "".to_string(),
-                main_address: "t1zerdvi3fx2lrcslsqdewpadzzm2hefpn6ixew3i".to_string(),
+                curve: "SECP256k1".to_string(),
                 path: "".to_string(),
             };
 
@@ -1256,7 +1254,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "FILECOIN".to_string(),
                 network: "".to_string(),
-                main_address: "t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa".to_string(),
+                curve: "SECP256k1".to_string(),
                 path: "".to_string(),
             };
 
@@ -1319,7 +1317,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "POLKADOT".to_string(),
                 network: "".to_string(),
-                main_address: "133smEABgtt8FRkZGrZfAzCV522bxo2y5FwVoTcSaY8z1nEq".to_string(),
+                curve: "SubSr25519".to_string(),
                 path: "".to_string(),
             };
 
@@ -1442,7 +1440,7 @@ mod tests {
                     password: TEST_PASSWORD.to_string(),
                     chain_type: acc.chain_type.to_string(),
                     network: derivations[idx].network.to_string(),
-                    main_address: acc.address.clone(),
+                    curve: "SECP256k1".to_string(),
                     path: "".to_string(),
                 };
                 let ret_bytes = call_api("export_private_key", param).unwrap();
@@ -1461,7 +1459,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "LITECOIN".to_string(),
                 network: "MAINNET".to_string(),
-                main_address: "Ldfdegx3hJygDuFDUA7Rkzjjx8gfFhP9DP".to_string(),
+                curve: "SECP256k1".to_string(),
                 path: "".to_string(),
             };
             let ret = call_api("export_private_key", param);
@@ -1544,7 +1542,7 @@ mod tests {
                     password: TEST_PASSWORD.to_string(),
                     chain_type: acc.chain_type.to_string(),
                     network: derivations[idx].network.to_string(),
-                    main_address: acc.address.to_string(),
+                    curve: "SECP256k1".to_string(),
                     path: export_paths[idx].to_string(),
                 };
                 let ret_bytes = call_api("export_private_key", param).unwrap();
@@ -1563,7 +1561,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "LITECOIN".to_string(),
                 network: "MAINNET".to_string(),
-                main_address: "Ldfdegx3hJygDuFDUA7Rkzjjx8gfFhP9DP".to_string(),
+                curve: "SECP256k1".to_string(),
                 path: "m/44'/2'/0'/0/0".to_string(),
             };
             let ret = call_api("export_private_key", param);
@@ -1596,7 +1594,7 @@ mod tests {
                     password: TEST_PASSWORD.to_string(),
                     chain_type: acc.chain_type.to_string(),
                     network: derivations[idx].network.to_string(),
-                    main_address: acc.address.to_string(),
+                    curve: "SECP256k1".to_string(),
                     path: export_paths[idx].to_string(),
                 };
                 let ret = call_api("export_private_key", param);
@@ -1896,6 +1894,8 @@ mod tests {
                 chain_type: "NERVOS".to_string(),
                 path: "m/44'/309'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1.as_str().to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(input).unwrap(),
@@ -1934,6 +1934,8 @@ mod tests {
                 key: Some(Key::Password("WRONG PASSWORD".to_string())),
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 curve: "SECP256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
@@ -1951,6 +1953,8 @@ mod tests {
                 chain_type: "TRON1".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -1967,6 +1971,8 @@ mod tests {
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
@@ -2005,6 +2011,8 @@ mod tests {
                 chain_type: "COSMOS".to_string(),
                 path: "m/44'/118'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -2021,6 +2029,8 @@ mod tests {
                 chain_type: "COSMOS1".to_string(),
                 path: "m/44'/118'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -2037,6 +2047,8 @@ mod tests {
                 chain_type: "COSMOS".to_string(),
                 path: "m/44'/118'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
@@ -2269,7 +2281,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "KUSAMA".to_string(),
                 network: "".to_string(),
-                main_address: "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS".to_string(),
+                curve: "SubSr25519".to_string(),
                 path: "".to_string(),
             };
             let ret = call_api("substrate_keystore_export", export_param).unwrap();
@@ -2313,7 +2325,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "KUSAMA".to_string(),
                 network: "".to_string(),
-                main_address: "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS".to_string(),
+                curve: "SubSr25519".to_string(),
                 path: "".to_string(),
             };
             let ret = call_api("substrate_keystore_export", export_param);
@@ -2436,6 +2448,8 @@ mod tests {
                 chain_type: "KUSAMA".to_string(),
                 path: "m/44'/118'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -2496,6 +2510,8 @@ mod tests {
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(input).unwrap(),
@@ -2551,6 +2567,8 @@ mod tests {
                 chain_type: "FILECOIN".to_string(),
                 path: "m/44'/461'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(message).unwrap(),
@@ -2607,6 +2625,8 @@ mod tests {
                 chain_type: "FILECOIN".to_string(),
                 path: "m/44'/461'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(message).unwrap(),
@@ -2659,6 +2679,8 @@ mod tests {
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(input.clone()).unwrap(),
@@ -2676,6 +2698,8 @@ mod tests {
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(input.clone()).unwrap(),
@@ -2733,6 +2757,8 @@ mod tests {
                     chain_type: "TRON".to_string(),
                     path: "m/44'/195'/0'/0/0".to_string(),
                     curve: "SECP256k1".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
                     input: Some(::prost_types::Any {
                         type_url: "imtoken".to_string(),
                         value: encode_message(input).unwrap(),
@@ -2787,6 +2813,8 @@ mod tests {
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(input.clone()).unwrap(),
@@ -2803,6 +2831,8 @@ mod tests {
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: encode_message(input).unwrap(),
@@ -2867,6 +2897,8 @@ mod tests {
                     chain_type: chain_type.to_string(),
                     path: "m/44'/0'/0'/0/0".to_string(),
                     curve: "SECP256k1".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
                     input: Some(::prost_types::Any {
                         type_url: "imtoken".to_string(),
                         value: input_value.clone(),
@@ -2907,6 +2939,8 @@ mod tests {
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
@@ -3050,6 +3084,8 @@ mod tests {
                 chain_type: "TEZOS".to_string(),
                 path: "m/44'/1729'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -3066,6 +3102,8 @@ mod tests {
                 chain_type: "TEZOS1".to_string(),
                 path: "m/44'/1729'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -3082,6 +3120,8 @@ mod tests {
                 chain_type: "TEZOS".to_string(),
                 path: "m/44'/1729'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
@@ -3431,6 +3471,8 @@ mod tests {
                 chain_type: "ETHEREUM".to_string(),
                 path: "m/44'/60'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
@@ -3482,6 +3524,8 @@ mod tests {
                 chain_type: "ETHEREUM".to_string(),
                 path: "m/44'/60'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,
@@ -3555,6 +3599,8 @@ mod tests {
                 chain_type: "ETHEREUM".to_string(),
                 path: "m/44'/60'/0'/0/0".to_string(),
                 curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value,

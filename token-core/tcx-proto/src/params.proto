@@ -151,7 +151,9 @@ message SignParam {
     string chainType = 4;
     string path = 5;
     string curve = 6;
-    google.protobuf.Any input = 7;
+    string network = 7;
+    string seg_wit = 8;
+    google.protobuf.Any input = 9;
 }
 
 /// Other

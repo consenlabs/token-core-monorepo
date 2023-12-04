@@ -192,7 +192,7 @@ mod tests {
     use crate::address::CkbAddress;
     use crate::transaction::{CachedCell, CellInput, CkbTxInput, OutPoint, Script, Witness};
     use tcx_constants::{CoinInfo, CurveType};
-    use tcx_keystore::{Keystore, Metadata, TransactionSigner};
+    use tcx_keystore::{Keystore, Metadata, SignatureParameters, TransactionSigner};
 
     #[test]
     fn test_sign_transaction() {
@@ -312,10 +312,14 @@ mod tests {
             account.address,
             "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6"
         );
+        let sign_params = SignatureParameters {
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            chain_type: "NERVOS".to_string(),
+            network: "TESTNET".to_string(),
+            ..Default::default()
+        };
 
-        let tx_output = ks
-            .sign_transaction("NERVOS", &account.address, &tx_input)
-            .unwrap();
+        let tx_output = ks.sign_transaction(&sign_params, &tx_input).unwrap();
         assert_eq!(tx_output.witnesses[0], "0x55000000100000005500000055000000410000009b87828a6274850b4c8724a286b882aae3ace127c124e4f6687070c09e2533c80b33ace45005a4912f4d092e31f017a8dc9f2f97ef66fb5e2b5e9314ade9b60e00");
     }
 
@@ -470,8 +474,14 @@ mod tests {
                 "cell_input_not_cached",
             ),
         ];
+        let sign_params = SignatureParameters {
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            chain_type: "NERVOS".to_string(),
+            network: "TESTNET".to_string(),
+            ..Default::default()
+        };
         for (input, err) in invalid_input {
-            let ret = ks.sign_transaction("NERVOS", &account.address, &input);
+            let ret = ks.sign_transaction(&sign_params, &input);
 
             assert!(ret.is_err());
             assert_eq!(format!("{}", ret.err().unwrap()), err);

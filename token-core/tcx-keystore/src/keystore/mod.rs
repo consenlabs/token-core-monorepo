@@ -666,6 +666,7 @@ pub(crate) mod tests {
             curve: CurveType::SECP256k1,
             chain_type: "BITCOINCASH".to_string(),
             derivation_path: "m/44'/145'/0'/0/2".to_string(),
+            ..Default::default()
         };
 
         let ret = keystore.secp256k1_ecdsa_sign_recoverable(&msg, &params.derivation_path);
