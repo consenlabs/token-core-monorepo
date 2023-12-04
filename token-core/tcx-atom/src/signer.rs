@@ -1,6 +1,7 @@
 use crate::transaction::{AtomTxInput, AtomTxOutput};
 use tcx_keystore::{
-    Keystore, Result, SignatureParameters, Signer, TransactionSigner as TraitTransactionSigner,
+    ChainSigner, Keystore, Result, SignatureParameters, Signer,
+    TransactionSigner as TraitTransactionSigner,
 };
 
 use tcx_crypto::{hash, hex};
@@ -61,9 +62,9 @@ mod tests {
 
         let account = ks.derive_coin::<AtomAddress>(&coin_info).unwrap().clone();
         let sign_params = SignatureParameters {
+            curve: CurveType::SECP256k1,
             derivation_path: "m/44'/118'/0'/0/0".to_string(),
             chain_type: "COSMOS".to_string(),
-            ..Default::default()
         };
 
         let signed_tx: AtomTxOutput = ks.sign_transaction(&sign_params, &tx)?;

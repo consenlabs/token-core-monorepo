@@ -178,7 +178,6 @@ lazy_static! {
 // hrp: https://github.com/satoshilabs/slips/blob/master/slip-0173.md
 // BTC https://en.bitcoin.it/wiki/List_of_address_prefixes
 
-// TODO: change BtcForNetwork string type to enum
 pub fn network_from_coin(coin_info: &CoinInfo) -> Option<BtcForkNetwork> {
     network_from_param(&coin_info.coin, &coin_info.network, &coin_info.seg_wit)
 }
@@ -192,9 +191,9 @@ pub fn network_from_param(
     //    let coin_uppercase = coin.to_uppercase();
     let mut ret: Vec<BtcForkNetwork> = networks
         .iter()
-        .filter(|x| x.coin.eq(&chain_type.to_string().to_uppercase()))
-        .filter(|x| x.network.eq(&network.to_string().to_uppercase()))
-        .filter(|x| x.seg_wit.eq(&seg_wit.to_string().to_uppercase()))
+        .filter(|x| x.coin.eq(&chain_type.to_uppercase()))
+        .filter(|x| x.network.eq(&network.to_uppercase()))
+        .filter(|x| x.seg_wit.eq(&seg_wit.to_uppercase()))
         .map(|x| x.clone())
         .collect::<Vec<BtcForkNetwork>>();
     ret.pop()

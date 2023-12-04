@@ -265,7 +265,12 @@ mod tests {
     };
     use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
     use tcx_filecoin::{SignedMessage, UnsignedMessage};
-
+    // use tcx_identity::wallet_api::{
+    //     CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
+    //     GenerateMnemonicResult, GetCurrentIdentityResult, RecoverIdentityParam,
+    //     RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult, V3KeystoreExportInput,
+    //     V3KeystoreExportOutput, V3KeystoreImportInput,
+    // };
     use tcx_substrate::{
         ExportSubstrateKeystoreResult, SubstrateKeystore, SubstrateKeystoreParam, SubstrateRawTxIn,
         SubstrateTxOut,

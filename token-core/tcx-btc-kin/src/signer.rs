@@ -252,7 +252,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
         let coin_info = CoinInfo {
             coin: params.chain_type.clone(),
             derivation_path: params.derivation_path.clone(),
-            curve: params.curve.unwrap_or(CurveType::SECP256k1),
+            curve: params.curve,
             network: params.network.clone(),
             seg_wit: params.seg_wit.clone(),
         };
@@ -482,8 +482,6 @@ mod tests {
     }
 
     mod kin {
-        use tcx_constants::coin_info::{DerivationPath, Network};
-
         use super::*;
 
         #[test]
@@ -509,11 +507,11 @@ mod tests {
             };
 
             let params = SignatureParameters {
-                chain_type: ChainType::Bitcoin,
-                network: Some(Network::Mainnet),
-                seg_wit: Some(SegWit::None),
-                derivation_path: Some(DerivationPath::BitcoinLegacy),
-                ..Default::default()
+                curve: CurveType::SECP256k1,
+                chain_type: BITCOIN.to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "".to_string(),
             };
 
             let actual = ks.sign_transaction(&params, &tx_input);
@@ -526,8 +524,6 @@ mod tests {
     }
 
     mod omni {
-        use tcx_constants::coin_info::{Network, SegWit};
-
         use super::*;
         use crate::OMNI;
 
@@ -552,13 +548,11 @@ mod tests {
             };
 
             let params = SignatureParameters {
-                chain_type: tcx_constants::coin_info::ChainType::Omni,
-                network: Some(Network::Testnet),
-                seg_wit: Some(SegWit::None),
-                derivation_path: Some(
-                    tcx_constants::coin_info::DerivationPath::BitcoinLegacyTestnet,
-                ),
-                ..Default::default()
+                chain_type: OMNI.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                curve: CurveType::SECP256k1,
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();

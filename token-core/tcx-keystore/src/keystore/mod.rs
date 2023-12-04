@@ -18,7 +18,7 @@ pub use self::{
 };
 
 use crate::identity::Identity;
-// use crate::signer::ChainSigner;
+use crate::signer::ChainSigner;
 use tcx_crypto::{Crypto, Key};
 use tcx_primitive::{TypedDeterministicPublicKey, TypedPrivateKey, TypedPublicKey};
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -153,6 +153,9 @@ impl fmt::Display for Source {
     }
 }
 
+/// Source to remember which format it comes from
+///
+/// NOTE: Identity related type is only for imToken App v2.x
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum IdentityNetwork {
@@ -474,53 +477,51 @@ impl Signer for Keystore {
     }
 }
 
-// impl ChainSigner for Keystore {
-//     fn sign_recoverable_hash(
-//         &mut self,
-//         data: &[u8],
-//         curve: CurveType,
-//         derivation_path: &str,
-//     ) -> Result<Vec<u8>> {
-//         self.get_private_key(curve, derivation_path)?
-//             .sign_recoverable(data)
-//     }
+impl ChainSigner for Keystore {
+    fn sign_recoverable_hash(
+        &mut self,
+        data: &[u8],
+        curve: CurveType,
+        derivation_path: &str,
+    ) -> Result<Vec<u8>> {
+        self.get_private_key(curve, derivation_path)?
+            .sign_recoverable(data)
+    }
 
-//     fn sign_hash(
-//         &mut self,
-//         data: &[u8],
-//         curve: CurveType,
-//         derivation_path: &str,
-//     ) -> Result<Vec<u8>> {
-//         self.get_private_key(curve, derivation_path)?.sign(data)
-//     }
+    fn sign_hash(
+        &mut self,
+        data: &[u8],
+        curve: CurveType,
+        derivation_path: &str,
+    ) -> Result<Vec<u8>> {
+        self.get_private_key(curve, derivation_path)?.sign(data)
+    }
 
-//     fn sign_specified_hash(
-//         &mut self,
-//         data: &[u8],
-//         curve: CurveType,
-//         derivation_path: &str,
-//         dst: &str,
-//     ) -> Result<Vec<u8>> {
-//         self.get_private_key(curve, derivation_path)?
-//             .sign_specified_hash(data, dst)
-//     }
-// }
+    fn sign_specified_hash(
+        &mut self,
+        data: &[u8],
+        curve: CurveType,
+        derivation_path: &str,
+        dst: &str,
+    ) -> Result<Vec<u8>> {
+        self.get_private_key(curve, derivation_path)?
+            .sign_specified_hash(data, dst)
+    }
+}
 
 #[cfg(test)]
 pub(crate) mod tests {
     use crate::keystore::Keystore::{Hd, PrivateKey};
     use crate::{
-        Address, HdKeystore, Keystore, Metadata, PrivateKeystore, SignatureParameters, Signer,
-        Source,
+        Address, ChainSigner, HdKeystore, Keystore, Metadata, PrivateKeystore, SignatureParameters,
+        Signer, Source,
     };
     use serde_json::Value;
     use std::str::FromStr;
 
     use crate::keystore::metadata_default_source;
     use crate::Result;
-    use tcx_constants::{
-        coin_info_from_param, ChainType, CoinInfo, CurveType, SigAlg, TEST_MNEMONIC, TEST_PASSWORD,
-    };
+    use tcx_constants::{coin_info_from_param, CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_primitive::{Ss58Codec, ToHex, TypedPublicKey};
 
     #[derive(Clone, PartialEq, Eq)]
@@ -661,13 +662,10 @@ pub(crate) mod tests {
             .unwrap();
 
         let mut keystore: Keystore = Keystore::from_json(HD_KEYSTORE_JSON).unwrap();
-
         let params = SignatureParameters {
-            chain_type: ChainType::BitcoinCash,
-            derivation_path: Some(tcx_constants::DerivationPath::Custom(
-                "m/44'/145'/0'/0/2".to_string(),
-            )),
-            ..Default::default()
+            curve: CurveType::SECP256k1,
+            chain_type: "BITCOINCASH".to_string(),
+            derivation_path: "m/44'/145'/0'/0/2".to_string(),
         };
 
         let ret = keystore.secp256k1_ecdsa_sign_recoverable(&msg, &params.derivation_path);

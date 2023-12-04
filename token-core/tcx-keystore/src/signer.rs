@@ -1,29 +1,23 @@
 use crate::{Keystore, Result};
-use tcx_constants::{
-    coin_info::{ChainType, DerivationPath, SegWit},
-    curve::SigAlg,
-    CurveType,
-};
+use tcx_constants::CurveType;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct SignatureParameters {
-    pub derivation_path: Option<DerivationPath>,
-    pub chain_type: ChainType,
-    pub network: Option<Network>,
-    pub seg_wit: Option<SegWit>,
-    pub sig_alg: Option<SigAlg>,
-    pub curve: Option<CurveType>,
+    pub curve: CurveType,
+    pub derivation_path: String,
+    pub chain_type: String,
+    pub network: String,
+    pub seg_wit: String,
 }
 
 impl Default for SignatureParameters {
     fn default() -> Self {
         SignatureParameters {
-            derivation_path: Some(DerivationPath::Custom("".to_string())),
-            chain_type: ChainType::BitcoinCash,
-            network: None,
-            seg_wit: None,
-            curve: Some(CurveType::SECP256k1),
-            sig_alg: Some(SigAlg::ECDSA),
+            curve: CurveType::SECP256k1,
+            derivation_path: "".to_string(),
+            chain_type: "".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         }
     }
 }
@@ -58,31 +52,31 @@ pub trait Signer {
         derivation_path: &str,
     ) -> Result<Vec<u8>>;
 
-    fn bls_sign(&mut self, hash: &[u8], derivation_path: &str, sig_alg: &str) -> Result<Vec<u8>>;
+    fn bls_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>>;
 
     fn schnorr_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>>;
 }
 
-// pub trait ChainSigner {
-//     fn sign_recoverable_hash(
-//         &mut self,
-//         data: &[u8],
-//         curve: CurveType,
-//         derivation_path: &str,
-//     ) -> Result<Vec<u8>>;
+pub trait ChainSigner {
+    fn sign_recoverable_hash(
+        &mut self,
+        data: &[u8],
+        curve: CurveType,
+        derivation_path: &str,
+    ) -> Result<Vec<u8>>;
 
-//     fn sign_hash(
-//         &mut self,
-//         data: &[u8],
-//         curve: CurveType,
-//         derivation_path: &str,
-//     ) -> Result<Vec<u8>>;
+    fn sign_hash(
+        &mut self,
+        data: &[u8],
+        curve: CurveType,
+        derivation_path: &str,
+    ) -> Result<Vec<u8>>;
 
-//     fn sign_specified_hash(
-//         &mut self,
-//         data: &[u8],
-//         curve: CurveType,
-//         derivation_path: &str,
-//         dst: &str,
-//     ) -> Result<Vec<u8>>;
-// }
+    fn sign_specified_hash(
+        &mut self,
+        data: &[u8],
+        curve: CurveType,
+        derivation_path: &str,
+        dst: &str,
+    ) -> Result<Vec<u8>>;
+}

@@ -12,7 +12,7 @@ use ethers::utils::{hash_message, keccak256};
 use keccak_hash::keccak;
 use std::str::FromStr;
 use tcx_common::{hex_to_bytes, utf8_or_hex_to_bytes};
-use tcx_constants::{CurveType, SigAlg};
+use tcx_constants::CurveType;
 use tcx_keystore::{Keystore, MessageSigner, SignatureParameters, TransactionSigner};
 
 impl TransactionSigner<EthTxInput, EthTxOutput> for Keystore {
@@ -202,9 +202,11 @@ mod test {
         let mut keystore =
             private_key_store("cce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2");
         let params = SignatureParameters {
-            derivation_path: Some(tcx_constants::DerivationPath::Ethereum),
-            chain_type: tcx_constants::ChainType::Ethereum,
-            ..Default::default()
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let tx_output = keystore.sign_transaction(&params, &tx).unwrap();
@@ -234,9 +236,11 @@ mod test {
         let mut keystore =
             private_key_store("4646464646464646464646464646464646464646464646464646464646464646");
         let params = SignatureParameters {
-            derivation_path: Some(tcx_constants::DerivationPath::Ethereum),
-            chain_type: tcx_constants::ChainType::Ethereum,
-            ..Default::default()
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let tx_output = keystore.sign_transaction(&params, &tx).unwrap();
@@ -266,9 +270,11 @@ mod test {
         let mut keystore =
             private_key_store("cce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2");
         let params = SignatureParameters {
-            derivation_path: Some(tcx_constants::DerivationPath::Ethereum),
-            chain_type: tcx_constants::ChainType::Ethereum,
-            ..Default::default()
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let tx_output = keystore.sign_transaction(&params, &tx).unwrap();
@@ -468,9 +474,11 @@ mod test {
         let mut keystore =
             private_key_store("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6");
         let params = SignatureParameters {
-            derivation_path: Some(tcx_constants::DerivationPath::Ethereum),
-            chain_type: tcx_constants::ChainType::Ethereum,
-            ..Default::default()
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
@@ -499,9 +507,11 @@ mod test {
         let mut keystore =
             private_key_store("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6");
         let params = SignatureParameters {
-            derivation_path: Some(tcx_constants::DerivationPath::Ethereum),
-            chain_type: tcx_constants::ChainType::Ethereum,
-            ..Default::default()
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
         let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
 
@@ -530,9 +540,11 @@ mod test {
         let mut keystore =
             private_key_store("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6");
         let params = SignatureParameters {
-            derivation_path: Some(tcx_constants::DerivationPath::Ethereum),
-            chain_type: tcx_constants::ChainType::Ethereum,
-            ..Default::default()
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
@@ -561,9 +573,11 @@ mod test {
         let mut keystore =
             private_key_store("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6");
         let params = SignatureParameters {
-            derivation_path: Some(tcx_constants::DerivationPath::Ethereum),
-            chain_type: tcx_constants::ChainType::Ethereum,
-            ..Default::default()
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
         let tx_output: EthTxOutput = keystore.sign_transaction(&params, &tx).unwrap();
         assert_eq!(
@@ -582,9 +596,11 @@ mod test {
         let mut keystore =
             private_key_store("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6");
         let params = SignatureParameters {
-            derivation_path: Some(tcx_constants::DerivationPath::Ethereum),
-            chain_type: tcx_constants::ChainType::Ethereum,
-            ..Default::default()
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output: EthMessageOutput = keystore.sign_message(&params, &message).unwrap();
@@ -613,9 +629,11 @@ mod test {
         let mut keystore =
             private_key_store("3c9229289a6125f7fdf1885a77bb12c37a8d3b4962d936f7e3084dece32a3ca1");
         let params = SignatureParameters {
-            derivation_path: Some(tcx_constants::DerivationPath::Ethereum),
-            chain_type: tcx_constants::ChainType::Ethereum,
-            ..Default::default()
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
         };
         let sign_output = keystore.sign_message(&params, &message).unwrap();
         assert_eq!(
