@@ -464,7 +464,12 @@ impl Signer for Keystore {
     }
 
     fn bls_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>> {
-        todo!()
+        let private_key = match self {
+            Keystore::PrivateKey(ks) => ks.get_private_key(CurveType::BLS)?,
+            Keystore::Hd(ks) => ks.get_private_key(CurveType::BLS, derivation_path)?,
+        };
+
+        private_key.sign(hash)
     }
 
     fn schnorr_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>> {
