@@ -432,7 +432,7 @@ impl TransactionSigner<OmniTxInput, BtcKinTxOutput> for Keystore {
         };
 
         let mut params = (*params).clone();
-        params.chain_type = BITCOIN.to_string();
+        params.chain_type = ChainType::Bitcoin;
 
         self.sign_transaction(&params, &btc_tx)
     }
@@ -540,7 +540,7 @@ mod tests {
                 vout: 0,
                 amount: 14824854,
                 address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                derived_path: "m/44'/1'/0'/0/0".to_string(),
+                derived_path: Some(DerivationPath::BitcoinTestnet),
             }];
 
             let tx_input = OmniTxInput {
@@ -574,7 +574,7 @@ mod tests {
                 vout: 1,
                 amount: 21863396,
                 address: "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB".to_string(),
-                derived_path: "m/49'/1'/0'/0/0".to_string(),
+                derived_path: Some(DerivationPath::BitcoinP2wpkhTestnet),
             }];
 
             let tx_input = OmniTxInput {
@@ -586,11 +586,11 @@ mod tests {
             };
 
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
-                chain_type: OMNI.to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "P2WPKH".to_string(),
-                derivation_path: "m/49'/1'/0'/0/0".to_string(),
+                chain_type: ChainType::Omni,
+                network: Some(Network::Testnet),
+                seg_wit: Some(SegWit::P2wpkh),
+                derivation_path: Some(DerivationPath::BitcoinP2wpkhTestnet),
+                ..Default::default()
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
@@ -631,11 +631,11 @@ mod tests {
             ks.unlock_by_password(TEST_PASSWORD).unwrap();
 
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
-                chain_type: BITCOINCASH.to_string(),
-                network: "MAINNET".to_string(),
-                seg_wit: "NONE".to_string(),
-                derivation_path: "m/44'/145'/0'/0/0".to_string(),
+                chain_type: ChainType::BitcoinCash,
+                network: Some(Network::Mainnet),
+                seg_wit: Some(SegWit::None),
+                derivation_path: Some(DerivationPath::BitcoinCash),
+                ..Default::default()
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
@@ -673,11 +673,11 @@ mod tests {
             };
 
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
-                chain_type: BITCOIN.to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "P2TR".to_string(),
-                derivation_path: "m/86'/1'/0'/0/0".to_string(),
+                chain_type: ChainType::Bitcoin,
+                network: Some(Network::Testnet),
+                seg_wit: Some(SegWit::P2tr),
+                derivation_path: Some(DerivationPath::BitcoinP2trTestnet),
+                ..Default::default()
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
@@ -715,11 +715,11 @@ mod tests {
             };
 
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
-                chain_type: BITCOIN.to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "P2TR".to_string(),
-                derivation_path: "m/86'/1'/0'/0/0".to_string(),
+                chain_type: ChainType::Bitcoin,
+                network: Some(Network::Testnet),
+                seg_wit: Some(SegWit::P2tr),
+                derivation_path: Some(DerivationPath::BitcoinP2trTestnet),
+                ..Default::default()
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
@@ -744,7 +744,7 @@ mod tests {
                     amount: 20000,
                     address: "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4"
                         .to_string(),
-                    derived_path: "m/86'/1'/0'/0/0".to_string(),
+                    derived_path: Some(DerivationPath::BitcoinP2trTestnet),
                 },
                 Utxo {
                     tx_hash: "aea080afe2cdeb23f0d9f546d386329addda5a6fdc521e02d74d5a4e4461dc4a"
@@ -769,7 +769,7 @@ mod tests {
                     vout: 1,
                     amount: 100000,
                     address: "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB".to_string(),
-                    derived_path: "m/49'/1'/0'/0/0".to_string(),
+                    derived_path: Some(DerivationPath::BitcoinP2wpkhTestnet),
                 },
                 Utxo {
                     tx_hash: "d8929d60667d2a717abd833828a899795c45c843352b3552322fcd75447226a1"
@@ -777,7 +777,7 @@ mod tests {
                     vout: 1,
                     amount: 100000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "m/44'/1'/0'/0/0".to_string(),
+                    derived_path: Some(DerivationPath::BitcoinTestnet),
                 },
             ];
 
@@ -791,11 +791,11 @@ mod tests {
             };
 
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
-                chain_type: BITCOIN.to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "P2TR".to_string(),
-                derivation_path: "m/86'/1'/0'/0/0".to_string(),
+                chain_type: ChainType::Bitcoin,
+                network: Some(Network::Testnet),
+                seg_wit: Some(SegWit::P2tr),
+                derivation_path: Some(DerivationPath::BitcoinP2trTestnet),
+                ..Default::default()
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
@@ -872,11 +872,11 @@ mod tests {
             };
 
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
-                chain_type: BITCOIN.to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "NONE".to_string(),
-                derivation_path: "".to_string(),
+                chain_type: ChainType::Bitcoin,
+                network: Some(Network::Testnet),
+                seg_wit: Some(SegWit::None),
+                derivation_path: None,
+                ..Default::default()
             };
 
             let actual = ks.sign_transaction(&params, &tx_input);
@@ -930,7 +930,7 @@ mod tests {
                     vout: 1,
                     amount: 200000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "m/44'/1'/0'/0/0".to_string(),
+                    derived_path: Some(DerivationPath::BitcoinTestnet),
                 },
                 Utxo {
                     tx_hash: "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9"
@@ -938,7 +938,7 @@ mod tests {
                     vout: 0,
                     amount: 200000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "m/44'/1'/0'/0/0".to_string(),
+                    derived_path: Some(DerivationPath::BitcoinTestnet),
                 },
                 Utxo {
                     tx_hash: "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9"
@@ -946,7 +946,7 @@ mod tests {
                     vout: 1,
                     amount: 200000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "m/44'/1'/0'/0/0".to_string(),
+                    derived_path: Some(DerivationPath::BitcoinTestnet),
                 },
             ];
 
@@ -960,11 +960,11 @@ mod tests {
             };
 
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
-                chain_type: BITCOIN.to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "NONE".to_string(),
-                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                chain_type: ChainType::Bitcoin,
+                network: Some(Network::Testnet),
+                seg_wit: Some(SegWit::None),
+                derivation_path: Some(DerivationPath::BitcoinTestnet),
+                ..Default::default()
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
@@ -1008,7 +1008,7 @@ mod tests {
                     vout: 1,
                     amount: 200000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "m/44'/1'/0'/0/0".to_string(),
+                    derived_path: Some(DerivationPath::BitcoinTestnet),
                 },
                 Utxo {
                     tx_hash: "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9"
@@ -1016,7 +1016,7 @@ mod tests {
                     vout: 0,
                     amount: 200000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "m/44'/1'/0'/0/0".to_string(),
+                    derived_path: Some(DerivationPath::BitcoinTestnet),
                 },
                 Utxo {
                     tx_hash: "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9"
@@ -1024,7 +1024,7 @@ mod tests {
                     vout: 1,
                     amount: 200000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "m/44'/1'/0'/0/0".to_string(),
+                    derived_path: Some(DerivationPath::BitcoinTestnet),
                 },
             ];
 
@@ -1038,11 +1038,11 @@ mod tests {
             };
 
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
-                chain_type: BITCOIN.to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "NONE".to_string(),
-                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                chain_type: ChainType::Bitcoin,
+                network: Some(Network::Testnet),
+                seg_wit: Some(SegWit::None),
+                derivation_path: Some(DerivationPath::BitcoinTestnet),
+                ..Default::default()
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
@@ -1061,7 +1061,7 @@ mod tests {
                     vout: 0,
                     amount: 50000,
                     address: "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB".to_string(),
-                    derived_path: "m/49'/1'/0'/0/0".to_string(),
+                    derived_path: Some(DerivationPath::BitcoinP2wpkhTestnet),
                 },
                 Utxo {
                     tx_hash: "9ad628d450952a575af59f7d416c9bc337d184024608f1d2e13383c44bd5cd74"
@@ -1083,11 +1083,11 @@ mod tests {
             };
 
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
-                chain_type: BITCOIN.to_string(),
-                network: "TESTNET".to_string(),
-                derivation_path: "m/49'/1'/0'/0/0".to_string(),
-                seg_wit: "P2WPKH".to_string(),
+                chain_type: ChainType::Bitcoin,
+                network: Some(Network::Testnet),
+                derivation_path: Some(DerivationPath::BitcoinP2wpkhTestnet),
+                seg_wit: Some(SegWit::P2wpkh),
+                ..Default::default()
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
@@ -1119,7 +1119,7 @@ mod tests {
                     vout: 0,
                     amount: 50000,
                     address: "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB".to_string(),
-                    derived_path: "m/49'/1'/0'/0/0".to_string(),
+                    derived_path: Some(DerivationPath::BitcoinP2wpkhTestnet),
                 },
                 Utxo {
                     tx_hash: "9ad628d450952a575af59f7d416c9bc337d184024608f1d2e13383c44bd5cd74"
@@ -1141,11 +1141,11 @@ mod tests {
             };
 
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
-                chain_type: BITCOIN.to_string(),
-                network: "TESTNET".to_string(),
-                derivation_path: "m/49'/1'/0'/0/0".to_string(),
-                seg_wit: "P2WPKH".to_string(),
+                chain_type: ChainType::Bitcoin,
+                network: Some(Network::Testnet),
+                derivation_path: Some(DerivationPath::BitcoinP2wpkhTestnet),
+                seg_wit: Some(SegWit::P2wpkh),
+                ..Default::default()
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
@@ -1155,6 +1155,8 @@ mod tests {
     }
 
     mod ltc {
+        use bitcoin::util::bip32::DerivationPath;
+
         use super::*;
 
         #[test]
@@ -1168,7 +1170,7 @@ mod tests {
                 vout: 0,
                 amount: 1000000,
                 address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                derived_path: "m/44'/1'/0'/0/0".to_string(),
+                derived_path: Some(DerivationPath::BitcoinTestnet),
             }];
             let tx_input = BtcKinTxInput {
                 to: "mmuf77YiGckWgfvd32viaj7EKfrUN1FdAz".to_string(),
@@ -1183,11 +1185,11 @@ mod tests {
             let _ = keystore.unlock_by_password("imtoken1");
 
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
                 chain_type: LITECOIN.to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "NONE".to_string(),
-                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                network: Some(Network::Testnet),
+                seg_wit: Some(SegWit::None),
+                derivation_path: Some(DerivationPath::BitcoinTestnet),
+                ..Default::default()
             };
 
             let actual = keystore.sign_transaction(&params, &tx_input).unwrap();
@@ -1210,7 +1212,7 @@ mod tests {
                     vout: 0,
                     amount: 1000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "m/44'/1'/0'/0/0".to_string(),
+                    derived_path: Some(DerivationPath::BitcoinTestnet),
                 },
                 Utxo {
                     tx_hash: "57c935201d6abf4b32151f9d96bfb51b058824a601011c3432e751b0a6d4a100"
@@ -1218,7 +1220,7 @@ mod tests {
                     vout: 0,
                     amount: 1000000,
                     address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
-                    derived_path: "m/44'/1'/0'/0/0".to_string(),
+                    derived_path: Some(DerivationPath::BitcoinTestnet),
                 },
             ];
             let tx_input = BtcKinTxInput {
@@ -1234,11 +1236,11 @@ mod tests {
             let _ = keystore.unlock_by_password("imtoken1");
 
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
                 chain_type: LITECOIN.to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "NONE".to_string(),
-                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                network: Some(Network::Testnet),
+                seg_wit: Some(SegWit::None),
+                derivation_path: Some(DerivationPath::BitcoinTestnet),
+                ..Default::default()
             };
 
             let actual = keystore.sign_transaction(&params, &tx_input).unwrap();
@@ -1275,11 +1277,11 @@ mod tests {
             let mut keystore = Keystore::from_json(keystore_json).unwrap();
             let _ = keystore.unlock_by_password("imtoken1");
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
                 chain_type: LITECOIN.to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "NONE".to_string(),
-                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                network: Some(Network::Testnet),
+                seg_wit: Some(SegWit::None),
+                derivation_path: Some(DerivationPath::BitcoinTestnet),
+                ..Default::default()
             };
 
             let actual = keystore.sign_transaction(&params, &tx_input).unwrap();
@@ -1315,11 +1317,11 @@ mod tests {
             let mut keystore = Keystore::from_json(keystore_json).unwrap();
             let _ = keystore.unlock_by_password("imtoken1");
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
                 chain_type: LITECOIN.to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "NONE".to_string(),
-                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                network: Some(Network::Testnet),
+                seg_wit: Some(SegWit::None),
+                derivation_path: Some(DerivationPath::BitcoinTestnet),
+                ..Default::default()
             };
             let ret = keystore.sign_transaction(&params, &tx_input);
             assert!(ret.is_err());
@@ -1354,11 +1356,11 @@ mod tests {
             let mut keystore = Keystore::from_json(keystore_json).unwrap();
             let _ = keystore.unlock_by_password("imtoken1");
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
                 chain_type: LITECOIN.to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "NONE".to_string(),
-                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                network: Some(Network::Testnet),
+                seg_wit: Some(SegWit::None),
+                derivation_path: Some(DerivationPath::BitcoinTestnet),
+                ..Default::default()
             };
             let ret = keystore.sign_transaction(&params, &tx_input);
             assert!(ret.is_err());
@@ -1398,11 +1400,11 @@ mod tests {
             let coin_info = coin_info_from_param("LITECOIN", "TESTNET", "NONE", "").unwrap();
             let _ = keystore.unlock_by_password(TEST_PASSWORD).unwrap();
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
                 chain_type: LITECOIN.to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "NONE".to_string(),
-                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                network: Some(Network::Testnet),
+                seg_wit: Some(SegWit::None),
+                derivation_path: Some(DerivationPath::BitcoinTestnet),
+                ..Default::default()
             };
 
             let ret = keystore.sign_transaction(&params, &tx_input);
@@ -1437,11 +1439,10 @@ mod tests {
                 let mut ks = wif_keystore("mszYqVnqKoQx4jcTdJXxwKAissE3Jbrrc1");
 
                 let params = SignatureParameters {
-                    curve: CurveType::SECP256k1,
-                    derivation_path: "".to_string(),
-                    chain_type: "".to_string(),
-                    network: "".to_string(),
-                    seg_wit: "".to_string(),
+                    derivation_path: None,
+                    chain_type: ChainType::LiteCoin,
+                    network: Some(Network::Testnet),
+                    ..Default::default()
                 };
 
                 let ret = ks.sign_transaction(&params, &tx_input);
@@ -1471,11 +1472,11 @@ mod tests {
                 hex_keystore("f3731f49d830c109e054522df01a9378383814af5b01a9cd150511f12db39e6e");
 
             let params = SignatureParameters {
-                curve: CurveType::SECP256k1,
-                chain_type: BITCOIN.to_string(),
-                network: "MAINNET".to_string(),
-                derivation_path: "m/44'/0'/0'/0/0".to_string(),
-                seg_wit: "P2WPKH".to_string(),
+                chain_type: ChainType::LiteCoin,
+                network: Some(Network::Mainnet),
+                derivation_path: Some(DerivationPath::Bitcoin),
+                seg_wit: Some(SegWit::P2wpkh),
+                ..Default::default()
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
