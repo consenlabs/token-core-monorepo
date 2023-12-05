@@ -4,9 +4,9 @@ use failure::format_err;
 
 use parking_lot::RwLock;
 
-pub enum Coin {
-    Ethereum { path: String, chain_id: i32 },
-}
+// pub enum Coin {
+//     Ethereum { path: String, chain_id: i32 },
+// }
 
 /// Blockchain basic config
 ///

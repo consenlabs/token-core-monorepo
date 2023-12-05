@@ -53,7 +53,7 @@ use tcx_keystore::tcx_ensure;
 
 use tcx_constants::coin_info::coin_info_from_param;
 use tcx_constants::{CoinInfo, CurveType};
-use tcx_crypto::aes::cbc::encrypt_pkcs7;
+use tcx_crypto::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
 use tcx_crypto::hash::dsha256;
 use tcx_crypto::KDF_ROUNDS;
 use tcx_eth::transaction::{EthRecoverAddressInput, EthRecoverAddressOutput};
@@ -327,6 +327,19 @@ fn enc_xpub(xpub: &str, network: &str) -> Result<String> {
     let iv_bytes = hex::decode(&*iv)?;
     let encrypted = encrypt_pkcs7(&ext_pub_key.as_bytes(), &key_bytes, &iv_bytes)?;
     Ok(base64::encode(&encrypted))
+}
+
+fn decrypt_xpub(enc_xpub: &str) -> Result<Bip32DeterministicPublicKey> {
+    let encrypted = base64::decode(enc_xpub)?;
+    let key = tcx_crypto::XPUB_COMMON_KEY_128.read();
+    let iv = tcx_crypto::XPUB_COMMON_IV.read();
+    let key_bytes = hex::decode(&*key)?;
+    let iv_bytes = hex::decode(&*iv)?;
+    let data = decrypt_pkcs7(&encrypted, &key_bytes, &iv_bytes)?;
+
+    let xpub_str = String::from_utf8(data)?;
+    let (xpub, _) = Bip32DeterministicPublicKey::from_ss58check_with_version(&xpub_str)?;
+    Ok(xpub)
 }
 
 pub(crate) fn keystore_common_derive(data: &[u8]) -> Result<Vec<u8>> {
@@ -1307,19 +1320,21 @@ pub(crate) fn calc_external_address(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(format_err!("{}", "wallet_not_found")),
     }?;
 
-    // let (address, external_path) = tcx_btc_kin::calc_btc_change_address(
-    //     &keystore,
-    //     &param.seg_wit,
-    //     &param.network,
-    //     param.external_idx,
-    // )?;
-    // encode_message(CalcExternalAddressResult {
-    //     address,
-    //     r#type: "EXTERNAL".to_string(),
-    //     derived_path: external_path,
-    // })
+    let xpub = decrypt_xpub(&param.enc_extended_public_key)?;
 
-    unimplemented!()
+    let (address, external_path) = tcx_btc_kin::calc_btc_change_address(
+        &keystore,
+        &param.seg_wit,
+        &param.network,
+        param.external_idx,
+        &param.path,
+        &xpub,
+    )?;
+    encode_message(CalcExternalAddressResult {
+        address,
+        r#type: "EXTERNAL".to_string(),
+        derived_path: external_path,
+    })
 }
 
 pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {

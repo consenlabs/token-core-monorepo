@@ -425,6 +425,10 @@ pub struct CalcExternalAddressParam {
     pub seg_wit: ::prost::alloc::string::String,
     #[prost(uint32, tag = "4")]
     pub external_idx: u32,
+    #[prost(string, tag = "5")]
+    pub path: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub enc_extended_public_key: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

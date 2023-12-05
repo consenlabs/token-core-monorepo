@@ -165,6 +165,8 @@ message CalcExternalAddressParam {
     string network = 2;
     string segWit = 3;
     uint32 externalIdx = 4;
+    string path = 5;
+    string encExtendedPublicKey = 6;
 }
 
 message CalcExternalAddressResult {
