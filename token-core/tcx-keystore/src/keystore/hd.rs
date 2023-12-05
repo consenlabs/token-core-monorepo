@@ -183,7 +183,7 @@ impl HdKeystore {
                 id: Uuid::new_v4().as_hyphenated().to_string(),
                 version: Self::VERSION,
                 meta,
-                identity: Some(identity),
+                identity,
             },
 
             cache: None,
@@ -216,14 +216,14 @@ impl HdKeystore {
             network: coin_info.network.to_string(),
             ext_pub_key,
             seg_wit: coin_info.seg_wit.to_string(),
-            public_key: Some(hex::encode(public_key.to_bytes())),
+            public_key: hex::encode(public_key.to_bytes()),
         };
 
         return Ok(account.clone());
     }
 
-    pub fn identity(&self) -> Option<&Identity> {
-        self.store().identity.as_ref()
+    pub fn identity(&self) -> &Identity {
+        &self.store().identity
     }
 
     pub(crate) fn verify_password(&self, password: &str) -> bool {
@@ -377,7 +377,7 @@ mod tests {
             seg_wit: "NONE".to_string(),
             curve: CurveType::SECP256k1,
             coin: "BITCOIN".to_string(),
-            public_key: Some("026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string())
+            public_key: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string()
         };
 
         assert_eq!(acc, expected);
@@ -466,7 +466,7 @@ mod tests {
             seg_wit: "NONE".to_string(),
             curve: CurveType::SECP256k1,
             coin: "BITCOIN".to_string(),
-            public_key: Some("026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string())
+            public_key: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string()
         };
 
         assert_eq!(acc, expected);

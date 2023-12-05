@@ -77,7 +77,6 @@ pub mod bitcoin {
 }
 
 pub fn calc_btc_change_address(
-    ks: &Keystore,
     seg_wit: &str,
     network: &str,
     external_idx: u32,

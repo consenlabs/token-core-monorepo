@@ -12,7 +12,7 @@ message HdStoreCreateParam {
     string password = 1;
     string passwordHint = 2;
     string name = 3;
-    string source = 4;
+    string network = 4;
 }
 
 message IdentityResult {
@@ -23,10 +23,10 @@ message IdentityResult {
 message WalletResult {
     string id = 1;
     string name = 2;
-    string source = 3;
-    repeated AccountResponse accounts = 4;
-    int64 createdAt = 5;
-    optional IdentityResult identity = 6;
+    string identifier = 3;
+    string ipfsId = 4;
+    string source = 5;
+    int64 createdAt = 6;
 }
 
 // FUNCTION: hd_store_import(HdStoreImportParam): WalletResult
@@ -35,7 +35,7 @@ message WalletResult {
 message HdStoreImportParam {
     string mnemonic = 1;
     string password = 2;
-    string source = 3;
+    string network = 3;
     string name = 4;
     string passwordHint = 5;
     bool overwrite = 6;
@@ -63,7 +63,9 @@ message AccountResponse {
     string chainType = 1;
     string address = 2;
     string path = 3;
-    string extendedXpubKey = 4;
+    string extendedPublicKey = 4;
+    string publicKey = 5;
+    string curve = 6;
 }
 
 message AccountsResponse {
@@ -237,13 +239,13 @@ message PublicKeyResult {
 
 
 
-message RemoveWalletsParam {
-    string identifier = 1;
+message StoreDeleteParam {
+    string id = 1;
     string password = 2;
 }
 
-message RemoveWalletsResult {
-    string identifier = 1;
+message StoreDeleteResult {
+    bool isSuccess = 1;
 }
 
 message V3KeystoreImportInput {

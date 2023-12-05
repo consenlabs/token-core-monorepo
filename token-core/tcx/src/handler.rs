@@ -4,7 +4,9 @@ use serde_json::Value;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
+use std::str::FromStr;
 use tcx_atom::address::AtomChainFactory;
+use tcx_keystore::keystore::IdentityNetwork;
 
 use tcx_common::hex_to_bytes;
 use tcx_eos::EosChainFactory;
@@ -31,10 +33,10 @@ use crate::api::{
     KeystoreCommonAccountsParam, KeystoreCommonDeriveParam, KeystoreCommonExistsParam,
     KeystoreCommonExistsResult, KeystoreCommonExportResult, KeystoreMigrationParam,
     PrivateKeyStoreExportParam, PrivateKeyStoreImportParam, PublicKeyParam, PublicKeyResult,
-    RemoveWalletsParam, RemoveWalletsResult, Response, SignAuthenticationMessageParam,
-    SignAuthenticationMessageResult, SignHashesParam, SignHashesResult, SignParamPoc,
-    SignResultPoc, V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput,
-    WalletKeyParam, WalletResult, ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
+    Response, SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
+    SignHashesResult, SignParamPoc, SignResultPoc, StoreDeleteParam, StoreDeleteResult,
+    V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput, WalletKeyParam,
+    WalletResult, ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
     ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam,
     ZksyncSignMusigResult,
 };
@@ -59,26 +61,14 @@ use tcx_crypto::KDF_ROUNDS;
 use tcx_eth::transaction::{EthRecoverAddressInput, EthRecoverAddressOutput};
 use tcx_keystore::{MessageSigner, TransactionSigner};
 
-// use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
 use tcx_substrate::{
     decode_substrate_keystore, encode_substrate_keystore, ExportSubstrateKeystoreResult,
     SubstrateKeystore, SubstrateKeystoreParam,
 };
 
-// use tcx_identity::imt_keystore::{IMTKeystore, WALLET_KEYSTORE_DIR};
-// use tcx_identity::v3_keystore::import_wallet_from_keystore;
-// use tcx_identity::wallet_api::{
-//     CreateIdentityParam, CreateIdentityResult, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
-//     EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExportIdentityParam, ExportIdentityResult,
-//     GenerateMnemonicResult, GetCurrentIdentityResult, ImtKeystore, Metadata as MetadataRes,
-//     RecoverIdentityParam, RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult,
-//     SignAuthenticationMessageParam, SignAuthenticationMessageResult, V3KeystoreExportInput,
-//     V3KeystoreExportOutput, V3KeystoreImportInput, Wallet,
-// };
 use tcx_migration::migration::LegacyKeystore;
 use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
-use tcx_tron::transaction::TronMessageInput;
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
 
 use crate::macros::use_chains;
@@ -90,20 +80,11 @@ use_chains!(
     tcx_eos::eos,
     tcx_ckb::nervos,
     tcx_eth::ethereum,
-    // tcx_eth2::ethereum2,
     tcx_atom::cosmos,
     tcx_substrate::polkadot,
     tcx_tezos::tezos,
     tcx_tron::tron,
 );
-
-fn create_chain_factory(chain: &str) -> Result<Box<dyn ChainFactory>> {
-    match chain {
-        "EOS" => Ok(Box::new(EosChainFactory {})),
-        "COSMOS" => Ok(Box::new(AtomChainFactory {})),
-        _ => Err(format_err!("unknow_chain_factory")),
-    }
-}
 
 const NO_PK_CHAINS: &[&str] = &["COSMOS"];
 
@@ -198,31 +179,26 @@ pub(crate) fn hd_store_create(data: &[u8]) -> Result<Vec<u8>> {
     let mut meta = Metadata::default();
     meta.name = param.name.to_owned();
     meta.password_hint = param.password_hint.to_owned();
-    meta.source = param.source.parse()?;
-    // TODO: add network param
-    // meta.network = param.net
+    // TODO: change source to NEW_MNEMONIC
+    meta.source = Source::Mnemonic;
+    meta.network = IdentityNetwork::from_str(&param.network)?;
 
     let ks = HdKeystore::new(&param.password, meta);
 
     let keystore = Keystore::Hd(ks);
     flush_keystore(&keystore)?;
 
-    let identity_result = match keystore.identity() {
-        Some(identity) => Some(IdentityResult {
-            identifier: identity.identifier.to_string(),
-            ipfs_id: identity.ipfs_id.to_string(),
-        }),
-        None => None,
-    };
+    let identity = keystore.identity();
 
     let meta = keystore.meta();
     let wallet = WalletResult {
         id: keystore.id(),
         name: meta.name.to_owned(),
-        source: param.source,
-        accounts: vec![],
+        // TODO: change source to NEW_MNEMONIC
+        source: Source::Mnemonic.to_string(),
         created_at: meta.timestamp.clone(),
-        identity: identity_result,
+        identifier: identity.identifier.to_string(),
+        ipfs_id: identity.ipfs_id.to_string(),
     };
 
     let ret = encode_message(wallet)?;
@@ -253,7 +229,7 @@ pub(crate) fn hd_store_import(data: &[u8]) -> Result<Vec<u8>> {
     let mut meta = Metadata::default();
     meta.name = param.name.to_owned();
     meta.password_hint = param.password_hint.to_owned();
-    meta.source = param.source.parse()?;
+    meta.source = Source::Mnemonic;
 
     let ks = HdKeystore::from_mnemonic(&param.mnemonic, &param.password, meta)?;
 
@@ -267,52 +243,22 @@ pub(crate) fn hd_store_import(data: &[u8]) -> Result<Vec<u8>> {
 
     let meta = keystore.meta();
 
-    let identity_result = match keystore.identity() {
-        Some(identity) => Some(IdentityResult {
-            identifier: identity.identifier.to_string(),
-            ipfs_id: identity.ipfs_id.to_string(),
-        }),
-        None => None,
-    };
+    let identity = keystore.identity();
 
     let wallet = WalletResult {
         id: keystore.id(),
         name: meta.name.to_owned(),
-        source: param.source,
-        accounts: vec![],
+        source: Source::Mnemonic.to_string(),
         created_at: meta.timestamp.clone(),
-        identity: identity_result,
+        identifier: identity.identifier.to_string(),
+        ipfs_id: identity.ipfs_id.to_string(),
     };
     let ret = encode_message(wallet)?;
     cache_keystore(keystore);
     Ok(ret)
 }
 
-#[deprecated(
-    since = "2.5.1",
-    note = "Please use the export_mnemonic function instead"
-)]
-#[allow(deprecated)]
-pub(crate) fn hd_store_export(data: &[u8]) -> Result<Vec<u8>> {
-    let param: WalletKeyParam = WalletKeyParam::decode(data).expect("hd_store_export");
-    let mut map = KEYSTORE_MAP.write();
-    let keystore: &mut Keystore = match map.get_mut(&param.id) {
-        Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
-    }?;
-
-    let guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
-
-    let export_result = KeystoreCommonExportResult {
-        id: guard.keystore().id(),
-        r#type: KeyType::Mnemonic as i32,
-        value: guard.keystore().export()?,
-    };
-
-    encode_message(export_result)
-}
-
-fn enc_xpub(xpub: &str, network: &str) -> Result<String> {
+fn encrypt_xpub(xpub: &str, network: &str) -> Result<String> {
     let xpk = Bip32DeterministicPublicKey::from_hex(xpub)?;
     let ext_pub_key: String;
     if network == "MAINNET" {
@@ -357,16 +303,19 @@ pub(crate) fn keystore_common_derive(data: &[u8]) -> Result<Vec<u8>> {
 
     for derivation in param.derivations {
         let account = derive_account(guard.keystore_mut(), &derivation)?;
+        // TODO: Add utxo model to return xpub
         let enc_xpub = if account.ext_pub_key.is_empty() {
             Ok("".to_string())
         } else {
-            enc_xpub(&account.ext_pub_key.to_string(), &account.network)
+            encrypt_xpub(&account.ext_pub_key.to_string(), &account.network)
         }?;
         let account_rsp = AccountResponse {
             chain_type: derivation.chain_type.to_owned(),
             address: account.address.to_owned(),
             path: account.derivation_path.to_owned(),
-            extended_xpub_key: enc_xpub,
+            extended_public_key: enc_xpub,
+            public_key: account.public_key,
+            curve: account.curve.as_str().to_string(),
         };
         account_responses.push(account_rsp);
     }
@@ -374,7 +323,6 @@ pub(crate) fn keystore_common_derive(data: &[u8]) -> Result<Vec<u8>> {
     let accounts_rsp = AccountsResponse {
         accounts: account_responses,
     };
-    flush_keystore(guard.keystore())?;
     encode_message(accounts_rsp)
 }
 
@@ -477,60 +425,18 @@ pub(crate) fn private_key_store_import(data: &[u8]) -> Result<Vec<u8>> {
     flush_keystore(&keystore)?;
 
     let meta = keystore.meta();
+    let identity = keystore.identity();
     let wallet = WalletResult {
         id: keystore.id(),
         name: meta.name.to_owned(),
         source: "PRIVATE".to_owned(),
-        accounts: vec![],
         created_at: meta.timestamp.clone(),
-        identity: None,
+        identifier: identity.identifier.to_string(),
+        ipfs_id: identity.ipfs_id.to_string(),
     };
     let ret = encode_message(wallet)?;
     cache_keystore(keystore);
     Ok(ret)
-}
-
-#[deprecated(
-    since = "2.5.1",
-    note = "Please use the export_private_key function instead"
-)]
-pub(crate) fn private_key_store_export(data: &[u8]) -> Result<Vec<u8>> {
-    let param: PrivateKeyStoreExportParam =
-        PrivateKeyStoreExportParam::decode(data).expect("private_key_store_export");
-
-    if NO_PK_CHAINS.contains(&param.chain_type.as_str()) {
-        return Err(format_err!("chain_cannot_export_private_key"));
-    }
-
-    let mut map = KEYSTORE_MAP.write();
-    let keystore: &mut Keystore = match map.get_mut(&param.id) {
-        Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
-    }?;
-
-    let guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
-
-    let pk_hex = guard.keystore().export()?;
-
-    // private_key prefix is only about chain type and network
-    let coin_info = coin_info_from_param(&param.chain_type, &param.network, "", "")?;
-    let value = if param.chain_type.as_str() == "TRON" {
-        Ok(pk_hex.to_string())
-    } else if param.chain_type.as_str() == "TEZOS" {
-        Ok(build_tezos_base58_private_key(pk_hex.as_str())?)
-    } else {
-        let bytes = hex::decode(pk_hex.to_string())?;
-        let typed_pk = TypedPrivateKey::from_slice(CurveType::SECP256k1, &bytes)?;
-        typed_pk.fmt(&coin_info)
-    }?;
-
-    let export_result = KeystoreCommonExportResult {
-        id: guard.keystore().id(),
-        r#type: KeyType::PrivateKey as i32,
-        value,
-    };
-
-    encode_message(export_result)
 }
 
 pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
@@ -663,36 +569,6 @@ pub(crate) fn keystore_common_exists(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(result)
 }
 
-// pub(crate) fn keystore_common_accounts(data: &[u8]) -> Result<Vec<u8>> {
-//     let param: KeystoreCommonAccountsParam =
-//         KeystoreCommonAccountsParam::decode(data).expect("keystore_common_accounts params");
-//     let map = KEYSTORE_MAP.read();
-//     let keystore: &Keystore = match map.get(&param.id) {
-//         Some(keystore) => Ok(keystore),
-//         _ => Err(format_err!("{}", "wallet_not_found")),
-//     }?;
-
-//     let mut accounts: Vec<AccountResponse> = vec![];
-//     for account in keystore.accounts() {
-//         let enc_xpub = if account.ext_pub_key.is_empty() {
-//             "".to_string()
-//         } else {
-//             enc_xpub(&account.ext_pub_key, &account.network)?
-//         };
-//         // let enc_xpub = enc_xpub(&account.ext_pub_key, &account.network)?;
-//         let acc_rsp = AccountResponse {
-//             chain_type: account.coin.to_owned(),
-//             address: account.address.to_owned(),
-//             path: account.derivation_path.to_owned(),
-//             extended_xpub_key: enc_xpub.to_owned(),
-//         };
-//         accounts.push(acc_rsp);
-//     }
-
-//     let accounts_rsp = AccountsResponse { accounts };
-//     encode_message(accounts_rsp)
-// }
-
 pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignParam = SignParam::decode(data).expect("SignTxParam");
 
@@ -737,9 +613,6 @@ pub(crate) fn sign_hashes(data: &[u8]) -> Result<Vec<u8>> {
         })
         .collect::<Vec<Result<String>>>();
     let signatures = signatures.into_iter().collect::<Result<Vec<String>>>()?;
-    // let signature = guard
-    //     .keystore_mut()
-    //     .secp256k1_ecdsa_sign_recoverable(&hex_to_bytes(&param.hash)?, &param.derivation_path)?;
     encode_message(SignHashesResult { signatures })
 }
 
@@ -794,11 +667,6 @@ pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
             extended_public_key.to_string()
         })
         .collect();
-    // let public_key = guard
-    //     .keystore_mut()
-    //     .get_deterministic_public_key(CurveType::from_str(&param.curve), &param.derivation_path)
-    //     .expect("ExtendedPublicKeyProcessed");
-
     encode_message(GetExtendedPublicKeysResult {
         extended_public_keys,
     })
@@ -822,99 +690,6 @@ pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
 
     sign_message_internal(&param, guard.keystore_mut())
 }
-
-// #[deprecated(
-//     since = "2.6.0",
-//     note = "Please use the get_public_keys route function instead"
-// )]
-// pub(crate) fn get_public_key(data: &[u8]) -> Result<Vec<u8>> {
-//     let param: PublicKeyParam = PublicKeyParam::decode(data).expect("PublicKeyParam");
-
-//     let mut map = KEYSTORE_MAP.write();
-//     let keystore: &mut Keystore = match map.get_mut(&param.id) {
-//         Some(keystore) => Ok(keystore),
-//         _ => Err(format_err!("{}", "wallet_not_found")),
-//     }?;
-
-//     let account = keystore.account(&param.chain_type, &param.address);
-//     let pub_key;
-//     if let Some(acc) = account {
-//         tcx_ensure!(
-//             acc.public_key.is_some(),
-//             format_err!("account_not_contains_public_key")
-//         );
-//         pub_key = hex::decode(acc.public_key.clone().unwrap())?;
-//     } else {
-//         return Err(format_err!("account_not_found"));
-//     }
-//     let mut ret = PublicKeyResult {
-//         id: param.id.to_string(),
-//         chain_type: param.chain_type.to_string(),
-//         address: param.address.to_string(),
-//         public_key: String::new(),
-//     };
-//     //https://www.rubydoc.info/gems/tezos_client/0.2.1/TezosClient/Crypto
-//     let edpk_prefix: Vec<u8> = vec![0x0D, 0x0F, 0x25, 0xD9];
-//     match param.chain_type.to_uppercase().as_str() {
-//         "TEZOS" => {
-//             let to_hash = [edpk_prefix, pub_key].concat();
-//             let hashed = dsha256(&to_hash);
-//             let hash_with_checksum = [to_hash, hashed[0..4].to_vec()].concat();
-//             let edpk = hash_with_checksum.to_base58();
-//             ret.public_key = edpk;
-//             encode_message(ret)
-//         }
-//         "ETHEREUM2" => {
-//             ret.public_key = hex::encode(pub_key);
-//             encode_message(ret)
-//         }
-//         _ => {
-//             let encoder =
-//                 create_chain_factory(&param.chain_type.to_uppercase())?.create_public_key_encoder();
-//             ret.public_key = encoder.encode(&pub_key)?;
-//             encode_message(ret)
-//         }
-//     }
-// }
-
-// #[deprecated(
-//     since = "2.5.1",
-//     note = "Please use the sign_message route function instead"
-// )]
-// pub(crate) fn sign_tron_message_legacy(data: &[u8]) -> Result<Vec<u8>> {
-//     let param: SignParam = SignParam::decode(data).expect("SignParam");
-
-//     let mut map = KEYSTORE_MAP.write();
-//     let keystore: &mut Keystore = match map.get_mut(&param.id) {
-//         Some(keystore) => Ok(keystore),
-//         _ => Err(format_err!("{}", "wallet_not_found")),
-//     }?;
-
-//     let mut guard = match param.key.unwrap() {
-//         Key::Password(password) => KeystoreGuard::unlock_by_password(keystore, &password)?,
-//         Key::DerivedKey(derived_key) => {
-//             KeystoreGuard::unlock_by_derived_key(keystore, &derived_key)?
-//         }
-//     };
-
-//     let input: TronMessageInput = TronMessageInput::decode(
-//         param
-//             .input
-//             .expect("TronMessageInput")
-//             .value
-//             .clone()
-//             .as_slice(),
-//     )
-//     .expect("TronMessageInput");
-//     let sign_param = SignatureParameters {
-//         curve: CurveType::from_str(&param.curve),
-//         derivation_path: param.path.to_string(),
-//         chain_type: param.chain_type.to_string(),
-//         ..Default::default()
-//     };
-//     let signed_tx = guard.keystore_mut().sign_message(&sign_param, &input)?;
-//     encode_message(signed_tx)
-// }
 
 pub(crate) fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: WalletKeyParam = WalletKeyParam::decode(data).unwrap();
@@ -1051,157 +826,26 @@ pub(crate) fn zksync_private_key_to_pubkey_hash(data: &[u8]) -> Result<Vec<u8>> 
     encode_message(ret)
 }
 
-// pub(crate) fn sign_bls_to_execution_change(data: &[u8]) -> Result<Vec<u8>> {
-//     let param: SignBlsToExecutionChangeParam = SignBlsToExecutionChangeParam::decode(data)?;
-//     let mut map = KEYSTORE_MAP.write();
-//     let keystore: &mut Keystore = match map.get_mut(&param.id) {
-//         Some(keystore) => Ok(keystore),
-//         _ => Err(format_err!("{}", "wallet_not_found")),
-//     }?;
-//     let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
-//     let result: SignBlsToExecutionChangeResult =
-//         param.sign_bls_to_execution_change(guard.keystore_mut())?;
-//     encode_message(result)
-// }
-
 pub(crate) fn generate_mnemonic() -> Result<Vec<u8>> {
     let mnemonic = tcx_primitive::generate_mnemonic();
     let result = GenerateMnemonicResult { mnemonic };
     encode_message(result)
 }
 
-// pub(crate) fn create_identity(data: &[u8]) -> Result<Vec<u8>> {
-//     let param: CreateIdentityParam = CreateIdentityParam::decode(data)?;
-//     let identity_keystore = Identity::create_identity(param)?;
-
-//     let current_identity: GetCurrentIdentityResult =
-//         GetCurrentIdentityResult::decode(get_current_identity()?.as_slice()).unwrap();
-//     let wallets = create_wallets(current_identity.wallets);
-//     let result = CreateIdentityResult {
-//         identifier: identity_keystore.identifier.clone(),
-//         ipfs_id: identity_keystore.ipfs_id.clone(),
-//         wallets,
-//     };
-
-//     encode_message(result)
-// }
-
-// fn create_wallets(wallets: Vec<ImtKeystore>) -> Vec<Wallet> {
-//     let mut ret_data = vec![];
-//     for imt_keystore in wallets {
-//         let metadata = imt_keystore.metadata.unwrap().clone();
-//         ret_data.push(Wallet {
-//             id: imt_keystore.id,
-//             address: imt_keystore.address,
-//             created_at: metadata.timestamp,
-//             source: metadata.source,
-//             chain_type: metadata.chain_type,
-//         });
-//     }
-//     ret_data
-// }
-
-// pub(crate) fn get_current_identity() -> Result<Vec<u8>> {
-//     let current_identity = Identity::get_current_identity()?;
-//     let wallets = current_identity.get_wallets()?;
-//     let im_token_meta = current_identity.im_token_meta;
-//     let identity_metadata = MetadataRes {
-//         name: im_token_meta.name,
-//         password_hint: im_token_meta.password_hint,
-//         chain_type: im_token_meta.chain_type.unwrap_or("".to_string()),
-//         timestamp: im_token_meta.timestamp as u64,
-//         network: im_token_meta.network,
-//         backup: im_token_meta.backup.unwrap_or(vec![]),
-//         source: im_token_meta.source,
-//         mode: im_token_meta.mode,
-//         wallet_type: im_token_meta.wallet_type,
-//         seg_wit: im_token_meta.seg_wit,
-//     };
-//     let mut ret_wallet = vec![];
-//     for wallet in wallets {
-//         let temp_metadata = wallet.im_token_meta.unwrap();
-//         let wallet_metadata = MetadataRes {
-//             name: temp_metadata.name,
-//             password_hint: temp_metadata.password_hint,
-//             chain_type: temp_metadata.chain_type.unwrap_or("".to_string()),
-//             timestamp: temp_metadata.timestamp as u64,
-//             network: temp_metadata.network,
-//             backup: temp_metadata.backup.unwrap_or(vec![]),
-//             source: temp_metadata.source,
-//             mode: temp_metadata.mode,
-//             wallet_type: temp_metadata.wallet_type,
-//             seg_wit: temp_metadata.seg_wit,
-//         };
-//         let imt_keystore = ImtKeystore {
-//             id: wallet.id,
-//             version: wallet.version,
-//             address: wallet.address,
-//             mnemonic_path: wallet.mnemonic_path,
-//             metadata: Some(wallet_metadata),
-//         };
-//         ret_wallet.push(imt_keystore);
-//     }
-//     let result = GetCurrentIdentityResult {
-//         identifier: current_identity.identifier,
-//         ipfs_id: current_identity.ipfs_id,
-//         wallets: ret_wallet,
-//         metadata: Some(identity_metadata),
-//     };
-//     encode_message(result)
-// }
-
-// pub(crate) fn export_identity(data: &[u8]) -> Result<Vec<u8>> {
-//     let param: ExportIdentityParam = ExportIdentityParam::decode(data)?;
-//     let identifier = param.identifier;
-//     let password = param.password;
-//     let identity = Identity::get_current_identity()?;
-//     if identity.identifier != identifier {
-//         return Err(format_err!("invalid_identity"));
-//     }
-
-//     let mnemonic = identity.export_identity(password.as_str())?;
-//     let result = ExportIdentityResult {
-//         identifier,
-//         mnemonic,
-//     };
-//     encode_message(result)
-// }
-
-// pub(crate) fn recover_identity(data: &[u8]) -> Result<Vec<u8>> {
-//     let param: RecoverIdentityParam = RecoverIdentityParam::decode(data)?;
-//     let mnemonic = param.mnemonic.to_owned();
-
-//     let identity_keystore = Identity::recover_identity(param)?;
-
-//     let current_identity: GetCurrentIdentityResult =
-//         GetCurrentIdentityResult::decode(get_current_identity()?.as_slice()).unwrap();
-//     let wallets = create_wallets(current_identity.wallets);
-//     let result = RecoverIdentityResult {
-//         identifier: identity_keystore.identifier.clone(),
-//         mnemonic,
-//         ipfs_id: identity_keystore.ipfs_id.clone(),
-//         wallets,
-//     };
-
-//     encode_message(result)
-// }
-
-// TODO: may rename to remove wallets?
-pub(crate) fn remove_wallets(data: &[u8]) -> Result<Vec<u8>> {
-    let param: RemoveWalletsParam = RemoveWalletsParam::decode(data)?;
+pub(crate) fn remove_wallet(data: &[u8]) -> Result<Vec<u8>> {
+    let param: StoreDeleteParam = StoreDeleteParam::decode(data)?;
     let map = KEYSTORE_MAP.read();
-    let Some(identity_ks) = map.values().find(|ks| ks.identity().is_some() && ks.identity().unwrap().identifier == param.identifier) else {
-        return Err(failure::format_err!("identity not found"));
-    };
+    let keystore: &Keystore = match map.get(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(format_err!("{}", "wallet_not_found")),
+    }?;
 
-    if !identity_ks.verify_password(&param.password) {
+    if !keystore.verify_password(&param.password) {
         return Err(failure::format_err!("password_incorrect"));
     }
-    filemanager::delete_keystore_files()?;
+    filemanager::delete_keystore_file(&param.id)?;
 
-    let result = RemoveWalletsResult {
-        identifier: param.identifier,
-    };
+    let result = StoreDeleteResult { is_success: true };
     encode_message(result)
 }
 
@@ -1213,45 +857,15 @@ pub(crate) fn eth_recover_address(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(result?)
 }
 
-// pub(crate) fn eth_v3keystore_import(data: &[u8]) -> Result<Vec<u8>> {
-//     let input: V3KeystoreImportInput =
-//         V3KeystoreImportInput::decode(data).expect("V3KeystoreImportInput");
-//     let v3_keystore = import_wallet_from_keystore(input)?;
-//     let metadata = v3_keystore.im_token_meta.unwrap();
-//     let ret_wallet: WalletResult = WalletResult {
-//         id: v3_keystore.id,
-//         created_at: metadata.timestamp as i64,
-//         source: metadata.source,
-//         name: metadata.name,
-//         accounts: vec![],
-//     };
-//     encode_message(ret_wallet)
-// }
-
-// pub(crate) fn eth_v3keystore_export(data: &[u8]) -> Result<Vec<u8>> {
-//     let input: V3KeystoreExportInput =
-//         V3KeystoreExportInput::decode(data).expect("V3KeystoreExportInput");
-//     let keystore = IMTKeystore::must_find_wallet_by_id(&input.id)?;
-//     let json = keystore.export_keystore(&input.password)?;
-//     let output = V3KeystoreExportOutput { json };
-//     encode_message(output)
-// }
-
 pub(crate) fn encrypt_data_to_ipfs(data: &[u8]) -> Result<Vec<u8>> {
     let param = EncryptDataToIpfsParam::decode(data).expect("EncryptDataToIpfsParam");
-    // let identity = Identity::get_current_identity()?;
-    // let ciphertext = identity.encrypt_ipfs(&input.content)?;
-    // Identity::encrypt_ipfs(&self, plaintext)
 
     let map = KEYSTORE_MAP.read();
-    let Some(identity_ks) = map.values().find(|ks| ks.identity().is_some() && ks.identity().unwrap().identifier == param.identifier) else {
+    let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
         return Err(failure::format_err!("identity not found"));
     };
 
-    let cipher_text = identity_ks
-        .identity()
-        .unwrap()
-        .encrypt_ipfs(&param.content)?;
+    let cipher_text = identity_ks.identity().encrypt_ipfs(&param.content)?;
 
     let output = EncryptDataToIpfsResult {
         identifier: param.identifier.to_string(),
@@ -1263,22 +877,13 @@ pub(crate) fn encrypt_data_to_ipfs(data: &[u8]) -> Result<Vec<u8>> {
 
 pub(crate) fn decrypt_data_from_ipfs(data: &[u8]) -> Result<Vec<u8>> {
     let param = DecryptDataFromIpfsParam::decode(data).expect("DecryptDataFromIpfsParam");
-    // let identity = Identity::get_current_identity()?;
-    // let ciphertext = identity.decrypt_ipfs(&input.encrypted)?;
-    // let map = KEYSTORE_MAP.read();
-    // let Some(identity_ks) = map.values().find(|ks| ks.identity().is_some() && ks.identity().unwrap().identifier == param.identifier) else {
-    //     return Err(failure::format_err!("identity not found"));
-    // };
 
     let map = KEYSTORE_MAP.read();
-    let Some(identity_ks) = map.values().find(|ks| ks.identity().is_some() && ks.identity().unwrap().identifier == param.identifier) else {
+    let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
         return Err(failure::format_err!("identity not found"));
     };
 
-    let content = identity_ks
-        .identity()
-        .unwrap()
-        .decrypt_ipfs(&param.encrypted)?;
+    let content = identity_ks.identity().decrypt_ipfs(&param.encrypted)?;
 
     let output = DecryptDataFromIpfsResult {
         identifier: param.identifier.to_string(),
@@ -1293,17 +898,18 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
         SignAuthenticationMessageParam::decode(data).expect("SignAuthenticationMessageParam");
 
     let map = KEYSTORE_MAP.read();
-    let Some(identity_ks) = map.values().find(|ks| ks.identity().is_some() && ks.identity().unwrap().identifier == param.identifier) else {
+    let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
             return Err(failure::format_err!("identity not found"));
         };
 
     let key = tcx_crypto::Key::Password(param.password);
     let unlocker = identity_ks.use_key(&key)?;
 
-    let signature = identity_ks
-        .identity()
-        .unwrap()
-        .sign_authentication_message(param.access_time, &param.device_token, &unlocker)?;
+    let signature = identity_ks.identity().sign_authentication_message(
+        param.access_time,
+        &param.device_token,
+        &unlocker,
+    )?;
 
     encode_message(SignAuthenticationMessageResult {
         signature,
@@ -1314,16 +920,10 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn calc_external_address(data: &[u8]) -> Result<Vec<u8>> {
     let param: CalcExternalAddressParam =
         CalcExternalAddressParam::decode(data).expect("CalcExternalAddressParam");
-    let mut map = KEYSTORE_MAP.write();
-    let keystore: &mut Keystore = match map.get_mut(&param.id) {
-        Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
-    }?;
 
     let xpub = decrypt_xpub(&param.enc_extended_public_key)?;
 
     let (address, external_path) = tcx_btc_kin::calc_btc_change_address(
-        &keystore,
         &param.seg_wit,
         &param.network,
         param.external_idx,
@@ -1358,32 +958,15 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
 
     let keystore = legacy_keystore.migrate_identity_wallets(&key, tcx_ks)?;
     flush_keystore(&keystore)?;
-    // TODO: return accounts after migration
-    // let accounts = keystore
-    //     .accounts()
-    //     .iter()
-    //     .map(|acc| AccountResponse {
-    //         chain_type: acc.coin.to_string(),
-    //         address: acc.address.to_string(),
-    //         path: acc.derivation_path.to_string(),
-    //         extended_xpub_key: acc.ext_pub_key.to_string(),
-    //     })
-    //     .collect::<Vec<AccountResponse>>();
-    // let ret = encode_message(WalletResult {
-    //     id: keystore.id().to_string(),
-    //     name: keystore.meta().name.to_string(),
-    //     source: keystore.meta().source.to_string(),
-    //     accounts,
-    //     created_at: keystore.meta().timestamp,
-    //     identity: None,
-    // });
+
+    let identity = keystore.identity();
     let ret = encode_message(WalletResult {
         id: keystore.id().to_string(),
         name: keystore.meta().name.to_string(),
         source: keystore.meta().source.to_string(),
-        accounts: vec![],
         created_at: keystore.meta().timestamp,
-        identity: None,
+        identifier: identity.identifier.to_string(),
+        ipfs_id: identity.ipfs_id.to_string(),
     });
 
     cache_keystore(keystore);

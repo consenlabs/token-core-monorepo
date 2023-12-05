@@ -200,7 +200,7 @@ impl LegacyKeystore {
             version: HdKeystore::VERSION,
             key_hash: key_hash.to_string(),
             crypto: self.crypto.clone(),
-            identity: Some(identity),
+            identity: identity,
             meta,
         };
 
@@ -225,6 +225,15 @@ impl LegacyKeystore {
         }
 
         let key_hash = key_hash_from_private_key(&private_key);
+        let unlocker = self.crypto.use_key(key)?;
+        let network = self
+            .im_token_meta
+            .network
+            .clone()
+            .and_then(|net| IdentityNetwork::from_str(&net).ok())
+            .unwrap_or(IdentityNetwork::Mainnet);
+        let identity =
+            Identity::from_private_key(&hex::encode(private_key.clone()), &unlocker, &network)?;
 
         let mut store = Store {
             id: self.id.to_string(),
@@ -232,7 +241,7 @@ impl LegacyKeystore {
             key_hash: key_hash.to_string(),
             crypto: self.crypto.clone(),
             meta: self.im_token_meta.to_metadata(),
-            identity: None,
+            identity,
         };
 
         let unlocker = self.crypto.use_key(key)?;

@@ -21,6 +21,7 @@ use crate::identity::Identity;
 use crate::signer::ChainSigner;
 use tcx_crypto::{Crypto, Key};
 use tcx_primitive::{TypedDeterministicPublicKey, TypedPrivateKey, TypedPublicKey};
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Store {
@@ -28,7 +29,7 @@ pub struct Store {
     pub version: i64,
     pub key_hash: String,
     pub crypto: Crypto,
-    pub identity: Option<Identity>,
+    pub identity: Identity,
 
     #[serde(rename = "imTokenMeta")]
     pub meta: Metadata,
@@ -79,7 +80,7 @@ pub struct Account {
     pub network: String,
     pub seg_wit: String,
     pub ext_pub_key: String,
-    pub public_key: Option<String>,
+    pub public_key: String,
 }
 
 impl Account {
@@ -170,7 +171,7 @@ impl FromStr for IdentityNetwork {
         match input {
             "MAINNET" => Ok(IdentityNetwork::Mainnet),
             "TESTNET" => Ok(IdentityNetwork::Testnet),
-            _ => Err(format_err!("unknown_source")),
+            _ => Err(format_err!("unknown_network")),
         }
     }
 }
@@ -401,11 +402,8 @@ impl Keystore {
         }
     }
 
-    pub fn identity(&self) -> Option<&Identity> {
-        match self {
-            Keystore::Hd(ks) => ks.store().identity.as_ref(),
-            Keystore::PrivateKey(_) => None,
-        }
+    pub fn identity(&self) -> &Identity {
+        &self.store().identity
     }
 
     pub fn verify_password(&self, password: &str) -> bool {

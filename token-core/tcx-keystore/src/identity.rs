@@ -247,7 +247,7 @@ mod test {
         meta.network = IdentityNetwork::Testnet;
         let mut keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
         keystore.unlock_by_password(PASSWORD).unwrap();
-        let identity = keystore.identity().unwrap();
+        let identity = keystore.identity();
 
         let test_cases = [
             ("imToken", "11111111111111111111111111111111", "0340b2495a1111111111111111111111111111111110b6602c68084bdd08dae796657aa6854ad13312fedc88f5b6f16c56b3e755dde125a1c4775db536ac0442ac942f9634c777f3ae5ca39f6abcae4bd6c87e54ab29ae0062b04d917b32e8d7c88eeb6261301b"),
@@ -285,12 +285,10 @@ mod test {
             // keystore.unlock_by_password(PASSWORD).unwrap();
             let key = Key::Password(PASSWORD.to_string());
             let unlocker = keystore.store().crypto.use_key(&key).unwrap();
-            let identity = keystore.identity().unwrap();
+            let identity = keystore.identity();
 
-            let actual = identity
-                .sign_authentication_message(1514736000, "12345ABCDE", &unlocker)
-                .unwrap();
-            assert_eq!(actual, item.1);
+            let actual = identity.sign_authentication_message(1514736000, "12345ABCDE", &unlocker);
+            assert_eq!(actual.unwrap(), item.1);
         }
     }
 
@@ -298,7 +296,7 @@ mod test {
     fn test_create_identity_from_mnemonic() {
         let meta = Metadata::default();
         let keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
-        let identity = keystore.identity().unwrap();
+        let identity = keystore.identity();
 
         assert_eq!(
             "im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf",
@@ -314,7 +312,7 @@ mod test {
     fn test_create_identity_from_private_key() {
         let meta = Metadata::default();
         let keystore = PrivateKeystore::from_private_key(&PRIVATE_KEY, &PASSWORD, meta);
-        let identity = keystore.store().identity.as_ref().unwrap();
+        let identity = &keystore.store().identity;
 
         assert_eq!(
             "im14x5Ka4SC7WkwL1PzPtHvB1jdzLyaJ3tru511",

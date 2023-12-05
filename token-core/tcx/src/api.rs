@@ -205,7 +205,7 @@ pub struct HdStoreCreateParam {
     #[prost(string, tag = "3")]
     pub name: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
-    pub source: ::prost::alloc::string::String,
+    pub network: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -223,13 +223,13 @@ pub struct WalletResult {
     #[prost(string, tag = "2")]
     pub name: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
+    pub identifier: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub ipfs_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
     pub source: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag = "4")]
-    pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
-    #[prost(int64, tag = "5")]
+    #[prost(int64, tag = "6")]
     pub created_at: i64,
-    #[prost(message, optional, tag = "6")]
-    pub identity: ::core::option::Option<IdentityResult>,
 }
 /// FUNCTION: hd_store_import(HdStoreImportParam): WalletResult
 ///
@@ -242,7 +242,7 @@ pub struct HdStoreImportParam {
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub source: ::prost::alloc::string::String,
+    pub network: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
     pub name: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
@@ -294,7 +294,11 @@ pub struct AccountResponse {
     #[prost(string, tag = "3")]
     pub path: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
-    pub extended_xpub_key: ::prost::alloc::string::String,
+    pub extended_public_key: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub public_key: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub curve: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -464,17 +468,17 @@ pub struct PublicKeyResult {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RemoveWalletsParam {
+pub struct StoreDeleteParam {
     #[prost(string, tag = "1")]
-    pub identifier: ::prost::alloc::string::String,
+    pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RemoveWalletsResult {
-    #[prost(string, tag = "1")]
-    pub identifier: ::prost::alloc::string::String,
+pub struct StoreDeleteResult {
+    #[prost(bool, tag = "1")]
+    pub is_success: bool,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

@@ -101,7 +101,7 @@ impl PrivateKeystore {
             meta,
             id: Uuid::new_v4().as_hyphenated().to_string(),
             version: PrivateKeystore::VERSION,
-            identity: Some(identity),
+            identity,
         };
 
         PrivateKeystore {
@@ -126,7 +126,7 @@ impl PrivateKeystore {
             network: coin.network.to_string(),
             seg_wit: coin.seg_wit.to_string(),
             ext_pub_key: "".to_string(),
-            public_key: Some(hex::encode(pub_key.to_bytes())),
+            public_key: hex::encode(pub_key.to_bytes()),
         };
 
         Ok(acc)

@@ -86,14 +86,6 @@ pub fn delete_keystore_file(wid: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn delete_keystore_files() -> Result<()> {
-    let file_dir = WALLET_FILE_DIR.read();
-    let dir_str = file_dir.as_str();
-    let path = Path::new(&dir_str);
-    fs::remove_dir(path)?;
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use std::{fs, path::Path};
