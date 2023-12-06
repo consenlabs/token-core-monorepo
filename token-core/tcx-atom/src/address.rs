@@ -3,7 +3,7 @@ use core::str::FromStr;
 use bech32::{FromBase32, ToBase32, Variant};
 use tcx_constants::CoinInfo;
 use tcx_crypto::hash;
-use tcx_keystore::{Address, ChainFactory, PublicKeyEncoder, Result};
+use tcx_keystore::{Address, Result};
 use tcx_primitive::TypedPublicKey;
 
 // size of address
@@ -60,19 +60,6 @@ impl ToString for AtomAddress {
     }
 }
 
-pub struct AtomPublicKeyEncoder();
-impl PublicKeyEncoder for AtomPublicKeyEncoder {
-    fn encode(&self, public_key: &[u8]) -> Result<String> {
-        Ok(tcx_crypto::hex::bytes_to_hex(public_key))
-    }
-}
-
-pub struct AtomChainFactory();
-impl ChainFactory for AtomChainFactory {
-    fn create_public_key_encoder(&self) -> Box<dyn PublicKeyEncoder> {
-        Box::new(AtomPublicKeyEncoder {})
-    }
-}
 #[cfg(test)]
 mod tests {
 

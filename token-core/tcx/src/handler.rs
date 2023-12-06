@@ -5,16 +5,14 @@ use std::fs;
 use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
-use tcx_atom::address::AtomChainFactory;
 use tcx_keystore::keystore::IdentityNetwork;
 
 use tcx_common::hex_to_bytes;
-use tcx_eos::EosChainFactory;
 use tcx_primitive::{get_account_path, private_key_without_version, FromHex, TypedPrivateKey};
 
 use tcx_btc_kin::WIFDisplay;
 use tcx_keystore::{
-    key_hash_from_mnemonic, key_hash_from_private_key, ChainFactory, Keystore, KeystoreGuard,
+    key_hash_from_mnemonic, key_hash_from_private_key, Keystore, KeystoreGuard,
     SignatureParameters, Signer,
 };
 use tcx_keystore::{Account, HdKeystore, Metadata, PrivateKeystore, Source};

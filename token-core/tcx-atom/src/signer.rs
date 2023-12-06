@@ -1,14 +1,11 @@
 use crate::transaction::{AtomTxInput, AtomTxOutput};
 use tcx_keystore::{
-    ChainSigner, Keystore, Result, SignatureParameters, Signer,
-    TransactionSigner as TraitTransactionSigner,
+    Keystore, Result, SignatureParameters, Signer, TransactionSigner as TraitTransactionSigner,
 };
 
 use tcx_crypto::{hash, hex};
 
 use base64;
-use failure::format_err;
-use tcx_constants::CurveType;
 
 const SIG_LEN: usize = 64;
 
@@ -60,7 +57,6 @@ mod tests {
 
         let ks = guard.keystore_mut();
 
-        let account = ks.derive_coin::<AtomAddress>(&coin_info).unwrap().clone();
         let sign_params = SignatureParameters {
             curve: CurveType::SECP256k1,
             derivation_path: "m/44'/118'/0'/0/0".to_string(),
