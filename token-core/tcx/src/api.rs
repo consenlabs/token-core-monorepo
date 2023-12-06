@@ -14,7 +14,7 @@ pub struct TcxAction {
 /// A common response when error occurred.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Response {
+pub struct GeneralResult {
     #[prost(bool, tag = "1")]
     pub is_success: bool,
     #[prost(string, tag = "2")]
@@ -121,7 +121,7 @@ pub struct GetExtendedPublicKeysResult {
     pub extended_public_keys: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 ///
-/// // FUNCTION: export_private_key(ExportPrivateKeyParam): KeystoreCommonExportResult
+/// // FUNCTION: export_private_key(ExportPrivateKeyParam): ExportResult
 /// //
 /// // export the private key from a private key keystore or a hd keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -143,7 +143,7 @@ pub struct ExportPrivateKeyParam {
 ///
 /// /// Keystore Common
 ///
-/// // FUNCTION: keystore_common_verify(WalletKeyParam) -> Response
+/// // FUNCTION: verify_password(WalletKeyParam) -> Response
 /// //
 /// // verify the password of the keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -192,12 +192,12 @@ pub struct ZksyncPrivateKeyToPubkeyHashResult {
     #[prost(string, tag = "1")]
     pub pub_key_hash: ::prost::alloc::string::String,
 }
-/// FUNCTION: hd_store_create(HdStoreCreateParam): WalletResult
+/// FUNCTION: create_keystore(CreateKeystoreParam): KeystoreResult
 ///
 /// create a new hd keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct HdStoreCreateParam {
+pub struct CreateKeystoreParam {
     #[prost(string, tag = "1")]
     pub password: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
@@ -217,7 +217,7 @@ pub struct IdentityResult {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct WalletResult {
+pub struct KeystoreResult {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
@@ -231,12 +231,12 @@ pub struct WalletResult {
     #[prost(int64, tag = "6")]
     pub created_at: i64,
 }
-/// FUNCTION: hd_store_import(HdStoreImportParam): WalletResult
+/// FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
 ///
 /// create a new hd keystore by mnemonic
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct HdStoreImportParam {
+pub struct ImportMnemonicParam {
     #[prost(string, tag = "1")]
     pub mnemonic: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
@@ -250,21 +250,21 @@ pub struct HdStoreImportParam {
     #[prost(bool, tag = "6")]
     pub overwrite: bool,
 }
-/// FUNCTION: hd_store_derive(HdStoreDeriveParam): AccountsResponse
+/// FUNCTION: hd_store_derive(HdStoreDeriveParam): DeriveAccountsResult
 ///
 /// derive new accounts from a hd keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct KeystoreCommonDeriveParam {
+pub struct DeriveAccountsParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
     #[prost(message, repeated, tag = "3")]
-    pub derivations: ::prost::alloc::vec::Vec<keystore_common_derive_param::Derivation>,
+    pub derivations: ::prost::alloc::vec::Vec<derive_accounts_param::Derivation>,
 }
-/// Nested message and enum types in `KeystoreCommonDeriveParam`.
-pub mod keystore_common_derive_param {
+/// Nested message and enum types in `DeriveAccountsParam`.
+pub mod derive_accounts_param {
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Derivation {
@@ -302,16 +302,16 @@ pub struct AccountResponse {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct AccountsResponse {
+pub struct DeriveAccountsResult {
     #[prost(message, repeated, tag = "1")]
     pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
 }
-/// FUNCTION: hd_store_export(KeystoreCommonExportResult): KeystoreCommonExistsResult
+/// FUNCTION: hd_store_export(ExportResult): KeystoreCommonExistsResult
 ///
 /// export the mnemonic from a hd keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct KeystoreCommonExportResult {
+pub struct ExportResult {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
     #[prost(enumeration = "KeyType", tag = "2")]
@@ -319,12 +319,12 @@ pub struct KeystoreCommonExportResult {
     #[prost(string, tag = "3")]
     pub value: ::prost::alloc::string::String,
 }
-/// FUNCTION: private_key_store_import(PrivateKeyStoreImportParam): WalletResult
+/// FUNCTION: import_private_key(ImportPrivateKeyParam): KeystoreResult
 ///
 /// create a new private key keystore by a private key
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PrivateKeyStoreImportParam {
+pub struct ImportPrivateKeyParam {
     #[prost(string, tag = "1")]
     pub private_key: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
@@ -338,7 +338,7 @@ pub struct PrivateKeyStoreImportParam {
     #[prost(string, tag = "6")]
     pub encoding: ::prost::alloc::string::String,
 }
-/// FUNCTION: private_key_store_export(PrivateKeyStoreExportParam): KeystoreCommonExportResult
+/// FUNCTION: private_key_store_export(PrivateKeyStoreExportParam): ExportResult
 ///
 /// export the private key from a private key keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -374,7 +374,7 @@ pub struct KeystoreCommonExistsResult {
     #[prost(string, tag = "2")]
     pub id: ::prost::alloc::string::String,
 }
-/// FUNCTION: keystore_common_accounts(KeystoreCommonAccountsParam): AccountsResponse
+/// FUNCTION: keystore_common_accounts(KeystoreCommonAccountsParam): DeriveAccountsResult
 ///
 /// List all accounts from the keystore
 #[allow(clippy::derive_partial_eq_without_eq)]

@@ -5,16 +5,16 @@ import "google/protobuf/any.proto";
 
 /// Hd Store
 
-// FUNCTION: hd_store_create(HdStoreCreateParam): WalletResult
+// FUNCTION: create_keystore(CreateKeystoreParam): KeystoreResult
 //
 // create a new hd keystore
-message HdStoreCreateParam {
+message CreateKeystoreParam {
     string password = 1;
     string passwordHint = 2;
     string name = 3;
 }
 
-message WalletResult {
+message KeystoreResult {
     string id = 1;
     string name = 2;
     string source = 3;
@@ -22,10 +22,10 @@ message WalletResult {
     int64 createdAt = 5;
 }
 
-// FUNCTION: hd_store_import(HdStoreImportParam): WalletResult
+// FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
 //
 // create a new hd keystore by mnemonic
-message HdStoreImportParam {
+message ImportMnemonicParam {
     string mnemonic = 1;
     string password = 2;
     string source = 3;
@@ -34,10 +34,10 @@ message HdStoreImportParam {
     bool overwrite = 6;
 }
 
-// FUNCTION: hd_store_derive(HdStoreDeriveParam): AccountsResponse
+// FUNCTION: hd_store_derive(HdStoreDeriveParam): DeriveAccountsResult
 //
 // derive new accounts from a hd keystore
-message KeystoreCommonDeriveParam {
+message DeriveAccountsParam {
     string id = 1;
     string password = 2;
     message Derivation {
@@ -57,14 +57,14 @@ message AccountResponse {
     string extendedXpubKey = 4;
 }
 
-message AccountsResponse {
+message DeriveAccountsResult {
     repeated AccountResponse accounts = 1;
 }
 
-// FUNCTION: hd_store_export(KeystoreCommonExportResult): KeystoreCommonExistsResult
+// FUNCTION: hd_store_export(ExportResult): KeystoreCommonExistsResult
 //
 // export the mnemonic from a hd keystore
-message KeystoreCommonExportResult {
+message ExportResult {
     string id = 1;
     KeyType type = 2;
     string value = 3;
@@ -78,16 +78,16 @@ enum KeyType {
 
 /// Private Key Store
 
-// FUNCTION: private_key_store_import(PrivateKeyStoreImportParam): WalletResult
+// FUNCTION: import_private_key(ImportPrivateKeyParam): KeystoreResult
 //
 // create a new private key keystore by a private key
-message PrivateKeyStoreImportParam {
+message ImportPrivateKeyParam {
     string privateKey = 1;
     string password = 2;
     bool overwrite = 3;
 }
 
-// FUNCTION: private_key_store_export(PrivateKeyStoreExportParam): KeystoreCommonExportResult
+// FUNCTION: private_key_store_export(PrivateKeyStoreExportParam): ExportResult
 //
 // export the private key from a private key keystore
 message PrivateKeyStoreExportParam {
@@ -99,7 +99,7 @@ message PrivateKeyStoreExportParam {
 
 /// Keystore Common
 
-// FUNCTION: keystore_common_delete(WalletKeyParam) -> Response
+// FUNCTION: delete_keystore(WalletKeyParam) -> Response
 //
 // delete the keystore
 
@@ -116,7 +116,7 @@ message KeystoreCommonExistsResult {
     string id = 2;
 }
 
-// FUNCTION: keystore_common_accounts(KeystoreCommonAccountsParam): AccountsResponse
+// FUNCTION: keystore_common_accounts(KeystoreCommonAccountsParam): DeriveAccountsResult
 //
 // List all accounts from the keystore
 message KeystoreCommonAccountsParam{

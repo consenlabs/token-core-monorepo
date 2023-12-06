@@ -14,7 +14,7 @@ message TcxAction {
 }
 
 // A common response when error occurred.
-message Response {
+message GeneralResult {
     bool isSuccess = 1;
     string error = 2;
 }
@@ -84,7 +84,7 @@ message GetExtendedPublicKeysResult {
 
 
 //
-//// FUNCTION: export_private_key(ExportPrivateKeyParam): KeystoreCommonExportResult
+//// FUNCTION: export_private_key(ExportPrivateKeyParam): ExportResult
 ////
 //// export the private key from a private key keystore or a hd keystore
 message ExportPrivateKeyParam {
@@ -98,7 +98,7 @@ message ExportPrivateKeyParam {
 //
 ///// Keystore Common
 //
-//// FUNCTION: keystore_common_verify(WalletKeyParam) -> Response
+//// FUNCTION: verify_password(WalletKeyParam) -> Response
 ////
 //// verify the password of the keystore
 message WalletKeyParam {

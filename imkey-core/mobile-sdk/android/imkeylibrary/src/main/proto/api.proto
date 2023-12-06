@@ -14,7 +14,7 @@ message ImkeyAction {
 }
 
 // A common response when error occurred.
-message Response {
+message GeneralResult {
     bool isSuccess = 1;
     string error = 2;
 }
