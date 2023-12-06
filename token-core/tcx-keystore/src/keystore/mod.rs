@@ -82,7 +82,6 @@ pub struct Account {
     pub ext_pub_key: String,
     pub public_key: String,
 }
-
 impl Account {
     pub fn coin_info(&self) -> CoinInfo {
         CoinInfo {
@@ -121,8 +120,10 @@ pub enum Source {
     Private,
     Keystore,
     Mnemonic,
-    NewIdentity,
+    NewMnemonic,
+    /*NewIdentity,
     RecoveredIdentity,
+     */
 }
 
 impl FromStr for Source {
@@ -134,8 +135,7 @@ impl FromStr for Source {
             "PRIVATE" => Ok(Source::Private),
             "KEYSTORE" => Ok(Source::Keystore),
             "MNEMONIC" => Ok(Source::Mnemonic),
-            "NEW_IDENTITY" => Ok(Source::NewIdentity),
-            "RECOVER_IDENTITY" => Ok(Source::RecoveredIdentity),
+            "NEW_MNEMONIC" => Ok(Source::NewMnemonic),
             _ => Err(format_err!("unknown_source")),
         }
     }
@@ -148,8 +148,7 @@ impl fmt::Display for Source {
             Source::Private => write!(f, "PRIVATE"),
             Source::Keystore => write!(f, "KEYSTORE"),
             Source::Mnemonic => write!(f, "MNEMONIC"),
-            Source::NewIdentity => write!(f, "NEW_IDENTITY"),
-            Source::RecoveredIdentity => write!(f, "RECOVER_IDENTITY"),
+            Source::NewMnemonic => write!(f, "NEW_MNEMONIC"),
         }
     }
 }

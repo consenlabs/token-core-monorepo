@@ -24,8 +24,7 @@ pub struct PrivateKeystore {
 }
 
 impl PrivateKeystore {
-    pub const VERSION: i64 = 11001i64;
-
+    pub const VERSION: i64 = 12001i64;
     pub fn store(&self) -> &Store {
         &self.store
     }
