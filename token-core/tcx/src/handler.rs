@@ -25,17 +25,18 @@ use crate::api::sign_param::Key;
 use crate::api::{
     AccountResponse, CalcExternalAddressParam, CalcExternalAddressResult, CreateKeystoreParam,
     DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam, DeriveAccountsResult,
-    DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExportPrivateKeyParam,
-    ExportResult, GeneralResult, GenerateMnemonicResult, GetExtendedPublicKeysParam,
-    GetExtendedPublicKeysResult, GetPublicKeysParam, GetPublicKeysResult, IdentityResult,
-    ImportMnemonicParam, ImportPrivateKeyParam, KeyType, KeystoreCommonAccountsParam,
-    KeystoreCommonExistsParam, KeystoreCommonExistsResult, KeystoreMigrationParam, KeystoreResult,
-    PrivateKeyStoreExportParam, PublicKeyParam, PublicKeyResult, SignAuthenticationMessageParam,
-    SignAuthenticationMessageResult, SignHashesParam, SignHashesResult, SignParamPoc,
-    SignResultPoc, StoreDeleteParam, StoreDeleteResult, V3KeystoreExportInput,
-    V3KeystoreExportOutput, V3KeystoreImportInput, WalletKeyParam, ZksyncPrivateKeyFromSeedParam,
-    ZksyncPrivateKeyFromSeedResult, ZksyncPrivateKeyToPubkeyHashParam,
-    ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult,
+    DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsKeystoreResult,
+    ExistsMnemonicParam, ExistsPrivateKeyParam, ExportPrivateKeyParam, ExportResult, GeneralResult,
+    GenerateMnemonicResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult,
+    GetPublicKeysParam, GetPublicKeysResult, IdentityResult, ImportMnemonicParam,
+    ImportPrivateKeyParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonExistsParam,
+    KeystoreMigrationParam, KeystoreResult, PrivateKeyStoreExportParam, PublicKeyParam,
+    PublicKeyResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
+    SignHashesParam, SignHashesResult, SignParamPoc, SignResultPoc, StoreDeleteParam,
+    StoreDeleteResult, V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput,
+    WalletKeyParam, ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
+    ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam,
+    ZksyncSignMusigResult,
 };
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
@@ -521,6 +522,52 @@ pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
+pub(crate) fn exists_private_key(data: &[u8]) -> Result<Vec<u8>> {
+    let param: ExistsPrivateKeyParam =
+        ExistsPrivateKeyParam::decode(data).expect("ExistsPrivateKeyParam");
+    let key_hash = if param.encoding.eq("TEZOS") {
+        key_hash_from_tezos_format_pk(&param.private_key)?
+    } else {
+        key_hash_from_any_format_pk(&param.private_key)?
+    };
+    exists_key_hash(&key_hash)
+}
+
+pub(crate) fn exists_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
+    let param: ExistsMnemonicParam =
+        ExistsMnemonicParam::decode(data).expect("ExistsMnemonicParam");
+
+    let mnemonic: &str = &&param
+        .mnemonic
+        .split_whitespace()
+        .collect::<Vec<&str>>()
+        .join(" ");
+    let key_hash = key_hash_from_mnemonic(mnemonic)?;
+
+    exists_key_hash(&key_hash)
+}
+
+fn exists_key_hash(key_hash: &str) -> Result<Vec<u8>> {
+    let map = &KEYSTORE_MAP.read();
+
+    let founded: Option<&Keystore> = map
+        .values()
+        .find(|keystore| keystore.key_hash() == key_hash);
+    let result: ExistsKeystoreResult;
+    if let Some(ks) = founded {
+        result = ExistsKeystoreResult {
+            is_exists: true,
+            id: ks.id(),
+        }
+    } else {
+        result = ExistsKeystoreResult {
+            is_exists: false,
+            id: "".to_owned(),
+        }
+    }
+    encode_message(result)
+}
+
 pub(crate) fn keystore_common_exists(data: &[u8]) -> Result<Vec<u8>> {
     let param: KeystoreCommonExistsParam =
         KeystoreCommonExistsParam::decode(data).expect("keystore_common_exists params");
@@ -544,14 +591,14 @@ pub(crate) fn keystore_common_exists(data: &[u8]) -> Result<Vec<u8>> {
     let founded: Option<&Keystore> = map
         .values()
         .find(|keystore| keystore.key_hash() == key_hash);
-    let result: KeystoreCommonExistsResult;
+    let result: ExistsKeystoreResult;
     if let Some(ks) = founded {
-        result = KeystoreCommonExistsResult {
+        result = ExistsKeystoreResult {
             is_exists: true,
             id: ks.id(),
         }
     } else {
-        result = KeystoreCommonExistsResult {
+        result = ExistsKeystoreResult {
             is_exists: false,
             id: "".to_owned(),
         }

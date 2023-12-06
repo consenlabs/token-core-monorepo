@@ -3,8 +3,8 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 use handler::{
-    calc_external_address, decrypt_data_from_ipfs, encrypt_data_to_ipfs, migrate_keystore,
-    remove_wallet, sign_authentication_message, sign_message,
+    calc_external_address, decrypt_data_from_ipfs, encrypt_data_to_ipfs, exists_mnemonic,
+    exists_private_key, migrate_keystore, remove_wallet, sign_authentication_message, sign_message,
 };
 // use handler::{eth_v3keystore_export, eth_v3keystore_import};
 use prost::Message;
@@ -91,9 +91,8 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "export_private_key" => landingpad(|| export_private_key(&action.param.unwrap().value)),
         "verify_password" => landingpad(|| verify_password(&action.param.unwrap().value)),
         "delete_keystore" => landingpad(|| delete_keystore(&action.param.unwrap().value)),
-        "keystore_common_exists" => {
-            landingpad(|| keystore_common_exists(&action.param.unwrap().value))
-        }
+        "exists_mnemonic" => landingpad(|| exists_mnemonic(&action.param.unwrap().value)),
+        "exists_private_key" => landingpad(|| exists_private_key(&action.param.unwrap().value)),
         "calc_external_address" => {
             landingpad(|| calc_external_address(&action.param.unwrap().value))
         }
@@ -177,8 +176,8 @@ pub unsafe extern "C" fn get_last_err_message() -> *const c_char {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::sign_hashes_param::DataToSign;
     use crate::api::derive_accounts_param::Derivation;
+    use crate::api::sign_hashes_param::DataToSign;
     use crate::filemanager::KEYSTORE_MAP;
     use api::sign_param::Key;
     use error_handling::Result;
@@ -194,16 +193,17 @@ mod tests {
         sign_param, AccountResponse, CalcExternalAddressParam, CalcExternalAddressResult,
         CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
         DeriveAccountsParam, DeriveAccountsResult, DerivedKeyResult, EncryptDataToIpfsParam,
-        EncryptDataToIpfsResult, ExportPrivateKeyParam, ExportResult, GeneralResult,
-        GenerateMnemonicResult, IdentityResult, ImportMnemonicParam, ImportPrivateKeyParam,
-        InitTokenCoreXParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonExistsParam,
-        KeystoreCommonExistsResult, KeystoreMigrationParam, KeystoreResult,
-        PrivateKeyStoreExportParam, PublicKeyParam, PublicKeyResult,
-        SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignParam,
-        StoreDeleteParam, StoreDeleteResult, V3KeystoreExportInput, V3KeystoreExportOutput,
-        V3KeystoreImportInput, WalletKeyParam, ZksyncPrivateKeyFromSeedParam,
-        ZksyncPrivateKeyFromSeedResult, ZksyncPrivateKeyToPubkeyHashParam,
-        ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult, SignHashesParam, GetPublicKeysParam, PublicKeyDerivation, GetPublicKeysResult, SignHashesResult,
+        EncryptDataToIpfsResult, ExistsKeystoreResult, ExportPrivateKeyParam, ExportResult,
+        GeneralResult, GenerateMnemonicResult, GetPublicKeysParam, GetPublicKeysResult,
+        IdentityResult, ImportMnemonicParam, ImportPrivateKeyParam, InitTokenCoreXParam, KeyType,
+        KeystoreCommonAccountsParam, KeystoreCommonExistsParam, KeystoreMigrationParam,
+        KeystoreResult, PrivateKeyStoreExportParam, PublicKeyDerivation, PublicKeyParam,
+        PublicKeyResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
+        SignHashesParam, SignHashesResult, SignParam, StoreDeleteParam, StoreDeleteResult,
+        V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput, WalletKeyParam,
+        ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
+        ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult,
+        ZksyncSignMusigParam, ZksyncSignMusigResult,
     };
     use crate::handler::import_mnemonic;
     use crate::handler::{encode_message, import_private_key};
@@ -1007,8 +1007,8 @@ mod tests {
             };
 
             let ret_bytes = call_api("keystore_common_exists", param).unwrap();
-            let result: KeystoreCommonExistsResult =
-                KeystoreCommonExistsResult::decode(ret_bytes.as_slice()).unwrap();
+            let result: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
             assert!(result.is_exists);
             assert_eq!(result.id, import_result.id);
 
@@ -1649,8 +1649,8 @@ mod tests {
             };
 
             let ret_bytes = call_api("keystore_common_exists", param).unwrap();
-            let ret: KeystoreCommonExistsResult =
-                KeystoreCommonExistsResult::decode(ret_bytes.as_slice()).unwrap();
+            let ret: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
 
             assert_eq!(false, ret.is_exists);
         })
@@ -1667,8 +1667,8 @@ mod tests {
             };
 
             let ret_bytes = call_api("keystore_common_exists", param).unwrap();
-            let result: KeystoreCommonExistsResult =
-                KeystoreCommonExistsResult::decode(ret_bytes.as_slice()).unwrap();
+            let result: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
             assert!(result.is_exists);
             assert_eq!(result.id, wallet.id);
 
@@ -1680,8 +1680,8 @@ mod tests {
             };
 
             let ret_bytes = call_api("keystore_common_exists", param).unwrap();
-            let result: KeystoreCommonExistsResult =
-                KeystoreCommonExistsResult::decode(ret_bytes.as_slice()).unwrap();
+            let result: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
             assert!(result.is_exists);
             assert_eq!(result.id, wallet.id);
 
@@ -1693,8 +1693,8 @@ mod tests {
             };
 
             let ret_bytes = call_api("keystore_common_exists", param).unwrap();
-            let result: KeystoreCommonExistsResult =
-                KeystoreCommonExistsResult::decode(ret_bytes.as_slice()).unwrap();
+            let result: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
             assert!(result.is_exists);
             assert_eq!(result.id, wallet.id);
 
@@ -1706,8 +1706,8 @@ mod tests {
             };
 
             let ret_bytes = call_api("keystore_common_exists", param).unwrap();
-            let result: KeystoreCommonExistsResult =
-                KeystoreCommonExistsResult::decode(ret_bytes.as_slice()).unwrap();
+            let result: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
             assert!(result.is_exists);
             assert_eq!(result.id, wallet.id);
 
@@ -2176,16 +2176,16 @@ mod tests {
 
             let ret_bytes = call_api("exists_json", param.clone()).unwrap();
 
-            let exists_result: KeystoreCommonExistsResult =
-                KeystoreCommonExistsResult::decode(ret_bytes.as_slice()).unwrap();
+            let exists_result: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
             assert!(!exists_result.is_exists);
 
             let ret_bytes = call_api("import_json", param.clone()).unwrap();
             let wallet_ret: KeystoreResult = KeystoreResult::decode(ret_bytes.as_slice()).unwrap();
 
             let ret_bytes = call_api("exists_json", param.clone()).unwrap();
-            let exists_result: KeystoreCommonExistsResult =
-                KeystoreCommonExistsResult::decode(ret_bytes.as_slice()).unwrap();
+            let exists_result: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
             assert!(exists_result.is_exists);
 
             let derivation = Derivation {

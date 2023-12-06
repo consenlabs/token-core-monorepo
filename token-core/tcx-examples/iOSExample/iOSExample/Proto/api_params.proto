@@ -117,7 +117,7 @@ enum KeyType {
     PRIVATE_KEY = 1;
 }
 
-message KeystoreCommonExistsResult {
+message ExistsKeystoreResult {
     bool isExists = 1;
     string id = 2;
 }

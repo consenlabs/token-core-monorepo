@@ -306,7 +306,7 @@ pub struct DeriveAccountsResult {
     #[prost(message, repeated, tag = "1")]
     pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
 }
-/// FUNCTION: hd_store_export(ExportResult): KeystoreCommonExistsResult
+/// FUNCTION: hd_store_export(ExportResult): ExistsKeystoreResult
 ///
 /// export the mnemonic from a hd keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -353,7 +353,7 @@ pub struct PrivateKeyStoreExportParam {
     #[prost(string, tag = "4")]
     pub network: ::prost::alloc::string::String,
 }
-/// FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): KeystoreCommonExistsResult
+/// FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): ExistsKeystoreResult
 ///
 /// Check is there a keystore was generate by the special privateKey or mnemonic
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -368,7 +368,21 @@ pub struct KeystoreCommonExistsParam {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct KeystoreCommonExistsResult {
+pub struct ExistsMnemonicParam {
+    #[prost(string, tag = "1")]
+    pub mnemonic: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExistsPrivateKeyParam {
+    #[prost(string, tag = "1")]
+    pub private_key: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub encoding: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExistsKeystoreResult {
     #[prost(bool, tag = "1")]
     pub is_exists: bool,
     #[prost(string, tag = "2")]
