@@ -191,6 +191,7 @@ pub unsafe extern "C" fn get_last_err_message() -> *const c_char {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::sign_hashes_param::DataToSign;
     use crate::filemanager::KEYSTORE_MAP;
     use api::sign_param::Key;
     use error_handling::Result;
@@ -207,16 +208,17 @@ mod tests {
         sign_param, AccountResponse, AccountsResponse, CalcExternalAddressParam,
         CalcExternalAddressResult, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
         DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExportPrivateKeyParam,
-        GenerateMnemonicResult, HdStoreCreateParam, HdStoreImportParam, IdentityResult,
-        InitTokenCoreXParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonDeriveParam,
-        KeystoreCommonExistsParam, KeystoreCommonExistsResult, KeystoreCommonExportResult,
-        KeystoreMigrationParam, PrivateKeyStoreExportParam, PrivateKeyStoreImportParam,
+        GenerateMnemonicResult, GetPublicKeysParam, GetPublicKeysResult, HdStoreCreateParam,
+        HdStoreImportParam, IdentityResult, InitTokenCoreXParam, KeyType,
+        KeystoreCommonAccountsParam, KeystoreCommonDeriveParam, KeystoreCommonExistsParam,
+        KeystoreCommonExistsResult, KeystoreCommonExportResult, KeystoreMigrationParam,
+        PrivateKeyStoreExportParam, PrivateKeyStoreImportParam, PublicKeyDerivation,
         PublicKeyParam, PublicKeyResult, Response, SignAuthenticationMessageParam,
-        SignAuthenticationMessageResult, SignParam, StoreDeleteParam, StoreDeleteResult,
-        V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput, WalletKeyParam,
-        WalletResult, ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
-        ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult,
-        ZksyncSignMusigParam, ZksyncSignMusigResult,
+        SignAuthenticationMessageResult, SignHashesParam, SignHashesResult, SignParam,
+        StoreDeleteParam, StoreDeleteResult, V3KeystoreExportInput, V3KeystoreExportOutput,
+        V3KeystoreImportInput, WalletKeyParam, WalletResult, ZksyncPrivateKeyFromSeedParam,
+        ZksyncPrivateKeyFromSeedResult, ZksyncPrivateKeyToPubkeyHashParam,
+        ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult,
     };
     use crate::handler::hd_store_import;
     use crate::handler::{encode_message, private_key_store_import};
@@ -708,15 +710,6 @@ mod tests {
                     curve: "BLS".to_string(),
                     bech32_prefix: "".to_string(),
                 },
-                // Derivation {
-                //     chain_type: "ETHEREUM2".to_string(),
-                //     path: "m/12381/3600/0/0".to_string(),
-                //     network: "MAINNET".to_string(),
-                //     seg_wit: "".to_string(),
-                //     chain_id: "".to_string(),
-                //     curve: "BLS".to_string(),
-                //     bech32_prefix: "".to_string(),
-                // },
                 Derivation {
                     chain_type: "COSMOS".to_string(),
                     path: "m/44'/118'/0'/0/0".to_string(),
@@ -3134,114 +3127,68 @@ mod tests {
         );
     }
 
-    // #[test]
-    // pub fn test_ethereum2_get_pubkey() {
-    //     run_test(|| {
-    //         let param = HdStoreImportParam {
-    //             mnemonic: OTHER_MNEMONIC.to_string(),
-    //             password: TEST_PASSWORD.to_string(),
-    //             source: "MNEMONIC".to_string(),
-    //             name: "test-wallet".to_string(),
-    //             password_hint: "imtoken".to_string(),
-    //             overwrite: true,
-    //         };
-    //         let ret = call_api("hd_store_import", param).unwrap();
-    //         let import_result: WalletResult = WalletResult::decode(ret.as_slice()).unwrap();
+    #[test]
+    pub fn test_get_pubkey_keys() {
+        run_test(|| {
+            let param = HdStoreImportParam {
+                mnemonic: OTHER_MNEMONIC.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                name: "test-wallet".to_string(),
+                password_hint: "imtoken".to_string(),
+                overwrite: true,
+                network: "TESTNET".to_string(),
+            };
+            let ret = call_api("hd_store_import", param).unwrap();
+            let import_result: WalletResult = WalletResult::decode(ret.as_slice()).unwrap();
+            let derivations = vec![PublicKeyDerivation {
+                path: "m/12381/3600/0/0/0".to_string(),
+                curve: "BLS".to_string(),
+            }];
+            let param = GetPublicKeysParam {
+                id: import_result.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                derivations,
+            };
+            let result_bytes = call_api("get_public_keys", param).unwrap();
+            let result = GetPublicKeysResult::decode(result_bytes.as_slice()).unwrap();
+            assert_eq!(result.public_keys.get(0).unwrap(), "941c2ab3d28b0fe37fde727e3178738a475696aed7335c7f4c2d91d06a1540acadb8042f119fb5f8029e7765de21fac2");
 
-    //         let derivations = vec![Derivation {
-    //             chain_type: "ETHEREUM2".to_string(),
-    //             path: "m/12381/3600/0/0/0".to_string(),
-    //             network: "MAINNET".to_string(),
-    //             seg_wit: "".to_string(),
-    //             chain_id: "".to_string(),
-    //             curve: "BLS".to_string(),
-    //             bech32_prefix: "".to_string(),
-    //         }];
+            remove_created_wallet(&import_result.id);
+        })
+    }
 
-    //         let param = KeystoreCommonDeriveParam {
-    //             id: import_result.id.to_string(),
-    //             password: TEST_PASSWORD.to_string(),
-    //             derivations,
-    //         };
-    //         let derived_accounts_bytes = call_api("keystore_common_derive", param).unwrap();
-    //         let derived_accounts: AccountsResponse =
-    //             AccountsResponse::decode(derived_accounts_bytes.as_slice()).unwrap();
-    //         assert_eq!(
-    //             "941c2ab3d28b0fe37fde727e3178738a475696aed7335c7f4c2d91d06a1540acadb8042f119fb5f8029e7765de21fac2",
-    //             derived_accounts.accounts[0].address
-    //         );
-    //         let param: PublicKeyParam = PublicKeyParam {
-    //             id: import_result.id.to_string(),
-    //             chain_type: "ETHEREUM2".to_string(),
-    //             address: "941c2ab3d28b0fe37fde727e3178738a475696aed7335c7f4c2d91d06a1540acadb8042f119fb5f8029e7765de21fac2".to_string(),
-    //         };
-    //         let ret_bytes = call_api("get_public_key", param).unwrap();
-    //         let public_key_result: PublicKeyResult =
-    //             PublicKeyResult::decode(ret_bytes.as_slice()).unwrap();
-    //         assert_eq!(
-    //             "941c2ab3d28b0fe37fde727e3178738a475696aed7335c7f4c2d91d06a1540acadb8042f119fb5f8029e7765de21fac2",
-    //             public_key_result.public_key
-    //         );
-    //         remove_created_wallet(&import_result.id);
-    //     })
-    // }
+    #[test]
+    pub fn test_sign_hashes() {
+        run_test(|| {
+            let param = HdStoreImportParam {
+                mnemonic: OTHER_MNEMONIC.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                name: "test-wallet".to_string(),
+                password_hint: "imtoken".to_string(),
+                overwrite: true,
+                network: "MAINNET".to_string(),
+            };
+            let ret = call_api("hd_store_import", param).unwrap();
+            let import_result: WalletResult = WalletResult::decode(ret.as_slice()).unwrap();
+            let data_to_sign = vec![DataToSign {
+                hash: "3e0658d8284d8f50c0aa8fa6cdbd1bde0eb370d4b3489a26c83763671ace8b1c"
+                    .to_string(),
+                path: "m/12381/3600/0/0".to_string(),
+                curve: "bls12_381".to_string(),
+                sig_alg: "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_".to_string(),
+            }];
+            let param = SignHashesParam {
+                id: import_result.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                data_to_sign,
+            };
+            let result_bytes = call_api("sign_hashes", param).unwrap();
+            let result = SignHashesResult::decode(result_bytes.as_slice()).unwrap();
+            assert_eq!(result.signatures.get(0).unwrap(), "0x8fa5d4dfe4766de7896f0e32c5bee9baae47aaa843cf5f1a2587dd9aaedf8a8c4400cb31bdcb1e90ddfe6d309e57841204dbf53704e4c4da3a9d25e9b4a09dac31a3221a7aac76f58ca21854173303cf58f039770a9e2307966e89faf0e5e79e");
 
-    // #[test]
-    // pub fn test_sign_bls_to_execution_change() {
-    //     run_test(|| {
-    //         let param = HdStoreImportParam {
-    //             mnemonic: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art".to_string(),
-    //             password: TEST_PASSWORD.to_string(),
-    //             source: "MNEMONIC".to_string(),
-    //             name: "test-wallet".to_string(),
-    //             password_hint: "imtoken".to_string(),
-    //             overwrite: true,
-    //         };
-    //         let ret = call_api("hd_store_import", param).unwrap();
-    //         let import_result: WalletResult = WalletResult::decode(ret.as_slice()).unwrap();
-
-    //         let derivations = vec![Derivation {
-    //             chain_type: "ETHEREUM2".to_string(),
-    //             path: "m/12381/3600/0/0".to_string(),
-    //             network: "MAINNET".to_string(),
-    //             seg_wit: "".to_string(),
-    //             chain_id: "".to_string(),
-    //             curve: "BLS".to_string(),
-    //             bech32_prefix: "".to_string(),
-    //         }];
-
-    //         let param = KeystoreCommonDeriveParam {
-    //             id: import_result.id.to_string(),
-    //             password: TEST_PASSWORD.to_string(),
-    //             derivations,
-    //         };
-    //         let derived_accounts_bytes = call_api("keystore_common_derive", param).unwrap();
-    //         let derived_accounts: AccountsResponse =
-    //             AccountsResponse::decode(derived_accounts_bytes.as_slice()).unwrap();
-    //         assert_eq!(1, derived_accounts.accounts.len());
-    //         assert_eq!(
-    //             "99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db",
-    //             derived_accounts.accounts[0].address
-    //         );
-
-    //         let param = SignBlsToExecutionChangeParam {
-    //             id: import_result.id.to_string(),
-    //             password: TEST_PASSWORD.to_string(),
-    //             genesis_fork_version: "0x03000000".to_string(),
-    //             genesis_validators_root:
-    //                 "0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".to_string(),
-    //             validator_index: vec![0],
-    //             from_bls_pub_key: derived_accounts.accounts[0].clone().address,
-    //             eth1_withdrawal_address: "0x8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string(),
-    //         };
-    //         let ret_bytes = call_api("sign_bls_to_execution_change", param).unwrap();
-    //         let result: SignBlsToExecutionChangeResult =
-    //             SignBlsToExecutionChangeResult::decode(ret_bytes.as_slice()).unwrap();
-
-    //         assert_eq!(result.signeds.get(0).unwrap().signature, "8c8ce9f8aedf380e47548501d348afa28fbfc282f50edf33555a3ed72eb24d710bc527b5108022cffb764b953941ec4014c44106d2708387d26cc84cbc5c546a1e6e56fdc194cf2649719e6ac149596d80c86bf6844b36bd47038ee96dd3962f");
-    //         remove_created_wallet(&import_result.id);
-    //     })
-    // }
+            remove_created_wallet(&import_result.id);
+        })
+    }
 
     #[test]
     pub fn test_generate_mnemonic() {

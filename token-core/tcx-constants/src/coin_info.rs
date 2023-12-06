@@ -204,20 +204,6 @@ lazy_static! {
             seg_wit: "".to_string(),
         });
         coin_infos.push(CoinInfo {
-            coin: "ETHEREUM2".to_string(),
-            derivation_path: "m/12381/3600/0/0".to_string(),
-            curve: CurveType::BLS,
-            network: "MAINNET".to_string(),
-            seg_wit: "".to_string(),
-        });
-        coin_infos.push(CoinInfo {
-            coin: "ETHEREUM2".to_string(),
-            derivation_path: "m/12381/3600/0/0".to_string(),
-            curve: CurveType::BLS,
-            network: "TESTNET".to_string(),
-            seg_wit: "".to_string(),
-        });
-        coin_infos.push(CoinInfo {
             coin: "ETHEREUM".to_string(),
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,

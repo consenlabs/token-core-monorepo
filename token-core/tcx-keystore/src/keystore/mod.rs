@@ -444,6 +444,15 @@ impl Signer for Keystore {
     ) -> Result<Vec<u8>> {
         match (curve, sig_alg.to_uppercase().as_str()) {
             ("SECP256k1", "ECDSA") => self.secp256k1_ecdsa_sign_recoverable(hash, derivation_path),
+            ("bls12_381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_") => {
+                self.bls_sign(hash, derivation_path)
+            }
+            ("bls12_381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_") => self
+                .bls_sign_specified_alg(
+                    hash,
+                    derivation_path,
+                    "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_",
+                ),
             _ => Err(format_err!("unsupport sig alg")),
         }
     }
@@ -472,6 +481,20 @@ impl Signer for Keystore {
 
     fn schnorr_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>> {
         todo!()
+    }
+
+    fn bls_sign_specified_alg(
+        &mut self,
+        hash: &[u8],
+        derivation_path: &str,
+        sig_alg: &str,
+    ) -> Result<Vec<u8>> {
+        let private_key: TypedPrivateKey = match self {
+            Keystore::PrivateKey(ks) => ks.get_private_key(CurveType::BLS)?,
+            Keystore::Hd(ks) => ks.get_private_key(CurveType::BLS, derivation_path)?,
+        };
+        println!("private_key-->{}", hex::encode(private_key.to_bytes()));
+        private_key.sign_specified_hash(hash, sig_alg)
     }
 }
 

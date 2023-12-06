@@ -54,6 +54,13 @@ pub trait Signer {
 
     fn bls_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>>;
 
+    fn bls_sign_specified_alg(
+        &mut self,
+        hash: &[u8],
+        derivation_path: &str,
+        sig_alg: &str,
+    ) -> Result<Vec<u8>>;
+
     fn schnorr_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>>;
 }
 
