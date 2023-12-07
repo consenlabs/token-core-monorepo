@@ -19,10 +19,3 @@ pub fn utf8_or_hex_to_bytes(value: &str) -> Result<Vec<u8>> {
         Ok(value.as_bytes().to_vec())
     }
 }
-
-// TODO: relace with EthAddress::from_slice
-pub fn get_address_from_pubkey(public_key: &[u8]) -> Result<String> {
-    let pubkey_hash = keccak::<&[u8]>(public_key[1..].as_ref());
-    let addr_bytes = &pubkey_hash[12..];
-    Ok(hex::encode(addr_bytes))
-}

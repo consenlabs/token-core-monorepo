@@ -93,9 +93,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "delete_keystore" => landingpad(|| delete_keystore(&action.param.unwrap().value)),
         "exists_mnemonic" => landingpad(|| exists_mnemonic(&action.param.unwrap().value)),
         "exists_private_key" => landingpad(|| exists_private_key(&action.param.unwrap().value)),
-        "calc_external_address" => {
-            landingpad(|| calc_external_address(&action.param.unwrap().value))
-        }
+        "derive_sub_accounts" => landingpad(|| calc_external_address(&action.param.unwrap().value)),
         "sign_tx" => landingpad(|| sign_tx(&action.param.unwrap().value)),
         "sign_msg" => landingpad(|| sign_message(&action.param.unwrap().value)),
         "exists_json" => landingpad(|| exists_json(&action.param.unwrap().value)),
@@ -261,7 +259,7 @@ mod tests {
         }
 
         let param = InitTokenCoreXParam {
-            file_dir: "/tmp/imtoken/wallets".to_string(),
+            file_dir: "/tmp/imtoken".to_string(),
             xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
             xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
             is_debug: false,
@@ -271,23 +269,24 @@ mod tests {
     }
 
     fn teardown() {
-        let p = Path::new("/tmp/imtoken/wallets");
-        let walk_dir = std::fs::read_dir(p).expect("read dir");
-        for entry in walk_dir {
-            let entry = entry.expect("DirEntry");
-            let fp = entry.path();
-            if !fp
-                .file_name()
-                .expect("file_name")
-                .to_str()
-                .expect("file_name str")
-                .ends_with(".json")
-            {
-                continue;
-            }
+        // let p = Path::new("/tmp/imtoken/wallets");
+        // let walk_dir = std::fs::read_dir(p).expect("read dir");
+        // for entry in walk_dir {
+        //     let entry = entry.expect("DirEntry");
+        //     let fp = entry.path();
+        //     if !fp
+        //         .file_name()
+        //         .expect("file_name")
+        //         .to_str()
+        //         .expect("file_name str")
+        //         .ends_with(".json")
+        //     {
+        //         continue;
+        //     }
 
-            remove_file(fp.as_path()).expect("should remove file");
-        }
+        //     remove_file(fp.as_path()).expect("should remove file");
+        // }
+        fs::remove_dir_all("/tmp/imtoken").expect("remove test directory");
     }
 
     fn run_test<T>(test: T) -> ()
@@ -2994,7 +2993,7 @@ mod tests {
     }
 
     fn remove_created_wallet(wid: &str) {
-        let full_file_path = format!("{}/{}.json", "/tmp/imtoken/wallets", wid);
+        let full_file_path = format!("{}/{}.json", "/tmp/imtoken/walletsv2", wid);
         let p = Path::new(&full_file_path);
         remove_file(p).expect("should remove file");
     }
