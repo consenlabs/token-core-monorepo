@@ -57,6 +57,7 @@ use tcx_crypto::hash::dsha256;
 use tcx_crypto::KDF_ROUNDS;
 use tcx_eth::transaction::{EthRecoverAddressInput, EthRecoverAddressOutput};
 use tcx_keystore::{MessageSigner, TransactionSigner};
+use tcx_migration::keystore_upgrade::KeystoreUpgrade;
 
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
 use tcx_substrate::{
@@ -930,15 +931,7 @@ pub(crate) fn calc_external_address(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let param = KeystoreMigrationParam::decode(data).expect("KeystoreMigrationParam");
     let json_str = fs::read_to_string(format!("{}/{}.json", WALLET_FILE_DIR.read(), param.id))?;
-    let legacy_keystore = LegacyKeystore::from_json_str(&json_str)?;
-
-    let mut tcx_ks: Option<Keystore> = None;
-    {
-        let map = KEYSTORE_MAP.read();
-        if param.tcx_id.len() > 0 {
-            tcx_ks = map.get(&param.tcx_id).and_then(|ks| Some(ks.clone()))
-        }
-    }
+    let json = serde_json::from_str::<Value>(&json_str)?;
 
     let key = if param.derived_key.is_empty() {
         tcx_crypto::Key::Password(param.password)
@@ -946,19 +939,44 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
         tcx_crypto::Key::DerivedKey(param.derived_key)
     };
 
-    let keystore = legacy_keystore.migrate_identity_wallets(&key, tcx_ks)?;
-    flush_keystore(&keystore)?;
+    let keystore;
 
-    let identity = keystore.identity();
-    let ret = encode_message(KeystoreResult {
-        id: keystore.id().to_string(),
-        name: keystore.meta().name.to_string(),
-        source: keystore.meta().source.to_string(),
-        created_at: keystore.meta().timestamp,
-        identifier: identity.identifier.to_string(),
-        ipfs_id: identity.ipfs_id.to_string(),
-    });
+    if let Some(version) = json["version"].as_i64() {
+        match version {
+            11000 | 11001 => {
+                let keystore_upgrade = KeystoreUpgrade::new(json);
+                keystore = keystore_upgrade.upgrade(&key)?;
+            }
+            _ => {
+                let legacy_keystore = LegacyKeystore::from_json_str(&json_str)?;
 
-    cache_keystore(keystore);
-    ret
+                let mut tcx_ks: Option<Keystore> = None;
+                {
+                    let map = KEYSTORE_MAP.read();
+                    if param.tcx_id.len() > 0 {
+                        tcx_ks = map.get(&param.tcx_id).and_then(|ks| Some(ks.clone()))
+                    }
+                }
+
+                keystore = legacy_keystore.migrate_identity_wallets(&key, tcx_ks)?;
+            }
+        }
+
+        flush_keystore(&keystore)?;
+        let identity = keystore.identity();
+
+        let ret = encode_message(KeystoreResult {
+            id: keystore.id().to_string(),
+            name: keystore.meta().name.to_string(),
+            source: keystore.meta().source.to_string(),
+            created_at: keystore.meta().timestamp,
+            identifier: identity.identifier.to_string(),
+            ipfs_id: identity.ipfs_id.to_string(),
+        });
+
+        cache_keystore(keystore);
+        ret
+    } else {
+        Err(format_err!("invalid version in keystore"))
+    }
 }

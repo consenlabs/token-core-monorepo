@@ -1,6 +1,6 @@
 {
   "id": "b05a0ff9-885a-4a31-9d82-6477d34d1e37",
-  "version": 11000,
+  "version": 12000,
   "keyHash": "512115eca3ae86646aeb06861d551e403b543509",
   "crypto": {
     "cipher": "aes-128-ctr",

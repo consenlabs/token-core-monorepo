@@ -177,8 +177,8 @@ pub unsafe extern "C" fn get_last_err_message() -> *const c_char {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::sign_hashes_param::DataToSign;
     use crate::api::derive_accounts_param::Derivation;
+    use crate::api::sign_hashes_param::DataToSign;
     use crate::filemanager::KEYSTORE_MAP;
     use api::sign_param::Key;
     use error_handling::Result;
@@ -195,15 +195,16 @@ mod tests {
         CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
         DeriveAccountsParam, DeriveAccountsResult, DerivedKeyResult, EncryptDataToIpfsParam,
         EncryptDataToIpfsResult, ExportPrivateKeyParam, ExportResult, GeneralResult,
-        GenerateMnemonicResult, IdentityResult, ImportMnemonicParam, ImportPrivateKeyParam,
-        InitTokenCoreXParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonExistsParam,
-        KeystoreCommonExistsResult, KeystoreMigrationParam, KeystoreResult,
-        PrivateKeyStoreExportParam, PublicKeyParam, PublicKeyResult,
-        SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignParam,
+        GenerateMnemonicResult, GetPublicKeysParam, GetPublicKeysResult, IdentityResult,
+        ImportMnemonicParam, ImportPrivateKeyParam, InitTokenCoreXParam, KeyType,
+        KeystoreCommonAccountsParam, KeystoreCommonExistsParam, KeystoreCommonExistsResult,
+        KeystoreMigrationParam, KeystoreResult, PrivateKeyStoreExportParam, PublicKeyDerivation,
+        PublicKeyParam, PublicKeyResult, SignAuthenticationMessageParam,
+        SignAuthenticationMessageResult, SignHashesParam, SignHashesResult, SignParam,
         StoreDeleteParam, StoreDeleteResult, V3KeystoreExportInput, V3KeystoreExportOutput,
         V3KeystoreImportInput, WalletKeyParam, ZksyncPrivateKeyFromSeedParam,
         ZksyncPrivateKeyFromSeedResult, ZksyncPrivateKeyToPubkeyHashParam,
-        ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult, SignHashesParam, GetPublicKeysParam, PublicKeyDerivation, GetPublicKeysResult, SignHashesResult,
+        ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult,
     };
     use crate::handler::import_mnemonic;
     use crate::handler::{encode_message, import_private_key};

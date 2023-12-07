@@ -33,7 +33,7 @@ pub struct OldMetadata {
     pub network: Option<String>,
     pub password_hint: String,
     pub timestamp: NumberOrNumberStr,
-    pub source: Source,
+    pub source: Option<String>,
     pub seg_wit: Option<String>,
 }
 
@@ -57,11 +57,21 @@ impl OldMetadata {
         } else {
             IdentityNetwork::Mainnet
         };
+
+        let source = self
+            .source
+            .clone()
+            .map_or(Source::Mnemonic, |source| match source.as_str() {
+                "RECOVER_IDENTITY" => Source::Mnemonic,
+                "NEW_IDENTITY" => Source::NewMnemonic,
+                _ => Source::from_str(&source).unwrap_or(Source::Mnemonic),
+            });
+
         Metadata {
             name: self.name.clone(),
             password_hint: self.password_hint.clone(),
             timestamp: timestamp,
-            source: self.source,
+            source,
             network,
         }
     }

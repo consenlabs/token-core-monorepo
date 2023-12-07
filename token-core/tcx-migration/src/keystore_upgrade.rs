@@ -2,7 +2,7 @@ use serde_json::{json, Value};
 use tcx_crypto::{Crypto, Key};
 use tcx_keystore::identity::Identity;
 use tcx_keystore::keystore::IdentityNetwork;
-use tcx_keystore::{HdKeystore, PrivateKeystore, Result, Source};
+use tcx_keystore::{HdKeystore, Keystore, PrivateKeystore, Result, Source};
 
 pub struct KeystoreUpgrade {
     json: Value,
@@ -18,7 +18,7 @@ impl KeystoreUpgrade {
         version == 11001 || version == 11000
     }
 
-    pub fn upgrade(&self, key: &Key) -> Result<Value> {
+    pub fn upgrade(&self, key: &Key) -> Result<Keystore> {
         let version = self.json["version"].as_i64().unwrap_or(0);
 
         let mut json = self.json.clone();
@@ -27,7 +27,7 @@ impl KeystoreUpgrade {
             "NEW_IDENTITY" => {
                 json["imTokenMeta"]["source"] = json!(Source::NewMnemonic.to_string());
             }
-            "RECOVERED_IDENTITY" => {
+            "RECOVER_IDENTITY" => {
                 json["imTokenMeta"]["source"] = json!(Source::Mnemonic.to_string());
             }
             _ => {}
@@ -62,7 +62,7 @@ impl KeystoreUpgrade {
             _ => {}
         }
 
-        Ok(json)
+        Ok(Keystore::from_json(&json.to_string())?)
     }
 }
 
@@ -70,6 +70,7 @@ impl KeystoreUpgrade {
 mod tests {
     use serde_json::json;
     use tcx_crypto::Key;
+    use tcx_keystore::{Keystore, Source};
 
     #[test]
     fn test_hd_keystore_upgrade() {
@@ -94,8 +95,8 @@ mod tests {
         let upgraded = upgrade_keystore.upgrade(&key).unwrap();
 
         assert!(upgrade_keystore.need_upgrade());
-        assert_eq!(upgraded["version"], 12000);
-        assert_eq!(upgraded["imTokenMeta"]["source"], "NEW_MNEMONIC");
+        assert_eq!(upgraded.store().version, 12000);
+        assert_eq!(upgraded.store().meta.source, Source::NewMnemonic);
     }
 
     #[test]
@@ -107,7 +108,7 @@ mod tests {
              "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
              "crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2",
                 "kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},
-            "imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"RECOVERED_IDENTITY"}}
+            "imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"RECOVER_IDENTITY"}}
         );
 
         let upgrade_keystore = super::KeystoreUpgrade::new(json);
@@ -116,7 +117,7 @@ mod tests {
         let upgraded = upgrade_keystore.upgrade(&key).unwrap();
 
         assert!(upgrade_keystore.need_upgrade());
-        assert_eq!(upgraded["version"], 12001);
-        assert_eq!(upgraded["imTokenMeta"]["source"], "MNEMONIC");
+        assert_eq!(upgraded.store().version, 12001);
+        assert_eq!(upgraded.store().meta.source, Source::Mnemonic);
     }
 }
