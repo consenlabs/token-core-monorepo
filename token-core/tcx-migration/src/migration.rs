@@ -288,17 +288,8 @@ impl LegacyKeystore {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::Value;
-    use tcx_constants::TEST_PASSWORD;
-    use tcx_constants::{CoinInfo, TEST_MNEMONIC};
-    use tcx_crypto::crypto::SCryptParams;
-    use tcx_crypto::hex;
-    use tcx_crypto::Crypto;
-    use tcx_crypto::Pbkdf2Params;
-    use tcx_crypto::{EncPair, Key};
-    use tcx_keystore::keystore::Store;
-    use tcx_keystore::HdKeystore;
-    use tcx_keystore::{Keystore, KeystoreGuard, Metadata, PrivateKeystore, Source};
+    use tcx_crypto::Key;
+    use tcx_keystore::Keystore;
 
     use super::LegacyKeystore;
 

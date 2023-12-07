@@ -30,8 +30,6 @@ impl TraitTransactionSigner<AtomTxInput, AtomTxOutput> for Keystore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::address::AtomAddress;
-
     use tcx_constants::{CoinInfo, TEST_PASSWORD};
     use tcx_constants::{CurveType, TEST_MNEMONIC};
     use tcx_keystore::{HdKeystore, Keystore, KeystoreGuard, Metadata};
@@ -46,7 +44,7 @@ mod tests {
         let mut keystore =
             Keystore::Hd(HdKeystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, meta).unwrap());
 
-        let coin_info = CoinInfo {
+        let _coin_info = CoinInfo {
             coin: "COSMOS".to_string(),
             derivation_path: "m/44'/118'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,

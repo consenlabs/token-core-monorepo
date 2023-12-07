@@ -68,22 +68,6 @@ impl ToString for EosAddress {
 mod tests {
     use crate::address::EosAddress;
     use std::str::FromStr;
-    use tcx_keystore::{Address, ChainFactory, PublicKeyEncoder};
-
-    use tcx_constants::{CoinInfo, CurveType};
-    use tcx_primitive::{
-        PrivateKey, PublicKey, Secp256k1PrivateKey, Secp256k1PublicKey, TypedPublicKey,
-    };
-
-    fn get_test_coin() -> CoinInfo {
-        CoinInfo {
-            coin: "EOS".to_string(),
-            derivation_path: "m/44'/194'/0'/0/0".to_string(),
-            curve: CurveType::SECP256k1,
-            network: "".to_string(),
-            seg_wit: "".to_string(),
-        }
-    }
 
     #[test]
     fn test_address() {

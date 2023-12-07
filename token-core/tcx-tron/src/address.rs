@@ -51,7 +51,6 @@ mod tests {
     use crate::TronAddress;
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType};
-    use tcx_keystore::Address as TraitAddress;
     use tcx_primitive::TypedPublicKey;
 
     #[test]

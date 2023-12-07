@@ -129,7 +129,6 @@ impl FromHex for Ed25519DeterministicPublicKey {
 mod test {
     use crate::ed25519_bip32::Ed25519DeterministicPrivateKey;
     use crate::Derive;
-    use bip39::{Language, Mnemonic, Seed};
     use hex;
     use iop_keyvault::ExtendedPrivateKey;
 

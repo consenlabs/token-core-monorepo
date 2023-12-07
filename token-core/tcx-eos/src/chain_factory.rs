@@ -50,16 +50,10 @@ impl ChainFactory for EosChainFactory {
 mod tests {
 
     use crate::{address::EosAddress, EosChainFactory};
-    use tcx_keystore::{
-        ChainFactory, HdKeystore, Keystore, Metadata, PrivateKeyEncoder, PublicKeyEncoder,
-    };
+    use tcx_keystore::{ChainFactory, HdKeystore, Keystore, Metadata};
 
     use tcx_constants::{sample_key::MNEMONIC, CoinInfo, CurveType, TEST_PASSWORD};
-    use tcx_primitive::{
-        PrivateKey, PublicKey, Secp256k1PrivateKey, Secp256k1PublicKey, TypedPublicKey,
-    };
-
-    use super::EosPrivateKeyEncoder;
+    use tcx_primitive::{PrivateKey, PublicKey, Secp256k1PrivateKey};
 
     fn get_test_coin() -> CoinInfo {
         CoinInfo {

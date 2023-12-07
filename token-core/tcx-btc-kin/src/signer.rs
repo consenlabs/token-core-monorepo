@@ -589,7 +589,7 @@ mod tests {
     }
 
     mod bitcoincash {
-        use crate::{bitcoincash, BtcKinTxInput, Utxo, BITCOINCASH};
+        use crate::{BtcKinTxInput, Utxo, BITCOINCASH};
         use tcx_constants::{CurveType, TEST_PASSWORD};
         use tcx_keystore::{Keystore, Metadata, SignatureParameters, TransactionSigner};
 

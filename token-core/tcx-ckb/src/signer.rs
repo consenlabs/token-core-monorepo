@@ -427,7 +427,7 @@ mod tests {
             seg_wit: "".to_string(),
         };
 
-        let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
+        let _account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
 
         let invalid_input = vec![
             (

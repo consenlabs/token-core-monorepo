@@ -235,15 +235,12 @@ impl HdKeystore {
 mod tests {
     use super::*;
     use crate::keystore::{metadata_default_time, IdentityNetwork};
-    use std::str::FromStr;
 
-    use crate::{Keystore, Source};
+    use crate::keystore::tests::MockAddress;
+    use crate::Source;
     use bitcoin_hashes::hex::ToHex;
     use std::string::ToString;
     use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
-    use tcx_primitive::TypedPublicKey;
-
-    use crate::keystore::tests::MockAddress;
 
     // A mnemonic word separated by a full-width or half-width space
     static MNEMONIC_WITH_WHITESPACE: &'static str =

@@ -97,7 +97,7 @@ mod test {
             "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9"
         );
 
-        let pub_key = TypedPublicKey::from_slice(
+        let _pub_key = TypedPublicKey::from_slice(
             CurveType::ED25519,
             &hex::decode("d0c5ee97112a8a6f192ec44ab10f6a51bbfa327f7736e8e8b30b9ec636bc533b")
                 .unwrap(),
