@@ -3,7 +3,7 @@ use std::str::FromStr;
 use tcx_common::CommonError;
 use tcx_constants::CoinInfo;
 use tcx_crypto::hash;
-use tcx_keystore::{Address, ChainFactory, PublicKeyEncoder, Result};
+use tcx_keystore::{Address, Result};
 use tcx_primitive::TypedPublicKey;
 
 #[derive(PartialEq, Eq, Clone)]

@@ -31,16 +31,14 @@ impl TsmService for DeviceCertCheckRequest {
     type ReturnData = ();
 
     fn send_message(&mut self) -> Result<()> {
-        println!("send message：{:#?}", self);
         let req_data = serde_json::to_vec_pretty(&self).unwrap();
         let response_data = https::post(constants::TSM_ACTION_DEVICE_CERT_CHECK, req_data)?;
         let return_bean: ServiceResponse<DeviceCertCheckResponse> =
             serde_json::from_str(response_data.as_str())?;
-        println!("return message：{:#?}", return_bean);
 
         match return_bean.service_res_check() {
             Ok(()) => {
-                if return_bean._ReturnData.verify_result.unwrap() {
+                if return_bean.return_data.verify_result.unwrap() {
                     return Ok(());
                 }
                 Err(ImkeyError::ImkeySeCertInvalid.into())
@@ -53,9 +51,9 @@ impl TsmService for DeviceCertCheckRequest {
 impl DeviceCertCheckRequest {
     pub fn build_request_data(seid: String, sn: String, device_cert: String) -> Self {
         DeviceCertCheckRequest {
-            seid: seid,
-            sn: sn,
-            device_cert: device_cert,
+            seid,
+            sn,
+            device_cert,
             step_key: String::from("01"),
             status_word: None,
             command_id: String::from(constants::TSM_ACTION_DEVICE_CERT_CHECK),
@@ -68,9 +66,9 @@ impl DeviceCertCheckRequest {
 mod test {
     use crate::device_binding::KEY_MANAGER;
     use crate::device_cert_check::DeviceCertCheckRequest;
-    use crate::device_manager::{get_cert, get_se_id, get_sn};
+    use crate::device_manager::{get_se_id, get_sn};
     use crate::TsmService;
-    use ikc_common::apdu::{Apdu, ApduCheck, ImkApdu};
+    use ikc_common::apdu::{Apdu, ImkApdu};
     use ikc_common::constants::IMK_AID;
     use ikc_transport::hid_api::hid_connect;
     use ikc_transport::message::send_apdu;

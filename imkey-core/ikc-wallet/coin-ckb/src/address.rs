@@ -2,9 +2,8 @@ use crate::hash::blake2b_160;
 use crate::Result;
 use bech32::{ToBase32, Variant};
 use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
-use bitcoin::{Network, PublicKey};
+use bitcoin::Network;
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
-use ikc_common::constants;
 use ikc_common::constants::NERVOS_AID;
 use ikc_common::error::{CoinError, CommonError};
 use ikc_common::path::check_path_validity;
@@ -12,7 +11,6 @@ use ikc_common::utility::{secp256k1_sign, secp256k1_sign_verify, uncompress_pubk
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
 use secp256k1::PublicKey as Secp256k1PublicKey;
-use std::convert::TryFrom;
 use std::str::FromStr;
 
 pub struct CkbAddress {}
@@ -254,12 +252,12 @@ mod tests {
         let get_xpub_result = CkbAddress::get_xpub(version, path);
         assert!(get_xpub_result.is_ok());
         let xpub = get_xpub_result.ok().unwrap();
-        assert_eq!("xpub6CuQc3kkPk2oPKAXnCpEJNkmwzMkXmv1BBG5a2aUbhGBR49zqmSUpJDG3veFgfiMDcjusGVoHP574ecgsyo48Hvmgq33oP8NRoC9kHqZYuN", xpub);
+        assert_eq!("xpub6CyvXfYwHJjJ9syYjG7qZMva1yMx93SUmqUcKHvoReUadCzqJA8mMXrrXQjRvzveuahgdQmCsdsuiCkMRsLec63DW83Wwu5UqKJQmsonKpo", xpub);
 
         let version: Network = Network::Bitcoin;
         let path: &str = "m/44'/309'/0'";
         let get_enc_xpub_result = CkbAddress::get_enc_xpub(version, path);
         let enc_xpub = get_enc_xpub_result.ok().unwrap();
-        assert_eq!("iWHbNJrWJIb0Kj8GRWzQX9Z1wUNP4HQecGNaAI+KUqsMFCKaP1rDz0KCwlSVvwcONB3S80hdbZOoW56VGB1hcqPyS45qxPcqi+xTtDNYasP2mmnNd4rO1HEJIQOaejDEdGEg2psFu/dzrRHKoZ6gRQ==", enc_xpub);
+        assert_eq!("xkpmspgDJhDx7nBk/se+P0CRS/fbPKYivQiqocPEdXFIsNLCHy5lZEc59LGLbsFFamWX7j8TUs5ugKynEign+y0hDQIhm3y1PypmU+frhoWckc7vgkdzbd9xGdMTVv7J+JW4Zlenksb8a9UNkRfrJg==", enc_xpub);
     }
 }

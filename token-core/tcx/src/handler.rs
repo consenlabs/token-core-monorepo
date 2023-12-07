@@ -8,7 +8,7 @@ use std::str::FromStr;
 use tcx_keystore::keystore::IdentityNetwork;
 
 use tcx_common::hex_to_bytes;
-use tcx_primitive::{get_account_path, private_key_without_version, FromHex, TypedPrivateKey};
+use tcx_primitive::{private_key_without_version, FromHex, TypedPrivateKey};
 
 use tcx_btc_kin::WIFDisplay;
 use tcx_keystore::{
@@ -28,13 +28,11 @@ use crate::api::{
     DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsKeystoreResult,
     ExistsMnemonicParam, ExistsPrivateKeyParam, ExportPrivateKeyParam, ExportResult, GeneralResult,
     GenerateMnemonicResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult,
-    GetPublicKeysParam, GetPublicKeysResult, IdentityResult, ImportMnemonicParam,
-    ImportPrivateKeyParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonExistsParam,
-    KeystoreMigrationParam, KeystoreResult, PrivateKeyStoreExportParam, PublicKeyParam,
-    PublicKeyResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
-    SignHashesParam, SignHashesResult, SignParamPoc, SignResultPoc, StoreDeleteParam,
-    StoreDeleteResult, V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput,
-    WalletKeyParam, ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
+    GetPublicKeysParam, GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam, KeyType,
+    KeystoreCommonExistsParam, KeystoreMigrationParam, KeystoreResult,
+    SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
+    SignHashesResult, StoreDeleteParam, StoreDeleteResult, WalletKeyParam,
+    ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
     ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam,
     ZksyncSignMusigResult,
 };
@@ -47,14 +45,12 @@ use crate::filemanager::{
 use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
 use crate::IS_DEBUG;
-use base58::ToBase58;
 
 use tcx_keystore::tcx_ensure;
 
 use tcx_constants::coin_info::coin_info_from_param;
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
-use tcx_crypto::hash::dsha256;
 use tcx_crypto::KDF_ROUNDS;
 use tcx_eth::transaction::{EthRecoverAddressInput, EthRecoverAddressOutput};
 use tcx_keystore::{MessageSigner, TransactionSigner};

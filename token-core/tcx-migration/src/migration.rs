@@ -272,7 +272,7 @@ impl LegacyKeystore {
         // tcx_eos::eos::enable_account("EOS", 0, &mut keystore)?;
 
         // TODO: Create identity wallets
-        if let Some(exists_keystore) = new_keystore {
+        if let Some(_exists_keystore) = new_keystore {
             // TODO Backup old file
             // TODO: does this need merge?
             // keystore.merge(&exists_keystore)?;

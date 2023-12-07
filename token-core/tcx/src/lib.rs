@@ -22,9 +22,9 @@ use crate::error_handling::{landingpad, LAST_BACKTRACE, LAST_ERROR};
 #[allow(deprecated)]
 use crate::handler::{
     create_keystore, delete_keystore, derive_accounts, encode_message, export_mnemonic,
-    export_private_key, get_derived_key, import_mnemonic, import_private_key,
-    keystore_common_exists, sign_tx, unlock_then_crash, verify_password,
-    zksync_private_key_from_seed, zksync_private_key_to_pubkey_hash, zksync_sign_musig,
+    export_private_key, get_derived_key, import_mnemonic, import_private_key, sign_tx,
+    unlock_then_crash, verify_password, zksync_private_key_from_seed,
+    zksync_private_key_to_pubkey_hash, zksync_sign_musig,
 };
 
 mod filemanager;
@@ -188,18 +188,13 @@ mod tests {
     use tcx_keystore::keystore::IdentityNetwork;
 
     use crate::api::{
-        sign_param, AccountResponse, CalcExternalAddressParam, CalcExternalAddressResult,
-        CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
-        DeriveAccountsParam, DeriveAccountsResult, DerivedKeyResult, EncryptDataToIpfsParam,
-        EncryptDataToIpfsResult, ExistsKeystoreResult, ExportPrivateKeyParam, ExportResult,
-        GeneralResult, GenerateMnemonicResult, GetPublicKeysParam, GetPublicKeysResult,
-        IdentityResult, ImportMnemonicParam, ImportPrivateKeyParam, InitTokenCoreXParam, KeyType,
-        KeystoreCommonAccountsParam, KeystoreCommonExistsParam, KeystoreMigrationParam,
-        KeystoreResult, PrivateKeyStoreExportParam, PublicKeyDerivation, PublicKeyParam,
-        PublicKeyResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
-        SignHashesParam, SignHashesResult, SignParam, StoreDeleteParam, StoreDeleteResult,
-        V3KeystoreExportInput, V3KeystoreExportOutput, V3KeystoreImportInput, WalletKeyParam,
-        ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
+        sign_param, CreateKeystoreParam, DeriveAccountsParam, DeriveAccountsResult,
+        DerivedKeyResult, ExistsKeystoreResult, ExportPrivateKeyParam, ExportResult, GeneralResult,
+        GenerateMnemonicResult, GetPublicKeysParam, GetPublicKeysResult, ImportMnemonicParam,
+        ImportPrivateKeyParam, InitTokenCoreXParam, KeyType, KeystoreCommonAccountsParam,
+        KeystoreCommonExistsParam, KeystoreResult, PrivateKeyStoreExportParam, PublicKeyDerivation,
+        PublicKeyParam, PublicKeyResult, SignHashesParam, SignHashesResult, SignParam,
+        WalletKeyParam, ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
         ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult,
         ZksyncSignMusigParam, ZksyncSignMusigResult,
     };
@@ -208,31 +203,17 @@ mod tests {
     use prost::Message;
     use tcx_constants::{sample_key, CurveType};
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
-    use tcx_keystore::{Keystore, Source};
-    // use tcx_identity::{constants, model};
+    use tcx_keystore::Keystore;
 
     use std::fs;
     use tcx_btc_kin::transaction::BtcKinTxInput;
 
     use sp_core::ByteArray;
     use sp_runtime::traits::Verify;
-    use std::fs::File;
-    use std::io::Read;
     use tcx_btc_kin::Utxo;
     use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
-    use tcx_constants::sample_key::MNEMONIC;
-    use tcx_eth::transaction::{
-        AccessList, EthMessageInput, EthMessageOutput, EthRecoverAddressInput,
-        EthRecoverAddressOutput, EthTxInput, EthTxOutput,
-    };
-    // use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
+    use tcx_eth::transaction::{AccessList, EthTxInput, EthTxOutput};
     use tcx_filecoin::{SignedMessage, UnsignedMessage};
-    // use tcx_identity::wallet_api::{
-    //     CreateIdentityParam, CreateIdentityResult, ExportIdentityParam, ExportIdentityResult,
-    //     GenerateMnemonicResult, GetCurrentIdentityResult, RecoverIdentityParam,
-    //     RecoverIdentityResult, RemoveIdentityParam, RemoveIdentityResult, V3KeystoreExportInput,
-    //     V3KeystoreExportOutput, V3KeystoreImportInput,
-    // };
     use tcx_substrate::{
         ExportSubstrateKeystoreResult, SubstrateKeystore, SubstrateKeystoreParam, SubstrateRawTxIn,
         SubstrateTxOut,
@@ -343,7 +324,7 @@ mod tests {
     }
 
     fn import_and_derive(derivation: Derivation) -> (KeystoreResult, DeriveAccountsResult) {
-        let mut wallet = import_default_wallet();
+        let wallet = import_default_wallet();
 
         let param = DeriveAccountsParam {
             id: wallet.id.to_string(),
@@ -358,7 +339,7 @@ mod tests {
     }
 
     fn import_pk_and_derive(derivation: Derivation) -> (KeystoreResult, DeriveAccountsResult) {
-        let mut wallet = import_default_pk_store();
+        let wallet = import_default_pk_store();
 
         let param = DeriveAccountsParam {
             id: wallet.id.to_string(),
@@ -408,7 +389,7 @@ mod tests {
             };
             // let ret_bytes = call_api("import_mnemonic", import_param).unwrap();
             let ret_bytes = hex::decode("0a2434656239623136392d323237392d343439332d616535342d62396233643761303630323512036161611a084d4e454d4f4e494328e9a1a2f305").unwrap();
-            let ret: KeystoreResult = KeystoreResult::decode(ret_bytes.as_slice()).unwrap();
+            let _ret: KeystoreResult = KeystoreResult::decode(ret_bytes.as_slice()).unwrap();
         });
     }
 
@@ -1768,7 +1749,7 @@ mod tests {
                 bech32_prefix: "".to_string(),
             };
 
-            let (wallet, acc_rsp) = import_and_derive(derivation);
+            let (wallet, _acc_rsp) = import_and_derive(derivation);
             let out_points = vec![
                 OutPoint {
                     tx_hash: "0xfb9c020db967e84af1fbd755df5bc23427e2ed70f73e07895a0c394f6195f083"
@@ -1859,7 +1840,7 @@ mod tests {
                 bech32_prefix: "".to_string(),
             };
 
-            let (wallet, acc_rsp) = import_and_derive(derivation);
+            let (wallet, _acc_rsp) = import_and_derive(derivation);
 
             let raw_data = "0a0202a22208e216e254e43ee10840c8cbe4e3df2d5a67080112630a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412320a15415c68cc82c87446f602f019e5fd797437f5b79cc212154156a6076cd1537fa317c2606e4edfa4acd3e8e92e18a08d06709084e1e3df2d".to_string();
             let input = TronTxInput { raw_data };
@@ -1935,7 +1916,7 @@ mod tests {
                 bech32_prefix: "".to_string(),
             };
 
-            let (wallet, acc_rsp) = import_and_derive(derivation);
+            let (wallet, _acc_rsp) = import_and_derive(derivation);
 
             let raw_data = "0a91010a8e010a1c2f636f736d6f732e62616e6b2e763162657461312e4d736753656e64126e0a2d636f736d6f733175616d6e346b74706d657332656664663671666837386d356365646b66637467617436657661122d636f736d6f73316a30636c726371727a636135326c6167707a3237687774713734776c327265353438346177681a0e0a057561746f6d1205313030303012680a510a460a1f2f636f736d6f732e63727970746f2e736563703235366b312e5075624b657912230a210232c1ef21d73c19531b0aa4e863cf397c2b982b2f958f60cdb62969824c096d6512040a02080118930312130a0d0a057561746f6d12043230303410b1f2041a0b636f736d6f736875622d34208cb201".to_string();
             let input = AtomTxInput { raw_data };
@@ -2011,7 +1992,7 @@ mod tests {
                 bech32_prefix: "".to_string(),
             };
 
-            let (wallet, acc_rsp) = import_and_derive(derivation);
+            let (wallet, _acc_rsp) = import_and_derive(derivation);
 
             let param: PublicKeyParam = PublicKeyParam {
                 id: wallet.id.to_string(),
@@ -2371,7 +2352,7 @@ mod tests {
                 bech32_prefix: "".to_string(),
             };
 
-            let (wallet, acc_rsp) = import_and_derive(derivation);
+            let (wallet, _acc_rsp) = import_and_derive(derivation);
 
             let unsigned_msg = "0x0600ffd7568e5f0a7eda67a82691ff379ac4bba4f9c9b859fe779b5d46363b61ad2db9e56c0703d148e25901007b000000dcd1346701ca8396496e52aa2785b1748deb6db09551b72159dcb3e08991025bde8f69eeb5e065e18c6950ff708d7e551f68dc9bf59a07c52367c0280f805ec7";
             let input = SubstrateRawTxIn {
@@ -2437,7 +2418,7 @@ mod tests {
             };
 
             let ret = call_api("derive_accounts", param).unwrap();
-            let rsp: DeriveAccountsResult = DeriveAccountsResult::decode(ret.as_slice()).unwrap();
+            let _rsp: DeriveAccountsResult = DeriveAccountsResult::decode(ret.as_slice()).unwrap();
 
             let raw_data = "0a0202a22208e216e254e43ee10840c8cbe4e3df2d5a67080112630a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412320a15415c68cc82c87446f602f019e5fd797437f5b79cc212154156a6076cd1537fa317c2606e4edfa4acd3e8e92e18a08d06709084e1e3df2d".to_string();
             let input = TronTxInput { raw_data };
@@ -2484,7 +2465,7 @@ mod tests {
             };
 
             let ret = call_api("derive_accounts", param).unwrap();
-            let rsp: DeriveAccountsResult = DeriveAccountsResult::decode(ret.as_slice()).unwrap();
+            let _rsp: DeriveAccountsResult = DeriveAccountsResult::decode(ret.as_slice()).unwrap();
 
             let message = UnsignedMessage {
                 to: "t12i3bop43tprlnymx2c75u6uvlq7iur2rcd7qsey".to_string(),
@@ -2542,7 +2523,7 @@ mod tests {
             };
 
             let ret = call_api("derive_accounts", param).unwrap();
-            let rsp: DeriveAccountsResult = DeriveAccountsResult::decode(ret.as_slice()).unwrap();
+            let _rsp: DeriveAccountsResult = DeriveAccountsResult::decode(ret.as_slice()).unwrap();
 
             let message = UnsignedMessage {
                 to: "t12i3bop43tprlnymx2c75u6uvlq7iur2rcd7qsey".to_string(),
@@ -2600,7 +2581,7 @@ mod tests {
             };
 
             let ret = call_api("derive_accounts", param).unwrap();
-            let rsp: DeriveAccountsResult = DeriveAccountsResult::decode(ret.as_slice()).unwrap();
+            let _rsp: DeriveAccountsResult = DeriveAccountsResult::decode(ret.as_slice()).unwrap();
 
             let param = WalletKeyParam {
                 id: import_result.id.to_string(),
@@ -2663,7 +2644,7 @@ mod tests {
                 curve: "".to_string(),
                 bech32_prefix: "".to_string(),
             };
-            let (wallet, acc_rsp) = import_and_derive(derivation);
+            let (wallet, _acc_rsp) = import_and_derive(derivation);
 
             let input_expects = vec![
                 (TronMessageInput {
@@ -2728,7 +2709,7 @@ mod tests {
                 curve: "".to_string(),
                 bech32_prefix: "".to_string(),
             };
-            let (wallet, acc_rsp) = import_and_derive(derivation);
+            let (wallet, _acc_rsp) = import_and_derive(derivation);
 
             let input = TronMessageInput {
                 value: "645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76"
@@ -2809,7 +2790,7 @@ mod tests {
                 };
 
                 let ret = call_api("derive_accounts", param).unwrap();
-                let rsp: DeriveAccountsResult =
+                let _rsp: DeriveAccountsResult =
                     DeriveAccountsResult::decode(ret.as_slice()).unwrap();
 
                 let inputs = vec![Utxo {
@@ -2865,7 +2846,7 @@ mod tests {
                 bech32_prefix: "".to_string(),
             };
 
-            let (wallet, acc_rsp) = import_and_derive(derivation);
+            let (wallet, _acc_rsp) = import_and_derive(derivation);
 
             let raw_data = "0a0202a22208e216e254e43ee10840c8cbe4e3df2d5a67080112630a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412320a15415c68cc82c87446f602f019e5fd797437f5b79cc212154156a6076cd1537fa317c2606e4edfa4acd3e8e92e18a08d06709084e1e3df2d".to_string();
             let input = TronTxInput { raw_data };
@@ -3011,7 +2992,7 @@ mod tests {
                 bech32_prefix: "".to_string(),
             };
 
-            let (wallet, acc_rsp) = import_and_derive(derivation);
+            let (wallet, _acc_rsp) = import_and_derive(derivation);
 
             let raw_data = "d3bdafa2e36f872e24f1ccd68dbdca4356b193823d0a6a54886d7641e532a2a26c00dedf1a2f428e5e85edf105cb3600949f3d0e8837c70cacb4e803e8528102c0843d0000dcdcf88d0cfb769e33b1888d6bdc351ee3277ea700".to_string();
             let input = TezosRawTxIn { raw_data };
@@ -3341,7 +3322,7 @@ mod tests {
                 bech32_prefix: "".to_string(),
             };
 
-            let (wallet, acc_rsp) = import_and_derive(derivation);
+            let (wallet, _acc_rsp) = import_and_derive(derivation);
 
             //legacy transaction
             let eth_tx_input = EthTxInput {
@@ -3394,7 +3375,7 @@ mod tests {
                 bech32_prefix: "".to_string(),
             };
 
-            let (wallet, acc_rsp) = import_and_derive(derivation);
+            let (wallet, _acc_rsp) = import_and_derive(derivation);
 
             //eip1559 transaction
             let eth_tx_input = EthTxInput {
@@ -3447,7 +3428,7 @@ mod tests {
                 bech32_prefix: "".to_string(),
             };
 
-            let (wallet, acc_rsp) = import_and_derive(derivation);
+            let (wallet, _acc_rsp) = import_and_derive(derivation);
             //eip1559 transaction
             let mut access_list = vec![];
             access_list.push(AccessList {

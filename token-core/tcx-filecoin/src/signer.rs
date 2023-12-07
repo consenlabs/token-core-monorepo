@@ -10,7 +10,7 @@ use num_bigint_chainsafe::BigInt;
 use std::convert::TryFrom;
 use std::str::FromStr;
 use tcx_constants::CurveType;
-use tcx_keystore::{ChainSigner, Keystore, Result, SignatureParameters, Signer, TransactionSigner};
+use tcx_keystore::{Keystore, Result, SignatureParameters, Signer, TransactionSigner};
 
 impl TryFrom<&UnsignedMessage> for ForestUnsignedMessage {
     type Error = crate::Error;

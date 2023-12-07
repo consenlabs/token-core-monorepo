@@ -1,6 +1,6 @@
 use crate::Result;
 use bitcoin::util::base58;
-use ikc_common::apdu::{Apdu, ApduCheck, CoinCommonApdu, Secp256k1Apdu};
+use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::TRON_AID;
 use ikc_common::error::CoinError;
 use ikc_common::path::check_path_validity;

@@ -4,11 +4,8 @@ use crate::hash::new_blake2b;
 use crate::serializer::Serializer;
 use crate::transaction::{CachedCell, CkbTxInput, CkbTxOutput, OutPoint, Witness};
 use crate::{hex_to_bytes, Error};
-use std::collections::HashMap;
-use tcx_keystore::ChainSigner;
-
 use lazy_static::lazy_static;
-use tcx_constants::CurveType;
+use std::collections::HashMap;
 
 pub struct CkbTxSigner<'a> {
     ks: &'a mut Keystore,
@@ -94,7 +91,7 @@ impl<'a> CkbTxSigner<'a> {
         let mut result = [0u8; 32];
         s.finalize(&mut result);
 
-        let opt_path = if path.len() > 0 { Some(path) } else { None };
+        let _opt_path = if path.len() > 0 { Some(path) } else { None };
 
         empty_witness.lock =
             format!(

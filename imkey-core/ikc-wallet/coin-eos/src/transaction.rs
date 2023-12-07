@@ -1,7 +1,7 @@
 use crate::eosapi::{EosMessageInput, EosMessageOutput, EosSignResult, EosTxInput, EosTxOutput};
 use crate::pubkey::EosPubkey;
 use crate::Result;
-use bitcoin::secp256k1::Signature;
+use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::util::base58;
 use bitcoin_hashes::hex::ToHex;
 use bitcoin_hashes::{ripemd160, Hash};

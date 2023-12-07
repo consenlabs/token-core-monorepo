@@ -82,7 +82,7 @@ pub unsafe extern "C" fn imkey_free_const_string(s: *const c_char) {
     if s.is_null() {
         return;
     }
-    CStr::from_ptr(s);
+    let _ = CStr::from_ptr(s);
 }
 
 /// dispatch protobuf rpc call
@@ -307,20 +307,12 @@ pub unsafe extern "C" fn imkey_get_last_err_message() -> *const c_char {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use error_handling::Result;
-    use std::ffi::{CStr, CString};
-    use std::fs::remove_file;
-    use std::os::raw::c_char;
-    use std::panic;
-    use std::path::Path;
-
-    use prost::Message;
-
     use crate::api::CommonResponse;
     use ikc_device::device_binding::DeviceManage;
-    use ikc_device::deviceapi::{AppDownloadReq, BindAcquireReq};
     use ikc_transport::hid_api::hid_connect;
-    use std::fs;
+    use prost::Message;
+    use std::ffi::{CStr, CString};
+    use std::os::raw::c_char;
 
     fn _to_c_char(str: &str) -> *const c_char {
         CString::new(str).unwrap().into_raw()
@@ -330,36 +322,6 @@ mod tests {
         let json_c_str = unsafe { CStr::from_ptr(json_str) };
         json_c_str.to_str().unwrap()
     }
-
-    fn teardown() {
-        let p = Path::new("/tmp/imtoken/wallets");
-        let walk_dir = std::fs::read_dir(p).expect("read dir");
-        for entry in walk_dir {
-            let entry = entry.expect("DirEntry");
-            let fp = entry.path();
-            if !fp
-                .file_name()
-                .expect("file_name")
-                .to_str()
-                .expect("file_name str")
-                .ends_with(".json")
-            {
-                continue;
-            }
-
-            remove_file(fp.as_path()).expect("should remove file");
-        }
-    }
-
-    // fn run_test<T>(test: T) -> ()
-    //     where
-    //         T: FnOnce() -> () + panic::UnwindSafe,
-    // {
-    //     setup();
-    //     let result = panic::catch_unwind(|| test());
-    //     teardown();
-    //     assert!(result.is_ok())
-    // }
 
     #[test]
     #[ignore]

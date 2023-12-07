@@ -12,7 +12,6 @@ use ethers::utils::{hash_message, keccak256};
 use keccak_hash::keccak;
 use std::str::FromStr;
 use tcx_common::{hex_to_bytes, utf8_or_hex_to_bytes};
-use tcx_constants::CurveType;
 use tcx_keystore::{Keystore, MessageSigner, SignatureParameters, TransactionSigner};
 
 impl TransactionSigner<EthTxInput, EthTxOutput> for Keystore {
@@ -173,7 +172,6 @@ mod test {
     use crate::transaction::{
         AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput, SignatureType,
     };
-    use ethers::types::Sign;
     use tcx_constants::CurveType;
     use tcx_keystore::{Keystore, MessageSigner, Metadata, SignatureParameters, TransactionSigner};
 

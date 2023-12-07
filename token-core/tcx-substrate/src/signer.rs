@@ -4,7 +4,7 @@ use sp_core::blake2_256;
 
 use tcx_constants::Result;
 use tcx_keystore::{
-    ChainSigner, Keystore, SignatureParameters, Signer, TransactionSigner as TraitTransactionSigner,
+    Keystore, SignatureParameters, Signer, TransactionSigner as TraitTransactionSigner,
 };
 
 pub(crate) fn hash_unsigned_payload(payload: &[u8]) -> Result<Vec<u8>> {

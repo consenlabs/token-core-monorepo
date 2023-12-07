@@ -96,10 +96,10 @@ mod tests {
     #[test]
     fn test_backup_keystores() {
         *KEYSTORE_BASE_DIR.write() = "../test-data".to_string();
-        let v1_dir = format!("{}/{}", KEYSTORE_BASE_DIR.read(), WALLET_V1_DIR);
+        let _v1_dir = format!("{}/{}", KEYSTORE_BASE_DIR.read(), WALLET_V1_DIR);
         let v2_dir = format!("{}/{}", KEYSTORE_BASE_DIR.read(), WALLET_V2_DIR);
 
-        fs::remove_dir_all(&v2_dir);
+        let _ = fs::remove_dir_all(&v2_dir);
         let expected_files = vec![
             "02a55ab6-554a-4e78-bc26-6a7acced7e5e.json",
             "7f5406be-b5ee-4497-948c-877deab8c994.json",

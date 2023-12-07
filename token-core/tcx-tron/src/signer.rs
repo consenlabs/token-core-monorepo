@@ -1,7 +1,7 @@
 use crate::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 use tcx_keystore::{
-    ChainSigner, Keystore, MessageSigner as TraitMessageSigner, Result, SignatureParameters,
-    Signer, TransactionSigner as TraitTransactionSigner,
+    Keystore, MessageSigner as TraitMessageSigner, Result, SignatureParameters, Signer,
+    TransactionSigner as TraitTransactionSigner,
 };
 
 use bitcoin_hashes::sha256::Hash;
@@ -9,7 +9,6 @@ use bitcoin_hashes::Hash as TraitHash;
 
 use failure::format_err;
 use tcx_common::{keccak256, utf8_or_hex_to_bytes};
-use tcx_constants::CurveType;
 
 // http://jsoneditoronline.org/index.html?id=2b86a8503ba641bebed73f32b4ac9c42
 //{

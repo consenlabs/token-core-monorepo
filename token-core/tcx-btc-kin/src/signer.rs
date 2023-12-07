@@ -16,16 +16,12 @@ use bitcoin_hashes::hex::FromHex as HashFromHex;
 use bitcoin_hashes::hex::ToHex as HashToHex;
 use bitcoin_hashes::Hash;
 use byteorder::{BigEndian, WriteBytesExt};
-use num_bigint::Sign;
 use secp256k1::{Message, Secp256k1};
 use tcx_constants::{CoinInfo, CurveType};
 
-use tcx_keystore::keystore::Error as KeystoreError;
 use tcx_keystore::{Address, SignatureParameters};
 use tcx_keystore::{Keystore, TransactionSigner};
-use tcx_primitive::{
-    get_account_path, Derive, PrivateKey, PublicKey, Secp256k1PrivateKey, TypedPrivateKey,
-};
+use tcx_primitive::{get_account_path, Derive, PrivateKey, PublicKey, Secp256k1PrivateKey};
 
 use crate::address::{BtcKinAddress, ScriptPubkey};
 use crate::bitcoin_cash_sighash::BitcoinCashSighash;

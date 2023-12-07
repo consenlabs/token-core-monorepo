@@ -28,12 +28,10 @@ impl TsmService for AuthCodeStorageRequest {
     type ReturnData = ();
 
     fn send_message(&mut self) -> Result<()> {
-        println!("send message：{:#?}", self);
         let req_data = serde_json::to_vec_pretty(&self).unwrap();
         let response_data = https::post(constants::TSM_ACTION_AUTHCODE_STORAGE, req_data)?;
         let return_bean: ServiceResponse<AuthCodeStorageResponse> =
             serde_json::from_str(response_data.as_str())?;
-        println!("return message：{:#?}", return_bean);
         return_bean.service_res_check()
     }
 }
@@ -41,8 +39,8 @@ impl TsmService for AuthCodeStorageRequest {
 impl AuthCodeStorageRequest {
     pub fn build_request_data(seid: String, auth_code: String) -> Self {
         AuthCodeStorageRequest {
-            seid: seid,
-            auth_code: auth_code,
+            seid,
+            auth_code,
             step_key: String::from("01"),
             status_word: None,
             command_id: String::from(constants::TSM_ACTION_AUTHCODE_STORAGE),

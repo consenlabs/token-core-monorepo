@@ -28,10 +28,9 @@ pub use address::{BtcKinAddress, WIFDisplay};
 pub use bch_address::BchAddress;
 pub use network::BtcKinNetwork;
 use tcx_constants::{CoinInfo, CurveType};
-use tcx_keystore::{Address, Keystore};
+use tcx_keystore::Address;
 use tcx_primitive::{
-    get_account_path, Bip32DeterministicPublicKey, Derive, DeterministicPublicKey, FromHex,
-    TypedPublicKey,
+    get_account_path, Bip32DeterministicPublicKey, Derive, DeterministicPublicKey, TypedPublicKey,
 };
 pub use transaction::{BtcKinTxInput, BtcKinTxOutput, OmniTxInput, Utxo};
 
@@ -65,12 +64,8 @@ pub enum Error {
 }
 
 pub mod bitcoin {
-    use crate::{BtcKinAddress, BITCOIN, LITECOIN};
-    use tcx_constants::CoinInfo;
-    use tcx_keystore::{Account, Keystore};
-
+    use crate::{BITCOIN, LITECOIN};
     pub const CHAINS: [&'static str; 2] = [BITCOIN, LITECOIN];
-
     pub type Address = crate::BtcKinAddress;
     pub type TransactionInput = crate::transaction::BtcKinTxInput;
     pub type TransactionOutput = crate::transaction::BtcKinTxOutput;

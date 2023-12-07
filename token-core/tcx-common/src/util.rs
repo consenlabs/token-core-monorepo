@@ -1,5 +1,4 @@
 use crate::Result;
-use keccak_hash::keccak;
 
 pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
     let ret_data;

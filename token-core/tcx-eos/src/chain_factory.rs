@@ -1,7 +1,6 @@
-use base58::{FromBase58, ToBase58};
-use failure::format_err;
+use base58::ToBase58;
 use tcx_crypto::hash;
-use tcx_keystore::{tcx_ensure, ChainFactory, PrivateKeyEncoder, PublicKeyEncoder, Result};
+use tcx_keystore::{ChainFactory, PrivateKeyEncoder, PublicKeyEncoder, Result};
 use tcx_primitive::{PrivateKey, PublicKey, Secp256k1PrivateKey, Secp256k1PublicKey, Ss58Codec};
 
 pub struct EosPublicKeyEncoder();

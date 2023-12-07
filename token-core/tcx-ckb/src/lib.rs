@@ -70,7 +70,7 @@ pub mod nervos {
 
     pub fn enable_account(
         _: &str,
-        index: u32,
+        _index: u32,
         keystore: &mut Keystore,
     ) -> Result<Vec<Account>, failure::Error> {
         keystore.derive_coins::<crate::CkbAddress>(&[CoinInfo {

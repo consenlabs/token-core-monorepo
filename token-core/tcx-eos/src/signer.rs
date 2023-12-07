@@ -1,8 +1,7 @@
 use crate::transaction::{EosMessageInput, EosMessageOutput, EosTxInput, EosTxOutput, SigData};
 use base58::ToBase58;
-use tcx_constants::CurveType;
 use tcx_keystore::{
-    ChainSigner, Keystore, MessageSigner, Result, SignatureParameters, Signer, TransactionSigner,
+    Keystore, MessageSigner, Result, SignatureParameters, Signer, TransactionSigner,
 };
 
 use tcx_crypto::{hash, hex};

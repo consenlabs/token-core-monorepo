@@ -7,14 +7,12 @@ use crate::Result;
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};
 use bitcoin::hashes::hex::FromHex;
-use bitcoin::util::psbt::serialize::Serialize;
 use bitcoin::{
-    Address, EcdsaSighashType, Network, OutPoint, PackedLockTime, Script, Sequence, SigHashType,
-    Transaction, TxIn, TxOut, Witness,
+    Address, EcdsaSighashType, Network, OutPoint, PackedLockTime, Script, Sequence, Transaction,
+    TxIn, TxOut, Witness,
 };
 use bitcoin_hashes::hash160;
 use bitcoin_hashes::hex::ToHex;
-use bitcoin_hashes::sha256d::Hash as Hash256;
 use bitcoin_hashes::Hash;
 use ikc_common::apdu::{ApduCheck, BtcApdu};
 use ikc_common::constants::{
@@ -25,7 +23,7 @@ use ikc_common::path::check_path_validity;
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
-use secp256k1::Signature;
+use secp256k1::ecdsa::Signature;
 use std::str::FromStr;
 
 #[derive(Clone)]
@@ -535,12 +533,8 @@ mod tests {
     use crate::transaction::{BtcTransaction, Utxo};
     use bitcoin::{Address, Network};
     use hex::FromHex;
-    use std::str::FromStr;
-
-    use ikc_common::error::CoinError;
     use ikc_device::device_binding::bind_test;
-    use ikc_device::device_binding::DeviceManage;
-    use ikc_transport::hid_api::hid_connect;
+    use std::str::FromStr;
 
     #[test]
     fn test_sign_transaction() {

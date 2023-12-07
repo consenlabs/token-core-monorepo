@@ -31,20 +31,18 @@ impl TsmService for AppDeleteRequest {
 
     fn send_message(&mut self) -> Result<()> {
         loop {
-            println!("send message：{:#?}", self);
             let req_data = serde_json::to_vec_pretty(&self).unwrap();
             let response_data = https::post(constants::TSM_ACTION_APP_DELETE, req_data)?;
             let return_bean: ServiceResponse<AppDeleteResponse> =
                 serde_json::from_str(response_data.as_str())?;
-            println!("return message：{:#?}", return_bean);
-            if return_bean._ReturnCode == constants::TSM_RETURN_CODE_SUCCESS {
+            if return_bean.return_code == constants::TSM_RETURN_CODE_SUCCESS {
                 //check if end
-                let next_step_key = return_bean._ReturnData.next_step_key.unwrap();
+                let next_step_key = return_bean.return_data.next_step_key.unwrap();
                 if constants::TSM_END_FLAG.eq(next_step_key.as_str()) {
                     return Ok(());
                 }
 
-                match return_bean._ReturnData.apdu_list {
+                match return_bean.return_data.apdu_list {
                     Some(apdu_list) => {
                         let handle_result =
                             ServiceResponse::<AppDeleteResponse>::apdu_handle(apdu_list)?;

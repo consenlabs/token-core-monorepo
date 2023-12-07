@@ -7,14 +7,12 @@ use crate::Result;
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};
 use bitcoin::hashes::hex::FromHex;
-use bitcoin::util::psbt::serialize::Serialize;
 use bitcoin::{
-    EcdsaSighashType, Network, OutPoint, PackedLockTime, Script, Sequence, SigHashType,
-    Transaction, TxIn, TxOut, Witness,
+    EcdsaSighashType, Network, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn,
+    TxOut, Witness,
 };
 use bitcoin_hashes::hash160;
 use bitcoin_hashes::hex::ToHex;
-use bitcoin_hashes::sha256d::Hash as Hash256;
 use bitcoin_hashes::Hash;
 use ikc_common::apdu::{ApduCheck, BtcApdu};
 use ikc_common::constants::{EACH_ROUND_NUMBER, MAX_UTXO_NUMBER, MIN_NONDUST_OUTPUT, TIMEOUT_LONG};
@@ -23,7 +21,7 @@ use ikc_common::path::check_path_validity;
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
-use secp256k1::Signature;
+use secp256k1::ecdsa::Signature;
 
 impl BtcTransaction {
     pub fn sign_omni_transaction(

@@ -120,11 +120,11 @@ impl Transaction {
 
 #[cfg(test)]
 mod test {
-    use crate::tezosapi::TezosTxInput;
-    use crate::transaction::Transaction;
-    use ikc_common::SignParam;
-    use ikc_device::device_binding::bind_test;
-    use ikc_transport::hid_api::hid_connect;
+    // use crate::tezosapi::TezosTxInput;
+    // use crate::transaction::Transaction;
+    // use ikc_common::SignParam;
+    // use ikc_device::device_binding::bind_test;
+    // use ikc_transport::hid_api::hid_connect;
 
     // #[test]
     // fn tx_sign_test() {

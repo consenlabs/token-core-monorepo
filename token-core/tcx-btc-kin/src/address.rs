@@ -2,7 +2,7 @@ use core::fmt;
 
 use core::result;
 use std::convert::TryFrom;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
 use bitcoin::hash_types::PubkeyHash as PubkeyHashType;

@@ -479,7 +479,7 @@ impl Signer for Keystore {
         private_key.sign(hash)
     }
 
-    fn schnorr_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>> {
+    fn schnorr_sign(&mut self, _hash: &[u8], _derivation_path: &str) -> Result<Vec<u8>> {
         todo!()
     }
 
