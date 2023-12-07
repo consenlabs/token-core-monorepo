@@ -64,6 +64,7 @@ impl OldMetadata {
             .map_or(Source::Mnemonic, |source| match source.as_str() {
                 "RECOVER_IDENTITY" => Source::Mnemonic,
                 "NEW_IDENTITY" => Source::NewMnemonic,
+                "KEYSTORE" => Source::KeystoreV3,
                 _ => Source::from_str(&source).unwrap_or(Source::Mnemonic),
             });
 

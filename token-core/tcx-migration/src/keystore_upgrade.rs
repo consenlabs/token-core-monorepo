@@ -1,4 +1,5 @@
 use serde_json::{json, Value};
+use std::str::FromStr;
 use tcx_crypto::{Crypto, Key};
 use tcx_keystore::identity::Identity;
 use tcx_keystore::keystore::IdentityNetwork;
@@ -23,15 +24,13 @@ impl KeystoreUpgrade {
 
         let mut json = self.json.clone();
 
-        match json["imTokenMeta"]["source"].as_str().unwrap_or("") {
-            "NEW_IDENTITY" => {
-                json["imTokenMeta"]["source"] = json!(Source::NewMnemonic.to_string());
-            }
-            "RECOVER_IDENTITY" => {
-                json["imTokenMeta"]["source"] = json!(Source::Mnemonic.to_string());
-            }
-            _ => {}
-        }
+        let source = json["imTokenMeta"]["source"].as_str().unwrap_or("");
+        json["imTokenMeta"]["source"] = match source {
+            "NEW_IDENTITY" => json!(Source::NewMnemonic.to_string()),
+            "RECOVER_IDENTITY" => json!(Source::Mnemonic.to_string()),
+            "KEYSTORE" => json!(Source::KeystoreV3.to_string()),
+            _ => Source::from_str(source)?.to_string().into(),
+        };
 
         let crypto: Crypto = serde_json::from_value(json["crypto"].clone())?;
         let unlocker = crypto.use_key(key)?;
