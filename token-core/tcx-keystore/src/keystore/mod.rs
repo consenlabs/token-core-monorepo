@@ -118,7 +118,7 @@ pub trait Address: ToString + FromStr + Sized + Clone + PartialEq + Eq {
 pub enum Source {
     Wif,
     Private,
-    Keystore,
+    KeystoreV3,
     Mnemonic,
     NewMnemonic,
     /*NewIdentity,
@@ -133,20 +133,19 @@ impl FromStr for Source {
         match input {
             "WIF" => Ok(Source::Wif),
             "PRIVATE" => Ok(Source::Private),
-            "KEYSTORE" => Ok(Source::Keystore),
+            "KEYSTORE_V3" => Ok(Source::KeystoreV3),
             "MNEMONIC" => Ok(Source::Mnemonic),
             "NEW_MNEMONIC" => Ok(Source::NewMnemonic),
             _ => Err(format_err!("unknown_source")),
         }
     }
 }
-
 impl fmt::Display for Source {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Source::Wif => write!(f, "WIF"),
             Source::Private => write!(f, "PRIVATE"),
-            Source::Keystore => write!(f, "KEYSTORE"),
+            Source::KeystoreV3 => write!(f, "KEYSTORE_V3"),
             Source::Mnemonic => write!(f, "MNEMONIC"),
             Source::NewMnemonic => write!(f, "NEW_MNEMONIC"),
         }
