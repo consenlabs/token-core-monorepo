@@ -3,7 +3,7 @@ use crate::transaction::{Script, Witness};
 
 use super::Error;
 use crate::hash::blake2b_256;
-use crate::hex_to_bytes;
+use tcx_common::FromHex;
 use tcx_keystore::Result;
 
 impl Script {
@@ -16,9 +16,9 @@ impl Script {
     }
 
     pub fn serialize(&self) -> Result<Vec<u8>> {
-        let args_bytes = hex_to_bytes(&self.args)?;
+        let args_bytes = Vec::from_hex_auto(&self.args)?;
         Ok(Serializer::serialize_dynamic_vec(&vec![
-            hex_to_bytes(&self.code_hash)?.as_slice(),
+            Vec::from_hex_auto(&self.code_hash)?.as_slice(),
             self.serialize_hash_type()?.as_slice(),
             Serializer::serialize_fixed_vec(vec![args_bytes.as_slice()].as_slice()).as_slice(),
         ]))
@@ -32,7 +32,7 @@ impl Script {
 impl Witness {
     pub fn serialize(&self) -> Result<Vec<u8>> {
         let inner_serialize = |x: &str| -> Result<Vec<u8>> {
-            let bytes = hex_to_bytes(&x)?;
+            let bytes = Vec::from_hex_auto(x)?;
             if bytes.len() > 0 {
                 Ok(Serializer::serialize_fixed_vec(&vec![bytes.as_slice()]))
             } else {
@@ -67,6 +67,7 @@ impl Witness {
 #[cfg(test)]
 mod tests {
     use crate::transaction::{Script, Witness};
+    use tcx_common::ToHex;
 
     #[test]
     fn serialize_script() {
@@ -77,7 +78,7 @@ mod tests {
             hash_type: "type".to_string(),
         };
 
-        assert_eq!(script.serialize().unwrap(), hex::decode("4900000010000000300000003100000068d5438ac952d2f584abf879527946a537e82c7f3c1cbf6d8ebf9767437d8e8801140000003954acece65096bfa81258983ddb83915fc56bd8").unwrap());
+        assert_eq!(script.serialize().unwrap(), Vec::from_hex("4900000010000000300000003100000068d5438ac952d2f584abf879527946a537e82c7f3c1cbf6d8ebf9767437d8e8801140000003954acece65096bfa81258983ddb83915fc56bd8").unwrap());
 
         let script = Script {
             code_hash: "0x68d5438ac952d2f584abf879527946a537e82c7f3c1cbf6d8ebf9767437d8e88"
@@ -86,7 +87,7 @@ mod tests {
             hash_type: "type".to_string(),
         };
 
-        assert_eq!(script.serialize().unwrap(), hex::decode("3500000010000000300000003100000068d5438ac952d2f584abf879527946a537e82c7f3c1cbf6d8ebf9767437d8e880100000000").unwrap());
+        assert_eq!(script.serialize().unwrap(), Vec::from_hex("3500000010000000300000003100000068d5438ac952d2f584abf879527946a537e82c7f3c1cbf6d8ebf9767437d8e880100000000").unwrap());
     }
 
     #[test]
@@ -99,7 +100,7 @@ mod tests {
         };
 
         assert_eq!(
-            hex::encode(script.to_hash().unwrap()),
+            script.to_hash().unwrap().to_hex(),
             "77c93b0632b5b6c3ef922c5b7cea208fb0a7c427a13d50e13d3fefad17e0c590"
         );
 
@@ -110,7 +111,7 @@ mod tests {
             hash_type: "data".to_string(),
         };
         assert_eq!(
-            hex::encode(script.to_hash().unwrap()),
+            script.to_hash().unwrap().to_hex(),
             "67951b34bce20cb71b7e235c1f8cda259628d99d94825bffe549c23b4dd2930f"
         );
 
@@ -122,7 +123,7 @@ mod tests {
         };
 
         assert_eq!(
-            hex::encode(script.to_hash().unwrap()),
+            script.to_hash().unwrap().to_hex(),
             "d39f84d4702f53cf8625da4411be1640b961715cb36816501798fedb70b6e0fb",
         );
     }
@@ -136,7 +137,7 @@ mod tests {
         };
 
         assert_eq!(
-            hex::encode(witness.serialize().unwrap()),
+            witness.serialize().unwrap().to_hex(),
             "10000000100000001000000010000000"
         );
 
@@ -146,7 +147,7 @@ mod tests {
             output_type: "0x20".to_owned(),
         };
         assert_eq!(
-            hex::encode(witness.serialize().unwrap()),
+            witness.serialize().unwrap().to_hex(),
             "1a00000010000000100000001500000001000000100100000020"
         );
     }
@@ -159,6 +160,6 @@ mod tests {
             output_type: "0x".to_owned(),
         };
 
-        assert_eq!("", hex::encode(witness.to_raw().unwrap()));
+        assert_eq!("", witness.to_raw().unwrap().to_hex());
     }
 }

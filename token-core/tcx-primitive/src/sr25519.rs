@@ -1,7 +1,8 @@
 use crate::ecc::{KeyError, PrivateKey as TraitPrivateKey, PublicKey as TraitPublicKey};
-use crate::{FromHex, Result, ToHex};
+use crate::Result;
 use schnorrkel::SecretKey;
 use std::convert::TryFrom;
+use tcx_common::{FromHex, ToHex};
 
 use sp_core::sr25519::{Pair, Public};
 use sp_core::Pair as TraitPair;
@@ -80,13 +81,13 @@ impl TraitPublicKey for Sr25519PublicKey {
 
 impl ToHex for Sr25519PublicKey {
     fn to_hex(&self) -> String {
-        hex::encode(self.0 .0)
+        self.0.to_hex()
     }
 }
 
 impl FromHex for Sr25519PublicKey {
-    fn from_hex(hex: &str) -> Result<Self> {
-        let bytes = hex::decode(hex)?;
+    fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self> {
+        let bytes = Vec::from_hex(hex)?;
         let pk = Sr25519PublicKey::from_slice(bytes.as_slice())?;
         Ok(pk)
     }
@@ -95,15 +96,16 @@ impl FromHex for Sr25519PublicKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tcx_common::ToHex;
 
     #[test]
     fn test_private_key_from_slice() {
         let pk_bytes: Vec<u8> =
-            hex::decode("00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd")
+            Vec::from_hex("00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd")
                 .unwrap();
         let pk: Sr25519PrivateKey = Sr25519PrivateKey::from_slice(&pk_bytes).unwrap();
         assert_eq!(
-            &hex::encode(pk.to_bytes())[64..],
+            &pk.to_bytes().to_hex()[64..],
             "016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd"
         );
         let public_key: Sr25519PublicKey = pk.public_key();

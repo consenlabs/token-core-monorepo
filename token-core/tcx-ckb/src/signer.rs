@@ -3,9 +3,10 @@ use tcx_keystore::{Keystore, Result, SignatureParameters, Signer, TransactionSig
 use crate::hash::new_blake2b;
 use crate::serializer::Serializer;
 use crate::transaction::{CachedCell, CkbTxInput, CkbTxOutput, OutPoint, Witness};
-use crate::{hex_to_bytes, Error};
+use crate::Error;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use tcx_common::{FromHex, ToHex};
 
 pub struct CkbTxSigner<'a> {
     ks: &'a mut Keystore,
@@ -36,7 +37,7 @@ impl<'a> CkbTxSigner<'a> {
 
         let mut raw_witnesses: Vec<String> = vec![];
         for w in witnesses.iter() {
-            raw_witnesses.push(format!("0x{}", hex::encode(w.to_raw()?)));
+            raw_witnesses.push(w.to_raw()?.to_0x_hex());
         }
 
         for item in grouped_scripts.iter() {
@@ -50,7 +51,7 @@ impl<'a> CkbTxSigner<'a> {
             let path = &input_cells[item.1[0]].derived_path;
 
             let signed_witness = self.sign_witness_group(tx_hash, &ws, path)?;
-            raw_witnesses[item.1[0]] = format!("0x{}", hex::encode(signed_witness.serialize()?));
+            raw_witnesses[item.1[0]] = signed_witness.serialize()?.to_0x_hex();
         }
 
         Ok(raw_witnesses)
@@ -93,14 +94,10 @@ impl<'a> CkbTxSigner<'a> {
 
         let _opt_path = if path.len() > 0 { Some(path) } else { None };
 
-        empty_witness.lock =
-            format!(
-                "0x{}",
-                hex::encode(self.ks.secp256k1_ecdsa_sign_recoverable(
-                    &result,
-                    &self.sign_context.derivation_path
-                )?)
-            );
+        empty_witness.lock = self
+            .ks
+            .secp256k1_ecdsa_sign_recoverable(&result, &self.sign_context.derivation_path)?
+            .to_0x_hex();
 
         Ok(empty_witness)
     }
@@ -172,8 +169,11 @@ impl TransactionSigner<CkbTxInput, CkbTxOutput> for Keystore {
             sign_context: params,
         };
 
-        let signed_witnesses =
-            signer.sign_witnesses(&hex_to_bytes(&tx.tx_hash)?, &tx.witnesses, &input_cells)?;
+        let signed_witnesses = signer.sign_witnesses(
+            &Vec::from_hex_auto(&tx.tx_hash)?,
+            &tx.witnesses,
+            &input_cells,
+        )?;
 
         let tx_output = CkbTxOutput {
             tx_hash: tx.tx_hash.clone(),

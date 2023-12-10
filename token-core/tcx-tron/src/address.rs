@@ -49,13 +49,14 @@ impl ToString for TronAddress {
 mod tests {
     use super::Address;
     use crate::TronAddress;
+    use tcx_common::FromHex;
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType};
     use tcx_primitive::TypedPublicKey;
 
     #[test]
     fn tron_address() {
-        let bytes = hex::decode("04DAAC763B1B3492720E404C53D323BAF29391996F7DD5FA27EF0D12F7D50D694700684A32AD97FF4C09BF9CF0B9D0AC7F0091D9C6CB8BE9BB6A1106DA557285D8").unwrap();
+        let bytes = Vec::from_hex("04DAAC763B1B3492720E404C53D323BAF29391996F7DD5FA27EF0D12F7D50D694700684A32AD97FF4C09BF9CF0B9D0AC7F0091D9C6CB8BE9BB6A1106DA557285D8").unwrap();
         let coin_info = CoinInfo {
             coin: "".to_string(),
             derivation_path: "".to_string(),

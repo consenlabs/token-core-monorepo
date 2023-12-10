@@ -11,7 +11,7 @@ use ethers::types::{Bytes, Eip1559TransactionRequest, Signature, TransactionRequ
 use ethers::utils::{hash_message, keccak256};
 use keccak_hash::keccak;
 use std::str::FromStr;
-use tcx_common::{hex_to_bytes, utf8_or_hex_to_bytes};
+use tcx_common::{utf8_or_hex_to_bytes, FromHex, ToHex};
 use tcx_keystore::{Keystore, MessageSigner, SignatureParameters, TransactionSigner};
 
 impl TransactionSigner<EthTxInput, EthTxOutput> for Keystore {
@@ -67,8 +67,8 @@ impl EthTxInput {
             sign_bytes.push(parse_u64(self.tx_type.as_str())?.byte(0));
             sign_bytes.extend(sign_result.as_ref().iter());
 
-            let signature = hex::encode(sign_bytes.clone());
-            let tx_hash = format!("{}{}", "0x", hex::encode(keccak(sign_bytes).as_ref()));
+            let signature = sign_bytes.to_hex();
+            let tx_hash = keccak(sign_bytes).as_ref().to_0x_hex();
             EthTxOutput { signature, tx_hash }
         } else {
             let legacy_tx = TransactionRequest::new()
@@ -84,12 +84,8 @@ impl EthTxInput {
                 wallet.sign_transaction_sync(&TypedTransaction::Legacy(legacy_tx.clone()))?;
 
             let sign_result = legacy_tx.rlp_signed(&signature);
-            let signature = hex::encode(sign_result.clone());
-            let tx_hash = format!(
-                "{}{}",
-                "0x",
-                hex::encode(keccak(sign_result.as_ref()).as_ref())
-            );
+            let signature = sign_result.to_hex();
+            let tx_hash = keccak(sign_result).as_ref().to_0x_hex();
 
             EthTxOutput { signature, tx_hash }
         };
@@ -108,7 +104,8 @@ impl EthTxInput {
                 storage_keys: {
                     let mut storage_keys: Vec<H256> = Vec::new();
                     for key in &access.storage_keys {
-                        let key_bytes: [u8; 32] = hex_to_bytes(key.as_str())?.try_into().unwrap();
+                        let key_bytes: [u8; 32] =
+                            Vec::from_hex_auto(key.as_str())?.try_into().unwrap();
                         storage_keys.push(H256(key_bytes));
                     }
                     storage_keys
@@ -127,7 +124,7 @@ impl EthMessageInput {
         let message_hash = hash_message(message);
         let sign_result = wallet.sign_hash(message_hash)?;
 
-        let signature = format!("{}{}", "0x", sign_result.to_string());
+        let signature = format!("0x{}", sign_result.to_string());
         Ok(EthMessageOutput { signature })
     }
 
@@ -149,7 +146,7 @@ impl EthRecoverAddressInput {
         let h256_hash = H256(keccak256(&message));
         let address = signature.recover(h256_hash)?;
         Ok(EthRecoverAddressOutput {
-            address: hex::encode(address.0),
+            address: address.0.to_0x_hex(),
         })
     }
 }

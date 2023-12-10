@@ -3,7 +3,7 @@ use tcx_keystore::{
     Keystore, Result, SignatureParameters, Signer, TransactionSigner as TraitTransactionSigner,
 };
 
-use tcx_crypto::{hash, hex};
+use tcx_common::{sha256, FromHex};
 
 use base64;
 
@@ -15,8 +15,8 @@ impl TraitTransactionSigner<AtomTxInput, AtomTxOutput> for Keystore {
         params: &SignatureParameters,
         tx: &AtomTxInput,
     ) -> Result<AtomTxOutput> {
-        let data = hex::hex_to_bytes(&tx.raw_data)?;
-        let hash = hash::sha256(&data);
+        let data = Vec::from_hex_auto(&tx.raw_data)?;
+        let hash = sha256(&data);
 
         let sign_result =
             self.secp256k1_ecdsa_sign_recoverable(&hash[..], &params.derivation_path)?;

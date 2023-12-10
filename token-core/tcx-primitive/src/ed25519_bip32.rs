@@ -4,12 +4,12 @@ use iop_keyvault::{
     Seed,
 };
 
+use tcx_common::{FromHex, ToHex};
+
 use super::Result;
 use crate::ecc::KeyError;
 use crate::ed25519::{Ed25519PrivateKey, Ed25519PublicKey};
-use crate::{
-    Derive, DeterministicPrivateKey, DeterministicPublicKey, FromHex, PrivateKey, PublicKey, ToHex,
-};
+use crate::{Derive, DeterministicPrivateKey, DeterministicPublicKey, PrivateKey, PublicKey};
 use bip39::{Language, Mnemonic};
 
 #[derive(Clone)]
@@ -103,13 +103,13 @@ impl DeterministicPublicKey for Ed25519DeterministicPublicKey {
 
 impl ToString for Ed25519DeterministicPrivateKey {
     fn to_string(&self) -> String {
-        hex::encode(self.0.private_key().to_bytes())
+        self.0.private_key().to_bytes().to_hex()
     }
 }
 
 impl ToString for Ed25519DeterministicPublicKey {
     fn to_string(&self) -> String {
-        hex::encode(self.0.to_bytes())
+        self.0.to_bytes().to_hex()
     }
 }
 
@@ -120,7 +120,7 @@ impl ToHex for Ed25519DeterministicPublicKey {
 }
 
 impl FromHex for Ed25519DeterministicPublicKey {
-    fn from_hex(_hex: &str) -> Result<Self> {
+    fn from_hex<T: AsRef<[u8]>>(_: T) -> Result<Self> {
         Err(KeyError::UnsupportEd25519PubkeyDerivation.into())
     }
 }
@@ -131,32 +131,33 @@ mod test {
     use crate::Derive;
     use hex;
     use iop_keyvault::ExtendedPrivateKey;
+    use tcx_common::ToHex;
 
     #[test]
     fn from_seed_test() {
-        let seed = hex::decode("fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
+        let seed = Vec::from_hex("fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
         //        println!("{}", hex::encode(default_seed().as_bytes()));
         //master key
         let esk = Ed25519DeterministicPrivateKey::from_seed(&seed).unwrap();
         assert_eq!(
+            esk.0.private_key().to_bytes().to_hex(),
             "171cb88b1b3c1db25add599712e36245d75bc65a1a5c9e18d76f9f2b1eab4012",
-            hex::encode(esk.0.private_key().to_bytes())
         );
         assert_eq!(
+            esk.0.chain_code().to_bytes().to_hex(),
             "ef70a74db9c3a5af931b5fe73ed8e1a53464133654fd55e7a66f8570b8e33c3b",
-            hex::encode(esk.0.chain_code().to_bytes())
         );
 
         //extended key
         let path = "m/0'/2147483647'/1'/2147483646'/2'";
         let derived_result = esk.derive(path).unwrap().0;
         assert_eq!(
+            derived_result.private_key().to_bytes().to_hex(),
             "551d333177df541ad876a60ea71f00447931c0a9da16f227c11ea080d7391b8d",
-            hex::encode(derived_result.private_key().to_bytes())
         );
         assert_eq!(
+            derived_result.chain_code().to_bytes().to_hex(),
             "5d70af781f3a37b829f0d060924d5e960bdc02e85423494afc0b1a41bbe196d4",
-            hex::encode(derived_result.chain_code().to_bytes())
         );
     }
 }

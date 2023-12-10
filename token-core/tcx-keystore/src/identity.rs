@@ -5,7 +5,6 @@ use bip39::{Language, Mnemonic, Seed};
 use bitcoin::blockdata::constants::PUBKEY_ADDRESS_PREFIX_MAIN;
 use bitcoin::blockdata::constants::PUBKEY_ADDRESS_PREFIX_TEST;
 use bitcoin::consensus::{Decodable, Encodable};
-use bitcoin::hashes::hex::{FromHex, ToHex};
 use bitcoin::network::constants::Network;
 use bitcoin::util::base58;
 use bitcoin::util::bip32::ExtendedPrivKey;
@@ -18,7 +17,7 @@ use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
 use secp256k1::{Message, PublicKey, Secp256k1};
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Write};
-use tcx_common::{keccak256, merkle_hash, random_u8_16, unix_timestamp};
+use tcx_common::{keccak256, merkle_hash, random_u8_16, unix_timestamp, FromHex, ToHex};
 use tcx_crypto::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
 use tcx_crypto::{crypto::Unlocker, EncPair};
 use tcx_primitive::{PrivateKey as TraitPrivateKey, Secp256k1PrivateKey};
@@ -77,7 +76,7 @@ impl Identity {
             "{}{:02x}{:02x}{:02x}",
             magic_hex, network_header, version, auth_pubkey_hash
         );
-        let identifier = base58::check_encode_slice(hex::decode(full_identifier)?.as_slice());
+        let identifier = base58::check_encode_slice(Vec::from_hex(full_identifier)?.as_slice());
 
         //gen enckey
         let enc_key_bytes = HMAC::mac("Encryption Key".as_bytes(), backup_key);
@@ -93,7 +92,7 @@ impl Identity {
 
         Ok(Identity {
             enc_auth_key,
-            enc_key: hex::encode(enc_key_bytes),
+            enc_key: enc_key_bytes.to_hex(),
             identifier,
             ipfs_id,
         })
@@ -118,9 +117,8 @@ impl Identity {
         unlocker: &Unlocker,
         network: &IdentityNetwork,
     ) -> Result<Self> {
-        let entropy = tcx_common::hex_to_bytes(&private_key)?;
+        let entropy = Vec::from_hex_auto(private_key)?;
         let mnemonic = Mnemonic::from_entropy(&entropy, Language::English).unwrap();
-        // let mnemonic = Mnemonic::from_phrase(mnemonic_phrase, Language::English).unwrap();
         let seed = Seed::new(&mnemonic, "");
         return Self::new(&seed, unlocker, network);
     }
@@ -236,6 +234,7 @@ impl Identity {
 
 #[cfg(test)]
 mod test {
+    use tcx_common::FromHex;
     use tcx_constants::sample_key::{MNEMONIC, PASSWORD, PRIVATE_KEY};
     use tcx_crypto::Key;
 
@@ -260,7 +259,7 @@ mod test {
 
         let unix_timestamp = 1514779200u64;
         for t in test_cases {
-            let iv: [u8; 16] = hex::decode(t.1).unwrap().try_into().unwrap();
+            let iv: [u8; 16] = Vec::from_hex(t.1).unwrap().try_into().unwrap();
             assert_eq!(
                 identity
                     .encrypt_ipfs_wth_timestamp_iv(t.0, unix_timestamp, &iv)

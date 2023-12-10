@@ -12,11 +12,11 @@ use crate::keystore::{transform_mnemonic_error, Store};
 
 use std::collections::HashMap;
 
+use tcx_common::{sha256d, ToHex};
 use tcx_constants::{CoinInfo, CurveType};
-use tcx_crypto::hash::dsha256;
 use tcx_crypto::{Crypto, Key};
 use tcx_primitive::{
-    generate_mnemonic, get_account_path, Derive, ToHex, TypedDeterministicPrivateKey,
+    generate_mnemonic, get_account_path, Derive, TypedDeterministicPrivateKey,
     TypedDeterministicPublicKey, TypedPrivateKey,
 };
 
@@ -63,8 +63,8 @@ pub fn key_hash_from_mnemonic(mnemonic: &str) -> Result<String> {
 
     let seed = Seed::new(&mn, "");
 
-    let bytes = dsha256(seed.as_bytes())[..20].to_vec();
-    Ok(hex::encode(bytes))
+    let bytes = sha256d(seed.as_bytes())[..20].to_vec();
+    Ok(bytes.to_hex())
 }
 
 impl HdKeystore {
@@ -216,7 +216,7 @@ impl HdKeystore {
             network: coin_info.network.to_string(),
             ext_pub_key,
             seg_wit: coin_info.seg_wit.to_string(),
-            public_key: hex::encode(public_key.to_bytes()),
+            public_key: public_key.to_bytes().to_hex(),
         };
 
         return Ok(account.clone());

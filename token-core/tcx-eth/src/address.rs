@@ -3,7 +3,7 @@ use ethereum_types::H160;
 use failure::format_err;
 use regex::Regex;
 use std::str::FromStr;
-use tcx_common::keccak256;
+use tcx_common::{keccak256, FromHex, ToHex};
 use tcx_constants::CoinInfo;
 use tcx_keystore::Address;
 use tcx_primitive::TypedPublicKey;
@@ -38,7 +38,7 @@ impl FromStr for EthAddress {
             return Err(format_err!("invalid_address"));
         }
 
-        let bytes = hex::decode(&s[2..])?;
+        let bytes = Vec::from_hex(&s[2..])?;
         let addr = H160::from_slice(&bytes);
         Ok(EthAddress(addr))
     }
@@ -61,7 +61,7 @@ pub fn is_valid_address(address: &str) -> bool {
     let address = &address[2..];
     let lower_address_bytes = address.to_lowercase();
     let hash = keccak256(lower_address_bytes.as_bytes());
-    let hash_str = hex::encode(hash);
+    let hash_str = hash.to_hex();
 
     for (i, c) in address.chars().enumerate() {
         let char_int =
@@ -77,6 +77,7 @@ pub fn is_valid_address(address: &str) -> bool {
 #[cfg(test)]
 mod test {
     use crate::address::EthAddress;
+    use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
     use tcx_keystore::Address;
     use tcx_primitive::{PrivateKey, Secp256k1PrivateKey, TypedPrivateKey};
@@ -84,7 +85,7 @@ mod test {
     #[test]
     fn test_eth_address() {
         let private_key_bytes =
-            hex::decode("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6")
+            Vec::from_hex("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6")
                 .unwrap();
         let mut secp256k1_private_key =
             Secp256k1PrivateKey::from_slice(private_key_bytes.as_slice()).unwrap();

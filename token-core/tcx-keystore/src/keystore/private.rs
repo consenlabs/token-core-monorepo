@@ -8,12 +8,12 @@ use super::Result;
 use crate::identity::Identity;
 use crate::keystore::Store;
 
-use tcx_crypto::hash::dsha256;
+use tcx_common::{sha256d, FromHex, ToHex};
 use tcx_primitive::TypedPrivateKey;
 use uuid::Uuid;
 
 pub fn key_hash_from_private_key(data: &[u8]) -> String {
-    hex::encode(dsha256(data)[..20].to_vec())
+    sha256d(data)[..20].to_hex()
 }
 
 #[derive(Clone)]
@@ -84,9 +84,9 @@ impl PrivateKeystore {
     }
 
     pub fn from_private_key(private_key: &str, password: &str, meta: Metadata) -> PrivateKeystore {
-        let key_data: Vec<u8> = tcx_common::hex_to_bytes(private_key).expect("hex can't decode");
+        let key_data: Vec<u8> = Vec::from_hex_auto(private_key).expect("hex can't decode");
         let key_hash = key_hash_from_private_key(&key_data);
-        //        let pk_bytes = hex::decode(private_key).expect("valid private_key");
+        //        let pk_bytes = Vec::from_hex(private_key).expect("valid private_key");
         let crypto: Crypto = Crypto::new(password, &key_data);
         let unlocker = crypto
             .use_key(&Key::Password(password.to_string()))
@@ -125,7 +125,7 @@ impl PrivateKeystore {
             network: coin.network.to_string(),
             seg_wit: coin.seg_wit.to_string(),
             ext_pub_key: "".to_string(),
-            public_key: hex::encode(pub_key.to_bytes()),
+            public_key: pub_key.to_bytes().to_hex(),
         };
 
         Ok(acc)
@@ -133,7 +133,7 @@ impl PrivateKeystore {
     pub(crate) fn private_key(&self) -> Result<String> {
         tcx_ensure!(self.private_key.is_some(), Error::KeystoreLocked);
         let vec = self.private_key.as_ref().unwrap().to_vec();
-        Ok(hex::encode(&vec))
+        Ok(vec.to_hex())
     }
 
     fn decrypt_private_key(&self, key: &Key) -> Result<Vec<u8>> {

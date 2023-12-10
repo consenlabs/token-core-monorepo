@@ -95,7 +95,7 @@ impl Identity {
             "{}{:02x}{:02x}{:02x}",
             magic_hex, network_header, version, auth_pubkey_hash
         );
-        let identifier = base58::check_encode_slice(hex::decode(full_identifier)?.as_slice());
+        let identifier = base58::check_encode_slice(Vec::from_hex(full_identifier)?.as_slice());
 
         //gen enckey
         let enc_key_bytes = HMAC::mac("Encryption Key".as_bytes(), backup_key);
@@ -132,7 +132,7 @@ impl Identity {
 
         Ok(Identity {
             enc_auth_key,
-            enc_key: hex::encode(enc_key_bytes),
+            enc_key: enc_key_bytes.to_hex(),
             identifier,
             ipfs_id,
         })
@@ -456,7 +456,7 @@ impl Identity {
 
 //         let unix_timestamp = 1514779200u64;
 //         for t in test_cases {
-//             let iv: [u8; 16] = hex::decode(t.1).unwrap().try_into().unwrap();
+//             let iv: [u8; 16] = Vec::from_hex(t.1).unwrap().try_into().unwrap();
 //             assert_eq!(
 //                 keystore
 //                     .encrypt_ipfs_wth_timestamp_iv(t.0, unix_timestamp, &iv)

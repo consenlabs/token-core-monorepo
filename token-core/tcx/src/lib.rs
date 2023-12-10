@@ -42,6 +42,7 @@ use crate::handler::{
 };
 
 use parking_lot::RwLock;
+use tcx_common::{FromHex, ToHex};
 
 extern crate serde_json;
 
@@ -72,7 +73,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
     let hex_c_str = CStr::from_ptr(hex_str);
     let hex_str = hex_c_str.to_str().expect("parse_arguments to_str");
 
-    let data = hex::decode(hex_str).expect("parse_arguments hex decode");
+    let data = Vec::from_hex(hex_str).expect("parse_arguments hex decode");
     let action: TcxAction = TcxAction::decode(data.as_slice()).expect("decode tcx api");
     let reply: Result<Vec<u8>> = match action.method.to_lowercase().as_str() {
         "init_token_core_x" => landingpad(|| {
@@ -137,7 +138,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
     };
     match reply {
         Ok(reply) => {
-            let ret_str = hex::encode(reply);
+            let ret_str = reply.to_hex();
             CString::new(ret_str).unwrap().into_raw()
         }
         _ => CString::new("").unwrap().into_raw(),
@@ -163,7 +164,7 @@ pub unsafe extern "C" fn get_last_err_message() -> *const c_char {
                 error: err.to_string(),
             };
             let rsp_bytes = encode_message(rsp).expect("encode error");
-            let ret_str = hex::encode(rsp_bytes);
+            let ret_str = rsp_bytes.to_hex();
             CString::new(ret_str).unwrap().into_raw()
         } else {
             CString::new("").unwrap().into_raw()
@@ -363,15 +364,15 @@ mod tests {
         };
         let _ = unsafe { clear_err() };
         let param_bytes = encode_message(param).unwrap();
-        let param_hex = hex::encode(param_bytes);
+        let param_hex = param_bytes.to_hex();
         let ret_hex = unsafe { _to_str(call_tcx_api(_to_c_char(&param_hex))) };
         let err = unsafe { _to_str(get_last_err_message()) };
         if !err.is_empty() {
-            let err_bytes = hex::decode(err).unwrap();
+            let err_bytes = Vec::from_hex(err).unwrap();
             let err_ret: GeneralResult = GeneralResult::decode(err_bytes.as_slice()).unwrap();
             Err(format_err!("{}", err_ret.error))
         } else {
-            Ok(hex::decode(ret_hex).unwrap())
+            Ok(Vec::from_hex(ret_hex).unwrap())
         }
     }
 
@@ -388,7 +389,7 @@ mod tests {
                 overwrite: true,
             };
             // let ret_bytes = call_api("import_mnemonic", import_param).unwrap();
-            let ret_bytes = hex::decode("0a2434656239623136392d323237392d343439332d616535342d62396233643761303630323512036161611a084d4e454d4f4e494328e9a1a2f305").unwrap();
+            let ret_bytes = Vec::from_hex("0a2434656239623136392d323237392d343439332d616535342d62396233643761303630323512036161611a084d4e454d4f4e494328e9a1a2f305").unwrap();
             let _ret: KeystoreResult = KeystoreResult::decode(ret_bytes.as_slice()).unwrap();
         });
     }
@@ -2069,14 +2070,14 @@ mod tests {
     //             "after sig"
     //         );
     //
-    //         let sig_bytes = hex::decode(output.signature[74..202].to_string()).unwrap();
+    //         let sig_bytes = Vec::from_hex(output.signature[74..202].to_string()).unwrap();
     //         let signature = sp_core::sr25519::Signature::from_slice(&sig_bytes);
     //
     //         let pub_key =
-    //             hex::decode("ce9e36de55716d91b1c50caa36a58cee6d28e532a710df0cf90609363947dd78")
+    //             Vec::from_hex("ce9e36de55716d91b1c50caa36a58cee6d28e532a710df0cf90609363947dd78")
     //                 .unwrap();
     //         let singer = sp_core::sr25519::Public::from_slice(&pub_key);
-    //         let msg = hex::decode("0400ff68686f29461fcc99ab3538c391e42556e49efc1ffa7933da42335aa626fae25a0700e40b5402dbae140700e40b540215040000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe790628ced8e0649883f3dd20344d9e6b014f076e788742f0925cf3875997e883").unwrap();
+    //         let msg = Vec::from_hex("0400ff68686f29461fcc99ab3538c391e42556e49efc1ffa7933da42335aa626fae25a0700e40b5402dbae140700e40b540215040000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe790628ced8e0649883f3dd20344d9e6b014f076e788742f0925cf3875997e883").unwrap();
     //
     //         assert!(
     //             sp_core::sr25519::Signature::verify(&signature, msg.as_slice(), &singer),
@@ -2379,14 +2380,14 @@ mod tests {
 
             assert_eq!(output.signature[0..4].to_string(), "0x01",);
 
-            let sig_bytes = hex::decode(output.signature[4..].to_string()).unwrap();
+            let sig_bytes = Vec::from_hex(output.signature[4..].to_string()).unwrap();
             let signature = sp_core::sr25519::Signature::from_slice(&sig_bytes).unwrap();
 
             let pub_key =
-                hex::decode("90742a577c8515391a46b7881c98c80ec92fe04255bb5b5fec862c7d633ada21")
+                Vec::from_hex("90742a577c8515391a46b7881c98c80ec92fe04255bb5b5fec862c7d633ada21")
                     .unwrap();
             let singer = sp_core::sr25519::Public::from_slice(&pub_key).unwrap();
-            let msg = hex::decode("0600ffd7568e5f0a7eda67a82691ff379ac4bba4f9c9b859fe779b5d46363b61ad2db9e56c0703d148e25901007b000000dcd1346701ca8396496e52aa2785b1748deb6db09551b72159dcb3e08991025bde8f69eeb5e065e18c6950ff708d7e551f68dc9bf59a07c52367c0280f805ec7").unwrap();
+            let msg = Vec::from_hex("0600ffd7568e5f0a7eda67a82691ff379ac4bba4f9c9b859fe779b5d46363b61ad2db9e56c0703d148e25901007b000000dcd1346701ca8396496e52aa2785b1748deb6db09551b72159dcb3e08991025bde8f69eeb5e065e18c6950ff708d7e551f68dc9bf59a07c52367c0280f805ec7").unwrap();
 
             assert!(
                 sp_core::sr25519::Signature::verify(&signature, msg.as_slice(), &singer),
@@ -2946,7 +2947,7 @@ mod tests {
     // #[test]
     // fn decode_error() {
     //     let param_hex = "0a166b657973746f72655f636f6d6d6f6e5f646572697665127a0a1d6170692e4b657973746f7265436f6d6d6f6e446572697665506172616d12590a2432303766353663652d306363302d343239352d626165632d353931366434653639353933120831323334313233341a270a0554455a4f5312116d2f3434272f31373239272f30272f30271a074d41494e4e455422002a00";
-    //     let param_bytes = hex::decode(param_hex).unwrap();
+    //     let param_bytes = Vec::from_hex(param_hex).unwrap();
     //     let action: TcxAction = TcxAction::decode(param_bytes.as_slice()).unwrap();
     //     let param: DeriveAccountsParam =
     //         DeriveAccountsParam::decode(action.param.unwrap().value.as_slice()).unwrap();
@@ -2963,7 +2964,7 @@ mod tests {
             };
             let _ret = call_api("unlock_then_crash", param);
             let err = unsafe { _to_str(get_last_err_message()) };
-            let err_bytes = hex::decode(err).unwrap();
+            let err_bytes = Vec::from_hex(err).unwrap();
             let rsp: GeneralResult = GeneralResult::decode(err_bytes.as_slice()).unwrap();
             assert!(!rsp.is_success);
             assert_eq!(rsp.error, "test_unlock_then_crash");

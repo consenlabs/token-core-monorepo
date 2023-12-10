@@ -11,6 +11,7 @@ use tcx_keystore::{
 
 use tcx_btc_kin::address::BtcKinAddress;
 use tcx_btc_kin::Error;
+use tcx_common::ToHex;
 use tcx_eos::address::EosAddress;
 use tcx_eth::address::EthAddress;
 use tcx_keystore::identity::Identity;
@@ -243,8 +244,7 @@ impl LegacyKeystore {
             .clone()
             .and_then(|net| IdentityNetwork::from_str(&net).ok())
             .unwrap_or(IdentityNetwork::Mainnet);
-        let identity =
-            Identity::from_private_key(&hex::encode(private_key.clone()), &unlocker, &network)?;
+        let identity = Identity::from_private_key(&private_key.to_hex(), &unlocker, &network)?;
 
         let mut store = Store {
             id: self.id.to_string(),

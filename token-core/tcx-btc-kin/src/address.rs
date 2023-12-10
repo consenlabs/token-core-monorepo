@@ -288,6 +288,7 @@ impl Display for BtcKinAddress {
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
+    use tcx_common::{FromHex, ToHex};
 
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType};
@@ -300,7 +301,7 @@ mod tests {
     #[test]
     pub fn test_btc_kin_address() {
         let pub_key_str = "02506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aaba";
-        let pub_key = hex::decode(pub_key_str).unwrap();
+        let pub_key = Vec::from_hex(pub_key_str).unwrap();
         let network = BtcKinNetwork::find_by_coin("LITECOIN", "MAINNET").unwrap();
         let addr = BtcKinAddress::p2shwpkh(&pub_key, &network)
             .unwrap()
@@ -390,19 +391,19 @@ mod tests {
     #[test]
     pub fn test_script_pubkey() {
         let addr = BtcKinAddress::from_str("MR5Hu9zXPX3o9QuYNJGft1VMpRP418QDfW").unwrap();
-        let script = hex::encode(addr.script_pubkey().as_bytes());
+        let script = addr.script_pubkey().as_bytes().to_hex();
         assert_eq!("a914bc64b2d79807cd3d72101c3298b89117d32097fb87", script);
 
         let addr = BtcKinAddress::from_str("ltc1qum864wd9nwsc0u9ytkctz6wzrw6g7zdn08yddf").unwrap();
-        let script = hex::encode(addr.script_pubkey().as_bytes());
+        let script = addr.script_pubkey().as_bytes().to_hex();
         assert_eq!("0014e6cfaab9a59ba187f0a45db0b169c21bb48f09b3", script);
 
         let addr = BtcKinAddress::from_str("Ldfdegx3hJygDuFDUA7Rkzjjx8gfFhP9DP").unwrap();
-        let script = hex::encode(addr.script_pubkey().as_bytes());
+        let script = addr.script_pubkey().as_bytes().to_hex();
         assert_eq!("76a914ca4d8acded69ce4f05d0925946d261f86c675fd888ac", script);
 
         let addr = BtcKinAddress::from_str("3Js9bGaZSQCNLudeGRHL4NExVinc25RbuG").unwrap();
-        let script = hex::encode(addr.script_pubkey().as_bytes());
+        let script = addr.script_pubkey().as_bytes().to_hex();
         assert_eq!("a914bc64b2d79807cd3d72101c3298b89117d32097fb87", script);
     }
 

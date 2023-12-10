@@ -7,6 +7,7 @@ use bitcoin::util::key::{PrivateKey, PublicKey};
 
 use crate::{Result, Ss58Codec};
 use bitcoin::util::base58;
+use tcx_common::ToHex;
 
 use tcx_constants::{network_from_coin, CoinInfo};
 
@@ -155,7 +156,7 @@ pub fn verify_private_key(private_key: &str, coin: &CoinInfo) -> Result<String> 
         if version[0] != network.private_prefix {
             return Err(KeyError::InvalidPrivateKey.into());
         } else {
-            return Ok(hex::encode(pk.to_bytes()));
+            return Ok(pk.to_bytes().to_hex());
         }
     }
     Ok(private_key.to_string())

@@ -1,8 +1,7 @@
 use base58::{FromBase58, ToBase58};
 use std::str::FromStr;
-use tcx_common::CommonError;
+use tcx_common::{ripemd160, CommonError};
 use tcx_constants::CoinInfo;
-use tcx_crypto::hash;
 use tcx_keystore::{Address, Result};
 use tcx_primitive::TypedPublicKey;
 
@@ -15,7 +14,7 @@ pub struct EosAddress {
 impl Address for EosAddress {
     fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
         let pubkey_bytes = public_key.to_bytes();
-        let hashed_bytes = hash::ripemd160(&pubkey_bytes);
+        let hashed_bytes = ripemd160(&pubkey_bytes);
         let checksum = hashed_bytes[..4].to_vec();
 
         Ok(EosAddress {
@@ -39,7 +38,7 @@ impl FromStr for EosAddress {
             let checksum = bytes[bytes.len() - 4..].to_vec();
             let pubkey_bytes = bytes[..bytes.len() - 4].to_vec();
 
-            let hashed_bytes = hash::ripemd160(&pubkey_bytes);
+            let hashed_bytes = ripemd160(&pubkey_bytes);
             let expected_checksum = hashed_bytes[..4].to_vec();
             if checksum != expected_checksum {
                 return Err(CommonError::InvalidAddressChecksum.into());

@@ -104,8 +104,10 @@ mod tests {
 
             let pub_key = TypedPublicKey::from_slice(
                 CurveType::SECP256k1,
-                &hex::decode("024a501efd328e062c8675f2365970728c859c592beeefd6be8ead3d901330bc01")
-                    .unwrap(),
+                &Vec::from_hex(
+                    "024a501efd328e062c8675f2365970728c859c592beeefd6be8ead3d901330bc01",
+                )
+                .unwrap(),
             )
             .unwrap();
             let addr = CkbAddress::from_public_key(&pub_key, &coin_info).unwrap();

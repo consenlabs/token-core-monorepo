@@ -1,7 +1,9 @@
+use tcx_common::{FromHex, ToHex};
+
 use super::Result;
 use crate::{
-    Bip32DeterministicPrivateKey, Bip32DeterministicPublicKey, Derive, FromHex,
-    Secp256k1PrivateKey, Secp256k1PublicKey, ToHex,
+    Bip32DeterministicPrivateKey, Bip32DeterministicPublicKey, Derive, Secp256k1PrivateKey,
+    Secp256k1PublicKey,
 };
 
 use crate::bls::{BLSPrivateKey, BLSPublicKey};
@@ -374,9 +376,9 @@ impl ToString for TypedDeterministicPrivateKey {
     fn to_string(&self) -> String {
         match self {
             TypedDeterministicPrivateKey::Bip32Sepc256k1(sk) => sk.to_string(),
-            TypedDeterministicPrivateKey::SubSr25519(sk) => hex::encode(sk.0.to_raw_vec()),
+            TypedDeterministicPrivateKey::SubSr25519(sk) => sk.0.to_raw_vec().to_hex(),
             TypedDeterministicPrivateKey::Bip32Ed25519(sk) => sk.to_string(),
-            TypedDeterministicPrivateKey::BLS(sk) => hex::encode(sk.0.to_string()),
+            TypedDeterministicPrivateKey::BLS(sk) => sk.0.to_string(),
         }
     }
 }
@@ -432,6 +434,7 @@ mod tests {
     use super::{PrivateKey, PublicKey, TypedDeterministicPrivateKey, TypedPrivateKey};
     use crate::{Derive, TypedPublicKey};
     use bip39::{Language, Mnemonic, Seed};
+    use tcx_common::ToHex;
 
     use tcx_constants::{CurveType, TEST_MNEMONIC};
 
@@ -446,7 +449,7 @@ mod tests {
     }
 
     fn default_private_key() -> Vec<u8> {
-        hex::decode("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc").unwrap()
+        Vec::from_hex("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc").unwrap()
     }
 
     const PUB_KEY_HEX: &'static str =
@@ -462,10 +465,10 @@ mod tests {
         assert_eq!(sk.to_bytes(), default_private_key());
         assert_eq!(sk.as_secp256k1().unwrap().to_bytes(), default_private_key());
         assert_eq!(sk.curve_type(), CurveType::SECP256k1);
-        assert_eq!(hex::encode(sk.public_key().to_bytes()), PUB_KEY_HEX);
+        assert_eq!(sk.public_key().to_bytes().to_hex(), PUB_KEY_HEX);
 
         let sign_ret = sk.sign(&default_private_key()).unwrap();
-        assert_eq!(hex::encode(sign_ret), "304402206614e4bfa3ba1f6c975286a0a683871d6f0525a0860631afa5bea4da78ca012a02207a663d4980abed218683f66a63bbb766975fd525b8442a0424f6347c3d4f9261");
+        assert_eq!(sign_ret.to_hex(), "304402206614e4bfa3ba1f6c975286a0a683871d6f0525a0860631afa5bea4da78ca012a02207a663d4980abed218683f66a63bbb766975fd525b8442a0424f6347c3d4f9261");
     }
 
     #[test]
@@ -483,7 +486,7 @@ mod tests {
 
         assert_eq!(dpk.curve_type(), CurveType::SECP256k1);
         assert_eq!(
-            hex::encode(dpk.public_key().to_bytes()),
+            dpk.public_key().to_bytes().to_hex(),
             "029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77"
         );
         let child_dpk = dpk.derive("0/0").unwrap();
@@ -496,17 +499,14 @@ mod tests {
 
     #[test]
     fn test_typed_public_key() {
-        let pub_key = hex::decode(PUB_KEY_HEX).unwrap();
+        let pub_key = Vec::from_hex(PUB_KEY_HEX).unwrap();
 
         let pk = TypedPublicKey::from_slice(CurveType::SECP256k1, &pub_key).unwrap();
 
         assert_eq!(pk.curve_type(), CurveType::SECP256k1);
 
-        assert_eq!(hex::encode(pk.to_bytes()), PUB_KEY_HEX);
-        assert_eq!(
-            hex::encode(pk.as_secp256k1().unwrap().to_bytes()),
-            PUB_KEY_HEX
-        );
+        assert_eq!(pk.to_bytes().to_hex(), PUB_KEY_HEX);
+        assert_eq!(pk.as_secp256k1().unwrap().to_bytes().to_hex(), PUB_KEY_HEX);
         assert_eq!(pk.curve_type(), CurveType::SECP256k1);
     }
 }

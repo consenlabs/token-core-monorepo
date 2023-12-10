@@ -104,6 +104,7 @@ impl ScriptPubkey for BchAddress {
 #[cfg(test)]
 mod tests {
     use super::{remove_bch_prefix, BchAddress};
+    use tcx_common::FromHex;
 
     use crate::address::WIFDisplay;
     use tcx_constants::coin_info::coin_info_from_param;
@@ -131,8 +132,10 @@ mod tests {
         let addr = BchAddress::from_public_key(
             &TypedPublicKey::from_slice(
                 CurveType::SECP256k1,
-                &hex::decode("026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868")
-                    .unwrap(),
+                &Vec::from_hex(
+                    "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
+                )
+                .unwrap(),
             )
             .unwrap(),
             &coin_info,
@@ -147,8 +150,10 @@ mod tests {
         let addr = BchAddress::from_public_key(
             &TypedPublicKey::from_slice(
                 CurveType::SECP256k1,
-                &hex::decode("026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868")
-                    .unwrap(),
+                &Vec::from_hex(
+                    "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
+                )
+                .unwrap(),
             )
             .unwrap(),
             &coin_info,

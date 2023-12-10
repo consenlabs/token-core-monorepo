@@ -1,5 +1,5 @@
 use base58::ToBase58;
-use tcx_crypto::hash;
+use tcx_common::ripemd160;
 use tcx_keystore::{ChainFactory, PrivateKeyEncoder, PublicKeyEncoder, Result};
 use tcx_primitive::{PrivateKey, PublicKey, Secp256k1PrivateKey, Secp256k1PublicKey, Ss58Codec};
 
@@ -9,7 +9,7 @@ impl PublicKeyEncoder for EosPublicKeyEncoder {
     fn encode(&self, public_key: &[u8]) -> Result<String> {
         let compressed_pub_key = Secp256k1PublicKey::from_slice(public_key)?.to_compressed();
         let bytes = compressed_pub_key.as_slice();
-        let hashed_bytes = hash::ripemd160(&bytes);
+        let hashed_bytes = ripemd160(&bytes);
         let checksum = &hashed_bytes[..4];
         Ok(format!("EOS{}", [&bytes, checksum].concat().to_base58()))
     }

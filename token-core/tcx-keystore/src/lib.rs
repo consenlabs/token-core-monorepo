@@ -31,6 +31,7 @@ pub use keystore::{
 pub use signer::{
     ChainSigner, HashSigner, MessageSigner, SignatureParameters, Signer, TransactionSigner,
 };
+use tcx_common::{FromHex, ToHex};
 
 pub type Result<T> = result::Result<T, failure::Error>;
 
@@ -64,7 +65,7 @@ pub struct HexPublicKeyEncoder();
 
 impl PublicKeyEncoder for HexPublicKeyEncoder {
     fn encode(&self, public_key: &[u8]) -> Result<String> {
-        Ok(hex::encode(public_key))
+        Ok(public_key.to_hex())
     }
 }
 
@@ -77,11 +78,11 @@ pub struct HexPrivateKeyEncoder();
 
 impl PrivateKeyEncoder for HexPrivateKeyEncoder {
     fn encode(&self, private_key: &[u8]) -> Result<String> {
-        Ok(tcx_crypto::hex::bytes_to_hex(private_key))
+        Ok(private_key.to_0x_hex())
     }
 
     fn decode(&self, private_key_str: &str) -> Result<Vec<u8>> {
-        tcx_crypto::hex::hex_to_bytes(private_key_str)
+        Vec::from_hex_auto(private_key_str)
     }
 }
 

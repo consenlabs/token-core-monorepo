@@ -1,8 +1,8 @@
 use core::str::FromStr;
 
 use bech32::{FromBase32, ToBase32, Variant};
+use tcx_common::{ripemd160, sha256};
 use tcx_constants::CoinInfo;
-use tcx_crypto::hash;
 use tcx_keystore::{Address, Result};
 use tcx_primitive::TypedPublicKey;
 
@@ -17,7 +17,7 @@ impl Address for AtomAddress {
 
         let pub_key_bytes = public_key.to_bytes();
         let mut bytes = [0u8; LENGTH];
-        let pub_key_hash = hash::ripemd160(&hash::sha256(&pub_key_bytes));
+        let pub_key_hash = ripemd160(&sha256(&pub_key_bytes));
         bytes.copy_from_slice(&pub_key_hash[..LENGTH]);
 
         Ok(AtomAddress(
@@ -66,8 +66,8 @@ mod tests {
     use crate::address::AtomAddress;
     use tcx_keystore::Address;
 
+    use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
-    use tcx_crypto::hex;
     use tcx_primitive::TypedPublicKey;
 
     fn get_test_coin() -> CoinInfo {
@@ -94,11 +94,9 @@ mod tests {
         ];
 
         for (sec_key, expected_addr) in test_cases {
-            let pub_key = TypedPublicKey::from_slice(
-                CurveType::SECP256k1,
-                &hex::hex_to_bytes(sec_key).unwrap(),
-            )
-            .unwrap();
+            let pub_key =
+                TypedPublicKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(sec_key).unwrap())
+                    .unwrap();
 
             let addr = AtomAddress::from_public_key(&pub_key, &get_test_coin()).unwrap();
             assert_eq!(addr.to_string(), expected_addr);

@@ -10,6 +10,7 @@ use regex::Regex;
 use serde::__private::{fmt, PhantomData};
 use std::io::Cursor;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tcx_common::FromHex;
 use tcx_constants::{CoinInfo, Result};
 use tcx_crypto::numberic_util::random_iv;
 use tcx_primitive::{
@@ -207,10 +208,10 @@ impl SubstrateKeystore {
         }
 
         if self.encoded.starts_with("0x") {
-            return hex::decode(&self.encoded[2..])
+            return Vec::from_hex(&self.encoded[2..])
                 .map_err(|_| format_err!("decode_cipher_text decode hex"));
         } else {
-            return hex::decode(&self.encoded)
+            return Vec::from_hex(&self.encoded)
                 .map_err(|_| format_err!("decode_cipher_text decode hex"));
         }
     }
@@ -347,14 +348,15 @@ pub fn encode_substrate_keystore(
 #[cfg(test)]
 mod test_super {
     use super::*;
+    use tcx_common::{FromHex, ToHex};
     use tcx_constants::{coin_info_from_param, TEST_PASSWORD};
 
     #[test]
     fn test_decrypt_encoded() {
         let encoded = "d80bcaf72c744d5a9a6c4229280e360d98d408afbe67232c3418a2a591b3f2bf468a319b7e5c1717bb8285619a76584a7961eac2183f94cfa56ad975cb78ae87b4dc18e7c20036bd448aa52c5ee7a45c4cdf41923c8133d6bfc29c737b65dcfb357884b55fb36d4762446fb26bfd8fce49142cf0e7d3642e2095ea6e425a8e923629306875c36b72a82d517478a19c8786b1be611e77286ba6448bf93c";
-        let encoded_bytes = hex::decode(encoded).expect("encoded_bytes");
+        let encoded_bytes = Vec::from_hex(encoded).expect("encoded_bytes");
         let decrypted = decrypt_content("testing".as_bytes(), &encoded_bytes).unwrap();
-        assert_eq!(hex::encode(decrypted), "3053020101300506032b657004220420416c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4fa123032100d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f");
+        assert_eq!(decrypted.to_hex(), "3053020101300506032b657004220420416c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4fa123032100d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f");
     }
 
     const KEYSTORE_STR: &str = r#"{
@@ -380,7 +382,7 @@ mod test_super {
     fn test_decrypt_from_keystore_v2() {
         let ks: SubstrateKeystore = serde_json::from_str(KEYSTORE_STR).unwrap();
         let decrypted = decode_substrate_keystore(&ks, TEST_PASSWORD).unwrap();
-        assert_eq!(hex::encode(decrypted), "00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd");
+        assert_eq!(decrypted.to_hex(), "00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd");
         let decrypted = decode_substrate_keystore(&ks, "wrong_password");
         assert_eq!(
             format!("{}", decrypted.err().unwrap()),
@@ -416,7 +418,7 @@ mod test_super {
         assert_eq!(ks.encoding.encoding_type.len(), 2);
         assert_eq!(ks.encoding.encoding_type[0], "scrypt");
         let decrypted = decode_substrate_keystore(&ks, &TEST_PASSWORD).unwrap();
-        assert_eq!(hex::encode(decrypted), "00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd");
+        assert_eq!(decrypted.to_hex(), "00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd");
         let decrypted = decode_substrate_keystore(&ks, "wrong_password");
         assert_eq!(
             format!("{}", decrypted.err().unwrap()),
@@ -449,7 +451,7 @@ mod test_super {
                                         }"#;
         let ks: SubstrateKeystore = serde_json::from_str(keystore_str_v3_hex).unwrap();
         let decrypted = decode_substrate_keystore(&ks, "version3").unwrap();
-        assert_eq!(hex::encode(decrypted), "50f027d401a8572ff06381cf9dc633d08bd46af0d8bd6ded4ffdb4c706afdd669c80475085d55140552e00ff1fabb70be0d67c0db540c23549922b4edb4e4add");
+        assert_eq!(decrypted.to_hex(), "50f027d401a8572ff06381cf9dc633d08bd46af0d8bd6ded4ffdb4c706afdd669c80475085d55140552e00ff1fabb70be0d67c0db540c23549922b4edb4e4add");
         let decrypted = decode_substrate_keystore(&ks, "wrong_password");
         assert_eq!(
             format!("{}", decrypted.err().unwrap()),
@@ -459,7 +461,7 @@ mod test_super {
 
     #[test]
     fn test_export_from_secret_key() {
-        let prv_key = hex::decode("00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd").unwrap();
+        let prv_key = Vec::from_hex("00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd").unwrap();
         let coin_info = coin_info_from_param("KUSAMA", "", "", "").unwrap();
         let keystore = encode_substrate_keystore(&TEST_PASSWORD, &prv_key, &coin_info).unwrap();
         assert_eq!(

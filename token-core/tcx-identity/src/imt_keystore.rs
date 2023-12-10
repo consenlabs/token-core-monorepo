@@ -181,7 +181,7 @@
 //     use tcx_constants::sample_key::{MNEMONIC, PASSWORD, PASSWORD_HINT};
 //     #[test]
 //     fn test_get_address() {
-//         let public_key = hex::decode("0480c98b8ea7cab630defb0c09a4295c2193cdee016c1d5b9b0cb18572b9c370fefbc790fc3291d3cb6441ac94c3952035c409f4374d1780f400c1ed92972ce83c").unwrap();
+//         let public_key = Vec::from_hex("0480c98b8ea7cab630defb0c09a4295c2193cdee016c1d5b9b0cb18572b9c370fefbc790fc3291d3cb6441ac94c3952035c409f4374d1780f400c1ed92972ce83c").unwrap();
 //         let address = get_address(constants::CHAIN_TYPE_ETHEREUM, false, public_key.as_slice());
 //         assert!(address.is_ok());
 //         assert_eq!(address.unwrap(), "6031564e7b2f5cc33737807b2e58daff870b590b");

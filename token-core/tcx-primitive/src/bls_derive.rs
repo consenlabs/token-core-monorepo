@@ -1,10 +1,11 @@
 use bip39::{Language, Mnemonic};
 use num_bigint::BigUint;
+use tcx_common::{FromHex, ToHex};
 
 use super::Result;
 use crate::bls::{BLSPrivateKey, BLSPublicKey};
 use crate::ecc::KeyError;
-use crate::{Derive, DeterministicPrivateKey, DeterministicPublicKey, FromHex, PrivateKey, ToHex};
+use crate::{Derive, DeterministicPrivateKey, DeterministicPublicKey, PrivateKey};
 use num_traits::{FromPrimitive, Num, Pow};
 use sha2::digest::FixedOutput;
 use sha2::{Digest, Sha256};
@@ -71,7 +72,7 @@ impl DeterministicPrivateKey for BLSDeterministicPrivateKey {
 impl Derive for BLSDeterministicPublicKey {}
 
 impl FromHex for BLSDeterministicPublicKey {
-    fn from_hex(_: &str) -> Result<Self> {
+    fn from_hex<T: AsRef<[u8]>>(_: T) -> Result<Self> {
         panic!("not supported")
     }
 }
@@ -235,7 +236,7 @@ mod tests {
         );
 
         for t in test_vectors.iter() {
-            let seed = hex::decode(t.seed).expect("invalid seed format");
+            let seed = Vec::from_hex(t.seed).expect("invalid seed format");
             let master_sk = t
                 .master_sk
                 .parse::<BigUint>()
@@ -263,25 +264,25 @@ mod tests {
     #[test]
     fn test_bls_derive() {
         let dsk = BLSDeterministicPrivateKey::from_seed(
-            &hex::decode("c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04").unwrap()).unwrap();
+            &Vec::from_hex("c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04").unwrap()).unwrap();
 
         assert_eq!(
-            hex::encode(dsk.private_key().to_bytes()),
+            dsk.private_key().to_bytes().to_hex(),
             "7050b4223168ae407dee804d461fc3dbfe53f5dc5218debb8fab6379d559730d"
         );
 
         assert_eq!(
-            hex::encode(dsk.private_key().public_key().to_bytes()),
+            dsk.private_key().public_key().to_bytes().to_hex(),
             "a2c975348667926acf12f3eecb005044e08a7a9b7d95f30bd281b55445107367a2e5d0558be7943c8bd13f9a1a7036fb"
         );
 
         assert_eq!(
-            hex::encode(dsk.derive("m/0").unwrap().private_key().to_bytes()),
+            dsk.derive("m/0").unwrap().private_key().to_bytes().to_hex(),
             "8e0fe539158c9d590a771420cc033baedaf3749b5c08b5f85bd1e6146cbd182d"
         );
 
         assert_eq!(
-            hex::encode(dsk.derive("m/0").unwrap().private_key().public_key().to_bytes()),
+            dsk.derive("m/0").unwrap().private_key().public_key().to_bytes().to_hex(),
             "a17ec83dc60fe5d43cf3767e06a75a3394847f204052d52fd9f3d53e044a5abb250749ea35399dfed58fe1f4765a8c52"
         );
     }
@@ -289,7 +290,7 @@ mod tests {
     #[test]
     fn eth2_withdrawal_address_test() {
         let dsk = BLSDeterministicPrivateKey::from_seed(
-            &hex::decode("ee3fce3ccf05a2b58c851e321077a63ee2113235112a16fc783dc16279ff818a549ff735ac4406c624235db2d37108e34c6cbe853cbe09eb9e2369e6dd1c5aaa").unwrap()).unwrap();
+            &Vec::from_hex("ee3fce3ccf05a2b58c851e321077a63ee2113235112a16fc783dc16279ff818a549ff735ac4406c624235db2d37108e34c6cbe853cbe09eb9e2369e6dd1c5aaa").unwrap()).unwrap();
         assert_eq!(
             dsk.0,
             "18563599344197674528480235454076968403807977642577320252460493386276600523197"
@@ -300,25 +301,25 @@ mod tests {
         let child_sk = dsk.derive("m/12381/3600/1/0/0").unwrap().private_key();
 
         assert_eq!(
-            hex::encode(child_sk.to_bytes()),
+            child_sk.to_bytes().to_hex(),
             "ba87c3a478ee2a5a26c48918cc99be88bc648bee3d38c2d5faad41872a9e0d06"
         );
 
         assert_eq!(
-            hex::encode(child_sk.public_key().to_bytes()),
+            child_sk.public_key().to_bytes().to_hex(),
             "b7912fe8f9b811df8c11a1d3306d2a27d091aa37adf994d8484cdd82137d76a5bcb1206e3b4715eb598e23ea5b48dfe5"
         );
 
         let dsk = BLSDeterministicPrivateKey::from_seed(
-            &hex::decode("ed93db74a05f1a93b607ac20b447152aedfeb1f541c75abbb415c068eacdd9cd4f46f97b4ee0bbe99255016e3121ff7d283c5ab9a5d235829870b76e6e070061").unwrap()).unwrap();
+            &Vec::from_hex("ed93db74a05f1a93b607ac20b447152aedfeb1f541c75abbb415c068eacdd9cd4f46f97b4ee0bbe99255016e3121ff7d283c5ab9a5d235829870b76e6e070061").unwrap()).unwrap();
 
         let child_sk = dsk.derive("m/12381/3600/0/0/0").unwrap().private_key();
         assert_eq!(
-            hex::encode(child_sk.to_bytes()),
+            child_sk.to_bytes().to_hex(),
             "46c50b0327f01e713b27c976fcc893cf19cff729e75b70dc5caa8b3d8c1df700"
         );
         assert_eq!(
-            hex::encode(child_sk.public_key().to_bytes()),
+            child_sk.public_key().to_bytes().to_hex(),
             "8ef2719d53c1263dfa666f2f00b1e099961746e6c6ed6c70a8ab92c6dcbe7f11edf2e9769aa6f8b2e616b3f426fa8cee"
         );
     }

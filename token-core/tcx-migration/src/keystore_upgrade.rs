@@ -1,5 +1,6 @@
 use serde_json::{json, Value};
 use std::str::FromStr;
+use tcx_common::ToHex;
 use tcx_crypto::{Crypto, Key};
 use tcx_keystore::identity::Identity;
 use tcx_keystore::keystore::IdentityNetwork;
@@ -44,7 +45,7 @@ impl KeystoreUpgrade {
             11001 => {
                 json["version"] = json!(PrivateKeystore::VERSION);
                 json["identity"] = json!(Identity::from_private_key(
-                    &hex::encode(unlocker.plaintext()?),
+                    &unlocker.plaintext()?.to_hex(),
                     &unlocker,
                     &identity_network,
                 )?);

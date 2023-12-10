@@ -6,12 +6,14 @@ use tcx_keystore::Address;
 use tcx_keystore::Result;
 use tcx_primitive::TypedPublicKey;
 
+use tcx_common::FromHex;
+
 #[derive(PartialEq, Eq, Clone)]
 pub struct TezosAddress(String);
 
 impl Address for TezosAddress {
     fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
-        let tz1_prefix = hex::decode("06A19F")?;
+        let tz1_prefix = Vec::from_hex("06A19F")?;
         //get public key
         let pubkey = public_key.to_bytes();
         //Perform Blake2B hashing on the public key（no prefix）
@@ -70,6 +72,7 @@ pub fn sha256_hash(data: &[u8]) -> Vec<u8> {
 #[cfg(test)]
 mod test {
     use crate::address::TezosAddress;
+    use hex::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
     use tcx_keystore::Address;
     use tcx_primitive::TypedPublicKey;
@@ -86,7 +89,7 @@ mod test {
 
         let pub_key = TypedPublicKey::from_slice(
             CurveType::ED25519,
-            &hex::decode("4a501efd328e062c8675f2365970728c859c592beeefd6be8ead3d901330bc01")
+            &Vec::from_hex("4a501efd328e062c8675f2365970728c859c592beeefd6be8ead3d901330bc01")
                 .unwrap(),
         )
         .unwrap();
@@ -99,7 +102,7 @@ mod test {
 
         let _pub_key = TypedPublicKey::from_slice(
             CurveType::ED25519,
-            &hex::decode("d0c5ee97112a8a6f192ec44ab10f6a51bbfa327f7736e8e8b30b9ec636bc533b")
+            &Vec::from_hex("d0c5ee97112a8a6f192ec44ab10f6a51bbfa327f7736e8e8b30b9ec636bc533b")
                 .unwrap(),
         )
         .unwrap();

@@ -7,8 +7,8 @@ use std::path::Path;
 use std::str::FromStr;
 use tcx_keystore::keystore::IdentityNetwork;
 
-use tcx_common::hex_to_bytes;
-use tcx_primitive::{private_key_without_version, FromHex, TypedPrivateKey};
+use tcx_common::{FromHex, ToHex};
+use tcx_primitive::{private_key_without_version, TypedPrivateKey};
 
 use tcx_btc_kin::WIFDisplay;
 use tcx_keystore::{
@@ -262,8 +262,8 @@ fn encrypt_xpub(xpub: &str, network: &str) -> Result<String> {
 
     let key = tcx_crypto::XPUB_COMMON_KEY_128.read();
     let iv = tcx_crypto::XPUB_COMMON_IV.read();
-    let key_bytes = hex::decode(&*key)?;
-    let iv_bytes = hex::decode(&*iv)?;
+    let key_bytes = Vec::from_hex(&*key)?;
+    let iv_bytes = Vec::from_hex(&*iv)?;
     let encrypted = encrypt_pkcs7(&ext_pub_key.as_bytes(), &key_bytes, &iv_bytes)?;
     Ok(base64::encode(&encrypted))
 }
@@ -272,8 +272,8 @@ fn decrypt_xpub(enc_xpub: &str) -> Result<Bip32DeterministicPublicKey> {
     let encrypted = base64::decode(enc_xpub)?;
     let key = tcx_crypto::XPUB_COMMON_KEY_128.read();
     let iv = tcx_crypto::XPUB_COMMON_IV.read();
-    let key_bytes = hex::decode(&*key)?;
-    let iv_bytes = hex::decode(&*iv)?;
+    let key_bytes = Vec::from_hex(&*key)?;
+    let iv_bytes = Vec::from_hex(&*iv)?;
     let data = decrypt_pkcs7(&encrypted, &key_bytes, &iv_bytes)?;
 
     let xpub_str = String::from_utf8(data)?;
@@ -343,7 +343,7 @@ pub(crate) fn export_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 fn key_data_from_any_format_pk(pk: &str) -> Result<Vec<u8>> {
-    let decoded = hex::decode(pk.to_string());
+    let decoded = Vec::from_hex(pk.to_string());
     if decoded.is_ok() {
         let bytes = decoded.unwrap();
         if bytes.len() <= 64 {
@@ -399,7 +399,7 @@ pub(crate) fn import_private_key(data: &[u8]) -> Result<Vec<u8>> {
     } else {
         pk_bytes = key_data_from_any_format_pk(&param.private_key)?;
     }
-    let private_key = hex::encode(pk_bytes);
+    let private_key = pk_bytes.to_hex();
     let meta = Metadata {
         name: param.name,
         password_hint: param.password_hint,
@@ -448,23 +448,23 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
         .keystore_mut()
         .get_private_key(curve, &param.path)?
         .to_bytes();
-    let pk_hex = hex::encode(pk_bytes);
+    let pk_hex = pk_bytes.to_hex();
 
     // private_key prefix is only about chain type and network
     // TODO: add export_pk to macro
     let value = if ["TRON", "POLKADOT", "KUSAMA"].contains(&param.chain_type.as_str()) {
         Ok(pk_hex.to_string())
     } else if "FILECOIN".contains(&param.chain_type.as_str()) {
-        Ok(hex::encode(
-            KeyInfo::from_private_key(curve, &hex::decode(pk_hex)?)?.to_json()?,
-        ))
+        Ok(KeyInfo::from_private_key(curve, &Vec::from_hex(pk_hex)?)?
+            .to_json()?
+            .to_hex())
     } else if "TEZOS".contains(&param.chain_type.as_str()) {
         Ok(build_tezos_base58_private_key(pk_hex.as_str())?)
     } else {
         // private_key prefix is only about chain type and network
         let coin_info = coin_info_from_param(&param.chain_type, &param.network, "", "")?;
 
-        let bytes = hex::decode(pk_hex.to_string())?;
+        let bytes = Vec::from_hex(pk_hex.to_string())?;
         let typed_pk = TypedPrivateKey::from_slice(CurveType::SECP256k1, &bytes)?;
         typed_pk.fmt(&coin_info)
     }?;
@@ -636,14 +636,14 @@ pub(crate) fn sign_hashes(data: &[u8]) -> Result<Vec<u8>> {
         .data_to_sign
         .iter()
         .map(|data_to_sign| -> Result<String> {
-            let hash = hex_to_bytes(&data_to_sign.hash)?;
+            let hash = Vec::from_hex_auto(&data_to_sign.hash)?;
             let sig = guard.keystore_mut().sign_hash(
                 &hash,
                 &data_to_sign.path,
                 &data_to_sign.curve,
                 &data_to_sign.sig_alg,
             )?;
-            Ok(format!("0x{}", hex::encode(sig)))
+            Ok(sig.to_0x_hex())
         })
         .collect::<Vec<Result<String>>>();
     let signatures = signatures.into_iter().collect::<Result<Vec<String>>>()?;
@@ -668,7 +668,7 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
                 .keystore_mut()
                 .get_public_key(CurveType::from_str(&derivation.curve), &derivation.path)
                 .expect("PublicKeyProcessed");
-            hex::encode(public_key.to_bytes())
+            public_key.to_bytes().to_hex()
         })
         .collect();
 
@@ -748,7 +748,7 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
     let _ = ks.validate()?;
     let pk = decode_substrate_keystore(&ks, &param.password)?;
     let pk_import_param = ImportPrivateKeyParam {
-        private_key: hex::encode(pk),
+        private_key: pk.to_hex(),
         password: param.password.to_string(),
         name: ks.meta.name,
         password_hint: "".to_string(),
@@ -781,7 +781,7 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
     let ret = export_private_key(data)?;
     let export_result: ExportResult = ExportResult::decode(ret.as_slice())?;
     let pk = export_result.value;
-    let pk_bytes = hex::decode(pk)?;
+    let pk_bytes = Vec::from_hex(pk)?;
     let coin = coin_info_from_param(&param.chain_type, &param.network, "", "")?;
 
     let mut substrate_ks = encode_substrate_keystore(&param.password, &pk_bytes, &coin)?;
@@ -801,7 +801,7 @@ pub(crate) fn exists_json(data: &[u8]) -> Result<Vec<u8>> {
     let _ = ks.validate()?;
     let pk = decode_substrate_keystore(&ks, &param.password)?;
 
-    let pk_hex = hex::encode(&pk);
+    let pk_hex = pk.to_hex();
     let exists_param = KeystoreCommonExistsParam {
         r#type: KeyType::PrivateKey as i32,
         value: pk_hex,
@@ -826,11 +826,11 @@ pub(crate) fn unlock_then_crash(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn zksync_private_key_from_seed(data: &[u8]) -> Result<Vec<u8>> {
     let param: ZksyncPrivateKeyFromSeedParam = ZksyncPrivateKeyFromSeedParam::decode(data)?;
 
-    let result = private_key_from_seed(hex::decode(param.seed)?.as_slice())
+    let result = private_key_from_seed(Vec::from_hex(param.seed)?.as_slice())
         .expect("zksync_private_key_from_seed_error");
 
     let ret = ZksyncPrivateKeyFromSeedResult {
-        priv_key: hex::encode(result),
+        priv_key: result.to_hex(),
     };
     encode_message(ret)
 }
@@ -839,22 +839,22 @@ pub(crate) fn zksync_sign_musig(data: &[u8]) -> Result<Vec<u8>> {
     let param: ZksyncSignMusigParam = ZksyncSignMusigParam::decode(data)?;
 
     let sign_result = sign_musig(
-        hex::decode(param.priv_key)?.as_slice(),
-        hex::decode(param.bytes)?.as_slice(),
+        Vec::from_hex(param.priv_key)?.as_slice(),
+        Vec::from_hex(param.bytes)?.as_slice(),
     )
     .expect("zksync_sign_musig_error");
     let ret = ZksyncSignMusigResult {
-        signature: hex::encode(sign_result),
+        signature: sign_result.to_hex(),
     };
     encode_message(ret)
 }
 
 pub(crate) fn zksync_private_key_to_pubkey_hash(data: &[u8]) -> Result<Vec<u8>> {
     let param: ZksyncPrivateKeyToPubkeyHashParam = ZksyncPrivateKeyToPubkeyHashParam::decode(data)?;
-    let pub_key_hash = private_key_to_pubkey_hash(hex::decode(param.priv_key)?.as_slice())
+    let pub_key_hash = private_key_to_pubkey_hash(Vec::from_hex(param.priv_key)?.as_slice())
         .expect("zksync_private_key_to_pubkey_hash_error");
     let ret = ZksyncPrivateKeyToPubkeyHashResult {
-        pub_key_hash: hex::encode(pub_key_hash),
+        pub_key_hash: pub_key_hash.to_hex(),
     };
     encode_message(ret)
 }

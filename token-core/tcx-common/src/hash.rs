@@ -1,7 +1,7 @@
-use bitcoin::hashes::{sha256, sha256d, Hash};
+use bitcoin::hashes::{ripemd160, sha256, sha256d, Hash};
 
 pub type Hash256 = [u8; 32];
-pub type Hash160 = [u8; 16];
+pub type Hash160 = [u8; 20];
 
 pub fn merkle_hash(data: &[u8]) -> Hash256 {
     assert!(!data.is_empty(), "data should not be empty");
@@ -55,9 +55,14 @@ pub fn keccak256(data: &[u8]) -> Hash256 {
     keccak_hash::keccak(data).to_fixed_bytes()
 }
 
+#[inline]
+pub fn ripemd160(bytes: &[u8]) -> Hash160 {
+    ripemd160::Hash::hash(bytes).into_inner()
+}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ToHex;
 
     #[test]
     fn test_merkle_hash() {
@@ -99,7 +104,7 @@ mod tests {
                 data[i] = (i / 1024 % 0xff) as u8;
             }
 
-            assert_eq!(hex::encode(merkle_hash(&data)), t.1);
+            assert_eq!(merkle_hash(&data).to_hex(), t.1);
         }
     }
 }

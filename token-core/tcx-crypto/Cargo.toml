@@ -6,6 +6,8 @@ edition = "2021"
 
 [dependencies]
 tcx-constants = {path="../tcx-constants"}
+tcx-common = {path="../tcx-common"}
+
 serde_json = "1.0.88"
 serde = { version = "1.0.147", features = ["derive"] }
 rand = "0.8.5"

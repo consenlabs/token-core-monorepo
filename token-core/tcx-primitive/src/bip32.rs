@@ -3,7 +3,8 @@ use super::Result;
 use crate::constant::SECP256K1_ENGINE;
 use crate::ecc::{DeterministicPrivateKey, DeterministicPublicKey, KeyError};
 
-use crate::{Derive, FromHex, Secp256k1PrivateKey, Secp256k1PublicKey, Ss58Codec, ToHex};
+use crate::{Derive, Secp256k1PrivateKey, Secp256k1PublicKey, Ss58Codec};
+use tcx_common::{FromHex, ToHex};
 
 use bitcoin::util::base58;
 use bitcoin::util::base58::Error::InvalidLength;
@@ -157,13 +158,13 @@ impl ToHex for Bip32DeterministicPublicKey {
 
         ret[9..41].copy_from_slice(&extended_key.chain_code[..]);
         ret[41..74].copy_from_slice(&extended_key.public_key.serialize()[..]);
-        hex::encode(ret.to_vec())
+        ret.to_hex()
     }
 }
 
 impl FromHex for Bip32DeterministicPublicKey {
-    fn from_hex(hex: &str) -> Result<Self> {
-        let data = hex::decode(hex)?;
+    fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self> {
+        let data = Vec::from_hex(hex)?;
 
         if data.len() != 74 {
             return Err(KeyError::InvalidBase58.into());
@@ -270,8 +271,9 @@ mod tests {
         Bip32DeterministicPrivateKey, Bip32DeterministicPublicKey, Derive, DeterministicPrivateKey,
         PrivateKey, Ss58Codec,
     };
-    use crate::{FromHex, ToHex};
     use bip39::{Language, Mnemonic, Seed};
+    use bitcoin_hashes::hex::ToHex;
+    use tcx_common::{FromHex, ToHex};
 
     fn default_seed() -> Seed {
         let mn = Mnemonic::from_phrase(
@@ -295,13 +297,12 @@ mod tests {
         let pub_keys = paths
             .iter()
             .map(|path| {
-                hex::encode(
-                    esk.derive(path)
-                        .unwrap()
-                        .private_key()
-                        .public_key()
-                        .to_compressed(),
-                )
+                esk.derive(path)
+                    .unwrap()
+                    .private_key()
+                    .public_key()
+                    .to_compressed()
+                    .to_hex()
             })
             .collect::<Vec<String>>();
         let expected_pub_keys = vec![

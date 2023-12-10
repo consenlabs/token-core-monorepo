@@ -226,7 +226,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
         if let Some(op_return) = &self.op_return {
             tx_outs.push(TxOut {
                 value: 0,
-                script_pubkey: Script::new_op_return(&hex::decode(op_return)?),
+                script_pubkey: Script::new_op_return(&Vec::from_hex(op_return)?),
             });
         }
 
@@ -411,7 +411,7 @@ impl TransactionSigner<OmniTxInput, BtcKinTxOutput> for Keystore {
         */
         let create_omni_op_return = || {
             let mut wtr = Vec::new();
-            wtr.write(&hex::decode("6f6d6e6900000000").unwrap())
+            wtr.write(&Vec::from_hex("6f6d6e6900000000").unwrap())
                 .unwrap();
             wtr.write_u32::<BigEndian>(tx.property_id).unwrap();
             wtr.write_u64::<BigEndian>(tx.amount).unwrap();
@@ -790,29 +790,29 @@ mod tests {
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
-            let tx = Transaction::deserialize(&hex::decode(&actual.raw_tx).unwrap()).unwrap();
+            let tx = Transaction::deserialize(&Vec::from_hex(&actual.raw_tx).unwrap()).unwrap();
 
             let msg = Message::from_slice(
-                &hex::decode("f01ba76b329132e48188ad10d00791647ee6d2f7fee5ef397f3481993c898de3")
+                &Vec::from_hex("f01ba76b329132e48188ad10d00791647ee6d2f7fee5ef397f3481993c898de3")
                     .unwrap(),
             )
             .unwrap();
             let sig = Signature::from_slice(&tx.input[0].witness.to_vec()[0]).unwrap();
             let pub_key = XOnlyPublicKey::from_slice(
-                &hex::decode("8f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233")
+                &Vec::from_hex("8f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233")
                     .unwrap(),
             )
             .unwrap();
             assert!(sig.verify(&msg, &pub_key).is_ok());
 
             let msg = Message::from_slice(
-                &hex::decode("d0691b5ac1b338b9341790ea69417cb454cf346a718342fb4a846dbb8ae142e8")
+                &Vec::from_hex("d0691b5ac1b338b9341790ea69417cb454cf346a718342fb4a846dbb8ae142e8")
                     .unwrap(),
             )
             .unwrap();
             let sig = Signature::from_slice(&tx.input[1].witness.to_vec()[0]).unwrap();
             let pub_key = XOnlyPublicKey::from_slice(
-                &hex::decode("9303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea06155")
+                &Vec::from_hex("9303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea06155")
                     .unwrap(),
             )
             .unwrap();

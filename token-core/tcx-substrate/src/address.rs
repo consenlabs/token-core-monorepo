@@ -55,8 +55,8 @@ impl ToString for SubstrateAddress {
 #[cfg(test)]
 mod test_super {
     use super::*;
+    use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
-    use tcx_primitive::FromHex;
 
     #[test]
     fn test_address_from_public() {

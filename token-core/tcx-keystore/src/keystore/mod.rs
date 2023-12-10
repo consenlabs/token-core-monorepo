@@ -9,6 +9,8 @@ mod private;
 
 use serde::{Deserialize, Serialize};
 
+use tcx_common::ToHex;
+
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::crypto::Unlocker;
 
@@ -301,12 +303,12 @@ impl Keystore {
 
     #[cfg(feature = "cache_dk")]
     pub fn get_derived_key(&mut self, password: &str) -> Result<String> {
-        Ok(hex::encode(
-            self.store_mut()
-                .crypto
-                .use_key(&Key::Password(password.to_owned()))?
-                .derived_key(),
-        ))
+        Ok(self
+            .store_mut()
+            .crypto
+            .use_key(&Key::Password(password.to_owned()))?
+            .derived_key()
+            .to_hex())
     }
 
     pub fn is_locked(&self) -> bool {
@@ -491,7 +493,6 @@ impl Signer for Keystore {
             Keystore::PrivateKey(ks) => ks.get_private_key(CurveType::BLS)?,
             Keystore::Hd(ks) => ks.get_private_key(CurveType::BLS, derivation_path)?,
         };
-        println!("private_key-->{}", hex::encode(private_key.to_bytes()));
         private_key.sign_specified_hash(hash, sig_alg)
     }
 }
@@ -540,8 +541,9 @@ pub(crate) mod tests {
 
     use crate::keystore::metadata_default_source;
     use crate::Result;
+    use tcx_common::{FromHex, ToHex};
     use tcx_constants::{coin_info_from_param, CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD};
-    use tcx_primitive::{Ss58Codec, ToHex, TypedPublicKey};
+    use tcx_primitive::{Ss58Codec, TypedPublicKey};
 
     #[derive(Clone, PartialEq, Eq)]
     pub(crate) struct MockAddress(Vec<u8>);
@@ -558,13 +560,13 @@ pub(crate) mod tests {
     impl FromStr for MockAddress {
         type Err = failure::Error;
         fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-            Ok(MockAddress(hex::decode(s).unwrap()))
+            Ok(MockAddress(Vec::from_hex(s).unwrap()))
         }
     }
 
     impl ToString for MockAddress {
         fn to_string(&self) -> String {
-            hex::encode(&self.0)
+            self.0.to_hex()
         }
     }
 
@@ -677,7 +679,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_sign_hash() {
-        let msg = hex::decode("645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76")
+        let msg = Vec::from_hex("645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76")
             .unwrap();
 
         let mut keystore: Keystore = Keystore::from_json(HD_KEYSTORE_JSON).unwrap();
@@ -695,7 +697,8 @@ pub(crate) mod tests {
         let ret = keystore
             .secp256k1_ecdsa_sign_recoverable(&msg, &params.derivation_path)
             .unwrap();
-        assert_eq!("3045022100a5c14ac7fd46f9f0c951b86d9586595270266ab09b49bf79fc27ebae7866256002206a7d7841fb740ee190c94dcd156228fc820f5ff5ba8c07748b220d07c51d247a", hex::encode(ret));
+        assert_eq!("3045022100a5c14ac7fd46f9f0c951b86d9586595270266ab09b49bf79fc27ebae7866256002206a7d7841fb740ee190c94dcd156228fc820f5ff5ba8c07748b220d07c51d247a",
+                   ret.to_hex());
 
         let mut keystore: Keystore = Keystore::from_json(PK_KEYSTORE_JSON).unwrap();
         let ret = keystore.secp256k1_ecdsa_sign_recoverable(&msg, "m/44'/195'/0'/0/0");
@@ -703,13 +706,13 @@ pub(crate) mod tests {
         assert_eq!(format!("{}", ret.err().unwrap()), "keystore_locked");
 
         let _ = keystore.unlock_by_password("imtoken1");
-        let msg = hex::decode("645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76")
+        let msg = Vec::from_hex("645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76")
             .unwrap();
 
         let ret = keystore
             .secp256k1_ecdsa_sign_recoverable(&msg, "m/44'/195'/0'/0/0")
             .unwrap();
-        assert_eq!(hex::encode(ret), "30450221008d4920cb3a5a46a3f76845e823c9531f4a882eac4ffd61bfeaa29646999a83d302205c4c5537816911a8b0eb5f0e7ea09839c37e9e22bace8404d23d064c84d403d5");
+        assert_eq!(ret.to_hex(), "30450221008d4920cb3a5a46a3f76845e823c9531f4a882eac4ffd61bfeaa29646999a83d302205c4c5537816911a8b0eb5f0e7ea09839c37e9e22bace8404d23d064c84d403d5");
     }
 
     #[test]
@@ -792,7 +795,7 @@ pub(crate) mod tests {
         keystore.unlock_by_password("imtoken1").unwrap();
         let pk = keystore.get_private_key(CurveType::SECP256k1, "").unwrap();
         assert_eq!(
-            hex::encode(pk.to_bytes()),
+            pk.to_bytes().to_hex(),
             "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6"
         );
 

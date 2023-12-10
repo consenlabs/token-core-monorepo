@@ -8,7 +8,7 @@ use bitcoin_hashes::sha256::Hash;
 use bitcoin_hashes::Hash as TraitHash;
 
 use failure::format_err;
-use tcx_common::{keccak256, utf8_or_hex_to_bytes};
+use tcx_common::{keccak256, utf8_or_hex_to_bytes, FromHex, ToHex};
 
 // http://jsoneditoronline.org/index.html?id=2b86a8503ba641bebed73f32b4ac9c42
 //{
@@ -46,7 +46,7 @@ impl TraitTransactionSigner<TronTxInput, TronTxOutput> for Keystore {
         sign_context: &SignatureParameters,
         tx: &TronTxInput,
     ) -> Result<TronTxOutput> {
-        let data = hex::decode(&tx.raw_data)?;
+        let data = Vec::from_hex(&tx.raw_data)?;
         let hash = Hash::hash(&data);
 
         let sign_result =
@@ -54,7 +54,7 @@ impl TraitTransactionSigner<TronTxInput, TronTxOutput> for Keystore {
 
         match sign_result {
             Ok(r) => Ok(TronTxOutput {
-                signatures: vec![hex::encode(r)],
+                signatures: vec![r.to_hex()],
             }),
             Err(_e) => Err(format_err!("{}", "can not format error")),
         }
@@ -80,7 +80,7 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
             self.secp256k1_ecdsa_sign_recoverable(&hash[..], &sign_context.derivation_path)?;
         sign_result[64] = sign_result[64] + 27;
         Ok(TronMessageOutput {
-            signature: hex::encode(sign_result),
+            signature: sign_result.to_hex(),
         })
     }
 }
@@ -151,7 +151,7 @@ mod tests {
             Secp256k1PrivateKey::from_wif("L2hfzPyVC1jWH7n2QLTe7tVTb6btg9smp5UVzhEBxLYaSFF7sCZB")
                 .unwrap();
         let message =
-            hex::decode("645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76")
+            Vec::from_hex("645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76")
                 .unwrap();
         let header = "\x19TRON Signed Message:\n32".as_bytes();
         let to_signed = [header.to_vec(), message].concat();
@@ -159,6 +159,6 @@ mod tests {
         let hash = keccak256(&to_signed);
         let mut signed = sk.sign_recoverable(&hash).unwrap();
         signed[64] = signed[64] + 27;
-        assert_eq!("7209610445e867cf2a36ea301bb5d1fbc3da597fd2ce4bb7fa64796fbf0620a4175e9f841cbf60d12c26737797217c0082fdb3caa8e44079e04ec3f93e86bbea1c", hex::encode(&signed))
+        assert_eq!("7209610445e867cf2a36ea301bb5d1fbc3da597fd2ce4bb7fa64796fbf0620a4175e9f841cbf60d12c26737797217c0082fdb3caa8e44079e04ec3f93e86bbea1c", signed.to_hex())
     }
 }
