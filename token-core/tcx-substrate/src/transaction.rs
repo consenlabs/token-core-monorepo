@@ -1,6 +1,6 @@
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SubstrateKeystoreParam {
+pub struct ImportJsonParam {
     #[prost(string, tag = "1")]
     pub keystore: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
@@ -12,7 +12,7 @@ pub struct SubstrateKeystoreParam {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExportSubstrateKeystoreResult {
+pub struct ExportJsonResult {
     #[prost(string, tag = "1")]
     pub keystore: ::prost::alloc::string::String,
 }
