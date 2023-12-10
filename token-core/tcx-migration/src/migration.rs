@@ -2,11 +2,12 @@ use failure::format_err;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tcx_atom::address::AtomAddress;
-use tcx_constants::CoinInfo;
+use tcx_common::hex_to_bytes;
+use tcx_constants::{coin_info_from_param, CoinInfo, CurveType};
 use tcx_crypto::{Crypto, EncPair, Key};
 use tcx_keystore::{
-    key_hash_from_mnemonic, key_hash_from_private_key, Account, HdKeystore, PrivateKeystore,
-    Result, Source,
+    key_hash_from_mnemonic, key_hash_from_private_key, Account, Address, HdKeystore,
+    PrivateKeystore, Result, Source,
 };
 
 use tcx_btc_kin::address::BtcKinAddress;
@@ -16,7 +17,7 @@ use tcx_eos::address::EosAddress;
 use tcx_eth::address::EthAddress;
 use tcx_keystore::identity::Identity;
 use tcx_keystore::keystore::{IdentityNetwork, Keystore, Metadata, Store};
-use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
+use tcx_primitive::{PrivateKey, Secp256k1PrivateKey, TypedPublicKey};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
@@ -82,16 +83,54 @@ impl OldMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LegacyKeystore {
-    version: i32,
-    id: String,
-    crypto: Crypto,
-    enc_mnemonic: Option<EncPair>,
-    address: String,
-    mnemonic_path: Option<String>,
-    im_token_meta: OldMetadata,
+    pub version: i32,
+    pub id: String,
+    pub crypto: Crypto,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enc_mnemonic: Option<EncPair>,
+    pub address: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mnemonic_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub im_token_meta: Option<OldMetadata>,
 }
 
 impl LegacyKeystore {
+    pub fn new_v3(private_key: &[u8], password: &str) -> Result<Self> {
+        let crypto = Crypto::new(password, private_key);
+        let sec_key = Secp256k1PrivateKey::from_slice(private_key)?;
+        let pub_key = TypedPublicKey::Secp256k1(sec_key.public_key());
+        let coin_info = coin_info_from_param("ETHEREUM", "", "", CurveType::SECP256k1.as_str())?;
+        let address = EthAddress::from_public_key(&pub_key, &coin_info)?.to_string();
+        let id = uuid::Uuid::new_v4().to_string();
+        Ok(LegacyKeystore {
+            version: 3,
+            id,
+            crypto,
+            enc_mnemonic: None,
+            address,
+            mnemonic_path: None,
+            im_token_meta: None,
+        })
+    }
+
+    pub fn validate_v3(&self, password: &str) -> Result<()> {
+        let key = Key::Password(password.to_string());
+        let unlocker = self.crypto.use_key(&key)?;
+        let sec_key_bytes = unlocker.plaintext()?;
+        let sec_key = Secp256k1PrivateKey::from_slice(&sec_key_bytes)?;
+        let pub_key = TypedPublicKey::Secp256k1(sec_key.public_key());
+        let coin_info = coin_info_from_param("ETHEREUM", "", "", CurveType::SECP256k1.as_str())?;
+        let calc_address = EthAddress::from_public_key(&pub_key, &coin_info)?.to_string();
+        let calc_addr_bytes = hex_to_bytes(&calc_address)?;
+        let addr_bytes = hex_to_bytes(&self.address)?;
+        if calc_addr_bytes == addr_bytes {
+            Ok(())
+        } else {
+            Err(format_err!("private_key_and_address_not_match"))
+        }
+    }
+
     fn real_derivation_path(&self) -> String {
         match self.version {
             44 => {
@@ -113,69 +152,69 @@ impl LegacyKeystore {
         self.enc_mnemonic.is_some()
     }
 
-    pub fn derive_account(&self, keystore: &mut Keystore) -> Result<Account> {
-        let derivation_path;
-        if self.has_mnemonic() {
-            derivation_path = self.real_derivation_path();
-        } else {
-            derivation_path = "".to_string();
-        }
+    // pub fn derive_account(&self, keystore: &mut Keystore) -> Result<Account> {
+    //     let derivation_path;
+    //     if self.has_mnemonic() {
+    //         derivation_path = self.real_derivation_path();
+    //     } else {
+    //         derivation_path = "".to_string();
+    //     }
 
-        let chain_type = if self.im_token_meta.chain_type.is_some() {
-            self.im_token_meta.chain_type.as_ref().unwrap().to_string()
-        } else {
-            self.im_token_meta
-                .chain
-                .as_ref()
-                .expect("meta chain")
-                .to_string()
-        };
+    //     let chain_type = if self.im_token_meta.chain_type.is_some() {
+    //         self.im_token_meta.chain_type.as_ref().unwrap().to_string()
+    //     } else {
+    //         self.im_token_meta
+    //             .chain
+    //             .as_ref()
+    //             .expect("meta chain")
+    //             .to_string()
+    //     };
 
-        match chain_type.as_str() {
-            "ETHEREUM" => {
-                let coin_info = CoinInfo {
-                    coin: "ETHEREUM".to_string(),
-                    derivation_path,
-                    curve: tcx_constants::CurveType::SECP256k1,
-                    network: "".to_string(),
-                    seg_wit: "".to_string(),
-                };
-                Ok(keystore.derive_coin::<EthAddress>(&coin_info)?)
-            }
-            "BITCOIN" => {
-                let coin_info = CoinInfo {
-                    coin: "BITCOIN".to_string(),
-                    derivation_path,
-                    curve: tcx_constants::CurveType::SECP256k1,
-                    network: self.im_token_meta.network.clone().unwrap_or("".to_string()),
-                    seg_wit: self.im_token_meta.seg_wit.clone().unwrap_or("".to_string()),
-                };
-                Ok(keystore.derive_coin::<BtcKinAddress>(&coin_info)?)
-            }
-            "EOS" => {
-                let coin_info = CoinInfo {
-                    coin: "EOS".to_string(),
-                    derivation_path,
-                    curve: tcx_constants::CurveType::SECP256k1,
-                    network: self.im_token_meta.network.clone().unwrap_or("".to_string()),
-                    seg_wit: "".to_string(),
-                };
-                Ok(keystore.derive_coin::<EosAddress>(&coin_info)?)
-            }
-            "COSMOS" => {
-                let coin_info = CoinInfo {
-                    coin: "COSMOS".to_string(),
-                    derivation_path,
-                    curve: tcx_constants::CurveType::SECP256k1,
-                    network: "".to_string(),
-                    seg_wit: "".to_string(),
-                };
+    //     match chain_type.as_str() {
+    //         "ETHEREUM" => {
+    //             let coin_info = CoinInfo {
+    //                 coin: "ETHEREUM".to_string(),
+    //                 derivation_path,
+    //                 curve: tcx_constants::CurveType::SECP256k1,
+    //                 network: "".to_string(),
+    //                 seg_wit: "".to_string(),
+    //             };
+    //             Ok(keystore.derive_coin::<EthAddress>(&coin_info)?)
+    //         }
+    //         "BITCOIN" => {
+    //             let coin_info = CoinInfo {
+    //                 coin: "BITCOIN".to_string(),
+    //                 derivation_path,
+    //                 curve: tcx_constants::CurveType::SECP256k1,
+    //                 network: self.im_token_meta.network.clone().unwrap_or("".to_string()),
+    //                 seg_wit: self.im_token_meta.seg_wit.clone().unwrap_or("".to_string()),
+    //             };
+    //             Ok(keystore.derive_coin::<BtcKinAddress>(&coin_info)?)
+    //         }
+    //         "EOS" => {
+    //             let coin_info = CoinInfo {
+    //                 coin: "EOS".to_string(),
+    //                 derivation_path,
+    //                 curve: tcx_constants::CurveType::SECP256k1,
+    //                 network: self.im_token_meta.network.clone().unwrap_or("".to_string()),
+    //                 seg_wit: "".to_string(),
+    //             };
+    //             Ok(keystore.derive_coin::<EosAddress>(&coin_info)?)
+    //         }
+    //         "COSMOS" => {
+    //             let coin_info = CoinInfo {
+    //                 coin: "COSMOS".to_string(),
+    //                 derivation_path,
+    //                 curve: tcx_constants::CurveType::SECP256k1,
+    //                 network: "".to_string(),
+    //                 seg_wit: "".to_string(),
+    //             };
 
-                Ok(keystore.derive_coin::<AtomAddress>(&coin_info)?)
-            }
-            _ => Err(Error::UnsupportedChain.into()),
-        }
-    }
+    //             Ok(keystore.derive_coin::<AtomAddress>(&coin_info)?)
+    //         }
+    //         _ => Err(Error::UnsupportedChain.into()),
+    //     }
+    // }
 
     pub fn from_json_str(keystore_str: &str) -> Result<LegacyKeystore> {
         let keystore: LegacyKeystore = serde_json::from_str(&keystore_str)?;
@@ -187,12 +226,12 @@ impl LegacyKeystore {
     }
 
     pub fn migrate(&self, key: &Key) -> Result<Keystore> {
-        let mut keystore = if self.has_mnemonic() {
+        let keystore = if self.has_mnemonic() {
             self.migrate_to_hd(key)?
         } else {
             self.migrate_to_private(key)?
         };
-        self.derive_account(&mut keystore)?;
+        // self.derive_account(&mut keystore)?;
         Ok(keystore)
     }
 
@@ -205,7 +244,11 @@ impl LegacyKeystore {
         )?;
         let mnemonic = String::from_utf8(mnemonic_data.to_owned())?;
         let key_hash = key_hash_from_mnemonic(&mnemonic)?;
-        let meta = self.im_token_meta.to_metadata();
+        let meta = self
+            .im_token_meta
+            .as_ref()
+            .expect("migration to hd need imTokenMeta")
+            .to_metadata();
         let identity = Identity::from_mnemonic(&mnemonic, &unlocker, &meta.network)?;
         let mut store = Store {
             id: self.id.to_string(),
@@ -238,8 +281,11 @@ impl LegacyKeystore {
 
         let key_hash = key_hash_from_private_key(&private_key);
         let unlocker = self.crypto.use_key(key)?;
-        let network = self
+        let im_token_meta = self
             .im_token_meta
+            .as_ref()
+            .expect("migrate to private need imTokenMeta");
+        let network = im_token_meta
             .network
             .clone()
             .and_then(|net| IdentityNetwork::from_str(&net).ok())
@@ -251,7 +297,7 @@ impl LegacyKeystore {
             version: PrivateKeystore::VERSION,
             key_hash: key_hash.to_string(),
             crypto: self.crypto.clone(),
-            meta: self.im_token_meta.to_metadata(),
+            meta: im_token_meta.to_metadata(),
             identity,
         };
 
@@ -299,8 +345,18 @@ impl LegacyKeystore {
 
 #[cfg(test)]
 mod tests {
-    use tcx_crypto::Key;
-    use tcx_keystore::Keystore;
+    use serde_json::Value;
+    use tcx_common::hex_to_bytes;
+    use tcx_constants::{CoinInfo, TEST_MNEMONIC};
+    use tcx_constants::{TEST_PASSWORD, TEST_PRIVATE_KEY};
+    use tcx_crypto::crypto::SCryptParams;
+    use tcx_crypto::hex;
+    use tcx_crypto::Crypto;
+    use tcx_crypto::Pbkdf2Params;
+    use tcx_crypto::{EncPair, Key};
+    use tcx_keystore::keystore::Store;
+    use tcx_keystore::HdKeystore;
+    use tcx_keystore::{Keystore, KeystoreGuard, Metadata, PrivateKeystore, Source};
 
     use super::LegacyKeystore;
 
@@ -491,5 +547,14 @@ mod tests {
         // assert!(keystore
         //     .account("ETHEREUM", "0x6031564e7b2f5cc33737807b2e58daff870b590b")
         //     .is_some());
+    }
+
+    #[test]
+    fn test_export_v3_keystore() {
+        let private_key_bytes = hex_to_bytes(TEST_PRIVATE_KEY).unwrap();
+        let v3_keystore =
+            LegacyKeystore::new_v3(&private_key_bytes, TEST_PASSWORD).expect("v3 keystore");
+        let keystore_json = serde_json::to_string(&v3_keystore).expect("serde v3");
+        assert_eq!("", keystore_json);
     }
 }

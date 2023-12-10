@@ -109,13 +109,12 @@ impl DeterministicPrivateKey for Bip32DeterministicPrivateKey {
     }
 
     fn private_key(&self) -> Self::PrivateKey {
-        Secp256k1PrivateKey::from(
-            bitcoin::PrivateKey::from_slice(
-                self.0.private_key.secret_bytes().as_slice(),
-                bitcoin::Network::Bitcoin,
-            )
-            .expect("generate private key error"),
-        ) //TODO
+        let btc_pk = bitcoin::PrivateKey::from_slice(
+            self.0.private_key.secret_bytes().as_slice(),
+            bitcoin::Network::Bitcoin,
+        )
+        .expect("generate private key error");
+        Secp256k1PrivateKey::from(btc_pk)
     }
 
     fn deterministic_public_key(&self) -> Self::DeterministicPublicKey {

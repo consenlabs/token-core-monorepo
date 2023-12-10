@@ -10,7 +10,7 @@ pub fn build_tezos_base58_private_key(sk: &str) -> Result<String> {
     //tezos private key prefix
     let edsk_prefix: [u8; 4] = [43, 246, 78, 7];
 
-    //prefix + public key + public key
+    //prefix + private key + public key
     let mut prefixed_sec_key_vec = vec![];
     prefixed_sec_key_vec.extend(&edsk_prefix);
     let ed25519_private_key =

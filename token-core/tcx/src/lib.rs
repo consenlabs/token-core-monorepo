@@ -19,27 +19,17 @@ use failure::Error;
 use std::result;
 
 use crate::error_handling::{landingpad, LAST_BACKTRACE, LAST_ERROR};
-#[allow(deprecated)]
 use crate::handler::{
-    create_keystore, delete_keystore, derive_accounts, encode_message, export_mnemonic,
-    export_private_key, get_derived_key, import_mnemonic, import_private_key, sign_tx,
-    unlock_then_crash, verify_password, zksync_private_key_from_seed,
-    zksync_private_key_to_pubkey_hash, zksync_sign_musig,
+    create_keystore, delete_keystore, derive_accounts, encode_message, eth_recover_address,
+    exists_json, export_json, export_mnemonic, export_private_key, generate_mnemonic,
+    get_derived_key, get_extended_public_keys, get_public_keys, import_json, import_mnemonic,
+    import_private_key, sign_hashes, sign_tx, unlock_then_crash, verify_password,
+    zksync_private_key_from_seed, zksync_private_key_to_pubkey_hash, zksync_sign_musig,
 };
 
 mod filemanager;
 // mod identity;
 mod macros;
-
-// use crate::identity::{
-//     create_identity, decrypt_data_from_ipfs, encrypt_data_to_ipfs, export_identity,
-//     get_current_identity, recover_identity, remove_identity, sign_authentication_message,
-// };
-
-use crate::handler::{
-    eth_recover_address, exists_json, export_json, generate_mnemonic, get_extended_public_keys,
-    get_public_keys, import_json, sign_hashes,
-};
 
 use parking_lot::RwLock;
 use tcx_common::{FromHex, ToHex};
@@ -114,10 +104,6 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         }
         "generate_mnemonic" => landingpad(|| generate_mnemonic()),
         "remove_wallets" => landingpad(|| remove_wallet(&action.param.unwrap().value)),
-        // "eth_ec_sign" => landingpad(|| eth_ec_sign(&action.param.unwrap().value)),
-        // "eth_recover_address" => landingpad(|| eth_recover_address(&action.param.unwrap().value)),
-        // "eth_keystore_import" => landingpad(|| eth_v3keystore_import(&action.param.unwrap().value)),
-        // "eth_keystore_export" => landingpad(|| eth_v3keystore_export(&action.param.unwrap().value)),
         "encrypt_data_to_ipfs" => landingpad(|| encrypt_data_to_ipfs(&action.param.unwrap().value)),
         "decrypt_data_from_ipfs" => {
             landingpad(|| decrypt_data_from_ipfs(&action.param.unwrap().value))
@@ -216,8 +202,7 @@ mod tests {
     use tcx_eth::transaction::{AccessList, EthTxInput, EthTxOutput};
     use tcx_filecoin::{SignedMessage, UnsignedMessage};
     use tcx_substrate::{
-        ExportSubstrateKeystoreResult, SubstrateKeystore, SubstrateKeystoreParam, SubstrateRawTxIn,
-        SubstrateTxOut,
+        ExportJsonResult, ImportJsonParam, SubstrateKeystore, SubstrateRawTxIn, SubstrateTxOut,
     };
     use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
     use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
@@ -2110,7 +2095,7 @@ mod tests {
   }
 }"#;
 
-            let param = SubstrateKeystoreParam {
+            let param = ImportJsonParam {
                 keystore: wrong_keystore_str.to_string(),
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "KUSAMA".to_string(),
@@ -2147,7 +2132,7 @@ mod tests {
   }
 }"#;
 
-            let param = SubstrateKeystoreParam {
+            let param = ImportJsonParam {
                 keystore: keystore_str.to_string(),
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "KUSAMA".to_string(),
@@ -2203,8 +2188,7 @@ mod tests {
                 path: "".to_string(),
             };
             let ret = call_api("export_json", export_param).unwrap();
-            let keystore_ret: ExportSubstrateKeystoreResult =
-                ExportSubstrateKeystoreResult::decode(ret.as_slice()).unwrap();
+            let keystore_ret: ExportJsonResult = ExportJsonResult::decode(ret.as_slice()).unwrap();
 
             let keystore: SubstrateKeystore = serde_json::from_str(&keystore_ret.keystore).unwrap();
             assert!(keystore.validate().is_ok());
@@ -2279,7 +2263,7 @@ mod tests {
   }
 }"#;
 
-            let param = SubstrateKeystoreParam {
+            let param = ImportJsonParam {
                 keystore: keystore_str.to_string(),
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "KUSAMA".to_string(),

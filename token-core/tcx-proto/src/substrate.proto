@@ -2,7 +2,7 @@ syntax = "proto3";
 package transaction;
 
 
-message SubstrateKeystoreParam {
+message ImportJsonParam {
     string keystore = 1;
     string password = 2;
     string chainType = 3;
@@ -10,7 +10,7 @@ message SubstrateKeystoreParam {
 }
 
 
-message ExportSubstrateKeystoreResult {
+message ExportJsonResult {
     string keystore = 1;
 }
 

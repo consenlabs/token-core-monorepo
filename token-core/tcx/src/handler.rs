@@ -58,8 +58,8 @@ use tcx_migration::keystore_upgrade::KeystoreUpgrade;
 
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
 use tcx_substrate::{
-    decode_substrate_keystore, encode_substrate_keystore, ExportSubstrateKeystoreResult,
-    SubstrateKeystore, SubstrateKeystoreParam,
+    decode_substrate_keystore, encode_substrate_keystore, ExportJsonResult, ImportJsonParam,
+    SubstrateKeystore,
 };
 
 use tcx_migration::migration::LegacyKeystore;
@@ -301,6 +301,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
         } else {
             encrypt_xpub(&account.ext_pub_key.to_string(), &account.network)
         }?;
+        // TODO: return both enc_xpub and xpub
         let account_rsp = AccountResponse {
             chain_type: derivation.chain_type.to_owned(),
             address: account.address.to_owned(),
@@ -468,6 +469,7 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
         let typed_pk = TypedPrivateKey::from_slice(CurveType::SECP256k1, &bytes)?;
         typed_pk.fmt(&coin_info)
     }?;
+    // TODO: add eos export support
 
     let export_result = ExportResult {
         id: guard.keystore().id(),
@@ -565,43 +567,43 @@ fn exists_key_hash(key_hash: &str) -> Result<Vec<u8>> {
     encode_message(result)
 }
 
-pub(crate) fn keystore_common_exists(data: &[u8]) -> Result<Vec<u8>> {
-    let param: KeystoreCommonExistsParam =
-        KeystoreCommonExistsParam::decode(data).expect("keystore_common_exists params");
-    let key_hash: String;
-    if param.r#type == KeyType::Mnemonic as i32 {
-        let mnemonic: &str = &param
-            .value
-            .split_whitespace()
-            .collect::<Vec<&str>>()
-            .join(" ");
-        key_hash = key_hash_from_mnemonic(mnemonic)?;
-    } else {
-        if param.encoding.eq("TEZOS") {
-            key_hash = key_hash_from_tezos_format_pk(&param.value)?;
-        } else {
-            key_hash = key_hash_from_any_format_pk(&param.value)?;
-        }
-    }
-    let map = &mut KEYSTORE_MAP.write();
+// pub(crate) fn keystore_common_exists(data: &[u8]) -> Result<Vec<u8>> {
+//     let param: KeystoreCommonExistsParam =
+//         KeystoreCommonExistsParam::decode(data).expect("keystore_common_exists params");
+//     let key_hash: String;
+//     if param.r#type == KeyType::Mnemonic as i32 {
+//         let mnemonic: &str = &param
+//             .value
+//             .split_whitespace()
+//             .collect::<Vec<&str>>()
+//             .join(" ");
+//         key_hash = key_hash_from_mnemonic(mnemonic)?;
+//     } else {
+//         if param.encoding.eq("TEZOS") {
+//             key_hash = key_hash_from_tezos_format_pk(&param.value)?;
+//         } else {
+//             key_hash = key_hash_from_any_format_pk(&param.value)?;
+//         }
+//     }
+//     let map = &mut KEYSTORE_MAP.write();
 
-    let founded: Option<&Keystore> = map
-        .values()
-        .find(|keystore| keystore.key_hash() == key_hash);
-    let result: ExistsKeystoreResult;
-    if let Some(ks) = founded {
-        result = ExistsKeystoreResult {
-            is_exists: true,
-            id: ks.id(),
-        }
-    } else {
-        result = ExistsKeystoreResult {
-            is_exists: false,
-            id: "".to_owned(),
-        }
-    }
-    encode_message(result)
-}
+//     let founded: Option<&Keystore> = map
+//         .values()
+//         .find(|keystore| keystore.key_hash() == key_hash);
+//     let result: ExistsKeystoreResult;
+//     if let Some(ks) = founded {
+//         result = ExistsKeystoreResult {
+//             is_exists: true,
+//             id: ks.id(),
+//         }
+//     } else {
+//         result = ExistsKeystoreResult {
+//             is_exists: false,
+//             id: "".to_owned(),
+//         }
+//     }
+//     encode_message(result)
+// }
 
 pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignParam = SignParam::decode(data).expect("SignTxParam");
@@ -679,6 +681,7 @@ pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     let param: GetExtendedPublicKeysParam =
         GetExtendedPublicKeysParam::decode(data).expect("ExtendedPublicKeyParamPoc");
 
+    // TODO: return both enc_xpub + raw xpub
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
@@ -743,20 +746,38 @@ pub(crate) fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
-    let param: SubstrateKeystoreParam = SubstrateKeystoreParam::decode(data)?;
-    let ks: SubstrateKeystore = serde_json::from_str(&param.keystore)?;
-    let _ = ks.validate()?;
-    let pk = decode_substrate_keystore(&ks, &param.password)?;
+    let param: ImportJsonParam = ImportJsonParam::decode(data)?;
+    let (sec_key_bytes, name) = match param.chain_type.as_str() {
+        "ETHEREUM" => key_info_from_v3(&param),
+        "POLKADOT" | "KUSAMA" => key_info_from_substrate_keystore(&param),
+        _ => Err(format_err!("unsupported_chain")),
+    }?;
     let pk_import_param = ImportPrivateKeyParam {
         private_key: pk.to_hex(),
         password: param.password.to_string(),
-        name: ks.meta.name,
+        name,
         password_hint: "".to_string(),
         overwrite: param.overwrite,
         encoding: "".to_string(),
     };
     let param_bytes = encode_message(pk_import_param)?;
     import_private_key(&param_bytes)
+}
+
+fn key_info_from_v3(param: &ImportJsonParam) -> Result<(Vec<u8>, String)> {
+    let ks: LegacyKeystore = serde_json::from_str(&param.keystore)?;
+    ks.validate_v3(&param.password)?;
+    let key = tcx_crypto::Key::Password(param.password.to_string());
+    let unlocker = ks.crypto.use_key(&key)?;
+    let pk = unlocker.plaintext()?;
+    return Ok((pk, "Imported ETH".to_string()));
+}
+
+fn key_info_from_substrate_keystore(param: &ImportJsonParam) -> Result<(Vec<u8>, String)> {
+    let ks: SubstrateKeystore = serde_json::from_str(&param.keystore)?;
+    let _ = ks.validate()?;
+    let pk = decode_substrate_keystore(&ks, &param.password)?;
+    return Ok((pk, ks.meta.name));
 }
 
 pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
@@ -783,32 +804,40 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
     let pk = export_result.value;
     let pk_bytes = Vec::from_hex(pk)?;
     let coin = coin_info_from_param(&param.chain_type, &param.network, "", "")?;
+    let json_str = match param.chain_type.as_str() {
+        "KUSAMA" | "SUBSTRATE" => {
+            let mut substrate_ks = encode_substrate_keystore(&param.password, &pk_bytes, &coin)?;
 
-    let mut substrate_ks = encode_substrate_keystore(&param.password, &pk_bytes, &coin)?;
-
-    substrate_ks.meta.name = meta.name;
-    substrate_ks.meta.when_created = meta.timestamp;
-    let keystore_str = serde_json::to_string(&substrate_ks)?;
-    let ret = ExportSubstrateKeystoreResult {
-        keystore: keystore_str,
+            substrate_ks.meta.name = meta.name;
+            substrate_ks.meta.when_created = meta.timestamp;
+            serde_json::to_string(&substrate_ks)?
+        }
+        "ETHEREUM" => {
+            let keystore = LegacyKeystore::new_v3(&pk_bytes, &param.password)?;
+            serde_json::to_string(&keystore)?
+        }
+        _ => return Err(format_err!("unsupported_chain")),
     };
-    encode_message(ret)
+
+    let ret = ExportJsonResult { keystore: json_str };
+    return encode_message(ret);
 }
 
 pub(crate) fn exists_json(data: &[u8]) -> Result<Vec<u8>> {
-    let param: SubstrateKeystoreParam = SubstrateKeystoreParam::decode(data)?;
-    let ks: SubstrateKeystore = serde_json::from_str(&param.keystore)?;
-    let _ = ks.validate()?;
-    let pk = decode_substrate_keystore(&ks, &param.password)?;
+    let param: ImportJsonParam = ImportJsonParam::decode(data)?;
+    let (pk_bytes, _) = match param.chain_type.as_str() {
+        "ETHEREUM" => key_info_from_v3(&param),
+        "KUSAMA" | "POLKADOT" => key_info_from_substrate_keystore(&param),
+        _ => Err(format_err!("unsupported_chain")),
+    }?;
 
     let pk_hex = pk.to_hex();
-    let exists_param = KeystoreCommonExistsParam {
-        r#type: KeyType::PrivateKey as i32,
-        value: pk_hex,
+    let exists_param = ExistsPrivateKeyParam {
         encoding: "".to_string(),
+        private_key: pk_hex,
     };
     let exists_param_bytes = encode_message(exists_param)?;
-    keystore_common_exists(&exists_param_bytes)
+    exists_private_key(&exists_param_bytes)
 }
 
 pub(crate) fn unlock_then_crash(data: &[u8]) -> Result<Vec<u8>> {
