@@ -67,7 +67,7 @@ impl Witness {
 #[cfg(test)]
 mod tests {
     use crate::transaction::{Script, Witness};
-    use tcx_common::ToHex;
+    use tcx_common::{FromHex, ToHex};
 
     #[test]
     fn serialize_script() {

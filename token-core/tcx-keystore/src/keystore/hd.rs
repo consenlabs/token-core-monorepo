@@ -279,7 +279,7 @@ mod tests {
         let keystore = HdKeystore::new(TEST_PASSWORD, Metadata::default());
         let store = keystore.store;
 
-        assert_eq!(store.version, 11000);
+        assert_eq!(store.version, 12000);
         assert_ne!(store.id, "");
     }
 
@@ -381,10 +381,10 @@ mod tests {
     }
 
     #[test]
-    fn from_mnemonic() {
+    fn test_from_mnemonic() {
         let mut keystore =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
-        assert_eq!(keystore.store.version, 11000);
+        assert_eq!(keystore.store.version, 12000);
         assert_ne!(keystore.store.id, "");
         let decrypted_bytes = keystore
             .store

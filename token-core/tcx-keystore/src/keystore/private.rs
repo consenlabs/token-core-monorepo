@@ -147,7 +147,7 @@ mod tests {
     use tcx_constants::TEST_PASSWORD;
 
     #[test]
-    pub fn from_private_key_test() {
+    pub fn test_from_private_key() {
         let meta = Metadata {
             name: "from_private_key_test".to_string(),
             source: Source::Private,
@@ -158,7 +158,7 @@ mod tests {
             TEST_PASSWORD,
             meta,
         );
-        assert_eq!(keystore.store.version, 11001);
+        assert_eq!(keystore.store.version, 12001);
         assert_ne!(keystore.store.id, "");
     }
 }

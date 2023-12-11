@@ -82,6 +82,7 @@ impl ToString for CkbAddress {
 #[cfg(test)]
 mod tests {
     use crate::address::CkbAddress;
+    use tcx_common::FromHex;
     use tcx_keystore::Address;
 
     use tcx_constants::{CoinInfo, CurveType};
