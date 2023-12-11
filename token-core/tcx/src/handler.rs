@@ -23,8 +23,8 @@ use tcx_filecoin::KeyInfo;
 use crate::api::derive_accounts_param::Derivation;
 use crate::api::sign_param::Key;
 use crate::api::{
-    AccountResponse, CalcExternalAddressParam, CalcExternalAddressResult, CreateKeystoreParam,
-    DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam, DeriveAccountsResult,
+    AccountResponse, CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
+    DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
     DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsKeystoreResult,
     ExistsMnemonicParam, ExistsPrivateKeyParam, ExportPrivateKeyParam, ExportResult, GeneralResult,
     GenerateMnemonicResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult,
@@ -980,24 +980,19 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 // TODO: add eth sub addr support
-pub(crate) fn calc_external_address(data: &[u8]) -> Result<Vec<u8>> {
-    let param: CalcExternalAddressParam =
-        CalcExternalAddressParam::decode(data).expect("CalcExternalAddressParam");
+pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
+    let param: DeriveSubAccountsParam =
+        DeriveSubAccountsParam::decode(data).expect("DeriveSubAccountsParam");
 
-    let xpub = decrypt_xpub(&param.enc_extended_public_key)?;
+    let xpub = Bip32DeterministicPublicKey::from_ss58check(&param.extended_public_key)?;
 
-    let (address, external_path) = tcx_btc_kin::calc_btc_change_address(
+    let addresses = tcx_btc_kin::derive_sub_accounts(
         &param.seg_wit,
         &param.network,
-        param.external_idx,
-        &param.path,
+        &param.relative_paths,
         &xpub,
     )?;
-    encode_message(CalcExternalAddressResult {
-        address,
-        r#type: "EXTERNAL".to_string(),
-        derived_path: external_path,
-    })
+    encode_message(DeriveSubAccountsResult { addresses })
 }
 
 pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {

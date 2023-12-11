@@ -167,19 +167,16 @@ message SignParam {
     google.protobuf.Any input = 9;
 }
 
-message CalcExternalAddressParam {
+message DeriveSubAccountsParam {
     string id = 1;
     string network = 2;
     string segWit = 3;
-    uint32 externalIdx = 4;
-    string path = 5;
-    string encExtendedPublicKey = 6;
+    repeated string relativePaths = 4;
+    string extendedPublicKey = 5;
 }
 
-message CalcExternalAddressResult {
-    string address = 1;
-    string type = 2;
-    string derivedPath = 3;
+message DeriveSubAccountsResult {
+    repeated string addresses = 1;
 }
 
 // btc-fork

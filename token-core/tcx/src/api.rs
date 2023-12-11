@@ -434,29 +434,23 @@ pub mod sign_param {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CalcExternalAddressParam {
+pub struct DeriveSubAccountsParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub network: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub seg_wit: ::prost::alloc::string::String,
-    #[prost(uint32, tag = "4")]
-    pub external_idx: u32,
+    #[prost(string, repeated, tag = "4")]
+    pub relative_paths: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(string, tag = "5")]
-    pub path: ::prost::alloc::string::String,
-    #[prost(string, tag = "6")]
-    pub enc_extended_public_key: ::prost::alloc::string::String,
+    pub extended_public_key: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CalcExternalAddressResult {
-    #[prost(string, tag = "1")]
-    pub address: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub r#type: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub derived_path: ::prost::alloc::string::String,
+pub struct DeriveSubAccountsResult {
+    #[prost(string, repeated, tag = "1")]
+    pub addresses: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

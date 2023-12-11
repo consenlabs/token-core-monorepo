@@ -3,7 +3,7 @@ use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 
 use handler::{
-    calc_external_address, decrypt_data_from_ipfs, encrypt_data_to_ipfs, exists_mnemonic,
+    decrypt_data_from_ipfs, derive_sub_accounts, encrypt_data_to_ipfs, exists_mnemonic,
     exists_private_key, migrate_keystore, remove_wallet, sign_authentication_message, sign_message,
 };
 // use handler::{eth_v3keystore_export, eth_v3keystore_import};
@@ -84,7 +84,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "delete_keystore" => landingpad(|| delete_keystore(&action.param.unwrap().value)),
         "exists_mnemonic" => landingpad(|| exists_mnemonic(&action.param.unwrap().value)),
         "exists_private_key" => landingpad(|| exists_private_key(&action.param.unwrap().value)),
-        "derive_sub_accounts" => landingpad(|| calc_external_address(&action.param.unwrap().value)),
+        "derive_sub_accounts" => landingpad(|| derive_sub_accounts(&action.param.unwrap().value)),
         "sign_tx" => landingpad(|| sign_tx(&action.param.unwrap().value)),
         "sign_msg" => landingpad(|| sign_message(&action.param.unwrap().value)),
         "exists_json" => landingpad(|| exists_json(&action.param.unwrap().value)),
