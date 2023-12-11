@@ -322,12 +322,6 @@ impl LegacyKeystore {
         let mut keystore = self.migrate_to_hd(key)?;
         keystore.unlock(key)?;
 
-        // generate old 4 chain accounts
-        // tcx_btc_kin::bitcoin::enable_account("BITCOIN", 0, &mut keystore)?;
-        // tcx_atom::cosmos::enable_account("COSMOS", 0, &mut keystore)?;
-        // tcx_eth::ethereum::enable_account("ETHEREUM", 0, &mut keystore)?;
-        // tcx_eos::eos::enable_account("EOS", 0, &mut keystore)?;
-
         // TODO: Create identity wallets
         if let Some(_exists_keystore) = new_keystore {
             // TODO Backup old file

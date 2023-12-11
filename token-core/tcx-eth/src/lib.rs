@@ -8,8 +8,6 @@ pub type Result<T> = result::Result<T, failure::Error>;
 
 pub mod ethereum {
     use crate::address::EthAddress;
-    use tcx_constants::{CoinInfo, CurveType};
-    use tcx_keystore::{Account, Keystore};
 
     pub const CHAINS: [&'static str; 1] = ["ETHEREUM"];
 
@@ -18,18 +16,4 @@ pub mod ethereum {
     pub type TransactionOutput = crate::transaction::EthTxOutput;
     pub type MessageInput = crate::transaction::EthMessageInput;
     pub type MessageOutput = crate::transaction::EthMessageOutput;
-
-    pub fn enable_account(
-        _: &str,
-        index: u32,
-        keystore: &mut Keystore,
-    ) -> Result<Vec<Account>, failure::Error> {
-        keystore.derive_coins::<EthAddress>(&[CoinInfo {
-            coin: "ETHEREUM".to_string(),
-            derivation_path: format!("m/44'/60'/{}'/0/0", index),
-            curve: CurveType::SECP256k1,
-            network: "MAINNET".to_string(),
-            seg_wit: "".to_string(),
-        }])
-    }
 }

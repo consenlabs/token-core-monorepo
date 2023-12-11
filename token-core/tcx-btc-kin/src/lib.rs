@@ -63,14 +63,6 @@ pub enum Error {
     UnsupportedTaproot,
 }
 
-pub mod bitcoin {
-    use crate::{BITCOIN, LITECOIN};
-    pub const CHAINS: [&'static str; 2] = [BITCOIN, LITECOIN];
-    pub type Address = crate::BtcKinAddress;
-    pub type TransactionInput = crate::transaction::BtcKinTxInput;
-    pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
-}
-
 pub fn calc_btc_change_address(
     seg_wit: &str,
     network: &str,
@@ -94,10 +86,16 @@ pub fn calc_btc_change_address(
     Ok((address.to_string(), external_path))
 }
 
+pub mod bitcoin {
+    use crate::{BITCOIN, LITECOIN};
+    pub const CHAINS: [&'static str; 2] = [BITCOIN, LITECOIN];
+    pub type Address = crate::BtcKinAddress;
+    pub type TransactionInput = crate::transaction::BtcKinTxInput;
+    pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
+}
+
 pub mod bitcoincash {
     use crate::BITCOINCASH;
-    use tcx_constants::{CoinInfo, CurveType};
-    use tcx_keystore::{Account, Keystore};
 
     pub static CHAINS: [&'static str; 1] = [BITCOINCASH];
 
@@ -106,29 +104,6 @@ pub mod bitcoincash {
     pub type TransactionInput = crate::transaction::BtcKinTxInput;
 
     pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
-
-    pub fn enable_account(
-        _: &str,
-        index: u32,
-        keystore: &mut Keystore,
-    ) -> Result<Vec<Account>, failure::Error> {
-        keystore.derive_coins::<crate::BchAddress>(&[
-            CoinInfo {
-                coin: BITCOINCASH.to_string(),
-                derivation_path: format!("m/44'/145'/{}'/0/0", index),
-                curve: CurveType::SECP256k1,
-                network: "MAINNET".to_string(),
-                seg_wit: "NONE".to_string(),
-            },
-            CoinInfo {
-                coin: BITCOINCASH.to_string(),
-                derivation_path: format!("m/44'/1'/{}'/0/0", index),
-                curve: CurveType::SECP256k1,
-                network: "TESTNET".to_string(),
-                seg_wit: "NONE".to_string(),
-            },
-        ])
-    }
 }
 
 pub mod omni {

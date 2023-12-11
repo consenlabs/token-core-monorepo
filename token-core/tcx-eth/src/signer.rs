@@ -165,7 +165,6 @@ fn parse_u64(s: &str) -> Result<U64> {
 
 #[cfg(test)]
 mod test {
-    use crate::ethereum::enable_account;
     use crate::transaction::{
         AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput, SignatureType,
     };
@@ -175,7 +174,6 @@ mod test {
     fn private_key_store(key: &str) -> Keystore {
         let mut ks = Keystore::from_private_key(key, "imToken1", Metadata::default());
         ks.unlock_by_password("imToken1").unwrap();
-        enable_account("ETHEREUM", 0, &mut ks).unwrap();
         ks
     }
 

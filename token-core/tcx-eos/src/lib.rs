@@ -5,8 +5,6 @@ pub mod transaction;
 pub use chain_factory::EosChainFactory;
 
 pub mod eos {
-    use tcx_constants::{CoinInfo, CurveType};
-    use tcx_keystore::{Account, Keystore};
 
     pub const CHAINS: [&'static str; 1] = ["EOS"];
 
@@ -17,18 +15,4 @@ pub mod eos {
     pub type MessageInput = crate::transaction::EosMessageInput;
 
     pub type MessageOutput = crate::transaction::EosMessageOutput;
-
-    pub fn enable_account(
-        _: &str,
-        index: u32,
-        keystore: &mut Keystore,
-    ) -> Result<Vec<Account>, failure::Error> {
-        keystore.derive_coins::<Address>(&[CoinInfo {
-            coin: "EOS".to_string(),
-            derivation_path: format!("m/44'/194'/{}'/0/0", index),
-            curve: CurveType::SECP256k1,
-            network: "MAINNET".to_string(),
-            seg_wit: "".to_string(),
-        }])
-    }
 }

@@ -28,28 +28,12 @@ pub fn pars_tezos_private_key(private_key: &str) -> Result<Vec<u8>> {
 }
 
 pub mod tezos {
-    use tcx_constants::{CoinInfo, CurveType};
-    use tcx_keystore::{Account, Keystore};
 
     pub const CHAINS: [&'static str; 1] = ["TEZOS"];
 
     pub type Address = crate::address::TezosAddress;
     pub type TransactionInput = crate::transaction::TezosRawTxIn;
     pub type TransactionOutput = crate::transaction::TezosTxOut;
-
-    pub fn enable_account(
-        _: &str,
-        index: u32,
-        keystore: &mut Keystore,
-    ) -> Result<Vec<Account>, failure::Error> {
-        keystore.derive_coins::<Address>(&[CoinInfo {
-            coin: "TEZOS".to_string(),
-            derivation_path: format!("m/44'/1729'/{}'/0'", index),
-            curve: CurveType::ED25519,
-            network: "MAINNET".to_string(),
-            seg_wit: "".to_string(),
-        }])
-    }
 }
 
 #[cfg(test)]
