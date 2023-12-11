@@ -93,7 +93,6 @@ mod test {
     use crate::ed25519::{Ed25519PrivateKey, Ed25519PublicKey};
     use crate::{PrivateKey, PublicKey};
     use blake2b_simd::Params;
-    use hex;
     use tcx_common::{FromHex, ToHex};
     #[test]
     fn from_slice_test() {

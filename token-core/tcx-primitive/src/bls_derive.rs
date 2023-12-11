@@ -196,7 +196,6 @@ mod tests {
     use super::*;
     use crate::bls_derive::BLSDeterministicPrivateKey;
     use crate::{Derive, DeterministicPrivateKey, PrivateKey, PublicKey};
-    use hex;
     use num_bigint::BigUint;
 
     struct TestVector {

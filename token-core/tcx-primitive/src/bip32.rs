@@ -271,7 +271,6 @@ mod tests {
         PrivateKey, Ss58Codec,
     };
     use bip39::{Language, Mnemonic, Seed};
-    use bitcoin_hashes::hex::ToHex;
     use tcx_common::{FromHex, ToHex};
 
     fn default_seed() -> Seed {

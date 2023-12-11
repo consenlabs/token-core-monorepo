@@ -72,6 +72,7 @@ mod tests {
     use crate::ecc::PublicKey;
     use bitcoin_hashes::hex::ToHex;
     use sp_core::crypto::Pair;
+    use tcx_common::FromHex;
     use tcx_constants::TEST_MNEMONIC;
 
     #[test]

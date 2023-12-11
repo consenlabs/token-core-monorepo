@@ -131,7 +131,7 @@ mod test {
     use crate::Derive;
     use hex;
     use iop_keyvault::ExtendedPrivateKey;
-    use tcx_common::ToHex;
+    use tcx_common::{FromHex, ToHex};
 
     #[test]
     fn from_seed_test() {

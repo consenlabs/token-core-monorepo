@@ -434,7 +434,7 @@ mod tests {
     use super::{PrivateKey, PublicKey, TypedDeterministicPrivateKey, TypedPrivateKey};
     use crate::{Derive, TypedPublicKey};
     use bip39::{Language, Mnemonic, Seed};
-    use tcx_common::ToHex;
+    use tcx_common::{FromHex, ToHex};
 
     use tcx_constants::{CurveType, TEST_MNEMONIC};
 

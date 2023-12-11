@@ -83,6 +83,7 @@ mod tests {
     use crate::bls::BLSPrivateKey;
     use crate::{PrivateKey, PublicKey};
     use bitcoin_hashes::hex::ToHex;
+    use tcx_common::FromHex;
 
     #[test]
     fn test_bls_private_key() {
