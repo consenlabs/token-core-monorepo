@@ -9,6 +9,7 @@ mod private;
 
 use serde::{Deserialize, Serialize};
 
+use tcx_common::ToHex;
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::crypto::Unlocker;
 

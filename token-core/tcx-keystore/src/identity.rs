@@ -318,7 +318,7 @@ mod test {
             identity.identifier
         );
         assert_eq!(
-            "QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6",
+            "QmRYFQbmD37D4fvodcFvQtaSFo3mcAPJmYLPUHrr8w1teZ",
             identity.ipfs_id
         );
     }
