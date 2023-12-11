@@ -104,7 +104,7 @@ impl HdKeystore {
 
     fn cache_mnemonic(&mut self, mnemonic_bytes: Vec<u8>) -> Result<()> {
         let mnemonic_str = String::from_utf8(mnemonic_bytes)?;
-
+        println!("mnemonic_str: {}", mnemonic_str);
         let _mnemonic = Mnemonic::from_phrase(&mnemonic_str, Language::English)
             .map_err(transform_mnemonic_error)?;
 

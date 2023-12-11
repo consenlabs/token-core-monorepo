@@ -573,7 +573,7 @@ pub(crate) mod tests {
     static HD_KEYSTORE_JSON: &'static str = r#"
         {
     "id": "7719d1e3-3f67-439f-a18e-d9ae413e00e1",
-    "version": 11000,
+    "version": 12000,
     "keyHash": "efbe00a55ddd4c5350e295a9533d28f93cac001bfdad8cf4275140461ea03e9e",
     "crypto": {
         "cipher": "aes-128-ctr",
@@ -590,29 +590,28 @@ pub(crate) mod tests {
         },
         "mac": "56af7c5faf0a791cbb4911c4c20070156e4ad0a03f8253b2a2fb005a68d7a026"
     },
-    "activeAccounts": [
-        {
-            "address": "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r",
-            "derivationPath": "m/44'/145'/0'/0/0",
-            "curve": "SECP256k1",
-            "coin": "BITCOINCASH",
-            "network": "MAINNET",
-            "segWit": "NONE",
-            "extPubKey": "031064f6a580000000251d72997d4cf931a7e6819f7da37725166100fc7dae9ca6afc3f8fd8a3d3a7f0303f2f84851514bf2f40a46b5bb9dbf4e5913fbacde1a96968cda08f9fd882caa",
-            "publicKey": ""
-        }
-    ],
+    "identity":{
+        "encAuthKey":
+            {
+                "encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca",
+                "nonce":"d117ae86c627850341f1a5d6bd9cd855"
+            },
+        "encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3",
+        "identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf",
+        "ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"
+    },
     "imTokenMeta": {
         "name": "test-wallet",
         "passwordHint": "imtoken",
         "timestamp": 1575605134,
-        "source": "MNEMONIC"
+        "source": "MNEMONIC",
+        "network":"MAINNET"
     }
 }
 "#;
 
     static PK_KEYSTORE_JSON: &'static str = r#"
-    {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":11001,"keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE"}}
+    {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":12001,"keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"identity":{"encAuthKey":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"},"encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3","identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf","ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"},"imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE","network":"MAINNET"}}
     "#;
 
     static OLD_KEYSTORE_JSON: &'static str = r#"
@@ -697,8 +696,7 @@ pub(crate) mod tests {
         let ret = keystore
             .secp256k1_ecdsa_sign_recoverable(&msg, &params.derivation_path)
             .unwrap();
-        assert_eq!("3045022100a5c14ac7fd46f9f0c951b86d9586595270266ab09b49bf79fc27ebae7866256002206a7d7841fb740ee190c94dcd156228fc820f5ff5ba8c07748b220d07c51d247a",
-                   ret.to_hex());
+        assert_eq!("a5c14ac7fd46f9f0c951b86d9586595270266ab09b49bf79fc27ebae786625606a7d7841fb740ee190c94dcd156228fc820f5ff5ba8c07748b220d07c51d247a01", hex::encode(ret));
 
         let mut keystore: Keystore = Keystore::from_json(PK_KEYSTORE_JSON).unwrap();
         let ret = keystore.secp256k1_ecdsa_sign_recoverable(&msg, "m/44'/195'/0'/0/0");
@@ -712,7 +710,7 @@ pub(crate) mod tests {
         let ret = keystore
             .secp256k1_ecdsa_sign_recoverable(&msg, "m/44'/195'/0'/0/0")
             .unwrap();
-        assert_eq!(ret.to_hex(), "30450221008d4920cb3a5a46a3f76845e823c9531f4a882eac4ffd61bfeaa29646999a83d302205c4c5537816911a8b0eb5f0e7ea09839c37e9e22bace8404d23d064c84d403d5");
+        assert_eq!(hex::encode(ret), "8d4920cb3a5a46a3f76845e823c9531f4a882eac4ffd61bfeaa29646999a83d35c4c5537816911a8b0eb5f0e7ea09839c37e9e22bace8404d23d064c84d403d500");
     }
 
     #[test]
