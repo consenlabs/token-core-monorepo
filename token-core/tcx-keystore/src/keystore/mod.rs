@@ -20,7 +20,7 @@ pub use self::{
 use crate::identity::Identity;
 use crate::signer::ChainSigner;
 use tcx_crypto::{Crypto, Key};
-use tcx_primitive::{TypedDeterministicPublicKey, TypedPrivateKey, TypedPublicKey};
+use tcx_primitive::{Derive, TypedDeterministicPublicKey, TypedPrivateKey, TypedPublicKey};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -352,6 +352,31 @@ impl Keystore {
         }
 
         Ok(accounts)
+    }
+
+    pub fn derive_sub_account<A: Address>(
+        xpub: &TypedDeterministicPublicKey,
+        coin_info: &CoinInfo,
+    ) -> Result<Account> {
+        // let acc_path = get_account_path(path)?;
+        // let change_path = format!("{}/{}", acc_path, relative_path);
+        // TODO: test derive from relative path?
+
+        let typed_pk = xpub.derive(&coin_info.derivation_path)?.public_key();
+        // let typed_pk = TypedPublicKey::Secp256k1(public_key);
+
+        let address = A::from_public_key(&typed_pk, &coin_info)?.to_string();
+        let account = Account {
+            address,
+            derivation_path: coin_info.derivation_path.to_string(),
+            curve: coin_info.curve,
+            coin: coin_info.coin.to_string(),
+            network: coin_info.network.to_string(),
+            seg_wit: coin_info.seg_wit.to_string(),
+            ext_pub_key: xpub.to_string(),
+            public_key: typed_pk.to_bytes().to_0x_hex(),
+        };
+        Ok(account)
     }
 
     pub fn get_private_key(

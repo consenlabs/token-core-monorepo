@@ -63,6 +63,7 @@ use tcx_substrate::{
 };
 
 use tcx_migration::migration::LegacyKeystore;
+use tcx_primitive::TypedDeterministicPublicKey;
 use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
 
@@ -984,15 +985,38 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
     let param: DeriveSubAccountsParam =
         DeriveSubAccountsParam::decode(data).expect("DeriveSubAccountsParam");
 
-    let xpub = Bip32DeterministicPublicKey::from_ss58check(&param.extended_public_key)?;
+    let curve = CurveType::from_str(&param.curve);
+    let xpub = TypedDeterministicPublicKey::from_hex(curve, &param.extended_public_key)?;
 
-    let addresses = tcx_btc_kin::derive_sub_accounts(
-        &param.seg_wit,
-        &param.network,
-        &param.relative_paths,
-        &xpub,
-    )?;
-    encode_message(DeriveSubAccountsResult { addresses })
+    let account_ret: Vec<Result<AccountResponse>> = param
+        .paths
+        .iter()
+        .map(|path| {
+            let coin_info = CoinInfo {
+                coin: param.chain_type.to_string(),
+                derivation_path: path.to_string(),
+                curve,
+                network: param.network.to_string(),
+                seg_wit: param.seg_wit.to_string(),
+            };
+            let acc = derive_sub_account(&xpub, &coin_info)?;
+            let acc_rsp = AccountResponse {
+                chain_type: param.chain_type.to_string(),
+                address: acc.address.to_string(),
+                path: path.to_string(),
+                extended_public_key: param.extended_public_key.to_string(),
+                public_key: acc.public_key,
+                curve: param.curve.to_string(),
+            };
+            Ok(acc_rsp)
+        })
+        .collect();
+
+    let accounts: Vec<AccountResponse> = account_ret
+        .into_iter()
+        .collect::<Result<Vec<AccountResponse>>>()?;
+
+    encode_message(DeriveSubAccountsResult { accounts })
 }
 
 pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {

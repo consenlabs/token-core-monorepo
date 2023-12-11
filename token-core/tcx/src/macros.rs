@@ -1,6 +1,7 @@
 use std::str::FromStr;
 use tcx_constants::CoinInfo;
 use tcx_keystore::{Address, Keystore, MessageSigner, SignatureParameters, TransactionSigner};
+use tcx_primitive::TypedDeterministicPublicKey;
 use tcx_primitive::TypedPublicKey;
 
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -121,6 +122,21 @@ macro_rules! use_chains {
                 use $chain::*;
                 if CHAINS.contains(&coin_info.coin.as_str()) && std::any::TypeId::of::<Address>() != faker_address {
                     return keystore.derive_coin::<Address>(coin_info)
+                }
+            })*
+
+            Err(format_err!("unsupported_chain"))
+        }
+
+        #[allow(dead_code)]
+        fn derive_sub_account(xpub: &TypedDeterministicPublicKey, coin_info:&CoinInfo) -> Result<Account> {
+            type Address = MockAddress;
+            let faker_address = std::any::TypeId::of::<MockAddress>();
+
+            $({
+                use $chain::*;
+                if CHAINS.contains(&coin_info.coin.as_str()) && std::any::TypeId::of::<Address>() != faker_address {
+                    return Keystore::derive_sub_account::<Address>(xpub, coin_info)
                 }
             })*
 
