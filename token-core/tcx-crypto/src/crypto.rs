@@ -144,8 +144,9 @@ impl CacheDerivedKey {
 
     fn hash(key: &str) -> String {
         // hex_dsha256(key)
-        // TODO: missing hex_dsha256
-        unimplemented!()
+        let key_bytes = Vec::from_hex(key).expect("hash cache derived key");
+        let hashed = tcx_common::sha256d(&key_bytes);
+        hashed.to_hex()
     }
 
     pub fn get_derived_key(&self, key: &str) -> Result<Vec<u8>> {
