@@ -1,9 +1,8 @@
-use crate::numberic_util;
 use crate::Error;
 use crate::Result;
-use bitcoin_hashes::hex::{FromHex, ToHex};
 use serde::{Deserialize, Serialize};
 use std::env;
+use tcx_common::{random_u8_16, random_u8_32, FromHex, ToHex};
 use tiny_keccak::Hasher;
 
 const CREDENTIAL_LEN: usize = 64usize;
@@ -128,36 +127,6 @@ impl KdfParams for SCryptParams {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct CacheDerivedKey {
-    hashed_key: String,
-    derived_key: Vec<u8>,
-}
-
-impl CacheDerivedKey {
-    pub fn new(key: &str, derived_key: &[u8]) -> Self {
-        CacheDerivedKey {
-            hashed_key: Self::hash(key),
-            derived_key: derived_key.to_vec(),
-        }
-    }
-
-    fn hash(key: &str) -> String {
-        // hex_dsha256(key)
-        let key_bytes = Vec::from_hex(key).expect("hash cache derived key");
-        let hashed = tcx_common::sha256d(&key_bytes);
-        hashed.to_hex()
-    }
-
-    pub fn get_derived_key(&self, key: &str) -> Result<Vec<u8>> {
-        if self.hashed_key == Self::hash(key) {
-            Ok(self.derived_key.clone())
-        } else {
-            Err(Error::PasswordIncorrect.into())
-        }
-    }
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Crypto {
@@ -176,12 +145,12 @@ pub struct Unlocker<'a> {
 
 fn encrypt(plaintext: &[u8], derived_key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
     let key = &derived_key[0..16];
-    super::aes::ctr::decrypt_nopadding(plaintext, key, iv)
+    super::aes::ctr::encrypt_nopadding(plaintext, key, iv)
 }
 
 fn decrypt(ciphertext: &[u8], derived_key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
     let key = &derived_key[0..16];
-    super::aes::ctr::encrypt_nopadding(ciphertext, key, iv)
+    super::aes::ctr::decrypt_nopadding(ciphertext, key, iv)
 }
 
 fn generate_mac(derived_key: &[u8], ciphertext: &[u8]) -> Vec<u8> {
@@ -194,7 +163,7 @@ fn generate_mac(derived_key: &[u8], ciphertext: &[u8]) -> Vec<u8> {
 }
 
 fn encrypt_with_random_iv(derived_key: &[u8], plaintext: &[u8]) -> Result<EncPair> {
-    let iv = numberic_util::random_iv(16);
+    let iv = random_u8_16();
     let ciphertext = encrypt(plaintext, derived_key, &iv)?;
     Ok(EncPair {
         enc_str: ciphertext.to_hex(),
@@ -203,8 +172,8 @@ fn encrypt_with_random_iv(derived_key: &[u8], plaintext: &[u8]) -> Result<EncPai
 }
 
 fn decrypt_enc_pair(derived_key: &[u8], enc_pair: &EncPair) -> Result<Vec<u8>> {
-    let ciphertext: Vec<u8> = FromHex::from_hex(&enc_pair.enc_str).unwrap();
-    let iv: Vec<u8> = FromHex::from_hex(&enc_pair.nonce).unwrap();
+    let ciphertext: Vec<u8> = Vec::from_hex(&enc_pair.enc_str).unwrap();
+    let iv: Vec<u8> = Vec::from_hex(&enc_pair.nonce).unwrap();
 
     decrypt(&ciphertext, derived_key, &iv)
 }
@@ -259,13 +228,13 @@ impl Crypto {
 
     pub fn new(password: &str, origin: &[u8]) -> Crypto {
         let mut param = Pbkdf2Params::default();
-        param.salt = numberic_util::random_iv(32).to_hex();
+        param.salt = random_u8_32().to_hex();
 
         Self::new_with_kdf(password, origin, KdfType::Pbkdf2(param))
     }
 
     pub fn new_with_kdf(password: &str, plaintext: &[u8], kdf: KdfType) -> Crypto {
-        let iv = numberic_util::random_iv(16);
+        let iv = random_u8_16();
 
         let mut crypto = Crypto {
             cipher: "aes-128-ctr".to_owned(),
@@ -315,7 +284,7 @@ impl Crypto {
     }
 
     fn encrypt(&self, derived_key: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
-        let iv: Vec<u8> = FromHex::from_hex(&self.cipherparams.iv).unwrap();
+        let iv: Vec<u8> = Vec::from_hex(&self.cipherparams.iv).unwrap();
         encrypt(plaintext, derived_key, &iv)
     }
 
@@ -576,16 +545,5 @@ mod tests {
             "4906577f075ad714f328e7b33829fdccfa8cd22eab2c0a8bc4f577824188ed16"
         );
         assert_eq!(crypto.ciphertext, "17ff4858e697455f4966c6072473f3501534bc20deb339b58aeb8db0bd9fe91777148d0a909f679fb6e3a7a64609034afeb72a");
-    }
-
-    #[test]
-    fn test_cache_derived_key() {
-        let cdk = CacheDerivedKey::new("12345678", &[1, 1, 1, 1]);
-        let ret = cdk.get_derived_key("1234");
-        assert!(ret.is_err());
-        assert_eq!(format!("{}", ret.err().unwrap()), "password_incorrect");
-
-        let ret = cdk.get_derived_key("12345678").unwrap();
-        assert_eq!(hex::encode(ret), "01010101");
     }
 }

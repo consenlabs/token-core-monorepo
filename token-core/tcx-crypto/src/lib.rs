@@ -1,6 +1,5 @@
 pub mod aes;
 pub mod crypto;
-pub mod numberic_util;
 
 use core::result;
 pub use crypto::{Crypto, EncPair, KdfParams, Key, Pbkdf2Params, SCryptParams};

@@ -10,9 +10,8 @@ use regex::Regex;
 use serde::__private::{fmt, PhantomData};
 use std::io::Cursor;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tcx_common::FromHex;
+use tcx_common::{random_u8_32, FromHex};
 use tcx_constants::{CoinInfo, Result};
-use tcx_crypto::numberic_util::random_iv;
 use tcx_primitive::{
     DeterministicPrivateKey, PrivateKey, PublicKey, Sr25519PrivateKey, TypedPublicKey,
 };
@@ -143,8 +142,8 @@ fn scrypt_param_from_encoded(encoded: &[u8]) -> Result<(scrypt::Params, Vec<u8>)
 fn default_scrypt_param() -> (scrypt::Params, Vec<u8>) {
     let log_n = ((1 << 15) as f64).log2().round();
     let param = scrypt::Params::new(log_n as u8, 8, 1).expect("init scrypt params");
-    let salt = random_iv(32);
-    (param, salt)
+    let salt = random_u8_32();
+    (param, salt.to_vec())
 }
 
 impl SubstrateKeystore {
