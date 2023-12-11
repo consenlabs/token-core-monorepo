@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use std::env;
 use tiny_keccak::Hasher;
 
-
 const CREDENTIAL_LEN: usize = 64usize;
 
 pub type Credential = [u8; CREDENTIAL_LEN];

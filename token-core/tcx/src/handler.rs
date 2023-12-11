@@ -753,7 +753,7 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(format_err!("unsupported_chain")),
     }?;
     let pk_import_param = ImportPrivateKeyParam {
-        private_key: pk.to_hex(),
+        private_key: sec_key_bytes.to_hex(),
         password: param.password.to_string(),
         name,
         password_hint: "".to_string(),
@@ -831,7 +831,7 @@ pub(crate) fn exists_json(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(format_err!("unsupported_chain")),
     }?;
 
-    let pk_hex = pk.to_hex();
+    let pk_hex = pk_bytes.to_hex();
     let exists_param = ExistsPrivateKeyParam {
         encoding: "".to_string(),
         private_key: pk_hex,

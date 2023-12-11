@@ -2,7 +2,7 @@ use failure::format_err;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tcx_atom::address::AtomAddress;
-use tcx_common::hex_to_bytes;
+use tcx_common::{FromHex, ToHex};
 use tcx_constants::{coin_info_from_param, CoinInfo, CurveType};
 use tcx_crypto::{Crypto, EncPair, Key};
 use tcx_keystore::{
@@ -12,7 +12,6 @@ use tcx_keystore::{
 
 use tcx_btc_kin::address::BtcKinAddress;
 use tcx_btc_kin::Error;
-use tcx_common::ToHex;
 use tcx_eos::address::EosAddress;
 use tcx_eth::address::EthAddress;
 use tcx_keystore::identity::Identity;
@@ -122,8 +121,8 @@ impl LegacyKeystore {
         let pub_key = TypedPublicKey::Secp256k1(sec_key.public_key());
         let coin_info = coin_info_from_param("ETHEREUM", "", "", CurveType::SECP256k1.as_str())?;
         let calc_address = EthAddress::from_public_key(&pub_key, &coin_info)?.to_string();
-        let calc_addr_bytes = hex_to_bytes(&calc_address)?;
-        let addr_bytes = hex_to_bytes(&self.address)?;
+        let calc_addr_bytes = &Vec::from_hex(calc_address)?;
+        let addr_bytes = &Vec::from_hex(&self.address)?;
         if calc_addr_bytes == addr_bytes {
             Ok(())
         } else {
