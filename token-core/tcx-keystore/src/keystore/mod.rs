@@ -359,13 +359,7 @@ impl Keystore {
         xpub: &TypedDeterministicPublicKey,
         coin_info: &CoinInfo,
     ) -> Result<Account> {
-        // let acc_path = get_account_path(path)?;
-        // let change_path = format!("{}/{}", acc_path, relative_path);
-        // TODO: test derive from relative path?
-
         let typed_pk = xpub.derive(&coin_info.derivation_path)?.public_key();
-        // let typed_pk = TypedPublicKey::Secp256k1(public_key);
-
         let address = A::from_public_key(&typed_pk, &coin_info)?.to_string();
         let account = Account {
             address,

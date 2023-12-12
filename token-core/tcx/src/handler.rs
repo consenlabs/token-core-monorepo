@@ -5,6 +5,7 @@ use std::fs;
 use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
+use tcx_eos::address::EosAddress;
 use tcx_keystore::keystore::IdentityNetwork;
 
 use tcx_common::{FromHex, ToHex};
@@ -12,7 +13,7 @@ use tcx_primitive::{private_key_without_version, TypedPrivateKey};
 
 use tcx_btc_kin::WIFDisplay;
 use tcx_keystore::{
-    key_hash_from_mnemonic, key_hash_from_private_key, Keystore, KeystoreGuard,
+    key_hash_from_mnemonic, key_hash_from_private_key, Address, Keystore, KeystoreGuard,
     SignatureParameters, Signer,
 };
 use tcx_keystore::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
@@ -29,12 +30,12 @@ use crate::api::{
     ExistsMnemonicParam, ExistsPrivateKeyParam, ExportPrivateKeyParam, ExportResult, GeneralResult,
     GenerateMnemonicResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult,
     GetPublicKeysParam, GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam, KeyType,
-    KeystoreCommonExistsParam, KeystoreMigrationParam, KeystoreResult,
+    KeystoreCommonExistsParam, KeystoreMigrationParam, KeystoreResult, MnemonicToPublicKeyParam,
+    MnemonicToPublicKeyResult, RemoveWalletParam, RemoveWalletResult,
     SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
-    SignHashesResult, StoreDeleteParam, StoreDeleteResult, WalletKeyParam,
-    ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
-    ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam,
-    ZksyncSignMusigResult,
+    SignHashesResult, WalletKeyParam, ZksyncPrivateKeyFromSeedParam,
+    ZksyncPrivateKeyFromSeedResult, ZksyncPrivateKeyToPubkeyHashParam,
+    ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult,
 };
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
@@ -269,6 +270,7 @@ fn encrypt_xpub(xpub: &str, network: &str) -> Result<String> {
     Ok(base64::encode(&encrypted))
 }
 
+#[allow(dead_code)]
 fn decrypt_xpub(enc_xpub: &str) -> Result<Bip32DeterministicPublicKey> {
     let encrypted = base64::decode(enc_xpub)?;
     let key = tcx_crypto::XPUB_COMMON_KEY_128.read();
@@ -897,7 +899,7 @@ pub(crate) fn generate_mnemonic() -> Result<Vec<u8>> {
 }
 
 pub(crate) fn remove_wallet(data: &[u8]) -> Result<Vec<u8>> {
-    let param: StoreDeleteParam = StoreDeleteParam::decode(data)?;
+    let param: RemoveWalletParam = RemoveWalletParam::decode(data)?;
     let map = KEYSTORE_MAP.read();
     let keystore: &Keystore = match map.get(&param.id) {
         Some(keystore) => Ok(keystore),
@@ -909,7 +911,7 @@ pub(crate) fn remove_wallet(data: &[u8]) -> Result<Vec<u8>> {
     }
     filemanager::delete_keystore_file(&param.id)?;
 
-    let result = StoreDeleteResult { is_success: true };
+    let result = RemoveWalletResult { is_success: true };
     encode_message(result)
 }
 
@@ -1075,4 +1077,16 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
     } else {
         Err(format_err!("invalid version in keystore"))
     }
+}
+
+pub(crate) fn mnemonic_to_public(data: &[u8]) -> Result<Vec<u8>> {
+    let param = MnemonicToPublicKeyParam::decode(data)?;
+    let public_key = tcx_primitive::mnemonic_to_public(&param.mnemonic, &param.path, &param.curve)?;
+    let public_key_str = match param.encoding.to_uppercase().as_str() {
+        "EOS" => EosAddress::from_public_key(&public_key, &CoinInfo::default())?.to_string(),
+        _ => public_key.to_bytes().to_0x_hex(),
+    };
+    encode_message(MnemonicToPublicKeyResult {
+        public_key: public_key_str,
+    })
 }

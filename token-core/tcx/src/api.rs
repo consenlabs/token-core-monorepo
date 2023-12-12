@@ -482,7 +482,7 @@ pub struct PublicKeyResult {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StoreDeleteParam {
+pub struct RemoveWalletParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
@@ -490,39 +490,9 @@ pub struct StoreDeleteParam {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StoreDeleteResult {
+pub struct RemoveWalletResult {
     #[prost(bool, tag = "1")]
     pub is_success: bool,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct V3KeystoreImportInput {
-    #[prost(string, tag = "1")]
-    pub keystore: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(bool, tag = "3")]
-    pub overwrite: bool,
-    #[prost(string, tag = "4")]
-    pub name: ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
-    pub chain_type: ::prost::alloc::string::String,
-    #[prost(string, tag = "6")]
-    pub source: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct V3KeystoreExportInput {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct V3KeystoreExportOutput {
-    #[prost(string, tag = "1")]
-    pub json: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -581,6 +551,24 @@ pub struct SignAuthenticationMessageResult {
 pub struct GenerateMnemonicResult {
     #[prost(string, tag = "1")]
     pub mnemonic: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MnemonicToPublicKeyParam {
+    #[prost(string, tag = "1")]
+    pub mnemonic: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub path: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub curve: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub encoding: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MnemonicToPublicKeyResult {
+    #[prost(string, tag = "1")]
+    pub public_key: ::prost::alloc::string::String,
 }
 /// only support two types
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]

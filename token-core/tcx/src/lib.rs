@@ -2,11 +2,6 @@ use std::ffi::{CStr, CString};
 
 use std::os::raw::c_char;
 
-use handler::{
-    decrypt_data_from_ipfs, derive_sub_accounts, encrypt_data_to_ipfs, exists_mnemonic,
-    exists_private_key, migrate_keystore, remove_wallet, sign_authentication_message, sign_message,
-};
-// use handler::{eth_v3keystore_export, eth_v3keystore_import};
 use prost::Message;
 
 pub mod api;
@@ -20,11 +15,14 @@ use std::result;
 
 use crate::error_handling::{landingpad, LAST_BACKTRACE, LAST_ERROR};
 use crate::handler::{
-    create_keystore, delete_keystore, derive_accounts, encode_message, eth_recover_address,
-    exists_json, export_json, export_mnemonic, export_private_key, generate_mnemonic,
+    create_keystore, decrypt_data_from_ipfs, delete_keystore, derive_accounts, derive_sub_accounts,
+    encode_message, encrypt_data_to_ipfs, eth_recover_address, exists_json, exists_mnemonic,
+    exists_private_key, export_json, export_mnemonic, export_private_key, generate_mnemonic,
     get_derived_key, get_extended_public_keys, get_public_keys, import_json, import_mnemonic,
-    import_private_key, sign_hashes, sign_tx, unlock_then_crash, verify_password,
-    zksync_private_key_from_seed, zksync_private_key_to_pubkey_hash, zksync_sign_musig,
+    import_private_key, migrate_keystore, mnemonic_to_public, remove_wallet,
+    sign_authentication_message, sign_hashes, sign_message, sign_tx, unlock_then_crash,
+    verify_password, zksync_private_key_from_seed, zksync_private_key_to_pubkey_hash,
+    zksync_sign_musig,
 };
 
 mod filemanager;
@@ -119,7 +117,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         }
         "get_public_keys" => landingpad(|| get_public_keys(&action.param.unwrap().value)),
         "sign_hashes" => landingpad(|| sign_hashes(&action.param.unwrap().value)),
-
+        "mnemonic_to_public" => landingpad(|| mnemonic_to_public(&action.param.unwrap().value)),
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {
@@ -180,8 +178,9 @@ mod tests {
         ExportPrivateKeyParam, ExportResult, GeneralResult, GenerateMnemonicResult,
         GetPublicKeysParam, GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam,
         InitTokenCoreXParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonExistsParam,
-        KeystoreResult, PrivateKeyStoreExportParam, PublicKeyDerivation, PublicKeyParam,
-        PublicKeyResult, SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
+        KeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
+        PrivateKeyStoreExportParam, PublicKeyDerivation, PublicKeyParam, PublicKeyResult,
+        SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
         ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
         ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult,
         ZksyncSignMusigParam, ZksyncSignMusigResult,
@@ -3591,6 +3590,39 @@ mod tests {
             assert_eq!(
                 "0x80427Ae1f55bCf60ee4CD2db7549b8BC69a74303",
                 result.accounts[1].address
+            );
+        })
+    }
+
+    #[test]
+    pub fn test_mnemonic_to_public() {
+        run_test(|| {
+            let params = MnemonicToPublicKeyParam {
+                mnemonic: TEST_MNEMONIC.to_string(),
+                path: "m/44'/194'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
+                encoding: "EOS".to_string(),
+            };
+
+            let result_bytes = mnemonic_to_public(&encode_message(params).unwrap()).unwrap();
+            let result = MnemonicToPublicKeyResult::decode(result_bytes.as_slice()).unwrap();
+            assert_eq!(
+                "EOS88XhiiP7Cu5TmAUJqHbyuhyYgd6sei68AU266PyetDDAtjmYWF",
+                result.public_key
+            );
+
+            let params = MnemonicToPublicKeyParam {
+                mnemonic: TEST_MNEMONIC.to_string(),
+                path: "m/44'/60'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
+                encoding: "HEX".to_string(),
+            };
+
+            let result_bytes = mnemonic_to_public(&encode_message(params).unwrap()).unwrap();
+            let result = MnemonicToPublicKeyResult::decode(result_bytes.as_slice()).unwrap();
+            assert_eq!(
+                "0x0280c98b8ea7cab630defb0c09a4295c2193cdee016c1d5b9b0cb18572b9c370fe",
+                result.public_key
             );
         })
     }

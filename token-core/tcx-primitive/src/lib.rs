@@ -13,10 +13,12 @@ mod rand;
 mod secp256k1;
 mod sr25519;
 mod subkey;
-
 use core::result;
+use tcx_common::ToHex;
 
 pub type Result<T> = result::Result<T, failure::Error>;
+
+use tcx_constants::CurveType;
 
 pub use crate::bip32::{Bip32DeterministicPrivateKey, Bip32DeterministicPublicKey};
 pub use crate::derive::{get_account_path, Derive, DeriveJunction, DerivePath};
@@ -44,4 +46,12 @@ pub trait Ss58Codec: Sized {
 
     /// Return the ss58-check string for this key.
     fn to_ss58check_with_version(&self, version: &[u8]) -> String;
+}
+
+pub fn mnemonic_to_public(mnemonic: &str, path: &str, curve: &str) -> Result<TypedPublicKey> {
+    let curve_type = CurveType::from_str(curve);
+    let root = TypedDeterministicPrivateKey::from_mnemonic(curve_type, mnemonic)?;
+
+    let private_key = root.derive(&path)?.private_key();
+    Ok(private_key.public_key())
 }
