@@ -307,7 +307,8 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
             chain_type: derivation.chain_type.to_owned(),
             address: account.address.to_owned(),
             path: account.derivation_path.to_owned(),
-            extended_public_key: enc_xpub,
+            extended_public_key: account.ext_pub_key.to_string(),
+            encrypted_extended_public_key: enc_xpub,
             public_key: account.public_key,
             curve: account.curve.as_str().to_string(),
         };
@@ -989,22 +990,26 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
     let xpub = TypedDeterministicPublicKey::from_hex(curve, &param.extended_public_key)?;
 
     let account_ret: Vec<Result<AccountResponse>> = param
-        .paths
+        .relative_paths
         .iter()
-        .map(|path| {
+        .map(|relative_path| {
             let coin_info = CoinInfo {
                 coin: param.chain_type.to_string(),
-                derivation_path: path.to_string(),
+                derivation_path: relative_path.to_string(),
                 curve,
                 network: param.network.to_string(),
                 seg_wit: param.seg_wit.to_string(),
             };
-            let acc = derive_sub_account(&xpub, &coin_info)?;
+            let acc: Account = derive_sub_account(&xpub, &coin_info)?;
+
+            let enc_xpub = encrypt_xpub(&param.extended_public_key.to_string(), &acc.network)?;
+
             let acc_rsp = AccountResponse {
                 chain_type: param.chain_type.to_string(),
                 address: acc.address.to_string(),
-                path: path.to_string(),
+                path: relative_path.to_string(),
                 extended_public_key: param.extended_public_key.to_string(),
+                encrypted_extended_public_key: enc_xpub,
                 public_key: acc.public_key,
                 curve: param.curve.to_string(),
             };

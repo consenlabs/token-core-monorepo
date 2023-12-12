@@ -339,11 +339,10 @@ impl LegacyKeystore {
 #[cfg(test)]
 mod tests {
     use serde_json::Value;
-    use tcx_common::hex_to_bytes;
+    use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, TEST_MNEMONIC};
     use tcx_constants::{TEST_PASSWORD, TEST_PRIVATE_KEY};
     use tcx_crypto::crypto::SCryptParams;
-    use tcx_crypto::hex;
     use tcx_crypto::Crypto;
     use tcx_crypto::Pbkdf2Params;
     use tcx_crypto::{EncPair, Key};
@@ -544,7 +543,7 @@ mod tests {
 
     #[test]
     fn test_export_v3_keystore() {
-        let private_key_bytes = hex_to_bytes(TEST_PRIVATE_KEY).unwrap();
+        let private_key_bytes = &Vec::<u8>::from_hex(TEST_PRIVATE_KEY).unwrap();
         let v3_keystore =
             LegacyKeystore::new_v3(&private_key_bytes, TEST_PASSWORD).expect("v3 keystore");
         let keystore_json = serde_json::to_string(&v3_keystore).expect("serde v3");

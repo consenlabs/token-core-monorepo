@@ -176,12 +176,13 @@ mod tests {
 
     use crate::api::{
         sign_param, CreateKeystoreParam, DeriveAccountsParam, DeriveAccountsResult,
-        DerivedKeyResult, ExistsKeystoreResult, ExportPrivateKeyParam, ExportResult, GeneralResult,
-        GenerateMnemonicResult, GetPublicKeysParam, GetPublicKeysResult, ImportMnemonicParam,
-        ImportPrivateKeyParam, InitTokenCoreXParam, KeyType, KeystoreCommonAccountsParam,
-        KeystoreCommonExistsParam, KeystoreResult, PrivateKeyStoreExportParam, PublicKeyDerivation,
-        PublicKeyParam, PublicKeyResult, SignHashesParam, SignHashesResult, SignParam,
-        WalletKeyParam, ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
+        DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, ExistsKeystoreResult,
+        ExportPrivateKeyParam, ExportResult, GeneralResult, GenerateMnemonicResult,
+        GetPublicKeysParam, GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam,
+        InitTokenCoreXParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonExistsParam,
+        KeystoreResult, PrivateKeyStoreExportParam, PublicKeyDerivation, PublicKeyParam,
+        PublicKeyResult, SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
+        ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
         ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult,
         ZksyncSignMusigParam, ZksyncSignMusigResult,
     };
@@ -3472,6 +3473,125 @@ mod tests {
                 "0x2c20edff7e496c1f8d8370fc3d70f3f02b4c63008bb2586d507ddb88d68cea7d"
             );
             assert_eq!(output.signature, "02f90141010881e285faac6c45d88210be943535353535353535353535353535353535353535833542398a200184c0486d5f082a27f8cbd694019fda53b3198867b8aae65320c9c55d74de1938c0f7941b976cdbc43cfcbeaad2623c95523981ea1e664ae1a0d259410e74fa5c0227f688cc1f79b4d2bee3e9b7342c4c61342e8906a63406a2f87a94f1946eba70f89687d67493d8106f56c90ecba943f863a0b3838dedffc33c62f8abfc590b41717a6dd70c3cab5a6900efae846d9060a2b9a06a6c4d1ab264204fb2cdd7f55307ca3a0040855aa9c4a749a605a02b43374b82a00c38e901d0d95fbf8f05157c68a89393a86aa1e821279e4cce78f827dccb206480a0d95cb4d82912b2fed0510dd44cce5c0b177af6e7ed991f1dbe5b8e34303bf84ca04e0896caf07d9644e2728d919a84f7af46cb2421a0ce7bb814cce782d921e672");
+        })
+    }
+
+    #[test]
+    pub fn test_derive_btc_legacy_sub_accounts() {
+        run_test(|| {
+            let derivation = Derivation {
+                chain_type: "BITCOIN".to_string(),
+                path: "m/44'/0'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                chain_id: "".to_string(),
+                curve: "SECP256k1".to_string(),
+                bech32_prefix: "".to_string(),
+            };
+
+            let (wallet, accounts) = import_and_derive(derivation);
+            let params = DeriveSubAccountsParam {
+                id: wallet.id.to_string(),
+                chain_type: "BITCOIN".to_string(),
+                curve: "SECP256k1".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                relative_paths: vec!["0/0".to_string(), "0/1".to_string(), "1/0".to_string()],
+                extended_public_key: accounts.accounts[0].extended_public_key.to_string(),
+            };
+
+            let result_bytes = derive_sub_accounts(&encode_message(params).unwrap()).unwrap();
+            let result = DeriveSubAccountsResult::decode(result_bytes.as_slice()).unwrap();
+            assert_eq!(
+                "12z6UzsA3tjpaeuvA2Zr9jwx19Azz74D6g",
+                result.accounts[0].address
+            );
+            assert_eq!(
+                "1962gsZ8PoPUYHneFakkCTrukdFMVQ4i4T",
+                result.accounts[1].address
+            );
+            assert_eq!(
+                "19vddWhyq637bqDfuKadsoy5mTNRgfb3hr",
+                result.accounts[2].address
+            );
+        })
+    }
+
+    #[test]
+    pub fn test_derive_btc_p2wpkh_sub_accounts() {
+        run_test(|| {
+            let derivation = Derivation {
+                chain_type: "BITCOIN".to_string(),
+                path: "m/49'/0'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+                chain_id: "".to_string(),
+                curve: "SECP256k1".to_string(),
+                bech32_prefix: "".to_string(),
+            };
+
+            let (wallet, accounts) = import_and_derive(derivation);
+            let params = DeriveSubAccountsParam {
+                id: wallet.id.to_string(),
+                chain_type: "BITCOIN".to_string(),
+                curve: "SECP256k1".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+                relative_paths: vec!["0/0".to_string(), "0/1".to_string(), "1/0".to_string()],
+                extended_public_key: accounts.accounts[0].extended_public_key.to_string(),
+            };
+
+            let result_bytes = derive_sub_accounts(&encode_message(params).unwrap()).unwrap();
+            let result = DeriveSubAccountsResult::decode(result_bytes.as_slice()).unwrap();
+            assert_eq!(
+                "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
+                result.accounts[0].address
+            );
+            assert_eq!(
+                "33xJxujVGf4qBmPTnGW9P8wrKCmT7Nwt3t",
+                result.accounts[1].address
+            );
+            assert_eq!(
+                "33K4nJ6HuM4fuJct11xPPHH65dnGrN5Ggt",
+                result.accounts[2].address
+            );
+        })
+    }
+
+    #[test]
+    pub fn test_derive_eth_sub_accounts() {
+        run_test(|| {
+            let derivation = Derivation {
+                chain_type: "ETHEREUM".to_string(),
+                path: "m/44'/60'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "SECP256k1".to_string(),
+                bech32_prefix: "".to_string(),
+            };
+
+            let (wallet, accounts) = import_and_derive(derivation);
+            let params = DeriveSubAccountsParam {
+                id: wallet.id.to_string(),
+                chain_type: "ETHEREUM".to_string(),
+                curve: "SECP256k1".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "".to_string(),
+                relative_paths: vec!["0/0".to_string(), "0/1".to_string()],
+                extended_public_key: accounts.accounts[0].extended_public_key.to_string(),
+            };
+
+            let result_bytes = derive_sub_accounts(&encode_message(params).unwrap()).unwrap();
+            let result = DeriveSubAccountsResult::decode(result_bytes.as_slice()).unwrap();
+            assert_eq!(
+                "0x6031564e7b2F5cc33737807b2E58DaFF870B590b",
+                result.accounts[0].address
+            );
+            assert_eq!(
+                "0x80427Ae1f55bCf60ee4CD2db7549b8BC69a74303",
+                result.accounts[1].address
+            );
         })
     }
 

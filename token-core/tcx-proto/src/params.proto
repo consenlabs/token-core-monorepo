@@ -63,9 +63,10 @@ message AccountResponse {
     string chainType = 1;
     string address = 2;
     string path = 3;
-    string extendedPublicKey = 4;
+    string curve = 4;
     string publicKey = 5;
-    string curve = 6;
+    string extendedPublicKey = 6;
+    string encryptedExtendedPublicKey = 7;
 }
 
 message DeriveAccountsResult {
@@ -163,7 +164,7 @@ message SignParam {
     string path = 5;
     string curve = 6;
     string network = 7;
-    string seg_wit = 8;
+    string segWit = 8;
     google.protobuf.Any input = 9;
 }
 
@@ -173,7 +174,7 @@ message DeriveSubAccountsParam {
     string curve = 3;
     string network = 4;
     string segWit = 5;
-    repeated string paths = 6;
+    repeated string relativePaths = 6;
     string extendedPublicKey = 7;
 }
 

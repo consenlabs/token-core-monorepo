@@ -104,7 +104,6 @@ impl HdKeystore {
 
     fn cache_mnemonic(&mut self, mnemonic_bytes: Vec<u8>) -> Result<()> {
         let mnemonic_str = String::from_utf8(mnemonic_bytes)?;
-        println!("mnemonic_str: {}", mnemonic_str);
         let _mnemonic = Mnemonic::from_phrase(&mnemonic_str, Language::English)
             .map_err(transform_mnemonic_error)?;
 
@@ -199,7 +198,6 @@ impl HdKeystore {
         let public_key = private_key.public_key();
 
         let address = A::from_public_key(&public_key, coin_info)?;
-        // todo: ext_pub_key
         let ext_pub_key = match coin_info.curve {
             CurveType::SubSr25519 | CurveType::BLS | CurveType::ED25519 => "".to_owned(),
             _ => root
