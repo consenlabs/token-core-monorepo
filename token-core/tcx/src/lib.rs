@@ -100,7 +100,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "zksync_private_key_to_pubkey_hash" => {
             landingpad(|| zksync_private_key_to_pubkey_hash(&action.param.unwrap().value))
         }
-        "generate_mnemonic" => landingpad(|| generate_mnemonic()),
+        // "generate_mnemonic" => landingpad(|| generate_mnemonic()),
         "remove_wallets" => landingpad(|| remove_wallet(&action.param.unwrap().value)),
         "encrypt_data_to_ipfs" => landingpad(|| encrypt_data_to_ipfs(&action.param.unwrap().value)),
         "decrypt_data_from_ipfs" => {

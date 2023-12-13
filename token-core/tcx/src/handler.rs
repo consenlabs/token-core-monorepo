@@ -983,7 +983,6 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
     })
 }
 
-// TODO: add eth sub addr support
 pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
     let param: DeriveSubAccountsParam =
         DeriveSubAccountsParam::decode(data).expect("DeriveSubAccountsParam");
