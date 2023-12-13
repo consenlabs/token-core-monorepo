@@ -73,6 +73,7 @@ use crate::macros::use_chains;
 use_chains!(
     tcx_btc_kin::bitcoin,
     tcx_btc_kin::omni,
+    tcx_btc_kin::bitcoincash,
     tcx_filecoin::filecoin,
     tcx_eos::eos,
     tcx_ckb::nervos,
@@ -309,10 +310,10 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
             chain_type: derivation.chain_type.to_owned(),
             address: account.address.to_owned(),
             path: account.derivation_path.to_owned(),
+            curve: account.curve.as_str().to_string(),
+            public_key: account.public_key,
             extended_public_key: account.ext_pub_key.to_string(),
             encrypted_extended_public_key: enc_xpub,
-            public_key: account.public_key,
-            curve: account.curve.as_str().to_string(),
         };
         account_responses.push(account_rsp);
     }
