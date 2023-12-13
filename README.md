@@ -19,6 +19,12 @@ See more documents in the package readme
 * `imkey-core` [imkey-core README](./imkey-core/README.md)
 
 
+## Security Report
+[imkey Security Report (CN)](./doc/imKeySecurityReport.pdf)    
+
+
+
+
 
 ## Copyright and License
 
