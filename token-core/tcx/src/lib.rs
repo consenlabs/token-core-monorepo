@@ -3302,8 +3302,8 @@ mod tests {
                 path: "m/44'/60'/0'/0/0".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
-                chain_id: "".to_string(),
-                curve: "".to_string(),
+                chain_id: "1".to_string(),
+                curve: "SECP256k1".to_string(),
                 bech32_prefix: "".to_string(),
             };
 

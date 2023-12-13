@@ -86,7 +86,6 @@ impl PrivateKeystore {
     pub fn from_private_key(private_key: &str, password: &str, meta: Metadata) -> PrivateKeystore {
         let key_data: Vec<u8> = Vec::from_hex_auto(private_key).expect("hex can't decode");
         let key_hash = key_hash_from_private_key(&key_data);
-        //        let pk_bytes = Vec::from_hex(private_key).expect("valid private_key");
         let crypto: Crypto = Crypto::new(password, &key_data);
         let unlocker = crypto
             .use_key(&Key::Password(password.to_string()))

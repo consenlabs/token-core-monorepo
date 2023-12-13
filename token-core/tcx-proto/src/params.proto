@@ -41,7 +41,6 @@ message ImportMnemonicParam {
     bool overwrite = 6;
 }
 
-// FUNCTION: hd_store_derive(HdStoreDeriveParam): DeriveAccountsResult
 //
 // derive new accounts from a hd keystore
 message DeriveAccountsParam {
@@ -111,12 +110,6 @@ message PrivateKeyStoreExportParam {
     string chainType = 3;
     string network = 4;
 }
-
-/// Keystore Common
-
-// FUNCTION: delete_keystore(WalletKeyParam) -> Response
-//
-// delete the keystore
 
 // FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): ExistsKeystoreResult
 //
@@ -204,24 +197,6 @@ message RemoveWalletParam {
 message RemoveWalletResult {
     bool isSuccess = 1;
 }
-
-// message V3KeystoreImportInput {
-//     string keystore = 1;
-//     string password = 2;
-//     bool overwrite = 3;
-//     string name = 4;
-//     string chainType = 5;
-//     string source = 6;
-// }
-
-// message V3KeystoreExportInput {
-//     string id = 1;
-//     string password = 2;
-// }
-
-// message V3KeystoreExportOutput {
-//     string json = 1;
-// }
 
 message EncryptDataToIpfsParam {
     string identifier = 1;

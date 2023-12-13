@@ -250,7 +250,6 @@ pub struct ImportMnemonicParam {
     #[prost(bool, tag = "6")]
     pub overwrite: bool,
 }
-/// FUNCTION: hd_store_derive(HdStoreDeriveParam): DeriveAccountsResult
 ///
 /// derive new accounts from a hd keystore
 #[allow(clippy::derive_partial_eq_without_eq)]

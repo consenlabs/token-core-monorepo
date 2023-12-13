@@ -189,7 +189,7 @@ impl BchTransaction {
             //lock script
             let pub_key_bytes = hex::decode(utxo_pub_key_vec.get(index).unwrap())?;
             let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).into_inner();
-            let script_hex = format!("76a914{}88ac", hex::encode(pub_key_hash));
+            let script_hex: String = format!("76a914{}88ac", hex::encode(pub_key_hash));
             // let script = Script::from(hex::decode(script_hex)?);
             let script = Script::from_hex(script_hex.as_str())?;
             let script_data = serialize(&script);
