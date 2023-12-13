@@ -62,8 +62,8 @@ impl ToString for AtomAddress {
 
 #[cfg(test)]
 mod tests {
-
     use crate::address::AtomAddress;
+    use std::str::FromStr;
     use tcx_keystore::Address;
 
     use tcx_common::FromHex;
@@ -120,5 +120,23 @@ mod tests {
         for addr in valid_addresses {
             assert!(AtomAddress::is_valid(addr, &get_test_coin()));
         }
+    }
+
+    #[test]
+    fn test_address_is_invalid() {
+        let valid_addresses = vec![
+            "cosmos1r5v5srda7xfth3hn2s26txvrcrntldjumt8mhll",
+            "cosmos1pt9904aqg739q6p9kgc2v0puqvj6atqxw0dax",
+        ];
+        for addr in valid_addresses {
+            assert!(!AtomAddress::is_valid(addr, &get_test_coin()));
+        }
+    }
+
+    #[test]
+    fn test_address_from_str() {
+        let address = "cosmos1r5v5srda7xfth3hn2s26txvrcrntldjumt8mhl";
+        let atom_address = AtomAddress::from_str(address).unwrap();
+        assert_eq!(atom_address.to_string(), address);
     }
 }
