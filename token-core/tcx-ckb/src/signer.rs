@@ -187,7 +187,9 @@ impl TransactionSigner<CkbTxInput, CkbTxOutput> for Keystore {
 #[cfg(test)]
 mod tests {
     use crate::address::CkbAddress;
+    use crate::signer::CkbTxSigner;
     use crate::transaction::{CachedCell, CellInput, CkbTxInput, OutPoint, Script, Witness};
+    use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
     use tcx_keystore::{Keystore, Metadata, SignatureParameters, TransactionSigner};
 
@@ -483,5 +485,237 @@ mod tests {
             assert!(ret.is_err());
             assert_eq!(format!("{}", ret.err().unwrap()), err);
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "RequiredWitness")]
+    fn test_empty_witnesses() {
+        let tx_hash = "0x719933ec055272734ab709a80492edb44c083e6b675e5c37e5bb3f720fe88e5e";
+
+        let witnesses = vec![];
+        let cached_cells = vec![];
+        let inputs = vec![];
+
+        let tx_input = CkbTxInput {
+            inputs,
+            witnesses,
+            tx_hash: tx_hash.clone().to_owned(),
+            cached_cells,
+            ..CkbTxInput::default()
+        };
+
+        let coin_info = CoinInfo {
+            coin: "NERVOS".to_string(),
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "TESTNET".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        let mut ks = Keystore::from_mnemonic(
+            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
+            "Password",
+            Metadata::default(),
+        )
+        .unwrap();
+
+        ks.unlock_by_password("Password").unwrap();
+
+        let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
+
+        assert_eq!(
+            account.address,
+            "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6"
+        );
+        let sign_params = SignatureParameters {
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            chain_type: "NERVOS".to_string(),
+            network: "TESTNET".to_string(),
+            ..Default::default()
+        };
+
+        ks.sign_transaction(&sign_params, &tx_input).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "InvalidInputCells")]
+    fn test_invalid_input_cells() {
+        let tx_hash = "0x719933ec055272734ab709a80492edb44c083e6b675e5c37e5bb3f720fe88e5e";
+
+        let witnesses = vec![Witness::default(), Witness::default(), Witness::default()];
+        let cached_cells = vec![CachedCell {
+            out_point: Some({
+                OutPoint {
+                    tx_hash: "0x67b35360a09ecbdaf7cef55bb9b58b194d1e067007c67d67520ee730fcd1f252"
+                        .to_owned(),
+                    index: 0,
+                }
+            }),
+            lock: Some(Script {
+                args: "0xb1e8f5e7b4be7867ca6cd556ee3954a325979f45".to_owned(),
+                code_hash: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8"
+                    .to_owned(),
+                hash_type: "type".to_string(),
+            }),
+            ..CachedCell::default()
+        }];
+        let inputs = vec![];
+
+        let tx_input = CkbTxInput {
+            inputs,
+            witnesses,
+            tx_hash: tx_hash.clone().to_owned(),
+            cached_cells,
+            ..CkbTxInput::default()
+        };
+
+        let coin_info = CoinInfo {
+            coin: "NERVOS".to_string(),
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "TESTNET".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        let mut ks = Keystore::from_mnemonic(
+            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
+            "Password",
+            Metadata::default(),
+        )
+        .unwrap();
+
+        ks.unlock_by_password("Password").unwrap();
+
+        let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
+
+        assert_eq!(
+            account.address,
+            "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6"
+        );
+        let sign_params = SignatureParameters {
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            chain_type: "NERVOS".to_string(),
+            network: "TESTNET".to_string(),
+            ..Default::default()
+        };
+
+        ks.sign_transaction(&sign_params, &tx_input).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "InvalidOutputPoint")]
+    fn test_invalid_output_point() {
+        let tx_hash = "0x719933ec055272734ab709a80492edb44c083e6b675e5c37e5bb3f720fe88e5e";
+
+        let witnesses = vec![Witness::default(), Witness::default(), Witness::default()];
+        let cached_cells = vec![CachedCell {
+            out_point: Some({
+                OutPoint {
+                    tx_hash: "0x67b35360a09ecbdaf7cef55bb9b58b194d1e067007c67d67520ee730fcd1f252"
+                        .to_owned(),
+                    index: 0,
+                }
+            }),
+            lock: Some(Script {
+                args: "0xb1e8f5e7b4be7867ca6cd556ee3954a325979f45".to_owned(),
+                code_hash: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8"
+                    .to_owned(),
+                hash_type: "type".to_string(),
+            }),
+            ..CachedCell::default()
+        }];
+        let inputs = vec![CellInput {
+            previous_output: None,
+            since: "".to_owned(),
+        }];
+
+        let tx_input = CkbTxInput {
+            inputs,
+            witnesses,
+            tx_hash: tx_hash.clone().to_owned(),
+            cached_cells,
+            ..CkbTxInput::default()
+        };
+
+        let coin_info = CoinInfo {
+            coin: "NERVOS".to_string(),
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "TESTNET".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        let mut ks = Keystore::from_mnemonic(
+            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
+            "Password",
+            Metadata::default(),
+        )
+        .unwrap();
+
+        ks.unlock_by_password("Password").unwrap();
+
+        let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
+
+        assert_eq!(
+            account.address,
+            "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6"
+        );
+        let sign_params = SignatureParameters {
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            chain_type: "NERVOS".to_string(),
+            network: "TESTNET".to_string(),
+            ..Default::default()
+        };
+
+        ks.sign_transaction(&sign_params, &tx_input).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "WitnessGroupEmpty")]
+    fn test_empty_witness_group() {
+        let tx_hash = "0x719933ec055272734ab709a80492edb44c083e6b675e5c37e5bb3f720fe88e5e";
+
+        let coin_info = CoinInfo {
+            coin: "NERVOS".to_string(),
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "TESTNET".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        let mut ks = Keystore::from_mnemonic(
+            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
+            "Password",
+            Metadata::default(),
+        )
+        .unwrap();
+
+        ks.unlock_by_password("Password").unwrap();
+
+        let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
+
+        assert_eq!(
+            account.address,
+            "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6"
+        );
+        let sign_params = SignatureParameters {
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            chain_type: "NERVOS".to_string(),
+            network: "TESTNET".to_string(),
+            ..Default::default()
+        };
+
+        let mut signer = CkbTxSigner {
+            ks: &mut ks,
+            sign_context: &sign_params,
+        };
+
+        signer
+            .sign_witness_group(
+                &Vec::from_hex_auto(tx_hash).unwrap(),
+                &vec![],
+                sign_params.derivation_path.as_str(),
+            )
+            .unwrap();
     }
 }

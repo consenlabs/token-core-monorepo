@@ -82,6 +82,7 @@ impl ToString for CkbAddress {
 #[cfg(test)]
 mod tests {
     use crate::address::CkbAddress;
+    use std::str::FromStr;
     use tcx_common::FromHex;
     use tcx_keystore::Address;
 
@@ -154,6 +155,8 @@ mod tests {
         let invalid_address = vec![
             "ckt1qyzndsefa43s6m882pcj53m4gdnj4k440axqcth0hp",
             "ckt1qyqrdsefa43s6m882pcj53m4gdnj4k440axqqm65l9j",
+            "ckt1qcqrdsefa43s6m882pcj53m4gdnj4k440axqyj7g8k",
+            "test1qyqrdsefa43s6m882pcj53m4gdnj4k440axqpkzhhy",
         ];
         for invalid_address in invalid_address {
             let coin_info = CoinInfo {
@@ -165,5 +168,12 @@ mod tests {
             };
             assert!(!CkbAddress::is_valid(invalid_address, &coin_info));
         }
+    }
+
+    #[test]
+    fn test_address_from_str() {
+        let expect_address = "ckb1qyqdmeuqrsrnm7e5vnrmruzmsp4m9wacf6vsxasryq";
+        let ckb_address = CkbAddress::from_str(expect_address).unwrap();
+        assert_eq!(ckb_address.to_string(), expect_address);
     }
 }
