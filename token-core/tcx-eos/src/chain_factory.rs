@@ -15,7 +15,7 @@ impl PublicKeyEncoder for EosPublicKeyEncoder {
     }
 }
 
-pub struct EosPrivateKeyEncoder;
+pub struct EosPrivateKeyEncoder();
 
 const VERSION: u8 = 0x80;
 
@@ -50,10 +50,13 @@ impl ChainFactory for EosChainFactory {
 mod tests {
 
     use crate::{address::EosAddress, EosChainFactory};
-    use tcx_keystore::{ChainFactory, HdKeystore, Keystore, Metadata};
+    use tcx_common::ToHex;
+    use tcx_keystore::{ChainFactory, HdKeystore, Keystore, Metadata, PrivateKeyEncoder};
 
     use tcx_constants::{sample_key::MNEMONIC, CoinInfo, CurveType, TEST_PASSWORD};
     use tcx_primitive::{PrivateKey, PublicKey, Secp256k1PrivateKey};
+
+    use super::EosPrivateKeyEncoder;
 
     fn get_test_coin() -> CoinInfo {
         CoinInfo {
@@ -81,27 +84,33 @@ mod tests {
     }
 
     #[test]
-    fn test_private_key_encoder() {
+    fn test_private_key_encoder_decode() {
         let mut keystore = Keystore::Hd(
             HdKeystore::from_mnemonic(MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap(),
         );
         let coin_info = &get_test_coin();
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
         keystore.derive_coin::<EosAddress>(coin_info).unwrap();
-        /*
-        let private_key_hex = keystore
-            .export_private_key(
-                "EOS",
-                "EOS88XhiiP7Cu5TmAUJqHbyuhyYgd6sei68AU266PyetDDAtjmYWF",
-                None,
-            )
+
+        let private_key_bytes = keystore
+            .get_private_key(coin_info.curve, &coin_info.derivation_path)
+            .unwrap()
+            .to_bytes();
+
+        let ss_58_private_key = EosPrivateKeyEncoder()
+            .encode(private_key_bytes.as_slice())
             .unwrap();
-        let bytes = tcx_crypto::hex::hex_to_bytes(&private_key_hex).unwrap();
-        let encoder = EosPrivateKeyEncoder {};
         assert_eq!(
-            encoder.encode(&bytes).unwrap(),
+            ss_58_private_key,
             "5KAigHMamRhN7uwHFnk3yz7vUTyQT1nmXoAA899XpZKJpkqsPFp"
         );
-         */
+
+        let private_key_bytes = EosPrivateKeyEncoder()
+            .decode(ss_58_private_key.as_str())
+            .unwrap();
+        assert_eq!(
+            private_key_bytes.to_0x_hex(),
+            "0xb2174e5eecbbd06fd4f4d0a910275d12f151e66efbdbe4e548b0d0846b882509"
+        );
     }
 }

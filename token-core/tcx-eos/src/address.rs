@@ -65,11 +65,14 @@ impl ToString for EosAddress {
 
 #[cfg(test)]
 mod tests {
-    use crate::address::EosAddress;
     use std::str::FromStr;
 
+    use crate::address::EosAddress;
+    use tcx_constants::CoinInfo;
+    use tcx_keystore::Address;
+
     #[test]
-    fn test_address() {
+    fn test_is_valid() {
         let tests = [
             "EOS88XhiiP7Cu5TmAUJqHbyuhyYgd6sei68AU266PyetDDAtjmYWF",
             "EOS5varo7aGmCFQw77DNiiWUj3YQA7ZmWUMC4NDDXeeaeEAXk436S",
@@ -78,8 +81,21 @@ mod tests {
         ];
 
         for i in tests {
-            let addr = EosAddress::from_str(i).unwrap();
-            assert_eq!(addr.to_string(), i);
+            assert!(EosAddress::is_valid(i, &CoinInfo::default()));
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "InvalidAddressChecksum")]
+    fn test_invalid_address_checksum() {
+        let address = "EOS5varo7aGmCFQw77DNiiWUj3YQA7ZmWUMC4NDDXeeaeEAXk436R";
+        EosAddress::from_str(address).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "InvalidAddress")]
+    fn test_invalid_address() {
+        let address = "TEST5varo7aGmCFQw77DNiiWUj3YQA7ZmWUMC4NDDXeeaeEAXk436S";
+        EosAddress::from_str(address).unwrap();
     }
 }
