@@ -276,31 +276,20 @@ impl Keystore {
     }
 
     pub fn unlock_by_password(&mut self, password: &str) -> Result<()> {
-        match self {
-            Keystore::PrivateKey(ks) => ks.unlock_by_password(password),
-            Keystore::Hd(ks) => ks.unlock_by_password(password),
-        }
+        self.unlock(&Key::Password(password.to_owned()))
     }
 
     pub fn unlock_by_derived_key(&mut self, derived_key: &str) -> Result<()> {
-        match self {
-            Keystore::PrivateKey(ks) => ks.unlock_by_derived_key(derived_key),
-            Keystore::Hd(ks) => ks.unlock_by_derived_key(derived_key),
-        }
+        self.unlock(&Key::DerivedKey(derived_key.to_owned()))
     }
 
     pub fn unlock(&mut self, key: &Key) -> Result<()> {
-        match key {
-            Key::Password(password) => self.unlock_by_password(password),
-            Key::DerivedKey(dk) => self.unlock_by_derived_key(dk),
+        match self {
+            Keystore::PrivateKey(ks) => ks.unlock(key),
+            Keystore::Hd(ks) => ks.unlock(key),
         }
     }
 
-    pub fn use_key(&self, key: &Key) -> Result<Unlocker> {
-        self.store().crypto.use_key(key)
-    }
-
-    #[cfg(feature = "cache_dk")]
     pub fn get_derived_key(&mut self, password: &str) -> Result<String> {
         Ok(self
             .store_mut()
@@ -409,17 +398,6 @@ impl Keystore {
         }
     }
 
-    pub fn find_deterministic_public_key(
-        &mut self,
-        curve: CurveType,
-        derivation_path: &str,
-    ) -> Result<TypedDeterministicPublicKey> {
-        match self {
-            Keystore::Hd(ks) => ks.get_deterministic_public_key(curve, derivation_path),
-            _ => Err(Error::CannotDeriveKey.into()),
-        }
-    }
-
     pub fn identity(&self) -> &Identity {
         &self.store().identity
     }
@@ -497,10 +475,6 @@ impl Signer for Keystore {
         private_key.sign(hash)
     }
 
-    fn schnorr_sign(&mut self, _hash: &[u8], _derivation_path: &str) -> Result<Vec<u8>> {
-        todo!()
-    }
-
     fn bls_sign_specified_alg(
         &mut self,
         hash: &[u8],
@@ -512,6 +486,10 @@ impl Signer for Keystore {
             Keystore::Hd(ks) => ks.get_private_key(CurveType::BLS, derivation_path)?,
         };
         private_key.sign_specified_hash(hash, sig_alg)
+    }
+
+    fn schnorr_sign(&mut self, _hash: &[u8], _derivation_path: &str) -> Result<Vec<u8>> {
+        todo!()
     }
 }
 
@@ -560,7 +538,11 @@ pub(crate) mod tests {
     use crate::keystore::metadata_default_source;
     use crate::Result;
     use tcx_common::{FromHex, ToHex};
-    use tcx_constants::{coin_info_from_param, CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_constants::sample_key::WRONG_PASSWORD;
+    use tcx_constants::{
+        coin_info_from_param, CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY,
+    };
+    use tcx_crypto::Key;
     use tcx_primitive::{Ss58Codec, TypedPublicKey};
 
     #[derive(Clone, PartialEq, Eq)]
@@ -632,6 +614,10 @@ pub(crate) mod tests {
     {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":12001,"keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"identity":{"encAuthKey":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"},"encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3","identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf","ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"},"imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE","network":"MAINNET"}}
     "#;
 
+    static INVALID_PK_KEYSTORE_JSON: &'static str = r#"
+    {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":10001,"keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"identity":{"encAuthKey":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"},"encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3","identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf","ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"},"imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE","network":"MAINNET"}}
+    "#;
+
     static OLD_KEYSTORE_JSON: &'static str = r#"
     {
   "crypto": {
@@ -693,6 +679,8 @@ pub(crate) mod tests {
         let ret = Keystore::from_json(OLD_KEYSTORE_JSON);
         assert!(ret.is_err());
     }
+
+    fn test_derive_coin() {}
 
     #[test]
     fn test_sign_hash() {
@@ -859,5 +847,54 @@ pub(crate) mod tests {
     #[test]
     fn test_default_source() {
         assert_eq!(metadata_default_source(), Source::Mnemonic);
+    }
+
+    #[test]
+    fn test_hd_keystore() {
+        let mut keystore =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+
+        assert!(keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .is_ok());
+
+        assert!(keystore.derivable());
+        assert!(!keystore.is_locked());
+        assert_ne!(keystore.identity().ipfs_id, "");
+        assert!(keystore.identity().identifier.starts_with("im"));
+        assert_eq!(keystore.meta().name, "Unknown");
+        assert_ne!(keystore.id(), "");
+
+        assert!(keystore.verify_password(&TEST_PASSWORD));
+        assert!(!keystore.verify_password(&WRONG_PASSWORD));
+    }
+
+    #[test]
+    fn test_private_keystore() {
+        let mut keystore =
+            Keystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default());
+
+        assert!(keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .is_ok());
+
+        assert!(!keystore.derivable());
+        assert!(!keystore.is_locked());
+        assert_ne!(keystore.identity().ipfs_id, "");
+        assert!(keystore.identity().identifier.starts_with("im"));
+        assert_eq!(keystore.meta().name, "Unknown");
+        assert_ne!(keystore.id(), "");
+
+        assert!(keystore.verify_password(&TEST_PASSWORD));
+        assert!(!keystore.verify_password(&WRONG_PASSWORD));
+    }
+
+    #[test]
+    fn test_from_invalid_json() {
+        let ret = Keystore::from_json("{}");
+        assert!(ret.is_err());
+
+        let ret = Keystore::from_json(INVALID_PK_KEYSTORE_JSON);
+        assert_eq!(format!("{}", ret.err().unwrap()), "invalid_version")
     }
 }

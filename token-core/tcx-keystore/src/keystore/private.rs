@@ -40,15 +40,8 @@ impl PrivateKeystore {
         }
     }
 
-    pub(crate) fn unlock_by_password(&mut self, password: &str) -> Result<()> {
-        self.private_key = Some(self.decrypt_private_key(&Key::Password(password.to_owned()))?);
-
-        Ok(())
-    }
-
-    pub(crate) fn unlock_by_derived_key(&mut self, derived_key: &str) -> Result<()> {
-        self.private_key =
-            Some(self.decrypt_private_key(&Key::DerivedKey(derived_key.to_owned()))?);
+    pub(crate) fn unlock(&mut self, key: &Key) -> Result<()> {
+        self.private_key = Some(self.decrypt_private_key(key)?);
 
         Ok(())
     }
@@ -129,35 +122,55 @@ impl PrivateKeystore {
 
         Ok(acc)
     }
+
+    fn decrypt_private_key(&self, key: &Key) -> Result<Vec<u8>> {
+        self.store.crypto.use_key(key)?.plaintext()
+    }
+
     pub(crate) fn private_key(&self) -> Result<String> {
         tcx_ensure!(self.private_key.is_some(), Error::KeystoreLocked);
         let vec = self.private_key.as_ref().unwrap().to_vec();
         Ok(vec.to_hex())
     }
-
-    fn decrypt_private_key(&self, key: &Key) -> Result<Vec<u8>> {
-        self.store.crypto.use_key(key)?.plaintext()
-    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Metadata, PrivateKeystore, Source};
-    use tcx_constants::TEST_PASSWORD;
+    use crate::{HdKeystore, Metadata, PrivateKeystore, Source};
+    use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY};
+    use tcx_crypto::Key;
 
     #[test]
-    pub fn test_from_private_key() {
+    fn test_from_private_key() {
         let meta = Metadata {
             name: "from_private_key_test".to_string(),
             source: Source::Private,
             ..Metadata::default()
         };
-        let keystore = PrivateKeystore::from_private_key(
+        let mut keystore = PrivateKeystore::from_private_key(
             "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6",
             TEST_PASSWORD,
             meta,
         );
+
+        keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap();
+
         assert_eq!(keystore.store.version, 12001);
         assert_ne!(keystore.store.id, "");
+        assert_eq!(
+            keystore.private_key().unwrap(),
+            "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6"
+        );
+    }
+
+    #[test]
+    fn test_verify_password() {
+        let mut keystore =
+            PrivateKeystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default());
+
+        assert!(keystore.verify_password(TEST_PASSWORD));
+        assert!(!keystore.verify_password("WrongPassword"));
     }
 }

@@ -65,6 +65,95 @@ mod tests {
     use crate::ToHex;
 
     #[test]
+    fn test_ripemd160() {
+        let tests = vec![
+            ("", "9c1185a5c5e9fc54612808977ee8f548b2258d31"),
+            ("abc", "8eb208f7e05d987a9b044a8e98c6b087f15a0bfc"),
+            ("message digest", "5d0689ef49d2fae572b881b123a85ffa21595f36"),
+            (
+                "abcdefghijklmnopqrstuvwxyz",
+                "f71c27109c692c1b56bbdceb5b9d2865b3708dbc",
+            ),
+            (
+                "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+                "12a053384a9c0c88e405a06c27dcf49ada62eb2b",
+            ),
+            (
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789",
+                "b0e20b6e3116640286ed3a87a5713079b21f5189",
+            ),
+            (
+                "12345678901234567890123456789012345678901234567890123456789012345678901234567890",
+                "9b752e45573d4b39f4dbd3323cab82bf63326bfb",
+            ),
+        ];
+
+        for t in tests {
+            assert_eq!(ripemd160(t.0.as_bytes()).to_hex(), t.1);
+        }
+    }
+
+    #[test]
+    fn test_sha256d() {
+        //generate sha256d unit tests
+        let tests = vec![
+            (
+                "",
+                "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456",
+            ),
+            (
+                "abc",
+                "4f8b42c22dd3729b519ba6f68d2da7cc5b2d606d05daed5ad5128cc03e6c6358",
+            ),
+            (
+                "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+                "0cffe17f68954dac3a84fb1458bd5ec99209449749b2b308b7cb55812f9563af",
+            ),
+        ];
+
+        for t in tests {
+            assert_eq!(sha256d(t.0.as_bytes()).to_hex(), t.1);
+        }
+    }
+
+    #[test]
+    fn test_keccak256() {
+        //generate keccak256 unit tests
+        let tests = vec![
+            (
+                "abc",
+                "4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45",
+            ),
+            (
+                "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+                "45d3b367a6904e6e8d502ee04999a7c27647f91fa845d456525fd352ae3d7371",
+            ),
+        ];
+
+        for t in tests {
+            assert_eq!(keccak256(t.0.as_bytes()).to_hex(), t.1);
+        }
+    }
+
+    #[test]
+    fn test_sha256() {
+        let tests = vec![
+            (
+                "",
+                "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            ),
+            (
+                "abc",
+                "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            ),
+        ];
+
+        for t in tests {
+            assert_eq!(sha256(t.0.as_bytes()).to_hex(), t.1);
+        }
+    }
+
+    #[test]
     fn test_merkle_hash() {
         let tests = vec![
             (

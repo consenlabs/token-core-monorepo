@@ -64,7 +64,7 @@ mod tests {
     use tcx_common::{FromHex, ToHex};
 
     #[test]
-    fn encrypt_nopadding_test() {
+    fn test_encrypt_nopadding() {
         let data = "TokenCoreX".as_bytes();
         let key = Vec::from_hex("01020304010203040102030401020304").unwrap();
         let iv = Vec::from_hex("01020304010203040102030401020304").unwrap();
@@ -83,7 +83,7 @@ mod tests {
     }
 
     #[test]
-    fn decrypted_data_test() {
+    fn test_decrypted_data() {
         let data = "TokenCoreX".as_bytes();
         let encrypted_data = Vec::from_hex("e19e6c5923d33c587cf8").unwrap();
         let key = Vec::from_hex("01020304010203040102030401020304").unwrap();
@@ -105,7 +105,7 @@ mod tests {
     }
 
     #[test]
-    fn encrypt_pkcs7_test() {
+    fn test_encrypt_pkcs7() {
         let data = "TokenCoreX".as_bytes();
         let key = Vec::from_hex("01020304010203040102030401020304").unwrap();
         let iv = Vec::from_hex("01020304010203040102030401020304").unwrap();

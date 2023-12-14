@@ -82,22 +82,8 @@ impl HdKeystore {
         HdKeystore { store, cache: None }
     }
 
-    pub(crate) fn unlock_by_password(&mut self, password: &str) -> Result<()> {
-        let mnemonic_bytes = self
-            .store
-            .crypto
-            .use_key(&Key::Password(password.to_owned()))?
-            .plaintext()?;
-
-        self.cache_mnemonic(mnemonic_bytes)
-    }
-
-    pub(crate) fn unlock_by_derived_key(&mut self, derived_key: &str) -> Result<()> {
-        let mnemonic_bytes = self
-            .store
-            .crypto
-            .use_key(&Key::DerivedKey(derived_key.to_owned()))?
-            .plaintext()?;
+    pub(crate) fn unlock(&mut self, key: &Key) -> Result<()> {
+        let mnemonic_bytes = self.store.crypto.use_key(key)?.plaintext()?;
 
         self.cache_mnemonic(mnemonic_bytes)
     }
@@ -249,8 +235,18 @@ mod tests {
         "invalid_word kidney empty canal shadow pact comfort wife crush horse wife sketch";
     static INVALID_MNEMONIC_LEN: &'static str =
         "inject kidney empty canal shadow pact comfort wife crush horse wife";
+
     #[test]
-    pub fn default_meta() {
+    fn test_verify_password() {
+        let mut keystore =
+            HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+
+        assert!(keystore.verify_password(TEST_PASSWORD));
+        assert!(!keystore.verify_password("WrongPassword"));
+    }
+
+    #[test]
+    fn default_meta() {
         let meta = Metadata::default();
         let expected = Metadata {
             name: String::from("Unknown"),
@@ -282,6 +278,20 @@ mod tests {
     }
 
     #[test]
+    fn test_lock_unlock_keystore() {
+        let mut keystore =
+            HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap();
+
+        assert!(!keystore.is_locked());
+        keystore.lock();
+
+        assert!(keystore.is_locked());
+    }
+
+    #[test]
     fn test_from_invalid_mnemonic() {
         let invalid_mnemonic = vec![
             (INVALID_MNEMONIC1, "mnemonic_checksum_invalid"),
@@ -296,10 +306,12 @@ mod tests {
     }
 
     #[test]
-    fn bip44_49() {
+    fn test_derive_account() {
         let mut keystore =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
-        let _ = keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        let _ = keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap();
 
         let coin_infos = [
             CoinInfo {
@@ -309,42 +321,23 @@ mod tests {
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
             },
-            /*            CoinInfo {
-                coin: "BITCOIN".to_string(),
-                derivation_path: "m/44'/1'/0'/0/0".to_string(),
-                curve: CurveType::SECP256k1,
-                network: "TESTNET".to_string(),
-                seg_wit: "NONE".to_string(),
-            },
             CoinInfo {
-                coin: "BITCOIN".to_string(),
-                derivation_path: "m/49'/0'/0'/0/0".to_string(),
-                curve: CurveType::SECP256k1,
+                coin: "TEZOS".to_string(),
+                derivation_path: "m/44'/1729'/0'/0'".to_string(),
+                curve: CurveType::ED25519,
                 network: "MAINNET".to_string(),
-                seg_wit: "P2WPKH".to_string(),
+                seg_wit: "".to_string(),
             },
-            CoinInfo {
-                coin: "BITCOIN".to_string(),
-                derivation_path: "m/49'/1'/0'/0/0".to_string(),
-                curve: CurveType::SECP256k1,
-                network: "TESTNET".to_string(),
-                seg_wit: "P2WPKH".to_string(),
-            },*/
         ];
 
         let excepts = [
-            "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8",
-            /* TODO fix test
-            "tpubDCpWeoTY6x4BR2PqoTFJnEdfYbjnC4G8VvKoDUPFjt2dvZJWkMRxLST1pbVW56P7zY3L5jq9MRSeff2xsLnvf9qBBN9AgvrhwfZgw5dJG6R",
-            "ypub6Wdz1gzMKLnPxXti2GbSjQGXSqrA5NMKNP3C5JS2ZJKRDEecuZH8AhSvYQs4dZHi7b6Yind7bLekuTH9fNbJcH1MXMy9meoifu2wST55sav",
-            "upub5E4woDJohDBJ2trk6HqhsvEeZXtjjWMAbHV4LWRhfR9thcpfkjJbBRnvBS21L2JjsZAGC6LhkqAoYgD5VHSXBRNW7gszbiGJP7B6CR35QhD",
-             */
+            "03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77",
+            "",
         ];
 
         for (i, coin_info) in coin_infos.iter().enumerate() {
             let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
-            let dpk = acc.deterministic_public_key().unwrap();
-            assert_eq!(dpk.to_string(), excepts[i]);
+            assert_eq!(acc.ext_pub_key, excepts[i]);
         }
     }
 
@@ -360,7 +353,9 @@ mod tests {
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
         };
-        let _ = keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        let _ = keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap();
 
         let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
 
@@ -394,12 +389,17 @@ mod tests {
         let decrypted_mnemonic = String::from_utf8(decrypted_bytes).unwrap();
         assert_eq!(decrypted_mnemonic, TEST_MNEMONIC);
 
-        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap();
 
         let mnemonic = keystore.mnemonic().unwrap();
         assert_eq!(mnemonic, TEST_MNEMONIC);
 
-        let wrong_password_err = keystore.unlock_by_password("WrongPassword").err().unwrap();
+        let wrong_password_err = keystore
+            .unlock(&Key::Password("WrongPassword".to_owned()))
+            .err()
+            .unwrap();
         assert_eq!(format!("{}", wrong_password_err), "password_incorrect");
     }
 
@@ -422,11 +422,13 @@ mod tests {
     //    }
 
     #[test]
-    fn get_private_key_by_derivation_path() {
+    fn test_get_private_key() {
         let mut keystore =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
 
-        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap();
 
         let public_key = keystore
             .get_private_key(CurveType::SECP256k1, "m/44'/118'/0'/0/0'")
@@ -435,6 +437,25 @@ mod tests {
         assert_eq!(
             "49389a85697c8e5ce78fe04d4f6bbf691216ef22101120c73853ba9e4d3105d0",
             public_key.to_bytes().to_hex()
+        );
+    }
+
+    #[test]
+    fn test_get_deterministic_public_key() {
+        let mut keystore =
+            HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+
+        keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap();
+
+        let public_key = keystore
+            .get_deterministic_public_key(CurveType::SECP256k1, "m/44'/118'/0'/0/0'")
+            .unwrap();
+
+        assert_eq!(
+            public_key.to_string(),
+            "xpub6HEP8ZcR5CFi5n4BgzE4NxX4igp2wp1yB68KySjzfMHJy3miEqLbTWFsFHbg8HENKWA64mwnikDSJ8xsf672YwsWuARauMzygaURSjqxGxk"
         );
     }
 
@@ -449,7 +470,9 @@ mod tests {
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
         };
-        let _ = keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        let _ = keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap();
 
         let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
 

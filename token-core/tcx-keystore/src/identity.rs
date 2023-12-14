@@ -22,14 +22,6 @@ use tcx_crypto::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
 use tcx_crypto::{crypto::Unlocker, EncPair};
 use tcx_primitive::{PrivateKey as TraitPrivateKey, Secp256k1PrivateKey};
 
-// lazy_static! {
-//     pub static ref IDENTITY_KEYSTORE: RwLock<IdentityKeystore> =
-//         RwLock::new(IdentityKeystore::default());
-// }
-
-pub const IDENTITY_KEYSTORE_FILE_NAME: &'static str = "identity.json";
-pub const VERSION: u32 = 1000;
-
 #[derive(Debug, Deserialize, Serialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Identity {
@@ -228,7 +220,7 @@ impl Identity {
             &keccak256(format!("{}.{}.{}", access_time, self.identifier, device_token).as_bytes()),
         )?;
         signature[64] += 27;
-        Ok(format!("0x{}", signature.to_hex()))
+        Ok(signature.to_0x_hex())
     }
 }
 
@@ -238,14 +230,83 @@ mod test {
     use tcx_constants::sample_key::{MNEMONIC, PASSWORD, PRIVATE_KEY};
     use tcx_crypto::Key;
 
-    use crate::{keystore::IdentityNetwork, HdKeystore, Metadata, PrivateKeystore};
+    use crate::identity::Identity;
+    use crate::{keystore::IdentityNetwork, Error, HdKeystore, Metadata, PrivateKeystore};
 
     #[test]
-    fn test_ipfs() {
+    fn test_encrypt_ipfs() {
         let mut meta = Metadata::default();
         meta.network = IdentityNetwork::Testnet;
         let mut keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
-        keystore.unlock_by_password(PASSWORD).unwrap();
+        keystore
+            .unlock(&Key::Password(PASSWORD.to_owned()))
+            .unwrap();
+        let identity = keystore.identity();
+
+        let tests = [
+            "imToken",
+            "hello world",
+            "1234567890",
+            "a",
+            "A",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ];
+
+        for t in tests {
+            let encrypted = identity.encrypt_ipfs(t).unwrap();
+            let plaintext = identity.decrypt_ipfs(&encrypted).unwrap();
+
+            assert_eq!(plaintext, t);
+        }
+    }
+
+    #[test]
+    fn test_decrypt_ipfs_failure() {
+        let mut meta = Metadata::default();
+        meta.network = IdentityNetwork::Testnet;
+        let mut keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
+        keystore
+            .unlock(&Key::Password(PASSWORD.to_owned()))
+            .unwrap();
+        let identity = keystore.identity();
+
+        let tests = [
+            ("imToken",
+             "11111111111111111111111111111111",
+             "0540b2495a1111111111111111111111111111111110b6602c68084bdd08dae796657aa6854ad13312fedc88f5b6f16c56b3e755dde125a1c4775db536ac0442ac942f9634c777f3ae5ca39f6abcae4bd6c87e54ab29ae0062b04d917b32e8d7c88eeb6261301b",
+             Error::UnsupportEncryptionDataVersion),
+            ("imToken",
+             "11111111111111111111111111111111",
+             "0340b2495a1111111111111111111111",
+             Error::InvalidEncryptionData),
+            ("imToken",
+             "11111111111111111111111111111111",
+             "0340b2495a1111111111111111111111111111111110b6602c68084bdd08dae796657aa6854ad13312fedc88f5b6f16c56b3e755dde125a1c4775db536ac0442ac942f9634c777f3ae5ca39f6abcae4bd6c87e54ab29ae0062b04d917b32e8d7c88eeb626130",
+             Error::InvalidEncryptionData),
+            ("imToken",
+             "11111111111111111111111111111111",
+             "0340b2495a1111111111111111111111111111111110b6602c68084bdd08dae888888886854ad13312fedc88f5b6f16c56b3e755dde125a1c4775db536ac0442ac942f9634c777f3ae5ca39f6abcae4bd6c87e54ab29ae0062b04d917b32e8d7c88eeb6261301b",
+             Error::InvalidEncryptionDataSignature)
+            ];
+
+        let unix_timestamp = 1514779200u64;
+        for t in tests {
+            let iv: [u8; 16] = Vec::from_hex(t.1).unwrap().try_into().unwrap();
+            assert_eq!(
+                identity.decrypt_ipfs(t.2).err().unwrap().to_string(),
+                t.3.to_string(),
+            );
+        }
+    }
+
+    #[test]
+    fn test_ipfs_with_timestamp_iv() {
+        let mut meta = Metadata::default();
+        meta.network = IdentityNetwork::Testnet;
+        let mut keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
+        keystore
+            .unlock(&Key::Password(PASSWORD.to_owned()))
+            .unwrap();
         let identity = keystore.identity();
 
         let test_cases = [
@@ -271,6 +332,28 @@ mod test {
     }
 
     #[test]
+    fn test_invalid_mnemonic() {
+        let tests = [
+            "abandon abandon abandon abandon abandon",
+            "abandon abandon abandon aba",
+            "abandon abandon abandon aba",
+            "rocket wash opera menu stomach genre write husband observe cigar stand famous cancel duty",
+        ];
+
+        let crypto = tcx_crypto::crypto::Crypto::default();
+        let unlocker = crypto
+            .use_key(&Key::Password(PASSWORD.to_string()))
+            .unwrap();
+
+        for t in tests {
+            let mut meta = Metadata::default();
+            meta.network = IdentityNetwork::Testnet;
+            let keystore = Identity::from_mnemonic(t, &unlocker, &IdentityNetwork::Testnet);
+            assert!(keystore.is_err());
+        }
+    }
+
+    #[test]
     fn test_authentication() {
         let test_cases =  [
             (IdentityNetwork::Mainnet, "0x120cc977f9023c90635144bd0f4c8b85ff8aa23c003edcced9449f0465d05e954bccf9c114484e472c1837b0394f1933ad78ec8050673099e8bf5e9329737fe01c"),
@@ -281,7 +364,6 @@ mod test {
             let mut meta = Metadata::default();
             meta.network = item.0;
             let keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
-            // keystore.unlock_by_password(PASSWORD).unwrap();
             let key = Key::Password(PASSWORD.to_string());
             let unlocker = keystore.store().crypto.use_key(&key).unwrap();
             let identity = keystore.identity();

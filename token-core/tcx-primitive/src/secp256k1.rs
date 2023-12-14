@@ -11,7 +11,7 @@ use tcx_common::ToHex;
 
 use tcx_constants::{network_from_coin, CoinInfo};
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg_attr(tarpaulin, ignore)]
 fn transform_secp256k1_error(err: secp256k1::Error) -> KeyError {
     match err {
         secp256k1::Error::IncorrectSignature => KeyError::InvalidSignature,

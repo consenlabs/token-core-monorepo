@@ -338,10 +338,11 @@ impl LegacyKeystore {
 
 #[cfg(test)]
 mod tests {
-    use tcx_common::utf8_or_hex_to_bytes;
+    use serde_json::Value;
+    use tcx_common::FromHex;
     use tcx_constants::{TEST_PASSWORD, TEST_PRIVATE_KEY};
-    use tcx_crypto::Key;
-    use tcx_keystore::Keystore;
+    use tcx_crypto::{EncPair, Key};
+    use tcx_keystore::{Keystore, KeystoreGuard, Metadata, PrivateKeystore, Source};
 
     use super::LegacyKeystore;
 
@@ -536,10 +537,17 @@ mod tests {
 
     #[test]
     fn test_export_v3_keystore() {
-        let private_key_bytes = utf8_or_hex_to_bytes(TEST_PRIVATE_KEY).unwrap();
+        let private_key_bytes = Vec::from_hex_auto(TEST_PRIVATE_KEY).unwrap();
         let v3_keystore =
             LegacyKeystore::new_v3(&private_key_bytes, TEST_PASSWORD).expect("v3 keystore");
-        let keystore_json = serde_json::to_string(&v3_keystore);
-        assert!(keystore_json.is_ok());
+        let keystore_json = serde_json::to_string(&v3_keystore).expect("serde v3");
+
+        let json: Value = serde_json::from_str(&keystore_json).expect("json");
+
+        assert_eq!(json["version"], 3);
+        assert_eq!(
+            json["address"],
+            "0x6031564e7b2F5cc33737807b2E58DaFF870B590b"
+        );
     }
 }
