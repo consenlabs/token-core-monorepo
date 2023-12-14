@@ -262,3 +262,24 @@ pub fn coin_info_from_param(
         Ok(coins.pop().expect("coin_info_from_param"))
     }
 }
+
+#[cfg(test)]
+mod test {
+
+    #[test]
+    fn test_coin_info_default() {
+        let coin_info = super::CoinInfo::default();
+        assert_eq!(coin_info.coin, "");
+        assert_eq!(coin_info.derivation_path, "");
+        assert_eq!(coin_info.curve, super::CurveType::SECP256k1);
+        assert_eq!(coin_info.network, "");
+        assert_eq!(coin_info.seg_wit, "");
+    }
+
+    #[test]
+    #[should_panic(expected = "unsupported_chain")]
+    fn test_coin_info_from_param_unsupported_chain() {
+        let coin_info = super::coin_info_from_param("TEST", "MAINNET", "NONE", "SECP256k1");
+        assert_eq!(coin_info.unwrap().coin, "BITCOIN");
+    }
+}

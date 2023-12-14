@@ -91,6 +91,18 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "InvalidHashType")]
+    fn test_invalid_hash_type() {
+        let script = Script {
+            code_hash: "0x68d5438ac952d2f584abf879527946a537e82c7f3c1cbf6d8ebf9767437d8e88"
+                .to_owned(),
+            args: "0x3954acece65096bfa81258983ddb83915fc56bd8".to_owned(),
+            hash_type: "test".to_string(),
+        };
+        script.serialize().unwrap();
+    }
+
+    #[test]
     fn script_to_hash() {
         let script = Script {
             code_hash: "0x0000000000000000000000000000000000000000000000000000000000000000"
@@ -159,7 +171,16 @@ mod tests {
             input_type: "0x".to_owned(),
             output_type: "0x".to_owned(),
         };
-
         assert_eq!("", witness.to_raw().unwrap().to_hex());
+
+        let witness = Witness {
+            lock: "0x".to_owned(),
+            input_type: "0x10".to_owned(),
+            output_type: "0x20".to_owned(),
+        };
+        assert_eq!(
+            "1a00000010000000100000001500000001000000100100000020",
+            witness.to_raw().unwrap().to_hex()
+        );
     }
 }

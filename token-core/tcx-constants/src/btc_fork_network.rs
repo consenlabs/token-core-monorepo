@@ -225,3 +225,29 @@ pub fn pub_version_from_prv_version(prefix: &[u8]) -> Option<[u8; 4]> {
         version
     })
 }
+
+#[cfg(test)]
+mod test {
+
+    #[test]
+    fn test_network_form_hrp() {
+        let network = super::network_form_hrp("ltc");
+        assert_eq!(network.unwrap().coin, "LITECOIN");
+        let network = super::network_form_hrp("bitcoincash");
+        assert_eq!(network.unwrap().coin, "BITCOINCASH");
+    }
+
+    // #[test]
+    // fn test_coin_from_xpub_prefix(){
+    //     let coin = super::coin_from_xpub_prefix(&[0x04, 0x88, 0xB2, 0x1E]);
+    //     assert_eq!(coin.unwrap(),"LITECOIN");
+    // }
+
+    #[test]
+    fn test_pub_version_from_prv_version() {
+        let network = super::pub_version_from_prv_version(&[0x04, 0x88, 0xAD, 0xE4]);
+        assert_eq!(network.unwrap(), [4, 136, 178, 30]);
+        let network = super::pub_version_from_prv_version(&[0x04, 0x35, 0x83, 0x94]);
+        assert_eq!(network.unwrap(), [4, 53, 135, 207]);
+    }
+}

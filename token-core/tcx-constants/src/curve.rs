@@ -37,3 +37,43 @@ impl CurveType {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::CurveType;
+
+    #[test]
+    fn test_curve_type_as_str() {
+        assert_eq!(CurveType::SECP256k1.as_str(), "SECP256k1");
+        assert_eq!(CurveType::ED25519.as_str(), "ED25519");
+        assert_eq!(CurveType::ED25519Blake2bNano.as_str(), "ED25519Blake2bNano");
+        assert_eq!(CurveType::SubSr25519.as_str(), "SubSr25519");
+        assert_eq!(CurveType::Curve25519.as_str(), "Curve25519");
+        assert_eq!(CurveType::NIST256p1.as_str(), "NIST256p1");
+        assert_eq!(CurveType::BLS.as_str(), "BLS");
+    }
+
+    #[test]
+    fn test_curve_type_from_str() {
+        let curve_type = CurveType::from_str("SECP256k1");
+        assert_eq!(curve_type, CurveType::SECP256k1);
+        let curve_type = CurveType::from_str("ED25519");
+        assert_eq!(curve_type, CurveType::ED25519);
+        let curve_type = CurveType::from_str("ED25519Blake2bNano");
+        assert_eq!(curve_type, CurveType::ED25519Blake2bNano);
+        let curve_type = CurveType::from_str("SubSr25519");
+        assert_eq!(curve_type, CurveType::SubSr25519);
+        let curve_type = CurveType::from_str("Curve25519");
+        assert_eq!(curve_type, CurveType::Curve25519);
+        let curve_type = CurveType::from_str("NIST256p1");
+        assert_eq!(curve_type, CurveType::NIST256p1);
+        let curve_type = CurveType::from_str("BLS");
+        assert_eq!(curve_type, CurveType::BLS);
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid curve type")]
+    fn test_curve_type_from_str_invalid_curve_type() {
+        CurveType::from_str("TEST");
+    }
+}
