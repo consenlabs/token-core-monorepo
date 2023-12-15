@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use tcx_constants::CoinInfo;
 use tcx_keystore::{Address, Keystore, MessageSigner, SignatureParameters, TransactionSigner};
-use tcx_primitive::TypedDeterministicPublicKey;
+
 use tcx_primitive::TypedPublicKey;
 
 #[allow(clippy::derive_partial_eq_without_eq)]

@@ -263,6 +263,13 @@ impl TypedDeterministicPublicKey {
         }
     }
 
+    pub fn fingerprint(&self) -> Result<Vec<u8>> {
+        match self {
+            TypedDeterministicPublicKey::Bip32Sepc256k1(epk) => Ok(epk.fingerprint()),
+            _ => Err(format_err!("bls or ed25519 not support fingerprint")),
+        }
+    }
+
     pub fn public_key(&self) -> TypedPublicKey {
         match self {
             TypedDeterministicPublicKey::Bip32Sepc256k1(epk) => {

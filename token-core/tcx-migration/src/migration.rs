@@ -278,7 +278,7 @@ impl LegacyKeystore {
                 Secp256k1PrivateKey::from_wif(&String::from_utf8_lossy(&private_key))?.to_bytes()
         }
 
-        let key_hash = key_hash_from_private_key(&private_key);
+        let key_hash = key_hash_from_private_key(&private_key)?;
         let unlocker = self.crypto.use_key(key)?;
         let im_token_meta = self
             .im_token_meta

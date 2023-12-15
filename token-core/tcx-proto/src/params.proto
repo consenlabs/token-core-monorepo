@@ -41,6 +41,18 @@ message ImportMnemonicParam {
     bool overwrite = 6;
 }
 
+message ImportPrivateKeyResult {
+    string id = 1;
+    string name = 2;
+    string identifier = 3;
+    string ipfsId = 4;
+    string source = 5;
+    int64 createdAt = 6;
+    repeated string suggestChainTypes = 7;
+    string suggestNetwork = 8;
+    string suggestCurve = 9;
+}
+
 //
 // derive new accounts from a hd keystore
 message DeriveAccountsParam {
@@ -98,7 +110,6 @@ message ImportPrivateKeyParam {
     string name = 3;
     string passwordHint = 4;
     bool overwrite = 5;
-    string encoding = 6;
 }
 
 // FUNCTION: private_key_store_export(PrivateKeyStoreExportParam): ExportResult
@@ -126,7 +137,6 @@ message ExistsMnemonicParam {
 
 message ExistsPrivateKeyParam {
     string private_key = 1;
-    string encoding = 2;
 }
 
 message ExistsKeystoreResult {
@@ -230,9 +240,6 @@ message SignAuthenticationMessageResult {
     string signature = 2;
 }
 
-message GenerateMnemonicResult {
-    string mnemonic = 1;
-}
 
 message MnemonicToPublicKeyParam {
     string mnemonic = 1;

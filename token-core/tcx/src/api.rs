@@ -250,6 +250,28 @@ pub struct ImportMnemonicParam {
     #[prost(bool, tag = "6")]
     pub overwrite: bool,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ImportPrivateKeyResult {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub identifier: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub ipfs_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub source: ::prost::alloc::string::String,
+    #[prost(int64, tag = "6")]
+    pub created_at: i64,
+    #[prost(string, repeated, tag = "7")]
+    pub suggest_chain_types: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, tag = "8")]
+    pub suggest_network: ::prost::alloc::string::String,
+    #[prost(string, tag = "9")]
+    pub suggest_curve: ::prost::alloc::string::String,
+}
 ///
 /// derive new accounts from a hd keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -336,8 +358,6 @@ pub struct ImportPrivateKeyParam {
     pub password_hint: ::prost::alloc::string::String,
     #[prost(bool, tag = "5")]
     pub overwrite: bool,
-    #[prost(string, tag = "6")]
-    pub encoding: ::prost::alloc::string::String,
 }
 /// FUNCTION: private_key_store_export(PrivateKeyStoreExportParam): ExportResult
 ///
@@ -378,8 +398,6 @@ pub struct ExistsMnemonicParam {
 pub struct ExistsPrivateKeyParam {
     #[prost(string, tag = "1")]
     pub private_key: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub encoding: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -544,12 +562,6 @@ pub struct SignAuthenticationMessageResult {
     pub access_time: u64,
     #[prost(string, tag = "2")]
     pub signature: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GenerateMnemonicResult {
-    #[prost(string, tag = "1")]
-    pub mnemonic: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

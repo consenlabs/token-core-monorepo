@@ -118,6 +118,8 @@ impl TraitPublicKey for Secp256k1PublicKey {
 
 impl Ss58Codec for Secp256k1PrivateKey {
     fn from_ss58check_with_version(wif: &str) -> Result<(Self, Vec<u8>)> {
+        let data_with_check = base58::from(wif)?;
+        dbg!(data_with_check.to_0x_hex());
         let data = base58::from_check(wif)?;
 
         let compressed = match data.len() {

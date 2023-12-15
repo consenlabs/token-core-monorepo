@@ -8,12 +8,15 @@ use super::Result;
 use crate::identity::Identity;
 use crate::keystore::Store;
 
-use tcx_common::{sha256d, FromHex, ToHex};
-use tcx_primitive::TypedPrivateKey;
+use tcx_common::{ripemd160, sha256, FromHex, ToHex};
+use tcx_primitive::{PrivateKey, Secp256k1PrivateKey, TypedPrivateKey};
 use uuid::Uuid;
 
-pub fn key_hash_from_private_key(data: &[u8]) -> String {
-    sha256d(data)[..20].to_hex()
+pub fn key_hash_from_private_key(data: &[u8]) -> Result<String> {
+    let private_key = Secp256k1PrivateKey::from_slice(data)?;
+    let public_key_data = private_key.public_key().to_compressed();
+    let hashed = ripemd160(&sha256(&public_key_data));
+    Ok(hashed[0..4].to_0x_hex())
 }
 
 #[derive(Clone)]
@@ -76,15 +79,16 @@ impl PrivateKeystore {
         self.store.crypto.verify_password(password)
     }
 
-    pub fn from_private_key(private_key: &str, password: &str, meta: Metadata) -> PrivateKeystore {
-        let key_data: Vec<u8> = Vec::from_hex_auto(private_key).expect("hex can't decode");
-        let key_hash = key_hash_from_private_key(&key_data);
+    pub fn from_private_key(
+        private_key: &str,
+        password: &str,
+        meta: Metadata,
+    ) -> Result<PrivateKeystore> {
+        let key_data: Vec<u8> = Vec::from_hex_auto(private_key)?;
+        let key_hash = key_hash_from_private_key(&key_data)?;
         let crypto: Crypto = Crypto::new(password, &key_data);
-        let unlocker = crypto
-            .use_key(&Key::Password(password.to_string()))
-            .expect("create private keystore to get unlocker");
-        let identity = Identity::from_private_key(private_key, &unlocker, &meta.network)
-            .expect("identity from private key");
+        let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
+        let identity = Identity::from_private_key(private_key, &unlocker, &meta.network)?;
 
         let store = Store {
             key_hash,
@@ -95,10 +99,10 @@ impl PrivateKeystore {
             identity,
         };
 
-        PrivateKeystore {
+        Ok(PrivateKeystore {
             store,
             private_key: None,
-        }
+        })
     }
 
     pub(crate) fn private_key_to_account<A: Address>(
@@ -136,9 +140,10 @@ impl PrivateKeystore {
 
 #[cfg(test)]
 mod tests {
-    use crate::{HdKeystore, Metadata, PrivateKeystore, Source};
+    use crate::{HdKeystore, Metadata, PrivateKeystore, Source, key_hash_from_private_key};
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY};
     use tcx_crypto::Key;
+    use bitcoin_hashes::hex::FromHex;
 
     #[test]
     fn test_from_private_key() {
@@ -151,7 +156,7 @@ mod tests {
             "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6",
             TEST_PASSWORD,
             meta,
-        );
+        ).unwrap();
 
         keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
@@ -168,9 +173,26 @@ mod tests {
     #[test]
     fn test_verify_password() {
         let mut keystore =
-            PrivateKeystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default());
+            PrivateKeystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default()).unwrap();
 
         assert!(keystore.verify_password(TEST_PASSWORD));
         assert!(!keystore.verify_password("WrongPassword"));
+    }
+
+    #[test]
+    pub fn test_key_hash_from_private_key() {
+        let pk_data = &Vec::<u8>::from_hex(
+            "ad87a08796efbdd9276e2ca5a10f938937cb5d2b7d5f698c06a94d8eeed3f6ae",
+        )
+        .unwrap();
+        let fingerprint = key_hash_from_private_key(&pk_data).unwrap();
+        assert_eq!(fingerprint, "0x1468dba9");
+
+        let pk_data = &Vec::<u8>::from_hex(
+            "257cd2f8eb13f6930ecb95ac7736dd25e65d231ce1a3b1669e51f6737350b43e",
+        )
+        .unwrap();
+        let fingerprint = key_hash_from_private_key(&pk_data).unwrap();
+        assert_eq!(fingerprint, "0xf6f23259");
     }
 }

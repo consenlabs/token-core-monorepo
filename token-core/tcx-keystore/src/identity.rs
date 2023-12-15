@@ -32,23 +32,20 @@ pub struct Identity {
 }
 
 impl Identity {
-    pub fn new(seed: &Seed, unlocker: &Unlocker, network: &IdentityNetwork) -> Result<Self> {
-        let network_type = if network == &IdentityNetwork::Mainnet {
-            Network::Bitcoin
+    pub fn new(
+        master_private_key: &[u8],
+        unlocker: &Unlocker,
+        network: &IdentityNetwork,
+    ) -> Result<Self> {
+        let (network_type, network_salt) = if network == &IdentityNetwork::Mainnet {
+            (Network::Bitcoin, "Mainnet")
         } else {
-            Network::Testnet
+            (Network::Testnet, "Testnet")
         };
 
-        let master_key = ExtendedPrivKey::new_master(network_type, seed.as_ref())?;
-
-        let network_salt = if network == &IdentityNetwork::Mainnet {
-            "Mainnet"
-        } else {
-            "Testnet"
-        };
         let salt = format!("Automatic Backup Key {}", network_salt);
 
-        let backup_key = HMAC::mac(salt.as_bytes(), master_key.private_key.secret_bytes());
+        let backup_key = HMAC::mac(salt.as_bytes(), master_private_key);
 
         let authentication_key = HMAC::mac("Authentication Key".as_bytes(), backup_key);
 
@@ -101,7 +98,15 @@ impl Identity {
         }
         let mnemonic = Mnemonic::from_phrase(mnemonic_phrase, Language::English).unwrap();
         let seed = Seed::new(&mnemonic, "");
-        return Self::new(&seed, unlocker, network);
+
+        let network_type = if network == &IdentityNetwork::Mainnet {
+            Network::Bitcoin
+        } else {
+            Network::Testnet
+        };
+
+        let master_key = ExtendedPrivKey::new_master(network_type, seed.as_ref())?;
+        return Self::new(&master_key.private_key.secret_bytes(), unlocker, network);
     }
 
     pub fn from_private_key(
@@ -109,10 +114,8 @@ impl Identity {
         unlocker: &Unlocker,
         network: &IdentityNetwork,
     ) -> Result<Self> {
-        let entropy = Vec::from_hex_auto(private_key)?;
-        let mnemonic = Mnemonic::from_entropy(&entropy, Language::English).unwrap();
-        let seed = Seed::new(&mnemonic, "");
-        return Self::new(&seed, unlocker, network);
+        let private_key_bytes = Vec::<u8>::from_hex_auto(private_key)?;
+        return Self::new(&private_key_bytes, unlocker, network);
     }
 
     pub fn calculate_ipfs_id(pub_key: &PublicKey) -> String {
@@ -392,15 +395,32 @@ mod test {
     #[test]
     fn test_create_identity_from_private_key() {
         let meta = Metadata::default();
-        let keystore = PrivateKeystore::from_private_key(&PRIVATE_KEY, &PASSWORD, meta);
+        let keystore = PrivateKeystore::from_private_key(&PRIVATE_KEY, &PASSWORD, meta).unwrap();
         let identity = &keystore.store().identity;
 
         assert_eq!(
-            "im14x5Ka4SC7WkwL1PzPtHvB1jdzLyaJ3tru511",
+            "im14x5GLbjpSGz4Y2ebqcP2aN2R1qY54qKsX6bj",
             identity.identifier
         );
         assert_eq!(
-            "QmRYFQbmD37D4fvodcFvQtaSFo3mcAPJmYLPUHrr8w1teZ",
+            "QmYS86Nzo9mi7ccBH7iZc11ModqXahbUxtTDNaZHU6EHqV",
+            identity.ipfs_id
+        );
+    }
+
+    #[test]
+    fn test_create_identity_from_private_key_testnet() {
+        let mut meta = Metadata::default();
+        meta.network = IdentityNetwork::Testnet;
+        let keystore = PrivateKeystore::from_private_key(&PRIVATE_KEY, &PASSWORD, meta).unwrap();
+        let identity = &keystore.store().identity;
+
+        assert_eq!(
+            "im18MD7LnJJa6vkDd9jZmjqXw2N7K9KZuk2bGjW",
+            identity.identifier
+        );
+        assert_eq!(
+            "QmYtS45NgsQBqZdJbJGn33DYPWGsSbmUbuuVoR2rdfaJWV",
             identity.ipfs_id
         );
     }
