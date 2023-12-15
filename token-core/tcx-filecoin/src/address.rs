@@ -103,7 +103,10 @@ impl ToString for FilecoinAddress {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use crate::address::FilecoinAddress;
+    use tcx_common::FromHex;
     use tcx_constants::{coin_info_from_param, CoinInfo, CurveType};
     use tcx_keystore::{Address, Keystore, Metadata};
     use tcx_primitive::TypedPublicKey;
@@ -266,5 +269,25 @@ mod tests {
             let address = FilecoinAddress::from_public_key(&pk, &coin_info).unwrap();
             assert_eq!(address.to_string(), expected);
         }
+    }
+
+    #[test]
+    #[should_panic(expected = "InvalidCurveType")]
+    fn test_invalid_curve_type() {
+        let input =
+            Vec::from_hex("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
+                .unwrap();
+        let pk = TypedPublicKey::from_slice(CurveType::ED25519, &input).unwrap();
+        FilecoinAddress::from_public_key(&pk, &CoinInfo::default()).unwrap();
+    }
+
+    #[test]
+    fn test_from_str() {
+        let address =
+            FilecoinAddress::from_str("t1xtwapqc6nh4si2hcwpr3656iotzmlwumogqbuaa").unwrap();
+        assert_eq!(
+            address.to_string(),
+            "t1xtwapqc6nh4si2hcwpr3656iotzmlwumogqbuaa"
+        );
     }
 }

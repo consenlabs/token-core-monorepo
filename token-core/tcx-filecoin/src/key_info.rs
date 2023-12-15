@@ -61,7 +61,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_private_key() {
+    fn test_from_private_key_secp256k1() {
         let key_info = KeyInfo::from_private_key(
             CurveType::SECP256k1,
             &Vec::from_hex("0ae0d7924285c3921e9948594d0b100a248d9a3da96d33d1213f503ac957c45b")
@@ -70,5 +70,28 @@ mod tests {
         .unwrap();
 
         assert_eq!(key_info.to_json().unwrap().to_hex(), "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a22437544586b6b4b46773549656d55685a545173514369534e6d6a327062545052495439514f736c587846733d227d");
+    }
+
+    #[test]
+    fn test_from_private_key_bls() {
+        let key_info = KeyInfo::from_private_key(
+            CurveType::BLS,
+            &Vec::from_hex("0ae0d7924285c3921e9948594d0b100a248d9a3da96d33d1213f503ac957c45b")
+                .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(key_info.to_json().unwrap().to_hex(), "7b2254797065223a22626c73222c22507269766174654b6579223a22437544586b6b4b46773549656d55685a545173514369534e6d6a327062545052495439514f736c587846733d227d");
+    }
+
+    #[test]
+    #[should_panic(expected = "InvalidCurveType")]
+    fn test_from_private_key_invalid_curve_type() {
+        KeyInfo::from_private_key(
+            CurveType::ED25519Blake2bNano,
+            &Vec::from_hex("0ae0d7924285c3921e9948594d0b100a248d9a3da96d33d1213f503ac957c45b")
+                .unwrap(),
+        )
+        .unwrap();
     }
 }
