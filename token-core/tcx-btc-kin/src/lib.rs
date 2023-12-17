@@ -29,9 +29,7 @@ pub use bch_address::BchAddress;
 pub use network::BtcKinNetwork;
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_keystore::Address;
-use tcx_primitive::{
-    get_account_path, Bip32DeterministicPublicKey, Derive, DeterministicPublicKey, TypedPublicKey,
-};
+use tcx_primitive::{Bip32DeterministicPublicKey, Derive, DeterministicPublicKey, TypedPublicKey};
 pub use transaction::{BtcKinTxInput, BtcKinTxOutput, OmniTxInput, Utxo};
 
 pub const BITCOIN: &'static str = "BITCOIN";

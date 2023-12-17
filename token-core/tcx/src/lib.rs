@@ -173,13 +173,14 @@ mod tests {
 
     use crate::api::{
         sign_param, CreateKeystoreParam, DeriveAccountsParam, DeriveAccountsResult,
-        DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, ExistsKeystoreResult,
-        ExportPrivateKeyParam, ExportResult, GeneralResult, GetPublicKeysParam,
-        GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult,
-        InitTokenCoreXParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonExistsParam,
-        KeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
-        PrivateKeyStoreExportParam, PublicKeyDerivation, PublicKeyParam, PublicKeyResult,
-        SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
+        DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, ExistsJsonParam,
+        ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonResult,
+        ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
+        GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam,
+        ImportPrivateKeyParam, ImportPrivateKeyResult, InitTokenCoreXParam,
+        KeystoreCommonAccountsParam, KeystoreResult, MnemonicToPublicKeyParam,
+        MnemonicToPublicKeyResult, PrivateKeyStoreExportParam, PublicKeyDerivation, PublicKeyParam,
+        PublicKeyResult, SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
         ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
         ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult,
         ZksyncSignMusigParam, ZksyncSignMusigResult,
@@ -202,9 +203,7 @@ mod tests {
         AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput,
     };
     use tcx_filecoin::{SignedMessage, UnsignedMessage};
-    use tcx_substrate::{
-        ExportJsonResult, ImportJsonParam, SubstrateKeystore, SubstrateRawTxIn, SubstrateTxOut,
-    };
+    use tcx_substrate::{SubstrateKeystore, SubstrateRawTxIn, SubstrateTxOut};
     use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
     use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 
@@ -536,10 +535,10 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
             };
             let ret = call_api("hd_store_export", param).unwrap();
-            let result: ExportResult = ExportResult::decode(ret.as_slice()).unwrap();
+            let result: ExportMnemonicResult =
+                ExportMnemonicResult::decode(ret.as_slice()).unwrap();
 
-            assert_eq!(result.r#type, KeyType::Mnemonic as i32);
-            assert_eq!(result.value, TEST_MNEMONIC);
+            assert_eq!(result.mnemonic, TEST_MNEMONIC);
         })
     }
 
@@ -553,10 +552,10 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
             };
             let ret = call_api("export_mnemonic", param).unwrap();
-            let result: ExportResult = ExportResult::decode(ret.as_slice()).unwrap();
+            let result: ExportMnemonicResult =
+                ExportMnemonicResult::decode(ret.as_slice()).unwrap();
 
-            assert_eq!(result.r#type, KeyType::Mnemonic as i32);
-            assert_eq!(result.value, TEST_MNEMONIC);
+            assert_eq!(result.mnemonic, TEST_MNEMONIC);
 
             let wallet = import_default_pk_store();
 
@@ -973,30 +972,31 @@ mod tests {
                 derived_accounts.accounts[0].address
             );
 
-            let param: KeystoreCommonExistsParam = KeystoreCommonExistsParam {
-                r#type: KeyType::PrivateKey as i32,
-                value: "edskRgu8wHxjwayvnmpLDDijzD3VZDoAH7ZLqJWuG4zg7LbxmSWZWhtkSyM5Uby41rGfsBGk4iPKWHSDniFyCRv3j7YFCknyHH"
+            let param: ExistsPrivateKeyParam = ExistsPrivateKeyParam {
+                private_key: "edskRgu8wHxjwayvnmpLDDijzD3VZDoAH7ZLqJWuG4zg7LbxmSWZWhtkSyM5Uby41rGfsBGk4iPKWHSDniFyCRv3j7YFCknyHH"
                     .to_string(),
-                encoding: "TEZOS".to_string(),
             };
 
-            let ret_bytes = call_api("keystore_common_exists", param).unwrap();
+            let ret_bytes = call_api("exists_private_key", param).unwrap();
             let result: ExistsKeystoreResult =
                 ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
             assert!(result.is_exists);
             assert_eq!(result.id, import_result.id);
 
-            let param: PrivateKeyStoreExportParam = PrivateKeyStoreExportParam {
+            let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "TEZOS".to_string(),
                 network: "MAINNET".to_string(),
+                curve: "ED25519".to_string(),
+                path: "m/44'/1729'/0'/0'".to_string(),
             };
-            let ret_bytes = call_api("private_key_store_export", param).unwrap();
-            let export_result: ExportResult = ExportResult::decode(ret_bytes.as_slice()).unwrap();
+            let ret_bytes = call_api("export_private_key", param).unwrap();
+            let export_result: ExportPrivateKeyResult =
+                ExportPrivateKeyResult::decode(ret_bytes.as_slice()).unwrap();
             assert_eq!(
                 "edskRgu8wHxjwayvnmpLDDijzD3VZDoAH7ZLqJWuG4zg7LbxmSWZWhtkSyM5Uby41rGfsBGk4iPKWHSDniFyCRv3j7YFCknyHH",
-                export_result.value
+                export_result.private_key
             );
 
             let param: PublicKeyParam = PublicKeyParam {
@@ -1052,8 +1052,9 @@ mod tests {
             };
 
             let export_pk_bytes = call_api("export_private_key", export_param).unwrap();
-            let export_pk: ExportResult = ExportResult::decode(export_pk_bytes.as_slice()).unwrap();
-            println!("{:#?}", export_pk.value);
+            let export_pk: ExportPrivateKeyResult =
+                ExportPrivateKeyResult::decode(export_pk_bytes.as_slice()).unwrap();
+            println!("{:#?}", export_pk.private_key);
             // assert_eq!(
             //     export_pk.value,
             //     "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226f354a6754767776725a774c5061513758326d4b4c6a386e4478634e685a6b537667315564434a317866593d227d"
@@ -1112,9 +1113,10 @@ mod tests {
             };
 
             let export_pk_bytes = call_api("export_private_key", export_param).unwrap();
-            let export_pk: ExportResult = ExportResult::decode(export_pk_bytes.as_slice()).unwrap();
+            let export_pk: ExportPrivateKeyResult =
+                ExportPrivateKeyResult::decode(export_pk_bytes.as_slice()).unwrap();
             assert_eq!(
-                export_pk.value,
+                export_pk.private_key,
                 "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226f354a6754767776725a774c5061513758326d4b4c6a386e4478634e685a6b537667315564434a317866593d227d"
             );
 
@@ -1171,9 +1173,10 @@ mod tests {
             };
 
             let export_pk_bytes = call_api("export_private_key", export_param).unwrap();
-            let export_pk: ExportResult = ExportResult::decode(export_pk_bytes.as_slice()).unwrap();
+            let export_pk: ExportPrivateKeyResult =
+                ExportPrivateKeyResult::decode(export_pk_bytes.as_slice()).unwrap();
             assert_eq!(
-                export_pk.value,
+                export_pk.private_key,
                 "7b2254797065223a22626c73222c22507269766174654b6579223a2269376b4f2b7a78633651532b7637597967636d555968374d55595352657336616e6967694c684b463830383d227d"
             );
 
@@ -1230,9 +1233,10 @@ mod tests {
             };
 
             let export_pk_bytes = call_api("export_private_key", export_param).unwrap();
-            let export_pk: ExportResult = ExportResult::decode(export_pk_bytes.as_slice()).unwrap();
+            let export_pk: ExportPrivateKeyResult =
+                ExportPrivateKeyResult::decode(export_pk_bytes.as_slice()).unwrap();
             assert_eq!(
-                export_pk.value,
+                export_pk.private_key,
                 "416c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f"
             );
             remove_created_wallet(&import_result.id);
@@ -1243,47 +1247,53 @@ mod tests {
     pub fn test_private_key_store_export() {
         run_test(|| {
             let import_result = import_default_pk_store();
-            let param: PrivateKeyStoreExportParam = PrivateKeyStoreExportParam {
+            let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "BITCOINCASH".to_string(),
                 network: "MAINNET".to_string(),
+                curve: "SECP256k1".to_string(),
+                path: "m/44'/0'/0'/0/0".to_string(),
             };
-            let ret_bytes = call_api("private_key_store_export", param).unwrap();
-            let export_result: ExportResult = ExportResult::decode(ret_bytes.as_slice()).unwrap();
+            let ret_bytes = call_api("export_private_key", param).unwrap();
+            let export_result: ExportPrivateKeyResult =
+                ExportPrivateKeyResult::decode(ret_bytes.as_slice()).unwrap();
             assert_eq!(
                 "L2hfzPyVC1jWH7n2QLTe7tVTb6btg9smp5UVzhEBxLYaSFF7sCZB",
-                export_result.value
+                export_result.private_key
             );
-            assert_eq!(KeyType::PrivateKey as i32, export_result.r#type);
 
-            let param: PrivateKeyStoreExportParam = PrivateKeyStoreExportParam {
+            let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "BITCOINCASH".to_string(),
                 network: "TESTNET".to_string(),
+                curve: "SECP256k1".to_string(),
+                path: "m/44'/0'/0'/0/0".to_string(),
             };
-            let ret_bytes = call_api("private_key_store_export", param).unwrap();
-            let export_result: ExportResult = ExportResult::decode(ret_bytes.as_slice()).unwrap();
+            let ret_bytes = call_api("export_private_key", param).unwrap();
+            let export_result: ExportPrivateKeyResult =
+                ExportPrivateKeyResult::decode(ret_bytes.as_slice()).unwrap();
             assert_eq!(
                 "cT4fTJyLd5RmSZFHnkGmVCzXDKuJLbyTt7cy77ghTTCagzNdPH1j",
-                export_result.value
+                export_result.private_key
             );
-            assert_eq!(KeyType::PrivateKey as i32, export_result.r#type);
 
-            let param: PrivateKeyStoreExportParam = PrivateKeyStoreExportParam {
+            let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "TRON".to_string(),
                 network: "".to_string(),
+                curve: "SECP256k1".to_string(),
+                path: "m/44'/195'/0'/0/0".to_string(),
             };
-            let ret_bytes = call_api("private_key_store_export", param).unwrap();
-            let export_result: ExportResult = ExportResult::decode(ret_bytes.as_slice()).unwrap();
+            let ret_bytes = call_api("export_private_key", param).unwrap();
+            let export_result: ExportPrivateKeyResult =
+                ExportPrivateKeyResult::decode(ret_bytes.as_slice()).unwrap();
             assert_eq!(
                 "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6",
-                export_result.value
+                export_result.private_key
             );
-            assert_eq!(KeyType::PrivateKey as i32, export_result.r#type);
             remove_created_wallet(&import_result.id);
         })
     }
@@ -1348,12 +1358,11 @@ mod tests {
                     path: "".to_string(),
                 };
                 let ret_bytes = call_api("export_private_key", param).unwrap();
-                let export_result: ExportResult =
-                    ExportResult::decode(ret_bytes.as_slice()).unwrap();
+                let export_result: ExportPrivateKeyResult =
+                    ExportPrivateKeyResult::decode(ret_bytes.as_slice()).unwrap();
 
                 // test export as mainnet
-                assert_eq!(pks[idx], export_result.value);
-                assert_eq!(KeyType::PrivateKey as i32, export_result.r#type);
+                assert_eq!(pks[idx], export_result.private_key);
                 remove_created_wallet(&import_result.id);
             }
 
@@ -1450,11 +1459,10 @@ mod tests {
                     path: export_paths[idx].to_string(),
                 };
                 let ret_bytes = call_api("export_private_key", param).unwrap();
-                let export_result: ExportResult =
-                    ExportResult::decode(ret_bytes.as_slice()).unwrap();
+                let export_result: ExportPrivateKeyResult =
+                    ExportPrivateKeyResult::decode(ret_bytes.as_slice()).unwrap();
 
-                assert_eq!(pks[idx], export_result.value);
-                assert_eq!(KeyType::PrivateKey as i32, export_result.r#type);
+                assert_eq!(pks[idx], export_result.private_key);
                 remove_created_wallet(&import_result.id);
             }
 
@@ -1469,8 +1477,10 @@ mod tests {
                 path: "m/44'/2'/0'/0/0".to_string(),
             };
             let ret = call_api("export_private_key", param);
-            assert!(ret.is_err());
-            assert_eq!(format!("{}", ret.err().unwrap()), "account_not_found");
+            assert!(ret.is_ok());
+            let export_result: ExportPrivateKeyResult =
+                ExportPrivateKeyResult::decode(ret.unwrap().as_slice()).unwrap();
+
             remove_created_wallet(&import_result.id);
         })
     }
@@ -1614,13 +1624,11 @@ mod tests {
             let ret: GeneralResult = GeneralResult::decode(ret_bytes.as_slice()).unwrap();
             assert!(ret.is_success);
 
-            let param: KeystoreCommonExistsParam = KeystoreCommonExistsParam {
-                r#type: KeyType::PrivateKey as i32,
-                value: "5JZc7wGRUr4J1RHDcM9ySWKLfQ2xjRUEo612qC4RLJ3G7jzJ4qx".to_string(),
-                encoding: "".to_string(),
+            let param: ExistsPrivateKeyParam = ExistsPrivateKeyParam {
+                private_key: "5JZc7wGRUr4J1RHDcM9ySWKLfQ2xjRUEo612qC4RLJ3G7jzJ4qx".to_string(),
             };
 
-            let ret_bytes = call_api("keystore_common_exists", param).unwrap();
+            let ret_bytes = call_api("exists_private", param).unwrap();
             let ret: ExistsKeystoreResult =
                 ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
 
@@ -1632,10 +1640,8 @@ mod tests {
     pub fn test_keystore_common_exists() {
         run_test(|| {
             let wallet = import_default_wallet();
-            let param: KeystoreCommonExistsParam = KeystoreCommonExistsParam {
-                r#type: KeyType::Mnemonic as i32,
-                value: format!("{}", TEST_MNEMONIC).to_string(),
-                encoding: "".to_string(),
+            let param: ExistsMnemonicParam = ExistsMnemonicParam {
+                mnemonic: format!("{}", TEST_MNEMONIC).to_string(),
             };
 
             let ret_bytes = call_api("keystore_common_exists", param).unwrap();
@@ -1645,10 +1651,8 @@ mod tests {
             assert_eq!(result.id, wallet.id);
 
             let wallet = import_default_pk_store();
-            let param: KeystoreCommonExistsParam = KeystoreCommonExistsParam {
-                r#type: KeyType::PrivateKey as i32,
-                value: "L2hfzPyVC1jWH7n2QLTe7tVTb6btg9smp5UVzhEBxLYaSFF7sCZB".to_string(),
-                encoding: "".to_string(),
+            let param: ExistsPrivateKeyParam = ExistsPrivateKeyParam {
+                private_key: "L2hfzPyVC1jWH7n2QLTe7tVTb6btg9smp5UVzhEBxLYaSFF7sCZB".to_string(),
             };
 
             let ret_bytes = call_api("keystore_common_exists", param).unwrap();
@@ -1657,11 +1661,9 @@ mod tests {
             assert!(result.is_exists);
             assert_eq!(result.id, wallet.id);
 
-            let param: KeystoreCommonExistsParam = KeystoreCommonExistsParam {
-                r#type: KeyType::PrivateKey as i32,
-                value: "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6"
+            let param: ExistsPrivateKeyParam = ExistsPrivateKeyParam {
+                private_key: "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6"
                     .to_string(),
-                encoding: "".to_string(),
             };
 
             let ret_bytes = call_api("keystore_common_exists", param).unwrap();
@@ -1671,10 +1673,8 @@ mod tests {
             assert_eq!(result.id, wallet.id);
 
             let wallet = import_default_wallet();
-            let param: KeystoreCommonExistsParam = KeystoreCommonExistsParam {
-                r#type: KeyType::Mnemonic as i32,
-                value: format!("{}", " inject  kidney  empty canal shadow  pact comfort  wife crush horse wife sketch  ").to_string(),//Badly formatted mnemonic
-                encoding: "".to_string(),
+            let param: ExistsMnemonicParam = ExistsMnemonicParam {
+                mnemonic: format!("{}", " inject  kidney  empty canal shadow  pact comfort  wife crush horse wife sketch  ").to_string(),//Badly formatted mnemonic
             };
 
             let ret_bytes = call_api("keystore_common_exists", param).unwrap();
@@ -2102,7 +2102,7 @@ mod tests {
 }"#;
 
             let param = ImportJsonParam {
-                keystore: wrong_keystore_str.to_string(),
+                json: wrong_keystore_str.to_string(),
                 password: TEST_PASSWORD.to_string(),
                 overwrite: true,
             };
@@ -2113,10 +2113,7 @@ mod tests {
             // let ret: Response = Response::decode(ret_bytes.as_slice()).unwrap();
 
             assert!(ret.is_err());
-            assert_eq!(
-                format!("{}", ret.err().unwrap()),
-                "invalid_keystore# only support xsalsa20-poly1305"
-            );
+            assert_eq!(format!("{}", ret.err().unwrap()), "decrypt_json_error");
 
             let keystore_str: &str = r#"{
   "address": "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS",
@@ -2137,10 +2134,9 @@ mod tests {
   }
 }"#;
 
-            let param = ImportJsonParam {
-                keystore: keystore_str.to_string(),
+            let param = ExistsJsonParam {
+                json: keystore_str.to_string(),
                 password: TEST_PASSWORD.to_string(),
-                overwrite: true,
             };
             // let param_bytes = encode_message(param).unwrap();
 
@@ -2194,7 +2190,95 @@ mod tests {
             let ret = call_api("export_json", export_param).unwrap();
             let keystore_ret: ExportJsonResult = ExportJsonResult::decode(ret.as_slice()).unwrap();
 
-            let keystore: SubstrateKeystore = serde_json::from_str(&keystore_ret.keystore).unwrap();
+            let keystore: SubstrateKeystore = serde_json::from_str(&keystore_ret.json).unwrap();
+            assert!(keystore.validate().is_ok());
+            assert_eq!(
+                keystore.address,
+                "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS"
+            );
+            assert_eq!(keystore.meta.name, "i_can_save_name");
+            assert!(keystore.meta.when_created > 1594102917);
+
+            // assert_eq!(keystore_ret.fixtures, "");
+            remove_created_wallet(&wallet_ret.id);
+        })
+    }
+
+    #[test]
+    pub fn test_import_substrate_keystore_v3() {
+        run_test(|| {
+            let keystore_str: &str = r#"{
+                "encoded": "nvrLmNETK/X6M5mylXX1g1++zpnULbYM8Da2NxI7Xe4AgAAAAQAAAAgAAAATe9CosvVLlmy71DcyeOI8BCRhPDmDGbFJJixjDOp6i6nTmkD1PvOVuSWmVQGeTMLl/nZfkmOiSrRc/u9UTBL4uJVuKxupBbsKdWmRx7ftm2E77SG9VtOrJDdpmcmID8Elk9ZtDGudz+5Chehffhx2UYZPVdxFRDDnIH9fTUJT3+DYVx/2X2dlcyRwU4O2iWLcI4ud9Hh271D9YGkh",
+                "encoding": {
+                  "content": ["pkcs8", "sr25519"],
+                  "type": ["scrypt", "xsalsa20-poly1305"],
+                  "version": "3"
+                },
+                "address": "5EhpTExwgK3VMfoawHrpLejmjuoUx7vNb6kF8SpHPzNnNBs3",
+                "meta": {
+                  "genesisHash": "",
+                  "name": "test account",
+                  "whenCreated": 1702811906958
+                }
+              }"#;
+
+            let param = ExistsJsonParam {
+                json: keystore_str.to_string(),
+                password: TEST_PASSWORD.to_string(),
+            };
+            // let param_bytes = encode_message(param).unwrap();
+
+            let ret_bytes = call_api("exists_json", param.clone()).unwrap();
+
+            let exists_result: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
+            assert!(!exists_result.is_exists);
+
+            let ret_bytes = call_api("import_json", param.clone()).unwrap();
+            let wallet_ret: KeystoreResult = KeystoreResult::decode(ret_bytes.as_slice()).unwrap();
+
+            let ret_bytes = call_api("exists_json", param.clone()).unwrap();
+            let exists_result: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
+            assert!(exists_result.is_exists);
+
+            let derivation = Derivation {
+                chain_type: "KUSAMA".to_string(),
+                path: "".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "".to_string(),
+                bech32_prefix: "".to_string(),
+            };
+
+            let param = DeriveAccountsParam {
+                id: wallet_ret.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                derivations: vec![derivation],
+            };
+
+            let ret = call_api("derive_accounts", param).unwrap();
+            let accounts: DeriveAccountsResult =
+                DeriveAccountsResult::decode(ret.as_slice()).unwrap();
+
+            assert_eq!(
+                accounts.accounts[0].address,
+                "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS"
+            );
+
+            let export_param = ExportPrivateKeyParam {
+                id: wallet_ret.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                chain_type: "KUSAMA".to_string(),
+                network: "".to_string(),
+                curve: "".to_string(),
+                path: "".to_string(),
+            };
+            let ret = call_api("export_json", export_param).unwrap();
+            let keystore_ret: ExportJsonResult = ExportJsonResult::decode(ret.as_slice()).unwrap();
+
+            let keystore: SubstrateKeystore = serde_json::from_str(&keystore_ret.json).unwrap();
             assert!(keystore.validate().is_ok());
             assert_eq!(
                 keystore.address,
@@ -2268,7 +2352,7 @@ mod tests {
 }"#;
 
             let param = ImportJsonParam {
-                keystore: keystore_str.to_string(),
+                json: keystore_str.to_string(),
                 password: TEST_PASSWORD.to_string(),
                 overwrite: true,
             };
@@ -3519,6 +3603,22 @@ mod tests {
         })
     }
 
+    #[test]
+    pub fn test_import_private_key_integration() {
+        run_test(|| {
+            let bytes = &Vec::<u8>::from_0x_hex("0x0a12696d706f72745f707269766174655f6b6579126f0a196170692e496d706f7274507269766174654b6579506172616d12520a4063323761303639373562656434386165353262366565353461646637663366366335646136356566366166316538616464623231663866366461303366303634120831323334313233341a0022002801").unwrap();
+            let action: TcxAction = TcxAction::decode(bytes.as_slice()).unwrap();
+            let bytes = action.param.unwrap().value;
+            let mut import_private_key: ImportPrivateKeyParam =
+                ImportPrivateKeyParam::decode(bytes.as_slice()).unwrap();
+            import_private_key.private_key =
+                "0xc27a06975bed48ae52b6ee54adf7f3f6c5da65ef6af1e8addb21f8f6da03f064".to_string();
+            let ret = call_api("import_private_key", import_private_key).unwrap();
+            let import_result: ImportPrivateKeyResult =
+                ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(import_result.id, "");
+        })
+    }
     // #[test]
     // pub fn test_eth_ec_sign() {
     //     run_test(|| {

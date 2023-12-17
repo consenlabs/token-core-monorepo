@@ -61,9 +61,6 @@ message DeriveAccountsResult {
     repeated AccountResponse accounts = 1;
 }
 
-// FUNCTION: hd_store_export(ExportResult): ExistsKeystoreResult
-//
-// export the mnemonic from a hd keystore
 message ExportResult {
     string id = 1;
     KeyType type = 2;
@@ -103,8 +100,6 @@ message PrivateKeyStoreExportParam {
 //
 // delete the keystore
 
-// FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): ExistsKeystoreResult
-//
 // Check is there a keystore was generate by the special privateKey or mnemonic
 message KeystoreCommonExistsParam {
     KeyType type = 1;

@@ -26,11 +26,12 @@ use crate::api::sign_param::Key;
 use crate::api::{
     AccountResponse, CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
     DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
-    DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsKeystoreResult,
-    ExistsMnemonicParam, ExistsPrivateKeyParam, ExportPrivateKeyParam, ExportResult, GeneralResult,
-    GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
-    GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult,
-    KeyType, KeystoreMigrationParam, KeystoreResult, MnemonicToPublicKeyParam,
+    DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsJsonParam,
+    ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam,
+    ExportJsonResult, ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult,
+    GeneralResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
+    GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
+    ImportPrivateKeyResult, KeystoreMigrationParam, KeystoreResult, MnemonicToPublicKeyParam,
     MnemonicToPublicKeyResult, RemoveWalletParam, RemoveWalletResult,
     SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
     SignHashesResult, WalletKeyParam, ZksyncPrivateKeyFromSeedParam,
@@ -59,10 +60,7 @@ use tcx_keystore::{MessageSigner, TransactionSigner};
 use tcx_migration::keystore_upgrade::KeystoreUpgrade;
 
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
-use tcx_substrate::{
-    decode_substrate_keystore, encode_substrate_keystore, ExportJsonResult, ImportJsonParam,
-    SubstrateKeystore,
-};
+use tcx_substrate::{decode_substrate_keystore, encode_substrate_keystore, SubstrateKeystore};
 
 use tcx_migration::migration::LegacyKeystore;
 use tcx_primitive::TypedDeterministicPublicKey;
@@ -338,20 +336,20 @@ pub(crate) fn export_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
         format_err!("{}", "private_keystore_cannot_export_mnemonic")
     );
 
-    let export_result = ExportResult {
+    let export_result = ExportMnemonicResult {
         id: guard.keystore().id(),
-        r#type: KeyType::Mnemonic as i32,
-        value: guard.keystore().export()?,
+        mnemonic: guard.keystore().export()?,
     };
 
     encode_message(export_result)
 }
 
 fn key_data_from_any_format_pk(pk: &str) -> Result<Vec<u8>> {
-    let decoded = Vec::from_hex(pk.to_string());
+    let decoded = Vec::from_hex_auto(pk.to_string());
     if decoded.is_ok() {
         let bytes = decoded.unwrap();
-        if bytes.len() <= 64 {
+        // Sr25519 key len = 128;
+        if bytes.len() <= 64 || bytes.len() == 128 {
             Ok(bytes)
         } else {
             // import filecoin
@@ -412,6 +410,7 @@ pub(crate) fn import_private_key_internal(
         source: meta_source,
         ..Metadata::default()
     };
+    dbg!("private key to store keystore: {}", &private_key);
     let pk_store = PrivateKeystore::from_private_key(&private_key, &param.password, meta)?;
 
     let mut keystore = Keystore::PrivateKey(pk_store);
@@ -457,13 +456,19 @@ fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
         private_key_bytes = parse_tezos_private_key(&private_key)?;
         chain_types.push("TEZOS".to_string());
     } else {
-        let decoded = Vec::from_0x_hex(private_key.to_string());
+        let decoded = Vec::from_hex_auto(private_key.to_string());
         if decoded.is_ok() {
             let decoded_data = decoded.unwrap();
             if decoded_data.len() <= 64 {
                 private_key_bytes = decoded_data;
                 chain_types.push("ETHEREUM".to_string());
                 chain_types.push("TRON".to_string());
+            } else if decoded_data.len() == 128 {
+                //TODO: Substrate key
+                private_key_bytes = decoded_data;
+                chain_types.push("KUSAMA".to_string());
+                chain_types.push("POLKADOT".to_string());
+                curve = CurveType::SubSr25519;
             } else {
                 let key_info = KeyInfo::from_lotus(&decoded_data)?;
                 private_key_bytes = key_info.decode_private_key()?;
@@ -547,11 +552,13 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
 
     let curve = CurveType::from_str(&param.curve);
+    dbg!(&curve);
     let pk_bytes = guard
         .keystore_mut()
         .get_private_key(curve, &param.path)?
         .to_bytes();
     let pk_hex = pk_bytes.to_hex();
+    dbg!("pk_hex: {}", &pk_hex);
 
     // private_key prefix is only about chain type and network
     // TODO: add export_pk to macro
@@ -573,10 +580,9 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
     }?;
     // TODO: add eos export support
 
-    let export_result = ExportResult {
+    let export_result = ExportPrivateKeyResult {
         id: guard.keystore().id(),
-        r#type: KeyType::PrivateKey as i32,
-        value,
+        private_key: value,
     };
 
     encode_message(export_result)
@@ -850,7 +856,7 @@ pub(crate) fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
     let param: ImportJsonParam = ImportJsonParam::decode(data)?;
     // let parse_v3_result = key_info_from_v3(&param);
-    if let Ok(parse_v3_result) = key_info_from_v3(&param) {
+    if let Ok(parse_v3_result) = key_info_from_v3(&param.json, &param.password) {
         let (sec_key_bytes, name) = parse_v3_result;
         let pk_import_param = ImportPrivateKeyParam {
             private_key: sec_key_bytes.to_hex(),
@@ -864,7 +870,9 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
         ret.suggest_curve = CurveType::SECP256k1.as_str().to_string();
         ret.suggest_network = "".to_string();
         return encode_message(ret);
-    } else if let Ok(parse_substrate_result) = key_info_from_substrate_keystore(&param) {
+    } else if let Ok(parse_substrate_result) =
+        key_info_from_substrate_keystore(&param.json, &param.password)
+    {
         let (sec_key_bytes, name) = parse_substrate_result;
         let pk_import_param = ImportPrivateKeyParam {
             private_key: sec_key_bytes.to_hex(),
@@ -873,6 +881,7 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
             password_hint: "".to_string(),
             overwrite: param.overwrite,
         };
+        dbg!(&pk_import_param);
         let mut ret =
             import_private_key_internal(&pk_import_param, Some(Source::SubstrateKeystore))?;
         ret.suggest_chain_types = vec!["KUSAMA".to_string(), "POLKADOT".to_string()];
@@ -884,24 +893,24 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
-fn key_info_from_v3(param: &ImportJsonParam) -> Result<(Vec<u8>, String)> {
-    let ks: LegacyKeystore = serde_json::from_str(&param.keystore)?;
-    ks.validate_v3(&param.password)?;
-    let key = tcx_crypto::Key::Password(param.password.to_string());
+fn key_info_from_v3(keystore: &str, password: &str) -> Result<(Vec<u8>, String)> {
+    let ks: LegacyKeystore = serde_json::from_str(&keystore)?;
+    ks.validate_v3(&password)?;
+    let key = tcx_crypto::Key::Password(password.to_string());
     let unlocker = ks.crypto.use_key(&key)?;
     let pk = unlocker.plaintext()?;
     return Ok((pk, "Imported ETH".to_string()));
 }
 
-fn key_info_from_substrate_keystore(param: &ImportJsonParam) -> Result<(Vec<u8>, String)> {
-    let ks: SubstrateKeystore = serde_json::from_str(&param.keystore)?;
+fn key_info_from_substrate_keystore(keystore: &str, password: &str) -> Result<(Vec<u8>, String)> {
+    let ks: SubstrateKeystore = serde_json::from_str(&keystore)?;
     let _ = ks.validate()?;
-    let pk = decode_substrate_keystore(&ks, &param.password)?;
+    let pk = decode_substrate_keystore(&ks, &password)?;
     return Ok((pk, ks.meta.name));
 }
 
 pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
-    let param: ExportPrivateKeyParam = ExportPrivateKeyParam::decode(data)?;
+    let param: ExportJsonParam = ExportJsonParam::decode(data)?;
     let meta: Metadata;
     {
         let map = KEYSTORE_MAP.read();
@@ -920,42 +929,52 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
     }
 
     let ret = export_private_key(data)?;
-    let export_result: ExportResult = ExportResult::decode(ret.as_slice())?;
-    let pk = export_result.value;
-    let pk_bytes = Vec::from_hex(pk)?;
-    let coin = coin_info_from_param(&param.chain_type, &param.network, "", "")?;
+    let export_result: ExportPrivateKeyResult = ExportPrivateKeyResult::decode(ret.as_slice())?;
+    let private_key = export_result.private_key;
+    dbg!(&private_key);
+    let private_key_bytes = Vec::from_hex_auto(private_key)?;
+    let coin = coin_info_from_param(&param.chain_type, "", "", "")?;
     let json_str = match param.chain_type.as_str() {
         "KUSAMA" | "SUBSTRATE" => {
-            let mut substrate_ks = encode_substrate_keystore(&param.password, &pk_bytes, &coin)?;
+            let mut substrate_ks =
+                encode_substrate_keystore(&param.password, &private_key_bytes, &coin)?;
 
             substrate_ks.meta.name = meta.name;
             substrate_ks.meta.when_created = meta.timestamp;
             serde_json::to_string(&substrate_ks)?
         }
         "ETHEREUM" => {
-            let keystore = LegacyKeystore::new_v3(&pk_bytes, &param.password)?;
+            let keystore = LegacyKeystore::new_v3(&private_key_bytes, &param.password)?;
             serde_json::to_string(&keystore)?
         }
         _ => return Err(format_err!("unsupported_chain")),
     };
 
-    let ret = ExportJsonResult { keystore: json_str };
+    let ret = ExportJsonResult {
+        id: param.id.to_string(),
+        json: json_str,
+    };
     return encode_message(ret);
 }
 
 pub(crate) fn exists_json(data: &[u8]) -> Result<Vec<u8>> {
-    let param: ImportJsonParam = ImportJsonParam::decode(data)?;
+    let param: ExistsJsonParam = ExistsJsonParam::decode(data)?;
 
-    let sec_key_hex = if let Ok(parse_v3_result) = key_info_from_v3(&param) {
+    let error = key_info_from_substrate_keystore(&param.json, &param.password).err();
+    dbg!(error);
+    let sec_key_hex = if let Ok(parse_v3_result) = key_info_from_v3(&param.json, &param.password) {
         let (sec_key_bytes, _) = parse_v3_result;
         sec_key_bytes.to_hex()
-    } else if let Ok(parse_substrate_result) = key_info_from_substrate_keystore(&param) {
+    } else if let Ok(parse_substrate_result) =
+        key_info_from_substrate_keystore(&param.json, &param.password)
+    {
         let (sec_key_bytes, _) = parse_substrate_result;
         sec_key_bytes.to_hex()
     } else {
         return Err(format_err!("decrypt_json_error"));
     };
 
+    dbg!("sec_key_hex: {}", &sec_key_hex);
     let exists_param = ExistsPrivateKeyParam {
         private_key: sec_key_hex,
     };

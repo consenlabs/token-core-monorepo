@@ -876,7 +876,8 @@ pub(crate) mod tests {
     #[test]
     fn test_private_keystore() {
         let mut keystore =
-            Keystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default()).unwrap();
+            Keystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default())
+                .unwrap();
 
         assert!(keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))

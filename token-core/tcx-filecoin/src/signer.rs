@@ -207,7 +207,8 @@ mod tests {
                 &Vec::from_hex("7b2254797065223a22626c73222c22507269766174654b6579223a2269376b4f2b7a78633651532b7637597967636d555968374d55595352657336616e6967694c684b463830383d227d").unwrap()).unwrap();
         let private_key = key_info.decode_private_key().unwrap();
         let mut ks =
-            Keystore::from_private_key(&private_key.to_hex(), "Password", Metadata::default()).unwrap();
+            Keystore::from_private_key(&private_key.to_hex(), "Password", Metadata::default())
+                .unwrap();
         ks.unlock_by_password("Password").unwrap();
 
         let sign_context = SignatureParameters {

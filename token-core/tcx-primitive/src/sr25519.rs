@@ -36,6 +36,7 @@ impl TraitPrivateKey for Sr25519PrivateKey {
         //
         // let kp = mini_key.expand_to_keypair(ExpansionMode::Ed25519);
         let pk = SecretKey::from_ed25519_bytes(data).map_err(|_| KeyError::InvalidSr25519Key)?;
+        // let pk = SecretKey::from_bytes(data).map_err(|_| KeyError::InvalidSr25519Key)?;
         Ok(Sr25519PrivateKey(Pair::from(pk)))
     }
 
@@ -58,6 +59,8 @@ impl TraitPrivateKey for Sr25519PrivateKey {
 
     fn to_bytes(&self) -> Vec<u8> {
         self.0.to_raw_vec()
+        // self.0.clone_into(target)
+        // self.0.
     }
 }
 

@@ -10,7 +10,7 @@ use regex::Regex;
 use serde::__private::{fmt, PhantomData};
 use std::io::Cursor;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tcx_common::{random_u8_32, FromHex};
+use tcx_common::{random_u8_32, FromHex, ToHex};
 use tcx_constants::{CoinInfo, Result};
 use tcx_primitive::{
     DeterministicPrivateKey, PrivateKey, PublicKey, Sr25519PrivateKey, TypedPublicKey,
@@ -322,15 +322,19 @@ fn password_to_key(password_bytes: &[u8]) -> [u8; 32] {
 
 pub fn decode_substrate_keystore(keystore: &SubstrateKeystore, password: &str) -> Result<Vec<u8>> {
     let (secret_key, pub_key) = keystore.decrypt(password)?;
-    let priv_key = if secret_key.len() == 32 {
-        Sr25519PrivateKey::from_seed(&secret_key)
-    } else {
-        Sr25519PrivateKey::from_slice(&secret_key)
-    }?;
-    if priv_key.public_key().to_bytes() != pub_key {
-        return Err(Error::KeystorePublicKeyUnmatch.into());
-    }
-    Ok(secret_key)
+    dbg!(secret_key.to_hex());
+    // let priv_key = if secret_key.len() == 32 {
+    // Sr25519PrivateKey::from_seed(&secret_key)
+    // } else {
+    //     Sr25519PrivateKey::from_slice(&secret_key)
+    // }?;
+    let priv_key = Sr25519PrivateKey::from_slice(&secret_key)?;
+    // if priv_key.public_key().to_bytes() != pub_key {
+    //     return Err(Error::KeystorePublicKeyUnmatch.into());
+    // }
+    dbg!("decode_substrate_keystore success");
+    dbg!(priv_key.to_bytes().to_0x_hex());
+    Ok(priv_key.to_bytes())
 }
 
 pub fn encode_substrate_keystore(

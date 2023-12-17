@@ -2,16 +2,7 @@ syntax = "proto3";
 package transaction;
 
 
-message ImportJsonParam {
-    string keystore = 1;
-    string password = 2;
-    bool overwrite = 4;
-}
 
-
-message ExportJsonResult {
-    string keystore = 1;
-}
 
 message SubstrateRawTxIn {
     string rawData = 1;

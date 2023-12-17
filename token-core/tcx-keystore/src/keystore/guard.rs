@@ -70,7 +70,8 @@ mod tests {
 
         assert!(ks.is_locked());
 
-        let mut ks = Keystore::from_private_key(PRIVATE_KEY, TEST_PASSWORD, Metadata::default()).unwrap();
+        let mut ks =
+            Keystore::from_private_key(PRIVATE_KEY, TEST_PASSWORD, Metadata::default()).unwrap();
         let derived_key = ks.get_derived_key(&TEST_PASSWORD).unwrap();
 
         {

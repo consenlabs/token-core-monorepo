@@ -9,12 +9,20 @@ use crate::identity::Identity;
 use crate::keystore::Store;
 
 use tcx_common::{ripemd160, sha256, FromHex, ToHex};
-use tcx_primitive::{PrivateKey, Secp256k1PrivateKey, TypedPrivateKey};
+use tcx_primitive::{
+    PrivateKey, PublicKey, Secp256k1PrivateKey, Sr25519PrivateKey, TypedPrivateKey,
+};
 use uuid::Uuid;
 
 pub fn key_hash_from_private_key(data: &[u8]) -> Result<String> {
-    let private_key = Secp256k1PrivateKey::from_slice(data)?;
-    let public_key_data = private_key.public_key().to_compressed();
+    // TODO: Sr25519
+    let public_key_data = if data.len() == 32 {
+        let private_key = Secp256k1PrivateKey::from_slice(data)?;
+        private_key.public_key().to_compressed()
+    } else {
+        let private_key = Sr25519PrivateKey::from_slice(data)?;
+        private_key.public_key().to_bytes()
+    };
     let hashed = ripemd160(&sha256(&public_key_data));
     Ok(hashed[0..4].to_0x_hex())
 }
@@ -140,10 +148,10 @@ impl PrivateKeystore {
 
 #[cfg(test)]
 mod tests {
-    use crate::{HdKeystore, Metadata, PrivateKeystore, Source, key_hash_from_private_key};
+    use crate::{key_hash_from_private_key, HdKeystore, Metadata, PrivateKeystore, Source};
+    use bitcoin_hashes::hex::FromHex;
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY};
     use tcx_crypto::Key;
-    use bitcoin_hashes::hex::FromHex;
 
     #[test]
     fn test_from_private_key() {
@@ -156,7 +164,8 @@ mod tests {
             "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6",
             TEST_PASSWORD,
             meta,
-        ).unwrap();
+        )
+        .unwrap();
 
         keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
@@ -173,7 +182,8 @@ mod tests {
     #[test]
     fn test_verify_password() {
         let mut keystore =
-            PrivateKeystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default()).unwrap();
+            PrivateKeystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default())
+                .unwrap();
 
         assert!(keystore.verify_password(TEST_PASSWORD));
         assert!(!keystore.verify_password("WrongPassword"));

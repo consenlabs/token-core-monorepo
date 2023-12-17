@@ -57,6 +57,7 @@ mod test_super {
     use super::*;
     use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_primitive::{PrivateKey, Sr25519PrivateKey};
 
     #[test]
     fn test_address_from_public() {
@@ -92,6 +93,23 @@ mod test_super {
             let addr = SubstrateAddress::from_public_key(&typed_key, &addr_and_coin.1).unwrap();
             assert_eq!(addr.to_string(), addr_and_coin.0);
         }
+
+        let sec_key_data = &Vec::<u8>::from_hex_auto("00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd").unwrap();
+        let sec_key = Sr25519PrivateKey::from_slice(&sec_key_data).unwrap();
+        let pub_key = sec_key.public_key();
+        let typed_key = TypedPublicKey::Sr25519(pub_key);
+        let kusama_coin_info = CoinInfo {
+            coin: "KUSAMA".to_string(),
+            derivation_path: "//imToken//kusama/0".to_string(),
+            curve: CurveType::SubSr25519,
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        };
+        let addr = SubstrateAddress::from_public_key(&typed_key, &kusama_coin_info).unwrap();
+        assert_eq!(
+            addr.to_string(),
+            "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS"
+        )
     }
 
     #[test]

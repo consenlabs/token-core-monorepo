@@ -95,6 +95,17 @@ message ExportPrivateKeyParam {
     string curve = 5;
     string path = 6;
 }
+
+//
+//// FUNCTION: export_private_key(ExportPrivateKeyParam): ExportResult
+////
+//// export the private key from a private key keystore or a hd keystore
+message ExportJsonParam {
+    string id = 1;
+    string password = 2;
+    string chainType = 3;
+    string path = 4;
+}
 //
 ///// Keystore Common
 //
