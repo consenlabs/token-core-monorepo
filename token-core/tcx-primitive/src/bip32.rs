@@ -267,10 +267,12 @@ impl Ss58Codec for Bip32DeterministicPrivateKey {
 #[cfg(test)]
 mod tests {
     use crate::{
-        Bip32DeterministicPrivateKey, Bip32DeterministicPublicKey, Derive, DeterministicPrivateKey,
-        PrivateKey, Ss58Codec,
+        ecc::KeyError, Bip32DeterministicPrivateKey, Bip32DeterministicPublicKey, Derive,
+        DeterministicPrivateKey, PrivateKey, Ss58Codec,
     };
     use bip39::{Language, Mnemonic, Seed};
+    use bitcoin::util::{base58, bip32::Error as Bip32Error};
+    use bitcoin_hashes::hex;
     use tcx_common::{FromHex, ToHex};
 
     fn default_seed() -> Seed {
@@ -349,6 +351,12 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "InvalidBase58")]
+    fn test_from_hex_invalid_base58() {
+        Bip32DeterministicPublicKey::from_hex("03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af").unwrap();
+    }
+
+    #[test]
     fn export_and_import() {
         let dpks= [
            "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8",
@@ -364,5 +372,27 @@ mod tests {
             let dpk2 = Bip32DeterministicPublicKey::from_hex(&hex).unwrap();
             assert_eq!(dpk.to_string(), dpk2.to_string());
         }
+    }
+
+    #[test]
+    fn test_key_error_from() {
+        let key_error = KeyError::from(Bip32Error::CannotDeriveFromHardenedKey);
+        assert_eq!(key_error, KeyError::CannotDeriveFromHardenedKey);
+        let key_error = KeyError::from(Bip32Error::InvalidChildNumber(0));
+        assert_eq!(key_error, KeyError::InvalidChildNumber);
+        let key_error = KeyError::from(Bip32Error::InvalidChildNumberFormat);
+        assert_eq!(key_error, KeyError::InvalidChildNumber);
+        let key_error = KeyError::from(Bip32Error::InvalidDerivationPathFormat);
+        assert_eq!(key_error, KeyError::InvalidDerivationPathFormat);
+        let key_error = KeyError::from(Bip32Error::Secp256k1(secp256k1::Error::InvalidPublicKey));
+        assert_eq!(key_error, KeyError::Secp256k1);
+        let key_error = KeyError::from(Bip32Error::UnknownVersion([0; 4]));
+        assert_eq!(key_error, KeyError::UnknownVersion);
+        let key_error = KeyError::from(Bip32Error::WrongExtendedKeyLength(0));
+        assert_eq!(key_error, KeyError::WrongExtendedKeyLength);
+        let key_error = KeyError::from(Bip32Error::Base58(base58::Error::InvalidLength(0)));
+        assert_eq!(key_error, KeyError::Base58);
+        let key_error = KeyError::from(Bip32Error::Hex(hex::Error::InvalidChar(0)));
+        assert_eq!(key_error, KeyError::Hex);
     }
 }

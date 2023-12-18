@@ -287,6 +287,23 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "InvalidDerivationPathFormat")]
+    fn test_bls_derive_invalid_path() {
+        let dsk = BLSDeterministicPrivateKey::from_seed(
+            &Vec::from_hex("c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04").unwrap()).unwrap();
+        dsk.derive("m%0%0").unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "invalid seed")]
+    fn test_bls_derive_invalid_seed() {
+        BLSDeterministicPrivateKey::from_seed(
+            &Vec::from_hex("ed0362ada38ead3e3e9efa3708e534").unwrap(),
+        )
+        .unwrap();
+    }
+
+    #[test]
     fn eth2_withdrawal_address_test() {
         let dsk = BLSDeterministicPrivateKey::from_seed(
             &Vec::from_hex("ee3fce3ccf05a2b58c851e321077a63ee2113235112a16fc783dc16279ff818a549ff735ac4406c624235db2d37108e34c6cbe853cbe09eb9e2369e6dd1c5aaa").unwrap()).unwrap();
@@ -321,5 +338,19 @@ mod tests {
             child_sk.public_key().to_bytes().to_hex(),
             "8ef2719d53c1263dfa666f2f00b1e099961746e6c6ed6c70a8ab92c6dcbe7f11edf2e9769aa6f8b2e616b3f426fa8cee"
         );
+    }
+
+    #[test]
+    fn test_from_mnemonic() {
+        let bdpk = BLSDeterministicPrivateKey::from_mnemonic(
+            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
+        );
+        assert!(bdpk.is_ok())
+    }
+
+    #[test]
+    #[should_panic(expected = "seed must be greater than or equal to 16 bytes")]
+    fn test_derive_master_sk_invalid_seed() {
+        derive_master_sk(&Vec::from_hex("ed0362ada38ead3e3e9efa3708e534").unwrap()).unwrap();
     }
 }

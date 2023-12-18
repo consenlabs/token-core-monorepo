@@ -432,7 +432,7 @@ impl Derive for TypedDeterministicPrivateKey {
 #[cfg(test)]
 mod tests {
     use super::{PrivateKey, PublicKey, TypedDeterministicPrivateKey, TypedPrivateKey};
-    use crate::{Derive, TypedPublicKey};
+    use crate::{Derive, Sr25519PrivateKey, TypedPublicKey};
     use bip39::{Language, Mnemonic, Seed};
     use tcx_common::{FromHex, ToHex};
 
@@ -509,4 +509,10 @@ mod tests {
         assert_eq!(pk.as_secp256k1().unwrap().to_bytes().to_hex(), PUB_KEY_HEX);
         assert_eq!(pk.curve_type(), CurveType::SECP256k1);
     }
+
+    // #[test]
+    // fn test_typed_private_key_curve_type(){
+    //     let sr25519_private_key = TypedPrivateKey::Sr25519(Sr25519PrivateKey::from_slice(&default_private_key()).unwrap());
+    //     assert_eq!(sr25519_private_key.curve_type(), CurveType::SubSr25519);
+    // }
 }
