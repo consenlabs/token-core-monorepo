@@ -84,8 +84,10 @@ pub struct SignResultPoc {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PublicKeyDerivation {
     #[prost(string, tag = "1")]
-    pub path: ::prost::alloc::string::String,
+    pub chain_type: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
+    pub path: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
     pub curve: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -387,21 +389,6 @@ pub struct ImportPrivateKeyParam {
     #[prost(bool, tag = "5")]
     pub overwrite: bool,
 }
-/// FUNCTION: private_key_store_export(PrivateKeyStoreExportParam): ExportResult
-///
-/// export the private key from a private key keystore
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PrivateKeyStoreExportParam {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub chain_type: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub network: ::prost::alloc::string::String,
-}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExistsMnemonicParam {
@@ -507,28 +494,6 @@ pub struct DeriveSubAccountsParam {
 pub struct DeriveSubAccountsResult {
     #[prost(message, repeated, tag = "1")]
     pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PublicKeyParam {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub chain_type: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub address: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PublicKeyResult {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub chain_type: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub address: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub public_key: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

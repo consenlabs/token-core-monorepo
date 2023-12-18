@@ -118,11 +118,14 @@ impl LegacyKeystore {
         let unlocker = self.crypto.use_key(&key)?;
         let sec_key_bytes = unlocker.plaintext()?;
         let sec_key = Secp256k1PrivateKey::from_slice(&sec_key_bytes)?;
+
         let pub_key = TypedPublicKey::Secp256k1(sec_key.public_key());
         let coin_info = coin_info_from_param("ETHEREUM", "", "", CurveType::SECP256k1.as_str())?;
+
         let calc_address = EthAddress::from_public_key(&pub_key, &coin_info)?.to_string();
-        let calc_addr_bytes = &Vec::from_hex(calc_address)?;
-        let addr_bytes = &Vec::from_hex(&self.address)?;
+        let calc_addr_bytes = &Vec::from_hex_auto(calc_address)?;
+        let addr_bytes = &Vec::from_hex_auto(&self.address)?;
+
         if calc_addr_bytes == addr_bytes {
             Ok(())
         } else {

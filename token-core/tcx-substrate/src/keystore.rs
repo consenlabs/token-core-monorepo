@@ -1,19 +1,22 @@
 use crate::SubstrateAddress;
 use rand::Rng;
 use serde::{de, Deserialize, Deserializer, Serialize};
+use sp_core::Pair;
 use std::convert::TryInto;
-use tcx_keystore::Address;
+use tcx_keystore::{tcx_ensure, Address};
 
 use byteorder::LittleEndian;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use regex::Regex;
+use schnorrkel::{SecretKey, SECRET_KEY_LENGTH};
 use serde::__private::{fmt, PhantomData};
 use std::io::Cursor;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tcx_common::{random_u8_32, FromHex, ToHex};
 use tcx_constants::{CoinInfo, Result};
 use tcx_primitive::{
-    DeterministicPrivateKey, PrivateKey, PublicKey, Sr25519PrivateKey, TypedPublicKey,
+    DeterministicPrivateKey, PrivateKey, PublicKey, Sr25519PrivateKey, Sr25519PublicKey,
+    TypedPublicKey,
 };
 use xsalsa20poly1305::aead::{generic_array::GenericArray, Aead};
 use xsalsa20poly1305::{KeyInit, XSalsa20Poly1305};
@@ -321,19 +324,19 @@ fn password_to_key(password_bytes: &[u8]) -> [u8; 32] {
 }
 
 pub fn decode_substrate_keystore(keystore: &SubstrateKeystore, password: &str) -> Result<Vec<u8>> {
-    let (secret_key, pub_key) = keystore.decrypt(password)?;
-    dbg!(secret_key.to_hex());
-    // let priv_key = if secret_key.len() == 32 {
-    // Sr25519PrivateKey::from_seed(&secret_key)
-    // } else {
-    //     Sr25519PrivateKey::from_slice(&secret_key)
-    // }?;
-    let priv_key = Sr25519PrivateKey::from_slice(&secret_key)?;
-    // if priv_key.public_key().to_bytes() != pub_key {
-    //     return Err(Error::KeystorePublicKeyUnmatch.into());
-    // }
-    dbg!("decode_substrate_keystore success");
-    dbg!(priv_key.to_bytes().to_0x_hex());
+    let (secret_key_bytes, pub_key) = keystore.decrypt(password)?;
+    tcx_ensure!(
+        secret_key_bytes.len() == SECRET_KEY_LENGTH,
+        format_err!("secret from substrate keystore must be 64 bytes")
+    );
+    let secret_key = SecretKey::from_ed25519_bytes(&secret_key_bytes)
+        .map_err(|_| format_err!("secret key from_ed25519_bytes error"))?;
+    let priv_key = Sr25519PrivateKey::from_slice(&secret_key.to_bytes())?;
+
+    if priv_key.public_key().to_bytes() != pub_key {
+        return Err(Error::KeystorePublicKeyUnmatch.into());
+    }
+
     Ok(priv_key.to_bytes())
 }
 
@@ -342,10 +345,18 @@ pub fn encode_substrate_keystore(
     prv_key: &[u8],
     coin: &CoinInfo,
 ) -> Result<SubstrateKeystore> {
-    let pk = Sr25519PrivateKey::from_slice(prv_key)?;
-    let pub_key = pk.public_key();
+    let sec_key = SecretKey::from_bytes(prv_key)
+        .map_err(|_| format_err!("construct secret key error when encoded_substrate_keystore"))?;
+    let pair = sp_core::sr25519::Pair::from(sec_key.clone());
+    let pub_key = Sr25519PublicKey(pair.public());
     let addr = SubstrateAddress::from_public_key(&TypedPublicKey::Sr25519(pub_key.clone()), &coin)?;
-    SubstrateKeystore::new(password, prv_key, &pub_key.to_bytes(), &addr.to_string())
+    let ed25519_prv_key_bytes = sec_key.to_ed25519_bytes();
+    SubstrateKeystore::new(
+        password,
+        &ed25519_prv_key_bytes,
+        &pub_key.to_bytes(),
+        &addr.to_string(),
+    )
 }
 
 #[cfg(test)]

@@ -174,21 +174,20 @@ mod tests {
     use crate::api::{
         sign_param, CreateKeystoreParam, DeriveAccountsParam, DeriveAccountsResult,
         DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, ExistsJsonParam,
-        ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonResult,
-        ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
-        GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam,
-        ImportPrivateKeyParam, ImportPrivateKeyResult, InitTokenCoreXParam,
+        ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam,
+        ExportJsonResult, ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult,
+        GeneralResult, GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam,
+        ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult, InitTokenCoreXParam,
         KeystoreCommonAccountsParam, KeystoreResult, MnemonicToPublicKeyParam,
-        MnemonicToPublicKeyResult, PrivateKeyStoreExportParam, PublicKeyDerivation, PublicKeyParam,
-        PublicKeyResult, SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
-        ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
+        MnemonicToPublicKeyResult, PublicKeyDerivation, SignHashesParam, SignHashesResult,
+        SignParam, WalletKeyParam, ZksyncPrivateKeyFromSeedParam, ZksyncPrivateKeyFromSeedResult,
         ZksyncPrivateKeyToPubkeyHashParam, ZksyncPrivateKeyToPubkeyHashResult,
         ZksyncSignMusigParam, ZksyncSignMusigResult,
     };
     use crate::handler::import_mnemonic;
     use crate::handler::{encode_message, import_private_key};
     use prost::Message;
-    use tcx_constants::{sample_key, CurveType};
+    use tcx_constants::{sample_key, CurveType, TEST_PRIVATE_KEY};
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::Keystore;
 
@@ -999,17 +998,21 @@ mod tests {
                 export_result.private_key
             );
 
-            let param: PublicKeyParam = PublicKeyParam {
+            let param: GetPublicKeysParam = GetPublicKeysParam {
                 id: import_result.id.to_string(),
-                chain_type: "TEZOS".to_string(),
-                address: "tz1QSHaKpTFhgHLbqinyYRjxD5sLcbfbzhxy".to_string(),
+                password: TEST_PASSWORD.to_string(),
+                derivations: vec![PublicKeyDerivation {
+                    chain_type: "TEZOS".to_string(),
+                    path: "".to_string(),
+                    curve: CurveType::ED25519.as_str().to_string(),
+                }],
             };
-            let ret_bytes = call_api("get_public_key", param).unwrap();
-            let public_key_result: PublicKeyResult =
-                PublicKeyResult::decode(ret_bytes.as_slice()).unwrap();
+            let ret_bytes = call_api("get_public_keys", param).unwrap();
+            let public_key_result: GetPublicKeysResult =
+                GetPublicKeysResult::decode(ret_bytes.as_slice()).unwrap();
             assert_eq!(
                 "edpkvQtuhdZQmjdjVfaY9Kf4hHfrRJYugaJErkCGvV3ER1S7XWsrrj",
-                public_key_result.public_key
+                public_key_result.public_keys[0]
             );
             remove_created_wallet(&import_result.id);
         })
@@ -1986,17 +1989,21 @@ mod tests {
 
             let (wallet, _acc_rsp) = import_and_derive(derivation);
 
-            let param: PublicKeyParam = PublicKeyParam {
+            let param: GetPublicKeysParam = GetPublicKeysParam {
                 id: wallet.id.to_string(),
-                chain_type: "EOS".to_string(),
-                address: "".to_string(),
+                password: TEST_PASSWORD.to_string(),
+                derivations: vec![PublicKeyDerivation {
+                    chain_type: "EOS".to_string(),
+                    path: "m/44'/194'/0'/0/0".to_string(),
+                    curve: "SECP256k1".to_string(),
+                }],
             };
             let ret_bytes = call_api("get_public_key", param).unwrap();
-            let public_key_result: PublicKeyResult =
-                PublicKeyResult::decode(ret_bytes.as_slice()).unwrap();
+            let public_key_result: GetPublicKeysResult =
+                GetPublicKeysResult::decode(ret_bytes.as_slice()).unwrap();
             assert_eq!(
                 "EOS88XhiiP7Cu5TmAUJqHbyuhyYgd6sei68AU266PyetDDAtjmYWF",
-                public_key_result.public_key
+                public_key_result.public_keys[0]
             );
         })
     }
@@ -2248,7 +2255,7 @@ mod tests {
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
-                curve: "".to_string(),
+                curve: "SubSr25519".to_string(),
                 bech32_prefix: "".to_string(),
             };
 
@@ -2264,7 +2271,7 @@ mod tests {
 
             assert_eq!(
                 accounts.accounts[0].address,
-                "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS"
+                "FDS7ZJpJg4R7Kd2hzfsEc6mtW5iknjZ3UazX76EsnbH74v8"
             );
 
             let export_param = ExportPrivateKeyParam {
@@ -2272,7 +2279,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "KUSAMA".to_string(),
                 network: "".to_string(),
-                curve: "".to_string(),
+                curve: "SubSr25519".to_string(),
                 path: "".to_string(),
             };
             let ret = call_api("export_json", export_param).unwrap();
@@ -2282,9 +2289,9 @@ mod tests {
             assert!(keystore.validate().is_ok());
             assert_eq!(
                 keystore.address,
-                "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS"
+                "FDS7ZJpJg4R7Kd2hzfsEc6mtW5iknjZ3UazX76EsnbH74v8"
             );
-            assert_eq!(keystore.meta.name, "i_can_save_name");
+            assert_eq!(keystore.meta.name, "test account");
             assert!(keystore.meta.when_created > 1594102917);
 
             // assert_eq!(keystore_ret.fixtures, "");
@@ -3173,9 +3180,10 @@ mod tests {
                 overwrite: true,
                 network: "TESTNET".to_string(),
             };
-            let ret = call_api("hd_store_import", param).unwrap();
+            let ret = call_api("import_mnemonic", param).unwrap();
             let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
             let derivations = vec![PublicKeyDerivation {
+                chain_type: "ETHEREUM2".to_string(),
                 path: "m/12381/3600/0/0/0".to_string(),
                 curve: "BLS".to_string(),
             }];
@@ -3203,7 +3211,7 @@ mod tests {
                 overwrite: true,
                 network: "MAINNET".to_string(),
             };
-            let ret = call_api("hd_store_import", param).unwrap();
+            let ret = call_api("import_mnemonic", param).unwrap();
             let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
             let data_to_sign = vec![DataToSign {
                 hash: "3e0658d8284d8f50c0aa8fa6cdbd1bde0eb370d4b3489a26c83763671ace8b1c"
@@ -3220,6 +3228,22 @@ mod tests {
             let result_bytes = call_api("sign_hashes", param).unwrap();
             let result = SignHashesResult::decode(result_bytes.as_slice()).unwrap();
             assert_eq!(result.signatures.get(0).unwrap(), "0x8fa5d4dfe4766de7896f0e32c5bee9baae47aaa843cf5f1a2587dd9aaedf8a8c4400cb31bdcb1e90ddfe6d309e57841204dbf53704e4c4da3a9d25e9b4a09dac31a3221a7aac76f58ca21854173303cf58f039770a9e2307966e89faf0e5e79e");
+
+            let data_to_sign = vec![DataToSign {
+                hash: "3e0658d8284d8f50c0aa8fa6cdbd1bde0eb370d4b3489a26c83763671ace8b1c"
+                    .to_string(),
+                path: "m/44'/60'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
+                sig_alg: "ECDSA".to_string(),
+            }];
+            let param = SignHashesParam {
+                id: import_result.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                data_to_sign,
+            };
+            let result_bytes = call_api("sign_hashes", param).unwrap();
+            let result = SignHashesResult::decode(result_bytes.as_slice()).unwrap();
+            assert_eq!(result.signatures.get(0).unwrap(), "0x80c4f5c9299d21dc62a91e6bd1868cda545e31cadbf0eff35f802a4509cecea2618e5b352843ac4f487d2b43ebd55cdf7ad0b78ca81a96504744cd4209ce343d00");
 
             remove_created_wallet(&import_result.id);
         })
@@ -3604,19 +3628,144 @@ mod tests {
     }
 
     #[test]
-    pub fn test_import_private_key_integration() {
+    pub fn test_import_hex_private_key() {
         run_test(|| {
-            let bytes = &Vec::<u8>::from_0x_hex("0x0a12696d706f72745f707269766174655f6b6579126f0a196170692e496d706f7274507269766174654b6579506172616d12520a4063323761303639373562656434386165353262366565353461646637663366366335646136356566366166316538616464623231663866366461303366303634120831323334313233341a0022002801").unwrap();
-            let action: TcxAction = TcxAction::decode(bytes.as_slice()).unwrap();
-            let bytes = action.param.unwrap().value;
-            let mut import_private_key: ImportPrivateKeyParam =
-                ImportPrivateKeyParam::decode(bytes.as_slice()).unwrap();
-            import_private_key.private_key =
-                "0xc27a06975bed48ae52b6ee54adf7f3f6c5da65ef6af1e8addb21f8f6da03f064".to_string();
-            let ret = call_api("import_private_key", import_private_key).unwrap();
+            let param: ExistsPrivateKeyParam = ExistsPrivateKeyParam {
+                private_key: TEST_PRIVATE_KEY.to_string(),
+            };
+            let ret = call_api("exists_private_key", param).unwrap();
+            let exists_private_key_result: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret.as_slice()).unwrap();
+            assert!(!exists_private_key_result.is_exists);
+
+            let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
+                private_key: TEST_PRIVATE_KEY.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                name: "import_private_key_wallet".to_string(),
+                password_hint: "".to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_private_key", param).unwrap();
             let import_result: ImportPrivateKeyResult =
                 ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
-            assert_eq!(import_result.id, "");
+            assert_eq!(
+                vec!["ETHEREUM".to_string(), "TRON".to_string(),],
+                import_result.suggest_chain_types
+            );
+            assert_eq!("SECP256k1", import_result.suggest_curve);
+            assert_eq!("", import_result.suggest_network);
+            assert_eq!("PRIVATE", import_result.source);
+
+            let param: ExistsPrivateKeyParam = ExistsPrivateKeyParam {
+                private_key: TEST_PRIVATE_KEY.to_string(),
+            };
+            let ret = call_api("exists_private_key", param).unwrap();
+            let exists_private_key_result: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret.as_slice()).unwrap();
+            assert!(exists_private_key_result.is_exists);
+            assert_eq!(exists_private_key_result.id, import_result.id);
+
+            let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
+                id: import_result.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                chain_type: "ETHEREUM".to_string(),
+                network: "".to_string(),
+                curve: CurveType::SECP256k1.as_str().to_string(),
+                path: "".to_string(),
+            };
+            let ret = call_api("export_private_key", param).unwrap();
+            let export_result: ExportPrivateKeyResult =
+                ExportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(export_result.id, import_result.id);
+            assert_eq!(export_result.private_key, TEST_PRIVATE_KEY);
+
+            let param: ExportJsonParam = ExportJsonParam {
+                id: import_result.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                chain_type: "ETHEREUM".to_string(),
+                path: "".to_string(),
+            };
+            let ret = call_api("export_json", param).unwrap();
+            let export_result: ExportJsonResult = ExportJsonResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(export_result.id, import_result.id);
+            assert!(export_result
+                .json
+                .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
+
+            // assert_eq!(export_result.js, TEST_PRIVATE_KEY);
+        })
+    }
+
+    #[test]
+    pub fn test_import_json() {
+        run_test(|| {
+            let json = r#"{
+                "version": 3,
+                "id": "5c24e96a-8fd8-4872-9702-3fd2fc9166cd",
+                "crypto": {
+                  "cipher": "aes-128-ctr",
+                  "cipherparams": { "iv": "56ed1daad9226d7edd75e8ab34e32309" },
+                  "ciphertext": "95cae71ef4d76c3def64bf77d267608a823fc65cda6254ea24d1cbbe09de6b6b",
+                  "kdf": "pbkdf2",
+                  "kdfparams": {
+                    "c": 262144,
+                    "prf": "hmac-sha256",
+                    "dklen": 32,
+                    "salt": "63c89a7275a65bd659a937fe374c668e5aa3b05a9b0ef3ec9178aa9182f42666"
+                  },
+                  "mac": "2adc6da2f5f183e528a063b36ebeddaf0d3a90269ef797b99dc143d58ba3bb58"
+                },
+                "address": "0x6031564e7b2F5cc33737807b2E58DaFF870B590b"
+              }
+              "#;
+            let param: ExistsJsonParam = ExistsJsonParam {
+                json: json.to_string(),
+                password: TEST_PASSWORD.to_string(),
+            };
+            let ret = call_api("exists_json", param).unwrap();
+            let exists_private_key_result: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret.as_slice()).unwrap();
+            assert!(!exists_private_key_result.is_exists);
+
+            let param: ImportJsonParam = ImportJsonParam {
+                password: TEST_PASSWORD.to_string(),
+                json: json.to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_json", param).unwrap();
+            let import_result: ImportPrivateKeyResult =
+                ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(
+                vec!["ETHEREUM".to_string()],
+                import_result.suggest_chain_types
+            );
+            assert_eq!("SECP256k1", import_result.suggest_curve);
+            assert_eq!("", import_result.suggest_network);
+            assert_eq!("KEYSTORE_V3", import_result.source);
+
+            let param: ExistsJsonParam = ExistsJsonParam {
+                password: TEST_PASSWORD.to_string(),
+                json: json.to_string(),
+            };
+            let ret = call_api("exists_json", param).unwrap();
+            let exists_private_key_result: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret.as_slice()).unwrap();
+            assert!(exists_private_key_result.is_exists);
+            assert_eq!(exists_private_key_result.id, import_result.id);
+
+            let param: ExportJsonParam = ExportJsonParam {
+                id: import_result.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                chain_type: "ETHEREUM".to_string(),
+                path: "".to_string(),
+            };
+            let ret = call_api("export_json", param).unwrap();
+            let export_result: ExportJsonResult = ExportJsonResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(export_result.id, import_result.id);
+            assert!(export_result
+                .json
+                .to_string()
+                .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
         })
     }
     // #[test]

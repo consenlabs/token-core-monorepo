@@ -58,8 +58,9 @@ message SignResultPoc {
 }
 
 message PublicKeyDerivation {
-    string path = 1;
-    string curve = 2;
+    string chainType = 1;
+    string path = 2;
+    string curve = 3;
 }
 
 message GetPublicKeysParam {

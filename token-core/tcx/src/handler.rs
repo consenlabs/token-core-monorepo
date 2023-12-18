@@ -1,3 +1,4 @@
+use base58::ToBase58;
 use bytes::BytesMut;
 use prost::Message;
 use serde_json::Value;
@@ -8,8 +9,11 @@ use std::str::FromStr;
 use tcx_eos::address::EosAddress;
 use tcx_keystore::keystore::IdentityNetwork;
 
-use tcx_common::{FromHex, ToHex};
-use tcx_primitive::{private_key_without_version, Secp256k1PrivateKey, TypedPrivateKey};
+use tcx_common::{sha256d, FromHex, ToHex};
+use tcx_primitive::{
+    private_key_without_version, PublicKey, Secp256k1PrivateKey, Secp256k1PublicKey,
+    TypedPrivateKey, TypedPublicKey,
+};
 
 use tcx_btc_kin::WIFDisplay;
 use tcx_keystore::{
@@ -410,7 +414,6 @@ pub(crate) fn import_private_key_internal(
         source: meta_source,
         ..Metadata::default()
     };
-    dbg!("private key to store keystore: {}", &private_key);
     let pk_store = PrivateKeystore::from_private_key(&private_key, &param.password, meta)?;
 
     let mut keystore = Keystore::PrivateKey(pk_store);
@@ -552,30 +555,25 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
 
     let curve = CurveType::from_str(&param.curve);
-    dbg!(&curve);
-    let pk_bytes = guard
+    let private_key_bytes = guard
         .keystore_mut()
         .get_private_key(curve, &param.path)?
         .to_bytes();
-    let pk_hex = pk_bytes.to_hex();
-    dbg!("pk_hex: {}", &pk_hex);
 
     // private_key prefix is only about chain type and network
     // TODO: add export_pk to macro
-    let value = if ["TRON", "POLKADOT", "KUSAMA"].contains(&param.chain_type.as_str()) {
-        Ok(pk_hex.to_string())
+    let value = if ["TRON", "POLKADOT", "KUSAMA", "ETHEREUM"].contains(&param.chain_type.as_str()) {
+        Ok(private_key_bytes.to_0x_hex())
     } else if "FILECOIN".contains(&param.chain_type.as_str()) {
-        Ok(KeyInfo::from_private_key(curve, &Vec::from_hex(pk_hex)?)?
+        Ok(KeyInfo::from_private_key(curve, &private_key_bytes)?
             .to_json()?
             .to_hex())
     } else if "TEZOS".contains(&param.chain_type.as_str()) {
-        Ok(build_tezos_base58_private_key(pk_hex.as_str())?)
+        Ok(build_tezos_base58_private_key(&private_key_bytes.to_hex())?)
     } else {
         // private_key prefix is only about chain type and network
         let coin_info = coin_info_from_param(&param.chain_type, &param.network, "", "")?;
-
-        let bytes = Vec::from_hex(pk_hex.to_string())?;
-        let typed_pk = TypedPrivateKey::from_slice(CurveType::SECP256k1, &bytes)?;
+        let typed_pk = TypedPrivateKey::from_slice(CurveType::SECP256k1, &private_key_bytes)?;
         typed_pk.fmt(&coin_info)
     }?;
     // TODO: add eos export support
@@ -675,44 +673,6 @@ fn exists_key_hash(key_hash: &str) -> Result<Vec<u8>> {
     encode_message(result)
 }
 
-// pub(crate) fn keystore_common_exists(data: &[u8]) -> Result<Vec<u8>> {
-//     let param: KeystoreCommonExistsParam =
-//         KeystoreCommonExistsParam::decode(data).expect("keystore_common_exists params");
-//     let key_hash: String;
-//     if param.r#type == KeyType::Mnemonic as i32 {
-//         let mnemonic: &str = &param
-//             .value
-//             .split_whitespace()
-//             .collect::<Vec<&str>>()
-//             .join(" ");
-//         key_hash = key_hash_from_mnemonic(mnemonic)?;
-//     } else {
-//         if param.encoding.eq("TEZOS") {
-//             key_hash = key_hash_from_tezos_format_pk(&param.value)?;
-//         } else {
-//             key_hash = key_hash_from_any_format_pk(&param.value)?;
-//         }
-//     }
-//     let map = &mut KEYSTORE_MAP.write();
-
-//     let founded: Option<&Keystore> = map
-//         .values()
-//         .find(|keystore| keystore.key_hash() == key_hash);
-//     let result: ExistsKeystoreResult;
-//     if let Some(ks) = founded {
-//         result = ExistsKeystoreResult {
-//             is_exists: true,
-//             id: ks.id(),
-//         }
-//     } else {
-//         result = ExistsKeystoreResult {
-//             is_exists: false,
-//             id: "".to_owned(),
-//         }
-//     }
-//     encode_message(result)
-// }
-
 pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignParam = SignParam::decode(data).expect("SignTxParam");
 
@@ -770,7 +730,7 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     }?;
 
     let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
-    let public_keys = param
+    let public_keys: Vec<Vec<u8>> = param
         .derivations
         .iter()
         .map(|derivation| {
@@ -778,11 +738,44 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
                 .keystore_mut()
                 .get_public_key(CurveType::from_str(&derivation.curve), &derivation.path)
                 .expect("PublicKeyProcessed");
-            public_key.to_bytes().to_hex()
+            public_key.to_bytes()
         })
         .collect();
 
-    encode_message(GetPublicKeysResult { public_keys })
+    let mut public_key_strs: Vec<String> = vec![];
+    for idx in 0..param.derivations.len() {
+        let pub_key = public_keys[idx].to_vec();
+        let public_key_str_ret: Result<String> = match param.derivations[idx].chain_type.as_str() {
+            "TEZOS" => {
+                let edpk_prefix: Vec<u8> = vec![0x0D, 0x0F, 0x25, 0xD9];
+                let to_hash = [edpk_prefix, pub_key].concat();
+                let hashed = sha256d(&to_hash);
+                let hash_with_checksum = [to_hash, hashed[0..4].to_vec()].concat();
+                let edpk = hash_with_checksum.to_base58();
+                Ok(edpk)
+            }
+            "EOS" => {
+                let secp256k1_pub_key = Secp256k1PublicKey::from_slice(&pub_key)?;
+                let typed_pub_key = TypedPublicKey::Secp256k1(secp256k1_pub_key);
+                let eos_addr = EosAddress::from_public_key(
+                    &typed_pub_key,
+                    &CoinInfo {
+                        coin: "EOS".to_string(),
+                        curve: CurveType::SECP256k1,
+                        ..Default::default()
+                    },
+                )?;
+                Ok(eos_addr.to_string())
+            }
+            _ => Ok(pub_key.to_0x_hex()),
+        };
+        let pub_key_str = public_key_str_ret?;
+        public_key_strs.push(pub_key_str);
+    }
+
+    encode_message(GetPublicKeysResult {
+        public_keys: public_key_strs,
+    })
 }
 
 pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
@@ -881,7 +874,6 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
             password_hint: "".to_string(),
             overwrite: param.overwrite,
         };
-        dbg!(&pk_import_param);
         let mut ret =
             import_private_key_internal(&pk_import_param, Some(Source::SubstrateKeystore))?;
         ret.suggest_chain_types = vec!["KUSAMA".to_string(), "POLKADOT".to_string()];
@@ -922,17 +914,34 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
 
         // !!! Warning !!! HDKeystore only can export raw sr25519 key,
         // but polkadotjs fixtures needs a Ed25519 expanded secret key.
-        if keystore.derivable() {
+        if ["POLKADOT".to_string(), "KUSAMA".to_string()].contains(&param.chain_type)
+            || keystore.derivable()
+        {
             return Err(format_err!("{}", "hd_wallet_cannot_export_keystore"));
         }
         meta = keystore.meta().clone();
     }
 
-    let ret = export_private_key(data)?;
+    let curve = if ["POLKADOT".to_string(), "KUSAMA".to_string()].contains(&param.chain_type) {
+        CurveType::SubSr25519.as_str().to_string()
+    } else {
+        CurveType::SECP256k1.as_str().to_string()
+    };
+
+    let export_pivate_key_param = ExportPrivateKeyParam {
+        id: param.id.to_string(),
+        password: param.password.to_string(),
+        chain_type: param.chain_type.to_string(),
+        network: "".to_string(),
+        curve: curve,
+        path: param.path.to_string(),
+    };
+
+    let ret = export_private_key(&encode_message(export_pivate_key_param)?)?;
     let export_result: ExportPrivateKeyResult = ExportPrivateKeyResult::decode(ret.as_slice())?;
     let private_key = export_result.private_key;
-    dbg!(&private_key);
     let private_key_bytes = Vec::from_hex_auto(private_key)?;
+
     let coin = coin_info_from_param(&param.chain_type, "", "", "")?;
     let json_str = match param.chain_type.as_str() {
         "KUSAMA" | "SUBSTRATE" => {
@@ -960,8 +969,6 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn exists_json(data: &[u8]) -> Result<Vec<u8>> {
     let param: ExistsJsonParam = ExistsJsonParam::decode(data)?;
 
-    let error = key_info_from_substrate_keystore(&param.json, &param.password).err();
-    dbg!(error);
     let sec_key_hex = if let Ok(parse_v3_result) = key_info_from_v3(&param.json, &param.password) {
         let (sec_key_bytes, _) = parse_v3_result;
         sec_key_bytes.to_hex()
@@ -974,7 +981,6 @@ pub(crate) fn exists_json(data: &[u8]) -> Result<Vec<u8>> {
         return Err(format_err!("decrypt_json_error"));
     };
 
-    dbg!("sec_key_hex: {}", &sec_key_hex);
     let exists_param = ExistsPrivateKeyParam {
         private_key: sec_key_hex,
     };

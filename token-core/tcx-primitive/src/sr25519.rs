@@ -35,8 +35,8 @@ impl TraitPrivateKey for Sr25519PrivateKey {
         //     MiniSecretKey::from_bytes(data).expect("32 bytes can always build a key; qed");
         //
         // let kp = mini_key.expand_to_keypair(ExpansionMode::Ed25519);
-        let pk = SecretKey::from_ed25519_bytes(data).map_err(|_| KeyError::InvalidSr25519Key)?;
-        // let pk = SecretKey::from_bytes(data).map_err(|_| KeyError::InvalidSr25519Key)?;
+        // let pk = SecretKey::from_ed25519_bytes(data).map_err(|_| KeyError::InvalidSr25519Key)?;
+        let pk = SecretKey::from_bytes(data).map_err(|_| KeyError::InvalidSr25519Key)?;
         Ok(Sr25519PrivateKey(Pair::from(pk)))
     }
 

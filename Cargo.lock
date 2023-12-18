@@ -6728,6 +6728,7 @@ dependencies = [
  "prost-types 0.11.8",
  "rand 0.8.5",
  "regex 1.9.3",
+ "schnorrkel",
  "scrypt",
  "serde",
  "serde_json",

@@ -33,6 +33,7 @@ serde = { version = "1.0.147", features = ["derive"] }
 base64 = "0.13.1"
 scrypt = { version = "0.10.0", default-features = false }
 regex = "1.7.0"
+schnorrkel = "0.9.1"
 
 
 [dev-dependencies]
