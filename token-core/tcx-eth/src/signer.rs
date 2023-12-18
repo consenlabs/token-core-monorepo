@@ -172,7 +172,7 @@ mod test {
     use tcx_keystore::{Keystore, MessageSigner, Metadata, SignatureParameters, TransactionSigner};
 
     fn private_key_store(key: &str) -> Keystore {
-        let mut ks = Keystore::from_private_key(key, "imToken1", Metadata::default());
+        let mut ks = Keystore::from_private_key(key, "imToken1", Metadata::default()).unwrap();
         ks.unlock_by_password("imToken1").unwrap();
         ks
     }

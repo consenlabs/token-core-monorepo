@@ -418,7 +418,8 @@ mod tests {
             "dcec27d0d975b0378471183a03f7071dea8532aaf968be796719ecd20af6988f",
             "Password",
             Metadata::default(),
-        );
+        )
+        .unwrap();
         ks.unlock_by_password("Password").unwrap();
 
         let coin_info = CoinInfo {

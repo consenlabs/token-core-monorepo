@@ -58,13 +58,10 @@ pub struct HdKeystore {
 }
 
 pub fn key_hash_from_mnemonic(mnemonic: &str) -> Result<String> {
-    let mn =
-        Mnemonic::from_phrase(mnemonic, Language::English).map_err(transform_mnemonic_error)?;
-
-    let seed = Seed::new(&mn, "");
-
-    let bytes = sha256d(seed.as_bytes())[..20].to_vec();
-    Ok(bytes.to_hex())
+    let xprv = TypedDeterministicPrivateKey::from_mnemonic(CurveType::SECP256k1, mnemonic)?;
+    let xpub = xprv.deterministic_public_key();
+    let fingerprint = xpub.fingerprint()?;
+    Ok(fingerprint.to_0x_hex())
 }
 
 impl HdKeystore {
@@ -262,13 +259,6 @@ mod tests {
     }
 
     #[test]
-    fn test_key_hash_from_mnemonic() {
-        let mnemonic = "inject kidney empty canal shadow pact comfort wife crush horse wife sketch";
-        let key_hash = key_hash_from_mnemonic(mnemonic).unwrap();
-        assert_eq!(key_hash, "512115eca3ae86646aeb06861d551e403b543509");
-    }
-
-    #[test]
     fn test_new_keystore() {
         let keystore = HdKeystore::new(TEST_PASSWORD, Metadata::default());
         let store = keystore.store;
@@ -403,24 +393,6 @@ mod tests {
         assert_eq!(format!("{}", wrong_password_err), "password_incorrect");
     }
 
-    //    #[test]
-    //    pub fn generate_seed() {
-    //        let mnemonic = Mnemonic::from_phrase(
-    //            "favorite liar zebra assume hurt cage any damp inherit rescue delay panic",
-    //            Language::English,
-    //        )
-    //        .unwrap();
-    //
-    //        //        let entropy = mnemonic.entropy();
-    //
-    //        let seed = bip39::Seed::new(&mnemonic, &"").as_bytes().to_vec();
-    //
-    //        assert_eq!(
-    //            "235c69907d33b85f27bd78e73ff5d0c67bd4894515cc30c77f4391859bc1a3f2",
-    //            hex::encode(seed)
-    //        );
-    //    }
-
     #[test]
     fn test_get_private_key() {
         let mut keystore =
@@ -488,5 +460,17 @@ mod tests {
         };
 
         assert_eq!(acc, expected);
+    }
+
+    #[test]
+    fn test_key_hash_from_mnemonic() {
+        let key_hash = key_hash_from_mnemonic(&TEST_MNEMONIC).unwrap();
+        assert_eq!("0x1468dba9", key_hash);
+
+        let key_hash = key_hash_from_mnemonic(
+            "risk outer wing rent aerobic hamster island skin mistake high boost swear",
+        )
+        .unwrap();
+        assert_eq!("0xf6f23259", key_hash);
     }
 }

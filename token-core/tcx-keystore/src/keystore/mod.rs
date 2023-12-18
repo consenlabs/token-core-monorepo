@@ -120,6 +120,7 @@ pub enum Source {
     Wif,
     Private,
     KeystoreV3,
+    SubstrateKeystore,
     Mnemonic,
     NewMnemonic,
     /*NewIdentity,
@@ -135,6 +136,7 @@ impl FromStr for Source {
             "WIF" => Ok(Source::Wif),
             "PRIVATE" => Ok(Source::Private),
             "KEYSTORE_V3" => Ok(Source::KeystoreV3),
+            "SUBSTRATE_KEYSTORE" => Ok(Source::SubstrateKeystore),
             "MNEMONIC" => Ok(Source::Mnemonic),
             "NEW_MNEMONIC" => Ok(Source::NewMnemonic),
             _ => Err(format_err!("unknown_source")),
@@ -147,6 +149,7 @@ impl fmt::Display for Source {
             Source::Wif => write!(f, "WIF"),
             Source::Private => write!(f, "PRIVATE"),
             Source::KeystoreV3 => write!(f, "KEYSTORE_V3"),
+            Source::SubstrateKeystore => write!(f, "SUBSTRATE_KEYSTORE"),
             Source::Mnemonic => write!(f, "MNEMONIC"),
             Source::NewMnemonic => write!(f, "NEW_MNEMONIC"),
         }
@@ -231,12 +234,12 @@ pub enum Keystore {
 }
 
 impl Keystore {
-    pub fn from_private_key(private_key: &str, password: &str, meta: Metadata) -> Keystore {
-        Keystore::PrivateKey(PrivateKeystore::from_private_key(
+    pub fn from_private_key(private_key: &str, password: &str, meta: Metadata) -> Result<Keystore> {
+        Ok(Keystore::PrivateKey(PrivateKeystore::from_private_key(
             private_key,
             password,
             meta,
-        ))
+        )?))
     }
 
     pub fn from_mnemonic(mnemonic: &str, password: &str, metadata: Metadata) -> Result<Keystore> {
@@ -529,8 +532,8 @@ impl ChainSigner for Keystore {
 pub(crate) mod tests {
     use crate::keystore::Keystore::{Hd, PrivateKey};
     use crate::{
-        Address, ChainSigner, HdKeystore, Keystore, Metadata, PrivateKeystore, SignatureParameters,
-        Signer, Source,
+        Address, HdKeystore, Keystore, Metadata, PrivateKeystore, SignatureParameters, Signer,
+        Source,
     };
     use serde_json::Value;
     use std::str::FromStr;
@@ -832,7 +835,8 @@ pub(crate) mod tests {
             "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6",
             TEST_PASSWORD,
             meta,
-        );
+        )
+        .unwrap();
         let keystore = PrivateKey(pk_store);
         assert!(!keystore.derivable());
 
@@ -872,7 +876,7 @@ pub(crate) mod tests {
     #[test]
     fn test_private_keystore() {
         let mut keystore =
-            Keystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default());
+            Keystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default()).unwrap();
 
         assert!(keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))

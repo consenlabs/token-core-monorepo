@@ -73,6 +73,12 @@ impl Derive for Bip32DeterministicPrivateKey {
     }
 }
 
+impl Bip32DeterministicPublicKey {
+    pub fn fingerprint(&self) -> Vec<u8> {
+        self.0.fingerprint().to_bytes().to_vec()
+    }
+}
+
 impl Derive for Bip32DeterministicPublicKey {
     fn derive(&self, path: &str) -> Result<Self> {
         let extended_key = self.0.clone();

@@ -5,7 +5,6 @@ package transaction;
 message ImportJsonParam {
     string keystore = 1;
     string password = 2;
-    string chainType = 3;
     bool overwrite = 4;
 }
 

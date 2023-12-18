@@ -17,12 +17,11 @@ use crate::error_handling::{landingpad, LAST_BACKTRACE, LAST_ERROR};
 use crate::handler::{
     create_keystore, decrypt_data_from_ipfs, delete_keystore, derive_accounts, derive_sub_accounts,
     encode_message, encrypt_data_to_ipfs, eth_recover_address, exists_json, exists_mnemonic,
-    exists_private_key, export_json, export_mnemonic, export_private_key, generate_mnemonic,
-    get_derived_key, get_extended_public_keys, get_public_keys, import_json, import_mnemonic,
-    import_private_key, migrate_keystore, mnemonic_to_public, remove_wallet,
-    sign_authentication_message, sign_hashes, sign_message, sign_tx, unlock_then_crash,
-    verify_password, zksync_private_key_from_seed, zksync_private_key_to_pubkey_hash,
-    zksync_sign_musig,
+    exists_private_key, export_json, export_mnemonic, export_private_key, get_derived_key,
+    get_extended_public_keys, get_public_keys, import_json, import_mnemonic, import_private_key,
+    migrate_keystore, mnemonic_to_public, remove_wallet, sign_authentication_message, sign_hashes,
+    sign_message, sign_tx, unlock_then_crash, verify_password, zksync_private_key_from_seed,
+    zksync_private_key_to_pubkey_hash, zksync_sign_musig,
 };
 
 mod filemanager;
@@ -175,8 +174,8 @@ mod tests {
     use crate::api::{
         sign_param, CreateKeystoreParam, DeriveAccountsParam, DeriveAccountsResult,
         DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, ExistsKeystoreResult,
-        ExportPrivateKeyParam, ExportResult, GeneralResult, GenerateMnemonicResult,
-        GetPublicKeysParam, GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam,
+        ExportPrivateKeyParam, ExportResult, GeneralResult, GetPublicKeysParam,
+        GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult,
         InitTokenCoreXParam, KeyType, KeystoreCommonAccountsParam, KeystoreCommonExistsParam,
         KeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
         PrivateKeyStoreExportParam, PublicKeyDerivation, PublicKeyParam, PublicKeyResult,
@@ -199,7 +198,9 @@ mod tests {
     use sp_runtime::traits::Verify;
     use tcx_btc_kin::Utxo;
     use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
-    use tcx_eth::transaction::{AccessList, EthTxInput, EthTxOutput};
+    use tcx_eth::transaction::{
+        AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput,
+    };
     use tcx_filecoin::{SignedMessage, UnsignedMessage};
     use tcx_substrate::{
         ExportJsonResult, ImportJsonParam, SubstrateKeystore, SubstrateRawTxIn, SubstrateTxOut,
@@ -269,7 +270,6 @@ mod tests {
     fn import_default_wallet() -> KeystoreResult {
         let param = ImportMnemonicParam {
             mnemonic: TEST_MNEMONIC.to_string(),
-            // mnemonic: TEST_MNEMONIC.to_string(),
             password: TEST_PASSWORD.to_string(),
             network: "TESTNET".to_string(),
             name: "test-wallet".to_string(),
@@ -280,18 +280,17 @@ mod tests {
         KeystoreResult::decode(ret.as_slice()).unwrap()
     }
 
-    fn import_default_pk_store() -> KeystoreResult {
+    fn import_default_pk_store() -> ImportPrivateKeyResult {
         let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
             private_key: "L2hfzPyVC1jWH7n2QLTe7tVTb6btg9smp5UVzhEBxLYaSFF7sCZB".to_string(),
             password: TEST_PASSWORD.to_string(),
             name: "import_default_pk_store".to_string(),
             password_hint: "".to_string(),
             overwrite: true,
-            encoding: "".to_string(),
         };
 
         let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
-        KeystoreResult::decode(ret.as_slice()).unwrap()
+        ImportPrivateKeyResult::decode(ret.as_slice()).unwrap()
     }
 
     fn import_filecoin_pk_store() -> KeystoreResult {
@@ -302,7 +301,6 @@ mod tests {
             name: "import_filecoin_pk_store".to_string(),
             password_hint: "".to_string(),
             overwrite: true,
-            encoding: "".to_string(),
         };
 
         let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
@@ -324,7 +322,9 @@ mod tests {
         (wallet, accounts)
     }
 
-    fn import_pk_and_derive(derivation: Derivation) -> (KeystoreResult, DeriveAccountsResult) {
+    fn import_pk_and_derive(
+        derivation: Derivation,
+    ) -> (ImportPrivateKeyResult, DeriveAccountsResult) {
         let wallet = import_default_pk_store();
 
         let param = DeriveAccountsParam {
@@ -810,7 +810,7 @@ mod tests {
     #[test]
     pub fn test_import_private_key() {
         run_test(|| {
-            let import_result: KeystoreResult = import_default_pk_store();
+            let import_result = import_default_pk_store();
 
             let derivations = vec![
                 Derivation {
@@ -946,7 +946,6 @@ mod tests {
                 name: "test_tezos_import_private_key_export".to_string(),
                 password_hint: "".to_string(),
                 overwrite: true,
-                encoding: "TEZOS".to_string(),
             };
 
             let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
@@ -1019,7 +1018,7 @@ mod tests {
     #[test]
     pub fn test_tezos_hd_private_key_import_export() {
         run_test(|| {
-            let import_result: KeystoreResult = import_default_pk_store();
+            let import_result = import_default_pk_store();
 
             let derivations = vec![Derivation {
                 chain_type: "TEZOS".to_string(),
@@ -1073,7 +1072,6 @@ mod tests {
                 name: "test_filecoin_import_private_key".to_string(),
                 password_hint: "".to_string(),
                 overwrite: true,
-                encoding: "".to_string(),
             };
 
             let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
@@ -1134,7 +1132,6 @@ mod tests {
                 name: "test_filecoin_import_private_key".to_string(),
                 password_hint: "".to_string(),
                 overwrite: true,
-                encoding: "".to_string(),
             };
 
             let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
@@ -1194,7 +1191,6 @@ mod tests {
                 name: "test_64bytes_import_private_key".to_string(),
                 password_hint: "".to_string(),
                 overwrite: true,
-                encoding: "".to_string(),
             };
 
             let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
@@ -1246,7 +1242,7 @@ mod tests {
     #[test]
     pub fn test_private_key_store_export() {
         run_test(|| {
-            let import_result: KeystoreResult = import_default_pk_store();
+            let import_result = import_default_pk_store();
             let param: PrivateKeyStoreExportParam = PrivateKeyStoreExportParam {
                 id: import_result.id.to_string(),
                 password: TEST_PASSWORD.to_string(),
@@ -1525,7 +1521,6 @@ mod tests {
                 name: "test_import_to_pk_which_from_hd".to_string(),
                 password_hint: "".to_string(),
                 overwrite: true,
-                encoding: "".to_string(),
             };
 
             let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
@@ -1560,10 +1555,13 @@ mod tests {
     #[test]
     pub fn test_verify_password() {
         run_test(|| {
-            let wallets = vec![import_default_pk_store(), import_default_wallet()];
-            for wallet in wallets {
+            let wallet_id = vec![
+                import_default_pk_store().id.to_string(),
+                import_default_wallet().id.to_string(),
+            ];
+            for id in wallet_id {
                 let param: WalletKeyParam = WalletKeyParam {
-                    id: wallet.id.to_string(),
+                    id: id.to_string(),
                     password: TEST_PASSWORD.to_string(),
                 };
 
@@ -1572,7 +1570,7 @@ mod tests {
                 assert!(result.is_success);
 
                 let param: WalletKeyParam = WalletKeyParam {
-                    id: wallet.id.to_string(),
+                    id: id.to_string(),
                     password: "WRONG PASSWORD".to_string(),
                 };
 
@@ -1592,7 +1590,6 @@ mod tests {
                 name: "test_delete_keystore".to_string(),
                 password_hint: "".to_string(),
                 overwrite: true,
-                encoding: "".to_string(),
             };
 
             let ret_bytes = import_private_key(&encode_message(param).unwrap()).unwrap();
@@ -2107,7 +2104,6 @@ mod tests {
             let param = ImportJsonParam {
                 keystore: wrong_keystore_str.to_string(),
                 password: TEST_PASSWORD.to_string(),
-                chain_type: "KUSAMA".to_string(),
                 overwrite: true,
             };
             // let param_bytes = encode_message(param).unwrap();
@@ -2144,7 +2140,6 @@ mod tests {
             let param = ImportJsonParam {
                 keystore: keystore_str.to_string(),
                 password: TEST_PASSWORD.to_string(),
-                chain_type: "KUSAMA".to_string(),
                 overwrite: true,
             };
             // let param_bytes = encode_message(param).unwrap();
@@ -2275,7 +2270,6 @@ mod tests {
             let param = ImportJsonParam {
                 keystore: keystore_str.to_string(),
                 password: TEST_PASSWORD.to_string(),
-                chain_type: "KUSAMA".to_string(),
                 overwrite: true,
             };
             // let param_bytes = encode_message(param).unwrap();
@@ -3148,162 +3142,6 @@ mod tests {
     }
 
     #[test]
-    pub fn test_generate_mnemonic() {
-        run_test(|| {
-            let generate_mnemonic_bytes = call_api("generate_mnemonic", ()).unwrap();
-            let generate_mnemonic_result: GenerateMnemonicResult =
-                GenerateMnemonicResult::decode(generate_mnemonic_bytes.as_slice()).unwrap();
-            let split_result: Vec<&str> = generate_mnemonic_result
-                .mnemonic
-                .split_whitespace()
-                .collect();
-            assert_eq!(split_result.len(), 12);
-        })
-    }
-
-    // #[test]
-    // pub fn test_identity_wallet_create() {
-    //     run_test(|| {
-    //         let param = CreateIdentityParam {
-    //             name: sample_key::NAME.to_string(),
-    //             password: sample_key::PASSWORD.to_string(),
-    //             password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
-    //             network: model::NETWORK_TESTNET.to_string(),
-    //             seg_wit: None,
-    //         };
-    //         let ret = call_api("create_identity", param).unwrap();
-    //         let create_result: CreateIdentityResult =
-    //             CreateIdentityResult::decode(ret.as_slice()).unwrap();
-    //         assert!(create_result.ipfs_id.len() > 0);
-    //         assert!(create_result.identifier.len() > 0);
-
-    //         let param = CreateIdentityParam {
-    //             name: sample_key::NAME.to_string(),
-    //             password: sample_key::PASSWORD.to_string(),
-    //             password_hint: None,
-    //             network: model::NETWORK_TESTNET.to_string(),
-    //             seg_wit: None,
-    //         };
-    //         let ret = call_api("create_identity", param).unwrap();
-    //         let create_result: CreateIdentityResult =
-    //             CreateIdentityResult::decode(ret.as_slice()).unwrap();
-    //         assert!(create_result.ipfs_id.len() > 0);
-    //         assert!(create_result.identifier.len() > 0);
-    //         assert_eq!(create_result.wallets.len(), 1);
-    //         let wallets = create_result.wallets.get(0).unwrap();
-    //         assert_eq!(wallets.chain_type, "ETHEREUM");
-
-    //         let param = CreateIdentityParam {
-    //             name: sample_key::NAME.to_string(),
-    //             password: sample_key::PASSWORD.to_string(),
-    //             password_hint: None,
-    //             network: model::NETWORK_MAINNET.to_string(),
-    //             seg_wit: None,
-    //         };
-    //         let ret = call_api("create_identity", param).unwrap();
-    //         let create_result: CreateIdentityResult =
-    //             CreateIdentityResult::decode(ret.as_slice()).unwrap();
-    //         assert!(create_result.ipfs_id.len() > 0);
-    //         assert!(create_result.identifier.len() > 0);
-
-    //         let ret_bytes = call_api("get_current_identity", ()).unwrap();
-    //         let ret: GetCurrentIdentityResult =
-    //             GetCurrentIdentityResult::decode(ret_bytes.as_slice()).unwrap();
-    //         assert_eq!(ret.wallets.len(), 1);
-    //         let wallet = ret.wallets.get(0).unwrap();
-    //         assert_eq!(
-    //             wallet.metadata.clone().unwrap().chain_type,
-    //             constants::CHAIN_TYPE_ETHEREUM
-    //         )
-    //     })
-    // }
-
-    // #[test]
-    // pub fn test_recover_identity_on_testnet() {
-    //     run_test(|| {
-    //         let param = RecoverIdentityParam {
-    //             name: sample_key::NAME.to_string(),
-    //             mnemonic: sample_key::MNEMONIC.to_string(),
-    //             password: sample_key::PASSWORD.to_string(),
-    //             password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
-    //             network: model::NETWORK_TESTNET.to_string(),
-    //             seg_wit: None,
-    //         };
-    //         let ret = call_api("recover_identity", param).unwrap();
-    //         let recover_result: RecoverIdentityResult =
-    //             RecoverIdentityResult::decode(ret.as_slice()).unwrap();
-    //         assert_eq!(
-    //             recover_result.ipfs_id,
-    //             "QmSTTidyfa4np9ak9BZP38atuzkCHy4K59oif23f4dNAGU"
-    //         );
-    //         assert_eq!(
-    //             recover_result.identifier,
-    //             "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg"
-    //         );
-
-    //         let wallet = recover_result.wallets.get(0).unwrap();
-    //         assert_eq!(wallet.chain_type, constants::CHAIN_TYPE_ETHEREUM);
-    //         assert_eq!(wallet.address, "6031564e7b2f5cc33737807b2e58daff870b590b");
-    //     })
-    // }
-
-    // #[test]
-    // pub fn test_export_identity() {
-    //     run_test(|| {
-    //         let param = RecoverIdentityParam {
-    //             name: sample_key::NAME.to_string(),
-    //             mnemonic: MNEMONIC.to_string(),
-    //             password: sample_key::PASSWORD.to_string(),
-    //             password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
-    //             network: model::NETWORK_TESTNET.to_string(),
-    //             seg_wit: None,
-    //         };
-    //         let ret = call_api("recover_identity", param).unwrap();
-    //         let recover_result: RecoverIdentityResult =
-    //             RecoverIdentityResult::decode(ret.as_slice()).unwrap();
-    //         assert!(recover_result.ipfs_id.len() > 0);
-    //         assert!(recover_result.identifier.len() > 0);
-
-    //         let param = ExportIdentityParam {
-    //             identifier: recover_result.identifier.to_owned(),
-    //             password: sample_key::PASSWORD.to_string(),
-    //         };
-    //         let ret = call_api("export_identity", param).unwrap();
-    //         let export_result: ExportIdentityResult =
-    //             ExportIdentityResult::decode(ret.as_slice()).unwrap();
-    //         assert_eq!(export_result.mnemonic, MNEMONIC);
-    //         assert_eq!(recover_result.identifier, export_result.identifier);
-    //     })
-    // }
-
-    // #[test]
-    // pub fn test_delete_identity() {
-    //     run_test(|| {
-    //         let param = CreateIdentityParam {
-    //             name: sample_key::NAME.to_string(),
-    //             password: sample_key::PASSWORD.to_string(),
-    //             password_hint: Some(sample_key::PASSWORD_HINT.to_string()),
-    //             network: model::NETWORK_TESTNET.to_string(),
-    //             seg_wit: None,
-    //         };
-    //         let ret = call_api("create_identity", param).unwrap();
-    //         let create_result: CreateIdentityResult =
-    //             CreateIdentityResult::decode(ret.as_slice()).unwrap();
-    //         assert!(create_result.ipfs_id.len() > 0);
-    //         assert!(create_result.identifier.len() > 0);
-
-    //         let remove_identity_param = RemoveIdentityParam {
-    //             identifier: create_result.identifier.to_owned(),
-    //             password: sample_key::PASSWORD.to_string(),
-    //         };
-    //         let ret = call_api("remove_identity", remove_identity_param).unwrap();
-    //         let remove_result: RemoveIdentityResult =
-    //             RemoveIdentityResult::decode(ret.as_slice()).unwrap();
-    //         assert_eq!(remove_result.identifier, create_result.identifier);
-    //     })
-    // }
-
-    #[test]
     pub fn test_sign_ethereum_legacy_tx() {
         run_test(|| {
             let derivation = Derivation {
@@ -3485,6 +3323,47 @@ mod tests {
                 "0x2c20edff7e496c1f8d8370fc3d70f3f02b4c63008bb2586d507ddb88d68cea7d"
             );
             assert_eq!(output.signature, "02f90141010881e285faac6c45d88210be943535353535353535353535353535353535353535833542398a200184c0486d5f082a27f8cbd694019fda53b3198867b8aae65320c9c55d74de1938c0f7941b976cdbc43cfcbeaad2623c95523981ea1e664ae1a0d259410e74fa5c0227f688cc1f79b4d2bee3e9b7342c4c61342e8906a63406a2f87a94f1946eba70f89687d67493d8106f56c90ecba943f863a0b3838dedffc33c62f8abfc590b41717a6dd70c3cab5a6900efae846d9060a2b9a06a6c4d1ab264204fb2cdd7f55307ca3a0040855aa9c4a749a605a02b43374b82a00c38e901d0d95fbf8f05157c68a89393a86aa1e821279e4cce78f827dccb206480a0d95cb4d82912b2fed0510dd44cce5c0b177af6e7ed991f1dbe5b8e34303bf84ca04e0896caf07d9644e2728d919a84f7af46cb2421a0ce7bb814cce782d921e672");
+        })
+    }
+
+    #[test]
+    pub fn test_sign_ethereum_sign_message() {
+        run_test(|| {
+            let derivation = Derivation {
+                chain_type: "ETHEREUM".to_string(),
+                path: "m/44'/60'/0'/0/0".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "".to_string(),
+                bech32_prefix: "".to_string(),
+            };
+
+            let (wallet, _acc_rsp) = import_and_derive(derivation);
+
+            let eth_tx_input = EthMessageInput {
+                message: "0x4578616d706c652060706572736f6e616c5f7369676e60206d657373616765"
+                    .to_string(),
+                signature_type: 0i32,
+            };
+            let input_value = encode_message(eth_tx_input).unwrap();
+            let param = SignParam {
+                id: wallet.id.to_string(),
+                chain_type: "ETHEREUM".to_string(),
+                path: "m/44'/60'/0'/0/0".to_string(),
+                curve: "SECP256k1".to_string(),
+                network: "".to_string(),
+                seg_wit: "".to_string(),
+                input: Some(::prost_types::Any {
+                    type_url: "imtoken".to_string(),
+                    value: input_value,
+                }),
+                key: Some(sign_param::Key::Password(sample_key::PASSWORD.to_string())),
+            };
+            let ret = call_api("sign_msg", param).unwrap();
+            let output: EthMessageOutput = EthMessageOutput::decode(ret.as_slice()).unwrap();
+
+            assert_eq!(output.signature, "0x5d595524847790aade63630ba4320854e0ae474b50d4c83eadfea9179185b2d67479cdfa9f59ec8f62575a7c09d4a5c9683aaf9cdb198ee51bdbe1bbf6eed1e91b");
         })
     }
 
@@ -3768,12 +3647,4 @@ mod tests {
     // fn test_sign_authentication_message() {
     //     todo!()
     // }
-
-    #[test]
-    fn test_decode_derive_account() {
-        let data = Vec::<u8>::from_hex("0ab2020a08455448455245554d122a3078456332373437326434314142616464373331373932343737333345423039323761443635316338361a106d2f3434272f3630272f30272f302f302298014c795a4867657356664178796e4e425a6f5463313645536551376d463772685a334b75385152364f6f67584c614e3845387559484139574442335632533977376c333665424a4f38766470636c644e45524264634d482f544c7a6a4e7a32446b314878337939734b6c77527a41464c563931357445714f716641586e796351555770304276556a6e415a54486a764a45354954546b413d3d2a423033313564636233386135383937343832373538616266303564616335616531303465626231326234383131666134343639646433306361653736653133373339303209534543503235366b310aa4020a07424954434f494e1222334e664e354a386933706e6d44526951593550556368764441386e3566364a68556f1a0b6d2f3439272f30272f3027229801336b5a6d5a763378636756615346562b734c675050524a55344f6a6a76306c4630314e4571644e48565655687874427062485378496b4356566d53332f6e726a3743696c4b58505145657063615332575a795772722b53694b4d425859486f3658545772664978314e4f6b4569323935324e4e41736b7470796c496e71494573592f4151313761524d3350686f6f55594d7a6c4c46413d3d2a423032636561386631663766313566396534383739393338623137396636616631343961373664333334663934346137646164636136333464323865343966343964363209534543503235366b310aa9020a084c495445434f494e12224c56337570376a3877637968423347766575524e4b7157464a387864764464474c481a0f6d2f3439272f32272f30272f302f3022980144557873735951594833615878654c735266626b474479676f6972537254496e7a447133614b7178714b4b6f3269427048796e596757474a58776c5968774345334d712f696d2b4e314537504f592f52533375366779694a45614a43364533716a4c32766435396769632f2f3430305a76323675422b3657394c764954767071513357304662506a38656c4d395632655638323870773d3d2a423032653066616466396439386339656263373337643633343565353136376163303439393333396635333233343161393365643461653436613937643861306662373209534543503235366b310ab4020a06434f534d4f53122d636f736d6f7331793039396b75636570636b656a39687539337063706c387635346867303432396775307037641a116d2f3434272f313138272f30272f302f30229801334d45484d6a3263497078664833662b7a52314f6d6b45743169496453704e324670435734634d693230354a4c4f7463386e554c3241365146574e47797465624b45713765796432686754424c4b4d2f3344454d366d3672534b536f67534f3056616d4c6677442b70304375302b304452775335444f7a6c50673874364d733575372b4556763877707a6d75357a627a53326a4854513d3d2a423032333239626232346366373834633765363066376637663236393931383661656430663138656139303932306364613130363039386464303338393765303038383209534543503235366b310ab2020a0846494c45434f494e122966317a7369723576677977636b6e61716a6a653377336179666d327a72797671636c6362376f7436611a116d2f3434272f343631272f30272f302f302298012b78664f452f66342f42347070366f2b62553952433631684863383662664b732f456e78653254337569646136637432396a4738317443427150365a37564845476c33505266713479675152695137624d2f4b4d63505471334739324c67577a796a676a356e742b4e62536a55637a6b4253375879456a6345336e6637425731434c2f574662544f734f516b714e37574546667033513d3d2a423033643434633732356261663934356632356630613961633131396433313064343336333437343936353030623461336133326563633236343339366631336362653209534543503235366b310ab5020a064e4552564f53122e636b62317179717878793577796d616d68736a3076636b6a6c716b6377326e7470346c75366476716d687a6c61661a116d2f3434272f333039272f30272f302f30229801744e38717a484e484e454b5a2f674d443833526b783472304c687777723478636a6e4f646e6b526e395261695569387450336b5a6145366234595a544f4c563074647641444a715378356165675149412f6a527a526e4169774e544963576f50764d6733436e4c2f4b4c61536d374842716662665241673951567936744364306349653969614e6751737a774148536c6d4c366632413d3d2a423032333163663165666661316166396137346334613266306333376166323831643735623464383533636231626331373931353865336564336632643038666638333209534543503235366b310a9c010a064b5553414d41122f485046716e39526b4b42686f41575743765950416a5a51525935624264575775525234584338513657656f6265527a1a132f2f6b7573616d612f2f696d546f6b656e2f302a4064346264313765616138373638666662373437386433326439363039336239366634663663386338323639656437373836666661636436396431623531313234320a537562537232353531390aa1010a08504f4c4b41444f54123031346144413137543570476248366a735157714348395477664d5a41706a5a366e656874654d445843347536653779431a152f2f706f6c6b61646f742f2f696d546f6b656e2f302a4039653038623737653565306539326330643231383966653736326137663061663132386236623438396462316465326432386431333030663163323638303736320a537562537232353531390a8b010a0554455a4f531224747a3159714a584b686f43354e6e78393431794a41456a77464e786252564a7361626d451a116d2f3434272f31373239272f30272f30272a4065613835376561343365316435333164343664336234336438356538383233666165336230373533636639363539383563316164643666316534656365323733320745443235353139").unwrap();
-        let rsp: DeriveAccountsResult = DeriveAccountsResult::decode(data.as_slice()).unwrap();
-        dbg!(&rsp);
-        assert_eq!("ex", rsp.accounts.first().unwrap().extended_public_key);
-    }
 }

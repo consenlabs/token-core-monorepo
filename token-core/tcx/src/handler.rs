@@ -9,7 +9,7 @@ use tcx_eos::address::EosAddress;
 use tcx_keystore::keystore::IdentityNetwork;
 
 use tcx_common::{FromHex, ToHex};
-use tcx_primitive::{private_key_without_version, TypedPrivateKey};
+use tcx_primitive::{private_key_without_version, Secp256k1PrivateKey, TypedPrivateKey};
 
 use tcx_btc_kin::WIFDisplay;
 use tcx_keystore::{
@@ -28,9 +28,9 @@ use crate::api::{
     DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
     DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsKeystoreResult,
     ExistsMnemonicParam, ExistsPrivateKeyParam, ExportPrivateKeyParam, ExportResult, GeneralResult,
-    GenerateMnemonicResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult,
-    GetPublicKeysParam, GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam, KeyType,
-    KeystoreCommonExistsParam, KeystoreMigrationParam, KeystoreResult, MnemonicToPublicKeyParam,
+    GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
+    GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult,
+    KeyType, KeystoreMigrationParam, KeystoreResult, MnemonicToPublicKeyParam,
     MnemonicToPublicKeyResult, RemoveWalletParam, RemoveWalletResult,
     SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
     SignHashesResult, WalletKeyParam, ZksyncPrivateKeyFromSeedParam,
@@ -47,6 +47,7 @@ use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
 use crate::IS_DEBUG;
 
+use base58::FromBase58;
 use tcx_keystore::tcx_ensure;
 
 use tcx_constants::coin_info::coin_info_from_param;
@@ -65,7 +66,7 @@ use tcx_substrate::{
 
 use tcx_migration::migration::LegacyKeystore;
 use tcx_primitive::TypedDeterministicPublicKey;
-use tcx_tezos::{build_tezos_base58_private_key, pars_tezos_private_key};
+use tcx_tezos::{build_tezos_base58_private_key, parse_tezos_private_key};
 use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
 
 use crate::macros::use_chains;
@@ -175,8 +176,7 @@ pub(crate) fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let mut meta = Metadata::default();
     meta.name = param.name.to_owned();
     meta.password_hint = param.password_hint.to_owned();
-    // TODO: change source to NEW_MNEMONIC
-    meta.source = Source::Mnemonic;
+    meta.source = Source::NewMnemonic;
     meta.network = IdentityNetwork::from_str(&param.network)?;
 
     let ks = HdKeystore::new(&param.password, meta);
@@ -190,8 +190,7 @@ pub(crate) fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let wallet = KeystoreResult {
         id: keystore.id(),
         name: meta.name.to_owned(),
-        // TODO: change source to NEW_MNEMONIC
-        source: Source::Mnemonic.to_string(),
+        source: Source::NewMnemonic.to_string(),
         created_at: meta.timestamp.clone(),
         identifier: identity.identifier.to_string(),
         ipfs_id: identity.ipfs_id.to_string(),
@@ -365,22 +364,23 @@ fn key_data_from_any_format_pk(pk: &str) -> Result<Vec<u8>> {
 
 fn key_hash_from_any_format_pk(pk: &str) -> Result<String> {
     let key_data = key_data_from_any_format_pk(pk)?;
-    Ok(key_hash_from_private_key(&key_data))
+    key_hash_from_private_key(&key_data)
 }
 
 fn key_hash_from_tezos_format_pk(pk: &str) -> Result<String> {
-    let key_data = pars_tezos_private_key(pk)?;
-    Ok(key_hash_from_private_key(&key_data))
+    let key_data = parse_tezos_private_key(pk)?;
+    key_hash_from_private_key(&key_data)
 }
 
-pub(crate) fn import_private_key(data: &[u8]) -> Result<Vec<u8>> {
-    let param: ImportPrivateKeyParam =
-        ImportPrivateKeyParam::decode(data).expect("import_private_key");
-
+pub(crate) fn import_private_key_internal(
+    param: &ImportPrivateKeyParam,
+    source: Option<Source>,
+) -> Result<ImportPrivateKeyResult> {
     let mut founded_id: Option<String> = None;
     {
         let key_hash: String;
-        if param.encoding.eq("TEZOS") {
+        // TODO: make sure the prefix of tezoos
+        if param.private_key.starts_with("edsk") {
             key_hash = key_hash_from_tezos_format_pk(&param.private_key)?;
         } else {
             key_hash = key_hash_from_any_format_pk(&param.private_key)?;
@@ -399,20 +399,20 @@ pub(crate) fn import_private_key(data: &[u8]) -> Result<Vec<u8>> {
         return Err(format_err!("{}", "address_already_exist"));
     }
 
-    let pk_bytes: Vec<u8>;
-    if param.encoding.eq("TEZOS") {
-        pk_bytes = pars_tezos_private_key(&param.private_key)?;
+    let decoded_ret = decode_private_key(&param.private_key)?;
+    let private_key = decoded_ret.bytes.to_hex();
+    let meta_source = if let Some(source) = source {
+        source
     } else {
-        pk_bytes = key_data_from_any_format_pk(&param.private_key)?;
-    }
-    let private_key = pk_bytes.to_hex();
+        decoded_ret.source
+    };
     let meta = Metadata {
-        name: param.name,
-        password_hint: param.password_hint,
-        source: Source::Private,
+        name: param.name.to_string(),
+        password_hint: param.password_hint.to_string(),
+        source: meta_source,
         ..Metadata::default()
     };
-    let pk_store = PrivateKeystore::from_private_key(&private_key, &param.password, meta);
+    let pk_store = PrivateKeystore::from_private_key(&private_key, &param.password, meta)?;
 
     let mut keystore = Keystore::PrivateKey(pk_store);
 
@@ -424,16 +424,113 @@ pub(crate) fn import_private_key(data: &[u8]) -> Result<Vec<u8>> {
 
     let meta = keystore.meta();
     let identity = keystore.identity();
-    let wallet = KeystoreResult {
+    let wallet = ImportPrivateKeyResult {
         id: keystore.id(),
         name: meta.name.to_owned(),
-        source: "PRIVATE".to_owned(),
+        source: meta_source.to_string(),
         created_at: meta.timestamp.clone(),
         identifier: identity.identifier.to_string(),
         ipfs_id: identity.ipfs_id.to_string(),
+        suggest_chain_types: decoded_ret.chain_types.to_owned(),
+        suggest_network: decoded_ret.network.to_string(),
+        suggest_curve: decoded_ret.curve.as_str().to_string(),
     };
-    let ret = encode_message(wallet)?;
     cache_keystore(keystore);
+    Ok(wallet)
+}
+
+struct DecodedPrivateKey {
+    bytes: Vec<u8>,
+    network: String,
+    curve: CurveType,
+    chain_types: Vec<String>,
+    source: Source,
+}
+
+fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
+    let private_key_bytes: Vec<u8>;
+    let mut network = "".to_string();
+    let mut chain_types: Vec<String> = vec![];
+    let mut curve: CurveType = CurveType::SECP256k1;
+    let mut source: Source = Source::Private;
+    if private_key.starts_with("edsk") {
+        private_key_bytes = parse_tezos_private_key(&private_key)?;
+        chain_types.push("TEZOS".to_string());
+    } else {
+        let decoded = Vec::from_0x_hex(private_key.to_string());
+        if decoded.is_ok() {
+            let decoded_data = decoded.unwrap();
+            if decoded_data.len() <= 64 {
+                private_key_bytes = decoded_data;
+                chain_types.push("ETHEREUM".to_string());
+                chain_types.push("TRON".to_string());
+            } else {
+                let key_info = KeyInfo::from_lotus(&decoded_data)?;
+                private_key_bytes = key_info.decode_private_key()?;
+                chain_types.push("FILECOIN".to_string());
+                if key_info.r#type != "secp256k1" {
+                    curve = CurveType::BLS;
+                }
+            }
+        } else {
+            let data_len = private_key
+                .from_base58()
+                .map_err(|_| format_err!("decode private from base58 error"))?
+                .len();
+            let (k1_pk, ver) = Secp256k1PrivateKey::from_ss58check_with_version(&private_key)?;
+            private_key_bytes = k1_pk.0.to_bytes();
+
+            source = Source::Wif;
+            match ver[0] {
+                0xef => {
+                    network = "TESTNET".to_string();
+                    chain_types.push("BITCOIN".to_string());
+                    chain_types.push("BITCOINCASH".to_string());
+                    chain_types.push("LITECOIN".to_string());
+                }
+                0x80 => {
+                    if data_len == 37 {
+                        // EOS 1byte network + 32bytes private key + 4byte checksum = 37bytes
+                        // EOS not use compressed suffix  https://developers.eos.io/manuals/eos/v2.2/keosd/wallet-specification
+                        network = "".to_string();
+                        chain_types.push("EOS".to_string());
+                    } else {
+                        // EOS 1byte network + 32bytes private key + 1byte compressed suffix + 4byte checksum = 38bytes
+                        network = "MAINNET".to_string();
+                        chain_types.push("BITCOIN".to_string());
+                        chain_types.push("BITCOINCASH".to_string());
+                    }
+                }
+                0xb0 => {
+                    network = "MAINNET".to_string();
+                    chain_types.push("LITECOIN".to_string());
+                }
+                _ => {
+                    return Err(format_err!(
+                        "unknow ver header when parse wif, ver: {}",
+                        ver[0]
+                    ))
+                }
+            }
+        }
+    }
+
+    Ok(DecodedPrivateKey {
+        bytes: private_key_bytes,
+        network,
+        curve,
+        chain_types,
+        source,
+    })
+}
+
+pub(crate) fn import_private_key(data: &[u8]) -> Result<Vec<u8>> {
+    let param: ImportPrivateKeyParam =
+        ImportPrivateKeyParam::decode(data).expect("import_private_key");
+
+    let rsp = import_private_key_internal(&param, None)?;
+
+    let ret = encode_message(rsp)?;
     Ok(ret)
 }
 
@@ -529,7 +626,7 @@ pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn exists_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: ExistsPrivateKeyParam =
         ExistsPrivateKeyParam::decode(data).expect("ExistsPrivateKeyParam");
-    let key_hash = if param.encoding.eq("TEZOS") {
+    let key_hash = if param.private_key.starts_with("edsk") {
         key_hash_from_tezos_format_pk(&param.private_key)?
     } else {
         key_hash_from_any_format_pk(&param.private_key)?
@@ -752,21 +849,39 @@ pub(crate) fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
 
 pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
     let param: ImportJsonParam = ImportJsonParam::decode(data)?;
-    let (sec_key_bytes, name) = match param.chain_type.as_str() {
-        "ETHEREUM" => key_info_from_v3(&param),
-        "POLKADOT" | "KUSAMA" => key_info_from_substrate_keystore(&param),
-        _ => Err(format_err!("unsupported_chain")),
-    }?;
-    let pk_import_param = ImportPrivateKeyParam {
-        private_key: sec_key_bytes.to_hex(),
-        password: param.password.to_string(),
-        name,
-        password_hint: "".to_string(),
-        overwrite: param.overwrite,
-        encoding: "".to_string(),
-    };
-    let param_bytes = encode_message(pk_import_param)?;
-    import_private_key(&param_bytes)
+    // let parse_v3_result = key_info_from_v3(&param);
+    if let Ok(parse_v3_result) = key_info_from_v3(&param) {
+        let (sec_key_bytes, name) = parse_v3_result;
+        let pk_import_param = ImportPrivateKeyParam {
+            private_key: sec_key_bytes.to_hex(),
+            password: param.password.to_string(),
+            name,
+            password_hint: "".to_string(),
+            overwrite: param.overwrite,
+        };
+        let mut ret = import_private_key_internal(&pk_import_param, Some(Source::KeystoreV3))?;
+        ret.suggest_chain_types = vec!["ETHEREUM".to_string()];
+        ret.suggest_curve = CurveType::SECP256k1.as_str().to_string();
+        ret.suggest_network = "".to_string();
+        return encode_message(ret);
+    } else if let Ok(parse_substrate_result) = key_info_from_substrate_keystore(&param) {
+        let (sec_key_bytes, name) = parse_substrate_result;
+        let pk_import_param = ImportPrivateKeyParam {
+            private_key: sec_key_bytes.to_hex(),
+            password: param.password.to_string(),
+            name,
+            password_hint: "".to_string(),
+            overwrite: param.overwrite,
+        };
+        let mut ret =
+            import_private_key_internal(&pk_import_param, Some(Source::SubstrateKeystore))?;
+        ret.suggest_chain_types = vec!["KUSAMA".to_string(), "POLKADOT".to_string()];
+        ret.suggest_curve = CurveType::SubSr25519.as_str().to_string();
+        ret.suggest_network = "".to_string();
+        return encode_message(ret);
+    } else {
+        return Err(format_err!("unsupport_chain"));
+    }
 }
 
 fn key_info_from_v3(param: &ImportJsonParam) -> Result<(Vec<u8>, String)> {
@@ -830,16 +945,19 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
 
 pub(crate) fn exists_json(data: &[u8]) -> Result<Vec<u8>> {
     let param: ImportJsonParam = ImportJsonParam::decode(data)?;
-    let (pk_bytes, _) = match param.chain_type.as_str() {
-        "ETHEREUM" => key_info_from_v3(&param),
-        "KUSAMA" | "POLKADOT" => key_info_from_substrate_keystore(&param),
-        _ => Err(format_err!("unsupported_chain")),
-    }?;
 
-    let pk_hex = pk_bytes.to_hex();
+    let sec_key_hex = if let Ok(parse_v3_result) = key_info_from_v3(&param) {
+        let (sec_key_bytes, _) = parse_v3_result;
+        sec_key_bytes.to_hex()
+    } else if let Ok(parse_substrate_result) = key_info_from_substrate_keystore(&param) {
+        let (sec_key_bytes, _) = parse_substrate_result;
+        sec_key_bytes.to_hex()
+    } else {
+        return Err(format_err!("decrypt_json_error"));
+    };
+
     let exists_param = ExistsPrivateKeyParam {
-        encoding: "".to_string(),
-        private_key: pk_hex,
+        private_key: sec_key_hex,
     };
     let exists_param_bytes = encode_message(exists_param)?;
     exists_private_key(&exists_param_bytes)
@@ -891,12 +1009,6 @@ pub(crate) fn zksync_private_key_to_pubkey_hash(data: &[u8]) -> Result<Vec<u8>> 
         pub_key_hash: pub_key_hash.to_hex(),
     };
     encode_message(ret)
-}
-
-pub(crate) fn generate_mnemonic() -> Result<Vec<u8>> {
-    let mnemonic = tcx_primitive::generate_mnemonic();
-    let result = GenerateMnemonicResult { mnemonic };
-    encode_message(result)
 }
 
 pub(crate) fn remove_wallet(data: &[u8]) -> Result<Vec<u8>> {
@@ -970,7 +1082,8 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
         };
 
     let key = tcx_crypto::Key::Password(param.password);
-    let unlocker = identity_ks.use_key(&key)?;
+    // TODO: hide crypto object
+    let unlocker = identity_ks.store().crypto.use_key(&key)?;
 
     let signature = identity_ks.identity().sign_authentication_message(
         param.access_time,
@@ -1089,4 +1202,84 @@ pub(crate) fn mnemonic_to_public(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(MnemonicToPublicKeyResult {
         public_key: public_key_str,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use tcx_constants::CurveType;
+    use tcx_keystore::Source;
+
+    use super::decode_private_key;
+
+    #[test]
+    fn test_decode_private_key() {
+        let private_key = "cPrsVCDgzf7FLG2NyCrfudbAav4DQt2vs1ZcAqcjZWQ6wi1kp3Uc";
+        let decoded = decode_private_key(&private_key).unwrap();
+        assert_eq!(
+            decoded.chain_types,
+            vec![
+                "BITCOIN".to_string(),
+                "BITCOINCASH".to_string(),
+                "LITECOIN".to_string()
+            ]
+        );
+        assert_eq!(decoded.curve, CurveType::SECP256k1);
+        assert_eq!(decoded.network, "TESTNET".to_string());
+        assert_eq!(decoded.source, Source::Wif);
+
+        let private_key = "KyVt2HDqZbQzApZ7ao3YYK66xgkokRwEnyR94RAE4Pk6gxtMdsrA";
+        let decoded = decode_private_key(&private_key).unwrap();
+        assert_eq!(
+            decoded.chain_types,
+            vec!["BITCOIN".to_string(), "BITCOINCASH".to_string()]
+        );
+        assert_eq!(decoded.curve, CurveType::SECP256k1);
+        assert_eq!(decoded.network, "MAINNET".to_string());
+        assert_eq!(decoded.source, Source::Wif);
+
+        let private_key = "T5L9U2X1xyPawfBz8RzQkfdUuYQ7pWx8cBKPvDnmdMvGCrR7TZEw";
+        let decoded = decode_private_key(&private_key).unwrap();
+        assert_eq!(decoded.chain_types, vec!["LITECOIN".to_string()]);
+        assert_eq!(decoded.curve, CurveType::SECP256k1);
+        assert_eq!(decoded.network, "MAINNET".to_string());
+        assert_eq!(decoded.source, Source::Wif);
+
+        let private_key = "edskRgu8wHxjwayvnmpLDDijzD3VZDoAH7ZLqJWuG4zg7LbxmSWZWhtkSyM5Uby41rGfsBGk4iPKWHSDniFyCRv3j7YFCknyHH";
+        let decoded = decode_private_key(&private_key).unwrap();
+        assert_eq!(decoded.chain_types, vec!["TEZOS".to_string()]);
+        assert_eq!(decoded.curve, CurveType::SECP256k1);
+        assert_eq!(decoded.network, "".to_string());
+        assert_eq!(decoded.source, Source::Private);
+
+        let private_key = "0x43fe394358d14f2e096f4efe80894b4e51a3fdcb73c06b77e937b80deb8c746b";
+        let decoded = decode_private_key(&private_key).unwrap();
+        assert_eq!(
+            decoded.chain_types,
+            vec!["ETHEREUM".to_string(), "TRON".to_string()]
+        );
+        assert_eq!(decoded.curve, CurveType::SECP256k1);
+        assert_eq!(decoded.network, "".to_string());
+        assert_eq!(decoded.source, Source::Private);
+
+        let private_key = "0x7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226f354a6754767776725a774c5061513758326d4b4c6a386e4478634e685a6b537667315564434a317866593d227d";
+        let decoded = decode_private_key(&private_key).unwrap();
+        assert_eq!(decoded.chain_types, vec!["FILECOIN".to_string()]);
+        assert_eq!(decoded.curve, CurveType::SECP256k1);
+        assert_eq!(decoded.network, "".to_string());
+        assert_eq!(decoded.source, Source::Private);
+
+        let private_key = "0x7b2254797065223a22626c73222c22507269766174654b6579223a2269376b4f2b7a78633651532b7637597967636d555968374d55595352657336616e6967694c684b463830383d227d";
+        let decoded = decode_private_key(&private_key).unwrap();
+        assert_eq!(decoded.chain_types, vec!["FILECOIN".to_string()]);
+        assert_eq!(decoded.curve, CurveType::BLS);
+        assert_eq!(decoded.network, "".to_string());
+        assert_eq!(decoded.source, Source::Private);
+
+        let private_key = "5JLENb318PJDVxdjGp8pvmRigMLSYbCPA4GSPXPwANvGLZE3ukq";
+        let decoded = decode_private_key(&private_key).unwrap();
+        assert_eq!(decoded.chain_types, vec!["EOS".to_string()]);
+        assert_eq!(decoded.curve, CurveType::SECP256k1);
+        assert_eq!(decoded.network, "".to_string());
+        assert_eq!(decoded.source, Source::Wif);
+    }
 }

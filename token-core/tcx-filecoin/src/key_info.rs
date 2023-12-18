@@ -7,10 +7,10 @@ use super::Error;
 #[derive(Deserialize, Serialize, Debug)]
 pub struct KeyInfo {
     #[serde(rename = "Type")]
-    r#type: String,
+    pub r#type: String,
 
     #[serde(rename = "PrivateKey")]
-    private_key: String,
+    pub private_key: String,
 }
 
 impl KeyInfo {

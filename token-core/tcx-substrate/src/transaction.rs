@@ -5,8 +5,6 @@ pub struct ImportJsonParam {
     pub keystore: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub chain_type: ::prost::alloc::string::String,
     #[prost(bool, tag = "4")]
     pub overwrite: bool,
 }
