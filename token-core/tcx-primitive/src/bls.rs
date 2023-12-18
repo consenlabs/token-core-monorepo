@@ -82,6 +82,7 @@ impl TraitPublicKey for BLSPublicKey {
 mod tests {
 
     use crate::bls::BLSPrivateKey;
+    use crate::ecc::KeyError;
     use crate::{PrivateKey, PublicKey};
     use bitcoin_hashes::hex::ToHex;
     use blst::min_pk::SecretKey;
@@ -113,22 +114,28 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "InvalidBlsKey")]
     fn test_bls_private_key_invalid_bls_key_less_31() {
-        BLSPrivateKey::from_slice(
+        let actual = BLSPrivateKey::from_slice(
             &Vec::from_hex("0ef71710671a9f1cfc4bd441c017c9b6db68491929facc68ab072a9676e9").unwrap(),
-        )
-        .unwrap();
+        );
+
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            KeyError::InvalidBlsKey.to_string()
+        );
     }
 
     #[test]
-    #[should_panic(expected = "InvalidBlsKey")]
     fn test_bls_private_key_invalid_bls_key_more_32() {
-        BLSPrivateKey::from_slice(
+        let actual = BLSPrivateKey::from_slice(
             &Vec::from_hex("0ef71710671a9f1cfc4bd441c017c9b6db68491929facc68ab072a9676e9e23ccccc")
                 .unwrap(),
-        )
-        .unwrap();
+        );
+
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            KeyError::InvalidBlsKey.to_string()
+        );
     }
 
     #[test]

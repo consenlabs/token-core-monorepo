@@ -24,8 +24,9 @@ pub mod keystore;
 mod signer;
 
 pub use keystore::{
-    key_hash_from_mnemonic, key_hash_from_private_key, Account, Address, HdKeystore, Keystore,
-    KeystoreGuard, Metadata, PrivateKeystore, Source,
+    fingerprint_from_mnemonic, fingerprint_from_private_key, fingerprint_from_seed,
+    mnemonic_to_seed, Account, Address, HdKeystore, Keystore, KeystoreGuard, Metadata,
+    PrivateKeystore, Source,
 };
 
 pub use signer::{

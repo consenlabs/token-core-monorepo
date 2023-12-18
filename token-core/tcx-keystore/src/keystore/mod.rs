@@ -11,11 +11,11 @@ use serde::{Deserialize, Serialize};
 
 use tcx_common::ToHex;
 use tcx_constants::{CoinInfo, CurveType};
-use tcx_crypto::crypto::Unlocker;
 
 pub use self::{
-    guard::KeystoreGuard, hd::key_hash_from_mnemonic, hd::HdKeystore,
-    private::key_hash_from_private_key, private::PrivateKeystore,
+    guard::KeystoreGuard, hd::fingerprint_from_mnemonic, hd::fingerprint_from_seed,
+    hd::mnemonic_to_seed, hd::HdKeystore, private::fingerprint_from_private_key,
+    private::PrivateKeystore,
 };
 
 use crate::identity::Identity;
@@ -28,7 +28,7 @@ use tcx_primitive::{Derive, TypedDeterministicPublicKey, TypedPrivateKey, TypedP
 pub struct Store {
     pub id: String,
     pub version: i64,
-    pub key_hash: String,
+    pub fingerprint: String,
     pub crypto: Crypto,
     pub identity: Identity,
 
@@ -56,8 +56,6 @@ pub enum Error {
     InvalidVersion,
     #[fail(display = "pkstore_can_not_add_other_curve_account")]
     PkstoreCannotAddOtherCurveAccount,
-    #[fail(display = "merge_with_different_key")]
-    MergeWithDifferentKey,
 }
 
 fn transform_mnemonic_error(err: failure::Error) -> Error {
@@ -67,6 +65,17 @@ fn transform_mnemonic_error(err: failure::Error) -> Error {
         bip39::ErrorKind::InvalidWord => Error::MnemonicWordInvalid,
         bip39::ErrorKind::InvalidWordLength(_) => Error::MnemonicLengthInvalid,
         _ => Error::MnemonicInvalid,
+    }
+}
+
+impl From<bip39::ErrorKind> for Error {
+    fn from(err: bip39::ErrorKind) -> Self {
+        match err {
+            bip39::ErrorKind::InvalidChecksum => Error::MnemonicChecksumInvalid,
+            bip39::ErrorKind::InvalidWord => Error::MnemonicWordInvalid,
+            bip39::ErrorKind::InvalidWordLength(_) => Error::MnemonicLengthInvalid,
+            _ => Error::MnemonicInvalid,
+        }
     }
 }
 
@@ -274,8 +283,8 @@ impl Keystore {
         self.store().meta.clone()
     }
 
-    pub fn key_hash(&self) -> &str {
-        &self.store().key_hash
+    pub fn fingerprint(&self) -> &str {
+        &self.store().fingerprint
     }
 
     pub fn unlock_by_password(&mut self, password: &str) -> Result<()> {
@@ -577,7 +586,7 @@ pub(crate) mod tests {
         {
     "id": "7719d1e3-3f67-439f-a18e-d9ae413e00e1",
     "version": 12000,
-    "keyHash": "efbe00a55ddd4c5350e295a9533d28f93cac001bfdad8cf4275140461ea03e9e",
+    "fingerprint": "efbe00a55ddd4c5350e295a9533d28f93cac001bfdad8cf4275140461ea03e9e",
     "crypto": {
         "cipher": "aes-128-ctr",
         "cipherparams": {
@@ -614,11 +623,11 @@ pub(crate) mod tests {
 "#;
 
     static PK_KEYSTORE_JSON: &'static str = r#"
-    {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":12001,"keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"identity":{"encAuthKey":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"},"encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3","identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf","ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"},"imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE","network":"MAINNET"}}
+    {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":12001,"fingerprint":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"identity":{"encAuthKey":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"},"encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3","identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf","ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"},"imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE","network":"MAINNET"}}
     "#;
 
     static INVALID_PK_KEYSTORE_JSON: &'static str = r#"
-    {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":10001,"keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"identity":{"encAuthKey":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"},"encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3","identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf","ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"},"imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE","network":"MAINNET"}}
+    {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":10001,"fingerprint":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"identity":{"encAuthKey":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"},"encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3","identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf","ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"},"imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE","network":"MAINNET"}}
     "#;
 
     static OLD_KEYSTORE_JSON: &'static str = r#"
@@ -732,7 +741,7 @@ pub(crate) mod tests {
         assert!(keystore.derivable());
         assert_eq!(
             "efbe00a55ddd4c5350e295a9533d28f93cac001bfdad8cf4275140461ea03e9e",
-            keystore.key_hash()
+            keystore.fingerprint()
         );
     }
 
@@ -820,10 +829,7 @@ pub(crate) mod tests {
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
         let keystore = Hd(hd_store);
         assert!(keystore.derivable());
-        assert_eq!(
-            keystore.key_hash(),
-            "512115eca3ae86646aeb06861d551e403b543509"
-        );
+        assert_eq!(keystore.fingerprint(), "0x1468dba9");
 
         let meta = Metadata {
             name: "test_create".to_string(),

@@ -1,7 +1,7 @@
 {
   "id": "b05a0ff9-885a-4a31-9d82-6477d34d1e37",
   "version": 12000,
-  "keyHash": "512115eca3ae86646aeb06861d551e403b543509",
+  "fingerprint": "512115eca3ae86646aeb06861d551e403b543509",
   "crypto": {
     "cipher": "aes-128-ctr",
     "cipherparams": {
@@ -26,18 +26,6 @@
     "identifier": "im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf",
     "ipfsId": "QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"
   },
-  "activeAccounts": [
-    {
-      "address": "TY2uroBeZ5trA9QT96aEWj32XLkAAhQ9R2",
-      "derivationPath": "m/44'/195'/0'/0/0",
-      "curve": "SECP256k1",
-      "coin": "TRON",
-      "network": "MAINNET",
-      "segWit": "NONE",
-      "extPubKey": "037e39800880000000988ebb67dc6f173948ccaed62dd3c4b60fea66a4280da93eed971b55d4e6e9c203349ff19e96c1aa7f568e493f85fa506320410245b4e69146bb0d3d8b5df3b901",
-      "publicKey": "037b5253c24ce2a293566f9e066051366cda5073e4a43b25f07c990d7c9ac0aab5"
-    }
-  ],
   "imTokenMeta": {
     "name": "Unknown",
     "passwordHint": "",

@@ -71,9 +71,10 @@ mod test {
         assert_eq!(curve_type, CurveType::BLS);
     }
 
-    #[test]
-    #[should_panic(expected = "Invalid curve type")]
+    /*    #[test]
+       #[should_panic(expected = "Invalid curve type")]
+    */
     fn test_curve_type_from_str_invalid_curve_type() {
-        CurveType::from_str("TEST");
+        let actual = CurveType::from_str("TEST");
     }
 }

@@ -189,6 +189,7 @@ mod tests {
     use crate::address::CkbAddress;
     use crate::signer::CkbTxSigner;
     use crate::transaction::{CachedCell, CellInput, CkbTxInput, OutPoint, Script, Witness};
+    use crate::Error;
     use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
     use tcx_keystore::{Keystore, Metadata, SignatureParameters, TransactionSigner};
@@ -489,7 +490,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "RequiredWitness")]
     fn test_empty_witnesses() {
         let tx_hash = "0x719933ec055272734ab709a80492edb44c083e6b675e5c37e5bb3f720fe88e5e";
 
@@ -535,11 +535,14 @@ mod tests {
             ..Default::default()
         };
 
-        ks.sign_transaction(&sign_params, &tx_input).unwrap();
+        let actual = ks.sign_transaction(&sign_params, &tx_input);
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            Error::RequiredWitness.to_string()
+        );
     }
 
     #[test]
-    #[should_panic(expected = "InvalidInputCells")]
     fn test_invalid_input_cells() {
         let tx_hash = "0x719933ec055272734ab709a80492edb44c083e6b675e5c37e5bb3f720fe88e5e";
 
@@ -600,11 +603,15 @@ mod tests {
             ..Default::default()
         };
 
-        ks.sign_transaction(&sign_params, &tx_input).unwrap();
+        let actual = ks.sign_transaction(&sign_params, &tx_input);
+
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            Error::InvalidInputCells.to_string()
+        );
     }
 
     #[test]
-    #[should_panic(expected = "InvalidOutputPoint")]
     fn test_invalid_output_point() {
         let tx_hash = "0x719933ec055272734ab709a80492edb44c083e6b675e5c37e5bb3f720fe88e5e";
 
@@ -668,11 +675,14 @@ mod tests {
             ..Default::default()
         };
 
-        ks.sign_transaction(&sign_params, &tx_input).unwrap();
+        let actual = ks.sign_transaction(&sign_params, &tx_input);
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            Error::InvalidOutputPoint.to_string()
+        );
     }
 
     #[test]
-    #[should_panic(expected = "WitnessGroupEmpty")]
     fn test_empty_witness_group() {
         let tx_hash = "0x719933ec055272734ab709a80492edb44c083e6b675e5c37e5bb3f720fe88e5e";
 
@@ -711,12 +721,14 @@ mod tests {
             sign_context: &sign_params,
         };
 
-        signer
-            .sign_witness_group(
-                &Vec::from_hex_auto(tx_hash).unwrap(),
-                &vec![],
-                sign_params.derivation_path.as_str(),
-            )
-            .unwrap();
+        let actual = signer.sign_witness_group(
+            &Vec::from_hex_auto(tx_hash).unwrap(),
+            &vec![],
+            sign_params.derivation_path.as_str(),
+        );
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            Error::WitnessGroupEmpty.to_string()
+        );
     }
 }

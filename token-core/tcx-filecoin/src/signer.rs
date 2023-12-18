@@ -98,7 +98,7 @@ impl TransactionSigner<UnsignedMessage, SignedMessage> for Keystore {
 
 #[cfg(test)]
 mod tests {
-    use crate::{KeyInfo, UnsignedMessage};
+    use crate::{Error, KeyInfo, UnsignedMessage};
     use tcx_common::{FromHex, ToHex};
     use tcx_constants::CurveType;
     use tcx_keystore::{Keystore, Metadata, SignatureParameters, TransactionSigner};
@@ -188,7 +188,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "InvalidCurveType")]
     fn test_sign_invalid_curve_type() {
         let unsigned_message = UnsignedMessage {
             to: "f1zlkjwo5pnm6petm4u4luj6gb6e64eecrw4t4stq".to_string(),
@@ -217,7 +216,10 @@ mod tests {
             chain_type: "FILECOIN".to_string(),
             ..Default::default()
         };
-        ks.sign_transaction(&sign_context, &unsigned_message)
-            .unwrap();
+        let actual = ks.sign_transaction(&sign_context, &unsigned_message);
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            Error::InvalidCurveType.to_string()
+        );
     }
 }

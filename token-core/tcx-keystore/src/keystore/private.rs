@@ -14,7 +14,7 @@ use tcx_primitive::{
 };
 use uuid::Uuid;
 
-pub fn key_hash_from_private_key(data: &[u8]) -> Result<String> {
+pub fn fingerprint_from_private_key(data: &[u8]) -> Result<String> {
     // TODO: Sr25519
     let public_key_data = if data.len() == 32 {
         let private_key = Secp256k1PrivateKey::from_slice(data)?;
@@ -93,13 +93,13 @@ impl PrivateKeystore {
         meta: Metadata,
     ) -> Result<PrivateKeystore> {
         let key_data: Vec<u8> = Vec::from_hex_auto(private_key)?;
-        let key_hash = key_hash_from_private_key(&key_data)?;
+        let fingerprint = fingerprint_from_private_key(&key_data)?;
         let crypto: Crypto = Crypto::new(password, &key_data);
         let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
         let identity = Identity::from_private_key(private_key, &unlocker, &meta.network)?;
 
         let store = Store {
-            key_hash,
+            fingerprint,
             crypto,
             meta,
             id: Uuid::new_v4().as_hyphenated().to_string(),
@@ -148,7 +148,8 @@ impl PrivateKeystore {
 
 #[cfg(test)]
 mod tests {
-    use crate::{key_hash_from_private_key, HdKeystore, Metadata, PrivateKeystore, Source};
+    use crate::keystore::private::fingerprint_from_private_key;
+    use crate::{Metadata, PrivateKeystore, Source};
     use bitcoin_hashes::hex::FromHex;
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY};
     use tcx_crypto::Key;
@@ -195,14 +196,14 @@ mod tests {
             "ad87a08796efbdd9276e2ca5a10f938937cb5d2b7d5f698c06a94d8eeed3f6ae",
         )
         .unwrap();
-        let fingerprint = key_hash_from_private_key(&pk_data).unwrap();
+        let fingerprint = fingerprint_from_private_key(&pk_data).unwrap();
         assert_eq!(fingerprint, "0x1468dba9");
 
         let pk_data = &Vec::<u8>::from_hex(
             "257cd2f8eb13f6930ecb95ac7736dd25e65d231ce1a3b1669e51f6737350b43e",
         )
         .unwrap();
-        let fingerprint = key_hash_from_private_key(&pk_data).unwrap();
+        let fingerprint = fingerprint_from_private_key(&pk_data).unwrap();
         assert_eq!(fingerprint, "0xf6f23259");
     }
 }

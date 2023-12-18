@@ -44,6 +44,7 @@ impl KeyInfo {
 #[cfg(test)]
 mod tests {
     use super::KeyInfo;
+    use crate::Error;
     use tcx_common::{FromHex, ToHex};
     use tcx_constants::CurveType;
 
@@ -85,13 +86,16 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "InvalidCurveType")]
     fn test_from_private_key_invalid_curve_type() {
-        KeyInfo::from_private_key(
+        let actual = KeyInfo::from_private_key(
             CurveType::ED25519Blake2bNano,
             &Vec::from_hex("0ae0d7924285c3921e9948594d0b100a248d9a3da96d33d1213f503ac957c45b")
                 .unwrap(),
-        )
-        .unwrap();
+        );
+
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            Error::InvalidCurveType.to_string()
+        );
     }
 }

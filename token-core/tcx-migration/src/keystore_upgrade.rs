@@ -4,7 +4,10 @@ use tcx_common::ToHex;
 use tcx_crypto::{Crypto, Key};
 use tcx_keystore::identity::Identity;
 use tcx_keystore::keystore::IdentityNetwork;
-use tcx_keystore::{HdKeystore, Keystore, PrivateKeystore, Result, Source};
+use tcx_keystore::{
+    fingerprint_from_private_key, fingerprint_from_seed, mnemonic_to_seed, HdKeystore, Keystore,
+    PrivateKeystore, Result, Source,
+};
 
 pub struct KeystoreUpgrade {
     json: Value,
@@ -33,6 +36,8 @@ impl KeystoreUpgrade {
             _ => Source::from_str(source)?.to_string().into(),
         };
 
+        json["fingerprint"] = json!("");
+
         let crypto: Crypto = serde_json::from_value(json["crypto"].clone())?;
         let unlocker = crypto.use_key(key)?;
 
@@ -44,20 +49,23 @@ impl KeystoreUpgrade {
         match version {
             11001 => {
                 json["version"] = json!(PrivateKeystore::VERSION);
+                let private_key = unlocker.plaintext()?;
                 json["identity"] = json!(Identity::from_private_key(
-                    &unlocker.plaintext()?.to_hex(),
+                    &private_key.to_hex(),
                     &unlocker,
                     &identity_network,
                 )?);
+
+                json["fingerprint"] = json!(fingerprint_from_private_key(&private_key)?);
             }
             11000 => {
                 let mnemonic = String::from_utf8(unlocker.plaintext()?)?;
+                let seed = mnemonic_to_seed(&mnemonic)?;
+
+                json["fingerprint"] = json!(fingerprint_from_seed(&seed)?);
                 json["version"] = json!(HdKeystore::VERSION);
-                json["identity"] = json!(Identity::from_mnemonic(
-                    &mnemonic,
-                    &unlocker,
-                    &identity_network,
-                )?);
+                json["identity"] =
+                    json!(Identity::from_seed(&seed, &unlocker, &identity_network,)?);
             }
             _ => {}
         }

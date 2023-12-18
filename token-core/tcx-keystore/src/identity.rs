@@ -87,18 +87,7 @@ impl Identity {
         })
     }
 
-    pub fn from_mnemonic(
-        mnemonic_phrase: &str,
-        unlocker: &Unlocker,
-        network: &IdentityNetwork,
-    ) -> Result<Self> {
-        let validate_result = Mnemonic::validate(mnemonic_phrase, Language::English);
-        if validate_result.is_err() {
-            return Err(Error::InvalidMnemonic.into());
-        }
-        let mnemonic = Mnemonic::from_phrase(mnemonic_phrase, Language::English).unwrap();
-        let seed = Seed::new(&mnemonic, "");
-
+    pub fn from_seed(seed: &Seed, unlocker: &Unlocker, network: &IdentityNetwork) -> Result<Self> {
         let network_type = if network == &IdentityNetwork::Mainnet {
             Network::Bitcoin
         } else {
@@ -229,6 +218,7 @@ impl Identity {
 
 #[cfg(test)]
 mod test {
+    use bip39::{Language, Mnemonic};
     use tcx_common::FromHex;
     use tcx_constants::sample_key::{MNEMONIC, PASSWORD, PRIVATE_KEY};
     use tcx_crypto::Key;
@@ -351,8 +341,9 @@ mod test {
         for t in tests {
             let mut meta = Metadata::default();
             meta.network = IdentityNetwork::Testnet;
-            let keystore = Identity::from_mnemonic(t, &unlocker, &IdentityNetwork::Testnet);
-            assert!(keystore.is_err());
+
+            let hd = HdKeystore::from_mnemonic(t, &PASSWORD, meta);
+            assert!(hd.is_err());
         }
     }
 

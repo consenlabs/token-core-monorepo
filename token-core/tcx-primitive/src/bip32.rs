@@ -357,9 +357,12 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "InvalidBase58")]
     fn test_from_hex_invalid_base58() {
-        Bip32DeterministicPublicKey::from_hex("03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af").unwrap();
+        let actual = Bip32DeterministicPublicKey::from_hex("03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af");
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            KeyError::InvalidBase58.to_string()
+        );
     }
 
     #[test]

@@ -3,21 +3,17 @@ use bip39::{Language, Mnemonic, Seed};
 use crate::identity::Identity;
 use uuid::Uuid;
 
-use super::Account;
-use super::Address;
-use super::Result;
-use super::{Error, Metadata};
-
-use crate::keystore::{transform_mnemonic_error, Store};
+use super::{transform_mnemonic_error, Account, Address, Error, Metadata, Result, Store};
 
 use std::collections::HashMap;
 
-use tcx_common::{sha256d, ToHex};
+use tcx_common::ToHex;
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::{Crypto, Key};
 use tcx_primitive::{
-    generate_mnemonic, get_account_path, Derive, TypedDeterministicPrivateKey,
-    TypedDeterministicPublicKey, TypedPrivateKey,
+    generate_mnemonic, get_account_path, Bip32DeterministicPrivateKey, Derive,
+    DeterministicPrivateKey, TypedDeterministicPrivateKey, TypedDeterministicPublicKey,
+    TypedPrivateKey,
 };
 
 #[derive(Clone)]
@@ -57,11 +53,22 @@ pub struct HdKeystore {
     cache: Option<Cache>,
 }
 
-pub fn key_hash_from_mnemonic(mnemonic: &str) -> Result<String> {
-    let xprv = TypedDeterministicPrivateKey::from_mnemonic(CurveType::SECP256k1, mnemonic)?;
+pub fn fingerprint_from_seed(seed: &Seed) -> Result<String> {
+    let xprv = Bip32DeterministicPrivateKey::from_seed(seed.as_bytes())?;
     let xpub = xprv.deterministic_public_key();
-    let fingerprint = xpub.fingerprint()?;
+    let fingerprint = xpub.fingerprint();
     Ok(fingerprint.to_0x_hex())
+}
+
+pub fn fingerprint_from_mnemonic(mnemonic: &str) -> Result<String> {
+    let mnemonic = &mnemonic.split_whitespace().collect::<Vec<&str>>().join(" ");
+    let seed = mnemonic_to_seed(mnemonic)?;
+    fingerprint_from_seed(&seed)
+}
+
+pub fn mnemonic_to_seed(mnemonic: &str) -> std::result::Result<Seed, Error> {
+    let m = Mnemonic::from_phrase(mnemonic, Language::English).map_err(transform_mnemonic_error)?;
+    Ok(Seed::new(&m, ""))
 }
 
 impl HdKeystore {
@@ -87,8 +94,9 @@ impl HdKeystore {
 
     fn cache_mnemonic(&mut self, mnemonic_bytes: Vec<u8>) -> Result<()> {
         let mnemonic_str = String::from_utf8(mnemonic_bytes)?;
-        let _mnemonic = Mnemonic::from_phrase(&mnemonic_str, Language::English)
-            .map_err(transform_mnemonic_error)?;
+        let _ = mnemonic_to_seed(&mnemonic_str)?;
+
+        let _mnemonic = Mnemonic::from_phrase(&mnemonic_str, Language::English);
 
         self.cache = Some(Cache {
             mnemonic: mnemonic_str,
@@ -151,16 +159,17 @@ impl HdKeystore {
     }
 
     pub fn from_mnemonic(mnemonic: &str, password: &str, meta: Metadata) -> Result<HdKeystore> {
-        let mnemonic: &str = &mnemonic.split_whitespace().collect::<Vec<&str>>().join(" ");
-
-        let key_hash = key_hash_from_mnemonic(mnemonic)?;
+        let mnemonic = &mnemonic.split_whitespace().collect::<Vec<&str>>().join(" ");
+        let seed = mnemonic_to_seed(mnemonic)?;
+        let fingerprint = fingerprint_from_seed(&seed)?;
 
         let crypto: Crypto = Crypto::new(password, mnemonic.as_bytes());
         let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
-        let identity = Identity::from_mnemonic(mnemonic, &unlocker, &meta.network)?;
+        let identity = Identity::from_seed(&seed, &unlocker, &meta.network)?;
+
         Ok(HdKeystore {
             store: Store {
-                key_hash,
+                fingerprint,
                 crypto,
                 id: Uuid::new_v4().as_hyphenated().to_string(),
                 version: Self::VERSION,
@@ -463,14 +472,16 @@ mod tests {
     }
 
     #[test]
-    fn test_key_hash_from_mnemonic() {
-        let key_hash = key_hash_from_mnemonic(&TEST_MNEMONIC).unwrap();
-        assert_eq!("0x1468dba9", key_hash);
+    fn test_fingerprint_from_seed() {
+        let seed = mnemonic_to_seed(TEST_MNEMONIC).unwrap();
+        let fingerprint = fingerprint_from_seed(&seed).unwrap();
+        assert_eq!("0x1468dba9", fingerprint);
 
-        let key_hash = key_hash_from_mnemonic(
+        let seed = mnemonic_to_seed(
             "risk outer wing rent aerobic hamster island skin mistake high boost swear",
         )
         .unwrap();
-        assert_eq!("0xf6f23259", key_hash);
+        let fingerprint = fingerprint_from_seed(&seed).unwrap();
+        assert_eq!("0xf6f23259", fingerprint);
     }
 }

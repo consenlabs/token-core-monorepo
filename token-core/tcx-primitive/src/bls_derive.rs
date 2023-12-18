@@ -287,20 +287,22 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "InvalidDerivationPathFormat")]
     fn test_bls_derive_invalid_path() {
         let dsk = BLSDeterministicPrivateKey::from_seed(
             &Vec::from_hex("c55257c360c07c72029aebc1b53c05ed0362ada38ead3e3e9efa3708e53495531f09a6987599d18264c1e1c92f2cf141630c7a3c4ab7c81b2f001698e7463b04").unwrap()).unwrap();
-        dsk.derive("m%0%0").unwrap();
+        let actual = dsk.derive("m%0%0");
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            KeyError::InvalidDerivationPathFormat.to_string()
+        );
     }
 
     #[test]
-    #[should_panic(expected = "invalid seed")]
     fn test_bls_derive_invalid_seed() {
-        BLSDeterministicPrivateKey::from_seed(
+        let actual = BLSDeterministicPrivateKey::from_seed(
             &Vec::from_hex("ed0362ada38ead3e3e9efa3708e534").unwrap(),
-        )
-        .unwrap();
+        );
+        assert_eq!(actual.err().unwrap().to_string(), "invalid seed");
     }
 
     #[test]
@@ -349,8 +351,11 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "seed must be greater than or equal to 16 bytes")]
     fn test_derive_master_sk_invalid_seed() {
-        derive_master_sk(&Vec::from_hex("ed0362ada38ead3e3e9efa3708e534").unwrap()).unwrap();
+        let actual = derive_master_sk(&Vec::from_hex("ed0362ada38ead3e3e9efa3708e534").unwrap());
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            "seed must be greater than or equal to 16 bytes"
+        );
     }
 }

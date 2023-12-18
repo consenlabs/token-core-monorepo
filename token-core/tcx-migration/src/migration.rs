@@ -5,17 +5,13 @@ use tcx_atom::address::AtomAddress;
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::{coin_info_from_param, CoinInfo, CurveType};
 use tcx_crypto::{Crypto, EncPair, Key};
-use tcx_keystore::{
-    key_hash_from_mnemonic, key_hash_from_private_key, Account, Address, HdKeystore,
-    PrivateKeystore, Result, Source,
-};
-
-use tcx_btc_kin::address::BtcKinAddress;
-use tcx_btc_kin::Error;
-use tcx_eos::address::EosAddress;
 use tcx_eth::address::EthAddress;
 use tcx_keystore::identity::Identity;
 use tcx_keystore::keystore::{IdentityNetwork, Keystore, Metadata, Store};
+use tcx_keystore::{
+    fingerprint_from_private_key, fingerprint_from_seed, mnemonic_to_seed, Address, HdKeystore,
+    PrivateKeystore, Result, Source,
+};
 use tcx_primitive::{PrivateKey, Secp256k1PrivateKey, TypedPublicKey};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -245,17 +241,20 @@ impl LegacyKeystore {
                 .expect("the mnemonic must be set"),
         )?;
         let mnemonic = String::from_utf8(mnemonic_data.to_owned())?;
-        let key_hash = key_hash_from_mnemonic(&mnemonic)?;
+        let seed = mnemonic_to_seed(&mnemonic)?;
+
+        let fingerprint = fingerprint_from_seed(&seed)?;
         let meta = self
             .im_token_meta
             .as_ref()
             .expect("migration to hd need imTokenMeta")
             .to_metadata();
-        let identity = Identity::from_mnemonic(&mnemonic, &unlocker, &meta.network)?;
+
+        let identity = Identity::from_seed(&seed, &unlocker, &meta.network)?;
         let mut store = Store {
             id: self.id.to_string(),
             version: HdKeystore::VERSION,
-            key_hash: key_hash.to_string(),
+            fingerprint: fingerprint.to_string(),
             crypto: self.crypto.clone(),
             identity: identity,
             meta,
@@ -281,7 +280,7 @@ impl LegacyKeystore {
                 Secp256k1PrivateKey::from_wif(&String::from_utf8_lossy(&private_key))?.to_bytes()
         }
 
-        let key_hash = key_hash_from_private_key(&private_key)?;
+        let fingerprint = fingerprint_from_private_key(&private_key)?;
         let unlocker = self.crypto.use_key(key)?;
         let im_token_meta = self
             .im_token_meta
@@ -297,7 +296,7 @@ impl LegacyKeystore {
         let mut store = Store {
             id: self.id.to_string(),
             version: PrivateKeystore::VERSION,
-            key_hash: key_hash.to_string(),
+            fingerprint: fingerprint.to_string(),
             crypto: self.crypto.clone(),
             meta: im_token_meta.to_metadata(),
             identity,

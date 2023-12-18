@@ -86,16 +86,16 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "InvalidAddressChecksum")]
     fn test_invalid_address_checksum() {
         let address = "EOS5varo7aGmCFQw77DNiiWUj3YQA7ZmWUMC4NDDXeeaeEAXk436R";
-        EosAddress::from_str(address).unwrap();
+        let addr = EosAddress::from_str(address);
+        assert_eq!(addr.err().unwrap().to_string(), "invalid_address_checksum");
     }
 
     #[test]
-    #[should_panic(expected = "InvalidAddress")]
     fn test_invalid_address() {
         let address = "TEST5varo7aGmCFQw77DNiiWUj3YQA7ZmWUMC4NDDXeeaeEAXk436S";
-        EosAddress::from_str(address).unwrap();
+        let addr = EosAddress::from_str(address);
+        assert_eq!(addr.err().unwrap().to_string(), "invalid_address");
     }
 }

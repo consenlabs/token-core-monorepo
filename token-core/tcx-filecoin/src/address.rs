@@ -106,6 +106,7 @@ mod tests {
     use std::str::FromStr;
 
     use crate::address::FilecoinAddress;
+    use crate::Error;
     use tcx_common::FromHex;
     use tcx_constants::{coin_info_from_param, CoinInfo, CurveType};
     use tcx_keystore::{Address, Keystore, Metadata};
@@ -272,13 +273,16 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "InvalidCurveType")]
     fn test_invalid_curve_type() {
         let input =
             Vec::from_hex("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
                 .unwrap();
         let pk = TypedPublicKey::from_slice(CurveType::ED25519, &input).unwrap();
-        FilecoinAddress::from_public_key(&pk, &CoinInfo::default()).unwrap();
+        let actual = FilecoinAddress::from_public_key(&pk, &CoinInfo::default());
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            Error::InvalidCurveType.to_string()
+        );
     }
 
     #[test]

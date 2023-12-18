@@ -67,6 +67,7 @@ impl Witness {
 #[cfg(test)]
 mod tests {
     use crate::transaction::{Script, Witness};
+    use crate::Error;
     use tcx_common::{FromHex, ToHex};
 
     #[test]
@@ -91,7 +92,6 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "InvalidHashType")]
     fn test_invalid_hash_type() {
         let script = Script {
             code_hash: "0x68d5438ac952d2f584abf879527946a537e82c7f3c1cbf6d8ebf9767437d8e88"
@@ -99,7 +99,12 @@ mod tests {
             args: "0x3954acece65096bfa81258983ddb83915fc56bd8".to_owned(),
             hash_type: "test".to_string(),
         };
-        script.serialize().unwrap();
+        let actual = script.serialize();
+
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            Error::InvalidHashType.to_string()
+        );
     }
 
     #[test]

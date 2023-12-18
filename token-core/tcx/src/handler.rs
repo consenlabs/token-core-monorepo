@@ -18,7 +18,7 @@ use tcx_primitive::{
 
 use tcx_btc_kin::WIFDisplay;
 use tcx_keystore::{
-    key_hash_from_mnemonic, key_hash_from_private_key, Address, Keystore, KeystoreGuard,
+    fingerprint_from_mnemonic, fingerprint_from_private_key, Address, Keystore, KeystoreGuard,
     SignatureParameters, Signer,
 };
 use tcx_keystore::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
@@ -210,11 +210,11 @@ pub(crate) fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
 
     let mut founded_id: Option<String> = None;
     {
-        let key_hash = key_hash_from_mnemonic(&param.mnemonic)?;
+        let fingerprint = fingerprint_from_mnemonic(&param.mnemonic)?;
         let map = KEYSTORE_MAP.read();
         if let Some(founded) = map
             .values()
-            .find(|keystore| keystore.key_hash() == key_hash)
+            .find(|keystore| keystore.fingerprint() == fingerprint)
         {
             founded_id = Some(founded.id());
         }
@@ -365,14 +365,14 @@ fn key_data_from_any_format_pk(pk: &str) -> Result<Vec<u8>> {
     }
 }
 
-fn key_hash_from_any_format_pk(pk: &str) -> Result<String> {
+fn fingerprint_from_any_format_pk(pk: &str) -> Result<String> {
     let key_data = key_data_from_any_format_pk(pk)?;
-    key_hash_from_private_key(&key_data)
+    fingerprint_from_private_key(&key_data)
 }
 
-fn key_hash_from_tezos_format_pk(pk: &str) -> Result<String> {
+fn fingerprint_from_tezos_format_pk(pk: &str) -> Result<String> {
     let key_data = parse_tezos_private_key(pk)?;
-    key_hash_from_private_key(&key_data)
+    fingerprint_from_private_key(&key_data)
 }
 
 pub(crate) fn import_private_key_internal(
@@ -381,18 +381,18 @@ pub(crate) fn import_private_key_internal(
 ) -> Result<ImportPrivateKeyResult> {
     let mut founded_id: Option<String> = None;
     {
-        let key_hash: String;
+        let fingerprint: String;
         // TODO: make sure the prefix of tezoos
         if param.private_key.starts_with("edsk") {
-            key_hash = key_hash_from_tezos_format_pk(&param.private_key)?;
+            fingerprint = fingerprint_from_tezos_format_pk(&param.private_key)?;
         } else {
-            key_hash = key_hash_from_any_format_pk(&param.private_key)?;
+            fingerprint = fingerprint_from_any_format_pk(&param.private_key)?;
         }
         //        let key_hash = key_hash_from_any_format_pk(&param.private_key)?;
         let map = KEYSTORE_MAP.read();
         if let Some(founded) = map
             .values()
-            .find(|keystore| keystore.key_hash() == key_hash)
+            .find(|keystore| keystore.fingerprint() == fingerprint)
         {
             founded_id = Some(founded.id());
         }
@@ -631,34 +631,29 @@ pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn exists_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: ExistsPrivateKeyParam =
         ExistsPrivateKeyParam::decode(data).expect("ExistsPrivateKeyParam");
-    let key_hash = if param.private_key.starts_with("edsk") {
-        key_hash_from_tezos_format_pk(&param.private_key)?
+    let fingerprint = if param.private_key.starts_with("edsk") {
+        fingerprint_from_tezos_format_pk(&param.private_key)?
     } else {
-        key_hash_from_any_format_pk(&param.private_key)?
+        fingerprint_from_any_format_pk(&param.private_key)?
     };
-    exists_key_hash(&key_hash)
+    exists_fingerprint(&fingerprint)
 }
 
 pub(crate) fn exists_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
     let param: ExistsMnemonicParam =
         ExistsMnemonicParam::decode(data).expect("ExistsMnemonicParam");
 
-    let mnemonic: &str = &&param
-        .mnemonic
-        .split_whitespace()
-        .collect::<Vec<&str>>()
-        .join(" ");
-    let key_hash = key_hash_from_mnemonic(mnemonic)?;
+    let key_hash = fingerprint_from_mnemonic(&param.mnemonic)?;
 
-    exists_key_hash(&key_hash)
+    exists_fingerprint(&key_hash)
 }
 
-fn exists_key_hash(key_hash: &str) -> Result<Vec<u8>> {
+fn exists_fingerprint(fingerprint: &str) -> Result<Vec<u8>> {
     let map = &KEYSTORE_MAP.read();
 
     let founded: Option<&Keystore> = map
         .values()
-        .find(|keystore| keystore.key_hash() == key_hash);
+        .find(|keystore| keystore.fingerprint() == fingerprint);
     let result: ExistsKeystoreResult;
     if let Some(ks) = founded {
         result = ExistsKeystoreResult {
