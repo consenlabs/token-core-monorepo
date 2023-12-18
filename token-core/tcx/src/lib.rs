@@ -2,6 +2,7 @@ use std::ffi::{CStr, CString};
 
 use std::os::raw::c_char;
 
+use handler::sign_bls_to_execution_change;
 use prost::Message;
 
 pub mod api;
@@ -117,6 +118,9 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "get_public_keys" => landingpad(|| get_public_keys(&action.param.unwrap().value)),
         "sign_hashes" => landingpad(|| sign_hashes(&action.param.unwrap().value)),
         "mnemonic_to_public" => landingpad(|| mnemonic_to_public(&action.param.unwrap().value)),
+        "sign_bls_to_execution_change" => {
+            landingpad(|| sign_bls_to_execution_change(&action.param.unwrap().value))
+        }
         _ => landingpad(|| Err(format_err!("unsupported_method"))),
     };
     match reply {
@@ -169,6 +173,7 @@ mod tests {
     use std::panic;
     use std::path::Path;
     use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
+    use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
     use tcx_keystore::keystore::IdentityNetwork;
 
     use crate::api::{
@@ -3768,6 +3773,54 @@ mod tests {
                 .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
         })
     }
+
+    #[test]
+    pub fn test_sign_bls_to_execution_change() {
+        run_test(|| {
+            let param = ImportMnemonicParam {
+                mnemonic: "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art".to_string(),
+                password: TEST_PASSWORD.to_string(),
+                name: "test-wallet".to_string(),
+                password_hint: "imtoken".to_string(),
+                overwrite: true,
+                network: "MAINNET".to_string(),
+            };
+            let ret = call_api("import_mnemonic", param).unwrap();
+            let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+
+            let derivations = vec![PublicKeyDerivation {
+                path: "m/12381/3600/0/0".to_string(),
+                curve: "BLS".to_string(),
+                chain_type: "ETHEREUM2".to_string(),
+            }];
+            let param = GetPublicKeysParam {
+                id: import_result.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                derivations,
+            };
+            let result_bytes = call_api("get_public_keys", param).unwrap();
+            let result = GetPublicKeysResult::decode(result_bytes.as_slice()).unwrap();
+            assert_eq!(result.public_keys.clone().get(0).unwrap(), "0x99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db");
+
+            let param = SignBlsToExecutionChangeParam {
+                id: import_result.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                genesis_fork_version: "0x03000000".to_string(),
+                genesis_validators_root:
+                    "0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".to_string(),
+                validator_index: vec![0],
+                from_bls_pub_key: result.public_keys.get(0).unwrap().to_owned(),
+                eth1_withdrawal_address: "0x8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string(),
+            };
+            let ret_bytes = call_api("sign_bls_to_execution_change", param).unwrap();
+            let result: SignBlsToExecutionChangeResult =
+                SignBlsToExecutionChangeResult::decode(ret_bytes.as_slice()).unwrap();
+
+            assert_eq!(result.signeds.get(0).unwrap().signature, "8c8ce9f8aedf380e47548501d348afa28fbfc282f50edf33555a3ed72eb24d710bc527b5108022cffb764b953941ec4014c44106d2708387d26cc84cbc5c546a1e6e56fdc194cf2649719e6ac149596d80c86bf6844b36bd47038ee96dd3962f");
+            remove_created_wallet(&import_result.id);
+        })
+    }
+
     // #[test]
     // pub fn test_eth_ec_sign() {
     //     run_test(|| {

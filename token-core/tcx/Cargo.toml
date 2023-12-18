@@ -18,7 +18,7 @@ tcx-eos = { path = "../tcx-eos" }
 tcx-primitive = { path = "../tcx-primitive" }
 tcx-constants = { path = "../tcx-constants" }
 tcx-tezos = { path = "../tcx-tezos" }
-# tcx-eth2 = { path = "../tcx-eth2" }
+tcx-eth2 = { path = "../tcx-eth2" }
 zksync-crypto = { path = "../zksync-crypto" }
 tcx-eth = { path = "../tcx-eth" }
 tcx-common = { path = "../tcx-common" }

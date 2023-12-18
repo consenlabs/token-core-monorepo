@@ -6216,6 +6216,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "ssz_rs"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f923762d556417668b192ac2fdc9827ea21e6df011d8a0a7e68f3d5da095a675"
+dependencies = [
+ "bitvec 1.0.1",
+ "hex",
+ "num-bigint 0.4.3",
+ "serde",
+ "sha2 0.9.9",
+ "ssz_rs_derive",
+ "thiserror",
+]
+
+[[package]]
+name = "ssz_rs_derive"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c679ebd9c1ceeb0f9e5b839952b4a71bfe35a791b431ef7b3ee0b71b7588b565"
+dependencies = [
+ "proc-macro2 1.0.60",
+ "quote 1.0.28",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6410,6 +6436,7 @@ dependencies = [
  "tcx-crypto",
  "tcx-eos",
  "tcx-eth",
+ "tcx-eth2",
  "tcx-filecoin",
  "tcx-keystore",
  "tcx-migration",
@@ -6579,6 +6606,26 @@ dependencies = [
  "tcx-keystore",
  "tcx-primitive",
  "tiny-keccak 2.0.2",
+]
+
+[[package]]
+name = "tcx-eth2"
+version = "0.1.0"
+dependencies = [
+ "bytes 1.4.0",
+ "failure",
+ "keccak-hash",
+ "lazy_static",
+ "prost 0.11.8",
+ "prost-types 0.11.8",
+ "regex 1.9.3",
+ "ssz_rs",
+ "ssz_rs_derive",
+ "tcx-common",
+ "tcx-constants",
+ "tcx-crypto",
+ "tcx-keystore",
+ "tcx-primitive",
 ]
 
 [[package]]

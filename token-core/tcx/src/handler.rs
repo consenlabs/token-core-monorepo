@@ -7,6 +7,7 @@ use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
 use tcx_eos::address::EosAddress;
+use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_keystore::keystore::IdentityNetwork;
 
 use tcx_common::{sha256d, FromHex, ToHex};
@@ -1227,6 +1228,19 @@ pub(crate) fn mnemonic_to_public(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(MnemonicToPublicKeyResult {
         public_key: public_key_str,
     })
+}
+
+pub(crate) fn sign_bls_to_execution_change(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignBlsToExecutionChangeParam = SignBlsToExecutionChangeParam::decode(data)?;
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(format_err!("{}", "wallet_not_found")),
+    }?;
+    let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+    let result: SignBlsToExecutionChangeResult =
+        param.sign_bls_to_execution_change(guard.keystore_mut())?;
+    encode_message(result)
 }
 
 #[cfg(test)]
