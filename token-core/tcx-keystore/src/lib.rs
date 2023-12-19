@@ -60,29 +60,9 @@ pub trait PublicKeyEncoder {
     fn encode(&self, public_key: &[u8]) -> Result<String>;
 }
 
-pub struct HexPublicKeyEncoder();
-
-impl PublicKeyEncoder for HexPublicKeyEncoder {
-    fn encode(&self, public_key: &[u8]) -> Result<String> {
-        Ok(public_key.to_hex())
-    }
-}
-
 pub trait PrivateKeyEncoder {
     fn encode(&self, private_key: &[u8]) -> Result<String>;
     fn decode(&self, private_key_str: &str) -> Result<Vec<u8>>;
-}
-
-pub struct HexPrivateKeyEncoder();
-
-impl PrivateKeyEncoder for HexPrivateKeyEncoder {
-    fn encode(&self, private_key: &[u8]) -> Result<String> {
-        Ok(private_key.to_0x_hex())
-    }
-
-    fn decode(&self, private_key_str: &str) -> Result<Vec<u8>> {
-        Vec::from_hex_auto(private_key_str)
-    }
 }
 
 pub trait ChainFactory {

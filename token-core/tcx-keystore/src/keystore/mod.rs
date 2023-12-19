@@ -58,12 +58,16 @@ pub enum Error {
 }
 
 fn transform_mnemonic_error(err: failure::Error) -> Error {
-    let err = err.downcast::<bip39::ErrorKind>().unwrap();
-    match err {
-        bip39::ErrorKind::InvalidChecksum => Error::MnemonicChecksumInvalid,
-        bip39::ErrorKind::InvalidWord => Error::MnemonicWordInvalid,
-        bip39::ErrorKind::InvalidWordLength(_) => Error::MnemonicLengthInvalid,
-        _ => Error::MnemonicInvalid,
+    let err = err.downcast::<bip39::ErrorKind>();
+    if let Ok(err) = err {
+        match err {
+            bip39::ErrorKind::InvalidChecksum => Error::MnemonicChecksumInvalid,
+            bip39::ErrorKind::InvalidWord => Error::MnemonicWordInvalid,
+            bip39::ErrorKind::InvalidWordLength(_) => Error::MnemonicLengthInvalid,
+            _ => Error::MnemonicInvalid,
+        }
+    } else {
+        Error::MnemonicInvalid
     }
 }
 
@@ -485,7 +489,8 @@ pub(crate) mod tests {
     use std::str::FromStr;
 
     use crate::keystore::{
-        metadata_default_network, metadata_default_source, Error, IdentityNetwork,
+        metadata_default_network, metadata_default_source, transform_mnemonic_error, Error,
+        IdentityNetwork,
     };
     use crate::Result;
     use tcx_common::{FromHex, ToHex};
@@ -1008,5 +1013,23 @@ pub(crate) mod tests {
                 .to_string(),
             "unknown_network"
         );
+    }
+
+    #[test]
+    fn test_transform_mnemonic_error() {
+        let err = transform_mnemonic_error(bip39::ErrorKind::InvalidChecksum.into());
+        assert_eq!(err.to_string(), "mnemonic_checksum_invalid");
+
+        let err = transform_mnemonic_error(bip39::ErrorKind::InvalidWord.into());
+        assert_eq!(err.to_string(), "mnemonic_word_invalid");
+
+        let err = transform_mnemonic_error(bip39::ErrorKind::InvalidWordLength(1).into());
+        assert_eq!(err.to_string(), "mnemonic_length_invalid");
+
+        let err = transform_mnemonic_error(bip39::ErrorKind::InvalidKeysize(1).into());
+        assert_eq!(err.to_string(), "mnemonic_invalid");
+
+        let err = transform_mnemonic_error(format_err!("test"));
+        assert_eq!(err.to_string(), "mnemonic_invalid");
     }
 }
