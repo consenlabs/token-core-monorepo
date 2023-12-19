@@ -20,6 +20,7 @@ message IdentityResult {
     string ipfsId = 2;
 }
 
+//TODO: return source fingerprint
 message KeystoreResult {
     string id = 1;
     string name = 2;
