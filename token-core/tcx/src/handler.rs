@@ -910,9 +910,12 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
         // !!! Warning !!! HDKeystore only can export raw sr25519 key,
         // but polkadotjs fixtures needs a Ed25519 expanded secret key.
         if ["POLKADOT".to_string(), "KUSAMA".to_string()].contains(&param.chain_type)
-            || keystore.derivable()
+            && keystore.derivable()
         {
-            return Err(format_err!("{}", "hd_wallet_cannot_export_keystore"));
+            return Err(format_err!(
+                "{}",
+                "hd_wallet_cannot_export_substrate_keystore"
+            ));
         }
         meta = keystore.meta().clone();
     }
