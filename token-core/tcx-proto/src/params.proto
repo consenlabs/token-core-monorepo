@@ -153,14 +153,6 @@ message ImportJsonParam {
     bool overwrite = 3;
 }
 
-
-// FUNCTION: keystore_common_accounts(KeystoreCommonAccountsParam): DeriveAccountsResult
-//
-// List all accounts from the keystore
-message KeystoreCommonAccountsParam{
-    string id = 1;
-}
-
 /// Sign Transaction
 
 // FUNCTION: sign_tx(SignParam)

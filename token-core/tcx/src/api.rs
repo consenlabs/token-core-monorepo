@@ -427,15 +427,6 @@ pub struct ImportJsonParam {
     #[prost(bool, tag = "3")]
     pub overwrite: bool,
 }
-/// FUNCTION: keystore_common_accounts(KeystoreCommonAccountsParam): DeriveAccountsResult
-///
-/// List all accounts from the keystore
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct KeystoreCommonAccountsParam {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-}
 /// FUNCTION: sign_tx(SignParam)
 ///
 /// Sign transaction. This api is used for sign any chain_type, you should build the right TxInput instance and

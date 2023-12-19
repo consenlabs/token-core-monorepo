@@ -96,6 +96,7 @@ impl PrivateKeystore {
         let fingerprint = fingerprint_from_private_key(&key_data)?;
         let crypto: Crypto = Crypto::new(password, &key_data);
         let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
+        // TODO: if a identity from 64bytes private key
         let identity = Identity::from_private_key(private_key, &unlocker, &meta.network)?;
 
         let store = Store {

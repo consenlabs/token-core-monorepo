@@ -329,9 +329,10 @@ pub fn decode_substrate_keystore(keystore: &SubstrateKeystore, password: &str) -
         secret_key_bytes.len() == SECRET_KEY_LENGTH,
         format_err!("secret from substrate keystore must be 64 bytes")
     );
-    let secret_key = SecretKey::from_ed25519_bytes(&secret_key_bytes)
-        .map_err(|_| format_err!("secret key from_ed25519_bytes error"))?;
-    let priv_key = Sr25519PrivateKey::from_slice(&secret_key.to_bytes())?;
+    // let secret_key = SecretKey::from_ed25519_bytes(&secret_key_bytes)
+    //     .map_err(|_| format_err!("secret key from_ed25519_bytes error"))?;
+    // let priv_key = Sr25519PrivateKey::from_slice(&secret_key.to_bytes())?;
+    let priv_key = Sr25519PrivateKey::from_slice(&secret_key_bytes)?;
 
     if priv_key.public_key().to_bytes() != pub_key {
         return Err(Error::KeystorePublicKeyUnmatch.into());
@@ -345,18 +346,15 @@ pub fn encode_substrate_keystore(
     prv_key: &[u8],
     coin: &CoinInfo,
 ) -> Result<SubstrateKeystore> {
-    let sec_key = SecretKey::from_bytes(prv_key)
-        .map_err(|_| format_err!("construct secret key error when encoded_substrate_keystore"))?;
-    let pair = sp_core::sr25519::Pair::from(sec_key.clone());
-    let pub_key = Sr25519PublicKey(pair.public());
+    // let sec_key = SecretKey::fr(prv_key)
+    //     .map_err(|_| format_err!("construct secret key error when encoded_substrate_keystore"))?;
+    // let pair = sp_core::sr25519::Pair::from(sec_key.clone());
+    // let pub_key = Sr25519PublicKey(pair.public());
+    let sr25519_prv_key = Sr25519PrivateKey::from_slice(&prv_key)?;
+    let pub_key = sr25519_prv_key.public_key();
     let addr = SubstrateAddress::from_public_key(&TypedPublicKey::Sr25519(pub_key.clone()), &coin)?;
-    let ed25519_prv_key_bytes = sec_key.to_ed25519_bytes();
-    SubstrateKeystore::new(
-        password,
-        &ed25519_prv_key_bytes,
-        &pub_key.to_bytes(),
-        &addr.to_string(),
-    )
+    // let ed25519_prv_key_bytes = sec_key.to_ed25519_bytes();
+    SubstrateKeystore::new(password, &prv_key, &pub_key.to_bytes(), &addr.to_string())
 }
 
 #[cfg(test)]

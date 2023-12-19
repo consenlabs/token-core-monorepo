@@ -44,6 +44,7 @@ impl TxSigner {
     fn hash160(&self, input: &[u8]) -> hash160::Hash {
         hash160::Hash::hash(input)
     }
+
     fn sign_p2pkh_input(&mut self, index: usize) -> Result<()> {
         let key = &self.private_keys[index];
         let prevout = &self.prevouts[index];

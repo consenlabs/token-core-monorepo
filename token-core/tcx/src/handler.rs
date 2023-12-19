@@ -353,8 +353,7 @@ fn key_data_from_any_format_pk(pk: &str) -> Result<Vec<u8>> {
     let decoded = Vec::from_hex_auto(pk.to_string());
     if decoded.is_ok() {
         let bytes = decoded.unwrap();
-        // Sr25519 key len = 128;
-        if bytes.len() <= 64 || bytes.len() == 128 {
+        if bytes.len() <= 64 {
             Ok(bytes)
         } else {
             // import filecoin
@@ -463,11 +462,11 @@ fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
         let decoded = Vec::from_hex_auto(private_key.to_string());
         if decoded.is_ok() {
             let decoded_data = decoded.unwrap();
-            if decoded_data.len() <= 64 {
+            if decoded_data.len() == 32 {
                 private_key_bytes = decoded_data;
                 chain_types.push("ETHEREUM".to_string());
                 chain_types.push("TRON".to_string());
-            } else if decoded_data.len() == 128 {
+            } else if decoded_data.len() == 64 {
                 //TODO: Substrate key
                 private_key_bytes = decoded_data;
                 chain_types.push("KUSAMA".to_string());
