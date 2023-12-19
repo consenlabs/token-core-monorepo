@@ -109,6 +109,7 @@ impl LegacyKeystore {
         })
     }
 
+    /*
     pub fn validate_v3(&self, password: &str) -> Result<()> {
         let key = Key::Password(password.to_string());
         let unlocker = self.crypto.use_key(&key)?;
@@ -128,7 +129,9 @@ impl LegacyKeystore {
             Err(format_err!("private_key_and_address_not_match"))
         }
     }
+     */
 
+    /*
     fn real_derivation_path(&self) -> String {
         match self.version {
             44 => {
@@ -145,6 +148,8 @@ impl LegacyKeystore {
                 .clone(),
         }
     }
+
+     */
 
     fn has_mnemonic(&self) -> bool {
         self.enc_mnemonic.is_some()
