@@ -704,11 +704,13 @@ pub(crate) mod tests {
 
     #[test]
     fn test_keystore_unlock() {
-        let mut keystore = Keystore::from_json(HD_KEYSTORE_JSON).unwrap();
+        let mut keystore =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
 
         let export_ret = keystore.export();
         assert!(export_ret.is_err());
         assert_eq!(format!("{}", export_ret.err().unwrap()), "keystore_locked");
+
         let unlocked_ret = keystore.unlock_by_password("WRONG PASSWORD");
         assert!(unlocked_ret.is_err());
         assert_eq!(
@@ -732,7 +734,9 @@ pub(crate) mod tests {
 
     #[test]
     fn test_hd_get_key() {
-        let mut keystore = Keystore::from_json(HD_KEYSTORE_JSON).unwrap();
+        let mut keystore =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
         let pk = keystore
             .get_private_key(CurveType::SECP256k1, "m/44'/0'/0'/0/0")

@@ -236,17 +236,6 @@ impl FromStr for BtcKinAddress {
     }
 }
 
-struct UpperWriter<W: fmt::Write>(W);
-
-impl<W: fmt::Write> fmt::Write for UpperWriter<W> {
-    fn write_str(&mut self, s: &str) -> fmt::Result {
-        for c in s.chars() {
-            self.0.write_char(c.to_ascii_uppercase())?;
-        }
-        Ok(())
-    }
-}
-
 impl Display for BtcKinAddress {
     fn fmt(&self, fmt: &mut Formatter) -> core::fmt::Result {
         match self.payload {
@@ -266,17 +255,10 @@ impl Display for BtcKinAddress {
                 version,
                 program: ref prog,
             } => {
-                let mut upper_writer;
-                let writer = if fmt.alternate() {
-                    upper_writer = UpperWriter(fmt);
-                    &mut upper_writer as &mut dyn fmt::Write
-                } else {
-                    fmt as &mut dyn fmt::Write
-                };
                 let mut bech32_writer = bech32::Bech32Writer::new(
                     &self.network.bech32_hrp,
                     version.bech32_variant(),
-                    writer,
+                    fmt,
                 )?;
                 bech32::WriteBase32::write_u5(&mut bech32_writer, version.into())?;
                 bech32::ToBase32::write_base32(&prog, &mut bech32_writer)
@@ -299,7 +281,7 @@ mod tests {
     use crate::BtcKinNetwork;
 
     #[test]
-    pub fn test_btc_kin_address() {
+    fn test_btc_kin_address() {
         let pub_key_str = "02506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aaba";
         let pub_key = Vec::from_hex(pub_key_str).unwrap();
         let network = BtcKinNetwork::find_by_coin("LITECOIN", "MAINNET").unwrap();
@@ -328,7 +310,7 @@ mod tests {
     }
 
     #[test]
-    pub fn test_btc_kin_address_from_str() {
+    fn test_btc_kin_address_from_str() {
         let addr = BtcKinAddress::from_str("MR5Hu9zXPX3o9QuYNJGft1VMpRP418QDfW").unwrap();
         assert_eq!(addr.network.coin, "LITECOIN");
         assert_eq!(addr.network.network, "MAINNET");
@@ -355,7 +337,7 @@ mod tests {
     }
 
     #[test]
-    pub fn test_extended_private_key() {
+    fn test_extended_private_key() {
         let bitcoin_xprv_str = "xprv9yrdwPSRnvomqFK4u1y5uW2SaXS2Vnr3pAYTjJjbyRZR8p9BwoadRsCxtgUFdAKeRPbwvGRcCSYMV69nNK4N2kadevJ6L5iQVy1SwGKDTHQ";
         let anprv = Bip32DeterministicPrivateKey::from_ss58check(bitcoin_xprv_str).unwrap();
         let coin_info = CoinInfo {
@@ -370,7 +352,7 @@ mod tests {
     }
 
     #[test]
-    pub fn test_extended_public_key() {
+    fn test_extended_public_key() {
         let bitcoin_xprv_str = "xprv9yrdwPSRnvomqFK4u1y5uW2SaXS2Vnr3pAYTjJjbyRZR8p9BwoadRsCxtgUFdAKeRPbwvGRcCSYMV69nNK4N2kadevJ6L5iQVy1SwGKDTHQ";
         let anpub = Bip32DeterministicPrivateKey::from_ss58check(bitcoin_xprv_str)
             .unwrap()
@@ -389,7 +371,7 @@ mod tests {
     }
 
     #[test]
-    pub fn test_script_pubkey() {
+    fn test_script_pubkey() {
         let addr = BtcKinAddress::from_str("MR5Hu9zXPX3o9QuYNJGft1VMpRP418QDfW").unwrap();
         let script = addr.script_pubkey().as_bytes().to_hex();
         assert_eq!("a914bc64b2d79807cd3d72101c3298b89117d32097fb87", script);
@@ -408,7 +390,29 @@ mod tests {
     }
 
     #[test]
-    pub fn test_address_valid() {
+    fn test_invalid_address() {
+        //Bad base58 checksum
+        let r = BtcKinAddress::from_str("34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo3");
+        assert_eq!(
+            r.err().unwrap().to_string(),
+            "base58 address encoding error"
+        );
+
+        let r = BtcKinAddress::from_str("4MfAagS5MczC4DjH6RdV26nekvuXmhfBJq5MBWzv7nBnB73DMjst2");
+        assert_eq!(
+            r.err().unwrap().to_string(),
+            "base58 address encoding error"
+        );
+
+        let r = BtcKinAddress::from_str("A8VLkJpStiaMXS3bTm3iHC58uDwoCHwCZpL");
+        assert_eq!(
+            r.err().unwrap().to_string(),
+            "base58 address encoding error"
+        );
+    }
+
+    #[test]
+    fn test_address_valid() {
         let coin = coin_info_from_param("BITCOIN", "MAINNET", "P2WPKH", "").unwrap();
         assert!(BtcKinAddress::is_valid(
             "3Js9bGaZSQCNLudeGRHL4NExVinc25RbuG",
