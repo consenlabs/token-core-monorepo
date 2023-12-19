@@ -35,9 +35,10 @@ impl TraitPrivateKey for Sr25519PrivateKey {
         //     MiniSecretKey::from_bytes(data).expect("32 bytes can always build a key; qed");
         //
         // let kp = mini_key.expand_to_keypair(ExpansionMode::Ed25519);
-        // let pk = SecretKey::from_ed25519_bytes(data).map_err(|_| KeyError::InvalidSr25519Key)?;
-        let pk = SecretKey::from_bytes(data).map_err(|_| KeyError::InvalidSr25519Key)?;
-        Ok(Sr25519PrivateKey(Pair::from(pk)))
+        let sec_key =
+            SecretKey::from_ed25519_bytes(data).map_err(|_| KeyError::InvalidSr25519Key)?;
+        // let pk = SecretKey::from_bytes(data).map_err(|_| KeyError::InvalidSr25519Key)?;
+        Ok(Sr25519PrivateKey(Pair::from(sec_key)))
     }
 
     fn public_key(&self) -> Self::PublicKey {
@@ -58,9 +59,9 @@ impl TraitPrivateKey for Sr25519PrivateKey {
     }
 
     fn to_bytes(&self) -> Vec<u8> {
-        self.0.to_raw_vec()
-        // self.0.clone_into(target)
-        // self.0.
+        let bytes = self.0.to_raw_vec();
+        let secret_key = SecretKey::from_bytes(&bytes).expect("sr25519 uniform key to ed25519 key");
+        secret_key.to_ed25519_bytes().to_vec()
     }
 }
 
@@ -120,6 +121,16 @@ mod tests {
             "5Hma6gDS9yY7gPTuAFvmMDNcxPf9JqMZdPsaihfXiyw5NRnQ",
             format!("{}", public_key)
         );
+    }
+
+    #[test]
+    fn test_sr25519_sec_key_convert() {
+        // TODO: sr25519 from ed25519 bytes is not same to ed25519
+        let bytes = Vec::from_0x_hex("0x416c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f").unwrap();
+        let ed25519_prv_key = SecretKey::from_ed25519_bytes(&bytes).unwrap();
+        let ed25519_bytes = ed25519_prv_key.to_ed25519_bytes();
+        let ed25519_prv_key_again = SecretKey::from_ed25519_bytes(&ed25519_bytes).unwrap();
+        assert_eq!("0x406c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f", ed25519_prv_key_again.to_ed25519_bytes().to_0x_hex());
     }
 
     #[test]
