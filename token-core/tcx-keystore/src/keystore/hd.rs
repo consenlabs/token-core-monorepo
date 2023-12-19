@@ -484,4 +484,16 @@ mod tests {
         let fingerprint = fingerprint_from_seed(&seed).unwrap();
         assert_eq!("0xf6f23259", fingerprint);
     }
+
+    #[test]
+    fn test_fingerprint_from_mnemonic() {
+        let fingerprint = fingerprint_from_mnemonic(TEST_MNEMONIC).unwrap();
+        assert_eq!("0x1468dba9", fingerprint);
+
+        let fingerprint = fingerprint_from_mnemonic(
+            "risk outer wing rent aerobic hamster island skin mistake high boost   swear",
+        )
+        .unwrap();
+        assert_eq!("0xf6f23259", fingerprint);
+    }
 }

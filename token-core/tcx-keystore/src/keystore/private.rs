@@ -149,9 +149,10 @@ impl PrivateKeystore {
 #[cfg(test)]
 mod tests {
     use crate::keystore::private::fingerprint_from_private_key;
+    use crate::keystore::tests::MockAddress;
     use crate::{Metadata, PrivateKeystore, Source};
-    use bitcoin_hashes::hex::FromHex;
-    use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY};
+    use tcx_common::FromHex;
+    use tcx_constants::{CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY};
     use tcx_crypto::Key;
 
     #[test]
@@ -191,7 +192,7 @@ mod tests {
     }
 
     #[test]
-    pub fn test_key_hash_from_private_key() {
+    fn test_fingerprint_from_private_key() {
         let pk_data = &Vec::<u8>::from_hex(
             "ad87a08796efbdd9276e2ca5a10f938937cb5d2b7d5f698c06a94d8eeed3f6ae",
         )
@@ -205,5 +206,49 @@ mod tests {
         .unwrap();
         let fingerprint = fingerprint_from_private_key(&pk_data).unwrap();
         assert_eq!(fingerprint, "0xf6f23259");
+
+        let pk_data = &Vec::<u8>::from_hex(
+            "ad87a08796efbdd9276e2ca5a10f938937cb5d2b7d5f698c06a94d8eeed3f600257cd2f8eb13f6930ecb95ac7736dd25e65d231ce1a3b1669e51f6737350b43e",
+        )
+            .unwrap();
+        let fingerprint = fingerprint_from_private_key(&pk_data).unwrap();
+        assert_eq!(fingerprint, "0x06bd6171");
+    }
+
+    #[test]
+    fn test_derive_coin() {
+        let mut keystore =
+            PrivateKeystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default())
+                .unwrap();
+        keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap();
+
+        let coin_infos = [
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/44'/0'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                coin: "TEZOS".to_string(),
+                derivation_path: "m/44'/1729'/0'/0'".to_string(),
+                curve: CurveType::ED25519,
+                network: "MAINNET".to_string(),
+                seg_wit: "".to_string(),
+            },
+        ];
+
+        let excepts = [
+            "0280c98b8ea7cab630defb0c09a4295c2193cdee016c1d5b9b0cb18572b9c370fe",
+            "a57c4fbab1f0a4ba7b4a2800db95c30d7e94f9e80c699823edb2cd5b9af19097",
+        ];
+
+        for (i, coin_info) in coin_infos.iter().enumerate() {
+            let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
+            assert_eq!(acc.public_key, excepts[i]);
+        }
     }
 }
