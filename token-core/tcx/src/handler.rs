@@ -8,6 +8,8 @@ use std::path::Path;
 use std::str::FromStr;
 use tcx_eos::address::EosAddress;
 use tcx_keystore::keystore::IdentityNetwork;
+use tracing_oslog::OsLogger;
+use tracing_subscriber::layer::SubscriberExt;
 
 use tcx_common::{sha256d, FromHex, ToHex};
 use tcx_primitive::{
@@ -109,6 +111,9 @@ fn derive_account<'a, 'b>(keystore: &mut Keystore, derivation: &Derivation) -> R
 }
 
 pub fn init_token_core_x(data: &[u8]) -> Result<()> {
+    let collector = tracing_subscriber::registry().with(OsLogger::new("im.token.app", "default"));
+    tracing::subscriber::set_global_default(collector).expect("failed to set global subscriber");
+
     let InitTokenCoreXParam {
         file_dir,
         xpub_common_key,

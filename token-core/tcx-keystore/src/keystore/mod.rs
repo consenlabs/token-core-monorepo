@@ -441,6 +441,7 @@ impl Signer for Keystore {
         curve: &str,
         sig_alg: &str,
     ) -> Result<Vec<u8>> {
+        tracing::info!("sign_hash curve: {}, sig_alg: {}", curve, sig_alg);
         match (curve, sig_alg.to_uppercase().as_str()) {
             ("SECP256k1", "ECDSA") => self.secp256k1_ecdsa_sign_recoverable(hash, derivation_path),
             ("bls12_381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_") => {
@@ -484,10 +485,12 @@ impl Signer for Keystore {
         derivation_path: &str,
         sig_alg: &str,
     ) -> Result<Vec<u8>> {
+        tracing::info!("bls_sign_specified_alg before get private key");
         let private_key: TypedPrivateKey = match self {
             Keystore::PrivateKey(ks) => ks.get_private_key(CurveType::BLS)?,
             Keystore::Hd(ks) => ks.get_private_key(CurveType::BLS, derivation_path)?,
         };
+        tracing::info!("bls_sign_specified_alg before sign_specified_hash");
         private_key.sign_specified_hash(hash, sig_alg)
     }
 

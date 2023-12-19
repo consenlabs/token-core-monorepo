@@ -50,6 +50,7 @@ impl TraitPrivateKey for BLSPrivateKey {
     }
 
     fn sign_specified_hash(&self, message: &[u8], dst: &str) -> Result<Vec<u8>> {
+        tracing::debug!("sign_specified_hash: dst: {}, message: {:?}", dst, message);
         Ok(self
             .0
             .sign(message, dst.as_bytes(), &[])
