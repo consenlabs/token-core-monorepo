@@ -29,9 +29,7 @@ pub use keystore::{
     PrivateKeystore, Source,
 };
 
-pub use signer::{
-    ChainSigner, HashSigner, MessageSigner, SignatureParameters, Signer, TransactionSigner,
-};
+pub use signer::{HashSigner, MessageSigner, SignatureParameters, Signer, TransactionSigner};
 use tcx_common::{FromHex, ToHex};
 
 pub type Result<T> = result::Result<T, failure::Error>;

@@ -441,6 +441,52 @@ mod tests {
     }
 
     #[test]
+    fn test_kdf_type() {
+        let mut params = Pbkdf2Params::default();
+        params.salt = random_u8_32().to_hex();
+
+        let kdf_type = KdfType::Pbkdf2(params);
+        assert!(kdf_type.validate().is_ok());
+        assert_eq!(kdf_type.name(), "pbkdf2");
+
+        let mut params = SCryptParams::default();
+        params.salt = random_u8_32().to_hex();
+
+        let kdf_type = KdfType::Scrypt(params);
+        assert!(kdf_type.validate().is_ok());
+        assert_eq!(kdf_type.name(), "scrypt");
+
+        let kdf_type = KdfType::default();
+        assert_eq!(kdf_type.name(), "pbkdf2");
+    }
+
+    #[test]
+    fn test_verify_password() {
+        let crypto: Crypto = Crypto::new(TEST_PASSWORD, "TokenCoreX".as_bytes());
+        assert!(crypto.verify_password(TEST_PASSWORD));
+        assert!(!crypto.verify_password("WrongPassword"));
+    }
+
+    #[test]
+    fn test_dangerous_rewrite_plaintext() {
+        let mut crypto: Crypto = Crypto::new(TEST_PASSWORD, "TokenCoreX".as_bytes());
+        let derived_key = crypto
+            .use_key(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap()
+            .derived_key()
+            .to_vec();
+        crypto
+            .dangerous_rewrite_plaintext(&derived_key, "TokenCoreX".as_bytes())
+            .unwrap();
+        let cipher_bytes = crypto
+            .use_key(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap()
+            .plaintext()
+            .unwrap();
+        assert_eq!("TokenCoreX", String::from_utf8(cipher_bytes).unwrap());
+    }
+
+    #[test]
     fn test_enc_pair() {
         let crypto: Crypto = Crypto::new(TEST_PASSWORD, "TokenCoreX".as_bytes());
         let enc_pair = crypto
@@ -482,6 +528,7 @@ mod tests {
         params.salt = "0x1234".to_owned();
 
         assert!(params.validate().is_ok());
+        assert_eq!(params.name(), "pbkdf2");
 
         let err = SCryptParams::default().validate().err().unwrap();
         assert_eq!(
@@ -511,6 +558,10 @@ mod tests {
         pbkdf2_param.derive_key(TEST_PASSWORD.as_bytes(), &mut derived_key);
         let dk_hex = derived_key.to_hex();
         assert_eq!("515c00df30d4eb0e5662030ccea231301ce44d685eb29aca04469f4d6b701898e75e51080a482dd46c04cf39308e7d228a0f70a45d7fa17cd4027d04c39f5e17", dk_hex);
+
+        assert!(pbkdf2_param.validate().is_ok());
+        pbkdf2_param.c = 0;
+        assert!(pbkdf2_param.validate().is_err());
     }
 
     #[test]
@@ -522,6 +573,11 @@ mod tests {
         param.derive_key(TEST_PASSWORD.as_bytes(), &mut derived_key);
         let dk_hex = derived_key.to_hex();
         assert_eq!("190fba2c4dcd250b67652b6ea401a286ba4afff692aa9700ce56edd5326cb23b05c9af493f8d3dccb8191437f8cb5d2c3ba718af64aee8a7f318eedf2af5eb3f", dk_hex);
+        assert_eq!("scrypt", param.name());
+
+        assert!(param.validate().is_ok());
+        param.n = 0;
+        assert!(param.validate().is_err());
     }
 
     #[test]
@@ -551,6 +607,27 @@ mod tests {
             .unwrap();
         let wif = String::from_utf8(result).unwrap();
         assert_eq!("L2hfzPyVC1jWH7n2QLTe7tVTb6btg9smp5UVzhEBxLYaSFF7sCZB", wif)
+    }
+
+    #[test]
+    fn test_use_derive_key() {
+        let crypto: Crypto = Crypto::new(TEST_PASSWORD, "TokenCoreX".as_bytes());
+        let derive_key = crypto
+            .use_key(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap()
+            .derived_key()
+            .to_hex();
+
+        let u = crypto.use_key(&Key::DerivedKey(derive_key)).unwrap();
+        assert_eq!(
+            "TokenCoreX",
+            String::from_utf8(u.plaintext().unwrap()).unwrap()
+        );
+
+        let wrong_derive_key = random_u8_32().to_hex();
+
+        let u = crypto.use_key(&Key::DerivedKey(wrong_derive_key));
+        assert!(u.is_err());
     }
 
     #[test]

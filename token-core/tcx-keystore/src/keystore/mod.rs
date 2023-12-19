@@ -19,7 +19,6 @@ pub use self::{
 };
 
 use crate::identity::Identity;
-use crate::signer::ChainSigner;
 use tcx_crypto::{Crypto, Key};
 use tcx_primitive::{Derive, TypedDeterministicPublicKey, TypedPrivateKey, TypedPublicKey};
 
@@ -80,25 +79,6 @@ pub struct Account {
     pub seg_wit: String,
     pub ext_pub_key: String,
     pub public_key: String,
-}
-impl Account {
-    pub fn coin_info(&self) -> CoinInfo {
-        CoinInfo {
-            coin: self.coin.clone(),
-            derivation_path: self.derivation_path.clone(),
-            curve: self.curve,
-            network: self.network.clone(),
-            seg_wit: self.seg_wit.clone(),
-        }
-    }
-
-    pub fn deterministic_public_key(&self) -> Result<TypedDeterministicPublicKey> {
-        if !self.ext_pub_key.is_empty() {
-            TypedDeterministicPublicKey::from_hex(self.curve, &self.ext_pub_key)
-        } else {
-            Err(Error::CannotDeriveKey.into())
-        }
-    }
 }
 
 /// Chain address interface, for encapsulate derivation
@@ -494,38 +474,6 @@ impl Signer for Keystore {
     }
 }
 
-impl ChainSigner for Keystore {
-    fn sign_recoverable_hash(
-        &mut self,
-        data: &[u8],
-        curve: CurveType,
-        derivation_path: &str,
-    ) -> Result<Vec<u8>> {
-        self.get_private_key(curve, derivation_path)?
-            .sign_recoverable(data)
-    }
-
-    fn sign_hash(
-        &mut self,
-        data: &[u8],
-        curve: CurveType,
-        derivation_path: &str,
-    ) -> Result<Vec<u8>> {
-        self.get_private_key(curve, derivation_path)?.sign(data)
-    }
-
-    fn sign_specified_hash(
-        &mut self,
-        data: &[u8],
-        curve: CurveType,
-        derivation_path: &str,
-        dst: &str,
-    ) -> Result<Vec<u8>> {
-        self.get_private_key(curve, derivation_path)?
-            .sign_specified_hash(data, dst)
-    }
-}
-
 #[cfg(test)]
 pub(crate) mod tests {
     use crate::keystore::Keystore::{Hd, PrivateKey};
@@ -682,8 +630,6 @@ pub(crate) mod tests {
         let ret = Keystore::from_json(OLD_KEYSTORE_JSON);
         assert!(ret.is_err());
     }
-
-    fn test_derive_coin() {}
 
     #[test]
     fn test_hd_sign_hash() {
@@ -903,7 +849,7 @@ pub(crate) mod tests {
             "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
             account.public_key
         );
-        assert_eq!(account.coin_info().curve, CurveType::SECP256k1);
+        assert_eq!(account.curve, CurveType::SECP256k1);
 
         let accounts = keystore.derive_coins::<MockAddress>(&[coin_info]).unwrap();
         assert_eq!(accounts.len(), 1);
@@ -911,7 +857,7 @@ pub(crate) mod tests {
             "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
             accounts[0].public_key
         );
-        assert_eq!(accounts[0].coin_info().curve, CurveType::SECP256k1);
+        assert_eq!(accounts[0].curve, CurveType::SECP256k1);
 
         let public_key = keystore
             .get_public_key(CurveType::SECP256k1, "m/44'/0'/0'/0/0")
@@ -965,7 +911,7 @@ pub(crate) mod tests {
             "0280c98b8ea7cab630defb0c09a4295c2193cdee016c1d5b9b0cb18572b9c370fe",
             account.public_key
         );
-        assert_eq!(account.coin_info().curve, CurveType::SECP256k1);
+        assert_eq!(account.curve, CurveType::SECP256k1);
 
         let accounts = keystore.derive_coins::<MockAddress>(&[coin_info]).unwrap();
         assert_eq!(accounts.len(), 1);
@@ -973,7 +919,7 @@ pub(crate) mod tests {
             "0280c98b8ea7cab630defb0c09a4295c2193cdee016c1d5b9b0cb18572b9c370fe",
             accounts[0].public_key
         );
-        assert_eq!(accounts[0].coin_info().curve, CurveType::SECP256k1);
+        assert_eq!(accounts[0].curve, CurveType::SECP256k1);
 
         let public_key = keystore
             .get_public_key(CurveType::SECP256k1, "m/44'/0'/0'/0/0")
@@ -1026,6 +972,7 @@ pub(crate) mod tests {
             ("KEYSTORE_V3", Source::KeystoreV3),
             ("MNEMONIC", Source::Mnemonic),
             ("NEW_MNEMONIC", Source::NewMnemonic),
+            ("SUBSTRATE_KEYSTORE", Source::SubstrateKeystore),
         ];
 
         for t in tests {

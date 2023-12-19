@@ -63,27 +63,3 @@ pub trait Signer {
 
     fn schnorr_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>>;
 }
-
-pub trait ChainSigner {
-    fn sign_recoverable_hash(
-        &mut self,
-        data: &[u8],
-        curve: CurveType,
-        derivation_path: &str,
-    ) -> Result<Vec<u8>>;
-
-    fn sign_hash(
-        &mut self,
-        data: &[u8],
-        curve: CurveType,
-        derivation_path: &str,
-    ) -> Result<Vec<u8>>;
-
-    fn sign_specified_hash(
-        &mut self,
-        data: &[u8],
-        curve: CurveType,
-        derivation_path: &str,
-        dst: &str,
-    ) -> Result<Vec<u8>>;
-}
