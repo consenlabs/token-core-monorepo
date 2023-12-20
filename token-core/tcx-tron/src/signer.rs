@@ -80,7 +80,7 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
             self.secp256k1_ecdsa_sign_recoverable(&hash[..], &sign_context.derivation_path)?;
         sign_result[64] = sign_result[64] + 27;
         Ok(TronMessageOutput {
-            signature: sign_result.to_hex(),
+            signature: sign_result.to_0x_hex(),
         })
     }
 }

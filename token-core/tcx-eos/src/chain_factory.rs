@@ -32,19 +32,19 @@ impl PrivateKeyEncoder for EosPrivateKeyEncoder {
         Ok(private_key.to_bytes())
     }
 }
-pub struct EosChainFactory();
+// pub struct EosChainFactory();
 
-impl Default for EosChainFactory {
-    fn default() -> Self {
-        EosChainFactory()
-    }
-}
+// impl Default for EosChainFactory {
+//     fn default() -> Self {
+//         EosChainFactory()
+//     }
+// }
 
-impl ChainFactory for EosChainFactory {
-    fn create_public_key_encoder(&self) -> Box<dyn PublicKeyEncoder> {
-        Box::new(EosPublicKeyEncoder {})
-    }
-}
+// impl ChainFactory for EosChainFactory {
+//     fn create_public_key_encoder(&self) -> Box<dyn PublicKeyEncoder> {
+//         Box::new(EosPublicKeyEncoder {})
+//     }
+// }
 
 #[cfg(test)]
 mod tests {

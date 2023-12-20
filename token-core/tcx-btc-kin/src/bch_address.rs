@@ -34,9 +34,9 @@ fn legacy_to_bch(addr: &str) -> Result<String> {
 fn bch_to_legacy(addr: &str) -> Result<String> {
     let convert = Converter::new();
     if !convert.is_legacy_addr(&addr) {
-        convert
+        Ok(convert
             .to_legacy_addr(&addr)
-            .map_err(|_| Error::ConvertToLegacyAddressFailed(addr.to_string()).into())
+            .map_err(|_| Error::InvalidAddress)?)
     } else {
         Ok(addr.to_string())
     }

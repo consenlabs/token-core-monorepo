@@ -434,6 +434,14 @@ impl Signer for Keystore {
                     derivation_path,
                     "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_",
                 ),
+            (curve, _) => {
+                let curve_type = CurveType::from_str(curve);
+                let private_key = match self {
+                    Keystore::PrivateKey(ks) => ks.get_private_key(curve_type)?,
+                    Keystore::Hd(ks) => ks.get_private_key(curve_type, derivation_path)?,
+                };
+                private_key.sign(hash)
+            }
             _ => Err(format_err!("unsupport sig alg")),
         }
     }

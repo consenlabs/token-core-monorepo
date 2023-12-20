@@ -1313,7 +1313,7 @@ mod tests {
                     .to_string(),
                 vout: 0,
                 amount: 1000000,
-                address: "address_invalid".to_string(),
+                address: "invalid_address".to_string(),
                 derived_path: "0/0".to_string(),
             }];
             let tx_input = BtcKinTxInput {
@@ -1400,7 +1400,7 @@ mod tests {
                     derived_path: "0/0".to_string(),
                 }];
                 let tx_input = BtcKinTxInput {
-                    to: "address_invalid".to_string(),
+                    to: "invalid_address".to_string(),
                     amount: 500000,
                     inputs,
                     fee: 100000,

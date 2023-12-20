@@ -217,7 +217,7 @@ impl FromStr for BtcKinAddress {
             });
         }
 
-        let data = decode_base58(s)?;
+        let data = decode_base58(s).map_err(|_| Error::InvalidAddress)?;
         if let Some(network) = BtcKinNetwork::find_by_prefix(data[0]) {
             if network.p2pkh_prefix == data[0] {
                 return Ok(BtcKinAddress {
@@ -393,22 +393,13 @@ mod tests {
     fn test_invalid_address() {
         //Bad base58 checksum
         let r = BtcKinAddress::from_str("34xp4vRoCGJym3xR7yCVPFHoCNxv4Twseo3");
-        assert_eq!(
-            r.err().unwrap().to_string(),
-            "base58 address encoding error"
-        );
+        assert_eq!(r.err().unwrap().to_string(), "invalid_address");
 
         let r = BtcKinAddress::from_str("4MfAagS5MczC4DjH6RdV26nekvuXmhfBJq5MBWzv7nBnB73DMjst2");
-        assert_eq!(
-            r.err().unwrap().to_string(),
-            "base58 address encoding error"
-        );
+        assert_eq!(r.err().unwrap().to_string(), "invalid_address");
 
         let r = BtcKinAddress::from_str("A8VLkJpStiaMXS3bTm3iHC58uDwoCHwCZpL");
-        assert_eq!(
-            r.err().unwrap().to_string(),
-            "base58 address encoding error"
-        );
+        assert_eq!(r.err().unwrap().to_string(), "invalid_address");
     }
 
     #[test]

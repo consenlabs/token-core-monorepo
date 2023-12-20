@@ -7,6 +7,7 @@ use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
 use tcx_eos::address::EosAddress;
+use tcx_eos::encode_eos_wif;
 use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_keystore::keystore::IdentityNetwork;
 
@@ -89,9 +90,9 @@ use_chains!(
 );
 
 pub(crate) fn encode_message(msg: impl Message) -> Result<Vec<u8>> {
-    if *IS_DEBUG.read() {
-        println!("{:#?}", msg);
-    }
+    // if *IS_DEBUG.read() {
+    //     println!("{:#?}", msg);
+    // }
     let mut buf = BytesMut::with_capacity(msg.encoded_len());
     msg.encode(&mut buf)?;
     Ok(buf.to_vec())
@@ -570,13 +571,14 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
             .to_hex())
     } else if "TEZOS".contains(&param.chain_type.as_str()) {
         Ok(build_tezos_base58_private_key(&private_key_bytes.to_hex())?)
+    } else if "EOS".contains(&param.chain_type) {
+        encode_eos_wif(&private_key_bytes)
     } else {
         // private_key prefix is only about chain type and network
         let coin_info = coin_info_from_param(&param.chain_type, &param.network, "", "")?;
         let typed_pk = TypedPrivateKey::from_slice(CurveType::SECP256k1, &private_key_bytes)?;
         typed_pk.fmt(&coin_info)
     }?;
-    // TODO: add eos export support
 
     let export_result = ExportPrivateKeyResult {
         id: guard.keystore().id(),
@@ -826,7 +828,11 @@ pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
 
 pub(crate) fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: WalletKeyParam = WalletKeyParam::decode(data).unwrap();
-    let mut map = KEYSTORE_MAP.write();
+    let mut map: parking_lot::lock_api::RwLockWriteGuard<
+        '_,
+        parking_lot::RawRwLock,
+        std::collections::HashMap<String, Keystore>,
+    > = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
         _ => Err(format_err!("{}", "wallet_not_found")),

@@ -26,8 +26,12 @@ impl TraitTransactionSigner<TezosRawTxIn, TezosTxOut> for Keystore {
         let mut hash_message: Vec<u8> = vec![0x03];
         hash_message.extend(Vec::from_hex(&raw_data_bytes)?.as_slice());
         let hash_result = blake2b_params.hash(hash_message.as_slice());
-        let sign_result =
-            self.secp256k1_ecdsa_sign_recoverable(hash_result.as_bytes(), &params.derivation_path)?;
+        let sign_result = self.sign_hash(
+            hash_result.as_bytes(),
+            &params.derivation_path,
+            "ED25519",
+            "",
+        )?;
 
         //tezos ed25519 signature prefix
         let edsig_prefix: [u8; 5] = [9, 245, 205, 134, 18];

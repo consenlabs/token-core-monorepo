@@ -6575,8 +6575,8 @@ dependencies = [
 name = "tcx-eos"
 version = "0.1.0"
 dependencies = [
- "base58",
  "base64 0.13.1",
+ "bitcoin",
  "bytes 1.4.0",
  "failure",
  "prost 0.11.8",

@@ -30,7 +30,8 @@ impl TraitTransactionSigner<SubstrateRawTxIn, SubstrateTxOut> for Keystore {
         let raw_data_bytes = Vec::from_hex(&raw_data_bytes)?;
         let hash = hash_unsigned_payload(&raw_data_bytes)?;
 
-        let sig = self.secp256k1_ecdsa_sign_recoverable(&hash, &params.derivation_path)?;
+        // TODO: sign subsr25519
+        let sig = self.sign_hash(&hash, &params.derivation_path, "SubSr25519", "")?;
 
         let sig_with_type = [vec![SIGNATURE_TYPE_SR25519], sig].concat();
 

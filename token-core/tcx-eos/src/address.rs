@@ -1,4 +1,4 @@
-use base58::{FromBase58, ToBase58};
+use bitcoin::util::base58;
 use std::str::FromStr;
 use tcx_common::{ripemd160, CommonError};
 use tcx_constants::CoinInfo;
@@ -34,7 +34,7 @@ impl FromStr for EosAddress {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         if s.starts_with("EOS") {
             let s = &s[3..];
-            let bytes = s.from_base58().map_err(|_| CommonError::InvalidAddress)?;
+            let bytes = base58::from(s).map_err(|_| CommonError::InvalidAddress)?;
             let checksum = bytes[bytes.len() - 4..].to_vec();
             let pubkey_bytes = bytes[..bytes.len() - 4].to_vec();
 
@@ -59,7 +59,7 @@ impl ToString for EosAddress {
         let mut bytes = vec![];
         bytes.extend_from_slice(&self.pubkey_bytes);
         bytes.extend_from_slice(&self.checksum);
-        format!("EOS{}", bytes.to_base58())
+        format!("EOS{}", base58::encode_slice(&bytes))
     }
 }
 

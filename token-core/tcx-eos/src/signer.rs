@@ -1,16 +1,16 @@
 use crate::transaction::{EosMessageInput, EosMessageOutput, EosTxInput, EosTxOutput, SigData};
-use base58::ToBase58;
 use tcx_keystore::{
     Keystore, MessageSigner, Result, SignatureParameters, Signer, TransactionSigner,
 };
 
+use bitcoin::util::base58;
 use tcx_common::{ripemd160, sha256, FromHex, ToHex};
 
 fn serial_eos_sig(sig: &[u8]) -> String {
     let to_hash = [sig, "K1".as_bytes()].concat();
     let hashed = ripemd160(&to_hash);
     let data = [sig, &hashed[0..4]].concat();
-    format!("SIG_K1_{}", data.to_base58())
+    format!("SIG_K1_{}", base58::encode_slice(&data))
 }
 
 impl TransactionSigner<EosTxInput, EosTxOutput> for Keystore {
