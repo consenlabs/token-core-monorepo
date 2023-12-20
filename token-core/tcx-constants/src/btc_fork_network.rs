@@ -228,6 +228,7 @@ pub fn pub_version_from_prv_version(prefix: &[u8]) -> Option<[u8; 4]> {
 
 #[cfg(test)]
 mod test {
+    use crate::CurveType;
 
     #[test]
     fn test_network_form_hrp() {
@@ -237,11 +238,26 @@ mod test {
         assert_eq!(network.unwrap().coin, "BITCOINCASH");
     }
 
-    // #[test]
-    // fn test_coin_from_xpub_prefix(){
-    //     let coin = super::coin_from_xpub_prefix(&[0x04, 0x88, 0xB2, 0x1E]);
-    //     assert_eq!(coin.unwrap(),"LITECOIN");
-    // }
+    #[test]
+    fn test_coin_from_xpub_prefix() {
+        let coin = super::coin_from_xpub_prefix(&[0x04, 0x88, 0xB2, 0x1E]);
+        assert_eq!(coin.unwrap(), "LITECOIN");
+    }
+
+    #[test]
+    fn test_network_from_coin() {
+        let network = super::network_from_coin(&super::CoinInfo {
+            coin: "BITCOIN".to_string(),
+            derivation_path: "".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        })
+        .unwrap();
+
+        assert_eq!(network.network, "MAINNET");
+        assert_eq!(network.coin, "BITCOIN");
+    }
 
     #[test]
     fn test_pub_version_from_prv_version() {
