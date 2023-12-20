@@ -21,7 +21,7 @@ impl KeystoreUpgrade {
 
     pub fn need_upgrade(&self) -> bool {
         let version = self.json["version"].as_i64().unwrap_or(0);
-        version == 11001 || version == 11000
+        version != 12000 || version != 12001
     }
 
     pub fn upgrade(&self, key: &Key) -> Result<Keystore> {
@@ -85,7 +85,7 @@ mod tests {
     use tcx_crypto::Key;
     use tcx_keystore::{Keystore, Source};
 
-    fn pk_json(version: u16, source: &str) -> Value {
+    fn pk_json(version: i64, source: &str) -> Value {
         json!(
             {
              "id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b",
@@ -97,7 +97,7 @@ mod tests {
         )
     }
 
-    fn hd_json(version: u16, source: &str) -> Value {
+    fn hd_json(version: i64, source: &str) -> Value {
         json!(
          { "id":"ae45d424-31d8-49f7-a601-1272b40c566d",
            "version":version,
@@ -113,6 +113,24 @@ mod tests {
            "imTokenMeta":{"name":"LTC-Wallet-1","passwordHint":"","timestamp":1576561805,"source": source.to_string() }
          }
         )
+    }
+
+    #[test]
+    fn test_invalid_versions() {
+        let tests = [
+            (-10000000, "MNEMONIC", Source::NewMnemonic),
+            (2000000, "MNEMONIC", Source::Wif),
+        ];
+
+        for t in tests {
+            let upgrade_keystore = super::KeystoreUpgrade::new(hd_json(t.0, t.1));
+            let key = Key::Password("imtoken1".to_owned());
+
+            let upgraded = upgrade_keystore.upgrade(&key);
+
+            assert!(upgrade_keystore.need_upgrade());
+            assert_eq!(upgraded.err().unwrap().to_string(), "invalid version");
+        }
     }
 
     #[test]

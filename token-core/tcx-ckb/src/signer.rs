@@ -92,12 +92,18 @@ impl<'a> CkbTxSigner<'a> {
         let mut result = [0u8; 32];
         s.finalize(&mut result);
 
-        let _opt_path = if path.len() > 0 { Some(path) } else { None };
+        let derivation_path = if path.len() > 0 {
+            path
+        } else {
+            &self.sign_context.derivation_path
+        };
 
-        empty_witness.lock = self
-            .ks
-            .secp256k1_ecdsa_sign_recoverable(&result, &self.sign_context.derivation_path)?
-            .to_0x_hex();
+        if path.len() > 0 {
+            empty_witness.lock = self
+                .ks
+                .secp256k1_ecdsa_sign_recoverable(&result, derivation_path)?
+                .to_0x_hex();
+        }
 
         Ok(empty_witness)
     }
@@ -216,6 +222,7 @@ mod tests {
                         .to_owned(),
                     hash_type: "type".to_string(),
                 }),
+                derived_path: "m/44'/309'/0'/0/0".to_string(),
                 ..CachedCell::default()
             },
             CachedCell {
@@ -233,6 +240,7 @@ mod tests {
                         .to_owned(),
                     hash_type: "type".to_string(),
                 }),
+                derived_path: "m/44'/309'/0'/0/0".to_string(),
                 ..CachedCell::default()
             },
             CachedCell {
@@ -250,6 +258,7 @@ mod tests {
                         .to_owned(),
                     hash_type: "type".to_string(),
                 }),
+                derived_path: "m/44'/309'/0'/0/0".to_string(),
                 ..CachedCell::default()
             },
         ];
@@ -312,14 +321,14 @@ mod tests {
             account.address,
             "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6"
         );
-        let sign_params = SignatureParameters {
+        let params = SignatureParameters {
             derivation_path: "m/44'/309'/0'/0/0".to_string(),
             chain_type: "NERVOS".to_string(),
             network: "TESTNET".to_string(),
             ..Default::default()
         };
 
-        let tx_output = ks.sign_transaction(&sign_params, &tx_input).unwrap();
+        let tx_output = ks.sign_transaction(&params, &tx_input).unwrap();
         assert_eq!(tx_output.witnesses[0], "0x55000000100000005500000055000000410000009b87828a6274850b4c8724a286b882aae3ace127c124e4f6687070c09e2533c80b33ace45005a4912f4d092e31f017a8dc9f2f97ef66fb5e2b5e9314ade9b60e00");
     }
 
@@ -350,6 +359,7 @@ mod tests {
                         .to_owned(),
                     hash_type: "type".to_string(),
                 }),
+                derived_path: "m/44'/309'/0'/0/0".to_string(),
                 ..CachedCell::default()
             },
             CachedCell {
@@ -367,6 +377,7 @@ mod tests {
                         .to_owned(),
                     hash_type: "type".to_owned(),
                 }),
+                derived_path: "m/44'/309'/0'/0/0".to_string(),
                 ..CachedCell::default()
             },
             CachedCell {
@@ -384,6 +395,7 @@ mod tests {
                         .to_owned(),
                     hash_type: "type".to_owned(),
                 }),
+                derived_path: "m/44'/309'/0'/0/0".to_string(),
                 ..CachedCell::default()
             },
         ];
@@ -475,14 +487,14 @@ mod tests {
                 "cell_input_not_cached",
             ),
         ];
-        let sign_params = SignatureParameters {
+        let params = SignatureParameters {
             derivation_path: "m/44'/309'/0'/0/0".to_string(),
             chain_type: "NERVOS".to_string(),
             network: "TESTNET".to_string(),
             ..Default::default()
         };
         for (input, err) in invalid_input {
-            let ret = ks.sign_transaction(&sign_params, &input);
+            let ret = ks.sign_transaction(&params, &input);
 
             assert!(ret.is_err());
             assert_eq!(format!("{}", ret.err().unwrap()), err);
@@ -528,14 +540,14 @@ mod tests {
             account.address,
             "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6"
         );
-        let sign_params = SignatureParameters {
+        let params = SignatureParameters {
             derivation_path: "m/44'/309'/0'/0/0".to_string(),
             chain_type: "NERVOS".to_string(),
             network: "TESTNET".to_string(),
             ..Default::default()
         };
 
-        let actual = ks.sign_transaction(&sign_params, &tx_input);
+        let actual = ks.sign_transaction(&params, &tx_input);
         assert_eq!(
             actual.err().unwrap().to_string(),
             Error::RequiredWitness.to_string()
@@ -561,6 +573,7 @@ mod tests {
                     .to_owned(),
                 hash_type: "type".to_string(),
             }),
+            derived_path: "m/44'/309'/0'/0/0".to_string(),
             ..CachedCell::default()
         }];
         let inputs = vec![];
@@ -596,14 +609,14 @@ mod tests {
             account.address,
             "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6"
         );
-        let sign_params = SignatureParameters {
+        let params = SignatureParameters {
             derivation_path: "m/44'/309'/0'/0/0".to_string(),
             chain_type: "NERVOS".to_string(),
             network: "TESTNET".to_string(),
             ..Default::default()
         };
 
-        let actual = ks.sign_transaction(&sign_params, &tx_input);
+        let actual = ks.sign_transaction(&params, &tx_input);
 
         assert_eq!(
             actual.err().unwrap().to_string(),
@@ -630,6 +643,7 @@ mod tests {
                     .to_owned(),
                 hash_type: "type".to_string(),
             }),
+            derived_path: "m/44'/309'/0'/0/0".to_string(),
             ..CachedCell::default()
         }];
         let inputs = vec![CellInput {
@@ -668,14 +682,14 @@ mod tests {
             account.address,
             "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6"
         );
-        let sign_params = SignatureParameters {
+        let params = SignatureParameters {
             derivation_path: "m/44'/309'/0'/0/0".to_string(),
             chain_type: "NERVOS".to_string(),
             network: "TESTNET".to_string(),
             ..Default::default()
         };
 
-        let actual = ks.sign_transaction(&sign_params, &tx_input);
+        let actual = ks.sign_transaction(&params, &tx_input);
         assert_eq!(
             actual.err().unwrap().to_string(),
             Error::InvalidOutputPoint.to_string()
@@ -709,7 +723,7 @@ mod tests {
             account.address,
             "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6"
         );
-        let sign_params = SignatureParameters {
+        let params = SignatureParameters {
             derivation_path: "m/44'/309'/0'/0/0".to_string(),
             chain_type: "NERVOS".to_string(),
             network: "TESTNET".to_string(),
@@ -718,13 +732,13 @@ mod tests {
 
         let mut signer = CkbTxSigner {
             ks: &mut ks,
-            sign_context: &sign_params,
+            sign_context: &params,
         };
 
         let actual = signer.sign_witness_group(
             &Vec::from_hex_auto(tx_hash).unwrap(),
             &vec![],
-            sign_params.derivation_path.as_str(),
+            params.derivation_path.as_str(),
         );
         assert_eq!(
             actual.err().unwrap().to_string(),
