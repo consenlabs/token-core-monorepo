@@ -249,6 +249,8 @@ pub struct KeystoreResult {
     pub source: ::prost::alloc::string::String,
     #[prost(int64, tag = "6")]
     pub created_at: i64,
+    #[prost(string, tag = "7")]
+    pub source_finger_print: ::prost::alloc::string::String,
 }
 /// FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
 ///
@@ -290,6 +292,8 @@ pub struct ImportPrivateKeyResult {
     pub suggest_network: ::prost::alloc::string::String,
     #[prost(string, tag = "9")]
     pub suggest_curve: ::prost::alloc::string::String,
+    #[prost(string, tag = "10")]
+    pub source_finger_print: ::prost::alloc::string::String,
 }
 ///
 /// derive new accounts from a hd keystore

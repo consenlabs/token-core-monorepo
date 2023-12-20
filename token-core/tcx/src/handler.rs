@@ -90,9 +90,6 @@ use_chains!(
 );
 
 pub(crate) fn encode_message(msg: impl Message) -> Result<Vec<u8>> {
-    // if *IS_DEBUG.read() {
-    //     println!("{:#?}", msg);
-    // }
     let mut buf = BytesMut::with_capacity(msg.encoded_len());
     msg.encode(&mut buf)?;
     Ok(buf.to_vec())
@@ -110,153 +107,6 @@ fn derive_account<'a, 'b>(keystore: &mut Keystore, derivation: &Derivation) -> R
     derive_account_internal(&coin_info, keystore)
 }
 
-pub fn init_token_core_x(data: &[u8]) -> Result<()> {
-    let InitTokenCoreXParam {
-        file_dir,
-        xpub_common_key,
-        xpub_common_iv,
-        is_debug,
-    } = InitTokenCoreXParam::decode(data).unwrap();
-    // TODO: pass the file_dir as keystore root
-    *KEYSTORE_BASE_DIR.write() = file_dir.to_string();
-    copy_to_v2_if_need()?;
-
-    *WALLET_FILE_DIR.write() = format!("{}/{}", file_dir, WALLET_V2_DIR);
-
-    // *WALLET_KEYSTORE_DIR.write() = file_dir.to_string();
-    *XPUB_COMMON_KEY_128.write() = xpub_common_key.to_string();
-    *XPUB_COMMON_IV.write() = xpub_common_iv.to_string();
-
-    if is_debug {
-        *IS_DEBUG.write() = is_debug;
-        if is_debug {
-            *KDF_ROUNDS.write() = 1024;
-        }
-    }
-    scan_keystores()?;
-
-    Ok(())
-}
-
-pub(crate) fn scan_keystores() -> Result<()> {
-    clean_keystore();
-    let file_dir = WALLET_FILE_DIR.read();
-    let p = Path::new(file_dir.as_str());
-    let walk_dir = std::fs::read_dir(p).expect("read dir");
-    for entry in walk_dir {
-        let entry = entry.expect("DirEntry");
-        let fp = entry.path();
-        if !fp
-            .file_name()
-            .expect("file_name")
-            .to_str()
-            .expect("file_name str")
-            .ends_with(".json")
-        {
-            continue;
-        }
-
-        let mut f = fs::File::open(fp).expect("open file");
-        let mut contents = String::new();
-
-        let _ = f.read_to_string(&mut contents);
-        let v: Value = serde_json::from_str(&contents).expect("read json from content");
-
-        let version = v["version"].as_i64().expect("version");
-        if version == i64::from(HdKeystore::VERSION)
-            || version == i64::from(PrivateKeystore::VERSION)
-        {
-            let keystore = Keystore::from_json(&contents)?;
-            cache_keystore(keystore);
-        }
-    }
-    Ok(())
-}
-
-pub(crate) fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
-    let param: CreateKeystoreParam =
-        CreateKeystoreParam::decode(data).expect("import wallet from mnemonic");
-
-    let mut meta = Metadata::default();
-    meta.name = param.name.to_owned();
-    meta.password_hint = param.password_hint.to_owned();
-    meta.source = Source::NewMnemonic;
-    meta.network = IdentityNetwork::from_str(&param.network)?;
-
-    let ks = HdKeystore::new(&param.password, meta);
-
-    let keystore = Keystore::Hd(ks);
-    flush_keystore(&keystore)?;
-
-    let identity = keystore.identity();
-
-    let meta = keystore.meta();
-    let wallet = KeystoreResult {
-        id: keystore.id(),
-        name: meta.name.to_owned(),
-        source: Source::NewMnemonic.to_string(),
-        created_at: meta.timestamp.clone(),
-        identifier: identity.identifier.to_string(),
-        ipfs_id: identity.ipfs_id.to_string(),
-    };
-
-    let ret = encode_message(wallet)?;
-    cache_keystore(keystore);
-    Ok(ret)
-}
-
-pub(crate) fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
-    let param: ImportMnemonicParam =
-        ImportMnemonicParam::decode(data).expect("import wallet from mnemonic");
-
-    let mut founded_id: Option<String> = None;
-    {
-        let fingerprint = fingerprint_from_mnemonic(&param.mnemonic)?;
-        let map = KEYSTORE_MAP.read();
-        if let Some(founded) = map
-            .values()
-            .find(|keystore| keystore.fingerprint() == fingerprint)
-        {
-            founded_id = Some(founded.id());
-        }
-    }
-
-    if founded_id.is_some() && !param.overwrite {
-        return Err(format_err!("{}", "address_already_exist"));
-    }
-
-    let mut meta = Metadata::default();
-    meta.name = param.name.to_owned();
-    meta.password_hint = param.password_hint.to_owned();
-    meta.source = Source::Mnemonic;
-
-    let ks = HdKeystore::from_mnemonic(&param.mnemonic, &param.password, meta)?;
-
-    let mut keystore = Keystore::Hd(ks);
-
-    if founded_id.is_some() {
-        keystore.set_id(&founded_id.unwrap());
-    }
-
-    flush_keystore(&keystore)?;
-
-    let meta = keystore.meta();
-
-    let identity = keystore.identity();
-
-    let wallet = KeystoreResult {
-        id: keystore.id(),
-        name: meta.name.to_owned(),
-        source: Source::Mnemonic.to_string(),
-        created_at: meta.timestamp.clone(),
-        identifier: identity.identifier.to_string(),
-        ipfs_id: identity.ipfs_id.to_string(),
-    };
-    let ret = encode_message(wallet)?;
-    cache_keystore(keystore);
-    Ok(ret)
-}
-
 fn encrypt_xpub(xpub: &str, network: &str) -> Result<String> {
     let xpk = Bip32DeterministicPublicKey::from_hex(xpub)?;
     let ext_pub_key: String;
@@ -272,82 +122,6 @@ fn encrypt_xpub(xpub: &str, network: &str) -> Result<String> {
     let iv_bytes = Vec::from_hex(&*iv)?;
     let encrypted = encrypt_pkcs7(&ext_pub_key.as_bytes(), &key_bytes, &iv_bytes)?;
     Ok(base64::encode(&encrypted))
-}
-
-#[allow(dead_code)]
-fn decrypt_xpub(enc_xpub: &str) -> Result<Bip32DeterministicPublicKey> {
-    let encrypted = base64::decode(enc_xpub)?;
-    let key = tcx_crypto::XPUB_COMMON_KEY_128.read();
-    let iv = tcx_crypto::XPUB_COMMON_IV.read();
-    let key_bytes = Vec::from_hex(&*key)?;
-    let iv_bytes = Vec::from_hex(&*iv)?;
-    let data = decrypt_pkcs7(&encrypted, &key_bytes, &iv_bytes)?;
-
-    let xpub_str = String::from_utf8(data)?;
-    let (xpub, _) = Bip32DeterministicPublicKey::from_ss58check_with_version(&xpub_str)?;
-    Ok(xpub)
-}
-
-pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
-    let param: DeriveAccountsParam = DeriveAccountsParam::decode(data).expect("derive_accounts");
-    let mut map = KEYSTORE_MAP.write();
-    let keystore: &mut Keystore = match map.get_mut(&param.id) {
-        Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
-    }?;
-
-    let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
-
-    let mut account_responses: Vec<AccountResponse> = vec![];
-
-    for derivation in param.derivations {
-        let account = derive_account(guard.keystore_mut(), &derivation)?;
-        // TODO: Add utxo model to return xpub
-        let enc_xpub = if account.ext_pub_key.is_empty() {
-            Ok("".to_string())
-        } else {
-            encrypt_xpub(&account.ext_pub_key.to_string(), &account.network)
-        }?;
-        // TODO: return both enc_xpub and xpub
-        let account_rsp = AccountResponse {
-            chain_type: derivation.chain_type.to_owned(),
-            address: account.address.to_owned(),
-            path: account.derivation_path.to_owned(),
-            curve: account.curve.as_str().to_string(),
-            public_key: account.public_key,
-            extended_public_key: account.ext_pub_key.to_string(),
-            encrypted_extended_public_key: enc_xpub,
-        };
-        account_responses.push(account_rsp);
-    }
-
-    let accounts_rsp = DeriveAccountsResult {
-        accounts: account_responses,
-    };
-    encode_message(accounts_rsp)
-}
-
-pub(crate) fn export_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
-    let param: WalletKeyParam = WalletKeyParam::decode(data).expect("export_mnemonic");
-    let mut map = KEYSTORE_MAP.write();
-    let keystore: &mut Keystore = match map.get_mut(&param.id) {
-        Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
-    }?;
-
-    let guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
-
-    tcx_ensure!(
-        guard.keystore().derivable(),
-        format_err!("{}", "private_keystore_cannot_export_mnemonic")
-    );
-
-    let export_result = ExportMnemonicResult {
-        id: guard.keystore().id(),
-        mnemonic: guard.keystore().export()?,
-    };
-
-    encode_message(export_result)
 }
 
 fn key_data_from_any_format_pk(pk: &str) -> Result<Vec<u8>> {
@@ -375,20 +149,18 @@ fn fingerprint_from_tezos_format_pk(pk: &str) -> Result<String> {
     fingerprint_from_private_key(&key_data)
 }
 
-pub(crate) fn import_private_key_internal(
+fn import_private_key_internal(
     param: &ImportPrivateKeyParam,
     source: Option<Source>,
 ) -> Result<ImportPrivateKeyResult> {
     let mut founded_id: Option<String> = None;
     {
         let fingerprint: String;
-        // TODO: make sure the prefix of tezoos
         if param.private_key.starts_with("edsk") {
             fingerprint = fingerprint_from_tezos_format_pk(&param.private_key)?;
         } else {
             fingerprint = fingerprint_from_any_format_pk(&param.private_key)?;
         }
-        //        let key_hash = key_hash_from_any_format_pk(&param.private_key)?;
         let map = KEYSTORE_MAP.read();
         if let Some(founded) = map
             .values()
@@ -437,6 +209,7 @@ pub(crate) fn import_private_key_internal(
         suggest_chain_types: decoded_ret.chain_types.to_owned(),
         suggest_network: decoded_ret.network.to_string(),
         suggest_curve: decoded_ret.curve.as_str().to_string(),
+        source_finger_print: keystore.fingerprint().to_string(),
     };
     cache_keystore(keystore);
     Ok(wallet)
@@ -533,9 +306,254 @@ fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
     })
 }
 
+fn exists_fingerprint(fingerprint: &str) -> Result<Vec<u8>> {
+    let map = &KEYSTORE_MAP.read();
+
+    let founded: Option<&Keystore> = map
+        .values()
+        .find(|keystore| keystore.fingerprint() == fingerprint);
+    let result: ExistsKeystoreResult;
+    if let Some(ks) = founded {
+        result = ExistsKeystoreResult {
+            is_exists: true,
+            id: ks.id(),
+        }
+    } else {
+        result = ExistsKeystoreResult {
+            is_exists: false,
+            id: "".to_owned(),
+        }
+    }
+    encode_message(result)
+}
+
+fn key_info_from_v3(keystore: &str, password: &str) -> Result<(Vec<u8>, String)> {
+    let ks: LegacyKeystore = serde_json::from_str(&keystore)?;
+    ks.validate_v3(&password)?;
+    let key = tcx_crypto::Key::Password(password.to_string());
+    let unlocker = ks.crypto.use_key(&key)?;
+    let pk = unlocker.plaintext()?;
+    return Ok((pk, "Imported ETH".to_string()));
+}
+
+fn key_info_from_substrate_keystore(keystore: &str, password: &str) -> Result<(Vec<u8>, String)> {
+    let ks: SubstrateKeystore = serde_json::from_str(&keystore)?;
+    let _ = ks.validate()?;
+    let pk = decode_substrate_keystore(&ks, &password)?;
+    return Ok((pk, ks.meta.name));
+}
+
+pub(crate) fn init_token_core_x(data: &[u8]) -> Result<()> {
+    let InitTokenCoreXParam {
+        file_dir,
+        xpub_common_key,
+        xpub_common_iv,
+        is_debug,
+    } = InitTokenCoreXParam::decode(data).unwrap();
+    *KEYSTORE_BASE_DIR.write() = file_dir.to_string();
+    copy_to_v2_if_need()?;
+
+    *WALLET_FILE_DIR.write() = format!("{}/{}", file_dir, WALLET_V2_DIR);
+
+    *XPUB_COMMON_KEY_128.write() = xpub_common_key.to_string();
+    *XPUB_COMMON_IV.write() = xpub_common_iv.to_string();
+
+    if is_debug {
+        *IS_DEBUG.write() = is_debug;
+        if is_debug {
+            *KDF_ROUNDS.write() = 1024;
+        }
+    }
+    scan_keystores()?;
+
+    Ok(())
+}
+
+pub(crate) fn scan_keystores() -> Result<()> {
+    clean_keystore();
+    let file_dir = WALLET_FILE_DIR.read();
+    let p = Path::new(file_dir.as_str());
+    let walk_dir = std::fs::read_dir(p).expect("read dir");
+    for entry in walk_dir {
+        let entry = entry.expect("DirEntry");
+        let fp = entry.path();
+        if !fp
+            .file_name()
+            .expect("file_name")
+            .to_str()
+            .expect("file_name str")
+            .ends_with(".json")
+        {
+            continue;
+        }
+
+        let mut f = fs::File::open(fp).expect("open file");
+        let mut contents = String::new();
+
+        let _ = f.read_to_string(&mut contents);
+        let v: Value = serde_json::from_str(&contents).expect("read json from content");
+
+        let version = v["version"].as_i64().expect("version");
+        if version == i64::from(HdKeystore::VERSION)
+            || version == i64::from(PrivateKeystore::VERSION)
+        {
+            let keystore = Keystore::from_json(&contents)?;
+            cache_keystore(keystore);
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
+    let param: CreateKeystoreParam =
+        CreateKeystoreParam::decode(data).expect("create_keystore param");
+
+    let mut meta = Metadata::default();
+    meta.name = param.name.to_owned();
+    meta.password_hint = param.password_hint.to_owned();
+    meta.source = Source::NewMnemonic;
+    meta.network = IdentityNetwork::from_str(&param.network)?;
+
+    let ks = HdKeystore::new(&param.password, meta);
+
+    let keystore = Keystore::Hd(ks);
+    flush_keystore(&keystore)?;
+
+    let identity = keystore.identity();
+
+    let meta = keystore.meta();
+    let wallet = KeystoreResult {
+        id: keystore.id(),
+        name: meta.name.to_owned(),
+        source: Source::NewMnemonic.to_string(),
+        created_at: meta.timestamp.clone(),
+        identifier: identity.identifier.to_string(),
+        ipfs_id: identity.ipfs_id.to_string(),
+        source_finger_print: keystore.fingerprint().to_string(),
+    };
+
+    let ret = encode_message(wallet)?;
+    cache_keystore(keystore);
+    Ok(ret)
+}
+
+pub(crate) fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
+    let param: ImportMnemonicParam =
+        ImportMnemonicParam::decode(data).expect("import_mnemonic param");
+
+    let mut founded_id: Option<String> = None;
+    {
+        let fingerprint = fingerprint_from_mnemonic(&param.mnemonic)?;
+        let map = KEYSTORE_MAP.read();
+        if let Some(founded) = map
+            .values()
+            .find(|keystore| keystore.fingerprint() == fingerprint)
+        {
+            founded_id = Some(founded.id());
+        }
+    }
+
+    if founded_id.is_some() && !param.overwrite {
+        return Err(format_err!("{}", "address_already_exist"));
+    }
+
+    let mut meta = Metadata::default();
+    meta.name = param.name.to_owned();
+    meta.password_hint = param.password_hint.to_owned();
+    meta.source = Source::Mnemonic;
+
+    let ks = HdKeystore::from_mnemonic(&param.mnemonic, &param.password, meta)?;
+
+    let mut keystore = Keystore::Hd(ks);
+
+    if founded_id.is_some() {
+        keystore.set_id(&founded_id.unwrap());
+    }
+
+    flush_keystore(&keystore)?;
+
+    let meta = keystore.meta();
+
+    let identity = keystore.identity();
+
+    let wallet = KeystoreResult {
+        id: keystore.id(),
+        name: meta.name.to_owned(),
+        source: Source::Mnemonic.to_string(),
+        created_at: meta.timestamp.clone(),
+        identifier: identity.identifier.to_string(),
+        ipfs_id: identity.ipfs_id.to_string(),
+        source_finger_print: keystore.fingerprint().to_string(),
+    };
+    let ret = encode_message(wallet)?;
+    cache_keystore(keystore);
+    Ok(ret)
+}
+
+pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
+    let param: DeriveAccountsParam =
+        DeriveAccountsParam::decode(data).expect("derive_accounts param");
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(format_err!("{}", "wallet_not_found")),
+    }?;
+
+    let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+
+    let mut account_responses: Vec<AccountResponse> = vec![];
+
+    for derivation in param.derivations {
+        let account = derive_account(guard.keystore_mut(), &derivation)?;
+        let enc_xpub = if account.ext_pub_key.is_empty() {
+            Ok("".to_string())
+        } else {
+            encrypt_xpub(&account.ext_pub_key.to_string(), &account.network)
+        }?;
+        let account_rsp = AccountResponse {
+            chain_type: derivation.chain_type.to_owned(),
+            address: account.address.to_owned(),
+            path: account.derivation_path.to_owned(),
+            curve: account.curve.as_str().to_string(),
+            public_key: account.public_key,
+            extended_public_key: account.ext_pub_key.to_string(),
+            encrypted_extended_public_key: enc_xpub,
+        };
+        account_responses.push(account_rsp);
+    }
+
+    let accounts_rsp = DeriveAccountsResult {
+        accounts: account_responses,
+    };
+    encode_message(accounts_rsp)
+}
+
+pub(crate) fn export_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
+    let param: WalletKeyParam = WalletKeyParam::decode(data).expect("export_mnemonic param");
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(format_err!("{}", "wallet_not_found")),
+    }?;
+
+    let guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+
+    tcx_ensure!(
+        guard.keystore().derivable(),
+        format_err!("{}", "private_keystore_cannot_export_mnemonic")
+    );
+
+    let export_result = ExportMnemonicResult {
+        id: guard.keystore().id(),
+        mnemonic: guard.keystore().export()?,
+    };
+
+    encode_message(export_result)
+}
+
 pub(crate) fn import_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: ImportPrivateKeyParam =
-        ImportPrivateKeyParam::decode(data).expect("import_private_key");
+        ImportPrivateKeyParam::decode(data).expect("import_private_key param");
 
     let rsp = import_private_key_internal(&param, None)?;
 
@@ -545,7 +563,7 @@ pub(crate) fn import_private_key(data: &[u8]) -> Result<Vec<u8>> {
 
 pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: ExportPrivateKeyParam =
-        ExportPrivateKeyParam::decode(data).expect("export_private_key");
+        ExportPrivateKeyParam::decode(data).expect("export_private_key param");
 
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
@@ -561,8 +579,6 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
         .get_private_key(curve, &param.path)?
         .to_bytes();
 
-    // private_key prefix is only about chain type and network
-    // TODO: add export_pk to macro
     let value = if ["TRON", "POLKADOT", "KUSAMA", "ETHEREUM"].contains(&param.chain_type.as_str()) {
         Ok(private_key_bytes.to_0x_hex())
     } else if "FILECOIN".contains(&param.chain_type.as_str()) {
@@ -589,7 +605,7 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn verify_password(data: &[u8]) -> Result<Vec<u8>> {
-    let param: WalletKeyParam = WalletKeyParam::decode(data).expect("delete_keystore");
+    let param: WalletKeyParam = WalletKeyParam::decode(data).expect("verify_password param");
     let map = KEYSTORE_MAP.read();
     let keystore: &Keystore = match map.get(&param.id) {
         Some(keystore) => Ok(keystore),
@@ -608,7 +624,7 @@ pub(crate) fn verify_password(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
-    let param: WalletKeyParam = WalletKeyParam::decode(data).expect("delete_keystore");
+    let param: WalletKeyParam = WalletKeyParam::decode(data).expect("delete_keystore param");
     let mut map = KEYSTORE_MAP.write();
     let keystore: &Keystore = match map.get(&param.id) {
         Some(keystore) => Ok(keystore),
@@ -631,7 +647,7 @@ pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
 
 pub(crate) fn exists_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: ExistsPrivateKeyParam =
-        ExistsPrivateKeyParam::decode(data).expect("ExistsPrivateKeyParam");
+        ExistsPrivateKeyParam::decode(data).expect("exists_private_key param");
     let fingerprint = if param.private_key.starts_with("edsk") {
         fingerprint_from_tezos_format_pk(&param.private_key)?
     } else {
@@ -642,36 +658,15 @@ pub(crate) fn exists_private_key(data: &[u8]) -> Result<Vec<u8>> {
 
 pub(crate) fn exists_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
     let param: ExistsMnemonicParam =
-        ExistsMnemonicParam::decode(data).expect("ExistsMnemonicParam");
+        ExistsMnemonicParam::decode(data).expect("exists_mnemonic param");
 
     let key_hash = fingerprint_from_mnemonic(&param.mnemonic)?;
 
     exists_fingerprint(&key_hash)
 }
 
-fn exists_fingerprint(fingerprint: &str) -> Result<Vec<u8>> {
-    let map = &KEYSTORE_MAP.read();
-
-    let founded: Option<&Keystore> = map
-        .values()
-        .find(|keystore| keystore.fingerprint() == fingerprint);
-    let result: ExistsKeystoreResult;
-    if let Some(ks) = founded {
-        result = ExistsKeystoreResult {
-            is_exists: true,
-            id: ks.id(),
-        }
-    } else {
-        result = ExistsKeystoreResult {
-            is_exists: false,
-            id: "".to_owned(),
-        }
-    }
-    encode_message(result)
-}
-
 pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
-    let param: SignParam = SignParam::decode(data).expect("SignTxParam");
+    let param: SignParam = SignParam::decode(data).expect("sign_tx param");
 
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
@@ -690,7 +685,7 @@ pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn sign_hashes(data: &[u8]) -> Result<Vec<u8>> {
-    let param: SignHashesParam = SignHashesParam::decode(data).expect("SignHashesParam");
+    let param: SignHashesParam = SignHashesParam::decode(data).expect("sign_hashes param");
 
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
@@ -718,7 +713,8 @@ pub(crate) fn sign_hashes(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
-    let param: GetPublicKeysParam = GetPublicKeysParam::decode(data).expect("GetPublicKeysParam");
+    let param: GetPublicKeysParam =
+        GetPublicKeysParam::decode(data).expect("get_public_keys param");
 
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
@@ -777,9 +773,8 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
 
 pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     let param: GetExtendedPublicKeysParam =
-        GetExtendedPublicKeysParam::decode(data).expect("ExtendedPublicKeyParamPoc");
+        GetExtendedPublicKeysParam::decode(data).expect("get_extended_public_keys param");
 
-    // TODO: return both enc_xpub + raw xpub
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
@@ -808,7 +803,7 @@ pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
-    let param: SignParam = SignParam::decode(data).expect("SignTxParam");
+    let param: SignParam = SignParam::decode(data).expect("sign_message param");
 
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
@@ -827,7 +822,7 @@ pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
-    let param: WalletKeyParam = WalletKeyParam::decode(data).unwrap();
+    let param: WalletKeyParam = WalletKeyParam::decode(data).expect("get_derived_key param");
     let mut map: parking_lot::lock_api::RwLockWriteGuard<
         '_,
         parking_lot::RawRwLock,
@@ -848,8 +843,7 @@ pub(crate) fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
-    let param: ImportJsonParam = ImportJsonParam::decode(data)?;
-    // let parse_v3_result = key_info_from_v3(&param);
+    let param: ImportJsonParam = ImportJsonParam::decode(data).expect("import_json param");
     if let Ok(parse_v3_result) = key_info_from_v3(&param.json, &param.password) {
         let (sec_key_bytes, name) = parse_v3_result;
         let pk_import_param = ImportPrivateKeyParam {
@@ -886,24 +880,8 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
-fn key_info_from_v3(keystore: &str, password: &str) -> Result<(Vec<u8>, String)> {
-    let ks: LegacyKeystore = serde_json::from_str(&keystore)?;
-    ks.validate_v3(&password)?;
-    let key = tcx_crypto::Key::Password(password.to_string());
-    let unlocker = ks.crypto.use_key(&key)?;
-    let pk = unlocker.plaintext()?;
-    return Ok((pk, "Imported ETH".to_string()));
-}
-
-fn key_info_from_substrate_keystore(keystore: &str, password: &str) -> Result<(Vec<u8>, String)> {
-    let ks: SubstrateKeystore = serde_json::from_str(&keystore)?;
-    let _ = ks.validate()?;
-    let pk = decode_substrate_keystore(&ks, &password)?;
-    return Ok((pk, ks.meta.name));
-}
-
 pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
-    let param: ExportJsonParam = ExportJsonParam::decode(data)?;
+    let param: ExportJsonParam = ExportJsonParam::decode(data).expect("export_json param");
     let meta: Metadata;
     {
         let map = KEYSTORE_MAP.read();
@@ -971,7 +949,7 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn exists_json(data: &[u8]) -> Result<Vec<u8>> {
-    let param: ExistsJsonParam = ExistsJsonParam::decode(data)?;
+    let param: ExistsJsonParam = ExistsJsonParam::decode(data).expect("exists_json param");
 
     let sec_key_hex = if let Ok(parse_v3_result) = key_info_from_v3(&param.json, &param.password) {
         let (sec_key_bytes, _) = parse_v3_result;
@@ -1002,42 +980,6 @@ pub(crate) fn unlock_then_crash(data: &[u8]) -> Result<Vec<u8>> {
 
     let _guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
     panic!("test_unlock_then_crash");
-}
-
-pub(crate) fn zksync_private_key_from_seed(data: &[u8]) -> Result<Vec<u8>> {
-    let param: ZksyncPrivateKeyFromSeedParam = ZksyncPrivateKeyFromSeedParam::decode(data)?;
-
-    let result = private_key_from_seed(Vec::from_hex(param.seed)?.as_slice())
-        .expect("zksync_private_key_from_seed_error");
-
-    let ret = ZksyncPrivateKeyFromSeedResult {
-        priv_key: result.to_hex(),
-    };
-    encode_message(ret)
-}
-
-pub(crate) fn zksync_sign_musig(data: &[u8]) -> Result<Vec<u8>> {
-    let param: ZksyncSignMusigParam = ZksyncSignMusigParam::decode(data)?;
-
-    let sign_result = sign_musig(
-        Vec::from_hex(param.priv_key)?.as_slice(),
-        Vec::from_hex(param.bytes)?.as_slice(),
-    )
-    .expect("zksync_sign_musig_error");
-    let ret = ZksyncSignMusigResult {
-        signature: sign_result.to_hex(),
-    };
-    encode_message(ret)
-}
-
-pub(crate) fn zksync_private_key_to_pubkey_hash(data: &[u8]) -> Result<Vec<u8>> {
-    let param: ZksyncPrivateKeyToPubkeyHashParam = ZksyncPrivateKeyToPubkeyHashParam::decode(data)?;
-    let pub_key_hash = private_key_to_pubkey_hash(Vec::from_hex(param.priv_key)?.as_slice())
-        .expect("zksync_private_key_to_pubkey_hash_error");
-    let ret = ZksyncPrivateKeyToPubkeyHashResult {
-        pub_key_hash: pub_key_hash.to_hex(),
-    };
-    encode_message(ret)
 }
 
 pub(crate) fn remove_wallet(data: &[u8]) -> Result<Vec<u8>> {
@@ -1212,6 +1154,7 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
             created_at: keystore.meta().timestamp,
             identifier: identity.identifier.to_string(),
             ipfs_id: identity.ipfs_id.to_string(),
+            source_finger_print: keystore.fingerprint().to_string(),
         });
 
         cache_keystore(keystore);
