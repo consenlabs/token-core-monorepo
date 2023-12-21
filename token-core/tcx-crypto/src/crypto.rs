@@ -372,6 +372,7 @@ impl KdfParams for KdfType {
 mod tests {
     use super::*;
     use failure::_core::str::FromStr;
+    use tcx_common::random_u8_64;
     use tcx_constants::TEST_PASSWORD;
 
     fn sample_json_str() -> &'static str {
@@ -612,20 +613,23 @@ mod tests {
     #[test]
     fn test_use_derive_key() {
         let crypto: Crypto = Crypto::new(TEST_PASSWORD, "TokenCoreX".as_bytes());
-        let derive_key = crypto
+        let derived_key = crypto
             .use_key(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap()
             .derived_key()
             .to_hex();
 
-        let u = crypto.use_key(&Key::DerivedKey(derive_key)).unwrap();
+        let u = crypto.use_key(&Key::DerivedKey(derived_key)).unwrap();
         assert_eq!(
             "TokenCoreX",
             String::from_utf8(u.plaintext().unwrap()).unwrap()
         );
+    }
 
-        let wrong_derive_key = random_u8_32().to_hex();
-
+    #[test]
+    fn test_use_wrong_derived_key() {
+        let crypto: Crypto = Crypto::new(TEST_PASSWORD, "TokenCoreX".as_bytes());
+        let wrong_derive_key = random_u8_64().to_hex();
         let u = crypto.use_key(&Key::DerivedKey(wrong_derive_key));
         assert!(u.is_err());
     }
