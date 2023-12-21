@@ -3,9 +3,7 @@ pub mod address;
 pub mod signer;
 pub mod transaction;
 use bitcoin::util::base58;
-// use base58::ToBase58;
 use tcx_common::Result;
-// pub use chain_factory::EosChainFactory;
 
 pub mod eos {
 

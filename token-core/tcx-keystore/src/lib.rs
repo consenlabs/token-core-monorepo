@@ -55,19 +55,3 @@ pub enum Error {
     #[fail(display = "invalid_encryption_data")]
     InvalidEncryptionData,
 }
-
-pub trait PublicKeyEncoder {
-    fn encode(&self, public_key: &[u8]) -> Result<String>;
-}
-
-pub trait PrivateKeyEncoder {
-    fn encode(&self, private_key: &[u8]) -> Result<String>;
-    fn decode(&self, private_key_str: &str) -> Result<Vec<u8>>;
-}
-
-pub trait ChainFactory {
-    fn create_public_key_encoder(&self) -> Box<dyn PublicKeyEncoder>;
-    fn create_hash_signer(&self) -> Box<dyn HashSigner> {
-        unimplemented!()
-    }
-}
