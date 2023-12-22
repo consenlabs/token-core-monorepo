@@ -288,39 +288,39 @@ mod tests {
     use super::LegacyKeystore;
 
     fn v44_bitcoin_mnemonic_1() -> &'static str {
-        include_str!("../test/fixtures/02a55ab6-554a-4e78-bc26-6a7acced7e5e.json")
+        include_str!("../tests/fixtures/02a55ab6-554a-4e78-bc26-6a7acced7e5e.json")
     }
 
     fn unsupported_eos() -> &'static str {
-        include_str!("../test/fixtures/7f5406be-b5ee-4497-948c-877deab8c994.json")
+        include_str!("../tests/fixtures/7f5406be-b5ee-4497-948c-877deab8c994.json")
     }
 
     fn v3_eos_private_key() -> &'static str {
-        include_str!("../test/fixtures/42c275c6-957a-49e8-9eb3-43c21cbf583f.json")
+        include_str!("../tests/fixtures/42c275c6-957a-49e8-9eb3-43c21cbf583f.json")
     }
 
     fn v44_bitcoin_mnemonic_2() -> &'static str {
-        include_str!("../test/fixtures/3831346d-0b81-405b-89cf-cdb1d010430e.json")
+        include_str!("../tests/fixtures/3831346d-0b81-405b-89cf-cdb1d010430e.json")
     }
 
     fn v3_eth_private_key() -> &'static str {
-        include_str!("../test/fixtures/045861fe-0e9b-4069-92aa-0ac03cad55e0.json")
+        include_str!("../tests/fixtures/045861fe-0e9b-4069-92aa-0ac03cad55e0.json")
     }
 
     fn v3_eth_mnemonic() -> &'static str {
-        include_str!("../test/fixtures/175169f7-5a35-4df7-93c1-1ff612168e71.json")
+        include_str!("../tests/fixtures/175169f7-5a35-4df7-93c1-1ff612168e71.json")
     }
 
     fn tcx_ks() -> &'static str {
-        include_str!("../test/fixtures/b05a0ff9-885a-4a31-9d82-6477d34d1e37.json")
+        include_str!("../tests/fixtures/b05a0ff9-885a-4a31-9d82-6477d34d1e37.json")
     }
 
     fn identity() -> &'static str {
-        include_str!("../test/fixtures/identity.json")
+        include_str!("../tests/fixtures/identity.json")
     }
 
     fn ios_metadata() -> &'static str {
-        include_str!("../test/fixtures/5991857a-2488-4546-b730-463a5f84ea6a")
+        include_str!("../tests/fixtures/5991857a-2488-4546-b730-463a5f84ea6a")
     }
 
     #[test]
