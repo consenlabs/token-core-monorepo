@@ -745,4 +745,192 @@ mod tests {
             Error::WitnessGroupEmpty.to_string()
         );
     }
+
+    #[test]
+    fn test_signer_witness_empty() {
+        let tx_hash = "0x719933ec055272734ab709a80492edb44c083e6b675e5c37e5bb3f720fe88e5e";
+
+        let coin_info = CoinInfo {
+            coin: "NERVOS".to_string(),
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "TESTNET".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        let mut ks = Keystore::from_mnemonic(
+            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
+            "Password",
+            Metadata::default(),
+        )
+        .unwrap();
+
+        ks.unlock_by_password("Password").unwrap();
+
+        let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
+
+        assert_eq!(
+            account.address,
+            "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6"
+        );
+        let params = SignatureParameters {
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            chain_type: "NERVOS".to_string(),
+            network: "TESTNET".to_string(),
+            ..Default::default()
+        };
+
+        let mut signer = CkbTxSigner {
+            ks: &mut ks,
+            sign_context: &params,
+        };
+        let witnesses: Vec<Witness> = vec![];
+        let cached_cells: Vec<&CachedCell> = vec![];
+        let result = signer.sign_witnesses(
+            Vec::from_0x_hex(tx_hash).unwrap().as_slice(),
+            witnesses.as_slice(),
+            cached_cells.as_slice(),
+        );
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            Error::WitnessEmpty.to_string()
+        );
+    }
+
+    #[test]
+    fn test_sign_transaction2() {
+        let tx_hash = "0x719933ec055272734ab709a80492edb44c083e6b675e5c37e5bb3f720fe88e5e";
+
+        let witnesses = vec![
+            Witness::default(),
+            Witness::default(),
+            Witness::default(),
+            Witness::default(),
+        ];
+
+        let cached_cells = vec![
+            CachedCell {
+                out_point: Some({
+                    OutPoint {
+                        tx_hash:
+                            "0x67b35360a09ecbdaf7cef55bb9b58b194d1e067007c67d67520ee730fcd1f252"
+                                .to_owned(),
+                        index: 0,
+                    }
+                }),
+                lock: Some(Script {
+                    args: "0xb1e8f5e7b4be7867ca6cd556ee3954a325979f45".to_owned(),
+                    code_hash: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8"
+                        .to_owned(),
+                    hash_type: "type".to_string(),
+                }),
+                derived_path: "m/44'/309'/0'/0/0".to_string(),
+                ..CachedCell::default()
+            },
+            CachedCell {
+                out_point: Some({
+                    OutPoint {
+                        tx_hash:
+                            "0x67b35360a09ecbdaf7cef55bb9b58b194d1e067007c67d67520ee730fcd1f252"
+                                .to_owned(),
+                        index: 1,
+                    }
+                }),
+                lock: Some(Script {
+                    args: "0xb1e8f5e7b4be7867ca6cd556ee3954a325979f45".to_owned(),
+                    code_hash: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8"
+                        .to_owned(),
+                    hash_type: "type".to_string(),
+                }),
+                derived_path: "m/44'/309'/0'/0/0".to_string(),
+                ..CachedCell::default()
+            },
+            CachedCell {
+                out_point: Some({
+                    OutPoint {
+                        tx_hash:
+                            "0x67b35360a09ecbdaf7cef55bb9b58b194d1e067007c67d67520ee730fcd1f252"
+                                .to_owned(),
+                        index: 2,
+                    }
+                }),
+                lock: Some(Script {
+                    args: "0xb1e8f5e7b4be7867ca6cd556ee3954a325979f45".to_owned(),
+                    code_hash: "0x9bd7e06f3ecf4be0f2fcd2188b23f1b9fcc88e5d4b65a8637b17723bbda3cce8"
+                        .to_owned(),
+                    hash_type: "type".to_string(),
+                }),
+                derived_path: "m/44'/309'/0'/0/0".to_string(),
+                ..CachedCell::default()
+            },
+        ];
+
+        let inputs = vec![
+            CellInput {
+                previous_output: Some(OutPoint {
+                    tx_hash: "0x67b35360a09ecbdaf7cef55bb9b58b194d1e067007c67d67520ee730fcd1f252"
+                        .to_owned(),
+                    index: 0,
+                }),
+                since: "".to_owned(),
+            },
+            CellInput {
+                previous_output: Some(OutPoint {
+                    tx_hash: "0x67b35360a09ecbdaf7cef55bb9b58b194d1e067007c67d67520ee730fcd1f252"
+                        .to_owned(),
+                    index: 1,
+                }),
+                since: "".to_string(),
+            },
+            CellInput {
+                previous_output: Some(OutPoint {
+                    tx_hash: "0x67b35360a09ecbdaf7cef55bb9b58b194d1e067007c67d67520ee730fcd1f252"
+                        .to_owned(),
+                    index: 2,
+                }),
+                since: "".to_string(),
+            },
+        ];
+
+        let tx_input = CkbTxInput {
+            inputs,
+            witnesses,
+            tx_hash: tx_hash.clone().to_owned(),
+            cached_cells,
+            ..CkbTxInput::default()
+        };
+
+        let coin_info = CoinInfo {
+            coin: "NERVOS".to_string(),
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "TESTNET".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        let mut ks = Keystore::from_mnemonic(
+            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
+            "Password",
+            Metadata::default(),
+        )
+        .unwrap();
+
+        ks.unlock_by_password("Password").unwrap();
+
+        let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
+
+        assert_eq!(
+            account.address,
+            "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6"
+        );
+        let params = SignatureParameters {
+            derivation_path: "m/44'/309'/0'/0/0".to_string(),
+            chain_type: "NERVOS".to_string(),
+            network: "TESTNET".to_string(),
+            ..Default::default()
+        };
+
+        let tx_output = ks.sign_transaction(&params, &tx_input).unwrap();
+        assert_eq!(tx_output.witnesses[0], "0x5500000010000000550000005500000041000000074e13dbb2482c1fb93ba75b670be2b1a8e66d8e944b5c800215ac535950a2ac6f2bebc12ef03ea2d7dc67ec79ee4c0295a0e30d747cb8c85ad45cdc6a6e676700");
+    }
 }

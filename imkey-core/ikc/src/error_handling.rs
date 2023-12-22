@@ -9,7 +9,6 @@ thread_local! {
     pub static LAST_BACKTRACE: RefCell<Option<(Option<String>, Backtrace)>> = RefCell::new(None);
 }
 
-#[cfg_attr(tarpaulin, skip)]
 #[allow(irrefutable_let_patterns)]
 fn notify_err(err: Error) -> Error {
     if let _backtrace = err.backtrace() {

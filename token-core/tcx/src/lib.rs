@@ -3626,7 +3626,7 @@ mod tests {
             let result = GetPublicKeysResult::decode(result_bytes.as_slice()).unwrap();
             assert_eq!(result.public_keys.clone().get(0).unwrap(), "0x99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db");
 
-            let param = SignBlsToExecutionChangeParam {
+            let mut param = SignBlsToExecutionChangeParam {
                 id: import_result.id.to_string(),
                 password: TEST_PASSWORD.to_string(),
                 genesis_fork_version: "0x03000000".to_string(),
@@ -3636,11 +3636,18 @@ mod tests {
                 from_bls_pub_key: result.public_keys.get(0).unwrap().to_owned(),
                 eth1_withdrawal_address: "0x8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string(),
             };
-            let ret_bytes = call_api("sign_bls_to_execution_change", param).unwrap();
+            let ret_bytes = call_api("sign_bls_to_execution_change", param.clone()).unwrap();
             let result: SignBlsToExecutionChangeResult =
                 SignBlsToExecutionChangeResult::decode(ret_bytes.as_slice()).unwrap();
 
             assert_eq!(result.signeds.get(0).unwrap().signature, "8c8ce9f8aedf380e47548501d348afa28fbfc282f50edf33555a3ed72eb24d710bc527b5108022cffb764b953941ec4014c44106d2708387d26cc84cbc5c546a1e6e56fdc194cf2649719e6ac149596d80c86bf6844b36bd47038ee96dd3962f");
+            param.eth1_withdrawal_address =
+                "0x8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15XX".to_string();
+            let result = call_api("sign_bls_to_execution_change", param.clone());
+            assert_eq!(
+                result.err().unwrap().to_string(),
+                "invalid_eth_address".to_string()
+            );
             remove_created_wallet(&import_result.id);
         })
     }

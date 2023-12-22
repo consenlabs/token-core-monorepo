@@ -45,7 +45,7 @@ impl FromStr for EthAddress {
 }
 
 pub fn is_valid_address(address: &str) -> bool {
-    if address.len() != 42 && !address.starts_with("0x") {
+    if address.len() != 42 || !address.starts_with("0x") {
         return false;
     }
 
@@ -76,11 +76,15 @@ pub fn is_valid_address(address: &str) -> bool {
 
 #[cfg(test)]
 mod test {
+    use std::{result, str::FromStr};
+
     use crate::address::EthAddress;
     use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
     use tcx_keystore::Address;
     use tcx_primitive::{PrivateKey, Secp256k1PrivateKey, TypedPrivateKey};
+
+    use super::is_valid_address;
 
     #[test]
     fn test_eth_address() {
@@ -116,5 +120,33 @@ mod test {
             EthAddress::is_valid("0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfE5", &coin_info),
             false
         );
+    }
+
+    #[test]
+    fn test_eth_address_from_str() {
+        let address = EthAddress::from_str("0xef678007D18427E6022059Dbc264f27507CD1ffC").unwrap();
+        assert_eq!(
+            address.to_string(),
+            "0xef678007D18427E6022059Dbc264f27507CD1ffC"
+        );
+
+        let result = EthAddress::from_str("0xef678007D18427E6022059Dbc264f27507CD1ffCXX");
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "invalid_address".to_string()
+        );
+    }
+
+    #[test]
+    fn test_invalid_address() {
+        let invalid_address_list = vec![
+            "ef678007D18427E6022059Dbc264f27507CD1ffC",
+            "0xef678007D18427E6022059Dbc264f27507CD1ffCXX",
+            "0xef678007D18427E6022059Dbc264f27507CD1ff#",
+        ];
+        for address in invalid_address_list.iter() {
+            let result = is_valid_address(address);
+            assert_eq!(result, false);
+        }
     }
 }
