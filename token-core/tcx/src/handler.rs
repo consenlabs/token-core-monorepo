@@ -893,6 +893,7 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
 
         // !!! Warning !!! HDKeystore only can export raw sr25519 key,
         // but polkadotjs fixtures needs a Ed25519 expanded secret key.
+        // they will generate difference account address
         if ["POLKADOT".to_string(), "KUSAMA".to_string()].contains(&param.chain_type)
             && keystore.derivable()
         {
@@ -925,8 +926,9 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
     let private_key_bytes = Vec::from_hex_auto(private_key)?;
 
     let coin = coin_info_from_param(&param.chain_type, "", "", "")?;
+
     let json_str = match param.chain_type.as_str() {
-        "KUSAMA" | "SUBSTRATE" => {
+        "KUSAMA" | "SUBSTRATE" | "POLKADOT" => {
             let mut substrate_ks =
                 encode_substrate_keystore(&param.password, &private_key_bytes, &coin)?;
 

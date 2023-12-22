@@ -329,9 +329,7 @@ pub fn decode_substrate_keystore(keystore: &SubstrateKeystore, password: &str) -
         secret_key_bytes.len() == SECRET_KEY_LENGTH,
         format_err!("secret from substrate keystore must be 64 bytes")
     );
-    // let secret_key = SecretKey::from_ed25519_bytes(&secret_key_bytes)
-    //     .map_err(|_| format_err!("secret key from_ed25519_bytes error"))?;
-    // let priv_key = Sr25519PrivateKey::from_slice(&secret_key.to_bytes())?;
+
     let priv_key = Sr25519PrivateKey::from_slice(&secret_key_bytes)?;
 
     if priv_key.public_key().to_bytes() != pub_key {
@@ -490,7 +488,7 @@ mod test_super {
     }
 
     #[test]
-    fn is_valid_keystore() {
+    fn test_is_valid_keystore() {
         let keystore: SubstrateKeystore = serde_json::from_str(KEYSTORE_STR).unwrap();
         assert!(keystore.validate().is_ok())
     }

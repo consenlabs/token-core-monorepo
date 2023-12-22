@@ -31,13 +31,8 @@ impl TraitPrivateKey for Sr25519PrivateKey {
     type PublicKey = Sr25519PublicKey;
 
     fn from_slice(data: &[u8]) -> Result<Self> {
-        // let mini_key: MiniSecretKey =
-        //     MiniSecretKey::from_bytes(data).expect("32 bytes can always build a key; qed");
-        //
-        // let kp = mini_key.expand_to_keypair(ExpansionMode::Ed25519);
         let sec_key =
             SecretKey::from_ed25519_bytes(data).map_err(|_| KeyError::InvalidSr25519Key)?;
-        // let pk = SecretKey::from_bytes(data).map_err(|_| KeyError::InvalidSr25519Key)?;
         Ok(Sr25519PrivateKey(Pair::from(sec_key)))
     }
 
@@ -126,15 +121,41 @@ mod tests {
     #[test]
     fn test_sr25519_sec_key_convert() {
         // TODO: sr25519 from ed25519 bytes is not same to ed25519
-        let bytes = Vec::from_0x_hex("0x416c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f").unwrap();
+        let bytes = Vec::from_0x_hex("0x476c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f").unwrap();
         let ed25519_prv_key = SecretKey::from_ed25519_bytes(&bytes).unwrap();
         let ed25519_bytes = ed25519_prv_key.to_ed25519_bytes();
         let ed25519_prv_key_again = SecretKey::from_ed25519_bytes(&ed25519_bytes).unwrap();
         assert_eq!("0x406c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f", ed25519_prv_key_again.to_ed25519_bytes().to_0x_hex());
+
+        let pair_41 = Pair::from(ed25519_prv_key);
+        let pair_again = Pair::from(ed25519_prv_key_again);
+        assert_eq!(pair_41.public(), pair_again.public());
     }
 
     #[test]
-    fn test_sign_sr25519() {
-        // use integration test
+    fn test_sr25519_mask() {
+        let scalar = Vec::from_0x_hex("0x416c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f").unwrap();
+        let mut scalar = scalar[0..32].to_vec();
+        let mut low = 0u8;
+        for i in scalar.iter_mut().rev() {
+            let r = *i & 0b00000111; // save remainder
+            *i >>= 3; // divide by 8
+            *i += low;
+            low = r << 5;
+        }
+        let masked_hex = scalar.to_0x_hex();
+        assert_eq!(
+            masked_hex,
+            "0x882d6dac0c040404040404040404040404040404040404040404040404040404"
+        );
+
+        // Ensure that s < 2^255 by masking the high bit
+        scalar[31] &= 0b0111_1111;
+
+        let masked_hex = scalar.to_0x_hex();
+        assert_eq!(
+            masked_hex,
+            "0x882d6dac0c040404040404040404040404040404040404040404040404040404"
+        );
     }
 }
