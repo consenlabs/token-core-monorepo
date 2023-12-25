@@ -1,7 +1,6 @@
 use failure::format_err;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
-use tcx_atom::address::AtomAddress;
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::{coin_info_from_param, CoinInfo, CurveType};
 use tcx_crypto::{Crypto, EncPair, Key};
@@ -83,7 +82,7 @@ pub struct LegacyKeystore {
     pub crypto: Crypto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enc_mnemonic: Option<EncPair>,
-    pub address: String,
+    pub address: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mnemonic_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -103,7 +102,7 @@ impl LegacyKeystore {
             id,
             crypto,
             enc_mnemonic: None,
-            address,
+            address: Some(address),
             mnemonic_path: None,
             im_token_meta: None,
         })
@@ -120,7 +119,7 @@ impl LegacyKeystore {
 
         let calc_address = EthAddress::from_public_key(&pub_key, &coin_info)?.to_string();
         let calc_addr_bytes = &Vec::from_hex_auto(calc_address)?;
-        let addr_bytes = &Vec::from_hex_auto(&self.address)?;
+        let addr_bytes = &Vec::from_hex_auto(&self.address.clone().unwrap())?;
 
         if calc_addr_bytes == addr_bytes {
             Ok(())
@@ -155,7 +154,11 @@ impl LegacyKeystore {
 
     pub fn from_json_str(keystore_str: &str) -> Result<LegacyKeystore> {
         let keystore: LegacyKeystore = serde_json::from_str(&keystore_str)?;
-        if keystore.version != 44 && keystore.version != 1 && keystore.version != 3 {
+        if keystore.version != 44
+            && keystore.version != 1
+            && keystore.version != 3
+            && keystore.version != 10001
+        {
             return Err(format_err!("unsupported version {}", keystore.version));
         }
 
