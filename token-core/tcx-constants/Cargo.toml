@@ -9,6 +9,6 @@ edition = "2021"
 [dependencies]
 failure = "0.1.8"
 lazy_static = "1.4.0"
-serde_json = "1.0.88"
+serde_json = "1.0.89"
 serde = { version = "1.0.147", features = ["derive"] }
 parking_lot = "0.12.1"
