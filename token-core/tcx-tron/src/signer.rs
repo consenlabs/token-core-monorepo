@@ -132,7 +132,7 @@ mod tests {
         let mut guard = KeystoreGuard::unlock_by_password(&mut keystore, TEST_PASSWORD).unwrap();
         let ks = guard.keystore_mut();
 
-        let sign_context = SignatureParameters {
+        let mut sign_context = SignatureParameters {
             curve: CurveType::SECP256k1,
             derivation_path: "m/44'/145'/0'/0/0".to_string(),
             chain_type: "TRON".to_string(),
@@ -142,6 +142,9 @@ mod tests {
 
         assert_eq!(signed_tx.signatures[0], "beac4045c3ea5136b541a3d5ec2a3e5836d94f28a1371440a01258808612bc161b5417e6f5a342451303cda840f7e21bfaba1011fad5f63538cb8cc132a9768800");
 
+        sign_context.derivation_path = "".to_string();
+        let signed_tx = ks.sign_transaction(&sign_context, &tx);
+        assert_eq!(signed_tx.err().unwrap().to_string(), "can not format error");
         Ok(())
     }
 

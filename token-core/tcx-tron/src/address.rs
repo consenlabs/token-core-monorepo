@@ -47,6 +47,8 @@ impl ToString for TronAddress {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::Address;
     use crate::TronAddress;
     use tcx_common::FromHex;
@@ -95,5 +97,14 @@ mod tests {
             "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN",
             &coin_info
         ));
+    }
+
+    #[test]
+    fn test_address_from_str() {
+        let tezos_address = TronAddress::from_str("THfuSDVRvSsjNDPFdGjMU19Ha4Kf7acotq").unwrap();
+        assert_eq!(
+            tezos_address.to_string(),
+            "THfuSDVRvSsjNDPFdGjMU19Ha4Kf7acotq"
+        );
     }
 }

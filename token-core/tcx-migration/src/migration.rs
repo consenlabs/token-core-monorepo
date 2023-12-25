@@ -499,4 +499,17 @@ mod tests {
             "0x6031564e7b2F5cc33737807b2E58DaFF870B590b"
         );
     }
+
+    #[test]
+    fn test_address_not_match() {
+        let private_key_bytes = Vec::from_hex_auto(TEST_PRIVATE_KEY).unwrap();
+        let mut v3_keystore =
+            LegacyKeystore::new_v3(&private_key_bytes, TEST_PASSWORD).expect("v3 keystore");
+        v3_keystore.address = "0x6031564e7b2F5cc33737807b2E58DaFF870B5900".to_string(); //wrong address
+        let validate_result = v3_keystore.validate_v3(TEST_PASSWORD);
+        assert_eq!(
+            validate_result.err().unwrap().to_string(),
+            "private_key_and_address_not_match".to_string()
+        );
+    }
 }

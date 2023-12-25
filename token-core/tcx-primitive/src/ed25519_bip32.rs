@@ -160,4 +160,15 @@ mod test {
             "5d70af781f3a37b829f0d060924d5e960bdc02e85423494afc0b1a41bbe196d4",
         );
     }
+
+    #[test]
+    fn test_drive_invalid_path() {
+        let seed = Vec::from_hex("fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
+        let esk = Ed25519DeterministicPrivateKey::from_seed(&seed).unwrap();
+        let result = esk.derive("m/0'/0/x");
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "invalid_derivation_path_format"
+        );
+    }
 }

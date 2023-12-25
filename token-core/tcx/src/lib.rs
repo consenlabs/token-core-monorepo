@@ -2937,7 +2937,7 @@ mod tests {
             assert!(ret.is_err());
             assert_eq!(format!("{}", ret.err().unwrap()), "unsupported_chain");
 
-            let tx = SignParam {
+            let mut tx = SignParam {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "TEZOS".to_string(),
@@ -2951,8 +2951,20 @@ mod tests {
                 }),
             };
 
-            let ret = call_api("sign_tx", tx).unwrap();
+            let ret = call_api("sign_tx", tx.clone()).unwrap();
 
+            let output: TezosTxOut = TezosTxOut::decode(ret.as_slice()).unwrap();
+            let expected_sign = "0df020458bdcfe24546488dd81e1bd7e2cb05379dc7c72ad626646ae22df5d3a652fdc4ffd2383dd5823a98fe158780928da07a3f0a234e23b759ce7b3a39a0c";
+            assert_eq!(expected_sign, output.signature.as_str());
+
+            let raw_data = "0xd3bdafa2e36f872e24f1ccd68dbdca4356b193823d0a6a54886d7641e532a2a26c00dedf1a2f428e5e85edf105cb3600949f3d0e8837c70cacb4e803e8528102c0843d0000dcdcf88d0cfb769e33b1888d6bdc351ee3277ea700".to_string();
+            let input = TezosRawTxIn { raw_data };
+            let input_value = encode_message(input).unwrap();
+            tx.input = Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value,
+            });
+            let ret = call_api("sign_tx", tx).unwrap();
             let output: TezosTxOut = TezosTxOut::decode(ret.as_slice()).unwrap();
             let expected_sign = "0df020458bdcfe24546488dd81e1bd7e2cb05379dc7c72ad626646ae22df5d3a652fdc4ffd2383dd5823a98fe158780928da07a3f0a234e23b759ce7b3a39a0c";
             assert_eq!(expected_sign, output.signature.as_str());

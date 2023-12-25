@@ -20,7 +20,7 @@ impl Address for SubstrateAddress {
             "POLKADOT" => sr_pk
                 .0
                 .to_ss58check_with_version(Ss58AddressFormat::custom(0)),
-            _ => "".to_owned(),
+            _ => return Err(failure::err_msg("wrong_coin_type")),
         };
 
         Ok(SubstrateAddress(address))
@@ -98,7 +98,7 @@ mod test_super {
         let sec_key = Sr25519PrivateKey::from_slice(&sec_key_data).unwrap();
         let pub_key = sec_key.public_key();
         let typed_key = TypedPublicKey::SR25519(pub_key);
-        let kusama_coin_info = CoinInfo {
+        let mut kusama_coin_info = CoinInfo {
             coin: "KUSAMA".to_string(),
             derivation_path: "//imToken//kusama/0".to_string(),
             curve: CurveType::SR25519,
@@ -109,12 +109,16 @@ mod test_super {
         assert_eq!(
             addr.to_string(),
             "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS"
-        )
+        );
+
+        kusama_coin_info.coin = "ERROR_TYPE".to_string();
+        let addr = SubstrateAddress::from_public_key(&typed_key, &kusama_coin_info);
+        assert_eq!(addr.err().unwrap().to_string(), "wrong_coin_type");
     }
 
     #[test]
     fn test_address_is_valid() {
-        let coin_info = CoinInfo {
+        let mut coin_info = CoinInfo {
             coin: "KUSAMA".to_string(),
             derivation_path: "//imToken//kusama/0".to_string(),
             curve: CurveType::SR25519,
@@ -129,6 +133,14 @@ mod test_super {
         for addr in addresses {
             assert!(SubstrateAddress::is_valid(addr, &coin_info));
         }
+
+        coin_info.coin = "POLKADOT".to_string();
+        coin_info.derivation_path = "//imToken//polkadot/0".to_string();
+        let addresse = "16NhUkUTkYsYRjMD22Sop2DF8MAXUsjPcYtgHF3t1ccmohx1";
+        assert!(SubstrateAddress::is_valid(addresse, &coin_info));
+
+        coin_info.coin = "ERROR_COIN_TYPE".to_string();
+        assert!(!SubstrateAddress::is_valid(addresse, &coin_info));
     }
 
     #[test]

@@ -484,7 +484,79 @@ mod test_super {
 
     #[test]
     fn test_is_valid_keystore() {
-        let keystore: SubstrateKeystore = serde_json::from_str(KEYSTORE_STR).unwrap();
-        assert!(keystore.validate().is_ok())
+        let mut keystore: SubstrateKeystore = serde_json::from_str(KEYSTORE_STR).unwrap();
+        assert!(keystore.validate().is_ok());
+
+        let address = keystore.address.clone();
+        let encoded = keystore.encoded.clone();
+        let content_pkcs8 = keystore.encoding.content[0].clone();
+        let content_sr25519 = keystore.encoding.content[1].clone();
+        keystore.address = "".to_string();
+        let result = keystore.validate();
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "invalid_keystore# address is empty".to_string()
+        );
+        keystore.address = address;
+
+        keystore.encoded = "".to_string();
+        let result = keystore.validate();
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "invalid_keystore# encoded is empty"
+        );
+        keystore.encoded = encoded;
+
+        keystore.encoding.content[0] = "wrong_content".to_string();
+        let result = keystore.validate();
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "invalid_keystore# need pkcs8 padding"
+        );
+        keystore.encoding.content[0] = content_pkcs8;
+
+        keystore.encoding.content[1] = "wrong_content".to_string();
+        let result = keystore.validate();
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "invalid_keystore# only support sr25519"
+        );
+        keystore.encoding.content[1] = content_sr25519;
+
+        keystore.encoding.version = "0".to_string();
+        let result = keystore.validate();
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "invalid_keystore# only support version 2 or 3"
+        );
+    }
+
+    #[test]
+    fn test_decode_cipher_text() {
+        let keystore_str = r#"{
+            "address": "FLiSDPCcJ6auZUGXALLj6jpahcP6adVFDBUQznPXUQ7yoqH",
+            "encoded": "cd238963070cc4d6806053ee1ac500c7add9c28732bb5d434a332f84a91d9be0008000000100000008000000cf630a1113941b350ddd06697e50399183162e5e9a0e893eafc7f5f4893a223dca5055706b9925b56fdb4304192143843da718e11717daf89cf4f4781f94fb443f61432f782d54280af9eec90bd3069c3cc2d957a42b7c18dc2e9497f623735518e0e49b58f8e4db2c09da3a45dbb935659d015fc94b946cba75b606a6ff7f4e823f6b049e2e6892026b49de02d6dbbd64646fe0933f537d9ea53a70be",
+            "encoding": {
+              "content": [
+                "pkcs8",
+                "sr25519"
+              ],
+              "type": [
+                "scrypt",
+                "xsalsa20-poly1305"
+              ],
+              "version": "3"
+            },
+            "meta": {
+              "genesisHash": "0xb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe",
+              "name": "version3",
+              "tags": [],
+              "whenCreated": 1595277797639
+            }
+          }"#;
+        let ks: SubstrateKeystore = serde_json::from_str(keystore_str).unwrap();
+        let decode_result = ks.decode_cipher_text().unwrap();
+        let result_hex = decode_result.to_hex();
+        assert_eq!(result_hex, "cd238963070cc4d6806053ee1ac500c7add9c28732bb5d434a332f84a91d9be0008000000100000008000000cf630a1113941b350ddd06697e50399183162e5e9a0e893eafc7f5f4893a223dca5055706b9925b56fdb4304192143843da718e11717daf89cf4f4781f94fb443f61432f782d54280af9eec90bd3069c3cc2d957a42b7c18dc2e9497f623735518e0e49b58f8e4db2c09da3a45dbb935659d015fc94b946cba75b606a6ff7f4e823f6b049e2e6892026b49de02d6dbbd64646fe0933f537d9ea53a70be");
     }
 }

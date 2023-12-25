@@ -71,6 +71,8 @@ pub fn sha256_hash(data: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
     use crate::address::TezosAddress;
     use hex::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
@@ -117,12 +119,25 @@ mod test {
             network: "MAINNET".to_string(),
             seg_wit: "".to_string(),
         };
-        let address = "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9";
+        let address = "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9"; //valid address
         let valid_result = TezosAddress::is_valid(address, &coin_info);
         assert!(valid_result);
 
-        let address = "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNoI";
+        let address = "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNoI"; //base58 error address
         let valid_result = TezosAddress::is_valid(address, &coin_info);
-        assert_eq!(false, valid_result);
+        assert!(!valid_result);
+
+        let address = "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S3DxBZ"; //checksum error address
+        let valid_result = TezosAddress::is_valid(address, &coin_info);
+        assert!(!valid_result);
+    }
+
+    #[test]
+    fn test_address_from_str() {
+        let tezos_address = TezosAddress::from_str("tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9").unwrap();
+        assert_eq!(
+            tezos_address.to_string(),
+            "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9"
+        );
     }
 }

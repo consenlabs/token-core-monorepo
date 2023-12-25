@@ -496,4 +496,35 @@ mod tests {
         .unwrap();
         assert_eq!("0xf6f23259", fingerprint);
     }
+
+    #[test]
+    fn derive_key_at_paths2() {
+        let mut keystore =
+            HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        let coin_info = CoinInfo {
+            coin: "BITCOIN".to_string(),
+            derivation_path: "m/44'/0'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+        let _ = keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap();
+
+        let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
+
+        let expected = Account {
+            address: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string(),
+            derivation_path: "m/44'/0'/0'/0/0".to_string(),
+            ext_pub_key: "03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            curve: CurveType::SECP256k1,
+            coin: "BITCOIN".to_string(),
+            public_key: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string()
+        };
+
+        assert_eq!(acc, expected);
+    }
 }

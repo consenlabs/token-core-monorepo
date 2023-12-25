@@ -242,5 +242,11 @@ mod tests {
             let ret: Result<ChildNumber, failure::Error> = invalid_dj.try_into();
             assert!(ret.is_err());
         }
+
+        let invalid_djs = vec![DeriveJunction::Soft(1), DeriveJunction::Hard(1)];
+        for invalid_dj in invalid_djs {
+            let ret: Result<ChildNumber, failure::Error> = invalid_dj.try_into();
+            assert!(ret.is_ok());
+        }
     }
 }

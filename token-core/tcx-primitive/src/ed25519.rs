@@ -90,6 +90,7 @@ impl FromHex for Ed25519PublicKey {
 
 #[cfg(test)]
 mod test {
+    use crate::ecc::KeyError;
     use crate::ed25519::{Ed25519PrivateKey, Ed25519PublicKey};
     use crate::{PrivateKey, PublicKey};
     use blake2b_simd::Params;
@@ -148,5 +149,18 @@ mod test {
         let sk_result = Ed25519PrivateKey::from_slice(&pk_bytes).unwrap();
         let pk = sk_result.public_key().to_hex();
         println!("{}", pk);
+    }
+
+    #[test]
+    fn test_ed25519() {
+        let private_key = Ed25519PrivateKey::from_slice(
+            Vec::from_hex("171cb88b1b3c1db25add599712e36245d75bc65a1a5c9e18d76f9f2b1eab401200")
+                .unwrap()
+                .as_slice(),
+        );
+        assert_eq!(
+            private_key.err().unwrap().to_string(),
+            KeyError::InvalidEd25519Key.to_string()
+        );
     }
 }
