@@ -9,7 +9,6 @@ use parking_lot::RwLock;
 // }
 
 /// Blockchain basic config
-/// //TODO: use network as bech32?
 #[derive(Clone)]
 pub struct CoinInfo {
     pub coin: String,

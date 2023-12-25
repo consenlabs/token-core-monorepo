@@ -1,5 +1,3 @@
-use core::fmt;
-
 use core::result;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};

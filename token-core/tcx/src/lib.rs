@@ -1040,7 +1040,6 @@ mod tests {
                 derived_accounts.accounts[11].address
             );
 
-            // TODO: make sure address is right
             assert_eq!(
                 "bc1pqpae4d6594jj3yueluku5tlu7r6nqwm24xc8thk5g396s9e5anvq6x4n33",
                 derived_accounts.accounts[12].address
@@ -1192,7 +1191,6 @@ mod tests {
                 curve: "secp256k1".to_string(),
                 path: "m/44'/1729'/0'/0'".to_string(),
             };
-            // TODO: make sure tezos private is right
             let export_pk_bytes = call_api("export_private_key", export_param).unwrap();
             let export_pk: ExportPrivateKeyResult =
                 ExportPrivateKeyResult::decode(export_pk_bytes.as_slice()).unwrap();
@@ -1338,7 +1336,13 @@ mod tests {
             };
 
             let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
-            let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+            let import_result: ImportPrivateKeyResult =
+                ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+            // dbg!(&import_result.identifier);
+            assert_eq!(
+                "im14x5JEvG1gEwF9ukFv5EsVyQ47V3BegEA3hVa",
+                import_result.identifier
+            );
 
             let derivations = vec![Derivation {
                 chain_type: "POLKADOT".to_string(),
@@ -1373,11 +1377,9 @@ mod tests {
                 path: "".to_string(),
             };
 
-            // TODO: why export is not the same with import
             let export_pk_bytes = call_api("export_private_key", export_param).unwrap();
             let export_pk: ExportPrivateKeyResult =
                 ExportPrivateKeyResult::decode(export_pk_bytes.as_slice()).unwrap();
-            // TODO: export private key is not equals with import byte by byte, but they are the same key
             assert_eq!(
                 export_pk.private_key,
                 "0x406c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f"
@@ -1390,7 +1392,6 @@ mod tests {
                 path: "".to_string(),
             };
 
-            // TODO: why export is not the same with import
             let export_pk_bytes = call_api("export_json", export_param).unwrap();
             let export_pk: ExportJsonResult =
                 ExportJsonResult::decode(export_pk_bytes.as_slice()).unwrap();

@@ -233,7 +233,6 @@ pub struct IdentityResult {
     #[prost(string, tag = "2")]
     pub ipfs_id: ::prost::alloc::string::String,
 }
-/// TODO: return source fingerprint
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeystoreResult {

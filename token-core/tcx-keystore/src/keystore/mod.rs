@@ -105,9 +105,6 @@ pub enum Source {
     SubstrateKeystore,
     Mnemonic,
     NewMnemonic,
-    /*NewIdentity,
-    RecoveredIdentity,
-     */
 }
 
 impl FromStr for Source {
@@ -479,6 +476,15 @@ impl Signer for Keystore {
             Keystore::Hd(ks) => ks.get_private_key(CurveType::BLS, derivation_path)?,
         };
         private_key.sign_specified_hash(hash, sig_alg)
+    }
+
+    fn sr25519_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>> {
+        let private_key = match self {
+            Keystore::PrivateKey(ks) => ks.get_private_key(CurveType::SR25519)?,
+            Keystore::Hd(ks) => ks.get_private_key(CurveType::SR25519, derivation_path)?,
+        };
+
+        private_key.sign(hash)
     }
 
     fn schnorr_sign(&mut self, _hash: &[u8], _derivation_path: &str) -> Result<Vec<u8>> {

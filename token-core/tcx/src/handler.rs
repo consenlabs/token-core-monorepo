@@ -13,8 +13,8 @@ use tcx_keystore::keystore::IdentityNetwork;
 
 use tcx_common::{sha256d, FromHex, ToHex};
 use tcx_primitive::{
-    private_key_without_version, PublicKey, Secp256k1PrivateKey, Secp256k1PublicKey,
-    TypedPrivateKey, TypedPublicKey,
+    private_key_without_version, PrivateKey, PublicKey, Secp256k1PrivateKey, Secp256k1PublicKey,
+    Sr25519PrivateKey, TypedPrivateKey, TypedPublicKey,
 };
 
 use tcx_btc_kin::WIFDisplay;
@@ -69,7 +69,6 @@ use tcx_substrate::{decode_substrate_keystore, encode_substrate_keystore, Substr
 use tcx_migration::migration::LegacyKeystore;
 use tcx_primitive::TypedDeterministicPublicKey;
 use tcx_tezos::{build_tezos_base58_private_key, parse_tezos_private_key};
-use zksync_crypto::{private_key_from_seed, private_key_to_pubkey_hash, sign_musig};
 
 use crate::macros::use_chains;
 
@@ -239,8 +238,8 @@ fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
                 chain_types.push("ETHEREUM".to_string());
                 chain_types.push("TRON".to_string());
             } else if decoded_data.len() == 64 {
-                //TODO: Substrate key
-                private_key_bytes = decoded_data;
+                let sr25519_key = Sr25519PrivateKey::from_slice(&decoded_data)?;
+                private_key_bytes = sr25519_key.to_bytes();
                 chain_types.push("KUSAMA".to_string());
                 chain_types.push("POLKADOT".to_string());
                 curve = CurveType::SR25519;

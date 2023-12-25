@@ -61,5 +61,7 @@ pub trait Signer {
         sig_alg: &str,
     ) -> Result<Vec<u8>>;
 
+    fn sr25519_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>>;
+
     fn schnorr_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>>;
 }

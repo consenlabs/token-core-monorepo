@@ -33,7 +33,6 @@ pub trait Derive: Sized {
     }
 }
 
-// TODO add parity string derivation path
 #[allow(dead_code)]
 impl DeriveJunction {
     pub fn soft(index: u32) -> Self {

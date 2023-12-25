@@ -18,7 +18,6 @@ members=[
     "token-core/tcx-tester",
     "token-core/tcx-eth2",
     "token-core/tcx-eth",
-    "token-core/zksync-crypto",
     "token-core/tcx-common",
     "token-core/tcx-migration",
     "imkey-core/ikc",

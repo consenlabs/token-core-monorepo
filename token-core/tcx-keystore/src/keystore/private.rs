@@ -15,7 +15,6 @@ use tcx_primitive::{
 use uuid::Uuid;
 
 pub fn fingerprint_from_private_key(data: &[u8]) -> Result<String> {
-    // TODO: SR25519
     let public_key_data = if data.len() == 32 {
         let private_key = Secp256k1PrivateKey::from_slice(data)?;
         private_key.public_key().to_compressed()

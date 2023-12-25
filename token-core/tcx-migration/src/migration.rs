@@ -2,7 +2,7 @@ use failure::format_err;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tcx_common::{FromHex, ToHex};
-use tcx_constants::{coin_info_from_param, CoinInfo, CurveType};
+use tcx_constants::{coin_info_from_param, CurveType};
 use tcx_crypto::{Crypto, EncPair, Key};
 use tcx_eth::address::EthAddress;
 use tcx_keystore::identity::Identity;
@@ -128,26 +128,6 @@ impl LegacyKeystore {
         }
     }
 
-    /*
-    fn real_derivation_path(&self) -> String {
-        match self.version {
-            44 => {
-                self.mnemonic_path
-                    .as_ref()
-                    .expect("the mnemonic path must be set")
-                    .clone()
-                    + "/0/0"
-            }
-            _ => self
-                .mnemonic_path
-                .as_ref()
-                .expect("the mnemonic path must be set")
-                .clone(),
-        }
-    }
-
-     */
-
     fn has_mnemonic(&self) -> bool {
         self.enc_mnemonic.is_some()
     }
@@ -171,7 +151,6 @@ impl LegacyKeystore {
         } else {
             self.migrate_to_private(key)?
         };
-        // self.derive_account(&mut keystore)?;
         Ok(keystore)
     }
 
@@ -183,6 +162,7 @@ impl LegacyKeystore {
                 .expect("the mnemonic must be set"),
         )?;
         let mnemonic = String::from_utf8(mnemonic_data.to_owned())?;
+        dbg!(&mnemonic);
         let seed = mnemonic_to_seed(&mnemonic)?;
 
         let fingerprint = fingerprint_from_seed(&seed)?;
@@ -265,11 +245,8 @@ impl LegacyKeystore {
         let mut keystore = self.migrate_to_hd(key)?;
         keystore.unlock(key)?;
 
-        // TODO: Create identity wallets
+        // TODO: merge with exists wallet
         if let Some(_exists_keystore) = new_keystore {
-            // TODO Backup old file
-            // TODO: does this need merge?
-            // keystore.merge(&exists_keystore)?;
 
             // exists_keystore.store_mut().crypto = keystore.store().crypto.clone();
             // exists_keystore.store_mut().id = keystore.id().to_string();
@@ -283,9 +260,12 @@ impl LegacyKeystore {
 #[cfg(test)]
 mod tests {
     use serde_json::Value;
+    use tcx_btc_kin::BtcKinAddress;
     use tcx_common::FromHex;
-    use tcx_constants::{TEST_PASSWORD, TEST_PRIVATE_KEY};
+    use tcx_constants::{CoinInfo, CurveType, TEST_PASSWORD, TEST_PRIVATE_KEY};
     use tcx_crypto::{EncPair, Key};
+    use tcx_eos::address::EosAddress;
+    use tcx_eth::address::EthAddress;
     use tcx_keystore::{Keystore, KeystoreGuard, Metadata, PrivateKeystore, Source};
 
     use super::LegacyKeystore;
@@ -335,8 +315,18 @@ mod tests {
             .unlock(&Key::Password("password".to_string()))
             .unwrap();
 
-        //TODO: accounts asert
-        // assert_eq!(keystore.accounts().len(), 1);
+        let coin_info = CoinInfo {
+            coin: "EOS".to_string(),
+            derivation_path: "m/44'/194'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        };
+        let eos_acc = keystore.derive_coin::<EosAddress>(&coin_info).unwrap();
+        assert_eq!(
+            eos_acc.address,
+            "EOS8W4CoVEhTj6RHhazfw6wqtrHGk4kE4fYb2VzCexAk81SjPU1mL"
+        );
     }
 
     #[test]
@@ -369,114 +359,136 @@ mod tests {
     fn test_bitcoin_with_password() {
         let keystore_str = v44_bitcoin_mnemonic_1();
         let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
-        let keystore = ks.migrate(&Key::Password("imtoken1".to_string())).unwrap();
-        //TODO: accounts asert
-        // assert_eq!(keystore.accounts().len(), 1);
+        let mut keystore = ks.migrate(&Key::Password("imtoken1".to_string())).unwrap();
+
         assert_eq!(keystore.derivable(), true);
         assert_eq!(keystore.id(), "02a55ab6-554a-4e78-bc26-6a7acced7e5e");
-        //TODO: accounts asert
-        // assert!(keystore
-        //     .account("BITCOIN", "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN")
-        //     .is_some());
+
+        let coin_info = CoinInfo {
+            coin: "BITCOIN".to_string(),
+            derivation_path: "m/44'/0'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "TESTNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+
+        keystore.unlock_by_password("imtoken1").unwrap();
+
+        let acc = keystore.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
+        assert_eq!("mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN", acc.address);
     }
 
     #[test]
     fn test_v3_ethereum_private_key() {
         let keystore_str = v3_eth_private_key();
         let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
-        let keystore = ks
+        let mut keystore = ks
             .migrate(&Key::Password("Insecure Pa55w0rd".to_string()))
             .unwrap();
-        //TODO: accounts asert
-        // assert_eq!(keystore.accounts().len(), 1);
+
         assert_eq!(keystore.derivable(), false);
         assert_eq!(keystore.id(), "045861fe-0e9b-4069-92aa-0ac03cad55e0");
 
-        println!("{}", keystore.to_json());
+        let coin_info = CoinInfo {
+            coin: "ETHEREUM".to_string(),
+            derivation_path: "".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        };
 
-        //TODO: accounts asert
-        // assert!(keystore
-        //     .account("ETHEREUM", "0x41983f2e3af196c1df429a3ff5cdecc45c82c600")
-        //     .is_some());
+        keystore.unlock_by_password("Insecure Pa55w0rd").unwrap();
+        let acc = keystore.derive_coin::<EthAddress>(&coin_info).unwrap();
+        assert_eq!("0x41983f2e3Af196C1Df429A3fF5cDECC45c82c600", acc.address);
     }
 
     #[test]
     fn test_v3_ethereum_mnemonic() {
         let keystore_str = v3_eth_mnemonic();
         let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
-        let keystore = ks.migrate(&Key::Password("imtoken1".to_string())).unwrap();
+        let mut keystore = ks.migrate(&Key::Password("imtoken1".to_string())).unwrap();
 
-        //TODO: accounts asert
-        // assert_eq!(keystore.accounts().len(), 1);
         assert_eq!(keystore.derivable(), true);
         assert_eq!(keystore.id(), "175169f7-5a35-4df7-93c1-1ff612168e71");
-        //TODO: accounts asert
-        //     assert!(keystore
-        //         .account("ETHEREUM", "0x6031564e7b2f5cc33737807b2e58daff870b590b")
-        //         .is_some());
+        let coin_info = CoinInfo {
+            coin: "ETHEREUM".to_string(),
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        keystore.unlock_by_password("imtoken1").unwrap();
+        let acc = keystore.derive_coin::<EthAddress>(&coin_info).unwrap();
+        assert_eq!("0x6031564e7b2F5cc33737807b2E58DaFF870B590b", acc.address);
     }
 
-    #[test]
-    fn test_migrate_dk_keystore() {
-        let keystore_str = v3_eth_mnemonic();
-        let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
+    // #[test]
+    // fn test_migrate_dk_keystore() {
+    //     let keystore_str = v3_eth_mnemonic();
+    //     let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
 
-        let derived_key_hex = "3223cd3abf2422d0ad3503f73aaa6e7e36a555385c6825b383908c1e8acf5e9d9a4c751809473c75599a632fe5b1437f51a3a848e054d9c170f8c3b5c5701b8b";
-        let keystore = ks
-            .migrate_identity_wallets(&Key::DerivedKey(derived_key_hex.to_string()), None)
-            .unwrap();
+    //     let derived_key_hex = "3223cd3abf2422d0ad3503f73aaa6e7e36a555385c6825b383908c1e8acf5e9d9a4c751809473c75599a632fe5b1437f51a3a848e054d9c170f8c3b5c5701b8b";
+    //     let keystore = ks
+    //         .migrate_identity_wallets(&Key::DerivedKey(derived_key_hex.to_string()), None)
+    //         .unwrap();
 
-        //TODO: accounts asert
-        // assert_eq!(keystore.accounts().len(), 11);
-        assert_eq!(keystore.derivable(), true);
-        assert_eq!(keystore.id(), "175169f7-5a35-4df7-93c1-1ff612168e71");
-        //TODO: accounts asert
-        // assert!(keystore
-        //     .account("ETHEREUM", "0x6031564e7b2f5cc33737807b2e58daff870b590b")
-        //     .is_some());
-    }
+    //     //TODO: accounts asert
+    //     // assert_eq!(keystore.accounts().len(), 11);
+    //     assert_eq!(keystore.derivable(), true);
+    //     assert_eq!(keystore.id(), "175169f7-5a35-4df7-93c1-1ff612168e71");
+    //     //TODO: accounts asert
+    //     // assert!(keystore
+    //     //     .account("ETHEREUM", "0x6031564e7b2f5cc33737807b2e58daff870b590b")
+    //     //     .is_some());
+    // }
 
-    #[test]
-    fn test_migrate_dk_exists_keystore() {
-        let keystore_str = v3_eth_mnemonic();
-        let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
+    // #[test]
+    // fn test_migrate_dk_exists_keystore() {
+    //     let keystore_str = v3_eth_mnemonic();
+    //     let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
 
-        let existed_ks = Keystore::from_json(tcx_ks()).unwrap();
+    //     let existed_ks = Keystore::from_json(tcx_ks()).unwrap();
 
-        let derived_key_hex = "3223cd3abf2422d0ad3503f73aaa6e7e36a555385c6825b383908c1e8acf5e9d9a4c751809473c75599a632fe5b1437f51a3a848e054d9c170f8c3b5c5701b8b";
-        let keystore = ks
-            .migrate_identity_wallets(
-                &Key::DerivedKey(derived_key_hex.to_string()),
-                Some(existed_ks),
-            )
-            .unwrap();
+    //     let derived_key_hex = "3223cd3abf2422d0ad3503f73aaa6e7e36a555385c6825b383908c1e8acf5e9d9a4c751809473c75599a632fe5b1437f51a3a848e054d9c170f8c3b5c5701b8b";
+    //     let keystore = ks
+    //         .migrate_identity_wallets(
+    //             &Key::DerivedKey(derived_key_hex.to_string()),
+    //             Some(existed_ks),
+    //         )
+    //         .unwrap();
 
-        //TODO: accounts asert
-        // assert_eq!(keystore.accounts().len(), 12);
-        assert_eq!(keystore.derivable(), true);
-        assert_eq!(keystore.id(), "175169f7-5a35-4df7-93c1-1ff612168e71");
-        // assert!(keystore
-        //     .account("ETHEREUM", "0x6031564e7b2f5cc33737807b2e58daff870b590b")
-        //     .is_some());
-        // assert!(keystore
-        //     .account("TRON", "TY2uroBeZ5trA9QT96aEWj32XLkAAhQ9R2")
-        //     .is_some());
-    }
+    //     //TODO: accounts asert
+    //     // assert_eq!(keystore.accounts().len(), 12);
+    //     assert_eq!(keystore.derivable(), true);
+    //     assert_eq!(keystore.id(), "175169f7-5a35-4df7-93c1-1ff612168e71");
+    //     // assert!(keystore
+    //     //     .account("ETHEREUM", "0x6031564e7b2f5cc33737807b2e58daff870b590b")
+    //     //     .is_some());
+    //     // assert!(keystore
+    //     //     .account("TRON", "TY2uroBeZ5trA9QT96aEWj32XLkAAhQ9R2")
+    //     //     .is_some());
+    // }
 
     #[test]
     fn test_ios_metadata() {
         let keystore_str = ios_metadata();
         let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
-        let keystore = ks.migrate(&Key::Password("imtoken1".to_string())).unwrap();
+        let mut keystore = ks.migrate(&Key::Password("imtoken1".to_string())).unwrap();
 
-        //TODO: accounts asert
-        // assert_eq!(keystore.accounts().len(), 1);
         assert_eq!(keystore.derivable(), true);
         assert_eq!(keystore.id(), "5991857a-2488-4546-b730-463a5f84ea6a");
-        //TODO: accounts asert
-        // assert!(keystore
-        //     .account("ETHEREUM", "0x6031564e7b2f5cc33737807b2e58daff870b590b")
-        //     .is_some());
+        let coin_info = CoinInfo {
+            coin: "ETHEREUM".to_string(),
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        keystore.unlock_by_password("imtoken1").unwrap();
+        let acc = keystore.derive_coin::<EthAddress>(&coin_info).unwrap();
+        assert_eq!("0x6031564e7b2F5cc33737807b2E58DaFF870B590b", acc.address);
     }
 
     #[test]

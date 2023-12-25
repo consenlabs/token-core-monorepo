@@ -120,7 +120,6 @@ mod tests {
 
     #[test]
     fn test_sr25519_sec_key_convert() {
-        // TODO: sr25519 from ed25519 bytes is not same to ed25519
         let bytes = Vec::from_0x_hex("0x476c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f").unwrap();
         let ed25519_prv_key = SecretKey::from_ed25519_bytes(&bytes).unwrap();
         let ed25519_bytes = ed25519_prv_key.to_ed25519_bytes();
