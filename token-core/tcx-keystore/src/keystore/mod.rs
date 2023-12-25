@@ -424,7 +424,7 @@ impl Signer for Keystore {
         sig_alg: &str,
     ) -> Result<Vec<u8>> {
         match (curve, sig_alg.to_uppercase().as_str()) {
-            ("SECP256k1", "ECDSA") => self.secp256k1_ecdsa_sign_recoverable(hash, derivation_path),
+            ("secp256k1", "ECDSA") => self.secp256k1_ecdsa_sign_recoverable(hash, derivation_path),
             ("bls12_381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_") => {
                 self.bls_sign(hash, derivation_path)
             }

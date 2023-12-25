@@ -29,7 +29,7 @@ impl TraitTransactionSigner<TezosRawTxIn, TezosTxOut> for Keystore {
         let sign_result = self.sign_hash(
             hash_result.as_bytes(),
             &params.derivation_path,
-            "ED25519",
+            "ed25519",
             "",
         )?;
 

@@ -31,7 +31,7 @@ impl TraitTransactionSigner<SubstrateRawTxIn, SubstrateTxOut> for Keystore {
         let hash = hash_unsigned_payload(&raw_data_bytes)?;
 
         // TODO: sign subsr25519
-        let sig = self.sign_hash(&hash, &params.derivation_path, "SubSr25519", "")?;
+        let sig = self.sign_hash(&hash, &params.derivation_path, "sr25519", "")?;
 
         let sig_with_type = [vec![SIGNATURE_TYPE_SR25519], sig].concat();
 

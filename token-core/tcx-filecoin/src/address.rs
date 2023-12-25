@@ -179,7 +179,7 @@ mod tests {
 
     #[test]
     fn test_bip44_secp256k1() {
-        let mut coin_info = coin_info_from_param("FILECOIN", "MAINNET", "", "SECP256k1")
+        let mut coin_info = coin_info_from_param("FILECOIN", "MAINNET", "", "secp256k1")
             .unwrap()
             .clone();
 

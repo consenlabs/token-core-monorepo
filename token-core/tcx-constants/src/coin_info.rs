@@ -157,14 +157,14 @@ lazy_static! {
         coin_infos.push(CoinInfo {
             coin: "POLKADOT".to_string(),
             derivation_path: "//polkadot//imToken/0".to_string(),
-            curve: CurveType::SubSr25519,
+            curve: CurveType::SR25519,
             network: "".to_string(),
             seg_wit: "".to_string(),
         });
         coin_infos.push(CoinInfo {
             coin: "KUSAMA".to_string(),
             derivation_path: "//kusama//imToken/0".to_string(),
-            curve: CurveType::SubSr25519,
+            curve: CurveType::SR25519,
             network: "".to_string(),
             seg_wit: "".to_string(),
         });
@@ -278,14 +278,14 @@ mod test {
 
     #[test]
     fn test_coin_info_from_param_unsupported_chain() {
-        let coin_info = super::coin_info_from_param("TEST", "MAINNET", "NONE", "SECP256k1");
+        let coin_info = super::coin_info_from_param("TEST", "MAINNET", "NONE", "secp256k1");
         assert_eq!(coin_info.err().unwrap().to_string(), "unsupported_chain");
     }
 
     #[test]
     fn test_coin_info_from_param() {
         let coin_info =
-            super::coin_info_from_param("BITCOIN", "MAINNET", "NONE", "SECP256k1").unwrap();
+            super::coin_info_from_param("BITCOIN", "MAINNET", "NONE", "secp256k1").unwrap();
 
         assert_eq!(coin_info.coin, "BITCOIN");
         assert_eq!(coin_info.derivation_path, "m/44'/0'/0'/0/0");

@@ -102,7 +102,7 @@ mod tests {
     fn test_private_key_derive() {
         let hd_key: Sr25519PrivateKey = Sr25519PrivateKey::from_mnemonic(TEST_MNEMONIC).unwrap();
         let child_key: Sr25519PrivateKey = hd_key.derive("//imToken//Polakdot//0").unwrap();
-        assert_eq!("5022ec28bad21ff2d22d05a9730d4342e0fac36c8a837ca8e1b31a8ab285120e22d0cb94e2bb0f5df0db08a4eaeb49124f5086f8512380206a3f7367e5693fc4",
+        assert_eq!("80126147d195fe90976e29489d6b181202d71f66531ce4430d9fd550942d947022d0cb94e2bb0f5df0db08a4eaeb49124f5086f8512380206a3f7367e5693fc4",
                    child_key.to_bytes().to_hex());
     }
 

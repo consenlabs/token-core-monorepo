@@ -344,14 +344,9 @@ pub fn encode_substrate_keystore(
     prv_key: &[u8],
     coin: &CoinInfo,
 ) -> Result<SubstrateKeystore> {
-    // let sec_key = SecretKey::fr(prv_key)
-    //     .map_err(|_| format_err!("construct secret key error when encoded_substrate_keystore"))?;
-    // let pair = sp_core::sr25519::Pair::from(sec_key.clone());
-    // let pub_key = Sr25519PublicKey(pair.public());
     let sr25519_prv_key = Sr25519PrivateKey::from_slice(&prv_key)?;
     let pub_key = sr25519_prv_key.public_key();
-    let addr = SubstrateAddress::from_public_key(&TypedPublicKey::Sr25519(pub_key.clone()), &coin)?;
-    // let ed25519_prv_key_bytes = sec_key.to_ed25519_bytes();
+    let addr = SubstrateAddress::from_public_key(&TypedPublicKey::SR25519(pub_key.clone()), &coin)?;
     SubstrateKeystore::new(password, &prv_key, &pub_key.to_bytes(), &addr.to_string())
 }
 

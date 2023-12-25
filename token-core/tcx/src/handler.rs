@@ -40,9 +40,7 @@ use crate::api::{
     ImportPrivateKeyResult, KeystoreMigrationParam, KeystoreResult, MnemonicToPublicKeyParam,
     MnemonicToPublicKeyResult, RemoveWalletParam, RemoveWalletResult,
     SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
-    SignHashesResult, WalletKeyParam, ZksyncPrivateKeyFromSeedParam,
-    ZksyncPrivateKeyFromSeedResult, ZksyncPrivateKeyToPubkeyHashParam,
-    ZksyncPrivateKeyToPubkeyHashResult, ZksyncSignMusigParam, ZksyncSignMusigResult,
+    SignHashesResult, WalletKeyParam,
 };
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
@@ -245,7 +243,7 @@ fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
                 private_key_bytes = decoded_data;
                 chain_types.push("KUSAMA".to_string());
                 chain_types.push("POLKADOT".to_string());
-                curve = CurveType::SubSr25519;
+                curve = CurveType::SR25519;
             } else {
                 let key_info = KeyInfo::from_lotus(&decoded_data)?;
                 private_key_bytes = key_info.decode_private_key()?;
@@ -343,7 +341,7 @@ fn key_info_from_substrate_keystore(keystore: &str, password: &str) -> Result<(V
     return Ok((pk, ks.meta.name));
 }
 
-pub(crate) fn init_token_core_x(data: &[u8]) -> Result<()> {
+pub fn init_token_core_x(data: &[u8]) -> Result<()> {
     let InitTokenCoreXParam {
         file_dir,
         xpub_common_key,
@@ -872,7 +870,7 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
         let mut ret =
             import_private_key_internal(&pk_import_param, Some(Source::SubstrateKeystore))?;
         ret.suggest_chain_types = vec!["KUSAMA".to_string(), "POLKADOT".to_string()];
-        ret.suggest_curve = CurveType::SubSr25519.as_str().to_string();
+        ret.suggest_curve = CurveType::SR25519.as_str().to_string();
         ret.suggest_network = "".to_string();
         return encode_message(ret);
     } else {
@@ -906,7 +904,7 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
     }
 
     let curve = if ["POLKADOT".to_string(), "KUSAMA".to_string()].contains(&param.chain_type) {
-        CurveType::SubSr25519.as_str().to_string()
+        CurveType::SR25519.as_str().to_string()
     } else {
         CurveType::SECP256k1.as_str().to_string()
     };

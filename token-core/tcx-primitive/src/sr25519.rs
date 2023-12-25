@@ -32,7 +32,7 @@ impl TraitPrivateKey for Sr25519PrivateKey {
 
     fn from_slice(data: &[u8]) -> Result<Self> {
         let sec_key =
-            SecretKey::from_ed25519_bytes(data).map_err(|_| KeyError::InvalidSr25519Key)?;
+            SecretKey::from_ed25519_bytes(data).map_err(|_| KeyError::InvalidSR25519Key)?;
         Ok(Sr25519PrivateKey(Pair::from(sec_key)))
     }
 

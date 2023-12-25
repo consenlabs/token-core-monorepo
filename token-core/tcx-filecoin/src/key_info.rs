@@ -25,6 +25,7 @@ impl KeyInfo {
                 private_key: base64::encode(private_key),
             }),
             CurveType::BLS => Ok(KeyInfo {
+                // !!! Filecoin use "bls" string as type in json
                 r#type: "bls".to_string(),
                 private_key: base64::encode(private_key),
             }),

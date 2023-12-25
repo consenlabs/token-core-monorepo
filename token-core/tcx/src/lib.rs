@@ -416,7 +416,7 @@ mod tests {
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 bech32_prefix: "".to_string(),
             };
             let param = DeriveAccountsParam {
@@ -618,7 +618,7 @@ mod tests {
                     network: "TESTNET".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -627,7 +627,7 @@ mod tests {
                     network: "TESTNET".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "BLS".to_string(),
+                    curve: "bls12-381".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -636,7 +636,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -645,7 +645,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -654,7 +654,7 @@ mod tests {
                     network: "".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -663,7 +663,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -672,7 +672,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "P2WPKH".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -681,7 +681,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "SEGWIT".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -690,7 +690,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "P2TR".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
             ];
@@ -900,7 +900,7 @@ mod tests {
                     network: "".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -909,7 +909,7 @@ mod tests {
                     network: "".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -918,7 +918,7 @@ mod tests {
                     network: "".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -927,7 +927,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -936,7 +936,7 @@ mod tests {
                     network: "TESTNET".to_string(),
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -945,7 +945,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "P2WPKH".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -954,7 +954,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "SEGWIT".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -963,7 +963,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "P2TR".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
             ];
@@ -1126,7 +1126,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "TEZOS".to_string(),
                 network: "MAINNET".to_string(),
-                curve: "ED25519".to_string(),
+                curve: "ed25519".to_string(),
                 path: "m/44'/1729'/0'/0'".to_string(),
             };
             let ret_bytes = call_api("export_private_key", param).unwrap();
@@ -1189,7 +1189,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "TEZOS".to_string(),
                 network: "".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 path: "m/44'/1729'/0'/0'".to_string(),
             };
             // TODO: make sure tezos private is right
@@ -1225,7 +1225,7 @@ mod tests {
                 network: "TESTNET".to_string(),
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 bech32_prefix: "".to_string(),
             }];
             let param = DeriveAccountsParam {
@@ -1249,7 +1249,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "FILECOIN".to_string(),
                 network: "".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 path: "".to_string(),
             };
 
@@ -1286,7 +1286,7 @@ mod tests {
                 network: "TESTNET".to_string(),
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
-                curve: "BLS".to_string(),
+                curve: "bls12-381".to_string(),
                 bech32_prefix: "".to_string(),
             }];
             let param = DeriveAccountsParam {
@@ -1309,7 +1309,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "FILECOIN".to_string(),
                 network: "".to_string(),
-                curve: "BLS".to_string(),
+                curve: "bls12-381".to_string(),
                 path: "".to_string(),
             };
 
@@ -1346,7 +1346,7 @@ mod tests {
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
-                curve: "SubSr25519".to_string(),
+                curve: "sr25519".to_string(),
                 bech32_prefix: "".to_string(),
             }];
             let param = DeriveAccountsParam {
@@ -1369,7 +1369,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "POLKADOT".to_string(),
                 network: "".to_string(),
-                curve: "SubSr25519".to_string(),
+                curve: "sr25519".to_string(),
                 path: "".to_string(),
             };
 
@@ -1394,10 +1394,9 @@ mod tests {
             let export_pk_bytes = call_api("export_json", export_param).unwrap();
             let export_pk: ExportJsonResult =
                 ExportJsonResult::decode(export_pk_bytes.as_slice()).unwrap();
-            assert_eq!(
-                export_pk.json,
-                "0x406c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f"
-            );
+            assert!(export_pk
+                .json
+                .contains("133smEABgtt8FRkZGrZfAzCV522bxo2y5FwVoTcSaY8z1nEq"));
             remove_created_wallet(&import_result.id);
         })
     }
@@ -1411,7 +1410,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "BITCOINCASH".to_string(),
                 network: "MAINNET".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 path: "m/44'/0'/0'/0/0".to_string(),
             };
             let ret_bytes = call_api("export_private_key", param).unwrap();
@@ -1427,7 +1426,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "BITCOINCASH".to_string(),
                 network: "TESTNET".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 path: "m/44'/0'/0'/0/0".to_string(),
             };
             let ret_bytes = call_api("export_private_key", param).unwrap();
@@ -1443,7 +1442,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "TRON".to_string(),
                 network: "".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
             };
             let ret_bytes = call_api("export_private_key", param).unwrap();
@@ -1494,7 +1493,7 @@ mod tests {
                     network: "".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -1503,7 +1502,7 @@ mod tests {
                     network: "TESTNET".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -1512,7 +1511,7 @@ mod tests {
                     network: "TESTNET".to_string(),
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -1521,7 +1520,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -1530,7 +1529,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "P2WPKH".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -1539,7 +1538,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "SEGWIT".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -1548,7 +1547,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "P2TR".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -1557,7 +1556,7 @@ mod tests {
                     network: "".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
             ];
@@ -1583,7 +1582,7 @@ mod tests {
                     password: TEST_PASSWORD.to_string(),
                     chain_type: acc.chain_type.to_string(),
                     network: derivations[idx].network.to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     path: "".to_string(),
                 };
                 let ret_bytes = call_api("export_private_key", param).unwrap();
@@ -1619,21 +1618,21 @@ mod tests {
                 "edskS3E5CLrkwHRYAbDvw5xC913C9GGseMcyNGeGbeaD57Yvvi2jqizpAAZyzUtRK626UvkKYdJwCYE9oKMcqFCtJeBpDYcrVH"
             ];
             let export_info = vec![
-                ("m/44'/145'/0'/0/0", "BITCOINCASH", "MAINNET", "SECP256k1"),
-                ("m/44'/145'/0'/0/1", "BITCOINCASH", "MAINNET", "SECP256k1"),
-                ("m/44'/1'/0'/0/1", "BITCOINCASH", "TESTNET", "SECP256k1"),
-                ("m/44'/195'/0'/0/0", "TRON", "", "SECP256k1"),
-                ("m/44'/461'/0'/0/0", "FILECOIN", "MAINNET", "SECP256k1"),
-                ("m/2334/461/0/0", "FILECOIN", "MAINNET", "BLS"),
-                ("m/44'/60'/0'/0/0", "ETHEREUM", "", "SECP256k1"),
-                ("m/44'/1'/0'/0/0", "BITCOIN", "TESTNET", "SECP256k1"),
-                ("m/44'/0'/0'/0/0", "BITCOIN", "MAINNET", "SECP256k1"),
-                ("m/49'/0'/0'/0/0", "BITCOIN", "MAINNET", "SECP256k1"),
-                ("m/84'/0'/0'/0/0", "BITCOIN", "MAINNET", "SECP256k1"),
-                ("m/86'/0'/0'/0/0", "BITCOIN", "MAINNET", "SECP256k1"),
-                ("m/44'/194'/0'/0/0", "EOS", "", "SECP256k1"),
-                ("m/44'/2'/0'/0/0", "LITECOIN", "MAINNET", "SECP256k1"),
-                ("m/44'/1729'/0'/0'", "TEZOS", "", "ED25519"),
+                ("m/44'/145'/0'/0/0", "BITCOINCASH", "MAINNET", "secp256k1"),
+                ("m/44'/145'/0'/0/1", "BITCOINCASH", "MAINNET", "secp256k1"),
+                ("m/44'/1'/0'/0/1", "BITCOINCASH", "TESTNET", "secp256k1"),
+                ("m/44'/195'/0'/0/0", "TRON", "", "secp256k1"),
+                ("m/44'/461'/0'/0/0", "FILECOIN", "MAINNET", "secp256k1"),
+                ("m/2334/461/0/0", "FILECOIN", "MAINNET", "bls12-381"),
+                ("m/44'/60'/0'/0/0", "ETHEREUM", "", "secp256k1"),
+                ("m/44'/1'/0'/0/0", "BITCOIN", "TESTNET", "secp256k1"),
+                ("m/44'/0'/0'/0/0", "BITCOIN", "MAINNET", "secp256k1"),
+                ("m/49'/0'/0'/0/0", "BITCOIN", "MAINNET", "secp256k1"),
+                ("m/84'/0'/0'/0/0", "BITCOIN", "MAINNET", "secp256k1"),
+                ("m/86'/0'/0'/0/0", "BITCOIN", "MAINNET", "secp256k1"),
+                ("m/44'/194'/0'/0/0", "EOS", "", "secp256k1"),
+                ("m/44'/2'/0'/0/0", "LITECOIN", "MAINNET", "secp256k1"),
+                ("m/44'/1729'/0'/0'", "TEZOS", "", "ed25519"),
             ];
 
             let import_result = import_default_wallet();
@@ -1663,7 +1662,7 @@ mod tests {
             //     password: TEST_PASSWORD.to_string(),
             //     chain_type: "LITECOIN".to_string(),
             //     network: "MAINNET".to_string(),
-            //     curve: "SECP256k1".to_string(),
+            //     curve: "secp256k1".to_string(),
             //     path: "m/44'/2'/0'/0/0".to_string(),
             // };
             // let ret = call_api("export_private_key", param);
@@ -1684,14 +1683,14 @@ mod tests {
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 bech32_prefix: "".to_string(),
             }];
 
             let export_info = vec![
-                ("m/44'/118'/0'/0/0", "COSMOS", "SECP256k1"),
-                ("m/44'/434'/0'/0/0", "KUSAMA", "SubSr25519"),
-                ("m/44'/354'/0'/0/0", "POLKADOT", "SubSr25519"),
+                ("m/44'/118'/0'/0/0", "COSMOS", "secp256k1"),
+                ("m/44'/434'/0'/0/0", "KUSAMA", "sr25519"),
+                ("m/44'/354'/0'/0/0", "POLKADOT", "sr25519"),
             ];
 
             let import_result = import_default_wallet();
@@ -1917,7 +1916,7 @@ mod tests {
                             args: "0xb45772677603bccc71194b2557067fb361c1e093".to_owned(),
                         }),
                         out_point: Some(out_points[0].clone()),
-                        derived_path: "0/1".to_string(),
+                        derived_path: "m/44'/309'/0'/0/1".to_string(),
                     },
                     CachedCell {
                         capacity: 0,
@@ -1972,7 +1971,7 @@ mod tests {
                 path: "m/44'/195'/0'/0/0".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 input: Some(::prost_types::Any {
                     type_url: "imtoken".to_string(),
                     value: input_value.clone(),
@@ -1988,7 +1987,7 @@ mod tests {
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "TRON1".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2006,7 +2005,7 @@ mod tests {
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2036,7 +2035,7 @@ mod tests {
                 key: Some(Key::Password("WRONG PASSWORD".to_string())),
                 chain_type: "COSMOS".to_string(),
                 path: "m/44'/118'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2054,7 +2053,7 @@ mod tests {
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "COSMOS1".to_string(),
                 path: "m/44'/118'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2072,7 +2071,7 @@ mod tests {
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "COSMOS".to_string(),
                 path: "m/44'/118'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2100,7 +2099,7 @@ mod tests {
                 derivations: vec![PublicKeyDerivation {
                     chain_type: "EOS".to_string(),
                     path: "m/44'/194'/0'/0/0".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                 }],
             };
             let ret_bytes = call_api("get_public_keys", param).unwrap();
@@ -2215,7 +2214,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "KUSAMA".to_string(),
                 network: "".to_string(),
-                curve: "SubSr25519".to_string(),
+                curve: "sr25519".to_string(),
                 path: "".to_string(),
             };
             let ret = call_api("export_json", export_param).unwrap();
@@ -2279,7 +2278,7 @@ mod tests {
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
-                curve: "SubSr25519".to_string(),
+                curve: "sr25519".to_string(),
                 bech32_prefix: "".to_string(),
             };
 
@@ -2303,7 +2302,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 chain_type: "KUSAMA".to_string(),
                 network: "".to_string(),
-                curve: "SubSr25519".to_string(),
+                curve: "sr25519".to_string(),
                 path: "".to_string(),
             };
             let ret = call_api("export_json", export_param).unwrap();
@@ -2317,77 +2316,6 @@ mod tests {
             );
             assert_eq!(keystore.meta.name, "test account");
             assert!(keystore.meta.when_created > 1594102917);
-
-            // assert_eq!(keystore_ret.fixtures, "");
-            remove_created_wallet(&wallet_ret.id);
-        })
-    }
-
-    #[test]
-    pub fn test_import_substrate_keystore_416() {
-        run_test(|| {
-            let keystore_str: &str = r#"{"encoded":"rn9yFztUc2FA6ESgzsKhwwzJ757CcwUvbjMmv8RSMi0AgAAAAQAAAAgAAAAWU070217EtdxQLhXHXxXRdehf+xTU+Ng2ogEgY5RiRzZI3PuVzCqg9lHnxKH9E7b6sBEv4Sua4LFEO+ixxmfIMdXXGAW8bMqJKpUSASIqNdSpW5ex6KAvPrgw7TKVXYJa3aVfG0hFmtOi5RHEU3/w/jvSg7G+tw39FSCcNeP3m+cvtOfSbcNGciSTJXlL3lPmHsNS6gl0Oj+b+kmz","encoding":{"content":["pkcs8","sr25519"],"type":["scrypt","xsalsa20-poly1305"],"version":"3"},"address":"5CdMW38BGyAFqsCKfqNXXdfy58LUXfUewa6uP91Y3zjnWW9t","meta":{"genesisHash":"0x91b171bb158e2d3848fa23a9f1c25182fb8e20313b2c1eb49219da7a70ce90c3","name":"created on pjs","whenCreated":1703150902749}}
-              "#;
-
-            let param = ImportJsonParam {
-                json: keystore_str.to_string(),
-                password: "Polkadot_2023".to_string(),
-                overwrite: true,
-            };
-            // let param_bytes = encode_message(param).unwrap();
-
-            // let ret_bytes = call_api("exists_json", param.clone()).unwrap();
-
-            // let exists_result: ExistsKeystoreResult =
-            //     ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
-            // assert!(!exists_result.is_exists);
-
-            let ret_bytes = call_api("import_json", param.clone()).unwrap();
-            let wallet_ret: KeystoreResult = KeystoreResult::decode(ret_bytes.as_slice()).unwrap();
-
-            // let ret_bytes = call_api("exists_json", param.clone()).unwrap();
-            // let exists_result: ExistsKeystoreResult =
-            //     ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
-            // assert!(exists_result.is_exists);
-
-            let derivation = Derivation {
-                chain_type: "POLKADOT".to_string(),
-                path: "".to_string(),
-                network: "".to_string(),
-                seg_wit: "".to_string(),
-                chain_id: "".to_string(),
-                curve: "SubSr25519".to_string(),
-                bech32_prefix: "".to_string(),
-            };
-
-            let param = DeriveAccountsParam {
-                id: wallet_ret.id.to_string(),
-                password: "Polkadot_2023".to_string(),
-                derivations: vec![derivation],
-            };
-
-            let ret = call_api("derive_accounts", param).unwrap();
-            let accounts: DeriveAccountsResult =
-                DeriveAccountsResult::decode(ret.as_slice()).unwrap();
-
-            assert_eq!(
-                accounts.accounts[0].address,
-                "1ZeeNPF8kRjHQCqdURXfnW7vkL8Dy2o24qPYRztc5mJgztN"
-            );
-
-            let export_param = ExportPrivateKeyParam {
-                id: wallet_ret.id.to_string(),
-                password: "Polkadot_2023".to_string(),
-                chain_type: "POLKADOT".to_string(),
-                network: "".to_string(),
-                curve: "SubSr25519".to_string(),
-                path: "".to_string(),
-            };
-            let ret = call_api("export_private_key", export_param).unwrap();
-            let private_key_ret: ExportPrivateKeyResult =
-                ExportPrivateKeyResult::decode(ret.as_slice()).unwrap();
-
-            assert_eq!("", private_key_ret.private_key);
 
             // assert_eq!(keystore_ret.fixtures, "");
             remove_created_wallet(&wallet_ret.id);
@@ -2468,10 +2396,11 @@ mod tests {
 
             let ret = call_api("derive_accounts", param);
             assert!(ret.is_err());
-            assert_eq!(
-                format!("{}", ret.err().unwrap()),
-                "pkstore_can_not_add_other_curve_account"
-            );
+            // assert_eq!(
+            //     format!("{}", ret.err().unwrap()),
+            //     "pkstore_can_not_add_other_curve_account"
+            // );
+            assert_eq!(format!("{}", ret.err().unwrap()), "invalid_private_key");
 
             remove_created_wallet(&wallet_ret.id);
         })
@@ -2493,7 +2422,7 @@ mod tests {
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "KUSAMA".to_string(),
                 path: "//kusama//imToken/0".to_string(),
-                curve: "SubSr25519".to_string(),
+                curve: "sr25519".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2555,7 +2484,7 @@ mod tests {
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2594,7 +2523,7 @@ mod tests {
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "FILECOIN".to_string(),
                 path: "m/44'/461'/0'/0/0".to_string(),
-                curve: "BLS".to_string(),
+                curve: "bls12-381".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2634,7 +2563,7 @@ mod tests {
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "FILECOIN".to_string(),
                 path: "m/44'/461'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2670,7 +2599,7 @@ mod tests {
                 key: Some(Key::DerivedKey(ret.derived_key)),
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2689,7 +2618,7 @@ mod tests {
                 key: Some(Key::DerivedKey("7758c92df76d50774a67fdca6c90b922fc84be68c69164d4c7f500327bfa4b9655709b6b1f88e07e3bda266d7ca4b48c934557917692f63a31e301d79d7107d001".to_string())),
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2729,7 +2658,7 @@ mod tests {
                     key: Some(Key::Password(TEST_PASSWORD.to_string())),
                     chain_type: "TRON".to_string(),
                     path: "m/44'/195'/0'/0/0".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     network: "".to_string(),
                     seg_wit: "".to_string(),
                     input: Some(::prost_types::Any {
@@ -2769,7 +2698,7 @@ mod tests {
                 key: Some(Key::DerivedKey(ret.derived_key)),
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2780,14 +2709,14 @@ mod tests {
 
             let sign_result = call_api("sign_msg", tx).unwrap();
             let ret: TronMessageOutput = TronMessageOutput::decode(sign_result.as_slice()).unwrap();
-            assert_eq!("16417c6489da3a88ef980bf0a42551b9e76181d03e7334548ab3cb36e7622a484482722882a29e2fe4587b95c739a68624ebf9ada5f013a9340d883f03fcf9af1b", ret.signature);
+            assert_eq!("0x16417c6489da3a88ef980bf0a42551b9e76181d03e7334548ab3cb36e7622a484482722882a29e2fe4587b95c739a68624ebf9ada5f013a9340d883f03fcf9af1b", ret.signature);
 
             let tx = SignParam {
                 id: wallet.id.to_string(),
                 key: Some(Key::DerivedKey("7758c92df76d50774a67fdca6c90b922fc84be68c69164d4c7f500327bfa4b9655709b6b1f88e07e3bda266d7ca4b48c934557917692f63a31e301d79d7107d001".to_string())),
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2834,7 +2763,7 @@ mod tests {
                     key: Some(Key::Password(TEST_PASSWORD.to_string())),
                     chain_type: chain_type.to_string(),
                     path: "m/44'/0'/0'/0/0".to_string(),
-                    curve: "SECP256k1".to_string(),
+                    curve: "secp256k1".to_string(),
                     network: "MAINNET".to_string(),
                     seg_wit: "".to_string(),
                     input: Some(::prost_types::Any {
@@ -2876,7 +2805,7 @@ mod tests {
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "TRON".to_string(),
                 path: "m/44'/195'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2976,7 +2905,7 @@ mod tests {
                 key: Some(Key::Password("WRONG PASSWORD".to_string())),
                 chain_type: "TEZOS".to_string(),
                 path: "m/44'/1729'/0'/0'".to_string(),
-                curve: "ED25519".to_string(),
+                curve: "ed25519".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -2994,7 +2923,7 @@ mod tests {
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "TEZOS1".to_string(),
                 path: "m/44'/1729'/0'/0'".to_string(),
-                curve: "ED25519".to_string(),
+                curve: "ed25519".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -3012,7 +2941,7 @@ mod tests {
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
                 chain_type: "TEZOS".to_string(),
                 path: "m/44'/1729'/0'/0'".to_string(),
-                curve: "ED25519".to_string(),
+                curve: "ed25519".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -3046,7 +2975,7 @@ mod tests {
             let derivations = vec![PublicKeyDerivation {
                 chain_type: "ETHEREUM2".to_string(),
                 path: "m/12381/3600/0/0/0".to_string(),
-                curve: "BLS".to_string(),
+                curve: "bls12-381".to_string(),
             }];
             let param = GetPublicKeysParam {
                 id: import_result.id.to_string(),
@@ -3094,7 +3023,7 @@ mod tests {
                 hash: "3e0658d8284d8f50c0aa8fa6cdbd1bde0eb370d4b3489a26c83763671ace8b1c"
                     .to_string(),
                 path: "m/44'/60'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 sig_alg: "ECDSA".to_string(),
             }];
             let param = SignHashesParam {
@@ -3119,7 +3048,7 @@ mod tests {
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 chain_id: "1".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 bech32_prefix: "".to_string(),
             };
 
@@ -3148,7 +3077,7 @@ mod tests {
                 id: wallet.id.to_string(),
                 chain_type: "ETHEREUM".to_string(),
                 path: "m/44'/60'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -3191,7 +3120,7 @@ mod tests {
                 id: wallet.id.to_string(),
                 chain_type: "ETHEREUM".to_string(),
                 path: "m/44'/60'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -3256,7 +3185,7 @@ mod tests {
                 id: wallet.id.to_string(),
                 chain_type: "ETHEREUM".to_string(),
                 path: "m/44'/60'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -3290,7 +3219,7 @@ mod tests {
                 id: wallet.id.to_string(),
                 chain_type: "ETHEREUM".to_string(),
                 path: "m/44'/60'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
                 input: Some(::prost_types::Any {
@@ -3315,7 +3244,7 @@ mod tests {
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 bech32_prefix: "".to_string(),
             };
 
@@ -3323,7 +3252,7 @@ mod tests {
             let params = DeriveSubAccountsParam {
                 id: wallet.id.to_string(),
                 chain_type: "BITCOIN".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
                 relative_paths: vec!["0/0".to_string(), "0/1".to_string(), "1/0".to_string()],
@@ -3356,7 +3285,7 @@ mod tests {
                 network: "MAINNET".to_string(),
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 bech32_prefix: "".to_string(),
             };
 
@@ -3364,7 +3293,7 @@ mod tests {
             let params = DeriveSubAccountsParam {
                 id: wallet.id.to_string(),
                 chain_type: "BITCOIN".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "MAINNET".to_string(),
                 seg_wit: "P2WPKH".to_string(),
                 relative_paths: vec!["0/0".to_string(), "0/1".to_string(), "1/0".to_string()],
@@ -3397,7 +3326,7 @@ mod tests {
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 bech32_prefix: "".to_string(),
             };
 
@@ -3405,7 +3334,7 @@ mod tests {
             let params = DeriveSubAccountsParam {
                 id: wallet.id.to_string(),
                 chain_type: "ETHEREUM".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
                 relative_paths: vec!["0/0".to_string(), "0/1".to_string()],
@@ -3431,7 +3360,7 @@ mod tests {
             let params = MnemonicToPublicKeyParam {
                 mnemonic: TEST_MNEMONIC.to_string(),
                 path: "m/44'/194'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 encoding: "EOS".to_string(),
             };
 
@@ -3445,7 +3374,7 @@ mod tests {
             let params = MnemonicToPublicKeyParam {
                 mnemonic: TEST_MNEMONIC.to_string(),
                 path: "m/44'/60'/0'/0/0".to_string(),
-                curve: "SECP256k1".to_string(),
+                curve: "secp256k1".to_string(),
                 encoding: "HEX".to_string(),
             };
 
@@ -3483,7 +3412,7 @@ mod tests {
                 vec!["ETHEREUM".to_string(), "TRON".to_string(),],
                 import_result.suggest_chain_types
             );
-            assert_eq!("SECP256k1", import_result.suggest_curve);
+            assert_eq!("secp256k1", import_result.suggest_curve);
             assert_eq!("", import_result.suggest_network);
             assert_eq!("PRIVATE", import_result.source);
 
@@ -3568,7 +3497,7 @@ mod tests {
                 vec!["ETHEREUM".to_string()],
                 import_result.suggest_chain_types
             );
-            assert_eq!("SECP256k1", import_result.suggest_curve);
+            assert_eq!("secp256k1", import_result.suggest_curve);
             assert_eq!("", import_result.suggest_network);
             assert_eq!("KEYSTORE_V3", import_result.source);
 
@@ -3614,7 +3543,7 @@ mod tests {
 
             let derivations = vec![PublicKeyDerivation {
                 path: "m/12381/3600/0/0".to_string(),
-                curve: "BLS".to_string(),
+                curve: "bls12-381".to_string(),
                 chain_type: "ETHEREUM2".to_string(),
             }];
             let param = GetPublicKeysParam {

@@ -211,7 +211,7 @@ mod tests {
         ks.unlock_by_password("Password").unwrap();
 
         let sign_context = SignatureParameters {
-            curve: CurveType::SubSr25519,
+            curve: CurveType::SR25519,
             derivation_path: "".to_string(),
             chain_type: "FILECOIN".to_string(),
             ..Default::default()
