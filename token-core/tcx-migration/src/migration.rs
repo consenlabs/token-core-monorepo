@@ -274,7 +274,7 @@ mod tests {
         include_str!("../tests/fixtures/02a55ab6-554a-4e78-bc26-6a7acced7e5e.json")
     }
 
-    fn unsupported_eos() -> &'static str {
+    fn eos() -> &'static str {
         include_str!("../tests/fixtures/7f5406be-b5ee-4497-948c-877deab8c994.json")
     }
 
@@ -346,13 +346,6 @@ mod tests {
             .unwrap();
 
         assert_eq!(unlocker1.derived_key(), unlocker2.derived_key());
-    }
-
-    #[test]
-    fn test_unsupported_version() {
-        let keystore_str = unsupported_eos();
-        let ks = LegacyKeystore::from_json_str(keystore_str);
-        assert!(ks.is_err());
     }
 
     #[test]

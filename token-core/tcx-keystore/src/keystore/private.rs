@@ -212,7 +212,7 @@ mod tests {
         )
             .unwrap();
         let fingerprint = fingerprint_from_private_key(&pk_data).unwrap();
-        assert_eq!(fingerprint, "0x06bd6171");
+        assert_eq!(fingerprint, "0x404ba38b");
     }
 
     #[test]

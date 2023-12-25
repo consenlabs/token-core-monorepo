@@ -5,6 +5,10 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+integration-tests = []
+
+
 [dependencies]
 tcx-proto = { path = "../tcx-proto" }
 tcx-crypto = { path = "../tcx-crypto", features = ["cache_dk"] }
