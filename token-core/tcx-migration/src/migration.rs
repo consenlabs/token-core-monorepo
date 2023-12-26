@@ -162,7 +162,6 @@ impl LegacyKeystore {
                 .expect("the mnemonic must be set"),
         )?;
         let mnemonic = String::from_utf8(mnemonic_data.to_owned())?;
-        dbg!(&mnemonic);
         let seed = mnemonic_to_seed(&mnemonic)?;
 
         let fingerprint = fingerprint_from_seed(&seed)?;
