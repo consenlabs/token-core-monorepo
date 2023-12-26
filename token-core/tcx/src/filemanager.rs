@@ -93,7 +93,9 @@ mod tests {
     use crate::filemanager::{KEYSTORE_BASE_DIR, WALLET_V1_DIR};
 
     use super::{copy_to_v2_if_need, WALLET_V2_DIR};
+    use serial_test::serial;
     #[test]
+    #[serial]
     fn test_backup_keystores() {
         *KEYSTORE_BASE_DIR.write() = "../test-data".to_string();
         let _v1_dir = format!("{}/{}", KEYSTORE_BASE_DIR.read(), WALLET_V1_DIR);

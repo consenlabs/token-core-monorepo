@@ -1194,8 +1194,10 @@ mod tests {
     use tcx_keystore::Source;
 
     use super::decode_private_key;
+    use serial_test::serial;
 
     #[test]
+    #[serial]
     fn test_decode_private_key() {
         let private_key = "cPrsVCDgzf7FLG2NyCrfudbAav4DQt2vs1ZcAqcjZWQ6wi1kp3Uc";
         let decoded = decode_private_key(&private_key).unwrap();

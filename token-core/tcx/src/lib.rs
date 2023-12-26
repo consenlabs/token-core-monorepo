@@ -159,6 +159,7 @@ mod tests {
     use crate::filemanager::KEYSTORE_MAP;
     use api::sign_param::Key;
     use error_handling::Result;
+    use serial_test::serial;
     use std::ffi::{CStr, CString};
     use std::fs::remove_file;
     use std::os::raw::c_char;
@@ -354,6 +355,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     #[ignore = "for debug"]
     fn test_call_tcx_api() {
         run_test(|| {
@@ -373,6 +375,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_create_keystore() {
         run_test(|| {
             let param = CreateKeystoreParam {
@@ -396,6 +399,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_import_mnemonic() {
         run_test(|| {
             let import_result: KeystoreResult = import_default_wallet();
@@ -447,6 +451,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_import_mnemonic_invalid_params() {
         run_test(|| {
             let invalid_mnemonics = vec![
@@ -471,6 +476,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_import_mnemonic_ltc() {
         run_test(|| {
             let import_result: KeystoreResult = import_default_wallet();
@@ -504,6 +510,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_export_mnemonic() {
         run_test(|| {
             let wallet = import_default_wallet();
@@ -535,6 +542,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_derive_accounts() {
         run_test(|| {
             let param = ImportMnemonicParam {
@@ -786,6 +794,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_hd_store_derive_invalid_param() {
         run_test(|| {
             let import_result: KeystoreResult = import_default_wallet();
@@ -834,6 +843,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_import_private_key() {
         run_test(|| {
             let import_result = import_default_pk_store();
@@ -1074,6 +1084,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_tezos_import_private_key_export() {
         run_test(|| {
             let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
@@ -1157,6 +1168,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_tezos_hd_private_key_import_export() {
         run_test(|| {
             let import_result = import_default_pk_store();
@@ -1203,6 +1215,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_filecoin_private_key_secp256k1_import() {
         run_test(|| {
             let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
@@ -1264,6 +1277,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_filecoin_private_key_bls_import() {
         run_test(|| {
             let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
@@ -1324,6 +1338,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_import_sr25519_private_key() {
         run_test(|| {
             let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
@@ -1403,6 +1418,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_private_key_store_export() {
         run_test(|| {
             let import_result = import_default_pk_store();
@@ -1458,6 +1474,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_export_private_key() {
         run_test(|| {
             let derivations = vec![
@@ -1598,6 +1615,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_export_private_key_from_hd_store() {
         run_test(|| {
             // TODO: make sure filecoin bls and tezos export right
@@ -1676,6 +1694,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_chain_cannot_export_private_key() {
         run_test(|| {
             let derivations = vec![Derivation {
@@ -1712,6 +1731,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_import_to_pk_which_from_hd() {
         run_test(|| {
             let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
@@ -1752,6 +1772,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_verify_password() {
         run_test(|| {
             let wallet_id = vec![
@@ -1781,6 +1802,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_delete_keystore() {
         run_test(|| {
             let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
@@ -1826,6 +1848,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_keystore_exists() {
         run_test(|| {
             let wallet = import_default_wallet();
@@ -1877,6 +1900,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_ckb_tx() {
         run_test(|| {
             let wallet: KeystoreResult = import_default_wallet();
@@ -1958,6 +1982,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_tron_tx() {
         run_test(|| {
             let wallet = import_default_wallet();
@@ -2024,6 +2049,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_cosmos_tx() {
         run_test(|| {
             let wallet = import_default_wallet();
@@ -2090,6 +2116,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_get_public_keys() {
         run_test(|| {
             let wallet = import_default_wallet();
@@ -2114,6 +2141,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_import_substrate_keystore() {
         run_test(|| {
             let wrong_keystore_str: &str = r#"{
@@ -2236,6 +2264,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_import_substrate_keystore_v3() {
         run_test(|| {
             let keystore_str: &str = r#"{
@@ -2325,6 +2354,7 @@ mod tests {
 
     // TODO: private key store need know private key curve
     #[test]
+    #[serial]
     pub fn test_import_multi_curve() {
         run_test(|| {
             let keystore_str: &str = r#"{
@@ -2408,6 +2438,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_substrate_raw_tx() {
         run_test(|| {
             let wallet = import_default_wallet();
@@ -2456,6 +2487,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_tron_tx_by_pk() {
         run_test(|| {
             let import_result = import_default_pk_store();
@@ -2503,6 +2535,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_filecoin_bls() {
         run_test(|| {
             let import_result = import_filecoin_pk_store();
@@ -2543,6 +2576,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_filecoin_secp256k1() {
         run_test(|| {
             let import_result = import_default_pk_store();
@@ -2583,6 +2617,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_by_dk_in_pk_store() {
         run_test(|| {
             let import_result = import_default_pk_store();
@@ -2637,6 +2672,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_tron_sign_message() {
         run_test(|| {
             let wallet = import_default_wallet();
@@ -2677,6 +2713,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     fn test_sign_by_dk_hd_store() {
         run_test(|| {
             let wallet = import_default_wallet();
@@ -2735,6 +2772,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_btc_fork_invalid_address() {
         run_test(|| {
             let chain_types = vec!["BITCOIN", "LITECOIN", "BITCOINCASH"];
@@ -2783,6 +2821,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_lock_after_sign() {
         run_test(|| {
             let derivation = Derivation {
@@ -2867,6 +2906,7 @@ mod tests {
     //
 
     #[test]
+    #[serial]
     #[ignore = "this case is test panic"]
     fn test_panic_keystore_locked() {
         run_test(|| {
@@ -2894,6 +2934,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_tezos_tx() {
         run_test(|| {
             let wallet = import_default_wallet();
@@ -2973,6 +3014,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_get_pubkey_keys() {
         run_test(|| {
             let param = ImportMnemonicParam {
@@ -3004,6 +3046,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_hashes() {
         run_test(|| {
             let param = ImportMnemonicParam {
@@ -3053,6 +3096,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_ethereum_legacy_tx() {
         run_test(|| {
             let derivation = Derivation {
@@ -3110,6 +3154,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_ethereum_eip1559_tx() {
         run_test(|| {
             let wallet = import_default_wallet();
@@ -3153,6 +3198,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_ethereum_eip1559_tx2() {
         run_test(|| {
             let wallet = import_default_wallet();
@@ -3218,6 +3264,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_ethereum_sign_message() {
         run_test(|| {
             let wallet = import_default_wallet();
@@ -3249,6 +3296,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_derive_btc_legacy_sub_accounts() {
         run_test(|| {
             let derivation = Derivation {
@@ -3290,6 +3338,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_derive_btc_p2wpkh_sub_accounts() {
         run_test(|| {
             let derivation = Derivation {
@@ -3331,6 +3380,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_derive_eth_sub_accounts() {
         run_test(|| {
             let derivation = Derivation {
@@ -3368,6 +3418,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_mnemonic_to_public() {
         run_test(|| {
             let params = MnemonicToPublicKeyParam {
@@ -3401,6 +3452,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_import_hex_private_key() {
         run_test(|| {
             let param: ExistsPrivateKeyParam = ExistsPrivateKeyParam {
@@ -3468,6 +3520,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_import_v3_keystore_json() {
         run_test(|| {
             let json = r#"{
@@ -3541,6 +3594,7 @@ mod tests {
     }
 
     #[test]
+    #[serial]
     pub fn test_sign_bls_to_execution_change() {
         run_test(|| {
             let param = ImportMnemonicParam {
