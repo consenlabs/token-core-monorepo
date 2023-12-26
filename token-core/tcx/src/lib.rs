@@ -1353,7 +1353,6 @@ mod tests {
             let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
             let import_result: ImportPrivateKeyResult =
                 ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
-            // dbg!(&import_result.identifier);
             assert_eq!(
                 "im14x5JEvG1gEwF9ukFv5EsVyQ47V3BegEA3hVa",
                 import_result.identifier
