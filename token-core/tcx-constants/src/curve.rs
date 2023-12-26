@@ -3,13 +3,13 @@ use std::fmt::{Display, Formatter};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum CurveType {
-    SECP256k1,          /* "secp256k1" */
-    ED25519,            /* "ed25519" */
-    ED25519Blake2bNano, /* "ed25519-blake2b-nano" */
+    SECP256k1,
+    ED25519,
+    ED25519Blake2bNano,
     SR25519,
-    Curve25519, /* "curve25519" */
+    Curve25519,
     NIST256p1,
-    BLS, /* "bls12-381" */
+    BLS,
 }
 
 impl CurveType {

@@ -197,7 +197,7 @@ mod tests {
     use crate::transaction::{CachedCell, CellInput, CkbTxInput, OutPoint, Script, Witness};
     use crate::Error;
     use tcx_common::FromHex;
-    use tcx_constants::{CoinInfo, CurveType};
+    use tcx_constants::{CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::{Keystore, Metadata, SignatureParameters, TransactionSigner};
 
     #[test]
@@ -306,14 +306,10 @@ mod tests {
             seg_wit: "".to_string(),
         };
 
-        let mut ks = Keystore::from_mnemonic(
-            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
-            "Password",
-            Metadata::default(),
-        )
-        .unwrap();
+        let mut ks =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
 
-        ks.unlock_by_password("Password").unwrap();
+        ks.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
 
@@ -429,11 +425,11 @@ mod tests {
 
         let mut ks = Keystore::from_private_key(
             "dcec27d0d975b0378471183a03f7071dea8532aaf968be796719ecd20af6988f",
-            "Password",
+            TEST_PASSWORD,
             Metadata::default(),
         )
         .unwrap();
-        ks.unlock_by_password("Password").unwrap();
+        ks.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let coin_info = CoinInfo {
             coin: "NERVOS".to_string(),
@@ -525,14 +521,10 @@ mod tests {
             seg_wit: "".to_string(),
         };
 
-        let mut ks = Keystore::from_mnemonic(
-            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
-            "Password",
-            Metadata::default(),
-        )
-        .unwrap();
+        let mut ks =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
 
-        ks.unlock_by_password("Password").unwrap();
+        ks.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
 
@@ -594,14 +586,10 @@ mod tests {
             seg_wit: "".to_string(),
         };
 
-        let mut ks = Keystore::from_mnemonic(
-            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
-            "Password",
-            Metadata::default(),
-        )
-        .unwrap();
+        let mut ks =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
 
-        ks.unlock_by_password("Password").unwrap();
+        ks.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
 
@@ -667,14 +655,10 @@ mod tests {
             seg_wit: "".to_string(),
         };
 
-        let mut ks = Keystore::from_mnemonic(
-            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
-            "Password",
-            Metadata::default(),
-        )
-        .unwrap();
+        let mut ks =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
 
-        ks.unlock_by_password("Password").unwrap();
+        ks.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
 
@@ -708,14 +692,10 @@ mod tests {
             seg_wit: "".to_string(),
         };
 
-        let mut ks = Keystore::from_mnemonic(
-            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
-            "Password",
-            Metadata::default(),
-        )
-        .unwrap();
+        let mut ks =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
 
-        ks.unlock_by_password("Password").unwrap();
+        ks.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
 
@@ -758,14 +738,10 @@ mod tests {
             seg_wit: "".to_string(),
         };
 
-        let mut ks = Keystore::from_mnemonic(
-            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
-            "Password",
-            Metadata::default(),
-        )
-        .unwrap();
+        let mut ks =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
 
-        ks.unlock_by_password("Password").unwrap();
+        ks.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
 
@@ -908,14 +884,10 @@ mod tests {
             seg_wit: "".to_string(),
         };
 
-        let mut ks = Keystore::from_mnemonic(
-            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
-            "Password",
-            Metadata::default(),
-        )
-        .unwrap();
+        let mut ks =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
 
-        ks.unlock_by_password("Password").unwrap();
+        ks.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
 

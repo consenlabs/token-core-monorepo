@@ -358,7 +358,7 @@ pub fn init_token_core_x(data: &[u8]) -> Result<()> {
     if is_debug {
         *IS_DEBUG.write() = is_debug;
         if is_debug {
-            *KDF_ROUNDS.write() = 1024;
+            *KDF_ROUNDS.write() = 1;
         }
     }
     scan_keystores()?;
