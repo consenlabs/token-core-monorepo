@@ -85,12 +85,4 @@ impl SignatureType {
             SignatureType::EcSign => "EcSign",
         }
     }
-    /// Creates an enum from field names used in the ProtoBuf definition.
-    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-        match value {
-            "PersonalSign" => Some(Self::PersonalSign),
-            "EcSign" => Some(Self::EcSign),
-            _ => None,
-        }
-    }
 }
