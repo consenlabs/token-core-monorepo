@@ -119,6 +119,14 @@ mod tests {
         )
     }
 
+    fn hd_derived_key() -> String {
+        "9e6c4391999f0f578105284fe25eb9cf1b60ab75473ac155c83091ae36bf2bb64eb6ec5cbe39dab3a100f87442ee580619700291c15e84961fec2a259c808e68".to_owned()
+    }
+
+    fn private_derived_key() -> String {
+        "f1d0dbb4b6e7ea6ac99b0a59700f8d8e448ef29a721cbc4d0bc307b26887f232e437366ce87f97eb24c22206452daf83025c9c641a4f63000e20bc9bc5d3fb26".to_owned()
+    }
+
     #[test]
     fn test_invalid_versions() {
         let tests = [
@@ -128,7 +136,7 @@ mod tests {
 
         for t in tests {
             let upgrade_keystore = super::KeystoreUpgrade::new(hd_json(t.0, t.1, "Unknown"));
-            let key = Key::Password("imtoken1".to_owned());
+            let key = Key::DerivedKey(hd_derived_key());
 
             let upgraded = upgrade_keystore.upgrade(&key);
 
@@ -138,10 +146,10 @@ mod tests {
     }
 
     #[test]
-    fn test_upgrade_with_derived_key() {
+    fn test_upgrade_with_password() {
         let upgrade_keystore =
             super::KeystoreUpgrade::new(hd_json(11000, "NEW_IDENTITY", "Unknown"));
-        let key = Key::DerivedKey("9e6c4391999f0f578105284fe25eb9cf1b60ab75473ac155c83091ae36bf2bb64eb6ec5cbe39dab3a100f87442ee580619700291c15e84961fec2a259c808e68".to_owned());
+        let key = Key::Password("imtoken1".to_owned());
 
         let upgraded = upgrade_keystore.upgrade(&key).unwrap();
 
@@ -176,7 +184,7 @@ mod tests {
 
         for t in tests {
             let upgrade_keystore = super::KeystoreUpgrade::new(hd_json(11000, t.0, "Unknown"));
-            let key = Key::Password("imtoken1".to_owned());
+            let key = Key::DerivedKey(hd_derived_key());
 
             let upgraded = upgrade_keystore.upgrade(&key).unwrap();
 
@@ -199,7 +207,7 @@ mod tests {
 
         for t in tests {
             let upgrade_keystore = super::KeystoreUpgrade::new(pk_json(11001, t.0, "vvvvvv"));
-            let key = Key::Password("imtoken1".to_owned());
+            let key = Key::DerivedKey(private_derived_key());
 
             let mut upgraded = upgrade_keystore.upgrade(&key).unwrap();
 
@@ -212,7 +220,7 @@ mod tests {
     #[test]
     fn test_invalid_version() {
         let upgrade_keystore = super::KeystoreUpgrade::new(pk_json(11002, "PRIVATE", "SSS"));
-        let key = Key::Password("imtoken1".to_owned());
+        let key = Key::DerivedKey(hd_derived_key());
 
         let upgraded = upgrade_keystore.upgrade(&key);
         assert!(upgraded.is_err());
