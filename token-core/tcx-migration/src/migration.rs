@@ -368,7 +368,7 @@ mod tests {
         keystore.unlock_by_password("imtoken1").unwrap();
 
         let acc = keystore.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
-        assert_eq!("mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN", acc.address);
+        assert_eq!("mhW3n3x8rvB5MmPXsbYDyfAGs8mhw9GGaW", acc.address);
     }
 
     #[test]
@@ -505,7 +505,7 @@ mod tests {
         let private_key_bytes = Vec::from_hex_auto(TEST_PRIVATE_KEY).unwrap();
         let mut v3_keystore =
             LegacyKeystore::new_v3(&private_key_bytes, TEST_PASSWORD).expect("v3 keystore");
-        v3_keystore.address = "0x6031564e7b2F5cc33737807b2E58DaFF870B5900".to_string(); //wrong address
+        v3_keystore.address = Some("0x6031564e7b2F5cc33737807b2E58DaFF870B5900".to_string()); //wrong address
         let validate_result = v3_keystore.validate_v3(TEST_PASSWORD);
         assert_eq!(
             validate_result.err().unwrap().to_string(),

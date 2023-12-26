@@ -6,6 +6,12 @@ use tcx_migration::migration::LegacyKeystore;
 
 #[cfg(test)]
 mod tests {
+    use serde_json::Value;
+    use tcx_crypto::Key;
+    use tcx_keystore::Source;
+    use tcx_migration::keystore_upgrade::KeystoreUpgrade;
+    use tcx_migration::migration::LegacyKeystore;
+
     #[test]
     fn test_migrate_from_ios_214() {
         let tests = [
