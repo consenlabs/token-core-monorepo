@@ -1,1 +1,36 @@
-{"id":"4d5cbfcf-aee1-4908-9991-9d060eb68a0e","version":11001,"keyHash":"3a9e72763fa0c09fe692054b9394d2f0855d99b6","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"bb7bd7ad553993efe60ad4d7eba02cc7"},"ciphertext":"e5d4efb36ef52b0b81934764072d010d05a90baa9e5927afc0f1342d49f570a2","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"aaeb5d3f08de7705e4879687804d620cd4d1ad6a6c66bdaf8b258ff3ed960d31"},"mac":"c8ad29fef073f40f8c46fd74e589f1de40365563830cc962bd630f626a815538"},"activeAccounts":[{"address":"tz1d2TfcvWBwtPqo7f21DVv7HSSCoNAVp8gz","derivationPath":"","curve":"ED25519","coin":"TEZOS","network":"MAINNET","segWit":"","extPubKey":"","publicKey":"bdb7b056d28a8610de329fb4c367886256cc15a5e438a42fff485cd4fc73e574"}],"imTokenMeta":{"name":"","passwordHint":"","timestamp":1703215567,"source":"PRIVATE"}}
+{
+  "id": "4d5cbfcf-aee1-4908-9991-9d060eb68a0e",
+  "version": 11001,
+  "keyHash": "3a9e72763fa0c09fe692054b9394d2f0855d99b6",
+  "crypto": {
+    "cipher": "aes-128-ctr",
+    "cipherparams": { "iv": "bb7bd7ad553993efe60ad4d7eba02cc7" },
+    "ciphertext": "e5d4efb36ef52b0b81934764072d010d05a90baa9e5927afc0f1342d49f570a2",
+    "kdf": "pbkdf2",
+    "kdfparams": {
+      "c": 1024,
+      "prf": "hmac-sha256",
+      "dklen": 32,
+      "salt": "aaeb5d3f08de7705e4879687804d620cd4d1ad6a6c66bdaf8b258ff3ed960d31"
+    },
+    "mac": "c8ad29fef073f40f8c46fd74e589f1de40365563830cc962bd630f626a815538"
+  },
+  "activeAccounts": [
+    {
+      "address": "tz1d2TfcvWBwtPqo7f21DVv7HSSCoNAVp8gz",
+      "derivationPath": "",
+      "curve": "ED25519",
+      "coin": "TEZOS",
+      "network": "MAINNET",
+      "segWit": "",
+      "extPubKey": "",
+      "publicKey": "bdb7b056d28a8610de329fb4c367886256cc15a5e438a42fff485cd4fc73e574"
+    }
+  ],
+  "imTokenMeta": {
+    "name": "",
+    "passwordHint": "",
+    "timestamp": 1703215567,
+    "source": "PRIVATE"
+  }
+}

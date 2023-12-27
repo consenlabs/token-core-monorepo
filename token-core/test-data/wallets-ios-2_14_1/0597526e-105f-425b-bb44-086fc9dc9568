@@ -1,1 +1,38 @@
-{"address":"6031564e7b2f5cc33737807b2e58daff870b590b","encMnemonic":{"nonce":"2965662f34c72c81a88c1db2aca114b4","encStr":"ddd91dd4d10cf6baf95ca5feac29936e687d2053af23c286acfac9aecab28d27b9035b561da5c779fa46793ea04ea227f8021fba29588470324efbfece7bd32485285a26a847c17fa84c"},"id":"0597526e-105f-425b-bb44-086fc9dc9568","mnemonicPath":"m\/44'\/60'\/0'\/0\/0","imTokenMeta":{"name":"ETH","chain":"ETHEREUM","version":"iOS-2.14.1.1742","network":"MAINNET","backup":[],"segWit":"NONE","timestamp":"1703213075.42502","passwordHint":"","mode":"normal","source":"RECOVERED_IDENTITY"},"crypto":{"ciphertext":"17ab523c759dbcf3104dc3e3b69b8b2c7f188bf8379af98257d2fec06688402a","kdf":"scrypt","mac":"97f5ed556e84a95422de0d85ba17b71320c91d203b6a42214e151bcf40cdf0de","cipherparams":{"iv":"3a95e7bb685f2873efba577839ea8915"},"kdfparams":{"r":8,"dklen":32,"n":262144,"p":1,"salt":"4f84c01e3fdbaac75feff106bea17dde9d9f7cc3db05043664e958fe50f2ed05"},"cipher":"aes-128-ctr"},"version":3}
+{
+  "address": "6031564e7b2f5cc33737807b2e58daff870b590b",
+  "encMnemonic": {
+    "nonce": "2965662f34c72c81a88c1db2aca114b4",
+    "encStr": "ddd91dd4d10cf6baf95ca5feac29936e687d2053af23c286acfac9aecab28d27b9035b561da5c779fa46793ea04ea227f8021fba29588470324efbfece7bd32485285a26a847c17fa84c"
+  },
+  "id": "0597526e-105f-425b-bb44-086fc9dc9568",
+  "mnemonicPath": "m/44'/60'/0'/0/0",
+  "imTokenMeta": {
+    "name": "ETH",
+    "chain": "ETHEREUM",
+    "version": "iOS-2.14.1.1742",
+    "network": "MAINNET",
+    "backup": [],
+    "segWit": "NONE",
+    "timestamp": "1703213075.42502",
+    "passwordHint": "",
+    "mode": "normal",
+    "source": "RECOVERED_IDENTITY"
+  },
+  "crypto": {
+    "ciphertext": "17ab523c759dbcf3104dc3e3b69b8b2c7f188bf8379af98257d2fec06688402a",
+    "kdf": "scrypt",
+    "mac": "97f5ed556e84a95422de0d85ba17b71320c91d203b6a42214e151bcf40cdf0de",
+    "cipherparams": {
+      "iv": "3a95e7bb685f2873efba577839ea8915"
+    },
+    "kdfparams": {
+      "r": 8,
+      "dklen": 32,
+      "n": 262144,
+      "p": 1,
+      "salt": "4f84c01e3fdbaac75feff106bea17dde9d9f7cc3db05043664e958fe50f2ed05"
+    },
+    "cipher": "aes-128-ctr"
+  },
+  "version": 3
+}
