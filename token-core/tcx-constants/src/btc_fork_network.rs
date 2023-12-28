@@ -47,7 +47,7 @@ lazy_static! {
             BtcForkNetwork {
                 coin: "LITECOIN",
                 network: "MAINNET",
-                seg_wit: "SEGWIT",
+                seg_wit: "VERSION_0",
                 hrp: "ltc",
                 p2pkh_prefix: 0x30,
                 p2sh_prefix: 0x32,
@@ -104,7 +104,7 @@ lazy_static! {
             BtcForkNetwork {
                 coin: "BITCOIN",
                 network: "MAINNET",
-                seg_wit: "SEGWIT",
+                seg_wit: "VERSION_0",
                 hrp: "bc",
                 p2pkh_prefix: 0x0,
                 p2sh_prefix: 0x05,

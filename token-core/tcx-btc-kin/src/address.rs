@@ -55,8 +55,8 @@ impl Address for BtcKinAddress {
 
         let address = match coin.seg_wit.as_str() {
             "P2WPKH" => BtcKinAddress::p2shwpkh(&public_key.to_bytes(), network)?,
-            "SEGWIT" => BtcKinAddress::p2wpkh(&public_key.to_bytes(), network)?,
-            "P2TR" => BtcKinAddress::p2tr(&public_key.to_bytes(), network)?,
+            "VERSION_0" => BtcKinAddress::p2wpkh(&public_key.to_bytes(), network)?,
+            "VERSION_1" => BtcKinAddress::p2tr(&public_key.to_bytes(), network)?,
             _ => BtcKinAddress::p2pkh(&public_key.to_bytes(), network)?,
         };
 
@@ -414,7 +414,7 @@ mod tests {
             &coin
         ));
 
-        let coin = coin_info_from_param("BITCOIN", "MAINNET", "SEGWIT", "").unwrap();
+        let coin = coin_info_from_param("BITCOIN", "MAINNET", "VERSION_0", "").unwrap();
         assert!(BtcKinAddress::is_valid(
             "bc1qnfv46v0wtarc6n82dnehtvzj2gtnqzjhj5wxqj",
             &coin

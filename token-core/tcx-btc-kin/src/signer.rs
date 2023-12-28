@@ -667,7 +667,7 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 chain_type: BITCOIN.to_string(),
                 network: "TESTNET".to_string(),
-                seg_wit: "P2TR".to_string(),
+                seg_wit: "VERSION_1".to_string(),
                 derivation_path: "m/86'/1'/0'/0/0".to_string(),
             };
 
@@ -709,7 +709,7 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 chain_type: BITCOIN.to_string(),
                 network: "TESTNET".to_string(),
-                seg_wit: "P2TR".to_string(),
+                seg_wit: "VERSION_1".to_string(),
                 derivation_path: "m/86'/1'/0'/0/0".to_string(),
             };
 
@@ -785,7 +785,7 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 chain_type: BITCOIN.to_string(),
                 network: "TESTNET".to_string(),
-                seg_wit: "P2TR".to_string(),
+                seg_wit: "VERSION_1".to_string(),
                 derivation_path: "m/86'/1'/0'/0/0".to_string(),
             };
 
