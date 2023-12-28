@@ -163,7 +163,6 @@ impl LegacyKeystore {
         )?;
         let mnemonic = String::from_utf8(mnemonic_data.to_owned())?;
         let seed = mnemonic_to_seed(&mnemonic)?;
-        println!("{}, {}", self.id, unlocker.derived_key().to_hex());
 
         let fingerprint = fingerprint_from_seed(&seed)?;
         let meta = self

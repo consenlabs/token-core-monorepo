@@ -981,23 +981,6 @@ pub(crate) fn unlock_then_crash(data: &[u8]) -> Result<Vec<u8>> {
     panic!("test_unlock_then_crash");
 }
 
-pub(crate) fn remove_wallet(data: &[u8]) -> Result<Vec<u8>> {
-    let param: RemoveWalletParam = RemoveWalletParam::decode(data)?;
-    let map = KEYSTORE_MAP.read();
-    let keystore: &Keystore = match map.get(&param.id) {
-        Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
-    }?;
-
-    if !keystore.verify_password(&param.password) {
-        return Err(failure::format_err!("password_incorrect"));
-    }
-    filemanager::delete_keystore_file(&param.id)?;
-
-    let result = RemoveWalletResult { is_success: true };
-    encode_message(result)
-}
-
 pub(crate) fn eth_recover_address(data: &[u8]) -> Result<Vec<u8>> {
     let input: EthRecoverAddressInput =
         EthRecoverAddressInput::decode(data).expect("EthRecoverAddressParam");

@@ -20,8 +20,8 @@ use crate::handler::{
     encode_message, encrypt_data_to_ipfs, eth_recover_address, exists_json, exists_mnemonic,
     exists_private_key, export_json, export_mnemonic, export_private_key, get_derived_key,
     get_extended_public_keys, get_public_keys, import_json, import_mnemonic, import_private_key,
-    migrate_keystore, mnemonic_to_public, remove_wallet, sign_authentication_message, sign_hashes,
-    sign_message, sign_tx, unlock_then_crash, verify_password,
+    migrate_keystore, mnemonic_to_public, sign_authentication_message, sign_hashes, sign_message,
+    sign_tx, unlock_then_crash, verify_password,
 };
 
 mod filemanager;
@@ -93,7 +93,6 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         // !!! WARNING !!! used for test only
         "unlock_then_crash" => landingpad(|| unlock_then_crash(&action.param.unwrap().value)),
 
-        "remove_wallets" => landingpad(|| remove_wallet(&action.param.unwrap().value)),
         "encrypt_data_to_ipfs" => landingpad(|| encrypt_data_to_ipfs(&action.param.unwrap().value)),
         "decrypt_data_from_ipfs" => {
             landingpad(|| decrypt_data_from_ipfs(&action.param.unwrap().value))
