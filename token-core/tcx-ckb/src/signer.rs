@@ -92,7 +92,7 @@ impl<'a> CkbTxSigner<'a> {
         let mut result = [0u8; 32];
         s.finalize(&mut result);
 
-        let derivation_path = if path.len() > 0 {
+        let derivation_path = if !path.is_empty() {
             path
         } else {
             &self.sign_context.derivation_path
@@ -122,8 +122,8 @@ impl<'a> CkbTxSigner<'a> {
 
             let hash = item.lock.as_ref().unwrap().to_hash()?;
             let indices = map.get_mut(&hash);
-            if indices.is_some() {
-                indices.unwrap().push(i);
+            if let Some(val) = indices {
+                val.push(i);
             } else {
                 map.insert(hash, vec![i]);
             }

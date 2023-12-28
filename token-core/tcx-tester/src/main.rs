@@ -31,6 +31,6 @@ fn main() {
     let hex = &args[1];
     // let bytes = Vec::from_hex(hex).expect("decode hex");
     // let param_buf = wrap_buffer(bytes);
-    unsafe { call_tcx_api(_to_c_char(&hex)) };
+    unsafe { call_tcx_api(_to_c_char(hex)) };
     unsafe { get_last_err_message() };
 }

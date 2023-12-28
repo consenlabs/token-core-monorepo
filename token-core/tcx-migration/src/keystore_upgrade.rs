@@ -1,6 +1,5 @@
 use failure::format_err;
 use serde_json::{json, Value};
-use std::str::FromStr;
 use tcx_common::ToHex;
 use tcx_crypto::{Crypto, Key};
 use tcx_keystore::identity::Identity;
@@ -77,7 +76,7 @@ impl KeystoreUpgrade {
             _ => return Err(format_err!("invalid version")),
         }
 
-        Ok(Keystore::from_json(&json.to_string())?)
+        Keystore::from_json(&json.to_string())
     }
 }
 

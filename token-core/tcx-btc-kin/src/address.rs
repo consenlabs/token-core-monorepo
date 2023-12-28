@@ -65,11 +65,10 @@ impl Address for BtcKinAddress {
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {
         let ret = BtcKinAddress::from_str(address);
-        if ret.is_err() {
-            false
+        if let Ok(btc_kin_addr) = ret {
+            btc_kin_addr.network.network == coin.network
         } else {
-            let addr: BtcKinAddress = ret.unwrap();
-            addr.network.network == coin.network
+            false
         }
     }
 }
@@ -140,10 +139,7 @@ impl BtcKinAddress {
 /// Extract the bech32 prefix.
 /// Returns the same slice when no prefix is found.
 fn bech32_network(bech32: &str) -> Option<&BtcKinNetwork> {
-    let bech32_prefix = match bech32.rfind('1') {
-        None => None,
-        Some(sep) => Some(bech32.split_at(sep).0),
-    };
+    let bech32_prefix = bech32.rfind('1').map(|sep| bech32.split_at(sep).0);
 
     match bech32_prefix {
         Some(prefix) => BtcKinNetwork::find_by_hrp(prefix),

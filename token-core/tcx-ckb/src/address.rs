@@ -35,8 +35,8 @@ impl Address for CkbAddress {
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {
         let ret = bech32::decode(address);
-        if ret.is_ok() {
-            let (hrp, data, _) = ret.unwrap();
+        if let Ok(val) = ret {
+            let (hrp, data, _) = val;
             let data = Vec::from_base32(&data).unwrap();
             let address_type = data[0];
 

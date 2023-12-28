@@ -18,7 +18,7 @@ impl Serializer {
 
         for (i, _) in element_lengths.iter().enumerate() {
             offsets.push(total);
-            total += element_lengths[i] as u32;
+            total += element_lengths[i];
         }
 
         (total, offsets)

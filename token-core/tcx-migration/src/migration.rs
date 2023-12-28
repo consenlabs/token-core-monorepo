@@ -36,9 +36,9 @@ pub struct OldMetadata {
 impl OldMetadata {
     pub fn to_metadata(&self) -> Metadata {
         let timestamp = match &self.timestamp {
-            NumberOrNumberStr::Number(num) => num.clone(),
+            NumberOrNumberStr::Number(num) => *num,
             NumberOrNumberStr::NumberStr(str) => {
-                f64::from_str(&str).expect("f64 from timestamp") as i64
+                f64::from_str(str).expect("f64 from timestamp") as i64
             }
         };
 
@@ -67,7 +67,7 @@ impl OldMetadata {
         Metadata {
             name: self.name.clone(),
             password_hint: self.password_hint.clone(),
-            timestamp: timestamp,
+            timestamp,
             source,
             network,
         }
@@ -119,7 +119,7 @@ impl LegacyKeystore {
 
         let calc_address = EthAddress::from_public_key(&pub_key, &coin_info)?.to_string();
         let calc_addr_bytes = &Vec::from_hex_auto(calc_address)?;
-        let addr_bytes = &Vec::from_hex_auto(&self.address.clone().unwrap())?;
+        let addr_bytes = &Vec::from_hex_auto(self.address.clone().unwrap())?;
 
         if calc_addr_bytes == addr_bytes {
             Ok(())
@@ -133,7 +133,7 @@ impl LegacyKeystore {
     }
 
     pub fn from_json_str(keystore_str: &str) -> Result<LegacyKeystore> {
-        let keystore: LegacyKeystore = serde_json::from_str(&keystore_str)?;
+        let keystore: LegacyKeystore = serde_json::from_str(keystore_str)?;
         if keystore.version != 44
             && keystore.version != 1
             && keystore.version != 3
@@ -175,20 +175,20 @@ impl LegacyKeystore {
         let mut store = Store {
             id: self.id.to_string(),
             version: HdKeystore::VERSION,
-            fingerprint: fingerprint.to_string(),
+            fingerprint,
             crypto: self.crypto.clone(),
-            identity: identity,
+            identity,
             meta,
         };
 
         let derived_key = unlocker.derived_key();
         store
             .crypto
-            .dangerous_rewrite_plaintext(&derived_key, &mnemonic_data)
+            .dangerous_rewrite_plaintext(derived_key, &mnemonic_data)
             .expect("encrypt");
 
         let mut keystore = Keystore::Hd(HdKeystore::from_store(store));
-        keystore.unlock(&key)?;
+        keystore.unlock(key)?;
 
         Ok(keystore)
     }
@@ -218,7 +218,7 @@ impl LegacyKeystore {
         let mut store = Store {
             id: self.id.to_string(),
             version: PrivateKeystore::VERSION,
-            fingerprint: fingerprint.to_string(),
+            fingerprint,
             crypto: self.crypto.clone(),
             meta: im_token_meta.to_metadata(),
             identity,
@@ -228,11 +228,11 @@ impl LegacyKeystore {
         let derived_key = unlocker.derived_key();
         store
             .crypto
-            .dangerous_rewrite_plaintext(&derived_key, &private_key)
+            .dangerous_rewrite_plaintext(derived_key, &private_key)
             .expect("encrypt");
 
         let mut keystore = Keystore::PrivateKey(PrivateKeystore::from_store(store));
-        keystore.unlock(&key)?;
+        keystore.unlock(key)?;
 
         Ok(keystore)
     }

@@ -29,7 +29,7 @@ pub fn parse_tezos_private_key(private_key: &str) -> Result<Vec<u8>> {
 
 pub mod tezos {
 
-    pub const CHAINS: [&'static str; 1] = ["TEZOS"];
+    pub const CHAINS: [&str; 1] = ["TEZOS"];
 
     pub type Address = crate::address::TezosAddress;
     pub type TransactionInput = crate::transaction::TezosRawTxIn;

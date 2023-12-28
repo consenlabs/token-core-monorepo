@@ -29,12 +29,12 @@ pub use bch_address::BchAddress;
 pub use network::BtcKinNetwork;
 pub use transaction::{BtcKinTxInput, BtcKinTxOutput, OmniTxInput, Utxo};
 
-pub const BITCOIN: &'static str = "BITCOIN";
-pub const BITCOINCASH: &'static str = "BITCOINCASH";
+pub const BITCOIN: &str = "BITCOIN";
+pub const BITCOINCASH: &str = "BITCOINCASH";
 
-pub const LITECOIN: &'static str = "LITECOIN";
+pub const LITECOIN: &str = "LITECOIN";
 
-pub const OMNI: &'static str = "OMNI";
+pub const OMNI: &str = "OMNI";
 
 #[derive(Fail, Debug)]
 pub enum Error {
@@ -60,7 +60,7 @@ pub enum Error {
 
 pub mod bitcoin {
     use crate::{BITCOIN, LITECOIN};
-    pub const CHAINS: [&'static str; 2] = [BITCOIN, LITECOIN];
+    pub const CHAINS: [&str; 2] = [BITCOIN, LITECOIN];
     pub type Address = crate::BtcKinAddress;
     pub type TransactionInput = crate::transaction::BtcKinTxInput;
     pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
@@ -69,7 +69,7 @@ pub mod bitcoin {
 pub mod bitcoincash {
     use crate::BITCOINCASH;
 
-    pub static CHAINS: [&'static str; 1] = [BITCOINCASH];
+    pub static CHAINS: [&str; 1] = [BITCOINCASH];
 
     pub type Address = crate::BchAddress;
 
@@ -81,7 +81,7 @@ pub mod bitcoincash {
 pub mod omni {
     use crate::OMNI;
 
-    pub static CHAINS: [&'static str; 1] = [OMNI];
+    pub static CHAINS: [&str; 1] = [OMNI];
 
     pub type Address = crate::BtcKinAddress;
 

@@ -78,21 +78,16 @@ impl BtcKinNetwork {
     pub fn find_by_coin<'a>(coin: &str, network: &str) -> Option<&'a BtcKinNetwork> {
         BTC_KIN_NETWORKS
             .iter()
-            .filter(|net| net.coin == coin && net.network == network)
-            .next()
+            .find(|net| net.coin == coin && net.network == network)
     }
 
     pub fn find_by_hrp<'a>(hrp: &str) -> Option<&'a BtcKinNetwork> {
-        BTC_KIN_NETWORKS
-            .iter()
-            .filter(|net| net.bech32_hrp == hrp)
-            .next()
+        BTC_KIN_NETWORKS.iter().find(|net| net.bech32_hrp == hrp)
     }
 
     pub fn find_by_prefix<'a>(prefix: u8) -> Option<&'a BtcKinNetwork> {
         BTC_KIN_NETWORKS
             .iter()
-            .filter(|net| net.p2pkh_prefix == prefix || net.p2sh_prefix == prefix)
-            .next()
+            .find(|net| net.p2pkh_prefix == prefix || net.p2sh_prefix == prefix)
     }
 }

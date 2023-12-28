@@ -30,7 +30,6 @@ pub use keystore::{
 };
 
 pub use signer::{HashSigner, MessageSigner, SignatureParameters, Signer, TransactionSigner};
-use tcx_common::{FromHex, ToHex};
 
 pub type Result<T> = result::Result<T, failure::Error>;
 

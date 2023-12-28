@@ -411,7 +411,7 @@ impl TransactionSigner<OmniTxInput, BtcKinTxOutput> for Keystore {
         */
         let create_omni_op_return = || {
             let mut wtr = Vec::new();
-            wtr.write(&Vec::from_hex("6f6d6e6900000000").unwrap())
+            wtr.write_all(&Vec::from_hex("6f6d6e6900000000").unwrap())
                 .unwrap();
             wtr.write_u32::<BigEndian>(tx.property_id).unwrap();
             wtr.write_u64::<BigEndian>(tx.amount).unwrap();

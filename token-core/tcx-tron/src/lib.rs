@@ -6,7 +6,7 @@ pub use crate::address::TronAddress;
 
 pub mod tron {
 
-    pub const CHAINS: [&'static str; 1] = ["TRON"];
+    pub const CHAINS: [&str; 1] = ["TRON"];
 
     pub type Address = crate::address::TronAddress;
     pub type TransactionInput = crate::transaction::TronTxInput;

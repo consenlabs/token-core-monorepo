@@ -64,7 +64,7 @@ pub fn clean_keystore() {
 pub fn cache_keystore(keystore: Keystore) {
     let mut map = KEYSTORE_MAP.write();
     map.remove(&keystore.id());
-    map.insert(keystore.id().to_owned(), keystore);
+    map.insert(keystore.id(), keystore);
 }
 
 pub fn flush_keystore(ks: &Keystore) -> Result<()> {
@@ -74,7 +74,7 @@ pub fn flush_keystore(ks: &Keystore) -> Result<()> {
     let ks_path = format!("{}/{}.json", file_dir, ks.id());
     let path = Path::new(&ks_path);
     let mut file = fs::File::create(path)?;
-    let _ = file.write_all(&json.as_bytes());
+    let _ = file.write_all(json.as_bytes());
     Ok(())
 }
 

@@ -198,11 +198,8 @@ impl SubstrateKeystore {
 
     fn decode_cipher_text(&self) -> Result<Vec<u8>> {
         let hex_re = Regex::new(r"^(?:0[xX])?[0-9a-fA-F]+$").unwrap();
-        if self.encoding.version == "3" {
-            if !hex_re.is_match(&self.encoded) {
-                return base64::decode(&self.encoded)
-                    .map_err(|_| format_err!("decode_cipher_text"));
-            }
+        if self.encoding.version == "3" && !hex_re.is_match(&self.encoded) {
+            return base64::decode(&self.encoded).map_err(|_| format_err!("decode_cipher_text"));
         }
 
         if self.encoded.starts_with("0x") {

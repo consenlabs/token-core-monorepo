@@ -47,7 +47,7 @@ pub enum Error {
     InvalidHexValue,
 }
 pub mod nervos {
-    pub const CHAINS: [&'static str; 1] = ["NERVOS"];
+    pub const CHAINS: [&str; 1] = ["NERVOS"];
 
     pub type Address = crate::address::CkbAddress;
     pub type TransactionInput = crate::transaction::CkbTxInput;

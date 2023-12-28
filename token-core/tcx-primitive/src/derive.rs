@@ -44,17 +44,11 @@ impl DeriveJunction {
     }
 
     pub fn is_soft(&self) -> bool {
-        match *self {
-            DeriveJunction::Soft(_) => true,
-            _ => false,
-        }
+        matches!(*self, DeriveJunction::Soft(_))
     }
 
     pub fn is_hard(&self) -> bool {
-        match *self {
-            DeriveJunction::Hard(_) => true,
-            _ => false,
-        }
+        matches!(*self, DeriveJunction::Hard(_))
     }
 }
 

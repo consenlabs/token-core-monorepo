@@ -1,7 +1,7 @@
 use crate::keystore::IdentityNetwork;
 use crate::Error;
 use crate::Result;
-use bip39::{Language, Mnemonic, Seed};
+use bip39::Seed;
 use bitcoin::blockdata::constants::PUBKEY_ADDRESS_PREFIX_MAIN;
 use bitcoin::blockdata::constants::PUBKEY_ADDRESS_PREFIX_TEST;
 use bitcoin::consensus::{Decodable, Encodable};

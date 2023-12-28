@@ -57,7 +57,7 @@ use tcx_keystore::tcx_ensure;
 
 use tcx_constants::coin_info::coin_info_from_param;
 use tcx_constants::{CoinInfo, CurveType};
-use tcx_crypto::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
+use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::KDF_ROUNDS;
 use tcx_eth::transaction::{EthRecoverAddressInput, EthRecoverAddressOutput};
 use tcx_keystore::{MessageSigner, TransactionSigner};
@@ -106,25 +106,23 @@ fn derive_account<'a, 'b>(keystore: &mut Keystore, derivation: &Derivation) -> R
 
 fn encrypt_xpub(xpub: &str, network: &str) -> Result<String> {
     let xpk = Bip32DeterministicPublicKey::from_hex(xpub)?;
-    let ext_pub_key: String;
-    if network == "MAINNET" {
-        ext_pub_key = xpk.to_ss58check_with_version(&[0x04, 0x88, 0xB2, 0x1E]);
+    let ext_pub_key = if network == "MAINNET" {
+        xpk.to_ss58check_with_version(&[0x04, 0x88, 0xB2, 0x1E])
     } else {
-        ext_pub_key = xpk.to_ss58check_with_version(&[0x04, 0x35, 0x87, 0xCF]);
-    }
+        xpk.to_ss58check_with_version(&[0x04, 0x35, 0x87, 0xCF])
+    };
 
     let key = tcx_crypto::XPUB_COMMON_KEY_128.read();
     let iv = tcx_crypto::XPUB_COMMON_IV.read();
     let key_bytes = Vec::from_hex(&*key)?;
     let iv_bytes = Vec::from_hex(&*iv)?;
-    let encrypted = encrypt_pkcs7(&ext_pub_key.as_bytes(), &key_bytes, &iv_bytes)?;
-    Ok(base64::encode(&encrypted))
+    let encrypted = encrypt_pkcs7(ext_pub_key.as_bytes(), &key_bytes, &iv_bytes)?;
+    Ok(base64::encode(encrypted))
 }
 
 fn key_data_from_any_format_pk(pk: &str) -> Result<Vec<u8>> {
-    let decoded = Vec::from_hex_auto(pk.to_string());
-    if decoded.is_ok() {
-        let bytes = decoded.unwrap();
+    let decoded = Vec::from_hex_auto(pk);
+    if let Ok(bytes) = decoded {
         if bytes.len() <= 64 {
             Ok(bytes)
         } else {
@@ -152,12 +150,11 @@ fn import_private_key_internal(
 ) -> Result<ImportPrivateKeyResult> {
     let mut founded_id: Option<String> = None;
     {
-        let fingerprint: String;
-        if param.private_key.starts_with("edsk") {
-            fingerprint = fingerprint_from_tezos_format_pk(&param.private_key)?;
+        let fingerprint = if param.private_key.starts_with("edsk") {
+            fingerprint_from_tezos_format_pk(&param.private_key)?
         } else {
-            fingerprint = fingerprint_from_any_format_pk(&param.private_key)?;
-        }
+            fingerprint_from_any_format_pk(&param.private_key)?
+        };
         let map = KEYSTORE_MAP.read();
         if let Some(founded) = map
             .values()
@@ -200,7 +197,7 @@ fn import_private_key_internal(
         id: keystore.id(),
         name: meta.name.to_owned(),
         source: meta_source.to_string(),
-        created_at: meta.timestamp.clone(),
+        created_at: meta.timestamp,
         identifier: identity.identifier.to_string(),
         ipfs_id: identity.ipfs_id.to_string(),
         suggest_chain_types: decoded_ret.chain_types.to_owned(),
@@ -227,12 +224,11 @@ fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
     let mut curve: CurveType = CurveType::SECP256k1;
     let mut source: Source = Source::Private;
     if private_key.starts_with("edsk") {
-        private_key_bytes = parse_tezos_private_key(&private_key)?;
+        private_key_bytes = parse_tezos_private_key(private_key)?;
         chain_types.push("TEZOS".to_string());
     } else {
-        let decoded = Vec::from_hex_auto(private_key.to_string());
-        if decoded.is_ok() {
-            let decoded_data = decoded.unwrap();
+        let decoded = Vec::from_hex_auto(private_key);
+        if let Ok(decoded_data) = decoded {
             if decoded_data.len() == 32 {
                 private_key_bytes = decoded_data;
                 chain_types.push("ETHEREUM".to_string());
@@ -256,7 +252,7 @@ fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
                 .from_base58()
                 .map_err(|_| format_err!("decode private from base58 error"))?
                 .len();
-            let (k1_pk, ver) = Secp256k1PrivateKey::from_ss58check_with_version(&private_key)?;
+            let (k1_pk, ver) = Secp256k1PrivateKey::from_ss58check_with_version(private_key)?;
             private_key_bytes = k1_pk.0.to_bytes();
 
             source = Source::Wif;
@@ -325,19 +321,19 @@ fn exists_fingerprint(fingerprint: &str) -> Result<Vec<u8>> {
 }
 
 fn key_info_from_v3(keystore: &str, password: &str) -> Result<(Vec<u8>, String)> {
-    let ks: LegacyKeystore = serde_json::from_str(&keystore)?;
-    ks.validate_v3(&password)?;
+    let ks: LegacyKeystore = serde_json::from_str(keystore)?;
+    ks.validate_v3(password)?;
     let key = tcx_crypto::Key::Password(password.to_string());
     let unlocker = ks.crypto.use_key(&key)?;
     let pk = unlocker.plaintext()?;
-    return Ok((pk, "Imported ETH".to_string()));
+    Ok((pk, "Imported ETH".to_string()))
 }
 
 fn key_info_from_substrate_keystore(keystore: &str, password: &str) -> Result<(Vec<u8>, String)> {
-    let ks: SubstrateKeystore = serde_json::from_str(&keystore)?;
-    let _ = ks.validate()?;
-    let pk = decode_substrate_keystore(&ks, &password)?;
-    return Ok((pk, ks.meta.name));
+    let ks: SubstrateKeystore = serde_json::from_str(keystore)?;
+    ks.validate()?;
+    let pk = decode_substrate_keystore(&ks, password)?;
+    Ok((pk, ks.meta.name))
 }
 
 pub fn init_token_core_x(data: &[u8]) -> Result<()> {
@@ -352,8 +348,8 @@ pub fn init_token_core_x(data: &[u8]) -> Result<()> {
 
     *WALLET_FILE_DIR.write() = format!("{}/{}", file_dir, WALLET_V2_DIR);
 
-    *XPUB_COMMON_KEY_128.write() = xpub_common_key.to_string();
-    *XPUB_COMMON_IV.write() = xpub_common_iv.to_string();
+    *XPUB_COMMON_KEY_128.write() = xpub_common_key;
+    *XPUB_COMMON_IV.write() = xpub_common_iv;
 
     if is_debug {
         *IS_DEBUG.write() = is_debug;
@@ -391,9 +387,7 @@ pub(crate) fn scan_keystores() -> Result<()> {
         let v: Value = serde_json::from_str(&contents).expect("read json from content");
 
         let version = v["version"].as_i64().expect("version");
-        if version == i64::from(HdKeystore::VERSION)
-            || version == i64::from(PrivateKeystore::VERSION)
-        {
+        if version == HdKeystore::VERSION || version == PrivateKeystore::VERSION {
             let keystore = Keystore::from_json(&contents)?;
             cache_keystore(keystore);
         }
@@ -406,7 +400,7 @@ pub(crate) fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
         CreateKeystoreParam::decode(data).expect("create_keystore param");
 
     let mut meta = Metadata::default();
-    meta.name = param.name.to_owned();
+    meta.name = param.name;
     meta.password_hint = param.password_hint.to_owned();
     meta.source = Source::NewMnemonic;
     meta.network = IdentityNetwork::from_str(&param.network)?;
@@ -423,7 +417,7 @@ pub(crate) fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
         id: keystore.id(),
         name: meta.name.to_owned(),
         source: Source::NewMnemonic.to_string(),
-        created_at: meta.timestamp.clone(),
+        created_at: meta.timestamp,
         identifier: identity.identifier.to_string(),
         ipfs_id: identity.ipfs_id.to_string(),
         source_finger_print: keystore.fingerprint().to_string(),
@@ -463,8 +457,8 @@ pub(crate) fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
 
     let mut keystore = Keystore::Hd(ks);
 
-    if founded_id.is_some() {
-        keystore.set_id(&founded_id.unwrap());
+    if let Some(id) = founded_id {
+        keystore.set_id(&id);
     }
 
     flush_keystore(&keystore)?;
@@ -477,7 +471,7 @@ pub(crate) fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
         id: keystore.id(),
         name: meta.name.to_owned(),
         source: Source::Mnemonic.to_string(),
-        created_at: meta.timestamp.clone(),
+        created_at: meta.timestamp,
         identifier: identity.identifier.to_string(),
         ipfs_id: identity.ipfs_id.to_string(),
         source_finger_print: keystore.fingerprint().to_string(),
@@ -578,11 +572,11 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
 
     let value = if ["TRON", "POLKADOT", "KUSAMA", "ETHEREUM"].contains(&param.chain_type.as_str()) {
         Ok(private_key_bytes.to_0x_hex())
-    } else if "FILECOIN".contains(&param.chain_type.as_str()) {
+    } else if "FILECOIN".contains(param.chain_type.as_str()) {
         Ok(KeyInfo::from_private_key(curve, &private_key_bytes)?
             .to_json()?
             .to_hex())
-    } else if "TEZOS".contains(&param.chain_type.as_str()) {
+    } else if "TEZOS".contains(param.chain_type.as_str()) {
         Ok(build_tezos_base58_private_key(&private_key_bytes.to_hex())?)
     } else if "EOS".contains(&param.chain_type) {
         encode_eos_wif(&private_key_bytes)
@@ -733,7 +727,7 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
         .collect();
 
     let mut public_key_strs: Vec<String> = vec![];
-    for idx in 0..param.derivations.len() {
+    for (idx, _) in public_keys.iter().enumerate().take(param.derivations.len()) {
         let pub_key = public_keys[idx].to_vec();
         let public_key_str_ret: Result<String> = match param.derivations[idx].chain_type.as_str() {
             "TEZOS" => {
@@ -854,7 +848,7 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
         ret.suggest_chain_types = vec!["ETHEREUM".to_string()];
         ret.suggest_curve = CurveType::SECP256k1.as_str().to_string();
         ret.suggest_network = "".to_string();
-        return encode_message(ret);
+        encode_message(ret)
     } else if let Ok(parse_substrate_result) =
         key_info_from_substrate_keystore(&param.json, &param.password)
     {
@@ -899,7 +893,7 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
                 "hd_wallet_cannot_export_substrate_keystore"
             ));
         }
-        meta = keystore.meta().clone();
+        meta = keystore.meta();
     }
 
     let curve = if ["POLKADOT".to_string(), "KUSAMA".to_string()].contains(&param.chain_type) {
@@ -913,7 +907,7 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
         password: param.password.to_string(),
         chain_type: param.chain_type.to_string(),
         network: "".to_string(),
-        curve: curve,
+        curve,
         path: param.path.to_string(),
     };
 
@@ -941,10 +935,10 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
     };
 
     let ret = ExportJsonResult {
-        id: param.id.to_string(),
+        id: param.id,
         json: json_str,
     };
-    return encode_message(ret);
+    encode_message(ret)
 }
 
 pub(crate) fn exists_json(data: &[u8]) -> Result<Vec<u8>> {
@@ -1117,8 +1111,8 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
                 let mut tcx_ks: Option<Keystore> = None;
                 {
                     let map = KEYSTORE_MAP.read();
-                    if param.tcx_id.len() > 0 {
-                        tcx_ks = map.get(&param.tcx_id).and_then(|ks| Some(ks.clone()))
+                    if !param.tcx_id.is_empty() {
+                        tcx_ks = map.get(&param.tcx_id).cloned()
                     }
                 }
 
@@ -1130,8 +1124,8 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
         let identity = keystore.identity();
 
         let ret = encode_message(KeystoreResult {
-            id: keystore.id().to_string(),
-            name: keystore.meta().name.to_string(),
+            id: keystore.id(),
+            name: keystore.meta().name,
             source: keystore.meta().source.to_string(),
             created_at: keystore.meta().timestamp,
             identifier: identity.identifier.to_string(),

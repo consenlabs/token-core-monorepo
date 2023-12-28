@@ -7,7 +7,7 @@ use tcx_common::Result;
 
 pub mod eos {
 
-    pub const CHAINS: [&'static str; 1] = ["EOS"];
+    pub const CHAINS: [&str; 1] = ["EOS"];
 
     pub type Address = crate::address::EosAddress;
     pub type TransactionInput = crate::transaction::EosTxInput;
