@@ -143,9 +143,9 @@ impl Ss58Codec for Secp256k1PrivateKey {
         ret[1..33].copy_from_slice(&self.0.inner[..]);
         if self.0.compressed {
             ret[33] = 1;
-            base58::check_encode_slice(&ret[..]).to_string()
+            base58::check_encode_slice(&ret[..])
         } else {
-            base58::check_encode_slice(&ret[..33]).to_string()
+            base58::check_encode_slice(&ret[..33])
         }
     }
 }

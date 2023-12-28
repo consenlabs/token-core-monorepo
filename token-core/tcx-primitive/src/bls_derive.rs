@@ -144,7 +144,7 @@ fn parent_sk_to_lamport_pk(parent_sk: BigUint, index: BigUint) -> Vec<u8> {
         let need_to_hash = &mut combined[i];
         sha256.update(&need_to_hash);
         let hash_ret = &sha256.finalize_fixed();
-        flattened_key[i * DIGEST_SIZE..(i + 1) * DIGEST_SIZE].clone_from_slice(&hash_ret);
+        flattened_key[i * DIGEST_SIZE..(i + 1) * DIGEST_SIZE].clone_from_slice(hash_ret);
     }
 
     let mut sha256 = Sha256::new();
@@ -161,12 +161,7 @@ fn hkdf_mod_r(ikm: &[u8]) -> BigUint {
     tmp.extend(b"\x00");
     let mut sha256 = Sha256::new();
     sha256.update(b"BLS-SIG-KEYGEN-SALT-");
-    hkdf(
-        &sha256.finalize_fixed().to_vec(),
-        &tmp,
-        b"\x00\x30",
-        &mut okm,
-    ); // L=48, info=I2OSP(L,2)
+    hkdf(&sha256.finalize_fixed(), &tmp, b"\x00\x30", &mut okm); // L=48, info=I2OSP(L,2)
     let r = BigUint::from_str_radix(
         "73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001",
         16,

@@ -16,9 +16,9 @@ impl Serializer {
         let mut offsets = vec![];
         let mut total = header_length;
 
-        for i in 0..element_lengths.len() {
-            offsets.push(total as u32);
-            total = total + (element_lengths[i] as u32);
+        for (i, _) in element_lengths.iter().enumerate() {
+            offsets.push(total);
+            total += element_lengths[i] as u32;
         }
 
         (total, offsets)
@@ -84,10 +84,10 @@ impl Serializer {
         let mut ret: Vec<u8> = vec![];
         let mut body: Vec<u8> = vec![];
 
-        let mut total_size = 0 as u32;
+        let mut total_size = 0_u32;
 
         for item in values.iter() {
-            total_size = total_size + item.len() as u32;
+            total_size += item.len() as u32;
 
             body.extend(*item);
         }

@@ -16,14 +16,14 @@ fn remove_bch_prefix(addr: &str) -> String {
             return addr.split_at(sep + 1).1.to_owned();
         }
     }
-    return addr.to_owned();
+    addr.to_owned()
 }
 
 fn legacy_to_bch(addr: &str) -> Result<String> {
     let convert = Converter::new();
-    let bch_addr = if convert.is_legacy_addr(&addr) {
+    let bch_addr = if convert.is_legacy_addr(addr) {
         convert
-            .to_cash_addr(&addr)
+            .to_cash_addr(addr)
             .map_err(|_| Error::ConvertToCashAddressFailed(addr.to_string()))?
     } else {
         addr.to_string()
@@ -33,9 +33,9 @@ fn legacy_to_bch(addr: &str) -> Result<String> {
 
 fn bch_to_legacy(addr: &str) -> Result<String> {
     let convert = Converter::new();
-    if !convert.is_legacy_addr(&addr) {
+    if !convert.is_legacy_addr(addr) {
         Ok(convert
-            .to_legacy_addr(&addr)
+            .to_legacy_addr(addr)
             .map_err(|_| Error::InvalidAddress)?)
     } else {
         Ok(addr.to_string())
@@ -77,12 +77,12 @@ impl Address for BchAddress {
 
         if converter.is_legacy_addr(address) || converter.is_cash_addr(address) {
             if converter.is_mainnet_addr(address) {
-                return coin.network == "MAINNET";
+                coin.network == "MAINNET"
             } else {
-                return coin.network == "TESTNET";
+                coin.network == "TESTNET"
             }
         } else {
-            return false;
+            false
         }
     }
 }

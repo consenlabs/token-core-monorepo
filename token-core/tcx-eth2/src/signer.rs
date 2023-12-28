@@ -7,7 +7,6 @@ use crate::Error;
 use keccak_hash;
 use regex::Regex;
 use tcx_common::{FromHex, ToHex};
-use tcx_constants::CurveType;
 use tcx_keystore::{Keystore, Result, Signer};
 
 impl SignBlsToExecutionChangeParam {

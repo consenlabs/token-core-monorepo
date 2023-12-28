@@ -16,7 +16,7 @@ extern crate serde_json;
 
 pub mod polkadot {
 
-    pub const CHAINS: [&'static str; 2] = ["POLKADOT", "KUSAMA"];
+    pub const CHAINS: [&str; 2] = ["POLKADOT", "KUSAMA"];
 
     pub type Address = crate::SubstrateAddress;
     pub type TransactionInput = crate::transaction::SubstrateRawTxIn;

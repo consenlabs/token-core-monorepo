@@ -14,7 +14,6 @@ mod secp256k1;
 mod sr25519;
 mod subkey;
 use core::result;
-use tcx_common::ToHex;
 
 pub type Result<T> = result::Result<T, failure::Error>;
 
@@ -52,6 +51,6 @@ pub fn mnemonic_to_public(mnemonic: &str, path: &str, curve: &str) -> Result<Typ
     let curve_type = CurveType::from_str(curve);
     let root = TypedDeterministicPrivateKey::from_mnemonic(curve_type, mnemonic)?;
 
-    let private_key = root.derive(&path)?.private_key();
+    let private_key = root.derive(path)?.private_key();
     Ok(private_key.public_key())
 }

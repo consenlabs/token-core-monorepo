@@ -210,7 +210,7 @@ fn decrypt_enc_pair(derived_key: &[u8], enc_pair: &EncPair) -> Result<Vec<u8>> {
 
 impl<'a> Unlocker<'a> {
     pub fn derived_key(&self) -> &[u8] {
-        return &self.derived_key;
+        &self.derived_key
     }
 
     pub fn plaintext(&self) -> Result<Vec<u8>> {
@@ -232,7 +232,7 @@ impl Crypto {
             Key::Password(password) => {
                 let derived_key = self.derive_key(password)?;
 
-                if self.mac != "" && !self.verify_derived_key(&derived_key) {
+                if !self.mac.is_empty() && !self.verify_derived_key(&derived_key) {
                     return Err(Error::PasswordIncorrect.into());
                 }
 
@@ -292,8 +292,8 @@ impl Crypto {
         derived_key: &[u8],
         plaintext: &[u8],
     ) -> Result<()> {
-        let ciphertext = self.encrypt(&derived_key, plaintext).expect("encrypt");
-        let mac = generate_mac(&derived_key, &ciphertext);
+        let ciphertext = self.encrypt(derived_key, plaintext).expect("encrypt");
+        let mac = generate_mac(derived_key, &ciphertext);
 
         self.ciphertext = ciphertext.to_hex();
         self.mac = mac.to_hex();
@@ -325,7 +325,7 @@ impl Crypto {
 
     pub fn verify_derived_key(&self, dk: &[u8]) -> bool {
         let cipher_bytes = Vec::from_hex(&self.ciphertext).expect("vec::from_hex");
-        let mac = generate_mac(&dk, &cipher_bytes);
+        let mac = generate_mac(dk, &cipher_bytes);
         self.mac == mac.to_hex()
     }
 }

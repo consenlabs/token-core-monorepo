@@ -23,7 +23,7 @@ impl TransactionSigner<EosTxInput, EosTxOutput> for Keystore {
         let zero_padding = [0u8; 32];
         let mut eos_sigs = vec![];
         for tx_hex in &tx.tx_hexs {
-            let tx_bytes = Vec::from_hex_auto(&tx_hex)?;
+            let tx_bytes = Vec::from_hex_auto(tx_hex)?;
             let tx_hash = sha256(&tx_bytes);
             let tx_with_chain_id = [
                 chain_id_bytes.as_slice(),

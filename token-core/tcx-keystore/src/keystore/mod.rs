@@ -331,7 +331,7 @@ impl Keystore {
         coin_info: &CoinInfo,
     ) -> Result<Account> {
         let typed_pk = xpub.derive(&coin_info.derivation_path)?.public_key();
-        let address = A::from_public_key(&typed_pk, &coin_info)?.to_string();
+        let address = A::from_public_key(&typed_pk, coin_info)?.to_string();
         let account = Account {
             address,
             derivation_path: coin_info.derivation_path.to_string(),
@@ -439,7 +439,6 @@ impl Signer for Keystore {
                 };
                 private_key.sign(hash)
             }
-            _ => Err(format_err!("unsupport sig alg")),
         }
     }
 

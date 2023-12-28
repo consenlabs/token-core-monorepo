@@ -9,8 +9,8 @@ use crate::utils::{digest, HashSize};
 use base32::Alphabet;
 use std::str::FromStr;
 
-const MAINNET_PREFIX: &'static str = "f";
-const TESTNET_PREFIX: &'static str = "t";
+const MAINNET_PREFIX: &str = "f";
+const TESTNET_PREFIX: &str = "t";
 
 #[derive(Clone, Copy)]
 pub enum Protocol {
@@ -46,15 +46,13 @@ impl Address for FilecoinAddress {
                 protocol = Protocol::Secp256k1;
                 payload = Self::address_hash(&pk.to_uncompressed());
 
-                checksum =
-                    Self::checksum(&[vec![protocol as u8], payload.clone().to_vec()].concat());
+                checksum = Self::checksum(&[vec![protocol as u8], payload.to_vec()].concat());
             }
             TypedPublicKey::BLS(pk) => {
                 protocol = Protocol::BLS;
                 payload = pk.to_bytes();
 
-                checksum =
-                    Self::checksum(&[vec![protocol as u8], payload.clone().to_vec()].concat());
+                checksum = Self::checksum(&[vec![protocol as u8], payload.to_vec()].concat());
             }
             _ => {
                 return Err(Error::InvalidCurveType.into());

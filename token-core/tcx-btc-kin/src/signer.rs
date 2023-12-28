@@ -158,7 +158,7 @@ impl TxSigner {
 
         let tx_input = &mut self.tx.input[index];
 
-        tx_input.witness.push(&sig.as_ref());
+        tx_input.witness.push(sig.as_ref());
 
         Ok(())
     }
@@ -242,7 +242,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
         let mut prevouts = vec![];
         let mut tx_inputs: Vec<TxIn> = vec![];
 
-        if self.inputs.len() == 0 {
+        if self.inputs.is_empty() {
             return Err(Error::InvalidUtxo.into());
         }
 
@@ -292,7 +292,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
                 witness: Witness::default(),
             });
 
-            if x.derived_path.len() > 0 && keystore.derivable() {
+            if !x.derived_path.is_empty() && keystore.derivable() {
                 sks.push(
                     keystore
                         .get_private_key(CurveType::SECP256k1, &x.derived_path)?
@@ -337,12 +337,11 @@ impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T
             output: tx_outs,
         };
 
-        let sighash_cache: Box<dyn TxSignatureHasher>;
-        if params.chain_type == BITCOINCASH {
-            sighash_cache = Box::new(BitcoinCashSighash::new(tx_clone, 0x40));
+        let sighash_cache: Box<dyn TxSignatureHasher> = if params.chain_type == BITCOINCASH {
+            Box::new(BitcoinCashSighash::new(tx_clone, 0x40))
         } else {
-            sighash_cache = Box::new(SighashCache::new(Box::new(tx_clone)));
-        }
+            Box::new(SighashCache::new(Box::new(tx_clone)))
+        };
 
         let mut singer = TxSigner {
             tx,

@@ -29,7 +29,7 @@ impl<'a> CkbTxSigner<'a> {
             return Err(Error::InvalidTxHash.into());
         }
 
-        if witnesses.len() == 0 {
+        if witnesses.is_empty() {
             return Err(Error::WitnessEmpty.into());
         }
 
@@ -63,7 +63,7 @@ impl<'a> CkbTxSigner<'a> {
         witness_group: &[&Witness],
         path: &str,
     ) -> Result<Witness> {
-        if witness_group.len() == 0 {
+        if witness_group.is_empty() {
             return Err(Error::WitnessGroupEmpty.into());
         }
 
@@ -98,7 +98,7 @@ impl<'a> CkbTxSigner<'a> {
             &self.sign_context.derivation_path
         };
 
-        if path.len() > 0 {
+        if !path.is_empty() {
             empty_witness.lock = self
                 .ks
                 .secp256k1_ecdsa_sign_recoverable(&result, derivation_path)?
@@ -114,7 +114,7 @@ impl<'a> CkbTxSigner<'a> {
     ) -> Result<HashMap<Vec<u8>, Vec<usize>>> {
         let mut map: HashMap<Vec<u8>, Vec<usize>> = HashMap::new();
 
-        for i in 0..input_cells.len() {
+        for (i, _) in input_cells.iter().enumerate() {
             let item = &input_cells[i];
             if item.lock.is_none() {
                 continue;
@@ -139,7 +139,7 @@ impl TransactionSigner<CkbTxInput, CkbTxOutput> for Keystore {
         params: &SignatureParameters,
         tx: &CkbTxInput,
     ) -> Result<CkbTxOutput> {
-        if tx.witnesses.len() == 0 {
+        if tx.witnesses.is_empty() {
             return Err(Error::RequiredWitness.into());
         }
 
@@ -166,7 +166,7 @@ impl TransactionSigner<CkbTxInput, CkbTxOutput> for Keystore {
             input_cells.push(find_cache_cell(x.previous_output.as_ref().unwrap())?);
         }
 
-        if tx.witnesses.len() < input_cells.len() || input_cells.len() == 0 {
+        if tx.witnesses.len() < input_cells.len() || input_cells.is_empty() {
             return Err(Error::InvalidInputCells.into());
         }
 

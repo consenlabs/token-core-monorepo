@@ -95,7 +95,7 @@ impl Identity {
         };
 
         let master_key = ExtendedPrivKey::new_master(network_type, seed.as_ref())?;
-        return Self::new(&master_key.private_key.secret_bytes(), unlocker, network);
+        Self::new(&master_key.private_key.secret_bytes(), unlocker, network)
     }
 
     pub fn from_private_key(
@@ -104,7 +104,7 @@ impl Identity {
         network: &IdentityNetwork,
     ) -> Result<Self> {
         let private_key_bytes = Vec::<u8>::from_hex_auto(private_key)?;
-        return Self::new(&private_key_bytes, unlocker, network);
+        Self::new(&private_key_bytes, unlocker, network)
     }
 
     pub fn calculate_ipfs_id(pub_key: &PublicKey) -> String {
@@ -164,8 +164,8 @@ impl Identity {
         header.write_u32::<LittleEndian>(rdr.read_u32::<LittleEndian>()?)?;
 
         let mut iv = [0u8; 16];
-        rdr.read(&mut iv)?;
-        header.write(&iv)?;
+        rdr.read_exact(&mut iv)?;
+        header.write_all(&iv)?;
 
         let var_len = VarInt::consensus_decode(&mut rdr)?;
         if var_len.0 as usize != ciphertext.len() - 21 - 65 - var_len.len() {
@@ -173,10 +173,10 @@ impl Identity {
         }
 
         let mut enc_data = vec![0u8; var_len.0 as usize];
-        rdr.read(&mut enc_data)?;
+        rdr.read_exact(&mut enc_data)?;
 
         let mut signature = [0u8; 64];
-        rdr.read(&mut signature)?;
+        rdr.read_exact(&mut signature)?;
 
         let recover_id = RecoveryId::from_i32(rdr.read_u8()? as i32 - 27)?;
 

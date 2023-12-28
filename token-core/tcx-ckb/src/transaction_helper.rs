@@ -17,7 +17,7 @@ impl Script {
 
     pub fn serialize(&self) -> Result<Vec<u8>> {
         let args_bytes = Vec::from_hex_auto(&self.args)?;
-        Ok(Serializer::serialize_dynamic_vec(&vec![
+        Ok(Serializer::serialize_dynamic_vec(&[
             Vec::from_hex_auto(&self.code_hash)?.as_slice(),
             self.serialize_hash_type()?.as_slice(),
             Serializer::serialize_fixed_vec(vec![args_bytes.as_slice()].as_slice()).as_slice(),
@@ -25,7 +25,7 @@ impl Script {
     }
 
     pub fn to_hash(&self) -> Result<Vec<u8>> {
-        Ok(blake2b_256(&self.serialize()?))
+        Ok(blake2b_256(self.serialize()?))
     }
 }
 
@@ -33,14 +33,14 @@ impl Witness {
     pub fn serialize(&self) -> Result<Vec<u8>> {
         let inner_serialize = |x: &str| -> Result<Vec<u8>> {
             let bytes = Vec::from_hex_auto(x)?;
-            if bytes.len() > 0 {
-                Ok(Serializer::serialize_fixed_vec(&vec![bytes.as_slice()]))
+            if !bytes.is_empty() {
+                Ok(Serializer::serialize_fixed_vec(&[bytes.as_slice()]))
             } else {
                 Ok(vec![])
             }
         };
 
-        Ok(Serializer::serialize_dynamic_vec(&vec![
+        Ok(Serializer::serialize_dynamic_vec(&[
             inner_serialize(&self.lock)?.as_slice(),
             inner_serialize(&self.input_type)?.as_slice(),
             inner_serialize(&self.output_type)?.as_slice(),

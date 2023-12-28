@@ -15,10 +15,10 @@ pub type Result<T> = std::result::Result<T, failure::Error>;
 #[macro_use]
 extern crate lazy_static;
 
-pub const TEST_MNEMONIC: &'static str =
+pub const TEST_MNEMONIC: &str =
     "inject kidney empty canal shadow pact comfort wife crush horse wife sketch";
-pub const TEST_PASSWORD: &'static str = "Insecure Pa55w0rd";
+pub const TEST_PASSWORD: &str = "Insecure Pa55w0rd";
 
-pub const TEST_WIF: &'static str = "cT4fTJyLd5RmSZFHnkGmVCzXDKuJLbyTt7cy77ghTTCagzNdPH1j";
-pub const TEST_PRIVATE_KEY: &'static str =
+pub const TEST_WIF: &str = "cT4fTJyLd5RmSZFHnkGmVCzXDKuJLbyTt7cy77ghTTCagzNdPH1j";
+pub const TEST_PRIVATE_KEY: &str =
     "0xcce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2";

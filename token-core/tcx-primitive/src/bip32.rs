@@ -57,7 +57,7 @@ impl Bip32DeterministicPrivateKey {
 
 impl Derive for Bip32DeterministicPrivateKey {
     fn derive(&self, path: &str) -> Result<Self> {
-        let extended_key = self.0.clone();
+        let extended_key = self.0;
 
         let mut parts = path.split('/').peekable();
         if *parts.peek().unwrap() == "m" {
@@ -81,7 +81,7 @@ impl Bip32DeterministicPublicKey {
 
 impl Derive for Bip32DeterministicPublicKey {
     fn derive(&self, path: &str) -> Result<Self> {
-        let extended_key = self.0.clone();
+        let extended_key = self.0;
 
         let mut parts = path.split('/').peekable();
         if *parts.peek().unwrap() == "m" {
@@ -156,7 +156,7 @@ impl ToHex for Bip32DeterministicPublicKey {
     fn to_hex(&self) -> String {
         let mut ret = [0; 74];
         let extended_key = self.0;
-        ret[0] = extended_key.depth as u8;
+        ret[0] = extended_key.depth;
         ret[1..5].copy_from_slice(&extended_key.parent_fingerprint[..]);
 
         BigEndian::write_u32(&mut ret[5..9], u32::from(extended_key.child_number));
@@ -216,8 +216,8 @@ impl Ss58Codec for Bip32DeterministicPublicKey {
     fn to_ss58check_with_version(&self, version: &[u8]) -> String {
         let mut ret = [0; 78];
         let extended_key = self.0;
-        ret[0..4].copy_from_slice(&version[..]);
-        ret[4] = extended_key.depth as u8;
+        ret[0..4].copy_from_slice(version);
+        ret[4] = extended_key.depth;
         ret[5..9].copy_from_slice(&extended_key.parent_fingerprint[..]);
 
         BigEndian::write_u32(&mut ret[9..13], u32::from(extended_key.child_number));
@@ -257,8 +257,8 @@ impl Ss58Codec for Bip32DeterministicPrivateKey {
         let mut ret = [0; 78];
         let extended_key = &self.0;
 
-        ret[0..4].copy_from_slice(&version[..]);
-        ret[4] = extended_key.depth as u8;
+        ret[0..4].copy_from_slice(version);
+        ret[4] = extended_key.depth;
         ret[5..9].copy_from_slice(&extended_key.parent_fingerprint[..]);
 
         BigEndian::write_u32(&mut ret[9..13], u32::from(extended_key.child_number));

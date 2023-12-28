@@ -45,7 +45,7 @@ impl BLSToExecutionRequest {
             fork_version,
             &validator_root,
         )?;
-        let signing_root = compute_signing_root(message.clone(), domain)?;
+        let signing_root = compute_signing_root(message, domain)?;
         let message = format!("{:x}", signing_root);
         Ok(message)
     }

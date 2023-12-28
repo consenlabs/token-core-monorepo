@@ -35,7 +35,7 @@ pub enum Error {
 
 pub mod filecoin {
 
-    pub static CHAINS: [&'static str; 1] = ["FILECOIN"];
+    pub static CHAINS: [&str; 1] = ["FILECOIN"];
 
     pub type Address = crate::FilecoinAddress;
 

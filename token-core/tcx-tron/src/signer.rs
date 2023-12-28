@@ -78,7 +78,7 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
         let hash = keccak256(&to_hash);
         let mut sign_result =
             self.secp256k1_ecdsa_sign_recoverable(&hash[..], &sign_context.derivation_path)?;
-        sign_result[64] = sign_result[64] + 27;
+        sign_result[64] += 27;
         Ok(TronMessageOutput {
             signature: sign_result.to_0x_hex(),
         })

@@ -209,7 +209,7 @@ impl HdKeystore {
             public_key: public_key.to_bytes().to_hex(),
         };
 
-        return Ok(account.clone());
+        Ok(account)
     }
 
     pub fn identity(&self) -> &Identity {

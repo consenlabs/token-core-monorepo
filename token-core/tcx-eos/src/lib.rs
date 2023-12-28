@@ -20,8 +20,8 @@ pub mod eos {
 
 pub fn encode_eos_wif(private_key_bytes: &[u8]) -> Result<String> {
     let mut ret = [0; 33];
-    ret[0..1].copy_from_slice(&vec![0x80]);
-    ret[1..33].copy_from_slice(&private_key_bytes[..]);
+    ret[0..1].copy_from_slice(&[0x80]);
+    ret[1..33].copy_from_slice(private_key_bytes);
 
     Ok(base58::check_encode_slice(&ret[..]))
 }

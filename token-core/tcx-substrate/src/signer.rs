@@ -10,7 +10,7 @@ use tcx_keystore::{
 
 pub(crate) fn hash_unsigned_payload(payload: &[u8]) -> Result<Vec<u8>> {
     if payload.len() > PAYLOAD_HASH_THRESHOLD {
-        Ok(blake2_256(&payload).to_vec())
+        Ok(blake2_256(payload).to_vec())
     } else {
         Ok(payload.to_vec())
     }
@@ -27,7 +27,7 @@ impl TraitTransactionSigner<SubstrateRawTxIn, SubstrateTxOut> for Keystore {
         } else {
             tx.raw_data.clone()
         };
-        let raw_data_bytes = Vec::from_hex(&raw_data_bytes)?;
+        let raw_data_bytes = Vec::from_hex(raw_data_bytes)?;
         let hash = hash_unsigned_payload(&raw_data_bytes)?;
 
         let sig = self.sr25519_sign(&hash, &params.derivation_path)?;

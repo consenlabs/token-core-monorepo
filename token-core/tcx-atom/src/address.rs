@@ -20,9 +20,11 @@ impl Address for AtomAddress {
         let pub_key_hash = ripemd160(&sha256(&pub_key_bytes));
         bytes.copy_from_slice(&pub_key_hash[..LENGTH]);
 
-        Ok(AtomAddress(
-            bech32::encode(prefix, bytes.to_base32(), Variant::Bech32)?.to_string(),
-        ))
+        Ok(AtomAddress(bech32::encode(
+            prefix,
+            bytes.to_base32(),
+            Variant::Bech32,
+        )?))
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
@@ -38,10 +40,9 @@ impl Address for AtomAddress {
             if data.len() != 20 {
                 return false;
             }
-
-            return true;
+            true
         } else {
-            return false;
+            false
         }
     }
 }

@@ -54,10 +54,10 @@ impl Address for BtcKinAddress {
         let network = network.expect("network");
 
         let address = match coin.seg_wit.as_str() {
-            "P2WPKH" => BtcKinAddress::p2shwpkh(&public_key.to_bytes(), &network)?,
-            "SEGWIT" => BtcKinAddress::p2wpkh(&public_key.to_bytes(), &network)?,
-            "P2TR" => BtcKinAddress::p2tr(&public_key.to_bytes(), &network)?,
-            _ => BtcKinAddress::p2pkh(&public_key.to_bytes(), &network)?,
+            "P2WPKH" => BtcKinAddress::p2shwpkh(&public_key.to_bytes(), network)?,
+            "SEGWIT" => BtcKinAddress::p2wpkh(&public_key.to_bytes(), network)?,
+            "P2TR" => BtcKinAddress::p2tr(&public_key.to_bytes(), network)?,
+            _ => BtcKinAddress::p2pkh(&public_key.to_bytes(), network)?,
         };
 
         Ok(address)
@@ -76,7 +76,7 @@ impl Address for BtcKinAddress {
 
 impl BtcKinAddress {
     pub fn p2pkh(pub_key: &[u8], network: &BtcKinNetwork) -> Result<BtcKinAddress> {
-        let pub_key = PublicKey::from_slice(&pub_key)?;
+        let pub_key = PublicKey::from_slice(pub_key)?;
         let addr = LibAddress::p2pkh(&pub_key, Network::Bitcoin);
 
         Ok(BtcKinAddress {
@@ -86,7 +86,7 @@ impl BtcKinAddress {
     }
 
     pub fn p2shwpkh(pub_key: &[u8], network: &BtcKinNetwork) -> Result<BtcKinAddress> {
-        let pub_key = PublicKey::from_slice(&pub_key)?;
+        let pub_key = PublicKey::from_slice(pub_key)?;
         let addr = LibAddress::p2shwpkh(&pub_key, Network::Bitcoin)?;
 
         Ok(BtcKinAddress {
@@ -96,7 +96,7 @@ impl BtcKinAddress {
     }
 
     pub fn p2wpkh(pub_key: &[u8], network: &BtcKinNetwork) -> Result<BtcKinAddress> {
-        let pub_key = PublicKey::from_slice(&pub_key)?;
+        let pub_key = PublicKey::from_slice(pub_key)?;
         let addr = LibAddress::p2wpkh(&pub_key, Network::Bitcoin)?;
         Ok(BtcKinAddress {
             payload: addr.payload,
@@ -105,7 +105,7 @@ impl BtcKinAddress {
     }
 
     pub fn p2tr(pub_key: &[u8], network: &BtcKinNetwork) -> Result<BtcKinAddress> {
-        let pub_key = UntweakedPublicKey::from(secp256k1::PublicKey::from_slice(&pub_key)?);
+        let pub_key = UntweakedPublicKey::from(secp256k1::PublicKey::from_slice(pub_key)?);
         let secp256k1 = Secp256k1::new();
         let addr = LibAddress::p2tr(&secp256k1, pub_key, None, Network::Bitcoin);
         Ok(BtcKinAddress {
@@ -158,7 +158,7 @@ fn decode_base58(addr: &str) -> result::Result<Vec<u8>, LibAddressError> {
             addr.len() * 11 / 15,
         )));
     }
-    let data = base58::from_check(&addr)?;
+    let data = base58::from_check(addr)?;
     if data.len() != 21 {
         Err(LibAddressError::Base58(base58::Error::InvalidLength(
             data.len(),
@@ -254,7 +254,7 @@ impl Display for BtcKinAddress {
                 program: ref prog,
             } => {
                 let mut bech32_writer = bech32::Bech32Writer::new(
-                    &self.network.bech32_hrp,
+                    self.network.bech32_hrp,
                     version.bech32_variant(),
                     fmt,
                 )?;

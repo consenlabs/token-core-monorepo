@@ -26,9 +26,11 @@ impl Address for CkbAddress {
         buf.extend(vec![0x1, 0x00]); // append short version for locks with popular codehash and default code hash index
         buf.extend(pub_key_hash);
 
-        Ok(CkbAddress(
-            bech32::encode(prefix, buf.to_base32(), Variant::Bech32)?.to_string(),
-        ))
+        Ok(CkbAddress(bech32::encode(
+            prefix,
+            buf.to_base32(),
+            Variant::Bech32,
+        )?))
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {
@@ -55,12 +57,12 @@ impl Address for CkbAddress {
                 }
             }
             match hrp.as_str() {
-                "ckb" => return coin.network == "MAINNET",
-                "ckt" => return coin.network == "TESTNET",
+                "ckb" => coin.network == "MAINNET",
+                "ckt" => coin.network == "TESTNET",
                 _ => false,
             }
         } else {
-            return false;
+            false
         }
     }
 }

@@ -132,7 +132,7 @@ impl EthMessageInput {
         let wallet = LocalWallet::from_bytes(private_key)?;
         let message = utf8_or_hex_to_bytes(&self.message)?;
 
-        let h256_hash = H256(keccak256(&message));
+        let h256_hash = H256(keccak256(message));
         let sign_result = wallet.sign_hash(h256_hash)?;
         let signature = format!("0x{}", sign_result.to_string());
         Ok(EthMessageOutput { signature })
@@ -143,7 +143,7 @@ impl EthRecoverAddressInput {
     pub fn recover_address(&self) -> Result<EthRecoverAddressOutput> {
         let signature = Signature::from_str(&self.signature)?;
         let message = utf8_or_hex_to_bytes(&self.message)?;
-        let h256_hash = H256(keccak256(&message));
+        let h256_hash = H256(keccak256(message));
         let address = signature.recover(h256_hash)?;
         Ok(EthRecoverAddressOutput {
             address: address.0.to_0x_hex(),
@@ -155,7 +155,7 @@ fn parse_u64(s: &str) -> Result<U64> {
     if s.starts_with("0x") {
         Ok(U64::from_str_radix(&s[2..], 16)?)
     } else {
-        let r = U64::from_dec_str(&s.to_string());
+        let r = U64::from_dec_str(s);
         if r.is_err() {
             return Ok(U64::from_str_radix(s, 16)?);
         }

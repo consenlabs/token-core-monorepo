@@ -1,23 +1,19 @@
 use crate::SubstrateAddress;
 use rand::Rng;
 use serde::{de, Deserialize, Deserializer, Serialize};
-use sp_core::Pair;
 use std::convert::TryInto;
 use tcx_keystore::{tcx_ensure, Address};
 
 use byteorder::LittleEndian;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use regex::Regex;
-use schnorrkel::{SecretKey, SECRET_KEY_LENGTH};
+use schnorrkel::SECRET_KEY_LENGTH;
 use serde::__private::{fmt, PhantomData};
 use std::io::Cursor;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tcx_common::{random_u8_32, FromHex, ToHex};
+use tcx_common::{random_u8_32, FromHex};
 use tcx_constants::{CoinInfo, Result};
-use tcx_primitive::{
-    DeterministicPrivateKey, PrivateKey, PublicKey, Sr25519PrivateKey, Sr25519PublicKey,
-    TypedPublicKey,
-};
+use tcx_primitive::{PrivateKey, PublicKey, Sr25519PrivateKey, TypedPublicKey};
 use xsalsa20poly1305::aead::{generic_array::GenericArray, Aead};
 use xsalsa20poly1305::{KeyInit, XSalsa20Poly1305};
 
@@ -156,11 +152,11 @@ impl SubstrateKeystore {
         pub_key: &[u8],
         addr: &str,
     ) -> Result<SubstrateKeystore> {
-        let encoding = SubstrateKeystore::encrypt(password, prv_key, pub_key)?;
+        let encoded = SubstrateKeystore::encrypt(password, prv_key, pub_key)?;
 
         Ok(SubstrateKeystore {
             address: addr.to_string(),
-            encoded: encoding.to_string(),
+            encoded,
             encoding: SubstrateKeystoreEncoding {
                 content: vec!["pkcs8".to_string(), "sr25519".to_string()],
                 encoding_type: vec!["scrypt".to_string(), "xsalsa20-poly1305".to_string()],
@@ -210,16 +206,15 @@ impl SubstrateKeystore {
         }
 
         if self.encoded.starts_with("0x") {
-            return Vec::from_hex(&self.encoded[2..])
-                .map_err(|_| format_err!("decode_cipher_text decode hex"));
+            Vec::from_hex(&self.encoded[2..])
+                .map_err(|_| format_err!("decode_cipher_text decode hex"))
         } else {
-            return Vec::from_hex(&self.encoded)
-                .map_err(|_| format_err!("decode_cipher_text decode hex"));
+            Vec::from_hex(&self.encoded).map_err(|_| format_err!("decode_cipher_text decode hex"))
         }
     }
 
     pub fn decrypt(&self, password: &str) -> Result<(Vec<u8>, Vec<u8>)> {
-        let _ = self.validate()?;
+        self.validate()?;
         let mut encoded = self.decode_cipher_text()?;
 
         let password_bytes = if self.encoding.version == "3"
@@ -289,7 +284,7 @@ fn encrypt_content(password: &str, plaintext: &[u8]) -> Result<String> {
     let cipher = XSalsa20Poly1305::new(key);
     let nonce = GenericArray::from_slice(&nonce_bytes);
     let encoded = cipher
-        .encrypt(&nonce, plaintext)
+        .encrypt(nonce, plaintext)
         .map_err(|_e| format_err!("{}", "encrypt error"))?;
 
     let scrypt_params_encoded = [
@@ -300,7 +295,7 @@ fn encrypt_content(password: &str, plaintext: &[u8]) -> Result<String> {
     ]
     .concat();
     let complete_encoded: Vec<u8> = [scrypt_params_encoded, nonce_bytes.to_vec(), encoded].concat();
-    Ok(base64::encode(&complete_encoded))
+    Ok(base64::encode(complete_encoded))
 }
 
 fn gen_nonce() -> [u8; 24] {
@@ -317,9 +312,7 @@ fn password_to_key(password_bytes: &[u8]) -> [u8; 32] {
     let mut key = [0u8; 32];
     let pwd_len = password_bytes.len();
     let iter_len = if pwd_len > 32 { 32 } else { pwd_len };
-    for idx in 0..iter_len {
-        key[idx] = password_bytes[idx]
-    }
+    key[..iter_len].copy_from_slice(&password_bytes[..iter_len]);
     key
 }
 
@@ -344,10 +337,10 @@ pub fn encode_substrate_keystore(
     prv_key: &[u8],
     coin: &CoinInfo,
 ) -> Result<SubstrateKeystore> {
-    let sr25519_prv_key = Sr25519PrivateKey::from_slice(&prv_key)?;
+    let sr25519_prv_key = Sr25519PrivateKey::from_slice(prv_key)?;
     let pub_key = sr25519_prv_key.public_key();
-    let addr = SubstrateAddress::from_public_key(&TypedPublicKey::SR25519(pub_key.clone()), &coin)?;
-    SubstrateKeystore::new(password, &prv_key, &pub_key.to_bytes(), &addr.to_string())
+    let addr = SubstrateAddress::from_public_key(&TypedPublicKey::SR25519(pub_key.clone()), coin)?;
+    SubstrateKeystore::new(password, prv_key, &pub_key.to_bytes(), &addr.to_string())
 }
 
 #[cfg(test)]

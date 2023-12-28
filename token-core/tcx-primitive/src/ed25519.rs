@@ -31,7 +31,7 @@ impl TraitPrivateKey for Ed25519PrivateKey {
         if data.len() != 32 {
             return Err(KeyError::InvalidEd25519Key.into());
         }
-        let pair = Pair::from_seed_slice(&data).map_err(|_| KeyError::InvalidEd25519Key)?;
+        let pair = Pair::from_seed_slice(data).map_err(|_| KeyError::InvalidEd25519Key)?;
         Ok(Ed25519PrivateKey(pair))
     }
 

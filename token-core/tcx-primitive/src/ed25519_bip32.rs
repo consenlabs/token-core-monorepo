@@ -20,7 +20,7 @@ pub struct Ed25519DeterministicPublicKey(EdPublicKey);
 
 impl Ed25519DeterministicPrivateKey {
     pub fn from_seed(seed: &[u8]) -> Result<Self> {
-        let seed_obj = Seed::from_bytes(&seed).unwrap();
+        let seed_obj = Seed::from_bytes(seed).unwrap();
         let master = Ed25519::master(&seed_obj);
         Ok(Ed25519DeterministicPrivateKey(master))
     }
@@ -28,7 +28,7 @@ impl Ed25519DeterministicPrivateKey {
     pub fn from_mnemonic(mnemonic: &str) -> Result<Self> {
         let mn = Mnemonic::from_phrase(mnemonic, Language::English)?;
         let seed = bip39::Seed::new(&mn, "");
-        Ok(Self::from_seed(seed.as_ref())?)
+        Self::from_seed(seed.as_ref())
     }
 }
 
@@ -75,7 +75,7 @@ impl DeterministicPrivateKey for Ed25519DeterministicPrivateKey {
     type PrivateKey = Ed25519PrivateKey;
 
     fn from_seed(seed: &[u8]) -> Result<Self> {
-        let seed_obj = Seed::from_bytes(&seed).unwrap();
+        let seed_obj = Seed::from_bytes(seed).unwrap();
         let master = Ed25519::master(&seed_obj);
         Ok(Ed25519DeterministicPrivateKey(master))
     }

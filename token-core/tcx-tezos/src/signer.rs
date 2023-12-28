@@ -24,7 +24,7 @@ impl TraitTransactionSigner<TezosRawTxIn, TezosTxOut> for Keystore {
         blake2b_params.hash_length(32);
         //add watermark https://gitlab.com/tezos/tezos/-/issues/199
         let mut hash_message: Vec<u8> = vec![0x03];
-        hash_message.extend(Vec::from_hex(&raw_data_bytes)?.as_slice());
+        hash_message.extend(Vec::from_hex(raw_data_bytes)?.as_slice());
         let hash_result = blake2b_params.hash(hash_message.as_slice());
         let sign_result = self.sign_hash(
             hash_result.as_bytes(),
