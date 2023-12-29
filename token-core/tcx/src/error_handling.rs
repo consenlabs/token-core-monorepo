@@ -33,6 +33,8 @@ fn lock_all_keystore() {
 
 /// catch any error and format to string
 /// ref: <https://doc.rust-lang.org/edition-guide/rust-2018/error-handling-and-panics/controlling-panics-with-std-panic.html>
+/// # Safety
+///
 #[cfg_attr(tarpaulin, ignore)]
 pub unsafe fn landingpad<F: FnOnce() -> Result<T> + panic::UnwindSafe, T>(f: F) -> Result<T> {
     match panic::catch_unwind(f) {

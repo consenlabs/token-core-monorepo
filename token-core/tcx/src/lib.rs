@@ -44,6 +44,8 @@ lazy_static! {
 
 pub type Result<T> = result::Result<T, Error>;
 
+/// # Safety
+///
 #[no_mangle]
 pub unsafe extern "C" fn free_const_string(s: *const c_char) {
     if s.is_null() {
@@ -52,8 +54,9 @@ pub unsafe extern "C" fn free_const_string(s: *const c_char) {
     let _ = CStr::from_ptr(s);
 }
 
-/// dispatch protobuf rpc call
+/// # Safety
 ///
+/// dispatch protobuf rpc call
 #[allow(deprecated)]
 #[no_mangle]
 pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
@@ -123,6 +126,8 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
     }
 }
 
+/// # Safety
+///
 #[no_mangle]
 pub unsafe extern "C" fn clear_err() {
     LAST_ERROR.with(|e| {
@@ -133,6 +138,8 @@ pub unsafe extern "C" fn clear_err() {
     });
 }
 
+/// # Safety
+///
 #[no_mangle]
 pub unsafe extern "C" fn get_last_err_message() -> *const c_char {
     LAST_ERROR.with(|e| {

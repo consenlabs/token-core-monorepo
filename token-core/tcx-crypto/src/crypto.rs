@@ -11,8 +11,8 @@ pub type Credential = [u8; CREDENTIAL_LEN];
 
 fn default_kdf_rounds() -> u32 {
     let v = env::var("KDF_ROUNDS");
-    if let Ok(val) = v {
-        val.parse::<u32>().unwrap()
+    if let Ok(v) = v {
+        v.parse::<u32>().unwrap()
     } else {
         *crate::KDF_ROUNDS.read() as u32
     }
@@ -257,8 +257,10 @@ impl Crypto {
     }
 
     pub fn new(password: &str, origin: &[u8]) -> Crypto {
-        let mut param = Pbkdf2Params::default();
-        param.salt = random_u8_32().to_hex();
+        let param = Pbkdf2Params {
+            salt: random_u8_32().to_hex(),
+            ..Pbkdf2Params::default()
+        };
 
         Self::new_with_kdf(password, origin, KdfType::Pbkdf2(param))
     }

@@ -38,14 +38,13 @@ use crate::api::{
     GeneralResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
     GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
     ImportPrivateKeyResult, KeystoreMigrationParam, KeystoreResult, MnemonicToPublicKeyParam,
-    MnemonicToPublicKeyResult, RemoveWalletParam, RemoveWalletResult,
-    SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
-    SignHashesResult, WalletKeyParam,
+    MnemonicToPublicKeyResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
+    SignHashesParam, SignHashesResult, WalletKeyParam,
 };
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
 use crate::filemanager::{
-    self, cache_keystore, clean_keystore, copy_to_v2_if_need, flush_keystore, KEYSTORE_BASE_DIR,
+    cache_keystore, clean_keystore, copy_to_v2_if_need, flush_keystore, KEYSTORE_BASE_DIR,
     WALLET_FILE_DIR, WALLET_V2_DIR,
 };
 use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
@@ -92,7 +91,7 @@ pub(crate) fn encode_message(msg: impl Message) -> Result<Vec<u8>> {
     Ok(buf.to_vec())
 }
 
-fn derive_account<'a, 'b>(keystore: &mut Keystore, derivation: &Derivation) -> Result<Account> {
+fn derive_account(keystore: &mut Keystore, derivation: &Derivation) -> Result<Account> {
     let mut coin_info = coin_info_from_param(
         &derivation.chain_type,
         &derivation.network,
@@ -399,11 +398,13 @@ pub(crate) fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let param: CreateKeystoreParam =
         CreateKeystoreParam::decode(data).expect("create_keystore param");
 
-    let mut meta = Metadata::default();
-    meta.name = param.name;
-    meta.password_hint = param.password_hint.to_owned();
-    meta.source = Source::NewMnemonic;
-    meta.network = IdentityNetwork::from_str(&param.network)?;
+    let meta = Metadata {
+        name: param.name,
+        password_hint: param.password_hint,
+        source: Source::NewMnemonic,
+        network: IdentityNetwork::from_str(&param.network)?,
+        ..Metadata::default()
+    };
 
     let ks = HdKeystore::new(&param.password, meta);
 
@@ -448,10 +449,12 @@ pub(crate) fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
         return Err(format_err!("{}", "address_already_exist"));
     }
 
-    let mut meta = Metadata::default();
-    meta.name = param.name.to_owned();
-    meta.password_hint = param.password_hint.to_owned();
-    meta.source = Source::Mnemonic;
+    let meta = Metadata {
+        name: param.name,
+        password_hint: param.password_hint,
+        source: Source::Mnemonic,
+        ..Metadata::default()
+    };
 
     let ks = HdKeystore::from_mnemonic(&param.mnemonic, &param.password, meta)?;
 

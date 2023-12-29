@@ -32,7 +32,7 @@ impl Address for EosAddress {
 impl FromStr for EosAddress {
     type Err = failure::Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        if s.starts_with("EOS") {
+        if let Some(s) = s.strip_prefix("EOS") {
             let s = &s[3..];
             let bytes = base58::from(s).map_err(|_| CommonError::InvalidAddress)?;
             let checksum = bytes[bytes.len() - 4..].to_vec();

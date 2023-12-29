@@ -152,8 +152,8 @@ impl EthRecoverAddressInput {
 }
 
 fn parse_u64(s: &str) -> Result<U64> {
-    if s.starts_with("0x") {
-        Ok(U64::from_str_radix(&s[2..], 16)?)
+    if let Some(s) = s.strip_prefix("0x") {
+        Ok(U64::from_str_radix(s, 16)?)
     } else {
         let r = U64::from_dec_str(s);
         if r.is_err() {
