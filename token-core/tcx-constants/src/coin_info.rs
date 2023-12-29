@@ -250,7 +250,7 @@ pub fn coin_info_from_param(
                 && (x.seg_wit.as_str() == seg_wit || seg_wit.is_empty())
                 && (x.curve.as_str() == curve || curve.is_empty())
         })
-        .map(|x| x.clone())
+        .cloned()
         .collect::<Vec<CoinInfo>>();
 
     if coins.is_empty() {

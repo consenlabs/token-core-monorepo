@@ -15,7 +15,7 @@ const TESTNET_PREFIX: &str = "t";
 #[derive(Clone, Copy)]
 pub enum Protocol {
     Secp256k1 = 1,
-    BLS = 3,
+    Bls = 3,
 }
 
 #[derive(PartialEq, Eq, Clone)]
@@ -49,7 +49,7 @@ impl Address for FilecoinAddress {
                 checksum = Self::checksum(&[vec![protocol as u8], payload.to_vec()].concat());
             }
             TypedPublicKey::BLS(pk) => {
-                protocol = Protocol::BLS;
+                protocol = Protocol::Bls;
                 payload = pk.to_bytes();
 
                 checksum = Self::checksum(&[vec![protocol as u8], payload.to_vec()].concat());

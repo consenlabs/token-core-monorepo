@@ -299,9 +299,9 @@ fn gen_nonce() -> [u8; 24] {
     let mut rng = rand::thread_rng();
     let mut nonce = [0u8; 24];
 
-    for idx in 0..24 {
-        nonce[idx] = rng.gen::<u8>()
-    }
+    (0..nonce.len()).for_each(|idx| {
+        nonce[idx] = rng.gen::<u8>();
+    });
     nonce
 }
 

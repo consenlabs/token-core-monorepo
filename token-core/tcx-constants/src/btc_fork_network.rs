@@ -196,7 +196,7 @@ pub fn network_from_param(
         .filter(|x| x.coin.eq(&chain_type.to_uppercase()))
         .filter(|x| x.network.eq(&network.to_uppercase()))
         .filter(|x| x.seg_wit.eq(&seg_wit.to_uppercase()))
-        .map(|x| x.clone())
+        .cloned()
         .collect::<Vec<BtcForkNetwork>>();
     ret.pop()
 }
@@ -206,7 +206,7 @@ pub fn network_form_hrp(hrp: &str) -> Option<BtcForkNetwork> {
     let mut ret: Vec<BtcForkNetwork> = networks
         .iter()
         .filter(|x| x.hrp.eq(hrp))
-        .map(|x| x.clone())
+        .cloned()
         .collect::<Vec<BtcForkNetwork>>();
     ret.pop()
 }

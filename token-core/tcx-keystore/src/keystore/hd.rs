@@ -5,7 +5,7 @@ use uuid::Uuid;
 
 use super::{transform_mnemonic_error, Account, Address, Error, Metadata, Result, Store};
 
-use std::collections::HashMap;
+use std::collections::{hash_map::Entry, HashMap};
 
 use tcx_common::ToHex;
 use tcx_constants::{CoinInfo, CurveType};
@@ -37,12 +37,12 @@ impl Cache {
         F: FnOnce() -> Result<TypedDeterministicPrivateKey>,
     {
         let cache_key = Cache::get_cache_key(key, curve);
-        if self.keys.contains_key(&cache_key) {
-            Ok(self.keys[&cache_key].clone())
-        } else {
+        if let Entry::Vacant(e) = self.keys.entry(cache_key.clone()) {
             let k = f()?;
-            self.keys.insert(cache_key, k.clone());
+            e.insert(k.clone());
             Ok(k)
+        } else {
+            Ok(self.keys[&cache_key].clone())
         }
     }
 }

@@ -6,10 +6,7 @@ pub type Hash160 = [u8; 20];
 pub fn merkle_hash(data: &[u8]) -> Hash256 {
     assert!(!data.is_empty(), "data should not be empty");
 
-    let mut hashes = data
-        .chunks(1024)
-        .map(|chunk| sha256d(chunk))
-        .collect::<Vec<Hash256>>();
+    let mut hashes = data.chunks(1024).map(sha256d).collect::<Vec<Hash256>>();
 
     let mut len = hashes.len();
     let mut data = [0u8; 64];
