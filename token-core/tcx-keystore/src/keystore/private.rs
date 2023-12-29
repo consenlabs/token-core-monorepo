@@ -128,7 +128,7 @@ impl PrivateKeystore {
             network: coin.network.to_string(),
             seg_wit: coin.seg_wit.to_string(),
             ext_pub_key: "".to_string(),
-            public_key: pub_key.to_bytes().to_hex(),
+            public_key: pub_key,
         };
 
         Ok(acc)
@@ -153,6 +153,7 @@ mod tests {
     use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY};
     use tcx_crypto::Key;
+    use tcx_primitive::{PublicKey, Secp256k1PublicKey, TypedPublicKey};
 
     #[test]
     fn test_from_private_key() {
@@ -247,7 +248,11 @@ mod tests {
 
         for (i, coin_info) in coin_infos.iter().enumerate() {
             let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
-            assert_eq!(acc.public_key, excepts[i]);
+
+            let k1_pub_key =
+                Secp256k1PublicKey::from_slice(&Vec::from_hex_auto(excepts[i]).unwrap()).unwrap();
+            let public_key = TypedPublicKey::Secp256k1(k1_pub_key);
+            assert_eq!(acc.public_key, public_key);
         }
     }
 }

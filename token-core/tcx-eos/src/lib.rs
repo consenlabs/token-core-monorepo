@@ -16,6 +16,7 @@ pub mod eos {
     pub type MessageInput = crate::transaction::EosMessageInput;
 
     pub type MessageOutput = crate::transaction::EosMessageOutput;
+    pub type PubKeyEncoder = crate::address::EosPublicKeyEncoder;
 }
 
 pub fn encode_eos_wif(private_key_bytes: &[u8]) -> Result<String> {

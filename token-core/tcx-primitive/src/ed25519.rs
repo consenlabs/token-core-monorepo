@@ -6,7 +6,7 @@ use sp_core::ed25519::{Pair, Public};
 use sp_core::Pair as TraitPair;
 use std::convert::TryFrom;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Ed25519PublicKey(pub Public);
 
 #[derive(Clone)]

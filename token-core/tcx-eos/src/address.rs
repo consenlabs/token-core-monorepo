@@ -2,25 +2,30 @@ use bitcoin::util::base58;
 use std::str::FromStr;
 use tcx_common::{ripemd160, CommonError};
 use tcx_constants::CoinInfo;
-use tcx_keystore::{Address, Result};
+use tcx_keystore::{keystore::PublicKeyEncoder, Address, Result};
 use tcx_primitive::TypedPublicKey;
 
 #[derive(PartialEq, Eq, Clone)]
-pub struct EosAddress {
-    pubkey_bytes: Vec<u8>,
-    checksum: Vec<u8>,
-}
+pub struct EosAddress {}
 
-impl Address for EosAddress {
-    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
+#[derive(PartialEq, Eq, Clone)]
+pub struct EosPublicKeyEncoder {}
+
+impl PublicKeyEncoder for EosPublicKeyEncoder {
+    fn encode(public_key: &TypedPublicKey, _coin_info: &CoinInfo) -> Result<String> {
         let pubkey_bytes = public_key.to_bytes();
         let hashed_bytes = ripemd160(&pubkey_bytes);
         let checksum = hashed_bytes[..4].to_vec();
+        let mut bytes = vec![];
+        bytes.extend_from_slice(&pubkey_bytes);
+        bytes.extend_from_slice(&checksum);
+        Ok(format!("EOS{}", base58::encode_slice(&bytes)))
+    }
+}
 
-        Ok(EosAddress {
-            pubkey_bytes,
-            checksum,
-        })
+impl Address for EosAddress {
+    fn from_public_key(_public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
+        Ok(EosAddress {})
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
@@ -32,70 +37,54 @@ impl Address for EosAddress {
 impl FromStr for EosAddress {
     type Err = failure::Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
-        if let Some(s) = s.strip_prefix("EOS") {
-            let s = &s[3..];
-            let bytes = base58::from(s).map_err(|_| CommonError::InvalidAddress)?;
-            let checksum = bytes[bytes.len() - 4..].to_vec();
-            let pubkey_bytes = bytes[..bytes.len() - 4].to_vec();
-
-            let hashed_bytes = ripemd160(&pubkey_bytes);
-            let expected_checksum = hashed_bytes[..4].to_vec();
-            if checksum != expected_checksum {
-                return Err(CommonError::InvalidAddressChecksum.into());
-            }
-
-            Ok(EosAddress {
-                pubkey_bytes,
-                checksum,
-            })
-        } else {
-            Err(CommonError::InvalidAddress.into())
-        }
+        Ok(EosAddress {})
     }
 }
 
 impl ToString for EosAddress {
     fn to_string(&self) -> String {
-        let mut bytes = vec![];
-        bytes.extend_from_slice(&self.pubkey_bytes);
-        bytes.extend_from_slice(&self.checksum);
-        format!("EOS{}", base58::encode_slice(&bytes))
+        "".to_string()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
 
-    use crate::address::EosAddress;
+    use crate::address::EosPublicKeyEncoder;
+    use tcx_common::FromHex;
     use tcx_constants::CoinInfo;
-    use tcx_keystore::Address;
+    use tcx_keystore::{Address, PublicKeyEncoder};
+    use tcx_primitive::{PublicKey, Secp256k1PublicKey, TypedPublicKey};
 
     #[test]
-    fn test_is_valid() {
+    fn test_encode_public_key() {
         let tests = [
-            "EOS88XhiiP7Cu5TmAUJqHbyuhyYgd6sei68AU266PyetDDAtjmYWF",
-            "EOS5varo7aGmCFQw77DNiiWUj3YQA7ZmWUMC4NDDXeeaeEAXk436S",
-            "EOS6w47YkvVGLzvKeozV5ZK34QApCmALrwoH2Dwhnirs5TZ9mg5io",
-            "EOS5varo7aGmCFQw77DNiiWUj3YQA7ZmWUMC4NDDXeeaeEAXk436S",
+            (
+                "0x037b5253c24ce2a293566f9e066051366cda5073e4a43b25f07c990d7c9ac0aab5",
+                "EOS7mYcbf9BumHjUUCPoXh2nxzkipQZDQCZC7EmRq8cwB1exEYHfy",
+            ),
+            (
+                "0x03f6a261f3b4d7c24014f2026b09ad409076c566b39b99b8e0a7196f391caec508",
+                "EOS8hrUMSKjQZK4QsXLfAVTwmmD4nTfF9Lb11ZQN3zVYrdxhApgFr",
+            ),
+            (
+                "0x03844a01522a26156df32b587d80df60d76072480e299c6d3241c7b2b929c07625",
+                "EOS7qVgE5PF58jAV7HmFPNEAEdyZmE4UBasTRa7AZ1AhJGxYovBwc",
+            ),
+            (
+                "0x035cda3171ba9107ec3f398c8e33b17803fd9d6a815ee5d544a71759455396319c",
+                "EOS7Y8KPZQDMhDWjHaM3nWRWwYSoP75KpSatFbanKRPRaUKDWi2UA",
+            ),
         ];
 
         for i in tests {
-            assert!(EosAddress::is_valid(i, &CoinInfo::default()));
+            let bytes = Vec::from_0x_hex(i.0).unwrap();
+            let k1_pub_key = Secp256k1PublicKey::from_slice(&bytes).unwrap();
+            let typed_pub_key = TypedPublicKey::Secp256k1(k1_pub_key);
+            assert_eq!(
+                EosPublicKeyEncoder::encode(&typed_pub_key, &CoinInfo::default()).unwrap(),
+                i.1
+            );
         }
-    }
-
-    #[test]
-    fn test_invalid_address_checksum() {
-        let address = "EOS5varo7aGmCFQw77DNiiWUj3YQA7ZmWUMC4NDDXeeaeEAXk436R";
-        let addr = EosAddress::from_str(address);
-        assert_eq!(addr.err().unwrap().to_string(), "invalid_address_checksum");
-    }
-
-    #[test]
-    fn test_invalid_address() {
-        let address = "TEST5varo7aGmCFQw77DNiiWUj3YQA7ZmWUMC4NDDXeeaeEAXk436S";
-        let addr = EosAddress::from_str(address);
-        assert_eq!(addr.err().unwrap().to_string(), "invalid_address");
     }
 }

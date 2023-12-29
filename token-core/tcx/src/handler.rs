@@ -1,4 +1,3 @@
-use base58::ToBase58;
 use bytes::BytesMut;
 use prost::Message;
 use serde_json::Value;
@@ -6,7 +5,7 @@ use std::fs;
 use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
-use tcx_eos::address::EosAddress;
+use tcx_eos::address::{EosAddress, EosPublicKeyEncoder};
 use tcx_eos::encode_eos_wif;
 use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_keystore::keystore::IdentityNetwork;
@@ -499,6 +498,16 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
 
     for derivation in param.derivations {
         let account = derive_account(guard.keystore_mut(), &derivation)?;
+        let mut coin_info = coin_info_from_param(
+            &derivation.chain_type,
+            &derivation.network,
+            &derivation.seg_wit,
+            &derivation.curve,
+        )?;
+        if !derivation.path.is_empty() {
+            coin_info.derivation_path = derivation.path;
+        }
+
         let enc_xpub = if account.ext_pub_key.is_empty() {
             Ok("".to_string())
         } else {
@@ -509,7 +518,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
             address: account.address.to_owned(),
             path: account.derivation_path.to_owned(),
             curve: account.curve.as_str().to_string(),
-            public_key: account.public_key,
+            public_key: encode_public_key_internal(&account.public_key, &coin_info)?,
             extended_public_key: account.ext_pub_key.to_string(),
             encrypted_extended_public_key: enc_xpub,
         };
@@ -717,45 +726,30 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     }?;
 
     let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
-    let public_keys: Vec<Vec<u8>> = param
+    let public_keys: Vec<TypedPublicKey> = param
         .derivations
         .iter()
         .map(|derivation| {
-            let public_key = guard
+            guard
                 .keystore_mut()
                 .get_public_key(CurveType::from_str(&derivation.curve), &derivation.path)
-                .expect("PublicKeyProcessed");
-            public_key.to_bytes()
+                .expect("PublicKeyProcessed")
         })
         .collect();
 
     let mut public_key_strs: Vec<String> = vec![];
-    for (idx, _) in public_keys.iter().enumerate().take(param.derivations.len()) {
-        let pub_key = public_keys[idx].to_vec();
-        let public_key_str_ret: Result<String> = match param.derivations[idx].chain_type.as_str() {
-            "TEZOS" => {
-                let edpk_prefix: Vec<u8> = vec![0x0D, 0x0F, 0x25, 0xD9];
-                let to_hash = [edpk_prefix, pub_key].concat();
-                let hashed = sha256d(&to_hash);
-                let hash_with_checksum = [to_hash, hashed[0..4].to_vec()].concat();
-                let edpk = hash_with_checksum.to_base58();
-                Ok(edpk)
-            }
-            "EOS" => {
-                let secp256k1_pub_key = Secp256k1PublicKey::from_slice(&pub_key)?;
-                let typed_pub_key = TypedPublicKey::Secp256k1(secp256k1_pub_key);
-                let eos_addr = EosAddress::from_public_key(
-                    &typed_pub_key,
-                    &CoinInfo {
-                        coin: "EOS".to_string(),
-                        curve: CurveType::SECP256k1,
-                        ..Default::default()
-                    },
-                )?;
-                Ok(eos_addr.to_string())
-            }
-            _ => Ok(pub_key.to_0x_hex()),
+    for idx in 0..param.derivations.len() {
+        let pub_key = &public_keys[idx];
+        let derivation = &param.derivations[idx];
+        let coin_info = CoinInfo {
+            coin: derivation.chain_type.to_string(),
+            derivation_path: derivation.path.to_string(),
+            curve: CurveType::from_str(&derivation.curve),
+            ..Default::default()
         };
+
+        let public_key_str_ret = encode_public_key_internal(&pub_key, &coin_info);
+
         let pub_key_str = public_key_str_ret?;
         public_key_strs.push(pub_key_str);
     }
@@ -1058,13 +1052,13 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
         .relative_paths
         .iter()
         .map(|relative_path| {
-            let coin_info = CoinInfo {
-                coin: param.chain_type.to_string(),
-                derivation_path: relative_path.to_string(),
-                curve,
-                network: param.network.to_string(),
-                seg_wit: param.seg_wit.to_string(),
-            };
+            let mut coin_info = coin_info_from_param(
+                &param.chain_type,
+                &param.network,
+                &param.seg_wit,
+                &param.curve,
+            )?;
+            coin_info.derivation_path = relative_path.to_string();
             let acc: Account = derive_sub_account(&xpub, &coin_info)?;
 
             let enc_xpub = encrypt_xpub(&param.extended_public_key.to_string(), &acc.network)?;
@@ -1075,7 +1069,7 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 path: relative_path.to_string(),
                 extended_public_key: param.extended_public_key.to_string(),
                 encrypted_extended_public_key: enc_xpub,
-                public_key: acc.public_key,
+                public_key: encode_public_key_internal(&acc.public_key, &coin_info)?,
                 curve: param.curve.to_string(),
             };
             Ok(acc_rsp)
@@ -1146,10 +1140,13 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn mnemonic_to_public(data: &[u8]) -> Result<Vec<u8>> {
     let param = MnemonicToPublicKeyParam::decode(data)?;
     let public_key = tcx_primitive::mnemonic_to_public(&param.mnemonic, &param.path, &param.curve)?;
-    let public_key_str = match param.encoding.to_uppercase().as_str() {
-        "EOS" => EosAddress::from_public_key(&public_key, &CoinInfo::default())?.to_string(),
-        _ => public_key.to_bytes().to_0x_hex(),
+    let coin_info = CoinInfo {
+        derivation_path: param.path,
+        curve: CurveType::from_str(&param.curve),
+        coin: param.encoding,
+        ..Default::default()
     };
+    let public_key_str = encode_public_key_internal(&public_key, &coin_info)?;
     encode_message(MnemonicToPublicKeyResult {
         public_key: public_key_str,
     })

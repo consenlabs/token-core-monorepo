@@ -34,6 +34,7 @@ pub mod tezos {
     pub type Address = crate::address::TezosAddress;
     pub type TransactionInput = crate::transaction::TezosRawTxIn;
     pub type TransactionOutput = crate::transaction::TezosTxOut;
+    pub type PubKeyEncoder = crate::address::TezosPublicKeyEncoder;
 }
 
 #[cfg(test)]

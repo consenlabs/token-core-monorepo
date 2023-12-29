@@ -569,7 +569,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
-                    curve: "".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -578,7 +578,7 @@ mod tests {
                     network: "MAINNET".to_string(),
                     seg_wit: "P2WPKH".to_string(),
                     chain_id: "".to_string(),
-                    curve: "".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -587,7 +587,7 @@ mod tests {
                     network: "TESTNET".to_string(),
                     seg_wit: "NONE".to_string(),
                     chain_id: "".to_string(),
-                    curve: "".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -596,7 +596,7 @@ mod tests {
                     network: "".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -605,7 +605,7 @@ mod tests {
                     network: "TESTNET".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "".to_string(),
+                    curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -614,7 +614,7 @@ mod tests {
                     network: "".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "".to_string(),
+                    curve: "sr25519".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -623,7 +623,7 @@ mod tests {
                     network: "".to_string(),
                     seg_wit: "".to_string(),
                     chain_id: "".to_string(),
-                    curve: "".to_string(),
+                    curve: "sr25519".to_string(),
                     bech32_prefix: "".to_string(),
                 },
                 Derivation {
@@ -770,10 +770,7 @@ mod tests {
                 derived_accounts.accounts[9].address
             );
 
-            assert_eq!(
-                "EOS7Nf9TU1vZaQQgZA3cELTHJf1nnDJ6xVvqHvVzbHehsgcjrzNkq",
-                derived_accounts.accounts[10].address
-            );
+            assert_eq!("", derived_accounts.accounts[10].address);
             assert_eq!(
                 "0x37c6713aa848bCdeE372A620eEbCdcCBA55c695F",
                 derived_accounts.accounts[11].address
@@ -1033,7 +1030,7 @@ mod tests {
 
             assert_eq!(
                 "EOS5Vubes67f2xXCRDJXx5WJRsMBuf4gTfzukbqLnyjZQCyoPjPZu",
-                derived_accounts.accounts[7].address
+                derived_accounts.accounts[7].public_key
             );
 
             assert_eq!(

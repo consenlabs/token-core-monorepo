@@ -2,7 +2,7 @@ use crate::ecc::{KeyError, PrivateKey as TraitPrivateKey, PublicKey as TraitPubl
 use crate::Result;
 use blst::min_pk::{PublicKey, SecretKey};
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct BLSPublicKey(PublicKey);
 
 #[derive(Clone)]

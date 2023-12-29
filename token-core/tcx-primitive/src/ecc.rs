@@ -1,3 +1,4 @@
+use serde::Serialize;
 use tcx_common::{FromHex, ToHex};
 
 use super::Result;
@@ -199,6 +200,7 @@ impl TypedPrivateKey {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
 pub enum TypedPublicKey {
     Secp256k1(Secp256k1PublicKey),
     SR25519(Sr25519PublicKey),
