@@ -206,7 +206,7 @@ impl HdKeystore {
             network: coin_info.network.to_string(),
             ext_pub_key,
             seg_wit: coin_info.seg_wit.to_string(),
-            public_key: public_key.to_bytes().to_hex(),
+            public_key: public_key,
         };
 
         Ok(account)
@@ -230,7 +230,9 @@ mod tests {
     use crate::Source;
     use bitcoin_hashes::hex::ToHex;
     use std::string::ToString;
+    use tcx_common::FromHex;
     use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_primitive::{PublicKey, Secp256k1PublicKey, TypedPublicKey};
 
     // A mnemonic word separated by a full-width or half-width space
     static MNEMONIC_WITH_WHITESPACE: &'static str =
@@ -358,6 +360,15 @@ mod tests {
 
         let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
 
+        let k1_pub_key = Secp256k1PublicKey::from_slice(
+            &Vec::from_hex_auto(
+                "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let public_key = TypedPublicKey::Secp256k1(k1_pub_key);
+
         let expected = Account {
             address: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
@@ -366,7 +377,7 @@ mod tests {
             seg_wit: "NONE".to_string(),
             curve: CurveType::SECP256k1,
             coin: "BITCOIN".to_string(),
-            public_key: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string()
+            public_key
         };
 
         assert_eq!(acc, expected);
@@ -457,6 +468,16 @@ mod tests {
 
         let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
 
+        let k1_pub_key = Secp256k1PublicKey::from_slice(
+            &Vec::from_hex_auto(
+                "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let public_key = TypedPublicKey::Secp256k1(k1_pub_key);
+
+        //TODO: why btc address is publickey
         let expected = Account {
             address: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
@@ -465,7 +486,7 @@ mod tests {
             seg_wit: "NONE".to_string(),
             curve: CurveType::SECP256k1,
             coin: "BITCOIN".to_string(),
-            public_key: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string()
+            public_key
         };
 
         assert_eq!(acc, expected);
@@ -514,6 +535,14 @@ mod tests {
 
         let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
 
+        let k1_pub_key = Secp256k1PublicKey::from_slice(
+            &Vec::from_hex_auto(
+                "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let public_key = TypedPublicKey::Secp256k1(k1_pub_key);
         let expected = Account {
             address: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
@@ -522,7 +551,7 @@ mod tests {
             seg_wit: "NONE".to_string(),
             curve: CurveType::SECP256k1,
             coin: "BITCOIN".to_string(),
-            public_key: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string()
+            public_key
         };
 
         assert_eq!(acc, expected);

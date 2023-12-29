@@ -1,6 +1,8 @@
 use std::str::FromStr;
 use tcx_constants::CoinInfo;
-use tcx_keystore::{Address, Keystore, MessageSigner, SignatureParameters, TransactionSigner};
+use tcx_keystore::{
+    Address, Keystore, MessageSigner, PublicKeyEncoder, SignatureParameters, TransactionSigner,
+};
 
 use tcx_primitive::TypedPublicKey;
 
@@ -70,9 +72,19 @@ impl ToString for MockAddress {
     }
 }
 
+#[derive(Clone, PartialEq, Eq)]
+pub struct MockPublicKeyEncoder();
+
+impl PublicKeyEncoder for MockPublicKeyEncoder {
+    fn encode(_public_key: &TypedPublicKey, _coin_info: &CoinInfo) -> tcx_keystore::Result<String> {
+        Err(format_err!("unsupported_chain"))
+    }
+}
+
 macro_rules! use_chains {
     ($($chain:path),+ $(,)?) => {
-        use crate::macros::{MockTransactionInput, MockTransactionOutput, MockAddress, MockMessageInput, MockMessageOutput};
+        use tcx_keystore::PublicKeyEncoder;
+        use crate::macros::{MockTransactionInput, MockTransactionOutput, MockAddress, MockPublicKeyEncoder, MockMessageInput, MockMessageOutput};
 
         #[allow(dead_code)]
         fn sign_transaction_internal(params: &SignParam, keystore: &mut Keystore) -> std::result::Result<Vec<u8>, failure::Error> {
@@ -176,6 +188,20 @@ macro_rules! use_chains {
             })*
 
             Err(format_err!("unsupported_chain"))
+        }
+
+        fn encode_public_key_internal(public_key: &TypedPublicKey, coin_info:&CoinInfo,) -> Result<String> {
+            type Encoder = MockPublicKeyEncoder;
+            let faker_encoder = std::any::TypeId::of::<MockPublicKeyEncoder>();
+
+            $({
+                use $chain::*;
+                if CHAINS.contains(&coin_info.coin.as_str()) && std::any::TypeId::of::<Encoder>() != faker_encoder {
+                    return Encoder::encode(&public_key, coin_info)
+                } else {
+                    return Ok(public_key.to_bytes().to_0x_hex())
+                }
+            })*
         }
     };
 }

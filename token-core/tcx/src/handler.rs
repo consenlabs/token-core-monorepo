@@ -502,6 +502,13 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
 
     for derivation in param.derivations {
         let account = derive_account(guard.keystore_mut(), &derivation)?;
+        let coin_info = CoinInfo {
+            coin: derivation.chain_type.to_string(),
+            derivation_path: derivation.path.to_string(),
+            curve: CurveType::from_str(&derivation.curve),
+            network: derivation.network.to_string(),
+            seg_wit: derivation.seg_wit.to_string(),
+        };
         let enc_xpub = if account.ext_pub_key.is_empty() {
             Ok("".to_string())
         } else {
@@ -512,7 +519,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
             address: account.address.to_owned(),
             path: account.derivation_path.to_owned(),
             curve: account.curve.as_str().to_string(),
-            public_key: account.public_key,
+            public_key: encode_public_key_internal(&account.public_key, &coin_info)?,
             extended_public_key: account.ext_pub_key.to_string(),
             encrypted_extended_public_key: enc_xpub,
         };
@@ -1078,7 +1085,7 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 path: relative_path.to_string(),
                 extended_public_key: param.extended_public_key.to_string(),
                 encrypted_extended_public_key: enc_xpub,
-                public_key: acc.public_key,
+                public_key: encode_public_key_internal(&acc.public_key, &coin_info)?,
                 curve: param.curve.to_string(),
             };
             Ok(acc_rsp)

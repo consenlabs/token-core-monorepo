@@ -9,7 +9,7 @@ use sp_core::Pair as TraitPair;
 
 //use sp_core::crypto::Ss58Codec;
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Sr25519PublicKey(pub Public);
 
 #[derive(Clone)]

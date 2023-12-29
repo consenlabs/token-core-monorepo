@@ -72,8 +72,7 @@ fn transform_mnemonic_error(err: failure::Error) -> Error {
 }
 
 /// Account that presents one blockchain wallet on a fixtures
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Account {
     pub address: String,
     pub derivation_path: String,
@@ -82,7 +81,11 @@ pub struct Account {
     pub network: String,
     pub seg_wit: String,
     pub ext_pub_key: String,
-    pub public_key: String,
+    pub public_key: TypedPublicKey,
+}
+
+pub trait PublicKeyEncoder: Sized + Clone + PartialEq + Eq {
+    fn encode(public_key: &TypedPublicKey, coin_info: &CoinInfo) -> Result<String>;
 }
 
 /// Chain address interface, for encapsulate derivation
@@ -340,7 +343,7 @@ impl Keystore {
             network: coin_info.network.to_string(),
             seg_wit: coin_info.seg_wit.to_string(),
             ext_pub_key: xpub.to_string(),
-            public_key: typed_pk.to_bytes().to_0x_hex(),
+            public_key: typed_pk,
         };
         Ok(account)
     }
@@ -512,7 +515,9 @@ pub(crate) mod tests {
         coin_info_from_param, CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY,
     };
     use tcx_crypto::Key;
-    use tcx_primitive::{Ss58Codec, TypedDeterministicPublicKey, TypedPublicKey};
+    use tcx_primitive::{
+        PublicKey, Secp256k1PublicKey, Ss58Codec, TypedDeterministicPublicKey, TypedPublicKey,
+    };
 
     #[derive(Clone, PartialEq, Eq)]
     pub(crate) struct MockAddress(Vec<u8>);
@@ -866,19 +871,22 @@ pub(crate) mod tests {
             seg_wit: "NONE".to_string(),
         };
 
+        let k1_pub_key = Secp256k1PublicKey::from_slice(
+            &Vec::from_hex_auto(
+                "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let public_key = TypedPublicKey::Secp256k1(k1_pub_key);
+
         let account = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
-        assert_eq!(
-            "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
-            account.public_key
-        );
+        assert_eq!(public_key, account.public_key);
         assert_eq!(account.curve, CurveType::SECP256k1);
 
         let accounts = keystore.derive_coins::<MockAddress>(&[coin_info]).unwrap();
         assert_eq!(accounts.len(), 1);
-        assert_eq!(
-            "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
-            accounts[0].public_key
-        );
+        assert_eq!(public_key, accounts[0].public_key);
         assert_eq!(accounts[0].curve, CurveType::SECP256k1);
 
         let public_key = keystore
@@ -928,19 +936,22 @@ pub(crate) mod tests {
             seg_wit: "NONE".to_string(),
         };
 
+        let k1_pub_key = Secp256k1PublicKey::from_slice(
+            &Vec::from_hex_auto(
+                "0280c98b8ea7cab630defb0c09a4295c2193cdee016c1d5b9b0cb18572b9c370fe",
+            )
+            .unwrap(),
+        )
+        .unwrap();
+        let public_key = TypedPublicKey::Secp256k1(k1_pub_key);
+
         let account = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
-        assert_eq!(
-            "0280c98b8ea7cab630defb0c09a4295c2193cdee016c1d5b9b0cb18572b9c370fe",
-            account.public_key
-        );
+        assert_eq!(public_key, account.public_key);
         assert_eq!(account.curve, CurveType::SECP256k1);
 
         let accounts = keystore.derive_coins::<MockAddress>(&[coin_info]).unwrap();
         assert_eq!(accounts.len(), 1);
-        assert_eq!(
-            "0280c98b8ea7cab630defb0c09a4295c2193cdee016c1d5b9b0cb18572b9c370fe",
-            accounts[0].public_key
-        );
+        assert_eq!(public_key, accounts[0].public_key);
         assert_eq!(accounts[0].curve, CurveType::SECP256k1);
 
         let public_key = keystore

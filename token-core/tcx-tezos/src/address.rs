@@ -1,12 +1,28 @@
 use bitcoin::util::base58;
 use blake2b_simd::Params;
 use std::str::FromStr;
+use tcx_common::sha256d;
 use tcx_constants::CoinInfo;
 use tcx_keystore::Address;
+use tcx_keystore::PublicKeyEncoder;
 use tcx_keystore::Result;
 use tcx_primitive::TypedPublicKey;
 
 use tcx_common::FromHex;
+
+#[derive(PartialEq, Eq, Clone)]
+pub struct TezosPublicKeyEncoder {}
+
+impl PublicKeyEncoder for TezosPublicKeyEncoder {
+    fn encode(public_key: &TypedPublicKey, coin_info: &CoinInfo) -> Result<String> {
+        let edpk_prefix: Vec<u8> = vec![0x0D, 0x0F, 0x25, 0xD9];
+        let to_hash = [edpk_prefix, public_key.to_bytes()].concat();
+        let hashed = sha256d(&to_hash);
+        let hash_with_checksum = [to_hash, hashed[0..4].to_vec()].concat();
+        let edpk = base58::encode_slice(&hash_with_checksum);
+        Ok(edpk)
+    }
+}
 
 #[derive(PartialEq, Eq, Clone)]
 pub struct TezosAddress(String);
