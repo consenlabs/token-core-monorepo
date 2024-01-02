@@ -20,6 +20,7 @@ members = [
     "token-core/tcx-eth",
     "token-core/tcx-common",
     "token-core/tcx-migration",
+    "token-core/tcx-libs/ed25519-dalek-bip32",
     "imkey-core/ikc",
     "imkey-core/ikc-common",
     "imkey-core/ikc-device",

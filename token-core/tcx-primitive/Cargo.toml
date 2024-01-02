@@ -9,6 +9,7 @@ edition = "2021"
 [dependencies]
 tcx-constants = { path = "../tcx-constants"}
 tcx-common = { path = "../tcx-common"}
+ed25519-dalek-bip32 = { path = "../tcx-libs/ed25519-dalek-bip32" }
 
 bitcoin = "=0.29.2"
 byteorder = "=1.4.3"
@@ -22,8 +23,8 @@ serde = { version = "=1.0.147", features = ["derive"] }
 serde_json = "=1.0.89"
 tiny-bip39 = "=0.7.3"
 ed25519-bip32 = "=0.3.2"
+ed25519-dalek = "=2.1.0"
 blake2b_simd = "=1.0.1"
-iop-keyvault = "=0.0.5"
 blst = "=0.3.3"
 num-bigint = "=0.4.3"
 num-traits = "=0.2.15"

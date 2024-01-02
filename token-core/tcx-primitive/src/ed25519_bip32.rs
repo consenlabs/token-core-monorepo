@@ -1,8 +1,6 @@
-use iop_keyvault::ed25519::{Ed25519, EdExtPrivateKey, EdPublicKey};
-use iop_keyvault::{
-    ChildIndex, ExtendedPrivateKey, KeyDerivationCrypto, PrivateKey as iop_keyvault_private_key,
-    Seed,
-};
+use ed25519_dalek::VerifyingKey;
+use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
+use std::str::FromStr;
 
 use tcx_common::{FromHex, ToHex};
 
@@ -13,15 +11,16 @@ use crate::{Derive, DeterministicPrivateKey, DeterministicPublicKey, PrivateKey,
 use bip39::{Language, Mnemonic};
 
 #[derive(Clone)]
-pub struct Ed25519DeterministicPrivateKey(EdExtPrivateKey);
+pub struct Ed25519DeterministicPrivateKey(ExtendedSigningKey);
 
 #[derive(Clone)]
-pub struct Ed25519DeterministicPublicKey(EdPublicKey);
+pub struct Ed25519DeterministicPublicKey(VerifyingKey);
 
 impl Ed25519DeterministicPrivateKey {
     pub fn from_seed(seed: &[u8]) -> Result<Self> {
-        let seed_obj = Seed::from_bytes(seed).unwrap();
-        let master = Ed25519::master(&seed_obj);
+        // let seed_obj = Seed::from_bytes(seed).unwrap();
+        // let master = Ed25519::master(&seed_obj);
+        let master = ExtendedSigningKey::from_seed(seed)?;
         Ok(Ed25519DeterministicPrivateKey(master))
     }
 
@@ -35,31 +34,12 @@ impl Ed25519DeterministicPrivateKey {
 impl Derive for Ed25519DeterministicPrivateKey {
     fn derive(&self, path: &str) -> Result<Self> {
         let mut extended_key = self.0.clone();
-
-        let mut parts = path.split('/').peekable();
-        if *parts.peek().unwrap() == "m" {
-            parts.next();
-        }
-
-        let (mut successes, errors): (Vec<_>, Vec<_>) = parts
-            .map(|p: &str| (p, p.parse::<ChildIndex>()))
-            .partition(|(_p, i)| i.is_ok());
-        if !errors.is_empty() {
+        let derivation_path = DerivationPath::from_str(path);
+        if let Err(e) = derivation_path {
             return Err(KeyError::InvalidDerivationPathFormat.into());
-        }
-        let child_index_vec: Vec<ChildIndex> =
-            successes.drain(..).map(|(_p, i)| i.unwrap()).collect();
-
-        for child_number in child_index_vec {
-            let chain_index = match child_number {
-                ChildIndex::Normal(_index) => {
-                    return Err(KeyError::UnsupportNormalDerivation.into());
-                }
-                ChildIndex::Hardened(index) => index,
-            };
-            extended_key = extended_key.derive_hardened_child(chain_index).unwrap();
-        }
-
+        };
+        let path: DerivationPath = path.parse()?;
+        extended_key = extended_key.derive(&path)?;
         Ok(Ed25519DeterministicPrivateKey(extended_key))
     }
 }
@@ -75,9 +55,11 @@ impl DeterministicPrivateKey for Ed25519DeterministicPrivateKey {
     type PrivateKey = Ed25519PrivateKey;
 
     fn from_seed(seed: &[u8]) -> Result<Self> {
-        let seed_obj = Seed::from_bytes(seed).unwrap();
-        let master = Ed25519::master(&seed_obj);
+        let master = ExtendedSigningKey::from_seed(seed)?;
         Ok(Ed25519DeterministicPrivateKey(master))
+        // let seed_obj = Seed::from_bytes(seed).unwrap();
+        // let master = Ed25519::master(&seed_obj);
+        // Ok(Ed25519DeterministicPrivateKey(master))
     }
 
     fn from_mnemonic(mnemonic: &str) -> Result<Self> {
@@ -85,11 +67,11 @@ impl DeterministicPrivateKey for Ed25519DeterministicPrivateKey {
     }
 
     fn private_key(&self) -> Self::PrivateKey {
-        Ed25519PrivateKey::from_slice(self.0.private_key().to_bytes().as_slice()).unwrap()
+        Ed25519PrivateKey::from_slice(self.0.signing_key.to_bytes().as_slice()).unwrap()
     }
 
     fn deterministic_public_key(&self) -> Self::DeterministicPublicKey {
-        Ed25519DeterministicPublicKey(self.0.private_key().public_key())
+        Ed25519DeterministicPublicKey(self.0.signing_key.verifying_key())
     }
 }
 
@@ -103,7 +85,8 @@ impl DeterministicPublicKey for Ed25519DeterministicPublicKey {
 
 impl ToString for Ed25519DeterministicPrivateKey {
     fn to_string(&self) -> String {
-        self.0.private_key().to_bytes().to_hex()
+        // self.0.private_key().to_bytes().to_hex()
+        self.0.signing_key.to_bytes().to_hex()
     }
 }
 
@@ -129,8 +112,6 @@ impl FromHex for Ed25519DeterministicPublicKey {
 mod test {
     use crate::ed25519_bip32::Ed25519DeterministicPrivateKey;
     use crate::Derive;
-    use hex;
-    use iop_keyvault::ExtendedPrivateKey;
     use tcx_common::{FromHex, ToHex};
 
     #[test]
@@ -140,11 +121,11 @@ mod test {
         //master key
         let esk = Ed25519DeterministicPrivateKey::from_seed(&seed).unwrap();
         assert_eq!(
-            esk.0.private_key().to_bytes().to_hex(),
+            esk.0.signing_key.to_bytes().to_hex(),
             "171cb88b1b3c1db25add599712e36245d75bc65a1a5c9e18d76f9f2b1eab4012",
         );
         assert_eq!(
-            esk.0.chain_code().to_bytes().to_hex(),
+            esk.0.chain_code.to_hex(),
             "ef70a74db9c3a5af931b5fe73ed8e1a53464133654fd55e7a66f8570b8e33c3b",
         );
 
@@ -152,11 +133,11 @@ mod test {
         let path = "m/0'/2147483647'/1'/2147483646'/2'";
         let derived_result = esk.derive(path).unwrap().0;
         assert_eq!(
-            derived_result.private_key().to_bytes().to_hex(),
+            derived_result.signing_key.to_bytes().to_hex(),
             "551d333177df541ad876a60ea71f00447931c0a9da16f227c11ea080d7391b8d",
         );
         assert_eq!(
-            derived_result.chain_code().to_bytes().to_hex(),
+            derived_result.chain_code.to_hex(),
             "5d70af781f3a37b829f0d060924d5e960bdc02e85423494afc0b1a41bbe196d4",
         );
     }
