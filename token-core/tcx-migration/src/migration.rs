@@ -268,9 +268,11 @@ mod tests {
     use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType, TEST_PASSWORD, TEST_PRIVATE_KEY};
     use tcx_crypto::{EncPair, Key};
-    use tcx_eos::address::EosAddress;
+    use tcx_eos::address::{EosAddress, EosPublicKeyEncoder};
     use tcx_eth::address::EthAddress;
-    use tcx_keystore::{Keystore, KeystoreGuard, Metadata, PrivateKeystore, Source};
+    use tcx_keystore::{
+        Keystore, KeystoreGuard, Metadata, PrivateKeystore, PublicKeyEncoder, Source,
+    };
 
     use super::LegacyKeystore;
 
@@ -332,9 +334,12 @@ mod tests {
 
         keystore.unlock(&key).unwrap();
         let eos_acc = keystore.derive_coin::<EosAddress>(&coin_info).unwrap();
+        let address = EosPublicKeyEncoder::encode(&eos_acc.public_key, &coin_info).unwrap();
+        assert_eq!(eos_acc.address, "",);
+
         assert_eq!(
-            eos_acc.address,
-            "EOS8W4CoVEhTj6RHhazfw6wqtrHGk4kE4fYb2VzCexAk81SjPU1mL"
+            address,
+            "EOS8W4CoVEhTj6RHhazfw6wqtrHGk4kE4fYb2VzCexAk81SjPU1mL",
         );
     }
 
