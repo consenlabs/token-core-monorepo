@@ -1,6 +1,7 @@
 use failure::format_err;
 use serde_json::{json, Value};
 use tcx_common::ToHex;
+use tcx_constants::CurveType;
 use tcx_crypto::{Crypto, Key};
 use tcx_keystore::identity::Identity;
 use tcx_keystore::keystore::IdentityNetwork;
@@ -8,6 +9,18 @@ use tcx_keystore::{
     fingerprint_from_private_key, fingerprint_from_seed, mnemonic_to_seed, HdKeystore, Keystore,
     PrivateKeystore, Result, Source,
 };
+
+pub(crate) fn mapping_curve_name(old_curve_name: &str) -> String {
+    let new_curve_name = match old_curve_name {
+        "ED25519" => CurveType::ED25519,
+        "SECP256k1" => CurveType::SECP256k1,
+        "ED25519Blake2bNano" => CurveType::ED25519Blake2bNano,
+        "SubSr25519" => CurveType::SR25519,
+        "BLS" => CurveType::BLS,
+        _ => panic!("unsupported_curve_name"),
+    };
+    new_curve_name.as_str().to_string()
+}
 
 pub struct KeystoreUpgrade {
     json: Value,
@@ -63,6 +76,17 @@ impl KeystoreUpgrade {
                 )?);
 
                 json["fingerprint"] = json!(fingerprint_from_private_key(&private_key)?);
+                if let Some(account_json) = self.json["activeAccounts"]
+                    .as_array()
+                    .expect("tcx keystore missing accounts")
+                    .first()
+                {
+                    let old_curve_name = account_json["curve"]
+                        .as_str()
+                        .expect("activeAccounts need contains curve");
+                    let new_curve_name = mapping_curve_name(&old_curve_name);
+                    json["curve"] = json!(new_curve_name);
+                }
             }
             11000 => {
                 let mnemonic = String::from_utf8(unlocker.plaintext()?)?;
@@ -84,6 +108,7 @@ impl KeystoreUpgrade {
 mod tests {
     use serde_json::{json, Value};
     use tcx_common::ToHex;
+    use tcx_constants::CurveType;
     use tcx_crypto::Error::PasswordIncorrect;
     use tcx_crypto::Key;
     use tcx_keystore::{Keystore, Source};
@@ -208,7 +233,7 @@ mod tests {
             let upgrade_keystore = super::KeystoreUpgrade::new(pk_json(11001, t.0, "vvvvvv"));
             let key = Key::DerivedKey(private_derived_key());
 
-            let mut upgraded = upgrade_keystore.upgrade(&key).unwrap();
+            let upgraded = upgrade_keystore.upgrade(&key).unwrap();
 
             assert!(upgrade_keystore.need_upgrade());
             assert_eq!(upgraded.store().version, 12001);
@@ -292,5 +317,91 @@ mod tests {
             upgraded.err().unwrap().to_string(),
             PasswordIncorrect.to_string()
         );
+    }
+
+    fn pk_json_with_bls(version: i64, source: &str, name: &str) -> Value {
+        json!(
+            {
+             "id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b",
+             "version":version,
+             "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
+             "crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2",
+                "kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},
+                "activeAccounts": [{"address": "t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa", "curve": "BLS"}],
+            "imTokenMeta":{"name":name.to_string(),"passwordHint":"","timestamp":1576733295,"source":source.to_string()}}
+        )
+    }
+
+    fn pk_json_with_secp256k1(version: i64, source: &str, name: &str) -> Value {
+        json!(
+            {
+             "id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b",
+             "version":version,
+             "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
+             "crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2",
+                "kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},
+                "activeAccounts": [{"address": "", "curve": "SECP256k1"}],
+            "imTokenMeta":{"name":name.to_string(),"passwordHint":"","timestamp":1576733295,"source":source.to_string()}}
+        )
+    }
+
+    fn pk_json_with_ed25519(version: i64, source: &str, name: &str) -> Value {
+        json!(
+            {
+             "id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b",
+             "version":version,
+             "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
+             "crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2",
+                "kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},
+                "activeAccounts": [{"address": "", "curve": "ED25519"}],
+            "imTokenMeta":{"name":name.to_string(),"passwordHint":"","timestamp":1576733295,"source":source.to_string()}}
+        )
+    }
+
+    fn pk_json_with_subsr25519(version: i64, source: &str, name: &str) -> Value {
+        json!(
+            {
+             "id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b",
+             "version":version,
+             "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
+             "crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2",
+                "kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},
+                "activeAccounts": [{"address": "", "curve": "SubSr25519"}],
+            "imTokenMeta":{"name":name.to_string(),"passwordHint":"","timestamp":1576733295,"source":source.to_string()}}
+        )
+    }
+
+    #[test]
+    fn test_migration_curve() {
+        let key = Key::Password("imtoken1".to_owned());
+
+        let upgrade_keystore =
+            super::KeystoreUpgrade::new(pk_json_with_bls(11001, "PRIVATE", "vvvvvv"));
+
+        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        assert_eq!(upgraded.store().curve, Some(CurveType::BLS));
+
+        let upgrade_keystore =
+            super::KeystoreUpgrade::new(pk_json_with_ed25519(11001, "PRIVATE", "vvvvvv"));
+
+        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        assert_eq!(upgraded.store().curve, Some(CurveType::ED25519));
+
+        let upgrade_keystore =
+            super::KeystoreUpgrade::new(pk_json_with_subsr25519(11001, "PRIVATE", "vvvvvv"));
+
+        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        assert_eq!(upgraded.store().curve, Some(CurveType::SR25519));
+
+        let upgrade_keystore =
+            super::KeystoreUpgrade::new(pk_json_with_secp256k1(11001, "PRIVATE", "vvvvvv"));
+
+        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        assert_eq!(upgraded.store().curve, Some(CurveType::SECP256k1));
+
+        let upgrade_keystore = super::KeystoreUpgrade::new(hd_json(11000, "MNEMONIC", "vvvvvv"));
+
+        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        assert_eq!(upgraded.store().curve, None);
     }
 }

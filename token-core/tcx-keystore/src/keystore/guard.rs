@@ -41,7 +41,7 @@ mod tests {
     use crate::{Keystore, KeystoreGuard, Metadata};
     use tcx_common::ToHex;
     use tcx_constants::sample_key::{PRIVATE_KEY, WRONG_PASSWORD};
-    use tcx_constants::CurveType::SECP256k1;
+    use tcx_constants::CurveType::{self, SECP256k1};
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
 
     #[test]
@@ -70,8 +70,13 @@ mod tests {
 
         assert!(ks.is_locked());
 
-        let mut ks =
-            Keystore::from_private_key(PRIVATE_KEY, TEST_PASSWORD, Metadata::default()).unwrap();
+        let mut ks = Keystore::from_private_key(
+            PRIVATE_KEY,
+            TEST_PASSWORD,
+            CurveType::SECP256k1,
+            Metadata::default(),
+        )
+        .unwrap();
         let derived_key = ks.get_derived_key(&TEST_PASSWORD).unwrap();
 
         {

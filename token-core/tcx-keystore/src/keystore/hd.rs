@@ -175,6 +175,7 @@ impl HdKeystore {
                 version: Self::VERSION,
                 meta,
                 identity,
+                curve: None,
             },
 
             cache: None,

@@ -221,6 +221,7 @@ mod test {
     use bip39::{Language, Mnemonic};
     use tcx_common::FromHex;
     use tcx_constants::sample_key::{MNEMONIC, PASSWORD, PRIVATE_KEY};
+    use tcx_constants::CurveType;
     use tcx_crypto::Key;
 
     use crate::identity::Identity;
@@ -386,7 +387,13 @@ mod test {
     #[test]
     fn test_create_identity_from_private_key() {
         let meta = Metadata::default();
-        let keystore = PrivateKeystore::from_private_key(&PRIVATE_KEY, &PASSWORD, meta).unwrap();
+        let keystore = PrivateKeystore::from_private_key(
+            &PRIVATE_KEY,
+            &PASSWORD,
+            tcx_constants::CurveType::SECP256k1,
+            meta,
+        )
+        .unwrap();
         let identity = &keystore.store().identity;
 
         assert_eq!(
@@ -403,7 +410,9 @@ mod test {
     fn test_create_identity_from_private_key_testnet() {
         let mut meta = Metadata::default();
         meta.network = IdentityNetwork::Testnet;
-        let keystore = PrivateKeystore::from_private_key(&PRIVATE_KEY, &PASSWORD, meta).unwrap();
+        let keystore =
+            PrivateKeystore::from_private_key(&PRIVATE_KEY, &PASSWORD, CurveType::SECP256k1, meta)
+                .unwrap();
         let identity = &keystore.store().identity;
 
         assert_eq!(

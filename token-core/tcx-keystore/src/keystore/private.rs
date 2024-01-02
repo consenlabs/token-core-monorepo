@@ -89,6 +89,7 @@ impl PrivateKeystore {
     pub fn from_private_key(
         private_key: &str,
         password: &str,
+        curve: CurveType,
         meta: Metadata,
     ) -> Result<PrivateKeystore> {
         let key_data: Vec<u8> = Vec::from_hex_auto(private_key)?;
@@ -104,6 +105,7 @@ impl PrivateKeystore {
             id: Uuid::new_v4().as_hyphenated().to_string(),
             version: PrivateKeystore::VERSION,
             identity,
+            curve: Some(curve),
         };
 
         Ok(PrivateKeystore {
@@ -165,6 +167,7 @@ mod tests {
         let mut keystore = PrivateKeystore::from_private_key(
             "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6",
             TEST_PASSWORD,
+            CurveType::SECP256k1,
             meta,
         )
         .unwrap();
@@ -183,9 +186,13 @@ mod tests {
 
     #[test]
     fn test_verify_password() {
-        let mut keystore =
-            PrivateKeystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default())
-                .unwrap();
+        let mut keystore = PrivateKeystore::from_private_key(
+            TEST_PRIVATE_KEY,
+            TEST_PASSWORD,
+            CurveType::SECP256k1,
+            Metadata::default(),
+        )
+        .unwrap();
 
         assert!(keystore.verify_password(TEST_PASSWORD));
         assert!(!keystore.verify_password("WrongPassword"));
@@ -217,9 +224,13 @@ mod tests {
 
     #[test]
     fn test_derive_coin() {
-        let mut keystore =
-            PrivateKeystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default())
-                .unwrap();
+        let mut keystore = PrivateKeystore::from_private_key(
+            TEST_PRIVATE_KEY,
+            TEST_PASSWORD,
+            CurveType::SECP256k1,
+            Metadata::default(),
+        )
+        .unwrap();
         keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap();

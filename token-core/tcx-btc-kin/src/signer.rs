@@ -447,8 +447,13 @@ mod tests {
     use super::*;
 
     fn hex_keystore(hex: &str) -> Keystore {
-        let mut keystore =
-            Keystore::from_private_key(hex, TEST_PASSWORD, Metadata::default()).unwrap();
+        let mut keystore = Keystore::from_private_key(
+            hex,
+            TEST_PASSWORD,
+            CurveType::SECP256k1,
+            Metadata::default(),
+        )
+        .unwrap();
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
         keystore
     }
@@ -616,6 +621,7 @@ mod tests {
             let mut ks = Keystore::from_private_key(
                 "b0dabbf9ffed224fbca3b41a9e446b3d0b6240c6d2957197a8ab75bbf2e1a5d4",
                 TEST_PASSWORD,
+                CurveType::SECP256k1,
                 Metadata::default(),
             )
             .unwrap();
@@ -1366,8 +1372,13 @@ mod tests {
             .to_bytes()
             .to_hex();
 
-            let mut keystore =
-                Keystore::from_private_key(&prv_key, TEST_PASSWORD, Metadata::default()).unwrap();
+            let mut keystore = Keystore::from_private_key(
+                &prv_key,
+                TEST_PASSWORD,
+                CurveType::SECP256k1,
+                Metadata::default(),
+            )
+            .unwrap();
             let _coin_info = coin_info_from_param("LITECOIN", "TESTNET", "NONE", "").unwrap();
             let _ = keystore.unlock_by_password(TEST_PASSWORD).unwrap();
             let params = SignatureParameters {

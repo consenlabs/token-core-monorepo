@@ -2,12 +2,19 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum CurveType {
+    #[serde(rename = "secp256k1")]
     SECP256k1,
+    #[serde(rename = "ed25519")]
     ED25519,
+    #[serde(rename = "ed25519-blake2b-nano")]
     ED25519Blake2bNano,
+    #[serde(rename = "sr25519")]
     SR25519,
+    #[serde(rename = "curve25519")]
     Curve25519,
+    #[serde(rename = "nist256p1")]
     NIST256p1,
+    #[serde(rename = "bls12-381")]
     BLS,
 }
 

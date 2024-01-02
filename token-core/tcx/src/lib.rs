@@ -3065,7 +3065,7 @@ mod tests {
                 hash: "3e0658d8284d8f50c0aa8fa6cdbd1bde0eb370d4b3489a26c83763671ace8b1c"
                     .to_string(),
                 path: "m/12381/3600/0/0".to_string(),
-                curve: "bls12_381".to_string(),
+                curve: "bls12-381".to_string(),
                 sig_alg: "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_".to_string(),
             }];
             let param = SignHashesParam {

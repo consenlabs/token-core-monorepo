@@ -179,7 +179,8 @@ fn import_private_key_internal(
         source: meta_source,
         ..Metadata::default()
     };
-    let pk_store = PrivateKeystore::from_private_key(&private_key, &param.password, meta)?;
+    let pk_store =
+        PrivateKeystore::from_private_key(&private_key, &param.password, decoded_ret.curve, meta)?;
 
     let mut keystore = Keystore::PrivateKey(pk_store);
 

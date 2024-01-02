@@ -179,6 +179,7 @@ impl LegacyKeystore {
             crypto: self.crypto.clone(),
             identity,
             meta,
+            curve: None,
         };
 
         let derived_key = unlocker.derived_key();
@@ -195,8 +196,10 @@ impl LegacyKeystore {
 
     fn migrate_to_private(&self, key: &Key) -> Result<Keystore> {
         let unlocker = self.crypto.use_key(key)?;
-        println!("{}, {}", self.id, unlocker.derived_key().to_hex());
         let mut private_key = unlocker.plaintext()?;
+        // Note legacy keystore only contains k1 curve
+        let curve = CurveType::SECP256k1;
+
         if private_key.len() != 32 {
             private_key =
                 Secp256k1PrivateKey::from_wif(&String::from_utf8_lossy(&private_key))?.to_bytes()
@@ -222,6 +225,7 @@ impl LegacyKeystore {
             crypto: self.crypto.clone(),
             meta: im_token_meta.to_metadata(),
             identity,
+            curve: Some(curve),
         };
 
         let unlocker = self.crypto.use_key(key)?;

@@ -30,6 +30,7 @@ pub struct Store {
     pub fingerprint: String,
     pub crypto: Crypto,
     pub identity: Identity,
+    pub curve: Option<CurveType>,
 
     #[serde(rename = "imTokenMeta")]
     pub meta: Metadata,
@@ -216,10 +217,16 @@ pub enum Keystore {
 }
 
 impl Keystore {
-    pub fn from_private_key(private_key: &str, password: &str, meta: Metadata) -> Result<Keystore> {
+    pub fn from_private_key(
+        private_key: &str,
+        password: &str,
+        curve: CurveType,
+        meta: Metadata,
+    ) -> Result<Keystore> {
         Ok(Keystore::PrivateKey(PrivateKeystore::from_private_key(
             private_key,
             password,
+            curve,
             meta,
         )?))
     }
@@ -425,10 +432,10 @@ impl Signer for Keystore {
     ) -> Result<Vec<u8>> {
         match (curve, sig_alg.to_uppercase().as_str()) {
             ("secp256k1", "ECDSA") => self.secp256k1_ecdsa_sign_recoverable(hash, derivation_path),
-            ("bls12_381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_") => {
+            ("bls12-381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_") => {
                 self.bls_sign(hash, derivation_path)
             }
-            ("bls12_381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_") => self
+            ("bls12-381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_") => self
                 .bls_sign_specified_alg(
                     hash,
                     derivation_path,
@@ -685,11 +692,11 @@ pub(crate) mod tests {
             .unwrap();
         assert_eq!("a5c14ac7fd46f9f0c951b86d9586595270266ab09b49bf79fc27ebae786625606a7d7841fb740ee190c94dcd156228fc820f5ff5ba8c07748b220d07c51d247a01", ret.to_hex());
 
-        /*        let ret = keystore.sign_hash(&msg, "m/44'/0'/0'/0'/0'", "bls12_381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_").unwrap();
+        /*        let ret = keystore.sign_hash(&msg, "m/44'/0'/0'/0'/0'", "bls12-381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_").unwrap();
                assert_eq!("", ret.to_hex());
 
 
-               let ret = keystore.sign_hash(&msg, &params.derivation_path, "bls12_381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_").unwrap();
+               let ret = keystore.sign_hash(&msg, &params.derivation_path, "bls12-381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_").unwrap();
                assert_eq!("", ret.to_hex());
 
         */
@@ -824,6 +831,7 @@ pub(crate) mod tests {
         let pk_store = PrivateKeystore::from_private_key(
             "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6",
             TEST_PASSWORD,
+            CurveType::SECP256k1,
             meta,
         )
         .unwrap();
@@ -905,9 +913,13 @@ pub(crate) mod tests {
 
     #[test]
     fn test_private_keystore() {
-        let mut keystore =
-            Keystore::from_private_key(TEST_PRIVATE_KEY, TEST_PASSWORD, Metadata::default())
-                .unwrap();
+        let mut keystore = Keystore::from_private_key(
+            TEST_PRIVATE_KEY,
+            TEST_PASSWORD,
+            CurveType::SECP256k1,
+            Metadata::default(),
+        )
+        .unwrap();
 
         assert!(keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
