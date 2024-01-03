@@ -337,7 +337,7 @@ pub fn init_token_core_x(data: &[u8]) -> Result<()> {
         is_debug,
     } = InitTokenCoreXParam::decode(data).unwrap();
     *KEYSTORE_BASE_DIR.write() = file_dir.to_string();
-    copy_to_v2_if_need()?;
+    // copy_to_v2_if_need()?;
 
     *WALLET_FILE_DIR.write() = format!("{}/{}", file_dir, WALLET_V2_DIR);
 

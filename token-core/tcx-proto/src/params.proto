@@ -27,7 +27,7 @@ message KeystoreResult {
     string ipfsId = 4;
     string source = 5;
     int64 createdAt = 6;
-    string sourceFingerPrint = 7;
+    string sourceFingerprint = 7;
 }
 
 // FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
@@ -52,7 +52,7 @@ message ImportPrivateKeyResult {
     repeated string suggestChainTypes = 7;
     string suggestNetwork = 8;
     string suggestCurve = 9;
-    string sourceFingerPrint = 10;
+    string sourceFingerprint = 10;
 }
 
 //
