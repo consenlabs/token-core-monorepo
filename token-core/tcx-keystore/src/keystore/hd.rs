@@ -7,12 +7,12 @@ use super::{transform_mnemonic_error, Account, Address, Error, Metadata, Result,
 
 use std::collections::{hash_map::Entry, HashMap};
 
-use tcx_common::ToHex;
+use tcx_common::{FromHex, ToHex};
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::{Crypto, Key};
 use tcx_primitive::{
     generate_mnemonic, get_account_path, Bip32DeterministicPrivateKey, Derive,
-    DeterministicPrivateKey, TypedDeterministicPrivateKey, TypedDeterministicPublicKey,
+    DeterministicPrivateKey, Ss58Codec, TypedDeterministicPrivateKey, TypedDeterministicPublicKey,
     TypedPrivateKey,
 };
 
@@ -182,6 +182,28 @@ impl HdKeystore {
         })
     }
 
+    pub fn get_ext_version(network: &str, derivation_path: &str) -> Vec<u8> {
+        if derivation_path.starts_with("m/49'") {
+            if network == "MAINNET" {
+                Vec::from_hex("049d7cb2").unwrap()
+            } else {
+                Vec::from_hex("044a5262").unwrap()
+            }
+        } else if derivation_path.starts_with("m/84'") {
+            if network == "MAINNET" {
+                Vec::from_hex("04b24746").unwrap()
+            } else {
+                Vec::from_hex("045f1cf6").unwrap()
+            }
+        } else {
+            if network == "MAINNET" {
+                Vec::from_hex("0488b21e").unwrap()
+            } else {
+                Vec::from_hex("043587cf").unwrap()
+            }
+        }
+    }
+
     pub fn derive_coin<A: Address>(&mut self, coin_info: &CoinInfo) -> Result<Account> {
         let cache = self.cache.as_ref().ok_or(Error::KeystoreLocked)?;
 
@@ -196,7 +218,10 @@ impl HdKeystore {
             _ => root
                 .derive(&get_account_path(&coin_info.derivation_path)?)?
                 .deterministic_public_key()
-                .to_hex(),
+                .to_ss58check_with_version(&Self::get_ext_version(
+                    &coin_info.network,
+                    &coin_info.derivation_path,
+                )),
         };
 
         let account = Account {
@@ -324,6 +349,55 @@ mod tests {
                 seg_wit: "NONE".to_string(),
             },
             CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/49'/0'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            },
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/84'/0'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "VERSION_0".to_string(),
+            },
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/86'/0'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "VERSION_1".to_string(),
+            },
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/49'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            },
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/84'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "VERSION_0".to_string(),
+            },
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/86'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "VERSION_1".to_string(),
+            },
+            CoinInfo {
                 coin: "TEZOS".to_string(),
                 derivation_path: "m/44'/1729'/0'/0'".to_string(),
                 curve: CurveType::ED25519,
@@ -333,7 +407,14 @@ mod tests {
         ];
 
         let excepts = [
-            "03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77",
+            "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8",
+            "ypub6Wdz1gzMKLnPxXti2GbSjQGXSqrA5NMKNP3C5JS2ZJKRDEecuZH8AhSvYQs4dZHi7b6Yind7bLekuTH9fNbJcH1MXMy9meoifu2wST55sav",
+            "zpub6qytVKvhi1obMLUuCvgvVYCnHQbwh9W8NWZJcu9LjYSr8UbKjjCbKEhBQWBdRrfXrtBbFETgvNo6sjKQrCNGouiMNKhmrYrcmm5UL17MzUV",
+            "xpub6CHyG1anQPWb9ss5CUeZ7cHnvoxqAZNzJBNx6fpxaWPmybH7YbJMxjp4wFp5gnxqX59hCAAbwbQTVTzAbwJsVYgBw4CYU3eAeCGn2tUajR3",
+            "tpubDCpWeoTY6x4BR2PqoTFJnEdfYbjnC4G8VvKoDUPFjt2dvZJWkMRxLST1pbVW56P7zY3L5jq9MRSeff2xsLnvf9qBBN9AgvrhwfZgw5dJG6R",
+            "upub5E4woDJohDBJ2trk6HqhsvEeZXtjjWMAbHV4LWRhfR9thcpfkjJbBRnvBS21L2JjsZAGC6LhkqAoYgD5VHSXBRNW7gszbiGJP7B6CR35QhD",
+            "vpub5ZbhUa5EheCJVJLskohSBEyL1qSAxZpMNCN36aQeHHt1jndkpeeiV48YHNiQGafTu5dPZz5e1RyjHzWu8vpAj4vixVUt1rhkrFJR8Fp2EF1",
+            "tpubDCStmH3ozU1kcGXtRW6e3yE1UoLUehvSGKBFGEjAXeE6Nk9xNWvRySanhaALGsZYU1ivo64CFYHMMdZm1EjM2Vw8uWUBqd77SCL4VCyHSoS",
             "",
         ];
 
@@ -373,7 +454,7 @@ mod tests {
         let expected = Account {
             address: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
-            ext_pub_key: "03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77".to_string(),
+            ext_pub_key: "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8".to_string(),
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
             curve: CurveType::SECP256k1,
@@ -453,7 +534,7 @@ mod tests {
     }
 
     #[test]
-    fn derive_key_at_paths() {
+    fn test_derive_key_at_paths() {
         let mut keystore =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
         let coin_info = CoinInfo {
@@ -482,7 +563,7 @@ mod tests {
         let expected = Account {
             address: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
-            ext_pub_key: "03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77".to_string(),
+            ext_pub_key: "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8".to_string(),
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
             curve: CurveType::SECP256k1,
@@ -520,7 +601,7 @@ mod tests {
     }
 
     #[test]
-    fn derive_key_at_paths2() {
+    fn test_derive_key_at_paths2() {
         let mut keystore =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
         let coin_info = CoinInfo {
@@ -547,7 +628,7 @@ mod tests {
         let expected = Account {
             address: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
-            ext_pub_key: "03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77".to_string(),
+            ext_pub_key: "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8".to_string(),
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
             curve: CurveType::SECP256k1,

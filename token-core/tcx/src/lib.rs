@@ -367,10 +367,8 @@ mod tests {
         run_test(|| {
             let bytes = &Vec::<u8>::from_hex_auto("0a0b7369676e5f68617368657312d7010a136170692e5369676e486173686573506172616d12bf010a2461646330633662342d353062382d346234332d386663322d6236313031303931313539341208696d746f6b656e711a8c010a403365303635386438323834643866353063306161386661366364626431626465306562333730643462333438396132366338333736333637316163653862316312106d2f31323338312f333630302f302f301a09626c7331325f333831222b424c535f5349475f424c53313233383147325f584d443a5348412d3235365f535357555f524f5f504f505f").unwrap();
             let action = TcxAction::decode(bytes.as_slice()).unwrap();
-            dbg!(&action);
             let mut param =
                 SignHashesParam::decode(action.param.unwrap().value.as_slice()).unwrap();
-            dbg!(&param);
             let wallet = import_default_wallet();
             param.id = wallet.id.to_string();
             param.password = TEST_PASSWORD.to_string();
@@ -446,7 +444,7 @@ mod tests {
             );
             assert_eq!(
                 account.extended_public_key,
-                "031064f6a580000000251d72997d4cf931a7e6819f7da37725166100fc7dae9ca6afc3f8fd8a3d3a7f0303f2f84851514bf2f40a46b5bb9dbf4e5913fbacde1a96968cda08f9fd882caa"
+                "xpub6Bmkv3mmRZZWoFSBdj9vDMqR2PCPSP6DEj8u3bBuv44g3Ncnro6cPVqZAw6wTEcxHQuodkuJG4EmAinqrrRXGsN3HHnRRMtAvzfYTiBATV1"
             );
             assert_eq!(
                 account.encrypted_extended_public_key,
@@ -723,19 +721,19 @@ mod tests {
                 derived_accounts.accounts[0].address
             );
             assert_eq!("/EhDRyPFcj1UGx8i+WiJSIeBSyaN0pX7Oq3wXqwO5M9T1aRhfLpsNPGAPLf07K+p+B0OdQW1ogVbDQCWkIwVXZLPY+njp9LjXaICiWGEeidR1TwBZSwOMRKE68wJWH/7puxYfY/Rq1+d2GFv6NxSCw==", derived_accounts.accounts[0].encrypted_extended_public_key);
-            assert_eq!("03280e840c800000002c1db11aaff415f9b881a04e3441e84e41044dfcf1f97987c4c3da4247e870240281440ed7aef2ad403d362f6a4ebe25efce50e78db802f61770a7fad2a27dbd8f", derived_accounts.accounts[0].extended_public_key);
+            assert_eq!("xpub6BwqzNhMbFpgegP8WGBzFmm7aUsrDQtuuRdT3J3nDhDGnbPCER8qGghKJUCJNhjn2wyZVwAC6mwLNPu9xQpeQenqnzzVj2X7tnDLAM58fRn", derived_accounts.accounts[0].extended_public_key);
 
             assert_eq!(
                 "MQUu6P7wsLQZfVZMuFWB7UXiheuVTM7RYF",
                 derived_accounts.accounts[1].address
             );
-            assert_eq!("A5LUzJcPB4r54wqr8EjFh9fe0L87spIN9KJKtzHV6QJXBH6GEAiYT57uftpJITx613HdIXXzi8VJ30TmG8erBF30oD1DnbDmGmDo4sdRTdQSsp9NuprhZ3Y3PR9+xzdc2tKDblRL5dLZswaPxCOQcw==", derived_accounts.accounts[1].encrypted_extended_public_key);
+            assert_eq!("5wlT8R+syH37UjMSJXOW3v96ORRykslaBOX7wa+aEt4jbshR9ljP5u+DDskzV5hAKuSBuIPftafEA/k4YQ4Zh2mByl0EE/5jdZI/ZbE0a2zsIiU9BIGuhzA/f+vvQuDJqOHofDd8z0qDesuqxLKv4A==", derived_accounts.accounts[1].encrypted_extended_public_key);
 
             assert_eq!(
                 "mvdDMnRsqjqzvCyYyRXpvscmnU1FxodhkE",
                 derived_accounts.accounts[2].address
             );
-            assert_eq!("eZIL4e0a8qw18Pve92iLfehteHDA+kqjwv91aKE+2hNN3arkq20yY2Mx6q4WAowFv0QRfIi6QlrhafJKUpjiC469NNZagCSHLaECYliEwmwTgC97zXmVJDB6MJi79y+mznf8G7Few8+u6UfiXELN5g==", derived_accounts.accounts[2].encrypted_extended_public_key);
+            assert_eq!("h86gptC7gYZ8gaiLZJYM9WmjZsr4RGMAsWG6RiGz2x7O/FE8jjf8Kcur10AEGcjHbW+U93aePfCiA1+4/XxBQbSZ75gdVD8ZjO2x0RsS45ZlznbG9JmUeVnyxXJm4Ha3rPGfJSl59O5fKrUmnfoJQw==", derived_accounts.accounts[2].encrypted_extended_public_key);
 
             assert_eq!(
                 "TLZnqkrSNLUWNrZMug8u9b6pJ3XcTGbzDV",
@@ -1658,7 +1656,6 @@ mod tests {
 
             let import_result = import_default_wallet();
             for idx in 0..export_info.len() {
-                dbg!(export_info[idx].1.to_string());
                 let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                     id: import_result.id.to_string(),
                     password: TEST_PASSWORD.to_string(),
@@ -3114,7 +3111,7 @@ mod tests {
             let (wallet, acc_rsp) = import_and_derive(derivation);
 
             let acc = acc_rsp.accounts.first().unwrap();
-            assert_eq!("037b21e17e80000000f95a76bfa0d8c2e7ed0e93d8ea6022c34ae9a5813a3b794ce270f3296aab1a0c03f3175613d999d15e6fde436825a3cc2c568f8f5082275f06eb4bd6e561f503ac", acc.extended_public_key);
+            assert_eq!("tpubDCvte6zYB6DKMaEy4fwyoXpuExA4ery3Hu6dVSBZeY9Rg57VKFLwNPMfywWtqRFM1Df5gQJTu42RaaNCgVEyngdVfnYRh9Kb1UCoEYojURc", acc.extended_public_key);
             assert_eq!("w6s0ZvUoPPSiEi1xDMKy5X9+qwhcX4u3e3LOBosJaOSro2ny9jppDxcczZfrhe29n9H3UkmgNoecq/85xfXkGDtH8PMR9iclK5WrcUtkgjXsBcrR6JF0j58i4W9x3y539vXOsLMifCmUr2RcqknDgw==", acc.encrypted_extended_public_key);
 
             //legacy transaction

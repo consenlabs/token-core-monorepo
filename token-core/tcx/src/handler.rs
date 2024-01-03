@@ -102,19 +102,12 @@ fn derive_account(keystore: &mut Keystore, derivation: &Derivation) -> Result<Ac
     derive_account_internal(&coin_info, keystore)
 }
 
-fn encrypt_xpub(xpub: &str, network: &str) -> Result<String> {
-    let xpk = Bip32DeterministicPublicKey::from_hex(xpub)?;
-    let ext_pub_key = if network == "MAINNET" {
-        xpk.to_ss58check_with_version(&[0x04, 0x88, 0xB2, 0x1E])
-    } else {
-        xpk.to_ss58check_with_version(&[0x04, 0x35, 0x87, 0xCF])
-    };
-
+fn encrypt_xpub(xpub: &str) -> Result<String> {
     let key = tcx_crypto::XPUB_COMMON_KEY_128.read();
     let iv = tcx_crypto::XPUB_COMMON_IV.read();
     let key_bytes = Vec::from_hex(&*key)?;
     let iv_bytes = Vec::from_hex(&*iv)?;
-    let encrypted = encrypt_pkcs7(ext_pub_key.as_bytes(), &key_bytes, &iv_bytes)?;
+    let encrypted = encrypt_pkcs7(xpub.as_bytes(), &key_bytes, &iv_bytes)?;
     Ok(base64::encode(encrypted))
 }
 
@@ -512,7 +505,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
         let enc_xpub = if account.ext_pub_key.is_empty() {
             Ok("".to_string())
         } else {
-            encrypt_xpub(&account.ext_pub_key.to_string(), &account.network)
+            encrypt_xpub(&account.ext_pub_key.to_string())
         }?;
         let account_rsp = AccountResponse {
             chain_type: derivation.chain_type.to_owned(),
@@ -1047,7 +1040,7 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
         DeriveSubAccountsParam::decode(data).expect("DeriveSubAccountsParam");
 
     let curve = CurveType::from_str(&param.curve);
-    let xpub = TypedDeterministicPublicKey::from_hex(curve, &param.extended_public_key)?;
+    let xpub = TypedDeterministicPublicKey::from_ss58check(curve, &param.extended_public_key)?;
 
     let account_ret: Vec<Result<AccountResponse>> = param
         .relative_paths
@@ -1062,7 +1055,7 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
             coin_info.derivation_path = relative_path.to_string();
             let acc: Account = derive_sub_account(&xpub, &coin_info)?;
 
-            let enc_xpub = encrypt_xpub(&param.extended_public_key.to_string(), &acc.network)?;
+            let enc_xpub = encrypt_xpub(&param.extended_public_key.to_string())?;
 
             let acc_rsp = AccountResponse {
                 chain_type: param.chain_type.to_string(),

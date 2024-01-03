@@ -1,7 +1,7 @@
 use serde::Serialize;
 use tcx_common::{FromHex, ToHex};
 
-use super::Result;
+use super::{Result, Ss58Codec};
 use crate::{
     Bip32DeterministicPrivateKey, Bip32DeterministicPublicKey, Derive, Secp256k1PrivateKey,
     Secp256k1PublicKey,
@@ -255,6 +255,25 @@ pub enum TypedDeterministicPublicKey {
 }
 
 impl TypedDeterministicPublicKey {
+    pub fn from_ss58check(curve: CurveType, ss58check: &str) -> Result<Self> {
+        match curve {
+            CurveType::SECP256k1 => {
+                let (bip32, _) =
+                    Bip32DeterministicPublicKey::from_ss58check_with_version(ss58check)?;
+                Ok(TypedDeterministicPublicKey::Bip32Sepc256k1(bip32))
+            }
+            _ => Err(KeyError::InvalidCurveType.into()),
+        }
+    }
+
+    pub fn to_ss58check_with_version(&self, version: &[u8]) -> String {
+        match self {
+            TypedDeterministicPublicKey::Bip32Sepc256k1(epk) => {
+                epk.to_ss58check_with_version(version)
+            }
+            _ => "".to_owned(),
+        }
+    }
     pub fn curve_type(&self) -> CurveType {
         match self {
             TypedDeterministicPublicKey::Bip32Sepc256k1(_) => CurveType::SECP256k1,
