@@ -175,7 +175,7 @@ impl LegacyKeystore {
         let mut store = Store {
             id: self.id.to_string(),
             version: HdKeystore::VERSION,
-            fingerprint,
+            source_fingerprint: fingerprint,
             crypto: self.crypto.clone(),
             identity,
             meta,
@@ -221,7 +221,7 @@ impl LegacyKeystore {
         let mut store = Store {
             id: self.id.to_string(),
             version: PrivateKeystore::VERSION,
-            fingerprint,
+            source_fingerprint: fingerprint,
             crypto: self.crypto.clone(),
             meta: im_token_meta.to_metadata(),
             identity,

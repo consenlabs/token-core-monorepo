@@ -67,7 +67,7 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
         sign_context: &SignatureParameters,
         message: &TronMessageInput,
     ) -> Result<TronMessageOutput> {
-        let data = utf8_or_hex_to_bytes(&message.value)?;
+        let data = Vec::from_hex_auto(&message.value)?;
 
         let header = match message.is_tron_header {
             true => "\x19TRON Signed Message:\n32".as_bytes(),

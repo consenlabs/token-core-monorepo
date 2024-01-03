@@ -241,3 +241,8 @@ message MnemonicToPublicKeyParam {
 message MnemonicToPublicKeyResult {
     string publicKey = 1;
 }
+
+message ScanKeystoresResult {
+    repeated KeystoreResult hdKeystores = 1;
+    repeated ImportPrivateKeyResult privateKeyKeystores = 2;
+}

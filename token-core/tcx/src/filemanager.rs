@@ -69,7 +69,6 @@ pub fn cache_keystore(keystore: Keystore) {
 
 pub fn flush_keystore(ks: &Keystore) -> Result<()> {
     let json = ks.to_json();
-
     let file_dir = WALLET_FILE_DIR.read();
     let ks_path = format!("{}/{}.json", file_dir, ks.id());
     let path = Path::new(&ks_path);

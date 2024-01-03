@@ -27,9 +27,10 @@ use tcx_primitive::{Derive, TypedDeterministicPublicKey, TypedPrivateKey, TypedP
 pub struct Store {
     pub id: String,
     pub version: i64,
-    pub fingerprint: String,
+    pub source_fingerprint: String,
     pub crypto: Crypto,
     pub identity: Identity,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub curve: Option<CurveType>,
 
     #[serde(rename = "imTokenMeta")]
@@ -264,7 +265,7 @@ impl Keystore {
     }
 
     pub fn fingerprint(&self) -> &str {
-        &self.store().fingerprint
+        &self.store().source_fingerprint
     }
 
     pub fn unlock_by_password(&mut self, password: &str) -> Result<()> {
@@ -377,6 +378,10 @@ impl Keystore {
         };
 
         Ok(private_key.public_key())
+    }
+
+    pub fn get_curve(&self) -> Option<CurveType> {
+        self.store().curve.clone()
     }
 
     pub fn get_deterministic_public_key(
@@ -679,7 +684,7 @@ pub(crate) mod tests {
             ..Default::default()
         };
 
-        keystore.unlock_by_password(TEST_PASSWORD);
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let ret = keystore
             .secp256k1_ecdsa_sign_recoverable(&msg, &params.derivation_path)
@@ -731,7 +736,7 @@ pub(crate) mod tests {
         assert_eq!("test-wallet", keystore.meta().name);
         assert!(keystore.derivable());
         assert_eq!(
-            "efbe00a55ddd4c5350e295a9533d28f93cac001bfdad8cf4275140461ea03e9e",
+            "0xefbe00a55ddd4c5350e295a9533d28f93cac001bfdad8cf4275140461ea03e9e",
             keystore.fingerprint()
         );
     }

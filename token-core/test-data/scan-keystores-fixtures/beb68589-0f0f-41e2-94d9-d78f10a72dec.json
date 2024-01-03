@@ -1,0 +1,35 @@
+{
+  "id": "beb68589-0f0f-41e2-94d9-d78f10a72dec",
+  "version": 12001,
+  "sourceFingerprint": "0xe6cfaab9a59ba187f0a45db0b169c21bb48f09b3",
+  "crypto": {
+    "cipher": "aes-128-ctr",
+    "cipherparams": { "iv": "4fc650b9fc9eec7d6a97ca34b318c835" },
+    "ciphertext": "2cf5dbcc942205ce3bd70147a849f204a7ead5776358c9b6b5e54c6733e9e8fb",
+    "kdf": "pbkdf2",
+    "kdfparams": {
+      "c": 1,
+      "prf": "hmac-sha256",
+      "dklen": 32,
+      "salt": "99074bbf1d752ebb2681b016a249a994556b5af8ef7d6e7d1616b2b1a988f4ca"
+    },
+    "mac": "843a6396c953023795348743f3dc4746359745c7712effbd0a90fbbf0e1c7fee"
+  },
+  "identity": {
+    "encAuthKey": {
+      "encStr": "39b2596588eb80ff75cb6d2bd1ecbcac39eb0a98403237961ad4df57506e0744",
+      "nonce": "a8c2559ce54f0c413c253f8173969f8d"
+    },
+    "encKey": "f42b7d20e2800724fc6e3e4b19e14c998fda72a479facf2ba9a1a7321de4770d",
+    "identifier": "im14x5UPbCXmU2HMQ8jfeKcCDrQYhDppRYaa5C6",
+    "ipfsId": "QmczBPUeohPPaE8UnPiESyynPwffBqrn4RqrU6nPJw95VT"
+  },
+  "curve": "secp256k1",
+  "imTokenMeta": {
+    "name": "test_filecoin_import_private_key",
+    "passwordHint": "",
+    "timestamp": 1704252158,
+    "source": "PRIVATE",
+    "network": "MAINNET"
+  }
+}

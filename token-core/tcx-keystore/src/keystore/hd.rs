@@ -169,7 +169,7 @@ impl HdKeystore {
 
         Ok(HdKeystore {
             store: Store {
-                fingerprint,
+                source_fingerprint: fingerprint,
                 crypto,
                 id: Uuid::new_v4().as_hyphenated().to_string(),
                 version: Self::VERSION,
@@ -578,26 +578,26 @@ mod tests {
     fn test_fingerprint_from_seed() {
         let seed = mnemonic_to_seed(TEST_MNEMONIC).unwrap();
         let fingerprint = fingerprint_from_seed(&seed).unwrap();
-        assert_eq!("0x1468dba9", fingerprint);
+        assert_eq!("0x1468dba9c246fe22183c056540ab4d8b04553217", fingerprint);
 
         let seed = mnemonic_to_seed(
             "risk outer wing rent aerobic hamster island skin mistake high boost swear",
         )
         .unwrap();
         let fingerprint = fingerprint_from_seed(&seed).unwrap();
-        assert_eq!("0xf6f23259", fingerprint);
+        assert_eq!("0xf6f232595e79dd9723aa4e840d548e792d44aea6", fingerprint);
     }
 
     #[test]
     fn test_fingerprint_from_mnemonic() {
         let fingerprint = fingerprint_from_mnemonic(TEST_MNEMONIC).unwrap();
-        assert_eq!("0x1468dba9", fingerprint);
+        assert_eq!("0x1468dba9c246fe22183c056540ab4d8b04553217", fingerprint);
 
         let fingerprint = fingerprint_from_mnemonic(
             "risk outer wing rent aerobic hamster island skin mistake high boost   swear",
         )
         .unwrap();
-        assert_eq!("0xf6f23259", fingerprint);
+        assert_eq!("0xf6f232595e79dd9723aa4e840d548e792d44aea6", fingerprint);
     }
 
     #[test]

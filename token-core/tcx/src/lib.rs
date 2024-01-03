@@ -396,7 +396,7 @@ mod tests {
             assert_eq!(import_result.source, "NEW_MNEMONIC");
             assert!(!import_result.identifier.is_empty());
             assert!(!import_result.ipfs_id.is_empty());
-            assert!(!import_result.source_finger_print.is_empty());
+            assert!(!import_result.source_fingerprint.is_empty());
 
             remove_created_wallet(&import_result.id);
         })
@@ -408,7 +408,7 @@ mod tests {
         run_test(|| {
             let import_result: KeystoreResult = import_default_wallet();
             assert_eq!(import_result.source, "MNEMONIC");
-            assert_eq!(import_result.source_finger_print, "0x1468dba9");
+            assert_eq!(import_result.source_fingerprint, "0x1468dba9");
             assert_eq!(
                 import_result.identifier,
                 "im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf"
@@ -856,7 +856,7 @@ mod tests {
                 import_result.ipfs_id,
                 "QmczBPUeohPPaE8UnPiESyynPwffBqrn4RqrU6nPJw95VT"
             );
-            assert_eq!(import_result.source_finger_print, "0xe6cfaab9");
+            assert_eq!(import_result.source_fingerprint, "0xe6cfaab9");
             assert_eq!(import_result.source, "WIF");
 
             let derivations = vec![

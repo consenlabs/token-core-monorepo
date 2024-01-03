@@ -4,7 +4,8 @@ use crate::constant::SECP256K1_ENGINE;
 use crate::ecc::{DeterministicPrivateKey, DeterministicPublicKey, KeyError};
 
 use crate::{Derive, Secp256k1PrivateKey, Secp256k1PublicKey, Ss58Codec};
-use tcx_common::{FromHex, ToHex};
+use bitcoin::psbt::serialize::Serialize;
+use tcx_common::{ripemd160, sha256, FromHex, ToHex};
 
 use bitcoin::util::base58;
 use bitcoin::util::base58::Error::InvalidLength;
@@ -75,7 +76,9 @@ impl Derive for Bip32DeterministicPrivateKey {
 
 impl Bip32DeterministicPublicKey {
     pub fn fingerprint(&self) -> Vec<u8> {
-        self.0.fingerprint().to_bytes().to_vec()
+        let public_key_data = self.0.public_key.serialize();
+        let hashed = ripemd160(&sha256(&public_key_data));
+        hashed.to_vec()
     }
 }
 

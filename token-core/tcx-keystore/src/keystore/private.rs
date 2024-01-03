@@ -23,7 +23,7 @@ pub fn fingerprint_from_private_key(data: &[u8]) -> Result<String> {
         private_key.public_key().to_bytes()
     };
     let hashed = ripemd160(&sha256(&public_key_data));
-    Ok(hashed[0..4].to_0x_hex())
+    Ok(hashed.to_0x_hex())
 }
 
 #[derive(Clone)]
@@ -99,7 +99,7 @@ impl PrivateKeystore {
         let identity = Identity::from_private_key(private_key, &unlocker, &meta.network)?;
 
         let store = Store {
-            fingerprint,
+            source_fingerprint: fingerprint,
             crypto,
             meta,
             id: Uuid::new_v4().as_hyphenated().to_string(),
