@@ -94,6 +94,7 @@ mod test {
     use crate::ed25519::{Ed25519PrivateKey, Ed25519PublicKey};
     use crate::{PrivateKey, PublicKey};
     use blake2b_simd::Params;
+    use sp_core::ed25519::Pair;
     use tcx_common::{FromHex, ToHex};
     #[test]
     fn from_slice_test() {
@@ -161,6 +162,29 @@ mod test {
         assert_eq!(
             private_key.err().unwrap().to_string(),
             KeyError::InvalidEd25519Key.to_string()
+        );
+
+        let pair: Pair/* Type */ = sp_core::Pair::from_seed(b"12345678901234567890123456789012");
+        let ed25519_private_key = Ed25519PrivateKey::from(pair);
+        let signature = ed25519_private_key
+            .sign_recoverable(b"12345678901234567890123456789012")
+            .unwrap();
+        assert_eq!(signature.to_hex(), "23e1797e5d729e7bb21cd8a37d8c5be7171fb7626c9e45e7bd17e74bfab3a6255fb60f95e0042406b3a67d41cc65f7fc193c4ca161df9be3c8d0accf4c30cf03");
+
+        let signature =
+            ed25519_private_key.sign_specified_hash(b"12345678901234567890123456789012", "blake2b");
+        assert_eq!(signature.err().unwrap().to_string(), "not_implement");
+
+        let public_key = ed25519_private_key.public_key().0;
+        assert_eq!(
+            public_key.to_hex(),
+            "2f8c6129d816cf51c374bc7f08c3e63ed156cf78aefb4a6550d97b87997977ee"
+        );
+
+        let ed25519_public_key = Ed25519PublicKey::from(public_key);
+        assert_eq!(
+            ed25519_public_key.to_hex(),
+            "2f8c6129d816cf51c374bc7f08c3e63ed156cf78aefb4a6550d97b87997977ee"
         );
     }
 }

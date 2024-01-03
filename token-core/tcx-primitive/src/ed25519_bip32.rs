@@ -18,8 +18,6 @@ pub struct Ed25519DeterministicPublicKey(VerifyingKey);
 
 impl Ed25519DeterministicPrivateKey {
     pub fn from_seed(seed: &[u8]) -> Result<Self> {
-        // let seed_obj = Seed::from_bytes(seed).unwrap();
-        // let master = Ed25519::master(&seed_obj);
         let master = ExtendedSigningKey::from_seed(seed)?;
         Ok(Ed25519DeterministicPrivateKey(master))
     }
@@ -57,9 +55,6 @@ impl DeterministicPrivateKey for Ed25519DeterministicPrivateKey {
     fn from_seed(seed: &[u8]) -> Result<Self> {
         let master = ExtendedSigningKey::from_seed(seed)?;
         Ok(Ed25519DeterministicPrivateKey(master))
-        // let seed_obj = Seed::from_bytes(seed).unwrap();
-        // let master = Ed25519::master(&seed_obj);
-        // Ok(Ed25519DeterministicPrivateKey(master))
     }
 
     fn from_mnemonic(mnemonic: &str) -> Result<Self> {
@@ -85,7 +80,6 @@ impl DeterministicPublicKey for Ed25519DeterministicPublicKey {
 
 impl ToString for Ed25519DeterministicPrivateKey {
     fn to_string(&self) -> String {
-        // self.0.private_key().to_bytes().to_hex()
         self.0.signing_key.to_bytes().to_hex()
     }
 }
@@ -117,7 +111,6 @@ mod test {
     #[test]
     fn from_seed_test() {
         let seed = Vec::from_hex("fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
-        //        println!("{}", hex::encode(default_seed().as_bytes()));
         //master key
         let esk = Ed25519DeterministicPrivateKey::from_seed(&seed).unwrap();
         assert_eq!(

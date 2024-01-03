@@ -479,6 +479,12 @@ mod tests {
     const PUB_KEY_HEX: &'static str =
         "02b95c249d84f417e3e395a127425428b540671cc15881eb828c17b722a53fc599";
 
+    const SR25519_PRI_KEY_HEX: &str =
+        "00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd";
+
+    const SR25519_PUB_KEY_HEX: &str =
+        "fc581c897af481b10cf846d88754f1d115e486e5b7bcc39c0588c01b0a9b7a11";
+
     #[test]
     fn typed_private_key() {
         let ret = TypedPrivateKey::from_slice(CurveType::ED25519, &default_private_key());
@@ -507,7 +513,7 @@ mod tests {
             .deterministic_public_key();
 
         assert_eq!(dpk.to_string(), "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8");
-
+        assert_eq!(dpk.fingerprint().unwrap().to_hex(), "b2e61ff1");
         assert_eq!(dpk.curve_type(), CurveType::SECP256k1);
         assert_eq!(
             dpk.public_key().to_bytes().to_hex(),
@@ -525,6 +531,59 @@ mod tests {
     }
 
     #[test]
+    fn typed_deterministic_private_key_sr25519() {
+        let root = TypedDeterministicPrivateKey::from_mnemonic(CurveType::SR25519, &TEST_MNEMONIC)
+            .unwrap();
+
+        let dpk = root
+            .derive("m/44'/0'/0'")
+            .unwrap()
+            .deterministic_public_key();
+
+        assert_eq!(
+            dpk.to_string(),
+            "5Cntm6VLcdbFTSKUqyjuTjEfYrJgQparwoio6Coutb18Jbjv"
+        );
+        assert_eq!(dpk.curve_type(), CurveType::SR25519);
+        assert_eq!(
+            dpk.public_key().to_bytes().to_hex(),
+            "202d03479aee4051f74ec9edf422b1a5272eee3720d29b3b2b9587a32faf450f"
+        );
+        let child_dpk = dpk.derive("0/0").unwrap();
+        assert_eq!(
+            child_dpk.to_string(),
+            "5FCuuGpkXAqc4WG5JgV6yFmAt1tykiuXCEb5yRGacGcoxkSh"
+        );
+
+        let child_dpk = dpk.derive("m/0/0").unwrap();
+        assert_eq!(
+            child_dpk.to_string(),
+            "5Dt1Pst8UQBuYv83dcNi1BDpCQPsXHLMwNDPr4efev1psrEB"
+        );
+    }
+
+    #[test]
+    fn typed_deterministic_private_key_ed25519() {
+        let root = TypedDeterministicPrivateKey::from_mnemonic(CurveType::ED25519, &TEST_MNEMONIC)
+            .unwrap();
+
+        let dpk = root
+            .derive("m/44'/0'/0'")
+            .unwrap()
+            .deterministic_public_key();
+
+        assert_eq!(
+            dpk.to_string(),
+            "636fe2cbc0741584e6b71dc00a3fc85e1f616f98a2b21eb8e1fd86bc1e4e3bf3"
+        );
+        assert_eq!(dpk.curve_type(), CurveType::ED25519);
+        assert_eq!(
+            dpk.public_key().to_bytes().to_hex(),
+            "636fe2cbc0741584e6b71dc00a3fc85e1f616f98a2b21eb8e1fd86bc1e4e3bf3"
+        );
+    }
+
+    #[test]
     fn test_typed_public_key() {
         let pub_key = Vec::from_hex(PUB_KEY_HEX).unwrap();
 
@@ -535,5 +594,41 @@ mod tests {
         assert_eq!(pk.to_bytes().to_hex(), PUB_KEY_HEX);
         assert_eq!(pk.as_secp256k1().unwrap().to_bytes().to_hex(), PUB_KEY_HEX);
         assert_eq!(pk.curve_type(), CurveType::SECP256k1);
+
+        let pk = TypedPublicKey::from_slice(
+            CurveType::SR25519,
+            Vec::from_hex(SR25519_PUB_KEY_HEX).unwrap().as_slice(),
+        )
+        .unwrap();
+        assert_eq!(pk.curve_type(), CurveType::SR25519);
+        assert_eq!(pk.to_bytes().to_hex(), SR25519_PUB_KEY_HEX);
+    }
+
+    #[test]
+    fn test_sign_specified_hash() {
+        let message = "0000000000000000000000000000000000000000000000000000000000000000".as_bytes();
+        let sk = TypedPrivateKey::from_slice(CurveType::SECP256k1, &default_private_key()).unwrap();
+        let sign_ret = sk.sign_specified_hash(message, "blake2b");
+        assert_eq!(sign_ret.err().unwrap().to_string(), "not_implement");
+
+        let sk = TypedPrivateKey::from_slice(CurveType::ED25519, &default_private_key()).unwrap();
+        let sign_ret = sk.sign_specified_hash(message, "blake2b");
+        assert_eq!(sign_ret.err().unwrap().to_string(), "not_implement");
+
+        let sk = TypedPrivateKey::from_slice(CurveType::SR25519, message).unwrap();
+        let sign_ret = sk.sign_specified_hash(message, "blake2b");
+        assert_eq!(sign_ret.err().unwrap().to_string(), "not_implement");
+    }
+
+    #[test]
+    fn test_sign_recoverable() {
+        let message = "0000000000000000000000000000000000000000000000000000000000000000".as_bytes();
+        let sk = TypedPrivateKey::from_slice(CurveType::ED25519, &default_private_key()).unwrap();
+        let sign_ret = sk.sign_recoverable(message).unwrap();
+        assert_eq!(sign_ret.to_hex(), "65879392febf60e1fe01dfc301832c45b978f154639b2b0a3137264acc56bf41c380a81d73fa621753236dcab456afff2a4228f16fb80cce249dff3a8d7bf90b");
+
+        let sk = TypedPrivateKey::from_slice(CurveType::SR25519, message).unwrap();
+        let sign_ret = sk.sign_recoverable(message);
+        assert!(sign_ret.is_ok());
     }
 }
