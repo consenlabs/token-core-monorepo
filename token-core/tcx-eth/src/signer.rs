@@ -169,7 +169,7 @@ mod test {
         AccessList, EthMessageInput, EthMessageOutput, EthRecoverAddressInput, EthTxInput,
         EthTxOutput, SignatureType,
     };
-    use tcx_constants::CurveType;
+    use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::{Keystore, MessageSigner, Metadata, SignatureParameters, TransactionSigner};
 
     fn private_key_store(key: &str) -> Keystore {
@@ -614,6 +614,29 @@ mod test {
             output.signature,
             "0xb12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b"
         );
+    }
+
+    #[test]
+    fn test_sign_message_by_hd() {
+        let mut keystore =
+            Keystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, Metadata::default()).unwrap();
+        keystore.unlock_by_password(&TEST_PASSWORD).unwrap();
+
+        let message = EthMessageInput {
+            message: "hello world".to_string(),
+            signature_type: SignatureType::PersonalSign as i32,
+        };
+
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        let output: EthMessageOutput = keystore.sign_message(&params, &message).unwrap();
+        assert_eq!(output.signature, "0x521d0e4b5808b7fbeb53bf1b17c7c6d60432f5b13b7aa3aaed963a894c3bd99e23a3755ec06fa7a61b031192fb5fab6256e180e086c2671e0a574779bb8593df1b");
     }
 
     #[test]

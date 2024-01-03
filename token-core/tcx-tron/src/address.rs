@@ -53,7 +53,8 @@ mod tests {
     use crate::TronAddress;
     use tcx_common::FromHex;
     use tcx_constants::coin_info::coin_info_from_param;
-    use tcx_constants::{CoinInfo, CurveType};
+    use tcx_constants::{CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_keystore::{Keystore, Metadata};
     use tcx_primitive::TypedPublicKey;
 
     #[test]
@@ -106,5 +107,16 @@ mod tests {
             tezos_address.to_string(),
             "THfuSDVRvSsjNDPFdGjMU19Ha4Kf7acotq"
         );
+    }
+
+    #[test]
+    fn test_derive_address() {
+        let coin_info = coin_info_from_param("TRON", "", "", "").unwrap();
+        let mut keystore =
+            Keystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, Metadata::default()).unwrap();
+        keystore.unlock_by_password(&TEST_PASSWORD).unwrap();
+
+        let acc = keystore.derive_coin::<TronAddress>(&coin_info).unwrap();
+        assert_eq!(acc.address, "TY2uroBeZ5trA9QT96aEWj32XLkAAhQ9R2");
     }
 }

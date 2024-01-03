@@ -88,40 +88,12 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_constants::{coin_info_from_param, CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::{HdKeystore, Keystore, KeystoreGuard, Metadata};
     use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
 
     #[test]
-    fn sign_transaction() -> core::result::Result<(), failure::Error> {
-        /*
-        (
-            r#" {
-            "visible": false,
-            "txID": "dc74fc99076e7638067753c5c9c3aa61f9ce208707ef6940e4ab8a4944b5d69f",
-            "raw_data": {
-            "contract": [
-                {
-                    "parameter": {
-                    "value": {
-                        "amount": 100,
-                        "owner_address": "41a1e81654258bf14f63feb2e8d1380075d45b0dac",
-                        "to_address": "410b3e84ec677b3e63c99affcadb91a6b4e086798f"
-                    },
-                    "type_url": "type.googleapis.com/protocol.TransferContract"
-                },
-                    "type": "TransferContract"
-                }
-            ],
-            "ref_block_bytes": "0831",
-            "ref_block_hash": "b02efdc02638b61e",
-            "expiration": 1565866902000,
-            "timestamp": 1565866844064
-        },
-            "raw_data_hex": "0a0208312208b02efdc02638b61e40f083c3a7c92d5a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a1541a1e81654258bf14f63feb2e8d1380075d45b0dac1215410b3e84ec677b3e63c99affcadb91a6b4e086798f186470a0bfbfa7c92d"
-        } "#,
-        */
-
+    fn test_sign_transaction() -> core::result::Result<(), failure::Error> {
         let tx = TronTxInput {
             raw_data: "0a0208312208b02efdc02638b61e40f083c3a7c92d5a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a1541a1e81654258bf14f63feb2e8d1380075d45b0dac1215410b3e84ec677b3e63c99affcadb91a6b4e086798f186470a0bfbfa7c92d".to_string()
         };
@@ -149,7 +121,40 @@ mod tests {
     }
 
     #[test]
-    fn sign_message() {
+    fn test_sign_message_by_hd() {
+        let coin_info = coin_info_from_param("TRON", "", "", "").unwrap();
+        let mut keystore =
+            Keystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, Metadata::default()).unwrap();
+        keystore.unlock_by_password(&TEST_PASSWORD).unwrap();
+
+        let mut params = SignatureParameters {
+            chain_type: "TRON".to_string(),
+            derivation_path: coin_info.derivation_path.to_owned(),
+            curve: CurveType::SECP256k1,
+            ..Default::default()
+        };
+
+        let message = TronMessageInput {
+            value: "hello world".to_string(),
+            is_tron_header: true,
+        };
+
+        let signed = keystore.sign_message(&params, &message).unwrap();
+
+        assert_eq!(signed.signature, "0x8686cc3cf49e772d96d3a8147a59eb3df2659c172775f3611648bfbe7e3c48c11859b873d9d2185567a4f64a14fa38ce78dc385a7364af55109c5b6426e4c0f61b");
+
+        let message = TronMessageInput {
+            value: "hello world".to_string(),
+            is_tron_header: false,
+        };
+
+        let signed = keystore.sign_message(&params, &message).unwrap();
+
+        assert_eq!(signed.signature, "0xe14f6aab4b87af398917c8a0fd6d065029df9ecc01afbc4d789eefd6c2de1e243272d630992b470c2bbb7f52024280af9bbd2e62d96ecab333c91f527b059ffe1c");
+    }
+
+    #[test]
+    fn test_sign_message_by_private_key() {
         let sk =
             Secp256k1PrivateKey::from_wif("L2hfzPyVC1jWH7n2QLTe7tVTb6btg9smp5UVzhEBxLYaSFF7sCZB")
                 .unwrap();
