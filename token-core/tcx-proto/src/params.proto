@@ -246,3 +246,17 @@ message ScanKeystoresResult {
     repeated KeystoreResult hdKeystores = 1;
     repeated ImportPrivateKeyResult privateKeyKeystores = 2;
 }
+
+message MigrateKeystoreParam {
+    string id = 1;
+    oneof key {
+      string password = 2;
+      string derivedKey = 3;
+    }
+  }
+  
+  message MigrateKeystoreResult {
+    bool isExisted = 1;
+    string existedId = 2;
+    KeystoreResult keystore = 3;
+  }

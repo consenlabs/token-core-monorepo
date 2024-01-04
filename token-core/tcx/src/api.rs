@@ -546,6 +546,35 @@ pub struct ScanKeystoresResult {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MigrateKeystoreParam {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(oneof = "migrate_keystore_param::Key", tags = "2, 3")]
+    pub key: ::core::option::Option<migrate_keystore_param::Key>,
+}
+/// Nested message and enum types in `MigrateKeystoreParam`.
+pub mod migrate_keystore_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "2")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "3")]
+        DerivedKey(::prost::alloc::string::String),
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct MigrateKeystoreResult {
+    #[prost(bool, tag = "1")]
+    pub is_existed: bool,
+    #[prost(string, tag = "2")]
+    pub existed_id: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "3")]
+    pub keystore: ::core::option::Option<KeystoreResult>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct VerifyDerivedKeyParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
@@ -581,16 +610,4 @@ pub struct WalletId {
 pub struct BiometricModeResult {
     #[prost(string, tag = "1")]
     pub mode: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct KeystoreMigrationParam {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub tcx_id: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub derived_key: ::prost::alloc::string::String,
 }

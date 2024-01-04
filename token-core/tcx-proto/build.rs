@@ -9,7 +9,6 @@ fn main() {
             "src/api.proto",
             "src/params.proto",
             "src/cache_derived_key.proto",
-            "src/keystore_migration.proto",
         ],
         &["src/"],
     )

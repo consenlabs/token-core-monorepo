@@ -162,7 +162,7 @@ mod tests {
     use super::*;
     use crate::api::derive_accounts_param::Derivation;
     use crate::api::sign_hashes_param::DataToSign;
-    use crate::filemanager::KEYSTORE_MAP;
+    use crate::filemanager::{KEYSTORE_BASE_DIR, KEYSTORE_MAP};
     use api::sign_param::Key;
     use error_handling::Result;
     use serial_test::serial;
@@ -176,14 +176,15 @@ mod tests {
     use tcx_keystore::keystore::IdentityNetwork;
 
     use crate::api::{
-        sign_param, CreateKeystoreParam, DeriveAccountsParam, DeriveAccountsResult,
-        DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, ExistsJsonParam,
-        ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam,
-        ExportJsonResult, ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult,
-        GeneralResult, GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam,
-        ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult, InitTokenCoreXParam,
-        KeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult, PublicKeyDerivation,
-        SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
+        migrate_keystore_param, sign_param, CreateKeystoreParam, DeriveAccountsParam,
+        DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult,
+        ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam,
+        ExportJsonParam, ExportJsonResult, ExportMnemonicResult, ExportPrivateKeyParam,
+        ExportPrivateKeyResult, GeneralResult, GetPublicKeysParam, GetPublicKeysResult,
+        ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult,
+        InitTokenCoreXParam, KeystoreResult, MigrateKeystoreParam, MigrateKeystoreResult,
+        MnemonicToPublicKeyParam, MnemonicToPublicKeyResult, PublicKeyDerivation, SignHashesParam,
+        SignHashesResult, SignParam, WalletKeyParam,
     };
     use crate::handler::import_mnemonic;
     use crate::handler::{encode_message, import_private_key};
@@ -3645,5 +3646,113 @@ mod tests {
             );
             remove_created_wallet(&import_result.id);
         })
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_migrate_keystores_existed() {
+        fs::remove_dir_all("../test-data/walletsV2");
+        let param = InitTokenCoreXParam {
+            file_dir: "../test-data".to_string(),
+            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
+            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
+            is_debug: true,
+        };
+
+        handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let ret = call_api("migrate_keystore", param).unwrap();
+        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(
+            result.keystore.unwrap().id,
+            "0a2756cd-ff70-437b-9bdb-ad46b8bb0819"
+        );
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "00fc0804-7cea-46d8-9e95-ed1efac65358".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let ret = call_api("migrate_keystore", param).unwrap();
+        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        assert!(result.is_existed);
+        assert_eq!(result.existed_id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let ret = call_api("migrate_keystore", param).unwrap();
+        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(
+            result.keystore.unwrap().id,
+            "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca"
+        );
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "4d5cbfcf-aee1-4908-9991-9d060eb68a0e".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let ret = call_api("migrate_keystore", param).unwrap();
+        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(
+            result.keystore.unwrap().id,
+            "4d5cbfcf-aee1-4908-9991-9d060eb68a0e"
+        );
+
+        fs::remove_dir_all("../test-data/walletsV2").unwrap();
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_migrate_keystores() {
+        fs::remove_dir_all("../test-data/walletsV2");
+        let param = InitTokenCoreXParam {
+            file_dir: "../test-data".to_string(),
+            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
+            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
+            is_debug: true,
+        };
+
+        handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let ret = call_api("migrate_keystore", param).unwrap();
+        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(
+            result.keystore.unwrap().id,
+            "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca"
+        );
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "4d5cbfcf-aee1-4908-9991-9d060eb68a0e".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let ret = call_api("migrate_keystore", param).unwrap();
+        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(
+            result.keystore.unwrap().id,
+            "4d5cbfcf-aee1-4908-9991-9d060eb68a0e"
+        );
+
+        fs::remove_dir_all("../test-data/walletsV2").unwrap();
     }
 }

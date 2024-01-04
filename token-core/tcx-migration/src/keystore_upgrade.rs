@@ -6,8 +6,8 @@ use tcx_crypto::{Crypto, Key};
 use tcx_keystore::identity::Identity;
 use tcx_keystore::keystore::IdentityNetwork;
 use tcx_keystore::{
-    fingerprint_from_private_key, fingerprint_from_seed, mnemonic_to_seed, HdKeystore, Keystore,
-    PrivateKeystore, Result, Source,
+    fingerprint_from_mnemonic, fingerprint_from_private_key, fingerprint_from_seed,
+    mnemonic_to_seed, HdKeystore, Keystore, PrivateKeystore, Result, Source,
 };
 
 pub(crate) fn mapping_curve_name(old_curve_name: &str) -> String {
@@ -55,10 +55,14 @@ impl KeystoreUpgrade {
             (_, _) => json!(Source::Private),
         };
 
-        json["fingerprint"] = json!("");
-
         let crypto: Crypto = serde_json::from_value(json["crypto"].clone())?;
         let unlocker = crypto.use_key(key)?;
+        let fingerprint = match version {
+            11000 => fingerprint_from_mnemonic(&String::from_utf8_lossy(&unlocker.plaintext()?)),
+            11001 => fingerprint_from_private_key(unlocker.plaintext()?.as_slice()),
+            _ => panic!("upgrade wrong version keystore"),
+        }?;
+        json["sourceFingerprint"] = json!(fingerprint);
 
         let identity_network = match json["meta"]["network"].as_str().unwrap_or("") {
             "TESTNET" => IdentityNetwork::Testnet,

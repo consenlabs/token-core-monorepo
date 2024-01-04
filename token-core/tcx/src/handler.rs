@@ -29,22 +29,23 @@ use tcx_filecoin::KeyInfo;
 use crate::api::derive_accounts_param::Derivation;
 use crate::api::sign_param::Key;
 use crate::api::{
-    AccountResponse, CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
-    DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
-    DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsJsonParam,
-    ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam,
-    ExportJsonResult, ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult,
-    GeneralResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
-    GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
-    ImportPrivateKeyResult, KeystoreMigrationParam, KeystoreResult, MnemonicToPublicKeyParam,
-    MnemonicToPublicKeyResult, ScanKeystoresResult, SignAuthenticationMessageParam,
-    SignAuthenticationMessageResult, SignHashesParam, SignHashesResult, WalletKeyParam,
+    migrate_keystore_param, AccountResponse, CreateKeystoreParam, DecryptDataFromIpfsParam,
+    DecryptDataFromIpfsResult, DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam,
+    DeriveSubAccountsResult, DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult,
+    ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam,
+    ExportJsonParam, ExportJsonResult, ExportMnemonicResult, ExportPrivateKeyParam,
+    ExportPrivateKeyResult, GeneralResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult,
+    GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam,
+    ImportPrivateKeyParam, ImportPrivateKeyResult, KeystoreResult, MigrateKeystoreParam,
+    MigrateKeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
+    ScanKeystoresResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
+    SignHashesParam, SignHashesResult, WalletKeyParam,
 };
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
 use crate::filemanager::{
-    cache_keystore, clean_keystore, copy_to_v2_if_need, flush_keystore, KEYSTORE_BASE_DIR,
-    WALLET_FILE_DIR, WALLET_V2_DIR,
+    cache_keystore, clean_keystore, flush_keystore, KEYSTORE_BASE_DIR, LEGACY_WALLET_FILE_DIR,
+    WALLET_FILE_DIR, WALLET_V1_DIR, WALLET_V2_DIR,
 };
 use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
@@ -337,9 +338,11 @@ pub fn init_token_core_x(data: &[u8]) -> Result<()> {
         is_debug,
     } = InitTokenCoreXParam::decode(data).unwrap();
     *KEYSTORE_BASE_DIR.write() = file_dir.to_string();
-    // copy_to_v2_if_need()?;
 
-    *WALLET_FILE_DIR.write() = format!("{}/{}", file_dir, WALLET_V2_DIR);
+    let v2_dir = format!("{}/{}", file_dir, WALLET_V2_DIR);
+    fs::create_dir_all(&v2_dir)?;
+    *WALLET_FILE_DIR.write() = v2_dir.to_string();
+    *LEGACY_WALLET_FILE_DIR.write() = format!("{}/{}", file_dir, WALLET_V1_DIR);
 
     *XPUB_COMMON_KEY_128.write() = xpub_common_key;
     *XPUB_COMMON_IV.write() = xpub_common_iv;
@@ -1136,14 +1139,25 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
-    let param = KeystoreMigrationParam::decode(data).expect("KeystoreMigrationParam");
-    let json_str = fs::read_to_string(format!("{}/{}.json", WALLET_FILE_DIR.read(), param.id))?;
+    let param: MigrateKeystoreParam =
+        MigrateKeystoreParam::decode(data).expect("param: MigrateKeystoreParam");
+    let legacy_file_dir = {
+        let dir = LEGACY_WALLET_FILE_DIR.read();
+        dir.to_string()
+    };
+    let mut file_path = format!("{}/{}.json", legacy_file_dir, param.id);
+    let path = Path::new(&file_path);
+    if !path.exists() {
+        file_path = format!("{}/{}", legacy_file_dir, param.id);
+    }
+    let json_str = fs::read_to_string(file_path)?;
     let json = serde_json::from_str::<Value>(&json_str)?;
 
-    let key = if param.derived_key.is_empty() {
-        tcx_crypto::Key::Password(param.password)
-    } else {
-        tcx_crypto::Key::DerivedKey(param.derived_key)
+    let key = match param.key.clone().unwrap() {
+        migrate_keystore_param::Key::Password(password) => tcx_crypto::Key::Password(password),
+        migrate_keystore_param::Key::DerivedKey(derived_key) => {
+            tcx_crypto::Key::DerivedKey(derived_key)
+        }
     };
 
     let keystore;
@@ -1156,34 +1170,52 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
             }
             _ => {
                 let legacy_keystore = LegacyKeystore::from_json_str(&json_str)?;
-
-                let mut tcx_ks: Option<Keystore> = None;
-                {
-                    let map = KEYSTORE_MAP.read();
-                    if !param.tcx_id.is_empty() {
-                        tcx_ks = map.get(&param.tcx_id).cloned()
-                    }
-                }
-
-                keystore = legacy_keystore.migrate_identity_wallets(&key, tcx_ks)?;
+                keystore = legacy_keystore.migrate(&key)?;
             }
         }
 
-        flush_keystore(&keystore)?;
-        let identity = keystore.identity();
+        let mut is_existed = false;
+        let mut existed_id = "".to_string();
+        let fingerprint = keystore.fingerprint();
+        {
+            let keystore_map = KEYSTORE_MAP.read();
+            let existed_ks: Vec<&Keystore> = keystore_map
+                .values()
+                .filter(|ks| ks.fingerprint() == fingerprint)
+                .collect();
+            if existed_ks.len() > 0 {
+                is_existed = true;
+                existed_id = existed_ks[0].id().to_string();
+            }
+        }
+        if is_existed {
+            return encode_message(MigrateKeystoreResult {
+                is_existed: true,
+                existed_id: existed_id,
+                keystore: None,
+            });
+        } else {
+            let identity = keystore.identity();
 
-        let ret = encode_message(KeystoreResult {
-            id: keystore.id(),
-            name: keystore.meta().name,
-            source: keystore.meta().source.to_string(),
-            created_at: keystore.meta().timestamp,
-            identifier: identity.identifier.to_string(),
-            ipfs_id: identity.ipfs_id.to_string(),
-            source_fingerprint: keystore.fingerprint().to_string(),
-        });
+            let keystore_result = KeystoreResult {
+                id: keystore.id(),
+                name: keystore.meta().name,
+                source: keystore.meta().source.to_string(),
+                created_at: keystore.meta().timestamp,
+                identifier: identity.identifier.to_string(),
+                ipfs_id: identity.ipfs_id.to_string(),
+                source_fingerprint: keystore.fingerprint().to_string(),
+            };
 
-        cache_keystore(keystore);
-        ret
+            let ret = encode_message(MigrateKeystoreResult {
+                is_existed: false,
+                existed_id: "".to_string(),
+                keystore: Some(keystore_result),
+            });
+            flush_keystore(&keystore)?;
+            cache_keystore(keystore);
+            return ret;
+        }
     } else {
         Err(format_err!("invalid version in keystore"))
     }
