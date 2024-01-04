@@ -3651,7 +3651,7 @@ mod tests {
     #[test]
     #[serial]
     pub fn test_migrate_keystores_existed() {
-        fs::remove_dir_all("../test-data/walletsV2");
+        let _ = fs::remove_dir_all("../test-data/walletsV2");
         let param = InitTokenCoreXParam {
             file_dir: "../test-data".to_string(),
             xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
@@ -3669,15 +3669,28 @@ mod tests {
         };
         let ret = call_api("migrate_keystore", param).unwrap();
         let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        let keystore = result.keystore.unwrap();
+        assert_eq!(keystore.id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
         assert_eq!(
-            result.keystore.unwrap().id,
-            "0a2756cd-ff70-437b-9bdb-ad46b8bb0819"
+            keystore.identifier,
+            "im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf"
+        );
+        assert_eq!(
+            keystore.ipfs_id,
+            "QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"
+        );
+        assert_eq!(keystore.created_at, 1703213098);
+        assert_eq!(keystore.source, "MNEMONIC");
+        assert_eq!(keystore.name, "tcx-wallet");
+        assert_eq!(
+            keystore.source_fingerprint,
+            "0x1468dba9c246fe22183c056540ab4d8b04553217"
         );
 
         let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "00fc0804-7cea-46d8-9e95-ed1efac65358".to_string(),
-            key: Some(migrate_keystore_param::Key::Password(
-                TEST_PASSWORD.to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "2d7380db28736ae5b0693340a5731e137759d32bbcc1f7988574bc5a1ffd97f3411b4edc14ea648fa17d511129e81a84d2b8a00d45bc37f4784e49b641d5c3be".to_string(),
             )),
         };
         let ret = call_api("migrate_keystore", param).unwrap();
@@ -3685,39 +3698,13 @@ mod tests {
         assert!(result.is_existed);
         assert_eq!(result.existed_id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
 
-        let param: MigrateKeystoreParam = MigrateKeystoreParam {
-            id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
-            key: Some(migrate_keystore_param::Key::Password(
-                TEST_PASSWORD.to_string(),
-            )),
-        };
-        let ret = call_api("migrate_keystore", param).unwrap();
-        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
-        assert_eq!(
-            result.keystore.unwrap().id,
-            "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca"
-        );
-
-        let param: MigrateKeystoreParam = MigrateKeystoreParam {
-            id: "4d5cbfcf-aee1-4908-9991-9d060eb68a0e".to_string(),
-            key: Some(migrate_keystore_param::Key::Password(
-                TEST_PASSWORD.to_string(),
-            )),
-        };
-        let ret = call_api("migrate_keystore", param).unwrap();
-        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
-        assert_eq!(
-            result.keystore.unwrap().id,
-            "4d5cbfcf-aee1-4908-9991-9d060eb68a0e"
-        );
-
         fs::remove_dir_all("../test-data/walletsV2").unwrap();
     }
 
     #[test]
     #[serial]
-    pub fn test_migrate_keystores() {
-        fs::remove_dir_all("../test-data/walletsV2");
+    pub fn test_migrate_keystores_source() {
+        let _ = fs::remove_dir_all("../test-data/walletsV2");
         let param = InitTokenCoreXParam {
             file_dir: "../test-data".to_string(),
             xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
@@ -3729,16 +3716,186 @@ mod tests {
 
         let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "1a60471067b6c6a3202e0014de2ce9b2d45fd73e2289b3cc3d8e5b58fe99ff242fd61e9fe63e75abbdc0ed87a50756cc10c57daf1d6297b99ec9a3b174eee017".to_string(),
+            )),
+        };
+        let ret = call_api("migrate_keystore", param).unwrap();
+        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(result.keystore.unwrap().source, "PRIVATE");
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "6c3eae60-ad03-48db-a5e5-61a6f72aef8d".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "9f65c31b4a61c430cd6c976e7f1b1b912bb09b46ec718447bbb5dccc353b19becb6b386405b3fcc7d43bd8e617764c3407d45824e52984d0074ac3f75c68bd92".to_string()
+            )),
+        };
+        let ret = call_api("migrate_keystore", param).unwrap();
+        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(result.keystore.unwrap().source, "MNEMONIC");
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "9f4acb4a-7431-4c7d-bd25-a19656a86ea0".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "a5b0cb9cb0536d6ec6ab21da77415bd59aff62c44c1da40d377c4faf2a44608693a72efb4079f57a5dca710ecff75dc5b54beb4ad6d9f9d47b63583810b50c61".to_string(),
+            )),
+        };
+        let ret = call_api("migrate_keystore", param).unwrap();
+        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(result.keystore.unwrap().source, "WIF");
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "949bada8-776c-4554-ad0c-001e3726a0f8".to_string(),
             key: Some(migrate_keystore_param::Key::Password(
                 TEST_PASSWORD.to_string(),
             )),
         };
         let ret = call_api("migrate_keystore", param).unwrap();
         let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
-        assert_eq!(
-            result.keystore.unwrap().id,
-            "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca"
-        );
+        assert_eq!(result.keystore.unwrap().source, "SUBSTRATE_KEYSTORE");
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "60573d8d-8e83-45c3-85a5-34fbb2aad5e1".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let ret = call_api("migrate_keystore", param).unwrap();
+        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(result.keystore.unwrap().source, "KEYSTORE_V3");
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let ret = call_api("migrate_keystore", param).unwrap();
+        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(result.keystore.unwrap().source, "PRIVATE");
+
+        fs::remove_dir_all("../test-data/walletsV2").unwrap();
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_migrate_keystores_curve() {
+        let _ = fs::remove_dir_all("../test-data/walletsV2");
+        let param = InitTokenCoreXParam {
+            file_dir: "../test-data".to_string(),
+            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
+            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
+            is_debug: true,
+        };
+
+        handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "1a60471067b6c6a3202e0014de2ce9b2d45fd73e2289b3cc3d8e5b58fe99ff242fd61e9fe63e75abbdc0ed87a50756cc10c57daf1d6297b99ec9a3b174eee017".to_string(),
+            )),
+        };
+        let _ = call_api("migrate_keystore", param).unwrap();
+        // let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        {
+            let map = KEYSTORE_MAP.read();
+            assert_eq!(
+                map.get("4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca")
+                    .unwrap()
+                    .get_curve()
+                    .unwrap(),
+                CurveType::SECP256k1
+            );
+        }
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "9f4acb4a-7431-4c7d-bd25-a19656a86ea0".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "a5b0cb9cb0536d6ec6ab21da77415bd59aff62c44c1da40d377c4faf2a44608693a72efb4079f57a5dca710ecff75dc5b54beb4ad6d9f9d47b63583810b50c61".to_string(),
+            )),
+        };
+        let _ = call_api("migrate_keystore", param).unwrap();
+        {
+            let map = KEYSTORE_MAP.read();
+            assert_eq!(
+                map.get("9f4acb4a-7431-4c7d-bd25-a19656a86ea0")
+                    .unwrap()
+                    .get_curve()
+                    .unwrap(),
+                CurveType::SECP256k1
+            );
+        }
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "949bada8-776c-4554-ad0c-001e3726a0f8".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let _ = call_api("migrate_keystore", param).unwrap();
+        {
+            let map = KEYSTORE_MAP.read();
+            assert_eq!(
+                map.get("949bada8-776c-4554-ad0c-001e3726a0f8")
+                    .unwrap()
+                    .get_curve()
+                    .unwrap(),
+                CurveType::SR25519
+            );
+        }
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "60573d8d-8e83-45c3-85a5-34fbb2aad5e1".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let _ = call_api("migrate_keystore", param).unwrap();
+        {
+            let map = KEYSTORE_MAP.read();
+            assert_eq!(
+                map.get("60573d8d-8e83-45c3-85a5-34fbb2aad5e1")
+                    .unwrap()
+                    .get_curve()
+                    .unwrap(),
+                CurveType::SECP256k1
+            );
+        }
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let _ = call_api("migrate_keystore", param).unwrap();
+        {
+            let map = KEYSTORE_MAP.read();
+            assert_eq!(
+                map.get("fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb")
+                    .unwrap()
+                    .get_curve()
+                    .unwrap(),
+                CurveType::BLS
+            );
+        }
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let _ = call_api("migrate_keystore", param).unwrap();
+        {
+            let map = KEYSTORE_MAP.read();
+            assert_eq!(
+                map.get("fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb")
+                    .unwrap()
+                    .get_curve()
+                    .unwrap(),
+                CurveType::BLS
+            );
+        }
 
         let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "4d5cbfcf-aee1-4908-9991-9d060eb68a0e".to_string(),
@@ -3746,13 +3903,60 @@ mod tests {
                 TEST_PASSWORD.to_string(),
             )),
         };
-        let ret = call_api("migrate_keystore", param).unwrap();
-        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        let _ = call_api("migrate_keystore", param).unwrap();
+        {
+            let map = KEYSTORE_MAP.read();
+            assert_eq!(
+                map.get("4d5cbfcf-aee1-4908-9991-9d060eb68a0e")
+                    .unwrap()
+                    .get_curve()
+                    .unwrap(),
+                CurveType::ED25519
+            );
+        }
+
+        fs::remove_dir_all("../test-data/walletsV2").unwrap();
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_migrate_keystores_flush() {
+        let _ = fs::remove_dir_all("../test-data/walletsV2");
+        let param = InitTokenCoreXParam {
+            file_dir: "../test-data".to_string(),
+            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
+            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
+            is_debug: true,
+        };
+
+        handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "1a60471067b6c6a3202e0014de2ce9b2d45fd73e2289b3cc3d8e5b58fe99ff242fd61e9fe63e75abbdc0ed87a50756cc10c57daf1d6297b99ec9a3b174eee017".to_string(),
+            )),
+        };
+        let _ = call_api("migrate_keystore", param).unwrap();
+        // let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        let json = fs::read_to_string(format!(
+            "../test-data/walletsV2/4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca.json"
+        ))
+        .unwrap();
+        let mut keystore = Keystore::from_json(&json).unwrap();
         assert_eq!(
-            result.keystore.unwrap().id,
-            "4d5cbfcf-aee1-4908-9991-9d060eb68a0e"
+            keystore.fingerprint(),
+            "0x8b650646c72d8ec3f2a6da9f76dfe624a862c578"
         );
 
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        assert_eq!(
+            keystore.export().unwrap(),
+            "685634d212eabe016a1cb09d9f1ea1ea757ebe590b9a097d7b1c9379ad280171"
+        );
+
+        assert_eq!(keystore.get_curve().unwrap(), CurveType::SECP256k1);
+        assert_eq!(keystore.id(), "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca");
         fs::remove_dir_all("../test-data/walletsV2").unwrap();
     }
 }

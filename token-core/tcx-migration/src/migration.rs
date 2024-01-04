@@ -188,8 +188,7 @@ impl LegacyKeystore {
             .dangerous_rewrite_plaintext(derived_key, &mnemonic_data)
             .expect("encrypt");
 
-        let mut keystore = Keystore::Hd(HdKeystore::from_store(store));
-        keystore.unlock(key)?;
+        let keystore = Keystore::Hd(HdKeystore::from_store(store));
 
         Ok(keystore)
     }
@@ -206,7 +205,6 @@ impl LegacyKeystore {
         }
 
         let fingerprint = fingerprint_from_private_key(&private_key)?;
-        let unlocker = self.crypto.use_key(key)?;
         let im_token_meta = self
             .im_token_meta
             .as_ref()

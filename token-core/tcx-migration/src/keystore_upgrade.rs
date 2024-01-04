@@ -48,7 +48,17 @@ impl KeystoreUpgrade {
             (11000, "NEW_IDENTITY") => json!(Source::NewMnemonic.to_string()),
             (11000, "RECOVERED_IDENTITY") => json!(Source::Mnemonic.to_string()),
             (11000, _) => json!(Source::Mnemonic.to_string()),
-            (11001, "PRIVATE") => json!(Source::Private.to_string()),
+            (11001, "PRIVATE") => {
+                let accounts = json["activeAccounts"]
+                    .as_array()
+                    .expect("tcx pk keystore accounts");
+                let first_account = accounts.first().expect("first tcx activeAccounts");
+                if first_account["curve"].as_str().expect("account curve") == "SubSr25519" {
+                    json!(Source::SubstrateKeystore.to_string())
+                } else {
+                    json!(Source::Private.to_string())
+                }
+            }
             (11001, "WIF") => json!(Source::Wif.to_string()),
             (11001, "KEYSTORE") => json!(Source::KeystoreV3.to_string()),
             (11001, _) => json!(Source::Private.to_string()),

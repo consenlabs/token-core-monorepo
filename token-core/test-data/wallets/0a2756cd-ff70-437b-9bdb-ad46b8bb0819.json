@@ -98,7 +98,7 @@
     }
   ],
   "imTokenMeta": {
-    "name": "",
+    "name": "tcx-wallet",
     "passwordHint": "",
     "timestamp": 1703213098,
     "source": "MNEMONIC"

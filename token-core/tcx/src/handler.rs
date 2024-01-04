@@ -1191,7 +1191,7 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
         if is_existed {
             return encode_message(MigrateKeystoreResult {
                 is_existed: true,
-                existed_id: existed_id,
+                existed_id,
                 keystore: None,
             });
         } else {

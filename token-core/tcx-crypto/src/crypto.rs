@@ -243,7 +243,6 @@ impl Crypto {
             }
             Key::DerivedKey(derived_key_hex) => {
                 let derived_key = Vec::from_hex(derived_key_hex)?;
-
                 if !self.verify_derived_key(&derived_key) {
                     return Err(Error::PasswordIncorrect.into());
                 }
