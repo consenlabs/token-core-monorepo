@@ -59,7 +59,10 @@ message ImportPrivateKeyResult {
 // derive new accounts from a hd keystore
 message DeriveAccountsParam {
     string id = 1;
-    string password = 2;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
     message Derivation {
         string chainType = 1;
         string path = 2;
@@ -69,7 +72,7 @@ message DeriveAccountsParam {
         string curve = 6;
         string bech32Prefix = 7;
     }
-    repeated Derivation derivations= 3;
+    repeated Derivation derivations= 4;
 }
 
 message AccountResponse {
@@ -137,7 +140,6 @@ message ExistsMnemonicParam {
 message ExistsPrivateKeyParam {
     string private_key = 1;
 }
-
 
 message ExistsJsonParam {
     string json = 1;

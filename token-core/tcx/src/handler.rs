@@ -538,6 +538,8 @@ pub(crate) fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
     Ok(ret)
 }
 
+impl_to_key!(crate::api::derive_accounts_param::Key);
+
 pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
     let param: DeriveAccountsParam =
         DeriveAccountsParam::decode(data).expect("derive_accounts param");
@@ -547,7 +549,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(format_err!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
 
     let mut account_responses: Vec<AccountResponse> = vec![];
 

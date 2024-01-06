@@ -290,10 +290,10 @@ pub struct ImportPrivateKeyResult {
 pub struct DeriveAccountsParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag = "3")]
+    #[prost(message, repeated, tag = "4")]
     pub derivations: ::prost::alloc::vec::Vec<derive_accounts_param::Derivation>,
+    #[prost(oneof = "derive_accounts_param::Key", tags = "2, 3")]
+    pub key: ::core::option::Option<derive_accounts_param::Key>,
 }
 /// Nested message and enum types in `DeriveAccountsParam`.
 pub mod derive_accounts_param {
@@ -314,6 +314,14 @@ pub mod derive_accounts_param {
         pub curve: ::prost::alloc::string::String,
         #[prost(string, tag = "7")]
         pub bech32_prefix: ::prost::alloc::string::String,
+    }
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "2")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "3")]
+        DerivedKey(::prost::alloc::string::String),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

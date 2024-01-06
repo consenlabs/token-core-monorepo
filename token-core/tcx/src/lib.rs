@@ -314,7 +314,9 @@ mod tests {
 
         let param = DeriveAccountsParam {
             id: wallet.id.to_string(),
-            password: TEST_PASSWORD.to_string(),
+            key: Some(crate::api::derive_accounts_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
             derivations: vec![derivation],
         };
 
@@ -331,7 +333,9 @@ mod tests {
 
         let param = DeriveAccountsParam {
             id: wallet.id.to_string(),
-            password: TEST_PASSWORD.to_string(),
+            key: Some(crate::api::derive_accounts_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
             derivations: vec![derivation],
         };
 
@@ -437,7 +441,9 @@ mod tests {
             };
             let param = DeriveAccountsParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations: vec![derivation],
             };
 
@@ -504,7 +510,9 @@ mod tests {
             };
             let param = DeriveAccountsParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations: vec![derivation],
             };
 
@@ -717,7 +725,9 @@ mod tests {
 
             let param = DeriveAccountsParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations,
             };
             let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
@@ -840,7 +850,9 @@ mod tests {
             for derivation in invalid_derivations {
                 let param = DeriveAccountsParam {
                     id: import_result.id.to_string(),
-                    password: TEST_PASSWORD.to_string(),
+                    key: Some(crate::api::derive_accounts_param::Key::Password(
+                        TEST_PASSWORD.to_owned(),
+                    )),
                     derivations: vec![derivation],
                 };
                 let ret = call_api("derive_accounts", param);
@@ -991,7 +1003,9 @@ mod tests {
             ];
             let param = DeriveAccountsParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations,
             };
             let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
@@ -1079,7 +1093,9 @@ mod tests {
             }];
             let param = DeriveAccountsParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations,
             };
             let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
@@ -1121,7 +1137,9 @@ mod tests {
             }];
             let param = DeriveAccountsParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations,
             };
             let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
@@ -1200,7 +1218,9 @@ mod tests {
             }];
             let param = DeriveAccountsParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations,
             };
             let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
@@ -1259,7 +1279,9 @@ mod tests {
             }];
             let param = DeriveAccountsParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations,
             };
             let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
@@ -1323,7 +1345,9 @@ mod tests {
             }];
             let param = DeriveAccountsParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations,
             };
             let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
@@ -1391,7 +1415,9 @@ mod tests {
             }];
             let param = DeriveAccountsParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations,
             };
             let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
@@ -1791,7 +1817,9 @@ mod tests {
 
             let derive_param = DeriveAccountsParam {
                 id: wallet.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations: vec![derivation],
             };
             let ret_bytes = derive_accounts(&encode_message(derive_param).unwrap()).unwrap();
@@ -2261,7 +2289,9 @@ mod tests {
 
             let param = DeriveAccountsParam {
                 id: wallet_ret.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations: vec![derivation],
             };
 
@@ -2352,7 +2382,9 @@ mod tests {
 
             let param = DeriveAccountsParam {
                 id: wallet_ret.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations: vec![derivation],
             };
 
@@ -2436,7 +2468,9 @@ mod tests {
 
             let param = DeriveAccountsParam {
                 id: wallet_ret.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations: vec![derivation],
             };
 
@@ -2461,7 +2495,9 @@ mod tests {
 
             let param = DeriveAccountsParam {
                 id: wallet_ret.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations: vec![derivation],
             };
 
@@ -2543,7 +2579,9 @@ mod tests {
             };
             let param = DeriveAccountsParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations: vec![derivation],
             };
 
