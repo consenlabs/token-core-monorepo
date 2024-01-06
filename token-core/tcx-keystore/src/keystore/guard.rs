@@ -1,5 +1,6 @@
 use super::Keystore;
 use super::Result;
+use tcx_crypto::Key;
 
 pub struct KeystoreGuard<'a> {
     keystore: &'a mut Keystore,
@@ -23,6 +24,12 @@ impl<'a> KeystoreGuard<'a> {
         derived_key: &str,
     ) -> Result<KeystoreGuard<'a>> {
         ks.unlock_by_derived_key(derived_key)?;
+
+        Ok(KeystoreGuard { keystore: ks })
+    }
+
+    pub fn unlock(ks: &'a mut Keystore, key: Key) -> Result<KeystoreGuard<'a>> {
+        ks.unlock(&key)?;
 
         Ok(KeystoreGuard { keystore: ks })
     }

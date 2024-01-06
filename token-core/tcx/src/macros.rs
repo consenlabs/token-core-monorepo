@@ -1,5 +1,6 @@
 use std::str::FromStr;
 use tcx_constants::CoinInfo;
+use tcx_crypto::Key;
 use tcx_keystore::{
     Address, Keystore, MessageSigner, PublicKeyEncoder, SignatureParameters, TransactionSigner,
 };
@@ -206,3 +207,18 @@ macro_rules! use_chains {
 }
 
 pub(crate) use use_chains;
+
+macro_rules! impl_to_key {
+    ($type: ty) => {
+        impl From<$type> for tcx_crypto::Key {
+            fn from(key: $type) -> Self {
+                match key {
+                    <$type>::Password(password) => Self::Password(password),
+                    <$type>::DerivedKey(derived_key) => Self::DerivedKey(derived_key),
+                }
+            }
+        }
+    };
+}
+
+pub(crate) use impl_to_key;

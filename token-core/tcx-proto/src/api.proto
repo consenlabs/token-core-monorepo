@@ -33,28 +33,21 @@ message InitTokenCoreXParam {
 
 message SignHashesParam {
     string id = 1;
-    string password = 2;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
     message DataToSign {
         string hash = 1;
         string path = 2;
         string curve = 3;
         string sigAlg = 4;
     }
-    repeated DataToSign dataToSign = 3;
+    repeated DataToSign dataToSign = 4;
 }
 
 message SignHashesResult {
     repeated string signatures = 1;
-}
-
-message SignParamPoc {
-    
-    string hash = 3;
-    string derivationPath = 4;
-}
-
-message SignResultPoc {
-    string signature = 1;
 }
 
 message PublicKeyDerivation {
@@ -65,8 +58,11 @@ message PublicKeyDerivation {
 
 message GetPublicKeysParam {
     string id = 1;
-    string password = 2;
-    repeated PublicKeyDerivation derivations = 3;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
+    repeated PublicKeyDerivation derivations = 4;
 }
 
 message GetPublicKeysResult {
@@ -75,8 +71,11 @@ message GetPublicKeysResult {
 
 message GetExtendedPublicKeysParam {
     string id = 1;
-    string password = 2;
-    repeated PublicKeyDerivation derivations = 3;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
+    repeated PublicKeyDerivation derivations = 4;
 }
 
 message GetExtendedPublicKeysResult {
@@ -90,11 +89,14 @@ message GetExtendedPublicKeysResult {
 //// export the private key from a private key keystore or a hd keystore
 message ExportPrivateKeyParam {
     string id = 1;
-    string password = 2;
-    string chainType = 3;
-    string network = 4;
-    string curve = 5;
-    string path = 6;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
+    string chainType = 4;
+    string network = 5;
+    string curve = 6;
+    string path = 7;
 }
 
 //
@@ -104,8 +106,8 @@ message ExportPrivateKeyParam {
 message ExportJsonParam {
     string id = 1;
     string password = 2;
-    string chainType = 3;
-    string path = 4;
+    string chainType = 4;
+    string path = 5;
 }
 //
 ///// Keystore Common

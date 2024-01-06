@@ -29,17 +29,17 @@ use tcx_filecoin::KeyInfo;
 use crate::api::derive_accounts_param::Derivation;
 use crate::api::sign_param::Key;
 use crate::api::{
-    migrate_keystore_param, AccountResponse, CreateKeystoreParam, DecryptDataFromIpfsParam,
-    DecryptDataFromIpfsResult, DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam,
-    DeriveSubAccountsResult, DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult,
-    ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam,
-    ExportJsonParam, ExportJsonResult, ExportMnemonicResult, ExportPrivateKeyParam,
-    ExportPrivateKeyResult, GeneralResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult,
-    GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam,
-    ImportPrivateKeyParam, ImportPrivateKeyResult, KeystoreResult, MigrateKeystoreParam,
-    MigrateKeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
-    ScanKeystoresResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
-    SignHashesParam, SignHashesResult, WalletKeyParam,
+    export_private_key_param, migrate_keystore_param, AccountResponse, CreateKeystoreParam,
+    DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam, DeriveAccountsResult,
+    DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, EncryptDataToIpfsParam,
+    EncryptDataToIpfsResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
+    ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicResult,
+    ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult, GetExtendedPublicKeysParam,
+    GetExtendedPublicKeysResult, GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam,
+    ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult, KeystoreResult,
+    MigrateKeystoreParam, MigrateKeystoreResult, MnemonicToPublicKeyParam,
+    MnemonicToPublicKeyResult, ScanKeystoresResult, SignAuthenticationMessageParam,
+    SignAuthenticationMessageResult, SignHashesParam, SignHashesResult, WalletKeyParam,
 };
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
@@ -69,7 +69,7 @@ use tcx_migration::migration::LegacyKeystore;
 use tcx_primitive::TypedDeterministicPublicKey;
 use tcx_tezos::{build_tezos_base58_private_key, parse_tezos_private_key};
 
-use crate::macros::use_chains;
+use crate::macros::{impl_to_key, use_chains};
 
 use_chains!(
     tcx_btc_kin::bitcoin,
@@ -619,6 +619,7 @@ pub(crate) fn import_private_key(data: &[u8]) -> Result<Vec<u8>> {
     Ok(ret)
 }
 
+impl_to_key!(crate::api::export_private_key_param::Key);
 pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: ExportPrivateKeyParam =
         ExportPrivateKeyParam::decode(data).expect("export_private_key param");
@@ -629,7 +630,7 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(format_err!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
 
     let curve = CurveType::from_str(&param.curve);
     let private_key_bytes = guard
@@ -723,6 +724,8 @@ pub(crate) fn exists_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
     exists_fingerprint(&key_hash)
 }
 
+impl_to_key!(crate::api::sign_param::Key);
+
 pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignParam = SignParam::decode(data).expect("sign_tx param");
 
@@ -732,16 +735,12 @@ pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(format_err!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = match param.key.clone().unwrap() {
-        Key::Password(password) => KeystoreGuard::unlock_by_password(keystore, &password)?,
-        Key::DerivedKey(derived_key) => {
-            KeystoreGuard::unlock_by_derived_key(keystore, &derived_key)?
-        }
-    };
+    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
 
     sign_transaction_internal(&param, guard.keystore_mut())
 }
 
+impl_to_key!(crate::api::sign_hashes_param::Key);
 pub(crate) fn sign_hashes(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignHashesParam = SignHashesParam::decode(data).expect("sign_hashes param");
 
@@ -751,7 +750,8 @@ pub(crate) fn sign_hashes(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(format_err!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+
     let signatures = param
         .data_to_sign
         .iter()
@@ -770,6 +770,8 @@ pub(crate) fn sign_hashes(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(SignHashesResult { signatures })
 }
 
+impl_to_key!(crate::api::get_public_keys_param::Key);
+
 pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     let param: GetPublicKeysParam =
         GetPublicKeysParam::decode(data).expect("get_public_keys param");
@@ -780,7 +782,8 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(format_err!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+
     let public_keys: Vec<TypedPublicKey> = param
         .derivations
         .iter()
@@ -814,6 +817,7 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     })
 }
 
+impl_to_key!(crate::api::get_extended_public_keys_param::Key);
 pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     let param: GetExtendedPublicKeysParam =
         GetExtendedPublicKeysParam::decode(data).expect("get_extended_public_keys param");
@@ -824,7 +828,7 @@ pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(format_err!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
 
     let extended_public_keys = param
         .derivations
@@ -854,12 +858,7 @@ pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(format_err!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = match param.key.clone().unwrap() {
-        Key::Password(password) => KeystoreGuard::unlock_by_password(keystore, &password)?,
-        Key::DerivedKey(derived_key) => {
-            KeystoreGuard::unlock_by_derived_key(keystore, &derived_key)?
-        }
-    };
+    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
 
     sign_message_internal(&param, guard.keystore_mut())
 }
@@ -956,7 +955,9 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
 
     let export_pivate_key_param = ExportPrivateKeyParam {
         id: param.id.to_string(),
-        password: param.password.to_string(),
+        key: Some(export_private_key_param::Key::Password(
+            param.password.to_owned(),
+        )),
         chain_type: param.chain_type.to_string(),
         network: "".to_string(),
         curve,

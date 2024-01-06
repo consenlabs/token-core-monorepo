@@ -1,3 +1,5 @@
+#![feature(more_qualified_paths)]
+
 use std::ffi::{CStr, CString};
 
 use std::os::raw::c_char;
@@ -176,15 +178,15 @@ mod tests {
     use tcx_keystore::keystore::IdentityNetwork;
 
     use crate::api::{
-        migrate_keystore_param, sign_param, CreateKeystoreParam, DeriveAccountsParam,
-        DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult,
-        ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam,
-        ExportJsonParam, ExportJsonResult, ExportMnemonicResult, ExportPrivateKeyParam,
-        ExportPrivateKeyResult, GeneralResult, GetPublicKeysParam, GetPublicKeysResult,
-        ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult,
-        InitTokenCoreXParam, KeystoreResult, MigrateKeystoreParam, MigrateKeystoreResult,
-        MnemonicToPublicKeyParam, MnemonicToPublicKeyResult, PublicKeyDerivation, SignHashesParam,
-        SignHashesResult, SignParam, WalletKeyParam,
+        export_private_key_param, migrate_keystore_param, sign_param, CreateKeystoreParam,
+        DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
+        DerivedKeyResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
+        ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicResult,
+        ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult, GetPublicKeysParam,
+        GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
+        ImportPrivateKeyResult, InitTokenCoreXParam, KeystoreResult, MigrateKeystoreParam,
+        MigrateKeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
+        PublicKeyDerivation, SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
     };
     use crate::handler::import_mnemonic;
     use crate::handler::{encode_message, import_private_key};
@@ -372,7 +374,9 @@ mod tests {
                 SignHashesParam::decode(action.param.unwrap().value.as_slice()).unwrap();
             let wallet = import_default_wallet();
             param.id = wallet.id.to_string();
-            param.password = TEST_PASSWORD.to_string();
+            param.key = Some(crate::api::sign_hashes_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            ));
             let ret_bytes = call_api("sign_hashes", param).unwrap();
             let ret: SignHashesResult = SignHashesResult::decode(ret_bytes.as_slice()).unwrap();
             assert_eq!(ret.signatures[0], "0xb5c9a0cf842bf8766f297f3b7e8f4cb8ea6dc31bf1a61997255c153312bf990d1100ee56a223ebf1aa5ba8e235094fe4022e547c94560ca2805166f169efc807a97636a847e08963c020f0970fa934e7e693102539ac399f10c369bd6d9f2421");
@@ -409,7 +413,10 @@ mod tests {
         run_test(|| {
             let import_result: KeystoreResult = import_default_wallet();
             assert_eq!(import_result.source, "MNEMONIC");
-            assert_eq!(import_result.source_fingerprint, "0x1468dba9");
+            assert_eq!(
+                import_result.source_fingerprint,
+                "0x1468dba9c246fe22183c056540ab4d8b04553217"
+            );
             assert_eq!(
                 import_result.identifier,
                 "im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf"
@@ -857,7 +864,10 @@ mod tests {
                 import_result.ipfs_id,
                 "QmczBPUeohPPaE8UnPiESyynPwffBqrn4RqrU6nPJw95VT"
             );
-            assert_eq!(import_result.source_fingerprint, "0xe6cfaab9");
+            assert_eq!(
+                import_result.source_fingerprint,
+                "0xe6cfaab9a59ba187f0a45db0b169c21bb48f09b3"
+            );
             assert_eq!(import_result.source, "WIF");
 
             let derivations = vec![
@@ -1135,7 +1145,9 @@ mod tests {
 
             let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(export_private_key_param::Key::Password(
+                    TEST_PASSWORD.to_string(),
+                )),
                 chain_type: "TEZOS".to_string(),
                 network: "MAINNET".to_string(),
                 curve: "ed25519".to_string(),
@@ -1151,7 +1163,9 @@ mod tests {
 
             let param: GetPublicKeysParam = GetPublicKeysParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::get_public_keys_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations: vec![PublicKeyDerivation {
                     chain_type: "TEZOS".to_string(),
                     path: "".to_string(),
@@ -1199,7 +1213,9 @@ mod tests {
 
             let export_param = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::export_private_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 chain_type: "TEZOS".to_string(),
                 network: "".to_string(),
                 curve: "secp256k1".to_string(),
@@ -1259,7 +1275,9 @@ mod tests {
 
             let export_param = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::export_private_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 chain_type: "FILECOIN".to_string(),
                 network: "".to_string(),
                 curve: "secp256k1".to_string(),
@@ -1320,7 +1338,9 @@ mod tests {
 
             let export_param = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::export_private_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 chain_type: "FILECOIN".to_string(),
                 network: "".to_string(),
                 curve: "bls12-381".to_string(),
@@ -1386,7 +1406,9 @@ mod tests {
 
             let export_param = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::export_private_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 chain_type: "POLKADOT".to_string(),
                 network: "".to_string(),
                 curve: "sr25519".to_string(),
@@ -1425,7 +1447,9 @@ mod tests {
             let import_result = import_default_pk_store();
             let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::export_private_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 chain_type: "BITCOINCASH".to_string(),
                 network: "MAINNET".to_string(),
                 curve: "secp256k1".to_string(),
@@ -1441,7 +1465,9 @@ mod tests {
 
             let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::export_private_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 chain_type: "BITCOINCASH".to_string(),
                 network: "TESTNET".to_string(),
                 curve: "secp256k1".to_string(),
@@ -1457,7 +1483,9 @@ mod tests {
 
             let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::export_private_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 chain_type: "TRON".to_string(),
                 network: "".to_string(),
                 curve: "secp256k1".to_string(),
@@ -1598,7 +1626,9 @@ mod tests {
                 let acc = acc_rsp.accounts.first().unwrap().clone();
                 let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                     id: import_result.id.to_string(),
-                    password: TEST_PASSWORD.to_string(),
+                    key: Some(crate::api::export_private_key_param::Key::Password(
+                        TEST_PASSWORD.to_owned(),
+                    )),
                     chain_type: acc.chain_type.to_string(),
                     network: derivations[idx].network.to_string(),
                     curve: "secp256k1".to_string(),
@@ -1659,7 +1689,9 @@ mod tests {
             for idx in 0..export_info.len() {
                 let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                     id: import_result.id.to_string(),
-                    password: TEST_PASSWORD.to_string(),
+                    key: Some(crate::api::export_private_key_param::Key::Password(
+                        TEST_PASSWORD.to_owned(),
+                    )),
                     chain_type: export_info[idx].1.to_string(),
                     network: export_info[idx].2.to_string(),
                     curve: export_info[idx].3.to_string(),
@@ -1717,7 +1749,9 @@ mod tests {
             for idx in 0..derivations.len() {
                 let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                     id: import_result.id.to_string(),
-                    password: TEST_PASSWORD.to_string(),
+                    key: Some(crate::api::export_private_key_param::Key::Password(
+                        TEST_PASSWORD.to_owned(),
+                    )),
                     chain_type: export_info[idx].1.to_string(),
                     network: "".to_string(),
                     curve: export_info[idx].2.to_string(),
@@ -2123,7 +2157,9 @@ mod tests {
 
             let param: GetPublicKeysParam = GetPublicKeysParam {
                 id: wallet.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::get_public_keys_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations: vec![PublicKeyDerivation {
                     chain_type: "EOS".to_string(),
                     path: "m/44'/194'/0'/0/0".to_string(),
@@ -2240,7 +2276,9 @@ mod tests {
 
             let export_param = ExportPrivateKeyParam {
                 id: wallet_ret.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::export_private_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 chain_type: "KUSAMA".to_string(),
                 network: "".to_string(),
                 curve: "sr25519".to_string(),
@@ -2329,7 +2367,9 @@ mod tests {
 
             let export_param = ExportPrivateKeyParam {
                 id: wallet_ret.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::export_private_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 chain_type: "KUSAMA".to_string(),
                 network: "".to_string(),
                 curve: "sr25519".to_string(),
@@ -2684,10 +2724,15 @@ mod tests {
                     is_tron_header: true,
                 }, "0x16417c6489da3a88ef980bf0a42551b9e76181d03e7334548ab3cb36e7622a484482722882a29e2fe4587b95c739a68624ebf9ada5f013a9340d883f03fcf9af1b"),
                 (TronMessageInput {
+                    value: "645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76"
+                        .to_string(),
+                    is_tron_header: true,
+                }, "0x16417c6489da3a88ef980bf0a42551b9e76181d03e7334548ab3cb36e7622a484482722882a29e2fe4587b95c739a68624ebf9ada5f013a9340d883f03fcf9af1b"),
+                (TronMessageInput {
                     value: "abcdef"
                         .to_string(),
                     is_tron_header: true,
-                }, "0xa87eb6ae7e97621b6ba2e2f70db31fe0c744c6adcfdc005044026506b70ac11a33f415f4478b6cf84af32b3b5d70a13a77e53287613449b345bb16fe012c04081b"),
+                }, "0x13e407627e584c821ba527d23d64163d458447dfea1c3bfc92be660aa8d093ee5cfa3881870c4c51f157828eb9d4f7fad8112761f3b51cf76c7a4a3f241033d51b"),
             ];
             for (input, expected) in input_expects {
                 let tx = SignParam {
@@ -3034,7 +3079,9 @@ mod tests {
             }];
             let param = GetPublicKeysParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::get_public_keys_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations,
             };
             let result_bytes = call_api("get_public_keys", param).unwrap();
@@ -3068,7 +3115,9 @@ mod tests {
             }];
             let param = SignHashesParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::sign_hashes_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 data_to_sign,
             };
             let result_bytes = call_api("sign_hashes", param).unwrap();
@@ -3084,7 +3133,9 @@ mod tests {
             }];
             let param = SignHashesParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::sign_hashes_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 data_to_sign,
             };
             let result_bytes = call_api("sign_hashes", param).unwrap();
@@ -3492,7 +3543,9 @@ mod tests {
 
             let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::export_private_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 chain_type: "ETHEREUM".to_string(),
                 network: "".to_string(),
                 curve: CurveType::SECP256k1.as_str().to_string(),
@@ -3615,7 +3668,9 @@ mod tests {
             }];
             let param = GetPublicKeysParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(crate::api::get_public_keys_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
                 derivations,
             };
             let result_bytes = call_api("get_public_keys", param).unwrap();

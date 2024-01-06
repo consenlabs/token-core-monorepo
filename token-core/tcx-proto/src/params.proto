@@ -230,7 +230,6 @@ message SignAuthenticationMessageResult {
     string signature = 2;
 }
 
-
 message MnemonicToPublicKeyParam {
     string mnemonic = 1;
     string path = 2;
@@ -253,10 +252,10 @@ message MigrateKeystoreParam {
       string password = 2;
       string derivedKey = 3;
     }
-  }
+}
   
-  message MigrateKeystoreResult {
-    bool isExisted = 1;
-    string existedId = 2;
-    KeystoreResult keystore = 3;
-  }
+message MigrateKeystoreResult {
+  bool isExisted = 1;
+  string existedId = 2;
+  KeystoreResult keystore = 3;
+}

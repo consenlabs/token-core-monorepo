@@ -40,10 +40,10 @@ pub struct InitTokenCoreXParam {
 pub struct SignHashesParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag = "3")]
+    #[prost(message, repeated, tag = "4")]
     pub data_to_sign: ::prost::alloc::vec::Vec<sign_hashes_param::DataToSign>,
+    #[prost(oneof = "sign_hashes_param::Key", tags = "2, 3")]
+    pub key: ::core::option::Option<sign_hashes_param::Key>,
 }
 /// Nested message and enum types in `SignHashesParam`.
 pub mod sign_hashes_param {
@@ -59,26 +59,20 @@ pub mod sign_hashes_param {
         #[prost(string, tag = "4")]
         pub sig_alg: ::prost::alloc::string::String,
     }
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "2")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "3")]
+        DerivedKey(::prost::alloc::string::String),
+    }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SignHashesResult {
     #[prost(string, repeated, tag = "1")]
     pub signatures: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SignParamPoc {
-    #[prost(string, tag = "3")]
-    pub hash: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub derivation_path: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SignResultPoc {
-    #[prost(string, tag = "1")]
-    pub signature: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -95,10 +89,21 @@ pub struct PublicKeyDerivation {
 pub struct GetPublicKeysParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag = "3")]
+    #[prost(message, repeated, tag = "4")]
     pub derivations: ::prost::alloc::vec::Vec<PublicKeyDerivation>,
+    #[prost(oneof = "get_public_keys_param::Key", tags = "2, 3")]
+    pub key: ::core::option::Option<get_public_keys_param::Key>,
+}
+/// Nested message and enum types in `GetPublicKeysParam`.
+pub mod get_public_keys_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "2")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "3")]
+        DerivedKey(::prost::alloc::string::String),
+    }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -111,10 +116,21 @@ pub struct GetPublicKeysResult {
 pub struct GetExtendedPublicKeysParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag = "3")]
+    #[prost(message, repeated, tag = "4")]
     pub derivations: ::prost::alloc::vec::Vec<PublicKeyDerivation>,
+    #[prost(oneof = "get_extended_public_keys_param::Key", tags = "2, 3")]
+    pub key: ::core::option::Option<get_extended_public_keys_param::Key>,
+}
+/// Nested message and enum types in `GetExtendedPublicKeysParam`.
+pub mod get_extended_public_keys_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "2")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "3")]
+        DerivedKey(::prost::alloc::string::String),
+    }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -131,16 +147,27 @@ pub struct GetExtendedPublicKeysResult {
 pub struct ExportPrivateKeyParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub chain_type: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
-    pub network: ::prost::alloc::string::String,
+    pub chain_type: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
-    pub curve: ::prost::alloc::string::String,
+    pub network: ::prost::alloc::string::String,
     #[prost(string, tag = "6")]
+    pub curve: ::prost::alloc::string::String,
+    #[prost(string, tag = "7")]
     pub path: ::prost::alloc::string::String,
+    #[prost(oneof = "export_private_key_param::Key", tags = "2, 3")]
+    pub key: ::core::option::Option<export_private_key_param::Key>,
+}
+/// Nested message and enum types in `ExportPrivateKeyParam`.
+pub mod export_private_key_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "2")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "3")]
+        DerivedKey(::prost::alloc::string::String),
+    }
 }
 ///
 /// // FUNCTION: export_private_key(ExportPrivateKeyParam): ExportResult
@@ -153,9 +180,9 @@ pub struct ExportJsonParam {
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub chain_type: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
+    pub chain_type: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
     pub path: ::prost::alloc::string::String,
 }
 ///
