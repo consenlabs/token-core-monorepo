@@ -120,3 +120,11 @@ message WalletKeyParam {
     string password = 2;
 }
 
+message ExportMnemonicParam {
+    string id = 1;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
+}
+

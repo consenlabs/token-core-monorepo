@@ -33,13 +33,14 @@ use crate::api::{
     DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam, DeriveAccountsResult,
     DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, EncryptDataToIpfsParam,
     EncryptDataToIpfsResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
-    ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicResult,
-    ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult, GetExtendedPublicKeysParam,
-    GetExtendedPublicKeysResult, GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam,
-    ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult, KeystoreResult,
-    MigrateKeystoreParam, MigrateKeystoreResult, MnemonicToPublicKeyParam,
-    MnemonicToPublicKeyResult, ScanKeystoresResult, SignAuthenticationMessageParam,
-    SignAuthenticationMessageResult, SignHashesParam, SignHashesResult, WalletKeyParam,
+    ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicParam,
+    ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
+    GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
+    GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
+    ImportPrivateKeyResult, KeystoreResult, MigrateKeystoreParam, MigrateKeystoreResult,
+    MnemonicToPublicKeyParam, MnemonicToPublicKeyResult, ScanKeystoresResult,
+    SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
+    SignHashesResult, WalletKeyParam,
 };
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
@@ -588,15 +589,18 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(accounts_rsp)
 }
 
+impl_to_key!(crate::api::export_mnemonic_param::Key);
+
 pub(crate) fn export_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
-    let param: WalletKeyParam = WalletKeyParam::decode(data).expect("export_mnemonic param");
+    let param: ExportMnemonicParam =
+        ExportMnemonicParam::decode(data).expect("export_mnemonic param");
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
         _ => Err(format_err!("{}", "wallet_not_found")),
     }?;
 
-    let guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+    let guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
 
     tcx_ensure!(
         guard.keystore().derivable(),

@@ -199,6 +199,25 @@ pub struct WalletKeyParam {
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExportMnemonicParam {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(oneof = "export_mnemonic_param::Key", tags = "2, 3")]
+    pub key: ::core::option::Option<export_mnemonic_param::Key>,
+}
+/// Nested message and enum types in `ExportMnemonicParam`.
+pub mod export_mnemonic_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "2")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "3")]
+        DerivedKey(::prost::alloc::string::String),
+    }
+}
 /// FUNCTION: create_keystore(CreateKeystoreParam): KeystoreResult
 ///
 /// create a new hd keystore
