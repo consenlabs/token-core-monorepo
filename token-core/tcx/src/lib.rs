@@ -3717,7 +3717,11 @@ mod tests {
 
             let mut param = SignBlsToExecutionChangeParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(
+                    tcx_eth2::transaction::sign_bls_to_execution_change_param::Key::Password(
+                        TEST_PASSWORD.to_owned(),
+                    ),
+                ),
                 genesis_fork_version: "0x03000000".to_string(),
                 genesis_validators_root:
                     "0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".to_string(),

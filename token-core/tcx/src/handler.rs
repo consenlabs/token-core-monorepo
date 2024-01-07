@@ -1250,7 +1250,7 @@ pub(crate) fn sign_bls_to_execution_change(data: &[u8]) -> Result<Vec<u8>> {
         Some(keystore) => Ok(keystore),
         _ => Err(format_err!("{}", "wallet_not_found")),
     }?;
-    let mut guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
     let result: SignBlsToExecutionChangeResult =
         param.sign_bls_to_execution_change(guard.keystore_mut())?;
     encode_message(result)
