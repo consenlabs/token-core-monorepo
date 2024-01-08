@@ -91,12 +91,16 @@ impl PrivateKeystore {
         password: &str,
         curve: CurveType,
         meta: Metadata,
+        original: Option<String>,
     ) -> Result<PrivateKeystore> {
         let key_data: Vec<u8> = Vec::from_hex_auto(private_key)?;
         let fingerprint = fingerprint_from_private_key(&key_data)?;
         let crypto: Crypto = Crypto::new(password, &key_data);
         let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
         let identity = Identity::from_private_key(private_key, &unlocker, &meta.network)?;
+
+        let enc_original =
+            original.and_then(|ori| unlocker.encrypt_with_random_iv(ori.as_bytes()).ok());
 
         let store = Store {
             source_fingerprint: fingerprint,
@@ -106,6 +110,7 @@ impl PrivateKeystore {
             version: PrivateKeystore::VERSION,
             identity,
             curve: Some(curve),
+            enc_original: enc_original,
         };
 
         Ok(PrivateKeystore {
@@ -169,6 +174,7 @@ mod tests {
             TEST_PASSWORD,
             CurveType::SECP256k1,
             meta,
+            None,
         )
         .unwrap();
 
@@ -191,6 +197,7 @@ mod tests {
             TEST_PASSWORD,
             CurveType::SECP256k1,
             Metadata::default(),
+            None,
         )
         .unwrap();
 
@@ -229,6 +236,7 @@ mod tests {
             TEST_PASSWORD,
             CurveType::SECP256k1,
             Metadata::default(),
+            None,
         )
         .unwrap();
         keystore

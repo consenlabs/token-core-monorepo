@@ -54,15 +54,17 @@ impl OldMetadata {
             IdentityNetwork::Mainnet
         };
 
-        let source = self
-            .source
-            .clone()
-            .map_or(Source::Mnemonic, |source| match source.as_str() {
-                "RECOVER_IDENTITY" => Source::Mnemonic,
-                "NEW_IDENTITY" => Source::NewMnemonic,
-                "KEYSTORE" => Source::KeystoreV3,
-                _ => Source::from_str(&source).unwrap_or(Source::Mnemonic),
-            });
+        let (source, identified_chain_types) =
+            self.source
+                .clone()
+                .map_or((Source::Mnemonic, None), |source| match source.as_str() {
+                    "RECOVER_IDENTITY" => (Source::Mnemonic, None),
+                    "NEW_IDENTITY" => (Source::NewMnemonic, None),
+                    "KEYSTORE" => (Source::KeystoreV3, Some(vec!["ETHEREUM".to_string()])),
+                    "PRIVATE" => (Source::Private, Some(vec!["ETHEREUM".to_string()])),
+                    "WIF" => (Source::Wif, Some(vec!["BITCOIN".to_string()])),
+                    _ => (Source::from_str(&source).unwrap_or(Source::Mnemonic), None),
+                });
 
         Metadata {
             name: self.name.clone(),
@@ -70,6 +72,7 @@ impl OldMetadata {
             timestamp,
             source,
             network,
+            identified_chain_types,
         }
     }
 }
@@ -180,6 +183,7 @@ impl LegacyKeystore {
             identity,
             meta,
             curve: None,
+            enc_original: None,
         };
 
         let derived_key = unlocker.derived_key();
@@ -195,14 +199,19 @@ impl LegacyKeystore {
 
     fn migrate_to_private(&self, key: &Key) -> Result<Keystore> {
         let unlocker = self.crypto.use_key(key)?;
-        let mut private_key = unlocker.plaintext()?;
+        let decrypted = unlocker.plaintext()?;
         // Note legacy keystore only contains k1 curve
         let curve = CurveType::SECP256k1;
+        let is_wif = decrypted.len() != 32;
 
-        if private_key.len() != 32 {
-            private_key =
-                Secp256k1PrivateKey::from_wif(&String::from_utf8_lossy(&private_key))?.to_bytes()
-        }
+        let (private_key, original) = if is_wif {
+            (
+                Secp256k1PrivateKey::from_wif(&String::from_utf8_lossy(&decrypted))?.to_bytes(),
+                decrypted,
+            )
+        } else {
+            (decrypted.clone(), decrypted.to_hex().as_bytes().to_vec())
+        };
 
         let fingerprint = fingerprint_from_private_key(&private_key)?;
         let im_token_meta = self
@@ -216,6 +225,11 @@ impl LegacyKeystore {
             .unwrap_or(IdentityNetwork::Mainnet);
         let identity = Identity::from_private_key(&private_key.to_hex(), &unlocker, &network)?;
 
+        let enc_original = if is_wif {
+            Some(unlocker.encrypt_with_random_iv(&original)?)
+        } else {
+            None
+        };
         let mut store = Store {
             id: self.id.to_string(),
             version: PrivateKeystore::VERSION,
@@ -224,6 +238,7 @@ impl LegacyKeystore {
             meta: im_token_meta.to_metadata(),
             identity,
             curve: Some(curve),
+            enc_original: enc_original,
         };
 
         let unlocker = self.crypto.use_key(key)?;

@@ -19,7 +19,7 @@ pub use self::{
 };
 
 use crate::identity::Identity;
-use tcx_crypto::{Crypto, Key};
+use tcx_crypto::{Crypto, EncPair, Key};
 use tcx_primitive::{Derive, TypedDeterministicPublicKey, TypedPrivateKey, TypedPublicKey};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,7 +32,8 @@ pub struct Store {
     pub identity: Identity,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub curve: Option<CurveType>,
-
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub enc_original: Option<EncPair>,
     #[serde(rename = "imTokenMeta")]
     pub meta: Metadata,
 }
@@ -183,6 +184,8 @@ pub struct Metadata {
     pub source: Source,
     #[serde(default = "metadata_default_network")]
     pub network: IdentityNetwork,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identified_chain_types: Option<Vec<String>>,
 }
 
 fn metadata_default_time() -> i64 {
@@ -207,6 +210,7 @@ impl Default for Metadata {
             timestamp: metadata_default_time(),
             source: Source::Mnemonic,
             network: IdentityNetwork::Mainnet,
+            identified_chain_types: None,
         }
     }
 }
@@ -223,12 +227,14 @@ impl Keystore {
         password: &str,
         curve: CurveType,
         meta: Metadata,
+        original: Option<String>,
     ) -> Result<Keystore> {
         Ok(Keystore::PrivateKey(PrivateKeystore::from_private_key(
             private_key,
             password,
             curve,
             meta,
+            original,
         )?))
     }
 
@@ -842,6 +848,7 @@ pub(crate) mod tests {
             TEST_PASSWORD,
             CurveType::SECP256k1,
             meta,
+            None,
         )
         .unwrap();
         let keystore = PrivateKey(pk_store);
@@ -927,6 +934,7 @@ pub(crate) mod tests {
             TEST_PASSWORD,
             CurveType::SECP256k1,
             Metadata::default(),
+            None,
         )
         .unwrap();
 

@@ -126,6 +126,7 @@ mod tests {
             "Password",
             CurveType::SECP256k1,
             Metadata::default(),
+            None,
         )
         .unwrap();
         ks.unlock_by_password("Password").unwrap();
@@ -172,6 +173,7 @@ mod tests {
             "Password",
             CurveType::SECP256k1,
             Metadata::default(),
+            None,
         )
         .unwrap();
         ks.unlock_by_password("Password").unwrap();
@@ -218,6 +220,7 @@ mod tests {
             "Password",
             CurveType::SECP256k1,
             Metadata::default(),
+            None,
         )
         .unwrap();
         ks.unlock_by_password("Password").unwrap();

@@ -140,6 +140,7 @@ fn fingerprint_from_tezos_format_pk(pk: &str) -> Result<String> {
 fn import_private_key_internal(
     param: &ImportPrivateKeyParam,
     source: Option<Source>,
+    original: Option<String>,
 ) -> Result<ImportPrivateKeyResult> {
     let mut founded_id: Option<String> = None;
     {
@@ -168,14 +169,27 @@ fn import_private_key_internal(
     } else {
         decoded_ret.source
     };
+
+    let original = if let Some(original) = original {
+        original
+    } else {
+        param.private_key.to_string()
+    };
+
     let meta = Metadata {
         name: param.name.to_string(),
         password_hint: param.password_hint.to_string(),
         source: meta_source,
+        identified_chain_types: Some(decoded_ret.chain_types.clone()),
         ..Metadata::default()
     };
-    let pk_store =
-        PrivateKeystore::from_private_key(&private_key, &param.password, decoded_ret.curve, meta)?;
+    let pk_store = PrivateKeystore::from_private_key(
+        &private_key,
+        &param.password,
+        decoded_ret.curve,
+        meta,
+        Some(original),
+    )?;
 
     let mut keystore = Keystore::PrivateKey(pk_store);
 
@@ -194,9 +208,9 @@ fn import_private_key_internal(
         created_at: meta.timestamp,
         identifier: identity.identifier.to_string(),
         ipfs_id: identity.ipfs_id.to_string(),
-        suggest_chain_types: decoded_ret.chain_types.to_owned(),
-        suggest_network: decoded_ret.network.to_string(),
-        suggest_curve: decoded_ret.curve.as_str().to_string(),
+        identified_chain_types: decoded_ret.chain_types.to_owned(),
+        identified_network: decoded_ret.network.to_string(),
+        identified_curve: decoded_ret.curve.as_str().to_string(),
         source_fingerprint: keystore.fingerprint().to_string(),
     };
     cache_keystore(keystore);
@@ -415,9 +429,12 @@ pub(crate) fn scan_keystores() -> Result<ScanKeystoresResult> {
                     source: keystore.meta().source.to_string(),
                     created_at: keystore.meta().timestamp,
                     source_fingerprint: keystore.fingerprint().to_string(),
-                    suggest_chain_types: curve_to_chain_type(&curve),
-                    suggest_network: keystore.meta().network.to_string(),
-                    suggest_curve: curve.as_str().to_string(),
+                    identified_chain_types: keystore
+                        .meta()
+                        .identified_chain_types
+                        .unwrap_or_default(),
+                    identified_network: keystore.meta().network.to_string(),
+                    identified_curve: curve.as_str().to_string(),
                 };
                 private_key_keystores.push(kestore_result);
             }
@@ -619,7 +636,7 @@ pub(crate) fn import_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: ImportPrivateKeyParam =
         ImportPrivateKeyParam::decode(data).expect("import_private_key param");
 
-    let rsp = import_private_key_internal(&param, None)?;
+    let rsp = import_private_key_internal(&param, None, None)?;
 
     let ret = encode_message(rsp)?;
     Ok(ret)
@@ -901,10 +918,14 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
             password_hint: "".to_string(),
             overwrite: param.overwrite,
         };
-        let mut ret = import_private_key_internal(&pk_import_param, Some(Source::KeystoreV3))?;
-        ret.suggest_chain_types = vec!["ETHEREUM".to_string()];
-        ret.suggest_curve = CurveType::SECP256k1.as_str().to_string();
-        ret.suggest_network = "".to_string();
+        let mut ret = import_private_key_internal(
+            &pk_import_param,
+            Some(Source::KeystoreV3),
+            Some(param.json.to_string()),
+        )?;
+        ret.identified_chain_types = vec!["ETHEREUM".to_string()];
+        ret.identified_curve = CurveType::SECP256k1.as_str().to_string();
+        ret.identified_network = "".to_string();
         encode_message(ret)
     } else if let Ok(parse_substrate_result) =
         key_info_from_substrate_keystore(&param.json, &param.password)
@@ -917,11 +938,14 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
             password_hint: "".to_string(),
             overwrite: param.overwrite,
         };
-        let mut ret =
-            import_private_key_internal(&pk_import_param, Some(Source::SubstrateKeystore))?;
-        ret.suggest_chain_types = vec!["KUSAMA".to_string(), "POLKADOT".to_string()];
-        ret.suggest_curve = CurveType::SR25519.as_str().to_string();
-        ret.suggest_network = "".to_string();
+        let mut ret = import_private_key_internal(
+            &pk_import_param,
+            Some(Source::SubstrateKeystore),
+            Some(param.json.to_string()),
+        )?;
+        ret.identified_chain_types = vec!["KUSAMA".to_string(), "POLKADOT".to_string()];
+        ret.identified_curve = CurveType::SR25519.as_str().to_string();
+        ret.identified_network = "".to_string();
         return encode_message(ret);
     } else {
         return Err(format_err!("unsupport_chain"));
@@ -1372,7 +1396,7 @@ mod tests {
         assert_eq!(pk.created_at, 1704251911);
         assert_eq!(pk.source, "PRIVATE");
         assert_eq!(pk.name, "test_filecoin_import_private_key");
-        assert_eq!(pk.suggest_curve, "bls12-381");
+        assert_eq!(pk.identified_curve, "bls12-381");
 
         let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
             .private_key_keystores
@@ -1389,7 +1413,8 @@ mod tests {
         assert_eq!(pk.created_at, 1704252030);
         assert_eq!(pk.source, "SUBSTRATE_KEYSTORE");
         assert_eq!(pk.name, "test_64bytes_import_private_key");
-        assert_eq!(pk.suggest_curve, "sr25519");
+        assert_eq!(pk.identified_curve, "sr25519");
+        assert_eq!(pk.identified_chain_types, vec!["KUSAMA", "POLKADOT"]);
 
         let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
             .private_key_keystores
@@ -1406,7 +1431,7 @@ mod tests {
         assert_eq!(pk.created_at, 1704252158);
         assert_eq!(pk.source, "PRIVATE");
         assert_eq!(pk.name, "test_filecoin_import_private_key");
-        assert_eq!(pk.suggest_curve, "secp256k1");
+        assert_eq!(pk.identified_curve, "secp256k1");
 
         let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
             .private_key_keystores
@@ -1423,7 +1448,7 @@ mod tests {
         assert_eq!(pk.created_at, 1704252158);
         assert_eq!(pk.source, "PRIVATE");
         assert_eq!(pk.name, "test_filecoin_import_private_key");
-        assert_eq!(pk.suggest_curve, "secp256k1");
+        assert_eq!(pk.identified_curve, "secp256k1");
 
         let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
             .private_key_keystores
@@ -1440,6 +1465,6 @@ mod tests {
         assert_eq!(pk.created_at, 1704252267);
         assert_eq!(pk.source, "PRIVATE");
         assert_eq!(pk.name, "test_tezos_import_private_key_export");
-        assert_eq!(pk.suggest_curve, "ed25519");
+        assert_eq!(pk.identified_curve, "ed25519");
     }
 }

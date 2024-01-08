@@ -49,9 +49,9 @@ message ImportPrivateKeyResult {
     string ipfsId = 4;
     string source = 5;
     int64 createdAt = 6;
-    repeated string suggestChainTypes = 7;
-    string suggestNetwork = 8;
-    string suggestCurve = 9;
+    repeated string identifiedChainTypes = 7;
+    string identifiedNetwork = 8;
+    string identifiedCurve = 9;
     string sourceFingerprint = 10;
 }
 

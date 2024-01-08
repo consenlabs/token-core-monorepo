@@ -43,7 +43,7 @@ impl KeystoreUpgrade {
 
         let mut json = self.json.clone();
 
-        let source = json["imTokenMeta"]["source"].as_str().unwrap_or("");
+        let source: &str = json["imTokenMeta"]["source"].as_str().unwrap_or("");
         json["imTokenMeta"]["source"] = match (version, source) {
             (11000, "NEW_IDENTITY") => json!(Source::NewMnemonic.to_string()),
             (11000, "RECOVERED_IDENTITY") => json!(Source::Mnemonic.to_string()),
@@ -100,6 +100,11 @@ impl KeystoreUpgrade {
                         .expect("activeAccounts need contains curve");
                     let new_curve_name = mapping_curve_name(&old_curve_name);
                     json["curve"] = json!(new_curve_name);
+                    let chain_type = account_json["coin"]
+                        .as_str()
+                        .expect("activeAccounts need contains chainType");
+                    json["imTokenMeta"]["identifiedChainTypes"] = json!(vec![chain_type]);
+                    // tcx pk keystore has lost the original private key
                 }
             }
             11000 => {

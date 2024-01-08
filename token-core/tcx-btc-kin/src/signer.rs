@@ -452,6 +452,7 @@ mod tests {
             TEST_PASSWORD,
             CurveType::SECP256k1,
             Metadata::default(),
+            None,
         )
         .unwrap();
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
@@ -623,6 +624,7 @@ mod tests {
                 TEST_PASSWORD,
                 CurveType::SECP256k1,
                 Metadata::default(),
+                None,
             )
             .unwrap();
             ks.unlock_by_password(TEST_PASSWORD).unwrap();
@@ -1377,6 +1379,7 @@ mod tests {
                 TEST_PASSWORD,
                 CurveType::SECP256k1,
                 Metadata::default(),
+                None,
             )
             .unwrap();
             let _coin_info = coin_info_from_param("LITECOIN", "TESTNET", "NONE", "").unwrap();

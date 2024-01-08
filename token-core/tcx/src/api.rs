@@ -294,11 +294,11 @@ pub struct ImportPrivateKeyResult {
     #[prost(int64, tag = "6")]
     pub created_at: i64,
     #[prost(string, repeated, tag = "7")]
-    pub suggest_chain_types: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    pub identified_chain_types: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(string, tag = "8")]
-    pub suggest_network: ::prost::alloc::string::String,
+    pub identified_network: ::prost::alloc::string::String,
     #[prost(string, tag = "9")]
-    pub suggest_curve: ::prost::alloc::string::String,
+    pub identified_curve: ::prost::alloc::string::String,
     #[prost(string, tag = "10")]
     pub source_fingerprint: ::prost::alloc::string::String,
 }

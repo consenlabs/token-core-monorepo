@@ -176,6 +176,7 @@ impl HdKeystore {
                 meta,
                 identity,
                 curve: None,
+                enc_original: None,
             },
 
             cache: None,
@@ -288,6 +289,7 @@ mod tests {
             timestamp: metadata_default_time(),
             source: Source::Mnemonic,
             network: IdentityNetwork::Mainnet,
+            identified_chain_types: None,
         };
 
         assert_eq!(meta.name, expected.name);

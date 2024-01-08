@@ -173,9 +173,14 @@ mod test {
     use tcx_keystore::{Keystore, MessageSigner, Metadata, SignatureParameters, TransactionSigner};
 
     fn private_key_store(key: &str) -> Keystore {
-        let mut ks =
-            Keystore::from_private_key(key, "imToken1", CurveType::SECP256k1, Metadata::default())
-                .unwrap();
+        let mut ks = Keystore::from_private_key(
+            key,
+            "imToken1",
+            CurveType::SECP256k1,
+            Metadata::default(),
+            None,
+        )
+        .unwrap();
         ks.unlock_by_password("imToken1").unwrap();
         ks
     }
