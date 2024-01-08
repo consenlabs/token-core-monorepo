@@ -2,17 +2,12 @@ pub mod address;
 pub mod signer;
 pub mod transaction;
 
-pub use crate::address::TronAddress;
+pub use crate::address::Address as TrxAddress;
 
-pub mod tron {
+use sha3::{Digest, Keccak256, Sha3_256};
 
-    pub const CHAINS: [&str; 1] = ["TRON"];
-
-    pub type Address = crate::address::TronAddress;
-    pub type TransactionInput = crate::transaction::TronTxInput;
-    pub type TransactionOutput = crate::transaction::TronTxOutput;
-
-    pub type MessageInput = crate::transaction::TronMessageInput;
-
-    pub type MessageOutput = crate::transaction::TronMessageOutput;
+pub fn keccak(bytes: &[u8]) -> Vec<u8> {
+    let mut hasher = Keccak256::new();
+    hasher.update(bytes);
+    hasher.finalize().to_vec()
 }

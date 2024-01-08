@@ -324,7 +324,7 @@ export namespace api {
         path?: (string|null);
     }
 
-    /** export the private key from a private key fixtures or a hd fixtures */
+    /** export the private key from a private key keystore or a hd keystore */
     class ExportPrivateKeyParam implements IExportPrivateKeyParam {
 
         /**
@@ -432,7 +432,7 @@ export namespace api {
         password?: (string|null);
     }
 
-    /** verify the password of the fixtures */
+    /** verify the password of the keystore */
     class WalletKeyParam implements IWalletKeyParam {
 
         /**

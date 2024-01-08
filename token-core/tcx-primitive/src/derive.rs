@@ -33,6 +33,7 @@ pub trait Derive: Sized {
     }
 }
 
+// TODO add parity string derivation path
 #[allow(dead_code)]
 impl DeriveJunction {
     pub fn soft(index: u32) -> Self {
@@ -44,11 +45,17 @@ impl DeriveJunction {
     }
 
     pub fn is_soft(&self) -> bool {
-        matches!(*self, DeriveJunction::Soft(_))
+        match *self {
+            DeriveJunction::Soft(_) => true,
+            _ => false,
+        }
     }
 
     pub fn is_hard(&self) -> bool {
-        matches!(*self, DeriveJunction::Hard(_))
+        match *self {
+            DeriveJunction::Hard(_) => true,
+            _ => false,
+        }
     }
 }
 
@@ -235,12 +242,6 @@ mod tests {
         for invalid_dj in invalid_djs {
             let ret: Result<ChildNumber, failure::Error> = invalid_dj.try_into();
             assert!(ret.is_err());
-        }
-
-        let invalid_djs = vec![DeriveJunction::Soft(1), DeriveJunction::Hard(1)];
-        for invalid_dj in invalid_djs {
-            let ret: Result<ChildNumber, failure::Error> = invalid_dj.try_into();
-            assert!(ret.is_ok());
         }
     }
 }

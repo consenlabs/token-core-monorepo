@@ -1,13 +1,15 @@
-use crate::bls_to_execution_change::BLSToExecutionRequest;
+use crate::bls_to_execution_change::{compute_domain, BLSToExecutionRequest};
 use crate::transaction::{
     BlsToExecutionChangeMessage, SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult,
     SignedBlsToExecutionChange,
 };
-use crate::Error;
+use crate::{hex_to_bytes, Error, Result};
 use keccak_hash;
 use regex::Regex;
-use tcx_common::{FromHex, ToHex};
-use tcx_keystore::{Keystore, Result, Signer};
+use ssz_rs::{Deserialize, Vector};
+use tcx_chain::{
+    ChainSigner, Keystore, KeystoreGuard, TransactionSigner as TraitTransactionSigner,
+};
 
 impl SignBlsToExecutionChangeParam {
     pub fn sign_bls_to_execution_change(
@@ -19,7 +21,7 @@ impl SignBlsToExecutionChangeParam {
             return Err(Error::InvalidEthAddress.into());
         }
 
-        let mut bls_to_execution_request = BLSToExecutionRequest {
+        let mut blsToExecutionRequest = BLSToExecutionRequest {
             genesis_fork_version: self.genesis_fork_version.to_string(),
             genesis_validators_root: self.genesis_validators_root.to_string(),
             validator_index: 0,
@@ -28,26 +30,30 @@ impl SignBlsToExecutionChangeParam {
         };
         let mut signeds = vec![];
         for validator_index in &self.validator_index {
-            bls_to_execution_request.validator_index = *validator_index;
-            let message = bls_to_execution_request.generate_bls_to_execution_change_hash()?;
+            blsToExecutionRequest.validator_index = *validator_index;
+            let message = blsToExecutionRequest.generate_bls_to_execution_change_hash()?;
 
-            let signature = keystore.bls_sign_specified_alg(
-                Vec::from_hex_auto(&message)?.as_slice(),
-                "m/12381/3600/0/0",
+            let signature = keystore.sign_specified_hash(
+                hex::decode(message)?.as_slice(),
+                "ETHEREUM2",
+                self.from_bls_pub_key.as_str(),
+                None,
                 "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_",
             )?;
-            let bls_to_execution_change_message = BlsToExecutionChangeMessage {
+            let blsToExecutionChangeMessage = BlsToExecutionChangeMessage {
                 validator_index: *validator_index,
                 from_bls_pubkey: self.from_bls_pub_key.to_string(),
                 to_execution_address: self.eth1_withdrawal_address.to_string(),
             };
-            signeds.push(SignedBlsToExecutionChange {
-                message: Some(bls_to_execution_change_message),
-                signature: signature.to_hex(),
-            });
+            let signedBlsToExecutionChange = SignedBlsToExecutionChange {
+                message: Some(blsToExecutionChangeMessage),
+                signature: hex::encode(signature),
+            };
+            signeds.push(signedBlsToExecutionChange);
         }
 
-        Ok(SignBlsToExecutionChangeResult { signeds })
+        let signBlsToExecutionChangeResult = SignBlsToExecutionChangeResult { signeds };
+        Ok(signBlsToExecutionChangeResult)
     }
 }
 
@@ -56,8 +62,8 @@ fn is_valid_address(address: &str) -> Result<bool> {
         return Ok(false);
     }
 
-    let eth_addr_regex = Regex::new(r"^(0x)?[0-9a-fA-F]{40}$").unwrap();
-    if !eth_addr_regex.is_match(address.as_ref()) {
+    let ethAddrRegex = Regex::new(r"^(0x)?[0-9a-fA-F]{40}$").unwrap();
+    if !ethAddrRegex.is_match(address.as_ref()) {
         return Ok(false);
     }
 
@@ -65,7 +71,7 @@ fn is_valid_address(address: &str) -> Result<bool> {
     let lower_address_bytes = address_temp.to_lowercase();
     let mut hash = [0u8; 32];
     keccak_hash::keccak_256(lower_address_bytes.as_bytes(), &mut hash);
-    let hash_str = hash.to_hex();
+    let hash_str = hex::encode(hash);
 
     for (i, c) in address_temp.chars().enumerate() {
         let char_int = u8::from_str_radix(&hash_str.chars().nth(i).unwrap().to_string(), 16)?;

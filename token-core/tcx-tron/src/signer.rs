@@ -1,6 +1,6 @@
 use crate::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
-use tcx_keystore::{
-    Keystore, MessageSigner as TraitMessageSigner, Result, SignatureParameters, Signer,
+use tcx_chain::{
+    ChainSigner, Keystore, MessageSigner as TraitMessageSigner, Result,
     TransactionSigner as TraitTransactionSigner,
 };
 
@@ -8,7 +8,8 @@ use bitcoin_hashes::sha256::Hash;
 use bitcoin_hashes::Hash as TraitHash;
 
 use failure::format_err;
-use tcx_common::{keccak256, utf8_or_hex_to_bytes, FromHex, ToHex};
+
+use crate::keccak;
 
 // http://jsoneditoronline.org/index.html?id=2b86a8503ba641bebed73f32b4ac9c42
 //{
@@ -43,18 +44,19 @@ use tcx_common::{keccak256, utf8_or_hex_to_bytes, FromHex, ToHex};
 impl TraitTransactionSigner<TronTxInput, TronTxOutput> for Keystore {
     fn sign_transaction(
         &mut self,
-        sign_context: &SignatureParameters,
+        symbol: &str,
+        address: &str,
         tx: &TronTxInput,
     ) -> Result<TronTxOutput> {
-        let data = Vec::from_hex(&tx.raw_data)?;
+        //        let mut raw = tx.raw.clone();
+        let data = hex::decode(&tx.raw_data)?;
         let hash = Hash::hash(&data);
 
-        let sign_result =
-            self.secp256k1_ecdsa_sign_recoverable(&hash[..], &sign_context.derivation_path);
+        let sign_result = self.sign_recoverable_hash(&hash[..], symbol, address, None);
 
         match sign_result {
             Ok(r) => Ok(TronTxOutput {
-                signatures: vec![r.to_hex()],
+                signatures: vec![hex::encode(r)],
             }),
             Err(_e) => Err(format_err!("{}", "can not format error")),
         }
@@ -64,23 +66,31 @@ impl TraitTransactionSigner<TronTxInput, TronTxOutput> for Keystore {
 impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
     fn sign_message(
         &mut self,
-        sign_context: &SignatureParameters,
+        symbol: &str,
+        address: &str,
         message: &TronMessageInput,
     ) -> Result<TronMessageOutput> {
-        let data = utf8_or_hex_to_bytes(&message.value)?;
-
+        let data = match message.is_hex {
+            true => {
+                let mut raw_hex: String = message.value.to_owned();
+                if raw_hex.to_uppercase().starts_with("0X") {
+                    raw_hex.replace_range(..2, "")
+                }
+                hex::decode(&raw_hex)?
+            }
+            false => message.value.as_bytes().to_vec(),
+        };
         let header = match message.is_tron_header {
             true => "\x19TRON Signed Message:\n32".as_bytes(),
             false => "\x19Ethereum Signed Message:\n32".as_bytes(),
         };
         let to_hash = [header, &data].concat();
 
-        let hash = keccak256(&to_hash);
-        let mut sign_result =
-            self.secp256k1_ecdsa_sign_recoverable(&hash[..], &sign_context.derivation_path)?;
-        sign_result[64] += 27;
+        let hash = keccak(&to_hash);
+        let mut sign_result = self.sign_recoverable_hash(&hash[..], symbol, address, None)?;
+        sign_result[64] = sign_result[64] + 27;
         Ok(TronMessageOutput {
-            signature: sign_result.to_0x_hex(),
+            signature: hex::encode(sign_result),
         })
     }
 }
@@ -88,8 +98,11 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
-    use tcx_keystore::{HdKeystore, Keystore, KeystoreGuard, Metadata};
+    use crate::address::Address;
+
+    use tcx_chain::{HdKeystore, Keystore, KeystoreGuard, Metadata};
+    use tcx_constants::{CoinInfo, TEST_PASSWORD};
+    use tcx_constants::{CurveType, TEST_MNEMONIC};
     use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
 
     #[test]
@@ -129,22 +142,24 @@ mod tests {
         let meta = Metadata::default();
         let mut keystore =
             Keystore::Hd(HdKeystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, meta).unwrap());
+
+        let coin_info = CoinInfo {
+            coin: "TRON".to_string(),
+            derivation_path: "m/44'/145'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        };
         let mut guard = KeystoreGuard::unlock_by_password(&mut keystore, TEST_PASSWORD).unwrap();
+
         let ks = guard.keystore_mut();
 
-        let mut sign_context = SignatureParameters {
-            curve: CurveType::SECP256k1,
-            derivation_path: "m/44'/145'/0'/0/0".to_string(),
-            chain_type: "TRON".to_string(),
-            ..Default::default()
-        };
-        let signed_tx: TronTxOutput = ks.sign_transaction(&sign_context, &tx)?;
+        let account = ks.derive_coin::<Address>(&coin_info).unwrap().clone();
+
+        let signed_tx: TronTxOutput = ks.sign_transaction("TRON", &account.address, &tx)?;
 
         assert_eq!(signed_tx.signatures[0], "beac4045c3ea5136b541a3d5ec2a3e5836d94f28a1371440a01258808612bc161b5417e6f5a342451303cda840f7e21bfaba1011fad5f63538cb8cc132a9768800");
 
-        sign_context.derivation_path = "".to_string();
-        let signed_tx = ks.sign_transaction(&sign_context, &tx);
-        assert_eq!(signed_tx.err().unwrap().to_string(), "can not format error");
         Ok(())
     }
 
@@ -154,14 +169,14 @@ mod tests {
             Secp256k1PrivateKey::from_wif("L2hfzPyVC1jWH7n2QLTe7tVTb6btg9smp5UVzhEBxLYaSFF7sCZB")
                 .unwrap();
         let message =
-            Vec::from_hex("645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76")
+            hex::decode("645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76")
                 .unwrap();
         let header = "\x19TRON Signed Message:\n32".as_bytes();
         let to_signed = [header.to_vec(), message].concat();
 
-        let hash = keccak256(&to_signed);
+        let hash = keccak(&to_signed);
         let mut signed = sk.sign_recoverable(&hash).unwrap();
         signed[64] = signed[64] + 27;
-        assert_eq!("7209610445e867cf2a36ea301bb5d1fbc3da597fd2ce4bb7fa64796fbf0620a4175e9f841cbf60d12c26737797217c0082fdb3caa8e44079e04ec3f93e86bbea1c", signed.to_hex())
+        assert_eq!("7209610445e867cf2a36ea301bb5d1fbc3da597fd2ce4bb7fa64796fbf0620a4175e9f841cbf60d12c26737797217c0082fdb3caa8e44079e04ec3f93e86bbea1c", hex::encode(&signed))
     }
 }

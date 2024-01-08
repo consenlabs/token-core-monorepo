@@ -714,7 +714,7 @@ $root.api = (function() {
         /**
          * Constructs a new ExportPrivateKeyParam.
          * @memberof api
-         * @classdesc export the private key from a private key fixtures or a hd fixtures
+         * @classdesc export the private key from a private key keystore or a hd keystore
          * @implements IExportPrivateKeyParam
          * @constructor
          * @param {api.IExportPrivateKeyParam=} [properties] Properties to set
@@ -1008,7 +1008,7 @@ $root.api = (function() {
         /**
          * Constructs a new WalletKeyParam.
          * @memberof api
-         * @classdesc verify the password of the fixtures
+         * @classdesc verify the password of the keystore
          * @implements IWalletKeyParam
          * @constructor
          * @param {api.IWalletKeyParam=} [properties] Properties to set

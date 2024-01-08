@@ -27,10 +27,12 @@ impl TsmService for CosCheckUpdateRequest {
     type ReturnData = ServiceResponse<CosCheckUpdateResponse>;
 
     fn send_message(&mut self) -> Result<ServiceResponse<CosCheckUpdateResponse>> {
+        // println!("send message：{:#?}", self);
         let req_data = serde_json::to_vec_pretty(&self).unwrap();
         let response_data = https::post(constants::TSM_ACTION_COS_CHECK_UPDATE, req_data)?;
         let return_bean: ServiceResponse<CosCheckUpdateResponse> =
             serde_json::from_str(response_data.as_str())?;
+        // println!("return message：{:#?}", return_bean);
         match return_bean.service_res_check() {
             Ok(()) => Ok(return_bean),
             Err(e) => Err(e),
@@ -41,8 +43,8 @@ impl TsmService for CosCheckUpdateRequest {
 impl CosCheckUpdateRequest {
     pub fn build_request_data(seid: String, cos_version: String) -> Self {
         CosCheckUpdateRequest {
-            seid,
-            cos_version,
+            seid: seid,
+            cos_version: cos_version,
             command_id: String::from(constants::TSM_ACTION_COS_CHECK_UPDATE),
         }
     }

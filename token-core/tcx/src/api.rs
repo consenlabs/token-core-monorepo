@@ -14,7 +14,7 @@ pub struct TcxAction {
 /// A common response when error occurred.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GeneralResult {
+pub struct Response {
     #[prost(bool, tag = "1")]
     pub is_success: bool,
     #[prost(string, tag = "2")]
@@ -35,95 +35,8 @@ pub struct InitTokenCoreXParam {
     #[prost(bool, tag = "4")]
     pub is_debug: bool,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SignHashesParam {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag = "3")]
-    pub data_to_sign: ::prost::alloc::vec::Vec<sign_hashes_param::DataToSign>,
-}
-/// Nested message and enum types in `SignHashesParam`.
-pub mod sign_hashes_param {
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct DataToSign {
-        #[prost(string, tag = "1")]
-        pub hash: ::prost::alloc::string::String,
-        #[prost(string, tag = "2")]
-        pub path: ::prost::alloc::string::String,
-        #[prost(string, tag = "3")]
-        pub curve: ::prost::alloc::string::String,
-        #[prost(string, tag = "4")]
-        pub sig_alg: ::prost::alloc::string::String,
-    }
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SignHashesResult {
-    #[prost(string, repeated, tag = "1")]
-    pub signatures: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SignParamPoc {
-    #[prost(string, tag = "3")]
-    pub hash: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub derivation_path: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SignResultPoc {
-    #[prost(string, tag = "1")]
-    pub signature: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct PublicKeyDerivation {
-    #[prost(string, tag = "1")]
-    pub chain_type: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub path: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub curve: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetPublicKeysParam {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag = "3")]
-    pub derivations: ::prost::alloc::vec::Vec<PublicKeyDerivation>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetPublicKeysResult {
-    #[prost(string, repeated, tag = "1")]
-    pub public_keys: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetExtendedPublicKeysParam {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(message, repeated, tag = "3")]
-    pub derivations: ::prost::alloc::vec::Vec<PublicKeyDerivation>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetExtendedPublicKeysResult {
-    #[prost(string, repeated, tag = "1")]
-    pub extended_public_keys: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-}
 ///
-/// // FUNCTION: export_private_key(ExportPrivateKeyParam): ExportResult
+/// // FUNCTION: export_private_key(ExportPrivateKeyParam): KeystoreCommonExportResult
 /// //
 /// // export the private key from a private key keystore or a hd keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -138,30 +51,14 @@ pub struct ExportPrivateKeyParam {
     #[prost(string, tag = "4")]
     pub network: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
-    pub curve: ::prost::alloc::string::String,
+    pub main_address: ::prost::alloc::string::String,
     #[prost(string, tag = "6")]
-    pub path: ::prost::alloc::string::String,
-}
-///
-/// // FUNCTION: export_private_key(ExportPrivateKeyParam): ExportResult
-/// //
-/// // export the private key from a private key keystore or a hd keystore
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExportJsonParam {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub chain_type: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
     pub path: ::prost::alloc::string::String,
 }
 ///
 /// /// Keystore Common
 ///
-/// // FUNCTION: verify_password(WalletKeyParam) -> Response
+/// // FUNCTION: keystore_common_verify(WalletKeyParam) -> Response
 /// //
 /// // verify the password of the keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -210,59 +107,45 @@ pub struct ZksyncPrivateKeyToPubkeyHashResult {
     #[prost(string, tag = "1")]
     pub pub_key_hash: ::prost::alloc::string::String,
 }
-/// FUNCTION: create_keystore(CreateKeystoreParam): KeystoreResult
+/// FUNCTION: hd_store_create(HdStoreCreateParam): WalletResult
 ///
 /// create a new hd keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CreateKeystoreParam {
+pub struct HdStoreCreateParam {
     #[prost(string, tag = "1")]
     pub password: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub password_hint: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub name: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub network: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct IdentityResult {
-    #[prost(string, tag = "1")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub ipfs_id: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct KeystoreResult {
+pub struct WalletResult {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub name: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub ipfs_id: ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
     pub source: ::prost::alloc::string::String,
-    #[prost(int64, tag = "6")]
+    #[prost(message, repeated, tag = "4")]
+    pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
+    #[prost(int64, tag = "5")]
     pub created_at: i64,
-    #[prost(string, tag = "7")]
-    pub source_finger_print: ::prost::alloc::string::String,
 }
-/// FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
+/// FUNCTION: hd_store_import(HdStoreImportParam): WalletResult
 ///
 /// create a new hd keystore by mnemonic
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ImportMnemonicParam {
+pub struct HdStoreImportParam {
     #[prost(string, tag = "1")]
     pub mnemonic: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub network: ::prost::alloc::string::String,
+    pub source: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
     pub name: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
@@ -270,44 +153,21 @@ pub struct ImportMnemonicParam {
     #[prost(bool, tag = "6")]
     pub overwrite: bool,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ImportPrivateKeyResult {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub name: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub ipfs_id: ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
-    pub source: ::prost::alloc::string::String,
-    #[prost(int64, tag = "6")]
-    pub created_at: i64,
-    #[prost(string, repeated, tag = "7")]
-    pub suggest_chain_types: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    #[prost(string, tag = "8")]
-    pub suggest_network: ::prost::alloc::string::String,
-    #[prost(string, tag = "9")]
-    pub suggest_curve: ::prost::alloc::string::String,
-    #[prost(string, tag = "10")]
-    pub source_finger_print: ::prost::alloc::string::String,
-}
+/// FUNCTION: hd_store_derive(HdStoreDeriveParam): AccountsResponse
 ///
 /// derive new accounts from a hd keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DeriveAccountsParam {
+pub struct KeystoreCommonDeriveParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
     #[prost(message, repeated, tag = "3")]
-    pub derivations: ::prost::alloc::vec::Vec<derive_accounts_param::Derivation>,
+    pub derivations: ::prost::alloc::vec::Vec<keystore_common_derive_param::Derivation>,
 }
-/// Nested message and enum types in `DeriveAccountsParam`.
-pub mod derive_accounts_param {
+/// Nested message and enum types in `KeystoreCommonDeriveParam`.
+pub mod keystore_common_derive_param {
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Derivation {
@@ -323,8 +183,6 @@ pub mod derive_accounts_param {
         pub chain_id: ::prost::alloc::string::String,
         #[prost(string, tag = "6")]
         pub curve: ::prost::alloc::string::String,
-        #[prost(string, tag = "7")]
-        pub bech32_prefix: ::prost::alloc::string::String,
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -337,51 +195,33 @@ pub struct AccountResponse {
     #[prost(string, tag = "3")]
     pub path: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
-    pub curve: ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
-    pub public_key: ::prost::alloc::string::String,
-    #[prost(string, tag = "6")]
-    pub extended_public_key: ::prost::alloc::string::String,
-    #[prost(string, tag = "7")]
-    pub encrypted_extended_public_key: ::prost::alloc::string::String,
+    pub extended_xpub_key: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DeriveAccountsResult {
+pub struct AccountsResponse {
     #[prost(message, repeated, tag = "1")]
     pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
 }
+/// FUNCTION: hd_store_export(KeystoreCommonExportResult): KeystoreCommonExistsResult
+///
 /// export the mnemonic from a hd keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExportMnemonicResult {
+pub struct KeystoreCommonExportResult {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub mnemonic: ::prost::alloc::string::String,
+    #[prost(enumeration = "KeyType", tag = "2")]
+    pub r#type: i32,
+    #[prost(string, tag = "3")]
+    pub value: ::prost::alloc::string::String,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExportPrivateKeyResult {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub private_key: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExportJsonResult {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub json: ::prost::alloc::string::String,
-}
-/// FUNCTION: import_private_key(ImportPrivateKeyParam): KeystoreResult
+/// FUNCTION: private_key_store_import(PrivateKeyStoreImportParam): WalletResult
 ///
 /// create a new private key keystore by a private key
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ImportPrivateKeyParam {
+pub struct PrivateKeyStoreImportParam {
     #[prost(string, tag = "1")]
     pub private_key: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
@@ -392,44 +232,53 @@ pub struct ImportPrivateKeyParam {
     pub password_hint: ::prost::alloc::string::String,
     #[prost(bool, tag = "5")]
     pub overwrite: bool,
+    #[prost(string, tag = "6")]
+    pub encoding: ::prost::alloc::string::String,
 }
+/// FUNCTION: private_key_store_export(PrivateKeyStoreExportParam): KeystoreCommonExportResult
+///
+/// export the private key from a private key keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExistsMnemonicParam {
+pub struct PrivateKeyStoreExportParam {
     #[prost(string, tag = "1")]
-    pub mnemonic: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExistsPrivateKeyParam {
-    #[prost(string, tag = "1")]
-    pub private_key: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExistsJsonParam {
-    #[prost(string, tag = "1")]
-    pub json: ::prost::alloc::string::String,
+    pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub password: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub chain_type: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub network: ::prost::alloc::string::String,
+}
+/// FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): KeystoreCommonExistsResult
+///
+/// Check is there a keystore was generate by the special privateKey or mnemonic
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct KeystoreCommonExistsParam {
+    #[prost(enumeration = "KeyType", tag = "1")]
+    pub r#type: i32,
+    #[prost(string, tag = "2")]
+    pub value: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub encoding: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExistsKeystoreResult {
+pub struct KeystoreCommonExistsResult {
     #[prost(bool, tag = "1")]
     pub is_exists: bool,
     #[prost(string, tag = "2")]
     pub id: ::prost::alloc::string::String,
 }
+/// FUNCTION: keystore_common_accounts(KeystoreCommonAccountsParam): AccountsResponse
+///
+/// List all accounts from the keystore
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ImportJsonParam {
+pub struct KeystoreCommonAccountsParam {
     #[prost(string, tag = "1")]
-    pub json: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(bool, tag = "3")]
-    pub overwrite: bool,
+    pub id: ::prost::alloc::string::String,
 }
 /// FUNCTION: sign_tx(SignParam)
 ///
@@ -443,14 +292,8 @@ pub struct SignParam {
     #[prost(string, tag = "4")]
     pub chain_type: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
-    pub path: ::prost::alloc::string::String,
-    #[prost(string, tag = "6")]
-    pub curve: ::prost::alloc::string::String,
-    #[prost(string, tag = "7")]
-    pub network: ::prost::alloc::string::String,
-    #[prost(string, tag = "8")]
-    pub seg_wit: ::prost::alloc::string::String,
-    #[prost(message, optional, tag = "9")]
+    pub address: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "6")]
     pub input: ::core::option::Option<::prost_types::Any>,
     #[prost(oneof = "sign_param::Key", tags = "2, 3")]
     pub key: ::core::option::Option<sign_param::Key>,
@@ -466,113 +309,122 @@ pub mod sign_param {
         DerivedKey(::prost::alloc::string::String),
     }
 }
+/// btc-fork
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DeriveSubAccountsParam {
+pub struct ExternalAddressParam {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub chain_type: ::prost::alloc::string::String,
+    #[prost(uint32, tag = "3")]
+    pub external_idx: u32,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExternalAddressResult {
+    #[prost(string, tag = "1")]
+    pub address: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub derived_path: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub r#type: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExternalAddressExtra {
+    #[prost(string, tag = "1")]
+    pub enc_xpub: ::prost::alloc::string::String,
+    #[prost(message, optional, tag = "2")]
+    pub external_address: ::core::option::Option<external_address_extra::ExternalAddress>,
+}
+/// Nested message and enum types in `ExternalAddressExtra`.
+pub mod external_address_extra {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct ExternalAddress {
+        #[prost(string, tag = "1")]
+        pub address: ::prost::alloc::string::String,
+        #[prost(string, tag = "2")]
+        pub derived_path: ::prost::alloc::string::String,
+        #[prost(string, tag = "3")]
+        pub r#type: ::prost::alloc::string::String,
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BtcForkDeriveExtraParam {
+    #[prost(string, tag = "1")]
+    pub network: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub seg_wit: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HdStoreExtendedPublicKeyParam {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub password: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub chain_type: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub address: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct HdStoreExtendedPublicKeyResponse {
+    #[prost(string, tag = "1")]
+    pub extended_public_key: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PublicKeyParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub chain_type: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub curve: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub network: ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
-    pub seg_wit: ::prost::alloc::string::String,
-    #[prost(string, repeated, tag = "6")]
-    pub relative_paths: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
-    #[prost(string, tag = "7")]
-    pub extended_public_key: ::prost::alloc::string::String,
+    pub address: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DeriveSubAccountsResult {
-    #[prost(message, repeated, tag = "1")]
-    pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RemoveWalletParam {
+pub struct PublicKeyResult {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RemoveWalletResult {
-    #[prost(bool, tag = "1")]
-    pub is_success: bool,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EncryptDataToIpfsParam {
-    #[prost(string, tag = "1")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub content: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EncryptDataToIpfsResult {
-    #[prost(string, tag = "1")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub encrypted: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DecryptDataFromIpfsParam {
-    #[prost(string, tag = "1")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub encrypted: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DecryptDataFromIpfsResult {
-    #[prost(string, tag = "1")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub content: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SignAuthenticationMessageParam {
-    #[prost(uint64, tag = "1")]
-    pub access_time: u64,
-    #[prost(string, tag = "2")]
-    pub identifier: ::prost::alloc::string::String,
+    pub chain_type: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
-    pub device_token: ::prost::alloc::string::String,
+    pub address: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
-    pub password: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct SignAuthenticationMessageResult {
-    #[prost(uint64, tag = "1")]
-    pub access_time: u64,
-    #[prost(string, tag = "2")]
-    pub signature: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MnemonicToPublicKeyParam {
-    #[prost(string, tag = "1")]
-    pub mnemonic: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub path: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub curve: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub encoding: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct MnemonicToPublicKeyResult {
-    #[prost(string, tag = "1")]
     pub public_key: ::prost::alloc::string::String,
+}
+/// only support two types
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum KeyType {
+    Mnemonic = 0,
+    PrivateKey = 1,
+}
+impl KeyType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            KeyType::Mnemonic => "MNEMONIC",
+            KeyType::PrivateKey => "PRIVATE_KEY",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "MNEMONIC" => Some(Self::Mnemonic),
+            "PRIVATE_KEY" => Some(Self::PrivateKey),
+            _ => None,
+        }
+    }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -611,16 +463,4 @@ pub struct WalletId {
 pub struct BiometricModeResult {
     #[prost(string, tag = "1")]
     pub mode: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct KeystoreMigrationParam {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub tcx_id: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub password: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub derived_key: ::prost::alloc::string::String,
 }

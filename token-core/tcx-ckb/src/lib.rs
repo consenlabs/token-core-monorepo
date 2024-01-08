@@ -9,6 +9,7 @@ use failure::Fail;
 
 pub use address::CkbAddress;
 pub use serializer::Serializer;
+use tcx_chain::Result;
 pub use transaction::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
 
 #[derive(Fail, Debug, PartialEq)]
@@ -46,10 +47,27 @@ pub enum Error {
     #[fail(display = "invalid_hex_value")]
     InvalidHexValue,
 }
-pub mod nervos {
-    pub const CHAINS: [&str; 1] = ["NERVOS"];
 
-    pub type Address = crate::address::CkbAddress;
-    pub type TransactionInput = crate::transaction::CkbTxInput;
-    pub type TransactionOutput = crate::transaction::CkbTxOutput;
+pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
+    let result = if value.starts_with("0x") || value.starts_with("0X") {
+        hex::decode(&value[2..])
+    } else {
+        hex::decode(&value[..])
+    };
+
+    result.map_err(|_| Error::InvalidHexValue.into())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::hex_to_bytes;
+
+    #[test]
+    pub fn hex_convert() {
+        let v: Vec<u8> = vec![];
+        assert_eq!(v, hex_to_bytes("0x").unwrap());
+        assert_eq!(vec![0x01], hex_to_bytes("0x01").unwrap());
+        assert_eq!(vec![0x02], hex_to_bytes("0x02").unwrap());
+        assert_eq!(vec![0x02, 0x11], hex_to_bytes("0x0211").unwrap());
+    }
 }

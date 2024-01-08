@@ -1,8 +1,10 @@
 pub mod aes;
 pub mod crypto;
+pub mod hash;
+pub mod numberic_util;
 
 use core::result;
-pub use crypto::{Crypto, EncPair, KdfParams, Key, Pbkdf2Params, SCryptParams};
+pub use crypto::{Crypto, EncPair, Key, Pbkdf2Params};
 use parking_lot::RwLock;
 
 #[macro_use]

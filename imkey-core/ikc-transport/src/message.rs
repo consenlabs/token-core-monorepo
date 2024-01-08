@@ -158,15 +158,15 @@ pub fn send_apdu_timeout(apdu: String, timeout: i32) -> Result<String> {
 
 #[test]
 fn test_rwlock() {
-    let r1 = TEST.read();
+    let r1 = TEST.read().unwrap();
     println!("test:{}", *r1);
 
-    let r2 = TEST.read();
+    let r2 = TEST.read().unwrap();
     println!("test:{}", *r2);
     drop(r1);
     drop(r2);
 
-    let mut w = TEST.write();
+    let mut w = TEST.write().unwrap();
     *w = "haha".to_string();
     println!("test:{}", *w);
     drop(w);
@@ -174,7 +174,7 @@ fn test_rwlock() {
 
 #[test]
 fn test_callback() {
-    let callback = CALLBACK.lock();
+    let callback = CALLBACK.lock().unwrap();
     let ptr = callback(
         CString::new("00A4040000".to_owned()).unwrap().into_raw(),
         20,

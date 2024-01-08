@@ -14,7 +14,7 @@ use ikc_common::{constants, utility, SignParam};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use lazy_static::lazy_static;
-use secp256k1::ecdsa::Signature;
+use secp256k1::Signature;
 
 pub struct CkbSigner {}
 
@@ -70,7 +70,7 @@ impl<'a> CkbTxSigner<'a> {
         &mut self,
         tx_hash: &[u8],
         witness_group: &[&Witness],
-        _path: &str,
+        path: &str,
     ) -> Result<Witness> {
         if witness_group.len() == 0 {
             return Err(Error::WitnessGroupEmpty.into());
@@ -269,7 +269,8 @@ impl CkbSigner {
 
 #[cfg(test)]
 mod tests {
-    use crate::nervosapi::{CachedCell, CkbTxInput, OutPoint, Witness};
+    use crate::address::CkbAddress;
+    use crate::nervosapi::{CachedCell, CkbTxInput, CkbTxOutput, OutPoint, Witness};
     use crate::signer::CkbSigner;
     use crate::{CellInput, Script};
     use ikc_common::{constants, SignParam};
