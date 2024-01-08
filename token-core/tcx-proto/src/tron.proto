@@ -21,8 +21,7 @@ message TronTxOutput {
 // build the `TronMessageInput` and put it in the `input` field
 message TronMessageInput {
     string value = 1;
-    bool isHex = 2;
-    bool isTronHeader = 3;
+    bool isTronHeader = 2;
 }
 
 message TronMessageOutput {

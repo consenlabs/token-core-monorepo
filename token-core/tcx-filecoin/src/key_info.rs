@@ -1,16 +1,16 @@
 use serde::{Deserialize, Serialize};
-use tcx_chain::Result;
 use tcx_constants::CurveType;
+use tcx_keystore::Result;
 
 use super::Error;
 
 #[derive(Deserialize, Serialize, Debug)]
 pub struct KeyInfo {
     #[serde(rename = "Type")]
-    r#type: String,
+    pub r#type: String,
 
     #[serde(rename = "PrivateKey")]
-    private_key: String,
+    pub private_key: String,
 }
 
 impl KeyInfo {
@@ -25,6 +25,7 @@ impl KeyInfo {
                 private_key: base64::encode(private_key),
             }),
             CurveType::BLS => Ok(KeyInfo {
+                // !!! Filecoin use "bls" string as type in json
                 r#type: "bls".to_string(),
                 private_key: base64::encode(private_key),
             }),
@@ -44,30 +45,58 @@ impl KeyInfo {
 #[cfg(test)]
 mod tests {
     use super::KeyInfo;
+    use crate::Error;
+    use tcx_common::{FromHex, ToHex};
     use tcx_constants::CurveType;
 
     #[test]
     fn test_import_and_export() {
         let raw_private_key = "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a22437544586b6b4b46773549656d55685a545173514369534e6d6a327062545052495439514f736c587846733d227d";
-        let key_info = KeyInfo::from_lotus(&hex::decode(raw_private_key).unwrap()).unwrap();
+        let key_info = KeyInfo::from_lotus(&Vec::from_hex(raw_private_key).unwrap()).unwrap();
         assert_eq!(key_info.r#type, "secp256k1");
         assert_eq!(
-            hex::encode(key_info.decode_private_key().unwrap()),
+            key_info.decode_private_key().unwrap().to_hex(),
             "0ae0d7924285c3921e9948594d0b100a248d9a3da96d33d1213f503ac957c45b"
         );
 
-        assert_eq!(hex::encode(key_info.to_json().unwrap()), raw_private_key);
+        assert_eq!(key_info.to_json().unwrap().to_hex(), raw_private_key);
     }
 
     #[test]
-    fn test_from_private_key() {
+    fn test_from_private_key_secp256k1() {
         let key_info = KeyInfo::from_private_key(
             CurveType::SECP256k1,
-            &hex::decode("0ae0d7924285c3921e9948594d0b100a248d9a3da96d33d1213f503ac957c45b")
+            &Vec::from_hex("0ae0d7924285c3921e9948594d0b100a248d9a3da96d33d1213f503ac957c45b")
                 .unwrap(),
         )
         .unwrap();
 
-        assert_eq!(hex::encode(key_info.to_json().unwrap()), "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a22437544586b6b4b46773549656d55685a545173514369534e6d6a327062545052495439514f736c587846733d227d");
+        assert_eq!(key_info.to_json().unwrap().to_hex(), "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a22437544586b6b4b46773549656d55685a545173514369534e6d6a327062545052495439514f736c587846733d227d");
+    }
+
+    #[test]
+    fn test_from_private_key_bls() {
+        let key_info = KeyInfo::from_private_key(
+            CurveType::BLS,
+            &Vec::from_hex("0ae0d7924285c3921e9948594d0b100a248d9a3da96d33d1213f503ac957c45b")
+                .unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(key_info.to_json().unwrap().to_hex(), "7b2254797065223a22626c73222c22507269766174654b6579223a22437544586b6b4b46773549656d55685a545173514369534e6d6a327062545052495439514f736c587846733d227d");
+    }
+
+    #[test]
+    fn test_from_private_key_invalid_curve_type() {
+        let actual = KeyInfo::from_private_key(
+            CurveType::ED25519Blake2bNano,
+            &Vec::from_hex("0ae0d7924285c3921e9948594d0b100a248d9a3da96d33d1213f503ac957c45b")
+                .unwrap(),
+        );
+
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            Error::InvalidCurveType.to_string()
+        );
     }
 }

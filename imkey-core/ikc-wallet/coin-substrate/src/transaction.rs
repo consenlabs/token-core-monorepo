@@ -1,4 +1,3 @@
-use crate::address::AddressType;
 use crate::substrateapi::{SubstrateRawTxIn, SubstrateTxOut};
 use crate::{Result, PAYLOAD_HASH_THRESHOLD, SIGNATURE_TYPE_ED25519};
 use ikc_common::apdu::{Apdu, ApduCheck, Ed25519Apdu};
@@ -113,10 +112,8 @@ mod test {
     use ikc_common::constants::{KUSAMA_PATH, POLKADOT_PATH};
     use ikc_common::SignParam;
     use ikc_device::device_binding::bind_test;
-    use sp_core::crypto::Ss58Codec;
     use sp_core::ed25519::Pair;
-    use sp_core::{ByteArray, Pair as TraitPair, Public};
-    use sp_runtime::traits::Verify;
+    use sp_core::{ByteArray, Pair as TraitPair};
 
     #[test]
     fn test_sign_transaction() {

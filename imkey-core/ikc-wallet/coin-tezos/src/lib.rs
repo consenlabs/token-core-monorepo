@@ -2,7 +2,7 @@ pub mod address;
 pub mod tezosapi;
 pub mod transaction;
 use core::result;
-#[macro_use]
+// #[macro_use]
 extern crate failure;
 pub type Result<T> = result::Result<T, failure::Error>;
 

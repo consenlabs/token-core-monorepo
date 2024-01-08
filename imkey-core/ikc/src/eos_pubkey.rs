@@ -1,9 +1,8 @@
 use crate::api::eos_wallet::PubKeyInfo;
-use crate::api::{EosWallet, PubKeyParam, PubKeyResult};
+use crate::api::{EosWallet, PubKeyParam};
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use coin_eos::pubkey::EosPubkey;
-use prost::Message;
 
 pub fn display_eos_pubkey(param: &PubKeyParam) -> Result<Vec<u8>> {
     let eos_pubkey = EosPubkey::display_pubkey(&param.path)?;

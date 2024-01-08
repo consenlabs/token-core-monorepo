@@ -82,7 +82,7 @@ pub unsafe extern "C" fn imkey_free_const_string(s: *const c_char) {
     if s.is_null() {
         return;
     }
-    CStr::from_ptr(s);
+    let _ = CStr::from_ptr(s);
 }
 
 /// dispatch protobuf rpc call
@@ -307,20 +307,12 @@ pub unsafe extern "C" fn imkey_get_last_err_message() -> *const c_char {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use error_handling::Result;
-    use std::ffi::{CStr, CString};
-    use std::fs::remove_file;
-    use std::os::raw::c_char;
-    use std::panic;
-    use std::path::Path;
-
-    use prost::Message;
-
     use crate::api::CommonResponse;
     use ikc_device::device_binding::DeviceManage;
-    use ikc_device::deviceapi::{AppDownloadReq, BindAcquireReq};
     use ikc_transport::hid_api::hid_connect;
-    use std::fs;
+    use prost::Message;
+    use std::ffi::{CStr, CString};
+    use std::os::raw::c_char;
 
     fn _to_c_char(str: &str) -> *const c_char {
         CString::new(str).unwrap().into_raw()
@@ -330,36 +322,6 @@ mod tests {
         let json_c_str = unsafe { CStr::from_ptr(json_str) };
         json_c_str.to_str().unwrap()
     }
-
-    fn teardown() {
-        let p = Path::new("/tmp/imtoken/wallets");
-        let walk_dir = std::fs::read_dir(p).expect("read dir");
-        for entry in walk_dir {
-            let entry = entry.expect("DirEntry");
-            let fp = entry.path();
-            if !fp
-                .file_name()
-                .expect("file_name")
-                .to_str()
-                .expect("file_name str")
-                .ends_with(".json")
-            {
-                continue;
-            }
-
-            remove_file(fp.as_path()).expect("should remove file");
-        }
-    }
-
-    // fn run_test<T>(test: T) -> ()
-    //     where
-    //         T: FnOnce() -> () + panic::UnwindSafe,
-    // {
-    //     setup();
-    //     let result = panic::catch_unwind(|| test());
-    //     teardown();
-    //     assert!(result.is_ok())
-    // }
 
     #[test]
     #[ignore]
@@ -405,7 +367,7 @@ mod tests {
             DeviceManage::bind_check(&"../test-data".to_string()).unwrap_or_default();
         // DeviceManage::bind_acquire(&"".to_string()).unwrap();
         // device::device_manager::app_delete("BCH");
-        device::device_manager::app_download("BTC");
+        // device::device_manager::app_download("BTC");
         let ret_hex = unsafe {
             _to_str(call_imkey_api(_to_c_char(&"0a077369676e5f747812e6030a10636f6d6d6f6e2e5369676e506172616d12d1030a0b424954434f494e4341534812116d2f3434272f313435272f30272f302f301a074d41494e4e455422b2020a19627463666f726b6170692e427463466f726b5478496e7075741294020a2a71707a36376763776139616738346c6a6d6d6e33753774636a6d39726b63326a66636a6b32717a66637510a08d061aaa010a4061346439666561373337636236633030326337613833666235383531613366373566306163646437626237663137373232633162323465653765306232336461100018c09a0c222a7171687979616a75323270637967783870683035716a6e787978616c686d65736b796371706d67786e302a323736613931343265343237363563353238333832323063373064646634303461363632316262666265663330623138386163320020c6032801322a7171687979616a75323270637967783870683035716a6e787978616c686d65736b796371706d67786e303a044e4f4e452a09302e30303120424348322a71707a36376763776139616738346c6a6d6d6e33753774636a6d39726b63326a66636a6b32717a6663753a2a7171687979616a75323270637967783870683035716a6e787978616c686d65736b796371706d67786e30420e302e303030303034353420424348")))
         };

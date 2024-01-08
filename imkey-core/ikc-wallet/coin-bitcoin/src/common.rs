@@ -8,7 +8,7 @@ use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
 use ikc_common::utility::sha256_hash;
 use ikc_transport::message::send_apdu;
-use secp256k1::{Message, PublicKey as Secp256k1PublicKey, Secp256k1, Signature};
+use secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use std::str::FromStr;
 
 /**
@@ -99,7 +99,9 @@ pub fn secp256k1_sign_verify(public: &[u8], signed: &[u8], message: &[u8]) -> Re
     let mut sig_obj = Signature::from_der(signed)?;
     sig_obj.normalize_s();
     //verify
-    Ok(secp.verify(&message_obj, &sig_obj, &public_obj).is_ok())
+    Ok(secp
+        .verify_ecdsa(&message_obj, &sig_obj, &public_obj)
+        .is_ok())
 }
 
 /**
@@ -135,7 +137,6 @@ pub struct TxSignResult {
 #[cfg(test)]
 mod test {
     use crate::common::get_address_version;
-    use crate::transaction::Utxo;
     use bitcoin::Network;
 
     #[test]

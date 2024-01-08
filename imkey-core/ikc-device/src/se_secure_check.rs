@@ -30,20 +30,18 @@ impl TsmService for SeSecureCheckRequest {
 
     fn send_message(&mut self) -> Result<()> {
         loop {
-            println!("send message：{:#?}", self);
             let req_data = serde_json::to_vec_pretty(&self).unwrap();
             let response_data = https::post(constants::TSM_ACTION_SE_SECURE_CHECK, req_data)?;
             let return_bean: ServiceResponse<SeSecureCheckResponse> =
                 serde_json::from_str(response_data.as_str())?;
-            println!("return message：{:#?}", return_bean);
-            if return_bean._ReturnCode == constants::TSM_RETURN_CODE_SUCCESS {
+            if return_bean.return_code == constants::TSM_RETURN_CODE_SUCCESS {
                 //check if end
-                let next_step_key = return_bean._ReturnData.next_step_key.unwrap();
+                let next_step_key = return_bean.return_data.next_step_key.unwrap();
                 if constants::TSM_END_FLAG.eq(next_step_key.as_str()) {
                     return Ok(());
                 }
 
-                match return_bean._ReturnData.apdu_list {
+                match return_bean.return_data.apdu_list {
                     Some(apdu_list) => {
                         let handle_result =
                             ServiceResponse::<SeSecureCheckResponse>::apdu_handle(apdu_list)?;
@@ -63,9 +61,9 @@ impl TsmService for SeSecureCheckRequest {
 impl SeSecureCheckRequest {
     pub fn build_request_data(seid: String, sn: String, device_cert: String) -> Self {
         SeSecureCheckRequest {
-            seid: seid,
-            sn: sn,
-            device_cert: device_cert,
+            seid,
+            sn,
+            device_cert,
             step_key: String::from("01"),
             status_word: None,
             command_id: String::from(constants::TSM_ACTION_SE_SECURE_CHECK),

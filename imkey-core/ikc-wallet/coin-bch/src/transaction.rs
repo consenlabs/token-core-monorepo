@@ -19,7 +19,7 @@ use ikc_common::path::check_path_validity;
 use ikc_common::utility::{bigint_to_byte_vec, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
-use secp256k1::Signature;
+use secp256k1::ecdsa::Signature;
 use std::str::FromStr;
 
 #[derive(Clone)]
@@ -189,7 +189,7 @@ impl BchTransaction {
             //lock script
             let pub_key_bytes = hex::decode(utxo_pub_key_vec.get(index).unwrap())?;
             let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).into_inner();
-            let script_hex = format!("76a914{}88ac", hex::encode(pub_key_hash));
+            let script_hex: String = format!("76a914{}88ac", hex::encode(pub_key_hash));
             // let script = Script::from(hex::decode(script_hex)?);
             let script = Script::from_hex(script_hex.as_str())?;
             let script_data = serialize(&script);

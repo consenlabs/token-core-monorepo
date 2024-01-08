@@ -3,14 +3,13 @@ use super::Result;
 use crate::constant::SECP256K1_ENGINE;
 use crate::ecc::{DeterministicPrivateKey, DeterministicPublicKey, KeyError};
 
-use crate::{Derive, FromHex, Secp256k1PrivateKey, Secp256k1PublicKey, Ss58Codec, ToHex};
-use bitcoin::util::key::PublicKey;
+use crate::{Derive, Secp256k1PrivateKey, Secp256k1PublicKey, Ss58Codec};
+use tcx_common::{FromHex, ToHex};
 
 use bitcoin::util::base58;
 use bitcoin::util::base58::Error::InvalidLength;
 use bitcoin::util::bip32::{
-    ChainCode, ChildNumber, Error as Bip32Error, Error, ExtendedPrivKey, ExtendedPubKey,
-    Fingerprint,
+    ChainCode, ChildNumber, Error as Bip32Error, ExtendedPrivKey, ExtendedPubKey, Fingerprint,
 };
 use bitcoin::Network;
 use byteorder::BigEndian;
@@ -18,8 +17,10 @@ use byteorder::ByteOrder;
 
 use bip39::{Language, Mnemonic};
 
+#[derive(Clone)]
 pub struct Bip32DeterministicPrivateKey(ExtendedPrivKey);
 
+#[derive(Clone)]
 pub struct Bip32DeterministicPublicKey(ExtendedPubKey);
 
 impl From<Bip32Error> for KeyError {
@@ -56,7 +57,7 @@ impl Bip32DeterministicPrivateKey {
 
 impl Derive for Bip32DeterministicPrivateKey {
     fn derive(&self, path: &str) -> Result<Self> {
-        let extended_key = self.0.clone();
+        let extended_key = self.0;
 
         let mut parts = path.split('/').peekable();
         if *parts.peek().unwrap() == "m" {
@@ -72,9 +73,15 @@ impl Derive for Bip32DeterministicPrivateKey {
     }
 }
 
+impl Bip32DeterministicPublicKey {
+    pub fn fingerprint(&self) -> Vec<u8> {
+        self.0.fingerprint().to_bytes().to_vec()
+    }
+}
+
 impl Derive for Bip32DeterministicPublicKey {
     fn derive(&self, path: &str) -> Result<Self> {
-        let extended_key = self.0.clone();
+        let extended_key = self.0;
 
         let mut parts = path.split('/').peekable();
         if *parts.peek().unwrap() == "m" {
@@ -108,17 +115,16 @@ impl DeterministicPrivateKey for Bip32DeterministicPrivateKey {
     }
 
     fn private_key(&self) -> Self::PrivateKey {
-        Secp256k1PrivateKey::from(
-            bitcoin::PrivateKey::from_slice(
-                self.0.private_key.secret_bytes().as_slice(),
-                bitcoin::Network::Bitcoin,
-            )
-            .expect("generate private key error"),
-        ) //TODO
+        let btc_pk = bitcoin::PrivateKey::from_slice(
+            self.0.private_key.secret_bytes().as_slice(),
+            bitcoin::Network::Bitcoin,
+        )
+        .expect("generate private key error");
+        Secp256k1PrivateKey::from(btc_pk)
     }
 
     fn deterministic_public_key(&self) -> Self::DeterministicPublicKey {
-        let pk = ExtendedPubKey::from_private(&SECP256K1_ENGINE, &self.0);
+        let pk = ExtendedPubKey::from_priv(&SECP256K1_ENGINE, &self.0);
         Bip32DeterministicPublicKey(pk)
     }
 }
@@ -150,20 +156,20 @@ impl ToHex for Bip32DeterministicPublicKey {
     fn to_hex(&self) -> String {
         let mut ret = [0; 74];
         let extended_key = self.0;
-        ret[0] = extended_key.depth as u8;
+        ret[0] = extended_key.depth;
         ret[1..5].copy_from_slice(&extended_key.parent_fingerprint[..]);
 
         BigEndian::write_u32(&mut ret[5..9], u32::from(extended_key.child_number));
 
         ret[9..41].copy_from_slice(&extended_key.chain_code[..]);
         ret[41..74].copy_from_slice(&extended_key.public_key.serialize()[..]);
-        hex::encode(ret.to_vec())
+        ret.to_hex()
     }
 }
 
 impl FromHex for Bip32DeterministicPublicKey {
-    fn from_hex(hex: &str) -> Result<Self> {
-        let data = hex::decode(hex)?;
+    fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self> {
+        let data = Vec::from_hex(hex)?;
 
         if data.len() != 74 {
             return Err(KeyError::InvalidBase58.into());
@@ -210,8 +216,8 @@ impl Ss58Codec for Bip32DeterministicPublicKey {
     fn to_ss58check_with_version(&self, version: &[u8]) -> String {
         let mut ret = [0; 78];
         let extended_key = self.0;
-        ret[0..4].copy_from_slice(&version[..]);
-        ret[4] = extended_key.depth as u8;
+        ret[0..4].copy_from_slice(version);
+        ret[4] = extended_key.depth;
         ret[5..9].copy_from_slice(&extended_key.parent_fingerprint[..]);
 
         BigEndian::write_u32(&mut ret[9..13], u32::from(extended_key.child_number));
@@ -251,8 +257,8 @@ impl Ss58Codec for Bip32DeterministicPrivateKey {
         let mut ret = [0; 78];
         let extended_key = &self.0;
 
-        ret[0..4].copy_from_slice(&version[..]);
-        ret[4] = extended_key.depth as u8;
+        ret[0..4].copy_from_slice(version);
+        ret[4] = extended_key.depth;
         ret[5..9].copy_from_slice(&extended_key.parent_fingerprint[..]);
 
         BigEndian::write_u32(&mut ret[9..13], u32::from(extended_key.child_number));
@@ -266,12 +272,14 @@ impl Ss58Codec for Bip32DeterministicPrivateKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::ToHex;
     use crate::{
-        Bip32DeterministicPrivateKey, Bip32DeterministicPublicKey, Derive, DeterministicPrivateKey,
-        PrivateKey, Ss58Codec,
+        ecc::KeyError, Bip32DeterministicPrivateKey, Bip32DeterministicPublicKey, Derive,
+        DeterministicPrivateKey, PrivateKey, Ss58Codec,
     };
     use bip39::{Language, Mnemonic, Seed};
+    use bitcoin::util::{base58, bip32::Error as Bip32Error};
+    use bitcoin_hashes::hex;
+    use tcx_common::{FromHex, ToHex};
 
     fn default_seed() -> Seed {
         let mn = Mnemonic::from_phrase(
@@ -295,13 +303,12 @@ mod tests {
         let pub_keys = paths
             .iter()
             .map(|path| {
-                hex::encode(
-                    esk.derive(path)
-                        .unwrap()
-                        .private_key()
-                        .public_key()
-                        .to_compressed(),
-                )
+                esk.derive(path)
+                    .unwrap()
+                    .private_key()
+                    .public_key()
+                    .to_compressed()
+                    .to_hex()
             })
             .collect::<Vec<String>>();
         let expected_pub_keys = vec![
@@ -338,5 +345,63 @@ mod tests {
         let xpub = Bip32DeterministicPublicKey::from_ss58check_with_version("xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8");
         assert!(xpub.is_ok());
         assert_eq!(xpub.unwrap().0.to_hex(), "03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77");
+    }
+
+    #[test]
+    fn from_hex() {
+        let xpub = Bip32DeterministicPublicKey::from_ss58check_with_version("xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8");
+        assert!(xpub.is_ok());
+
+        let r= Bip32DeterministicPublicKey::from_hex("03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77").unwrap();
+        assert_eq!(r.to_string(), "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8");
+    }
+
+    #[test]
+    fn test_from_hex_invalid_base58() {
+        let actual = Bip32DeterministicPublicKey::from_hex("03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af");
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            KeyError::InvalidBase58.to_string()
+        );
+    }
+
+    #[test]
+    fn export_and_import() {
+        let dpks= [
+           "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8",
+           "tpubDCpWeoTY6x4BR2PqoTFJnEdfYbjnC4G8VvKoDUPFjt2dvZJWkMRxLST1pbVW56P7zY3L5jq9MRSeff2xsLnvf9qBBN9AgvrhwfZgw5dJG6R",
+           "tpubDEbvpFLnzUaeKimACznAJmoi8JDktEudB7EK4BnJFD4jTBqxBprwZrBAEEVrSZbEL2nFELm7cH6o81z9FQ3nwrSR7Rebj4jxGFsB5BLq1EY",
+           "xpub6Bs32Yr5Phs3gB6rdNrG4az7Jgr1YKGmKXSV8i4Py4mKd7jUzag8EN6u2gTN1dYHshgL3AmJM6n1enwR1dUnQUr8nDG23G22oDtzGRopACX",
+           "vpub5ZbhUa5EheCJVJLskohSBEyL1qSAxZpMNCN36aQeHHt1jndkpeeiV48YHNiQGafTu5dPZz5e1RyjHzWu8vpAj4vixVUt1rhkrFJR8Fp2EF1"
+        ];
+
+        for dpk in dpks.iter() {
+            let (dpk, _) = Bip32DeterministicPublicKey::from_ss58check_with_version(dpk).unwrap();
+            let hex = dpk.to_hex();
+            let dpk2 = Bip32DeterministicPublicKey::from_hex(&hex).unwrap();
+            assert_eq!(dpk.to_string(), dpk2.to_string());
+        }
+    }
+
+    #[test]
+    fn test_key_error_from() {
+        let key_error = KeyError::from(Bip32Error::CannotDeriveFromHardenedKey);
+        assert_eq!(key_error, KeyError::CannotDeriveFromHardenedKey);
+        let key_error = KeyError::from(Bip32Error::InvalidChildNumber(0));
+        assert_eq!(key_error, KeyError::InvalidChildNumber);
+        let key_error = KeyError::from(Bip32Error::InvalidChildNumberFormat);
+        assert_eq!(key_error, KeyError::InvalidChildNumber);
+        let key_error = KeyError::from(Bip32Error::InvalidDerivationPathFormat);
+        assert_eq!(key_error, KeyError::InvalidDerivationPathFormat);
+        let key_error = KeyError::from(Bip32Error::Secp256k1(secp256k1::Error::InvalidPublicKey));
+        assert_eq!(key_error, KeyError::Secp256k1);
+        let key_error = KeyError::from(Bip32Error::UnknownVersion([0; 4]));
+        assert_eq!(key_error, KeyError::UnknownVersion);
+        let key_error = KeyError::from(Bip32Error::WrongExtendedKeyLength(0));
+        assert_eq!(key_error, KeyError::WrongExtendedKeyLength);
+        let key_error = KeyError::from(Bip32Error::Base58(base58::Error::InvalidLength(0)));
+        assert_eq!(key_error, KeyError::Base58);
+        let key_error = KeyError::from(Bip32Error::Hex(hex::Error::InvalidChar(0)));
+        assert_eq!(key_error, KeyError::Hex);
     }
 }

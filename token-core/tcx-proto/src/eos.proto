@@ -1,0 +1,28 @@
+syntax = "proto3";
+package transaction;
+
+message EosAccount {
+  string accountName = 1;
+}
+
+message EosTxInput {
+  string chainId = 1;
+  repeated string txHexs = 2;
+}
+
+message SigData {
+  string signature = 1;
+  string hash = 2;
+}
+
+message EosTxOutput {
+  repeated SigData sigData = 1;
+}
+
+message EosMessageInput {
+  string data = 1;
+}
+
+message EosMessageOutput {
+  string signature = 1;
+}

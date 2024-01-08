@@ -4,8 +4,8 @@ use num_integer::Integer;
 use num_traits::{FromPrimitive, Num, Zero};
 use regex::Regex;
 use ring::digest;
-use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
-use secp256k1::{Message, PublicKey as PublicKey2, Secp256k1, SecretKey, Signature};
+use secp256k1::ecdsa::{RecoverableSignature, RecoveryId, Signature};
+use secp256k1::{Message, PublicKey as PublicKey2, Secp256k1, SecretKey};
 use std::str::FromStr;
 
 pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
@@ -33,7 +33,7 @@ pub fn secp256k1_sign(private_key: &[u8], message: &[u8]) -> Result<Vec<u8>> {
     let secp = Secp256k1::new();
     //sign data
     Ok(secp
-        .sign(&message_data, &secret_key)
+        .sign_ecdsa(&message_data, &secret_key)
         .serialize_der()
         .to_vec())
 }
@@ -52,7 +52,9 @@ pub fn secp256k1_sign_verify(public: &[u8], signed: &[u8], message: &[u8]) -> Re
     let mut sig_obj = Signature::from_der(signed)?;
     sig_obj.normalize_s();
     //verify
-    Ok(secp.verify(&message_obj, &sig_obj, &public_obj).is_ok())
+    Ok(secp
+        .verify_ecdsa(&message_obj, &sig_obj, &public_obj)
+        .is_ok())
 }
 
 pub fn bigint_to_byte_vec(val: i64) -> Vec<u8> {
@@ -101,7 +103,7 @@ pub fn retrieve_recid(msg: &[u8], sign_compact: &[u8], pubkey: &Vec<u8>) -> Resu
         let sig = RecoverableSignature::from_compact(sign_compact, rec_id)?;
         let msg_to_sign = Message::from_slice(msg)?;
 
-        if let Ok(rec_pubkey) = secp_context.recover(&msg_to_sign, &sig) {
+        if let Ok(rec_pubkey) = secp_context.recover_ecdsa(&msg_to_sign, &sig) {
             let rec_pubkey_raw = rec_pubkey.serialize_uncompressed();
             if rec_pubkey_raw.to_vec() == *pubkey {
                 recid_final = i;

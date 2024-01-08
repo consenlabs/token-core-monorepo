@@ -1,15 +1,35 @@
 use bitcoin::util::base58;
 use blake2b_simd::Params;
-use tcx_chain::Address;
-use tcx_chain::Result;
+use std::str::FromStr;
+use tcx_common::sha256d;
 use tcx_constants::CoinInfo;
+use tcx_keystore::Address;
+use tcx_keystore::PublicKeyEncoder;
+use tcx_keystore::Result;
 use tcx_primitive::TypedPublicKey;
 
-pub struct TezosAddress();
+use tcx_common::FromHex;
+
+#[derive(PartialEq, Eq, Clone)]
+pub struct TezosPublicKeyEncoder {}
+
+impl PublicKeyEncoder for TezosPublicKeyEncoder {
+    fn encode(public_key: &TypedPublicKey, coin_info: &CoinInfo) -> Result<String> {
+        let edpk_prefix: Vec<u8> = vec![0x0D, 0x0F, 0x25, 0xD9];
+        let to_hash = [edpk_prefix, public_key.to_bytes()].concat();
+        let hashed = sha256d(&to_hash);
+        let hash_with_checksum = [to_hash, hashed[0..4].to_vec()].concat();
+        let edpk = base58::encode_slice(&hash_with_checksum);
+        Ok(edpk)
+    }
+}
+
+#[derive(PartialEq, Eq, Clone)]
+pub struct TezosAddress(String);
 
 impl Address for TezosAddress {
-    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<String> {
-        let tz1_prefix = hex::decode("06A19F")?;
+    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
+        let tz1_prefix = Vec::from_hex("06A19F")?;
         //get public key
         let pubkey = public_key.to_bytes();
         //Perform Blake2B hashing on the public key（no prefix）
@@ -25,7 +45,7 @@ impl Address for TezosAddress {
         //base58Encode(prefix<3> + public key hash<20> + checksum<4>)
         let address = base58::encode_slice(prefixed_generic_hash.as_slice());
 
-        Ok(address)
+        Ok(TezosAddress(address))
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
@@ -45,6 +65,19 @@ impl Address for TezosAddress {
     }
 }
 
+impl ToString for TezosAddress {
+    fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
+impl FromStr for TezosAddress {
+    type Err = failure::Error;
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(TezosAddress(s.to_string()))
+    }
+}
+
 use ring::digest;
 
 pub fn sha256_hash(data: &[u8]) -> Vec<u8> {
@@ -54,9 +87,12 @@ pub fn sha256_hash(data: &[u8]) -> Vec<u8> {
 
 #[cfg(test)]
 mod test {
+    use std::str::FromStr;
+
     use crate::address::TezosAddress;
-    use tcx_chain::Address;
+    use hex::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_keystore::Address;
     use tcx_primitive::TypedPublicKey;
 
     #[test]
@@ -71,26 +107,23 @@ mod test {
 
         let pub_key = TypedPublicKey::from_slice(
             CurveType::ED25519,
-            &hex::decode("4a501efd328e062c8675f2365970728c859c592beeefd6be8ead3d901330bc01")
+            &Vec::from_hex("4a501efd328e062c8675f2365970728c859c592beeefd6be8ead3d901330bc01")
                 .unwrap(),
         )
         .unwrap();
         assert_eq!(
-            TezosAddress::from_public_key(&pub_key, &coin_info).unwrap(),
+            TezosAddress::from_public_key(&pub_key, &coin_info)
+                .unwrap()
+                .to_string(),
             "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9"
         );
 
-        let pub_key = TypedPublicKey::from_slice(
+        let _pub_key = TypedPublicKey::from_slice(
             CurveType::ED25519,
-            &hex::decode("d0c5ee97112a8a6f192ec44ab10f6a51bbfa327f7736e8e8b30b9ec636bc533b")
+            &Vec::from_hex("d0c5ee97112a8a6f192ec44ab10f6a51bbfa327f7736e8e8b30b9ec636bc533b")
                 .unwrap(),
         )
         .unwrap();
-        //tz1MSaHcwz8vqQKTq9YsxZWfM5PhqFLB2B17
-        println!(
-            "###->{}",
-            TezosAddress::from_public_key(&pub_key, &coin_info).unwrap()
-        );
     }
 
     #[test]
@@ -102,12 +135,25 @@ mod test {
             network: "MAINNET".to_string(),
             seg_wit: "".to_string(),
         };
-        let address = "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9";
+        let address = "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9"; //valid address
         let valid_result = TezosAddress::is_valid(address, &coin_info);
         assert!(valid_result);
 
-        let address = "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNoI";
+        let address = "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNoI"; //base58 error address
         let valid_result = TezosAddress::is_valid(address, &coin_info);
-        assert_eq!(false, valid_result);
+        assert!(!valid_result);
+
+        let address = "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S3DxBZ"; //checksum error address
+        let valid_result = TezosAddress::is_valid(address, &coin_info);
+        assert!(!valid_result);
+    }
+
+    #[test]
+    fn test_address_from_str() {
+        let tezos_address = TezosAddress::from_str("tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9").unwrap();
+        assert_eq!(
+            tezos_address.to_string(),
+            "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9"
+        );
     }
 }

@@ -76,10 +76,10 @@ impl CosUpgradeRequest {
 
         let mut request_data = CosUpgradeRequest {
             seid: seid.clone(),
-            sn: sn,
+            sn,
             device_cert: device_cert.clone(),
-            se_cos_version: se_cos_version,
-            is_bl_status: is_bl_status,
+            se_cos_version,
+            is_bl_status,
             step_key: if is_jump {
                 "03".to_string()
             } else {
@@ -88,25 +88,23 @@ impl CosUpgradeRequest {
             status_word: None,
             command_id: String::from(constants::TSM_ACTION_COS_UPGRADE),
             card_ret_data_list: None,
-            se_bl_version: se_bl_version,
+            se_bl_version,
         };
 
         loop {
-            // println!("send message：{:#?}", request_data);
             let req_data = serde_json::to_vec_pretty(&request_data).unwrap();
             let response_data = https::post(constants::TSM_ACTION_COS_UPGRADE, req_data)?;
             let return_bean: ServiceResponse<CosUpgradeResponse> =
                 serde_json::from_str(response_data.as_str())?;
-            // println!("return message：{:#?}", return_bean);
-            if return_bean._ReturnCode == constants::TSM_RETURN_CODE_SUCCESS {
+            if return_bean.return_code == constants::TSM_RETURN_CODE_SUCCESS {
                 //check if end
-                let next_step_key = return_bean._ReturnData.next_step_key.unwrap();
+                let next_step_key = return_bean.return_data.next_step_key.unwrap();
                 if constants::TSM_END_FLAG.eq(next_step_key.as_str()) {
                     return Ok(());
                 }
 
                 let mut apdu_res: Vec<String> = vec![];
-                match return_bean._ReturnData.apdu_list {
+                match return_bean.return_data.apdu_list {
                     Some(apdu_list) => {
                         for (index_val, apdu_val) in apdu_list.iter().enumerate() {
                             //send apdu command and get return data
@@ -138,7 +136,7 @@ impl CosUpgradeRequest {
 
                 if "06".eq(next_step_key.as_str()) {
                     //applet download
-                    match &return_bean._ReturnData.instance_aid_list {
+                    match &return_bean.return_data.instance_aid_list {
                         Some(aid_list) => {
                             for temp_instance_aid in aid_list.iter() {
                                 AppDownloadRequest::build_request_data(

@@ -1,16 +1,15 @@
 use crate::address::TronAddress;
 use crate::tronapi::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 use crate::Result;
-use ikc_common::apdu::{Apdu, ApduCheck, CoinCommonApdu, Secp256k1Apdu};
+use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::TRON_AID;
 use ikc_common::error::CoinError;
 use ikc_common::path::check_path_validity;
-use ikc_common::utility::{is_valid_hex, secp256k1_sign, sha256_hash};
+use ikc_common::utility::{secp256k1_sign, sha256_hash};
 use ikc_common::{constants, utility, SignParam};
 use ikc_device::device_binding::KEY_MANAGER;
-use ikc_device::key_manager::KeyManager;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
-use secp256k1::{self, Message as SecpMessage, Signature as SecpSignature};
+use secp256k1::{self, ecdsa::Signature as SecpSignature};
 use tiny_keccak::Hasher;
 
 #[derive(Debug)]

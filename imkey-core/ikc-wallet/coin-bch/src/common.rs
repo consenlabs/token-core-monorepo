@@ -11,7 +11,7 @@ use ikc_common::error::CoinError;
 use ikc_common::utility::sha256_hash;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
-use secp256k1::{Message, PublicKey as Secp256k1PublicKey, Secp256k1, Signature};
+use secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use std::convert::TryFrom;
 use std::str::FromStr;
 
@@ -62,12 +62,6 @@ pub fn address_verify(
             )
             .to_string()
         };
-        // //verify address
-        // let se_gen_address_str = Address::p2pkh(
-        //     &PublicKey::from_str(extend_public_key.public_key.to_string().as_str())?,
-        //     network,
-        // )
-        // .to_string();
 
         let utxo_address = utxo.address.clone();
         let bch_address = BchAddress::convert_to_legacy_if_need(utxo_address.as_ref())?;
@@ -80,13 +74,13 @@ pub fn address_verify(
     Ok(utxo_pub_key_vec)
 }
 
-/**
-Transaction type identification
-*/
-pub enum TransTypeFlg {
-    BTC,
-    SEGWIT,
-}
+// /**
+// Transaction type identification
+// */
+// pub enum TransTypeFlg {
+//     BTC,
+//     SEGWIT,
+// }
 
 /**
 get xpub
@@ -115,7 +109,9 @@ pub fn apdu_sign_verify(signed: &[u8], message: &[u8]) -> Result<bool> {
     let mut sig_obj = Signature::from_der(signed)?;
     sig_obj.normalize_s();
     //verify
-    Ok(secp.verify(&message_obj, &sig_obj, &public_obj).is_ok())
+    Ok(secp
+        .verify_ecdsa(&message_obj, &sig_obj, &public_obj)
+        .is_ok())
 }
 
 /**

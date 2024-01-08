@@ -14,7 +14,7 @@ message TcxAction {
 }
 
 // A common response when error occurred.
-message Response {
+message GeneralResult {
     bool isSuccess = 1;
     string error = 2;
 }
@@ -31,8 +31,61 @@ message InitTokenCoreXParam {
     bool isDebug = 4;
 }
 
+message SignHashesParam {
+    string id = 1;
+    string password = 2;
+    message DataToSign {
+        string hash = 1;
+        string path = 2;
+        string curve = 3;
+        string sigAlg = 4;
+    }
+    repeated DataToSign dataToSign = 3;
+}
+
+message SignHashesResult {
+    repeated string signatures = 1;
+}
+
+message SignParamPoc {
+    
+    string hash = 3;
+    string derivationPath = 4;
+}
+
+message SignResultPoc {
+    string signature = 1;
+}
+
+message PublicKeyDerivation {
+    string chainType = 1;
+    string path = 2;
+    string curve = 3;
+}
+
+message GetPublicKeysParam {
+    string id = 1;
+    string password = 2;
+    repeated PublicKeyDerivation derivations = 3;
+}
+
+message GetPublicKeysResult {
+   repeated string publicKeys = 1;
+}
+
+message GetExtendedPublicKeysParam {
+    string id = 1;
+    string password = 2;
+    repeated PublicKeyDerivation derivations = 3;
+}
+
+message GetExtendedPublicKeysResult {
+    repeated string extendedPublicKeys = 1;
+}
+
+
 //
-//// FUNCTION: export_private_key(ExportPrivateKeyParam): KeystoreCommonExportResult
+//// FUNCTION: export_private_key(ExportPrivateKeyParam): ExportResult
 ////
 //// export the private key from a private key keystore or a hd keystore
 message ExportPrivateKeyParam {
@@ -40,13 +93,24 @@ message ExportPrivateKeyParam {
     string password = 2;
     string chainType = 3;
     string network = 4;
-    string mainAddress = 5;
+    string curve = 5;
     string path = 6;
+}
+
+//
+//// FUNCTION: export_private_key(ExportPrivateKeyParam): ExportResult
+////
+//// export the private key from a private key keystore or a hd keystore
+message ExportJsonParam {
+    string id = 1;
+    string password = 2;
+    string chainType = 3;
+    string path = 4;
 }
 //
 ///// Keystore Common
 //
-//// FUNCTION: keystore_common_verify(WalletKeyParam) -> Response
+//// FUNCTION: verify_password(WalletKeyParam) -> Response
 ////
 //// verify the password of the keystore
 message WalletKeyParam {
@@ -78,3 +142,4 @@ message ZksyncPrivateKeyToPubkeyHashParam{
 message ZksyncPrivateKeyToPubkeyHashResult{
     string pubKeyHash = 1;
 }
+

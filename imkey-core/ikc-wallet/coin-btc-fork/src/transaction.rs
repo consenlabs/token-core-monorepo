@@ -1,19 +1,13 @@
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};
 use bitcoin::hashes::hex::FromHex;
-use bitcoin::util::psbt::serialize::Serialize;
 use bitcoin::{
-    Address, EcdsaSighashType, LockTime, Network, OutPoint, PackedLockTime, Script, Sequence,
-    SigHashType, Transaction, TxIn, TxOut, Witness,
+    EcdsaSighashType, Network, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn,
+    TxOut, Witness,
 };
 use bitcoin_hashes::hash160;
 use bitcoin_hashes::hex::ToHex;
-use bitcoin_hashes::sha256d::Hash as Hash256;
 use bitcoin_hashes::Hash;
-use secp256k1::Signature;
-use std::str::FromStr;
-// use serde::Serialize;
-
 use ikc_common::apdu::{ApduCheck, BtcForkApdu};
 use ikc_common::coin_info::CoinInfo;
 use ikc_common::constants::{
@@ -24,6 +18,8 @@ use ikc_common::path::check_path_validity;
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
+use secp256k1::ecdsa::Signature;
+use std::str::FromStr;
 
 use crate::address::BtcForkAddress;
 use crate::btc_fork_network::network_from_param;
@@ -48,7 +44,6 @@ impl BtcForkTransaction {
     ) -> Result<TxSignResult> {
         //path check
         check_path_validity(path)?;
-        let mut path_str = path.to_string();
         let bip44_segments: Vec<&str> = path.split("/").collect();
         let is_full_path = bip44_segments.len() == 6;
         let mut path_str: String = path.to_string();
@@ -255,7 +250,6 @@ impl BtcForkTransaction {
     ) -> Result<TxSignResult> {
         //path check
         check_path_validity(path)?;
-        let mut path_str = path.to_string();
         let bip44_segments: Vec<&str> = path.split("/").collect();
         let is_full_path = bip44_segments.len() == 6;
         let mut path_str: String = path.to_string();
@@ -582,19 +576,12 @@ impl BtcForkTransaction {
 
 #[cfg(test)]
 mod tests {
-    use bitcoin::{Address, Network};
-    use hex::FromHex;
-
-    use ikc_common::coin_info::coin_info_from_param;
-    use ikc_common::error::CoinError;
-    use ikc_device::device_binding::bind_test;
-    use ikc_device::device_binding::DeviceManage;
-    use ikc_transport::hid_api::hid_connect;
-    use std::str::FromStr;
-
     use crate::btcforkapi::BtcForkTxInput;
     use crate::btcforkapi::Utxo;
     use crate::transaction::BtcForkTransaction;
+    use bitcoin::Network;
+    use ikc_common::coin_info::coin_info_from_param;
+    use ikc_device::device_binding::bind_test;
 
     #[test]
     fn test_sign_simple_ltc() {

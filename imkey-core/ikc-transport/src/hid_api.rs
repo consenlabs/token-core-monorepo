@@ -21,18 +21,14 @@ pub fn hid_send(apdu: &String, timeout: i32) -> Result<String> {
     //get hid_device obj
     let hid_device_obj: &Vec<HidDevice> = &HID_DEVICE.lock();
     if hid_device_obj.is_empty() {
-        drop(hid_device_obj);
         return Err(HidError::DeviceConnectInterfaceNotCalled.into());
     }
-    // println!("-->{}", apdu);
     send_device_message(
         &hid_device_obj.get(0).unwrap(),
         Vec::from_hex(apdu.as_str()).unwrap().as_slice(),
     )?;
     let return_data = read_device_response(&hid_device_obj.get(0).unwrap(), timeout)?;
-    //    drop(hid_device_obj);
     let apdu_response = hex::encode_upper(return_data);
-    // println!("<--{}", apdu_response.clone());
     Ok(apdu_response)
 }
 

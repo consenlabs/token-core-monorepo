@@ -28,9 +28,7 @@ pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::api::{
-        AddressParam, AddressResult, BitcoinWallet, ExternalAddress, ExternalAddressParam,
-    };
+    use crate::api::AddressParam;
     use crate::bch_address::get_address;
     use ikc_device::device_binding::bind_test;
 

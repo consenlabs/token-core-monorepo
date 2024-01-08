@@ -1,10 +1,8 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use bitcoin::Network;
-
 use coin_bch::transaction::{BchTransaction, Utxo};
 use coin_btc_fork::btcforkapi::{BtcForkTxInput, BtcForkTxOutput};
-use ikc_common::utility::hex_to_bytes;
 use ikc_common::SignParam;
 use prost::Message;
 
@@ -61,8 +59,7 @@ pub fn sign_bch_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -> R
 #[cfg(test)]
 mod tests {
     use crate::bch_signer::sign_bch_transaction;
-    use coin_bch::transaction::BchTransaction;
-    use coin_btc_fork::btcforkapi::{BtcForkTxInput, BtcForkTxOutput, Utxo};
+    use coin_btc_fork::btcforkapi::{BtcForkTxInput, Utxo};
     use ikc_common::SignParam;
     use ikc_device::device_binding::bind_test;
 
@@ -81,7 +78,7 @@ mod tests {
         };
         let mut utxos = Vec::new();
         utxos.push(utxo);
-        let txInput = BtcForkTxInput {
+        let tx_input = BtcForkTxInput {
             to: "qq40fskqshxem2gvz0xkf34ww3h6zwv4dcr7pm0z6s".to_string(),
             amount: 93454,
             fee: 6000,
@@ -102,7 +99,7 @@ mod tests {
             fee: "".to_string(),
         };
 
-        let message = sign_bch_transaction(&txInput, &sign_param);
+        let message = sign_bch_transaction(&tx_input, &sign_param);
         assert_eq!("0afe0230313030303030303031653239383661303034363330636234353139323164396537623434353461363637316535306464643433656134333163333466363031316439636134633330393030303030303030366134373330343430323230363965643765623335353132616337636438393763386631306161656634666231666262656333356661343438653235346263626163646132623631343630393032323030336564653965383465383430386238643431306230613838656465656564383934623033393631623731353061663038626430653231636331313162633037343132313032353134393264666232393966323165343236333037313830623537376639323736393662366466306236313838333231356638386562393638356433643434396666666666666666303130653664303130303030303030303030313937366139313432616634633263303835636439646139306331336364363463366165373436666131333939353665383861633030303030303030124061333938363265343638353138306564366532633231613532643561643138376431346163363766343335616636313134343037663966366335666366383436", hex::encode(message.unwrap()));
     }
 }
