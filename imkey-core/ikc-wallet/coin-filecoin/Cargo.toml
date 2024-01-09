@@ -40,4 +40,5 @@ forest_encoding = "=0.2.2"
 forest_cid = "=0.3.0"
 forest_crypto = "=0.5.3"
 num_bigint_chainsafe = { package = "forest_bigint", version = "=0.1.4"}
+bitcoin = "=0.29.2"
 

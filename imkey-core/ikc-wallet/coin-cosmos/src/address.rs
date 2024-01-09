@@ -1,14 +1,19 @@
 use crate::Result;
 use bech32::{encode, ToBase32, Variant};
+use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bitcoin::Network;
 use bitcoin_hashes::hex::{FromHex, ToHex};
 use bitcoin_hashes::{hash160, Hash};
 use hex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu};
 use ikc_common::error::CoinError;
 use ikc_common::path;
+use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::utility;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
+use secp256k1::PublicKey;
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct CosmosAddress {}
@@ -40,17 +45,13 @@ impl CosmosAddress {
             return Err(CoinError::ImkeySignatureVerifyFail.into());
         }
 
-        let uncomprs_pubkey: String = res_msg_pubkey
-            .chars()
-            .take(res_msg_pubkey.len() - 4)
-            .collect();
-        let comprs_pubkey = utility::uncompress_pubkey_2_compress(&uncomprs_pubkey);
-
-        Ok(comprs_pubkey)
+        Ok(sign_source_val.to_string())
     }
 
     pub fn get_address(path: &str) -> Result<String> {
-        let comprs_pubkey = CosmosAddress::get_pub_key(path).unwrap();
+        // let comprs_pubkey = CosmosAddress::get_pub_key(path)?;
+        let comprs_pubkey =
+            utility::uncompress_pubkey_2_compress(&CosmosAddress::get_pub_key(path)?);
         //hash160
         let pub_key_bytes = hex::decode(comprs_pubkey).unwrap();
         let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).to_hex();
@@ -65,6 +66,54 @@ impl CosmosAddress {
         let res_reg = message::send_apdu(reg_apdu)?;
         ApduCheck::check_response(&res_reg)?;
         Ok(address)
+    }
+
+    pub fn get_xpub(path: &str) -> Result<String> {
+        //path check
+        check_path_validity(path)?;
+
+        //get xpub data
+        let xpub_data = Self::get_pub_key(path)?;
+        let xpub_data = &xpub_data[..194];
+
+        //get public key and chain code
+        let pub_key = &xpub_data[..130];
+        let sub_chain_code = &xpub_data[130..];
+        let pub_key_obj = PublicKey::from_str(pub_key)?;
+
+        //build parent public key obj
+        let parent_xpub_data = Self::get_pub_key(get_parent_path(path)?)?;
+        let parent_xpub_data = &parent_xpub_data[..194];
+        let parent_pub_key = &parent_xpub_data[..130];
+        let parent_chain_code = &parent_xpub_data[130..];
+        let parent_pub_key_obj = PublicKey::from_str(parent_pub_key)?;
+
+        //get parent public key fingerprint
+        let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
+        let parent_ext_pub_key = ExtendedPubKey {
+            network: Network::Bitcoin,
+            depth: 0 as u8,
+            parent_fingerprint: Fingerprint::default(),
+            child_number: ChildNumber::from_normal_idx(0).unwrap(),
+            public_key: parent_pub_key_obj,
+            chain_code: parent_chain_code,
+        };
+        let fingerprint_obj = parent_ext_pub_key.fingerprint();
+
+        //build extend public key obj
+        let sub_chain_code_obj = ChainCode::from(hex::decode(sub_chain_code)?.as_slice());
+
+        let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
+        let extend_public_key = ExtendedPubKey {
+            network: Network::Bitcoin,
+            depth: chain_number_vec.len() as u8,
+            parent_fingerprint: fingerprint_obj,
+            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            public_key: pub_key_obj,
+            chain_code: sub_chain_code_obj,
+        };
+        //get and return xpub
+        Ok(extend_public_key.to_string())
     }
 }
 
@@ -82,7 +131,7 @@ mod tests {
         let comprs_pubkey = CosmosAddress::get_pub_key(constants::COSMOS_PATH).unwrap();
         assert_eq!(
             &comprs_pubkey,
-            "0232C1EF21D73C19531B0AA4E863CF397C2B982B2F958F60CDB62969824C096D65"
+            "0432C1EF21D73C19531B0AA4E863CF397C2B982B2F958F60CDB62969824C096D658AEDE012F4A4B2E3A893B71A787617FEB04F19D2E3BAC5CEE989AA55E8057458CCAAB803B2556DC264D2EE7836AC20B3E2FADB725DA9167F87BD10013D9E48F3"
         );
     }
 

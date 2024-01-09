@@ -4,6 +4,7 @@ use crate::message_handler::encode_message;
 use bitcoin::Network;
 use coin_bch::address::BchAddress;
 use coin_btc_fork::address::BtcForkAddress;
+use ikc_common::path::get_account_path;
 
 pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
     let network = match param.network.as_ref() {
@@ -13,7 +14,7 @@ pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
     };
 
     let address = BchAddress::get_address(network, &param.path)?;
-    let account_path = ikc_common::utility::get_account_path(&param.path)?;
+    let account_path = get_account_path(&param.path)?;
     let enc_xpub = BtcForkAddress::get_enc_xpub(network, &account_path)?;
 
     let address_message = BtcForkWallet {

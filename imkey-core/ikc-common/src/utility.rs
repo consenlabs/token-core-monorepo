@@ -1,4 +1,7 @@
 use crate::Result;
+use bitcoin::util::base58;
+use bitcoin::util::bip32::ExtendedPubKey;
+use byteorder::{BigEndian, ByteOrder};
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_traits::{FromPrimitive, Num, Zero};
@@ -118,17 +121,41 @@ pub fn retrieve_recid(msg: &[u8], sign_compact: &[u8], pubkey: &Vec<u8>) -> Resu
     Ok(rec_id)
 }
 
-pub fn get_account_path(path: &str) -> Result<String> {
-    // example: m/44'/60'/0'/0/0
-    let _ = bitcoin::util::bip32::DerivationPath::from_str(path)?;
-    let mut children: Vec<&str> = path.split('/').collect();
+pub fn to_ss58check_with_version(extended_key: ExtendedPubKey, version: &[u8]) -> String {
+    let mut ret = [0; 78];
+    // let extended_key = self.0;
+    ret[0..4].copy_from_slice(version);
+    ret[4] = extended_key.depth;
+    ret[5..9].copy_from_slice(&extended_key.parent_fingerprint[..]);
 
-    ensure!(children.len() >= 4, format!("{} path is too short", path));
+    BigEndian::write_u32(&mut ret[9..13], u32::from(extended_key.child_number));
 
-    while children.len() > 4 {
-        children.remove(children.len() - 1);
-    }
-    Ok(children.join("/"))
+    ret[13..45].copy_from_slice(&extended_key.chain_code[..]);
+    ret[45..78].copy_from_slice(&extended_key.public_key.serialize()[..]);
+    base58::check_encode_slice(&ret[..])
+}
+
+pub fn get_ext_version(network: &str, derivation_path: &str) -> Result<Vec<u8>> {
+    let ret = if derivation_path.starts_with("m/49'") {
+        if network == "MAINNET" {
+            hex_to_bytes("049d7cb2")?
+        } else {
+            hex_to_bytes("044a5262")?
+        }
+    } else if derivation_path.starts_with("m/84'") {
+        if network == "MAINNET" {
+            hex_to_bytes("04b24746")?
+        } else {
+            hex_to_bytes("045f1cf6")?
+        }
+    } else {
+        if network == "MAINNET" {
+            hex_to_bytes("0488b21e").unwrap()
+        } else {
+            hex_to_bytes("043587cf").unwrap()
+        }
+    };
+    Ok(ret)
 }
 
 #[cfg(test)]

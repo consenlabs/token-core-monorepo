@@ -142,3 +142,21 @@ pub fn display_segwit_address(param: &AddressParam) -> Result<Vec<u8>> {
     };
     encode_message(address_message)
 }
+
+pub fn derive_account(param: &AddressParam) -> Result<Vec<u8>> {
+    let network = match param.network.as_ref() {
+        "MAINNET" => Network::Bitcoin,
+        "TESTNET" => Network::Testnet,
+        _ => Network::Testnet,
+    };
+
+    let path = format!("{}/0/0", param.path);
+    let address = BtcAddress::display_segwit_address(network, &path)?;
+
+    let address_message = AddressResult {
+        path: param.path.to_string(),
+        chain_type: param.chain_type.to_string(),
+        address,
+    };
+    encode_message(address_message)
+}

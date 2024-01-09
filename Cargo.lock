@@ -845,6 +845,7 @@ dependencies = [
 name = "coin-ethereum"
 version = "0.1.0"
 dependencies = [
+ "base64 0.13.1",
  "bitcoin",
  "bitcoin_hashes",
  "bytes",
@@ -880,6 +881,7 @@ dependencies = [
  "base32",
  "base64 0.13.1",
  "bech32 0.9.1",
+ "bitcoin",
  "bitcoin_hashes",
  "blake2b-rs",
  "bytes",
@@ -944,6 +946,7 @@ name = "coin-tron"
 version = "0.1.0"
 dependencies = [
  "bitcoin",
+ "byteorder 1.4.3",
  "failure",
  "hex",
  "ikc-common",
@@ -2847,6 +2850,7 @@ dependencies = [
  "aes-soft",
  "bitcoin",
  "block-modes",
+ "byteorder 1.4.3",
  "bytes",
  "failure",
  "hex",

@@ -17,3 +17,4 @@ ikc-transport = {path = "../../ikc-transport"}
 prost = "=0.11.2"
 secp256k1 = {version ="=0.24.3", features = ["rand", "recovery"] }
 tiny-keccak = { version = "=2.0.2", features = ["keccak"] }
+byteorder = "=1.4.3"
