@@ -22,7 +22,7 @@ pub fn check_path_max_five_depth(path: &str) -> Result<()> {
     //check depth and length
     let strings: Vec<&str> = path.split("/").collect();
     let depth = strings.len();
-    if !(2..=6).contains(&depth) || path.len() > 100 {
+    if !(2..=6).contains(&depth) {
         return Err(CommonError::ImkeyPathIllegal.into());
     }
     //regx check
