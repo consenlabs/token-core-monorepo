@@ -8,7 +8,7 @@ use super::{transform_mnemonic_error, Account, Address, Error, Metadata, Result,
 use std::collections::{hash_map::Entry, HashMap};
 
 use tcx_common::{FromHex, ToHex};
-use tcx_constants::{CoinInfo, CurveType};
+use tcx_constants::{coin_info::get_xpub_prefix, CoinInfo, CurveType};
 use tcx_crypto::{Crypto, Key};
 use tcx_primitive::{
     generate_mnemonic, get_account_path, Bip32DeterministicPrivateKey, Derive,
@@ -183,28 +183,6 @@ impl HdKeystore {
         })
     }
 
-    pub fn get_ext_version(network: &str, derivation_path: &str) -> Vec<u8> {
-        if derivation_path.starts_with("m/49'") {
-            if network == "MAINNET" {
-                Vec::from_hex("049d7cb2").unwrap()
-            } else {
-                Vec::from_hex("044a5262").unwrap()
-            }
-        } else if derivation_path.starts_with("m/84'") {
-            if network == "MAINNET" {
-                Vec::from_hex("04b24746").unwrap()
-            } else {
-                Vec::from_hex("045f1cf6").unwrap()
-            }
-        } else {
-            if network == "MAINNET" {
-                Vec::from_hex("0488b21e").unwrap()
-            } else {
-                Vec::from_hex("043587cf").unwrap()
-            }
-        }
-    }
-
     pub fn derive_coin<A: Address>(&mut self, coin_info: &CoinInfo) -> Result<Account> {
         let cache = self.cache.as_ref().ok_or(Error::KeystoreLocked)?;
 
@@ -219,7 +197,7 @@ impl HdKeystore {
             _ => root
                 .derive(&get_account_path(&coin_info.derivation_path)?)?
                 .deterministic_public_key()
-                .to_ss58check_with_version(&Self::get_ext_version(
+                .to_ss58check_with_version(&get_xpub_prefix(
                     &coin_info.network,
                     &coin_info.derivation_path,
                 )),

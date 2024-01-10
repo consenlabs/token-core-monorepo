@@ -10,7 +10,7 @@ use tcx_keystore::{
     mnemonic_to_seed, HdKeystore, Keystore, PrivateKeystore, Result, Source,
 };
 
-pub(crate) fn mapping_curve_name(old_curve_name: &str) -> String {
+pub fn mapping_curve_name(old_curve_name: &str) -> String {
     let new_curve_name = match old_curve_name {
         "ED25519" => CurveType::ED25519,
         "SECP256k1" => CurveType::SECP256k1,
@@ -38,7 +38,7 @@ impl KeystoreUpgrade {
             && self.json["imTokenMeta"].is_object()
     }
 
-    pub fn upgrade(&self, key: &Key) -> Result<Keystore> {
+    pub fn upgrade(&self, key: &Key, identity_network: &IdentityNetwork) -> Result<Keystore> {
         let version = self.json["version"].as_i64().unwrap_or(0);
 
         let mut json = self.json.clone();
@@ -73,11 +73,6 @@ impl KeystoreUpgrade {
             _ => panic!("upgrade wrong version keystore"),
         }?;
         json["sourceFingerprint"] = json!(fingerprint);
-
-        let identity_network = match json["meta"]["network"].as_str().unwrap_or("") {
-            "TESTNET" => IdentityNetwork::Testnet,
-            _ => IdentityNetwork::Mainnet,
-        };
 
         match version {
             11001 => {
@@ -130,7 +125,7 @@ mod tests {
     use tcx_constants::CurveType;
     use tcx_crypto::Error::PasswordIncorrect;
     use tcx_crypto::Key;
-    use tcx_keystore::{Keystore, Source};
+    use tcx_keystore::{keystore::IdentityNetwork, Keystore, Source};
 
     fn pk_json(version: i64, source: &str, name: &str) -> Value {
         json!(
@@ -182,7 +177,7 @@ mod tests {
             let upgrade_keystore = super::KeystoreUpgrade::new(hd_json(t.0, t.1, "Unknown"));
             let key = Key::DerivedKey(hd_derived_key());
 
-            let upgraded = upgrade_keystore.upgrade(&key);
+            let upgraded = upgrade_keystore.upgrade(&key, &IdentityNetwork::Mainnet);
 
             assert!(!upgrade_keystore.need_upgrade());
             assert_eq!(upgraded.err().unwrap().to_string(), "invalid version");
@@ -195,7 +190,9 @@ mod tests {
             super::KeystoreUpgrade::new(hd_json(11000, "NEW_IDENTITY", "Unknown"));
         let key = Key::Password("imtoken1".to_owned());
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
 
         assert!(upgrade_keystore.need_upgrade());
         assert_eq!(upgraded.store().version, 12000);
@@ -208,7 +205,9 @@ mod tests {
             super::KeystoreUpgrade::new(hd_json(11000, "NEW_IDENTITY", "Unknown"));
         let key = Key::DerivedKey("9e6c4391999f0f578105284fe25eb9cf1b60ab75473ac155c83091ae36bf2bb64eb6ec5cbe39dab3a100f87442ee580619700291c15e84961fec2a259c808e69".to_owned());
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
 
         assert!(upgrade_keystore.need_upgrade());
         assert_eq!(upgraded.store().version, 12000);
@@ -230,12 +229,39 @@ mod tests {
             let upgrade_keystore = super::KeystoreUpgrade::new(hd_json(11000, t.0, "Unknown"));
             let key = Key::DerivedKey(hd_derived_key());
 
-            let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+            let upgraded = upgrade_keystore
+                .upgrade(&key, &IdentityNetwork::Testnet)
+                .unwrap();
 
             assert!(upgrade_keystore.need_upgrade());
             assert_eq!(upgraded.store().version, 12000);
             assert_eq!(upgraded.store().meta.source, t.1);
         }
+    }
+
+    #[test]
+    fn test_upgrade_hd_identity_network() {
+        let upgrade_keystore =
+            super::KeystoreUpgrade::new(hd_json(11000, "NEW_IDENTITY", "Unknown"));
+        let key = Key::DerivedKey(hd_derived_key());
+
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
+
+        assert_eq!(
+            upgraded.identity().identifier,
+            "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg"
+        );
+
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Mainnet)
+            .unwrap();
+
+        assert_eq!(
+            upgraded.identity().identifier,
+            "im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf"
+        );
     }
 
     #[test]
@@ -253,7 +279,9 @@ mod tests {
             let upgrade_keystore = super::KeystoreUpgrade::new(pk_json(11001, t.0, "vvvvvv"));
             let key = Key::DerivedKey(private_derived_key());
 
-            let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+            let upgraded = upgrade_keystore
+                .upgrade(&key, &IdentityNetwork::Testnet)
+                .unwrap();
 
             assert!(upgrade_keystore.need_upgrade());
             assert_eq!(upgraded.store().version, 12001);
@@ -262,11 +290,35 @@ mod tests {
     }
 
     #[test]
+    fn test_upgrade_pk_identity_network() {
+        let upgrade_keystore = super::KeystoreUpgrade::new(pk_json(11001, "WIF", "vvvvvv"));
+        let key = Key::DerivedKey(private_derived_key());
+
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
+
+        assert_eq!(
+            upgraded.identity().identifier,
+            "im18MDUZKTuAALuXb1Wait1XBb984rdjVpFeBgu"
+        );
+
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Mainnet)
+            .unwrap();
+
+        assert_eq!(
+            upgraded.identity().identifier,
+            "im14x5UPbCXmU2HMQ8jfeKcCDrQYhDppRYaa5C6"
+        );
+    }
+
+    #[test]
     fn test_invalid_version() {
         let upgrade_keystore = super::KeystoreUpgrade::new(pk_json(11002, "PRIVATE", "SSS"));
         let key = Key::DerivedKey(hd_derived_key());
 
-        let upgraded = upgrade_keystore.upgrade(&key);
+        let upgraded = upgrade_keystore.upgrade(&key, &IdentityNetwork::Testnet);
         assert!(upgraded.is_err());
     }
 
@@ -332,7 +384,7 @@ mod tests {
         let upgrade_keystore = super::KeystoreUpgrade::new(pk_json(11001, "PRIVATE", "vvvvvv"));
         let key = Key::Password("imtoken2".to_owned());
 
-        let upgraded = upgrade_keystore.upgrade(&key);
+        let upgraded = upgrade_keystore.upgrade(&key, &IdentityNetwork::Testnet);
         assert_eq!(
             upgraded.err().unwrap().to_string(),
             PasswordIncorrect.to_string()
@@ -398,30 +450,40 @@ mod tests {
         let upgrade_keystore =
             super::KeystoreUpgrade::new(pk_json_with_bls(11001, "PRIVATE", "vvvvvv"));
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
         assert_eq!(upgraded.store().curve, Some(CurveType::BLS));
 
         let upgrade_keystore =
             super::KeystoreUpgrade::new(pk_json_with_ed25519(11001, "PRIVATE", "vvvvvv"));
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
         assert_eq!(upgraded.store().curve, Some(CurveType::ED25519));
 
         let upgrade_keystore =
             super::KeystoreUpgrade::new(pk_json_with_subsr25519(11001, "PRIVATE", "vvvvvv"));
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
         assert_eq!(upgraded.store().curve, Some(CurveType::SR25519));
 
         let upgrade_keystore =
             super::KeystoreUpgrade::new(pk_json_with_secp256k1(11001, "PRIVATE", "vvvvvv"));
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
         assert_eq!(upgraded.store().curve, Some(CurveType::SECP256k1));
 
         let upgrade_keystore = super::KeystoreUpgrade::new(hd_json(11000, "MNEMONIC", "vvvvvv"));
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
         assert_eq!(upgraded.store().curve, None);
     }
 }

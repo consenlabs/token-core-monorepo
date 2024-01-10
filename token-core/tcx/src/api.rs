@@ -360,6 +360,8 @@ pub struct AccountResponse {
     pub extended_public_key: ::prost::alloc::string::String,
     #[prost(string, tag = "7")]
     pub encrypted_extended_public_key: ::prost::alloc::string::String,
+    #[prost(string, tag = "8")]
+    pub seg_wit: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -592,14 +594,6 @@ pub struct MnemonicToPublicKeyResult {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ScanKeystoresResult {
-    #[prost(message, repeated, tag = "1")]
-    pub hd_keystores: ::prost::alloc::vec::Vec<KeystoreResult>,
-    #[prost(message, repeated, tag = "2")]
-    pub private_key_keystores: ::prost::alloc::vec::Vec<ImportPrivateKeyResult>,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MigrateKeystoreParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
@@ -626,6 +620,34 @@ pub struct MigrateKeystoreResult {
     pub existed_id: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "3")]
     pub keystore: ::core::option::Option<KeystoreResult>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct LegacyKeystoreResult {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub source: ::prost::alloc::string::String,
+    #[prost(int64, tag = "4")]
+    pub created_at: i64,
+    #[prost(message, repeated, tag = "5")]
+    pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ScanLegacyKeystoresResult {
+    #[prost(string, tag = "1")]
+    pub identifier: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub ipfs_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub network: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub source: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "5")]
+    pub keystores: ::prost::alloc::vec::Vec<LegacyKeystoreResult>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

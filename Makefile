@@ -8,4 +8,4 @@ build-tcx:
 	cd token-core; cargo build
 
 test-tcx:
-	cd token-core; cargo test
+	cd token-core; KDF_ROUNDS=1 cargo test

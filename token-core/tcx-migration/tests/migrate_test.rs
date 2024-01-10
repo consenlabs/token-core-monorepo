@@ -8,6 +8,7 @@ use tcx_migration::migration::LegacyKeystore;
 mod tests {
     use serde_json::Value;
     use tcx_crypto::Key;
+    use tcx_keystore::keystore::IdentityNetwork;
     use tcx_keystore::Source;
     use tcx_migration::keystore_upgrade::KeystoreUpgrade;
     use tcx_migration::migration::LegacyKeystore;
@@ -364,7 +365,9 @@ mod tests {
 
                     let key = Key::DerivedKey(t.1.to_owned());
 
-                    let mut keystore = keystore_upgrade.upgrade(&key).unwrap();
+                    let mut keystore = keystore_upgrade
+                        .upgrade(&key, &IdentityNetwork::Testnet)
+                        .unwrap();
                     keystore.unlock(&key);
 
                     assert_eq!(keystore.meta().source, t.2);
@@ -376,7 +379,7 @@ mod tests {
 
                     let key = Key::DerivedKey(t.1.to_owned());
 
-                    let mut keystore = legacy.migrate(&key).unwrap();
+                    let mut keystore = legacy.migrate(&key, &IdentityNetwork::Testnet).unwrap();
                     keystore.unlock(&key);
 
                     assert_eq!(keystore.meta().source, t.2);

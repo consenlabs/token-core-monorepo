@@ -79,17 +79,29 @@ impl OldMetadata {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct EOSKeyPath {
+    pub derived_mode: String,
+    pub path: String,
+    pub public_key: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct LegacyKeystore {
     pub version: i32,
     pub id: String,
     pub crypto: Crypto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enc_mnemonic: Option<EncPair>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub xpub: Option<String>,
     pub address: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mnemonic_path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub im_token_meta: Option<OldMetadata>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub key_path_privates: Option<Vec<EOSKeyPath>>,
 }
 
 impl LegacyKeystore {
@@ -108,6 +120,8 @@ impl LegacyKeystore {
             address: Some(address),
             mnemonic_path: None,
             im_token_meta: None,
+            xpub: None,
+            key_path_privates: None,
         })
     }
 
@@ -148,16 +162,16 @@ impl LegacyKeystore {
         Ok(keystore)
     }
 
-    pub fn migrate(&self, key: &Key) -> Result<Keystore> {
+    pub fn migrate(&self, key: &Key, identity_network: &IdentityNetwork) -> Result<Keystore> {
         let keystore = if self.has_mnemonic() {
-            self.migrate_to_hd(key)?
+            self.migrate_to_hd(key, identity_network)?
         } else {
-            self.migrate_to_private(key)?
+            self.migrate_to_private(key, identity_network)?
         };
         Ok(keystore)
     }
 
-    fn migrate_to_hd(&self, key: &Key) -> Result<Keystore> {
+    fn migrate_to_hd(&self, key: &Key, identity_network: &IdentityNetwork) -> Result<Keystore> {
         let unlocker = self.crypto.use_key(key)?;
         let mnemonic_data = unlocker.decrypt_enc_pair(
             self.enc_mnemonic
@@ -174,7 +188,7 @@ impl LegacyKeystore {
             .expect("migration to hd need imTokenMeta")
             .to_metadata();
 
-        let identity = Identity::from_seed(&seed, &unlocker, &meta.network)?;
+        let identity = Identity::from_seed(&seed, &unlocker, &identity_network)?;
         let mut store = Store {
             id: self.id.to_string(),
             version: HdKeystore::VERSION,
@@ -197,7 +211,11 @@ impl LegacyKeystore {
         Ok(keystore)
     }
 
-    fn migrate_to_private(&self, key: &Key) -> Result<Keystore> {
+    fn migrate_to_private(
+        &self,
+        key: &Key,
+        identity_network: &IdentityNetwork,
+    ) -> Result<Keystore> {
         let unlocker = self.crypto.use_key(key)?;
         let decrypted = unlocker.plaintext()?;
         // Note legacy keystore only contains k1 curve
@@ -218,12 +236,9 @@ impl LegacyKeystore {
             .im_token_meta
             .as_ref()
             .expect("migrate to private need imTokenMeta");
-        let network = im_token_meta
-            .network
-            .clone()
-            .and_then(|net| IdentityNetwork::from_str(&net).ok())
-            .unwrap_or(IdentityNetwork::Mainnet);
-        let identity = Identity::from_private_key(&private_key.to_hex(), &unlocker, &network)?;
+
+        let identity =
+            Identity::from_private_key(&private_key.to_hex(), &unlocker, &identity_network)?;
 
         let enc_original = if is_wif {
             Some(unlocker.encrypt_with_random_iv(&original)?)
@@ -253,25 +268,6 @@ impl LegacyKeystore {
 
         Ok(keystore)
     }
-
-    pub fn migrate_identity_wallets(
-        &self,
-        key: &Key,
-        new_keystore: Option<Keystore>,
-    ) -> Result<Keystore> {
-        let mut keystore = self.migrate_to_hd(key)?;
-        keystore.unlock(key)?;
-
-        // TODO: merge with exists wallet
-        if let Some(_exists_keystore) = new_keystore {
-
-            // exists_keystore.store_mut().crypto = keystore.store().crypto.clone();
-            // exists_keystore.store_mut().id = keystore.id().to_string();
-            // keystore.store_mut().id = wallet_id.to_string();
-        }
-
-        Ok(keystore)
-    }
 }
 
 #[cfg(test)]
@@ -284,7 +280,8 @@ mod tests {
     use tcx_eos::address::{EosAddress, EosPublicKeyEncoder};
     use tcx_eth::address::EthAddress;
     use tcx_keystore::{
-        Keystore, KeystoreGuard, Metadata, PrivateKeystore, PublicKeyEncoder, Source,
+        keystore::IdentityNetwork, Keystore, KeystoreGuard, Metadata, PrivateKeystore,
+        PublicKeyEncoder, Source,
     };
 
     use super::LegacyKeystore;
@@ -335,7 +332,7 @@ mod tests {
         let (keystore_str, derived_key) = v3_eos_private_key();
         let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
         let key = Key::DerivedKey(derived_key.to_owned());
-        let mut keystore = ks.migrate(&key).unwrap();
+        let mut keystore = ks.migrate(&key, &IdentityNetwork::Testnet).unwrap();
 
         let coin_info = CoinInfo {
             coin: "EOS".to_string(),
@@ -361,7 +358,10 @@ mod tests {
         let (keystore_str, derived_key) = v44_bitcoin_mnemonic_1();
         let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
         let keystore = ks
-            .migrate(&Key::DerivedKey(derived_key.to_string()))
+            .migrate(
+                &Key::DerivedKey(derived_key.to_string()),
+                &IdentityNetwork::Testnet,
+            )
             .unwrap();
 
         let unlocker1 = ks
@@ -381,7 +381,12 @@ mod tests {
     fn test_bitcoin_with_password() {
         let (keystore_str, _) = v44_bitcoin_mnemonic_1();
         let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
-        let mut keystore = ks.migrate(&Key::Password("imtoken1".to_string())).unwrap();
+        let mut keystore = ks
+            .migrate(
+                &Key::Password("imtoken1".to_string()),
+                &IdentityNetwork::Testnet,
+            )
+            .unwrap();
 
         assert_eq!(keystore.derivable(), true);
         assert_eq!(keystore.id(), "02a55ab6-554a-4e78-bc26-6a7acced7e5e");
@@ -407,7 +412,7 @@ mod tests {
 
         //password Insecure Pa55w0rd
         let key = Key::DerivedKey(derived_key.to_owned());
-        let mut keystore = ks.migrate(&key).unwrap();
+        let mut keystore = ks.migrate(&key, &IdentityNetwork::Testnet).unwrap();
 
         assert_eq!(keystore.derivable(), false);
         assert_eq!(keystore.id(), "045861fe-0e9b-4069-92aa-0ac03cad55e0");
@@ -431,7 +436,7 @@ mod tests {
         let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
         //password imtoken1
         let key = Key::DerivedKey(derived_key.to_owned());
-        let mut keystore = ks.migrate(&key).unwrap();
+        let mut keystore = ks.migrate(&key, &IdentityNetwork::Testnet).unwrap();
 
         assert_eq!(keystore.derivable(), true);
         assert_eq!(keystore.id(), "175169f7-5a35-4df7-93c1-1ff612168e71");
@@ -454,7 +459,7 @@ mod tests {
         let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
         //password imtoken1
         let key = Key::DerivedKey(derived_key.to_owned());
-        let mut keystore = ks.migrate(&key).unwrap();
+        let mut keystore = ks.migrate(&key, &IdentityNetwork::Testnet).unwrap();
 
         assert_eq!(keystore.derivable(), true);
         assert_eq!(keystore.id(), "5991857a-2488-4546-b730-463a5f84ea6a");

@@ -13,6 +13,7 @@ use crate::api::{GeneralResult, TcxAction};
 
 pub mod error_handling;
 pub mod handler;
+pub mod migration;
 use failure::Error;
 use std::result;
 
@@ -22,9 +23,10 @@ use crate::handler::{
     encode_message, encrypt_data_to_ipfs, eth_recover_address, exists_json, exists_mnemonic,
     exists_private_key, export_json, export_mnemonic, export_private_key, get_derived_key,
     get_extended_public_keys, get_public_keys, import_json, import_mnemonic, import_private_key,
-    migrate_keystore, mnemonic_to_public, sign_authentication_message, sign_hashes, sign_message,
-    sign_tx, unlock_then_crash, verify_password,
+    mnemonic_to_public, sign_authentication_message, sign_hashes, sign_message, sign_tx,
+    unlock_then_crash, verify_password,
 };
+use crate::migration::{migrate_keystore, scan_legacy_keystores};
 
 mod filemanager;
 // mod identity;
@@ -72,9 +74,9 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
             handler::init_token_core_x(&action.param.unwrap().value).unwrap();
             Ok(vec![])
         }),
-        "scan_keystores" => landingpad(|| {
-            handler::scan_keystores().unwrap();
-            Ok(vec![])
+        "scan_legacy_keystores" => landingpad(|| {
+            let ret = migration::scan_legacy_keystores()?;
+            encode_message(ret)
         }),
         "create_keystore" => landingpad(|| create_keystore(&action.param.unwrap().value)),
         "import_mnemonic" => landingpad(|| import_mnemonic(&action.param.unwrap().value)),
@@ -3769,11 +3771,11 @@ mod tests {
         assert_eq!(keystore.id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
         assert_eq!(
             keystore.identifier,
-            "im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf"
+            "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg"
         );
         assert_eq!(
             keystore.ipfs_id,
-            "QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"
+            "QmSTTidyfa4np9ak9BZP38atuzkCHy4K59oif23f4dNAGU"
         );
         assert_eq!(keystore.created_at, 1703213098);
         assert_eq!(keystore.source, "MNEMONIC");
