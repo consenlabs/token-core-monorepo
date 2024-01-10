@@ -392,7 +392,7 @@ mod tests {
     }
 
     #[test]
-    fn get_register_address() {
+    fn test_derive_accounts() {
         hid_connect("imKey Pro").is_ok();
         let action: ImkeyAction = ImkeyAction {
             method: "bind_check".to_string(),
