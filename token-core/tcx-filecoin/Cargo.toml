@@ -20,14 +20,9 @@ failure = "=0.1.8"
 byteorder = "=1.4.3"
 base32 = "=0.4.0"
 serde = { version = "=1.0.147", features = ["derive"] }
-serde_cbor = "=0.11.1"
 serde_json = "=1.0.89"
 base64 = "=0.13.1"
-
-num_bigint_chainsafe = { package = "forest_bigint", version = "0.1.4"}
-
 lazy_static = "=1.4.0"
-
 forest_vm = "=0.3.2"
 forest_message = "=0.7.2"
 forest_address = "=0.3.2"

@@ -30,7 +30,6 @@ linked-hash-map = { version = "=0.5.6", features = ["serde_impl"] }
 base32 = "=0.4.0"
 blake2b-rs = "=0.2.0"
 serde = { version = "=1.0.147", features = ["derive"] }
-serde_cbor = "=0.11.1"
 serde_json = "=1.0.89"
 
 forest_vm = "=0.3.2"
@@ -39,5 +38,4 @@ forest_address = "=0.3.2"
 forest_encoding = "=0.2.2"
 forest_cid = "=0.3.0"
 forest_crypto = "=0.5.3"
-num_bigint_chainsafe = { package = "forest_bigint", version = "=0.1.4"}
 

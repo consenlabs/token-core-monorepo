@@ -501,12 +501,6 @@ dependencies = [
 
 [[package]]
 name = "bs58"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
-
-[[package]]
-name = "bs58"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f5353f36341f7451062466f0b755b96ac3a9547e4d7f6b70d603fc721a7d7896"
@@ -863,7 +857,6 @@ dependencies = [
  "bytes",
  "failure",
  "forest_address",
- "forest_bigint",
  "forest_cid",
  "forest_crypto",
  "forest_encoding",
@@ -882,7 +875,6 @@ dependencies = [
  "ring 0.16.20",
  "secp256k1",
  "serde",
- "serde_cbor",
  "serde_json",
 ]
 
@@ -4936,16 +4928,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_cbor"
-version = "0.11.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e18acfa2f90e8b735b2836ab8d538de304cbb6729a7360729ea5a895d15a622"
-dependencies = [
- "half",
- "serde",
-]
-
-[[package]]
 name = "serde_derive"
 version = "1.0.147"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5912,7 +5894,6 @@ dependencies = [
  "ctr",
  "failure",
  "hex",
- "hmac-sha256",
  "keccak-hash",
  "rand 0.8.5",
  "regex 1.9.3",
@@ -6028,7 +6009,6 @@ dependencies = [
  "bytes",
  "failure",
  "forest_address",
- "forest_bigint",
  "forest_cid",
  "forest_crypto",
  "forest_encoding",
@@ -6037,7 +6017,6 @@ dependencies = [
  "lazy_static",
  "prost",
  "serde",
- "serde_cbor",
  "serde_json",
  "tcx-common",
  "tcx-constants",
@@ -6156,7 +6135,6 @@ version = "0.1.0"
 dependencies = [
  "base58",
  "base64 0.13.1",
- "bs58 0.4.0",
  "byteorder 1.4.3",
  "bytes",
  "failure",

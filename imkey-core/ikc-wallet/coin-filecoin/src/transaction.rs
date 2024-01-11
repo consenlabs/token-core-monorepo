@@ -13,9 +13,8 @@ use forest_address::Address;
 use forest_cid::Cid;
 use forest_encoding::Cbor;
 use forest_message::UnsignedMessage as ForestUnsignedMessage;
-use forest_vm::Serialized;
+use forest_vm::{Serialized, TokenAmount};
 use ikc_transport::message::send_apdu_timeout;
-use num_bigint_chainsafe::BigInt;
 use secp256k1::ecdsa::Signature as SecpSignature;
 use std::str::FromStr;
 
@@ -26,12 +25,12 @@ impl Transaction {
     fn convert_message(message: &FilecoinTxInput) -> Result<ForestUnsignedMessage> {
         let to = Address::from_str(&message.to).map_err(|_| CoinError::InvalidAddress)?;
         let from = Address::from_str(&message.from).map_err(|_| CoinError::InvalidAddress)?;
-        let value = BigInt::from_str(&message.value).map_err(|_| CoinError::InvalidNumber)?;
+        let value = TokenAmount::from_str(&message.value).map_err(|_| CoinError::InvalidNumber)?;
         let gas_limit = message.gas_limit;
         let gas_fee_cap =
-            BigInt::from_str(&message.gas_fee_cap).map_err(|_| CoinError::InvalidNumber)?;
+            TokenAmount::from_str(&message.gas_fee_cap).map_err(|_| CoinError::InvalidNumber)?;
         let gas_premium =
-            BigInt::from_str(&message.gas_premium).map_err(|_| CoinError::InvalidNumber)?;
+            TokenAmount::from_str(&message.gas_premium).map_err(|_| CoinError::InvalidNumber)?;
 
         let message_params_bytes =
             base64::decode(&message.params).map_err(|_| CoinError::InvalidParam)?;
