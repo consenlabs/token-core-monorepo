@@ -1,14 +1,10 @@
-extern crate aes_soft as aes;
-
 use super::key_manager::KeyManager;
 use crate::auth_code_storage::AuthCodeStorageRequest;
 use crate::device_cert_check::DeviceCertCheckRequest;
 use crate::error::{BindError, ImkeyError};
 use crate::Result;
 use crate::{device_manager, TsmService};
-use aes::Aes128;
-use block_modes::block_padding::Pkcs7;
-use block_modes::{BlockMode, Cbc};
+use ikc_common::aes::cbc::encrypt_pkcs7;
 use ikc_common::apdu::{Apdu, ApduCheck, ImkApdu};
 use ikc_common::constants::{
     BIND_RESULT_ERROR, BIND_RESULT_SUCCESS, BIND_STATUS_BOUND_OTHER, BIND_STATUS_BOUND_THIS,
@@ -128,13 +124,11 @@ impl DeviceManage {
         let data_hash = digest::digest(&digest::SHA256, data.as_slice());
 
         //encryption hash value by session key
-        type Aes128Cbc = Cbc<Aes128, Pkcs7>;
-        let cipher = Aes128Cbc::new_var(
+        let ciphertext = encrypt_pkcs7(
+            &data_hash.as_ref(),
             &key_manager_obj.session_key,
-            &gen_iv(&temp_binding_code).as_ref(),
+            &gen_iv(&temp_binding_code),
         )?;
-
-        let ciphertext = cipher.encrypt_vec(data_hash.as_ref());
         //gen identityVerify command
         let mut apdu_data = vec![];
         apdu_data.extend(&key_manager_obj.pub_key);

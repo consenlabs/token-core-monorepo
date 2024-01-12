@@ -1,21 +1,15 @@
+use crate::error::BindError;
+use crate::Result;
 use base64::{decode, encode};
+use ikc_common::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
+use ikc_common::utility::is_valid_hex;
 use ring::digest;
 use secp256k1::rand::rngs::OsRng;
+use secp256k1::Secp256k1;
 use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::{ErrorKind, Read, Write};
 use std::path::Path;
-
-extern crate aes_soft as aes;
-extern crate block_modes;
-
-use crate::error::BindError;
-use crate::Result;
-use aes_soft::Aes128;
-use block_modes::block_padding::Pkcs7;
-use block_modes::{BlockMode, Cbc};
-use ikc_common::utility::is_valid_hex;
-use secp256k1::Secp256k1;
 
 pub struct KeyManager {
     pub pri_key: Vec<u8>,
@@ -81,10 +75,11 @@ impl KeyManager {
         data.extend(hash.as_ref()[..4].iter());
 
         //AES-CBC encryption
-        type Aes128Cbc = Cbc<Aes128, Pkcs7>;
-        let cipher = Aes128Cbc::new_var(self.encry_key.as_ref(), self.iv.as_ref())
-            .expect("aes_128cbc_encrypt_error");
-        let ciphertext = cipher.encrypt_vec(data.as_ref());
+        // type Aes128Cbc = Cbc<Aes128, Pkcs7>;
+        // let cipher = Aes128Cbc::new_var(self.encry_key.as_ref(), self.iv.as_ref())
+        //     .expect("aes_128cbc_encrypt_error");
+        // let ciphertext = cipher.encrypt_vec(data.as_ref());
+        let ciphertext = encrypt_pkcs7(&self.encry_key, &self.iv, &data)?;
 
         //base64 coding
         Ok(encode(&ciphertext))
@@ -127,13 +122,11 @@ impl KeyManager {
         };
 
         //AES-CBC Decrypt
-        type Aes128Cbc = Cbc<Aes128, Pkcs7>;
-        let cipher = Aes128Cbc::new_var(self.encry_key.as_ref(), self.iv.as_ref())?;
-        let decrypt_result = cipher.decrypt_vec(&ciphertext_bytes);
-        if decrypt_result.is_err() {
+        let plaintext = decrypt_pkcs7(&ciphertext_bytes, &self.encry_key, &self.iv);
+        if plaintext.is_err() {
             return Ok(false);
         }
-        let decrypted_data = decrypt_result.unwrap();
+        let decrypted_data = plaintext?;
 
         //Parsing data
         //pri_key
