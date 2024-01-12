@@ -17,7 +17,6 @@ serde_json = "=1.0.89"
 hex = "=0.4.3"
 tokio = { version = "=1.28.2", features = ["full"] }
 regex = "=1.9.3"
-ring = "=0.16.20"
 num-bigint = "=0.4.3"
 num-traits = "=0.2.15"
 num-integer = "=0.1.45"

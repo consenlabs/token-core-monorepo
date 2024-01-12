@@ -1,7 +1,7 @@
 use bitcoin::util::base58;
 use blake2b_simd::Params;
 use std::str::FromStr;
-use tcx_common::sha256d;
+use tcx_common::{sha256, sha256d};
 use tcx_constants::CoinInfo;
 use tcx_keystore::Address;
 use tcx_keystore::PublicKeyEncoder;
@@ -40,7 +40,7 @@ impl Address for TezosAddress {
         let mut prefixed_generic_hash = vec![];
         prefixed_generic_hash.extend_from_slice(tz1_prefix.as_ref());
         prefixed_generic_hash.extend_from_slice(generic_hash.as_bytes());
-        let double_hash_result = sha256_hash(&sha256_hash(&prefixed_generic_hash));
+        let double_hash_result = sha256(&sha256(&prefixed_generic_hash));
         prefixed_generic_hash.extend_from_slice(&double_hash_result[..4]);
         //base58Encode(prefix<3> + public key hash<20> + checksum<4>)
         let address = base58::encode_slice(prefixed_generic_hash.as_slice());
@@ -55,7 +55,7 @@ impl Address for TezosAddress {
         };
 
         let decode_data = decode_result.unwrap();
-        let hash_res = sha256_hash(&sha256_hash(&decode_data[..decode_data.len() - 4]));
+        let hash_res = sha256(&sha256(&decode_data[..decode_data.len() - 4]));
         for number in 0..4 {
             if hash_res[number] != decode_data[decode_data.len() - 4 + number] {
                 return false;
@@ -76,13 +76,6 @@ impl FromStr for TezosAddress {
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Ok(TezosAddress(s.to_string()))
     }
-}
-
-use ring::digest;
-
-pub fn sha256_hash(data: &[u8]) -> Vec<u8> {
-    let digest_obj = digest::digest(&digest::SHA256, data);
-    digest_obj.as_ref().to_vec()
 }
 
 #[cfg(test)]

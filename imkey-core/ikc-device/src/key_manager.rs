@@ -2,8 +2,7 @@ use crate::error::BindError;
 use crate::Result;
 use base64::{decode, encode};
 use ikc_common::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
-use ikc_common::utility::is_valid_hex;
-use ring::digest;
+use ikc_common::utility::{is_valid_hex, sha256_hash};
 use secp256k1::rand::rngs::OsRng;
 use secp256k1::Secp256k1;
 use std::fs;
@@ -44,12 +43,8 @@ impl KeyManager {
     */
     pub fn gen_encrypt_key(&mut self, seid: &str, sn: &str) {
         //calc seid and sn hash
-        let seid_hash = digest::digest(&digest::SHA256, seid.as_bytes())
-            .as_ref()
-            .to_vec();
-        let sn_hash = digest::digest(&digest::SHA256, sn.as_bytes())
-            .as_ref()
-            .to_vec();
+        let seid_hash = sha256_hash(seid.as_bytes());
+        let sn_hash = sha256_hash(sn.as_bytes());
 
         let mut xor_result: Vec<u8> = vec![];
         for (index, value) in seid_hash.iter().enumerate() {
@@ -71,14 +66,10 @@ impl KeyManager {
         data.extend(self.session_key.iter());
 
         //calc HASH
-        let hash = digest::digest(&digest::SHA256, data.as_slice());
-        data.extend(hash.as_ref()[..4].iter());
+        let hash = sha256_hash(data.as_slice());
+        data.extend(&hash[..4]);
 
         //AES-CBC encryption
-        // type Aes128Cbc = Cbc<Aes128, Pkcs7>;
-        // let cipher = Aes128Cbc::new_var(self.encry_key.as_ref(), self.iv.as_ref())
-        //     .expect("aes_128cbc_encrypt_error");
-        // let ciphertext = cipher.encrypt_vec(data.as_ref());
         let ciphertext = encrypt_pkcs7(&self.encry_key, &self.iv, &data)?;
 
         //base64 coding
@@ -146,10 +137,9 @@ impl KeyManager {
 
         //check checksum
         let data = &decrypted_data[..178];
-        let data_hash = digest::digest(&digest::SHA256, data);
-        let data_hash_byte = data_hash.as_ref();
+        let data_hash = sha256_hash(data);
         for (index, val) in self.check_sum.iter().enumerate() {
-            if val != &data_hash_byte[index] {
+            if val != &data_hash[index] {
                 return Ok(false);
             }
         }

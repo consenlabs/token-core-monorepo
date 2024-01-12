@@ -10,13 +10,13 @@ use ikc_common::constants::{
     BIND_RESULT_ERROR, BIND_RESULT_SUCCESS, BIND_STATUS_BOUND_OTHER, BIND_STATUS_BOUND_THIS,
     BIND_STATUS_UNBOUND, IMK_AID,
 };
+use ikc_common::utility::sha256_hash;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use ikc_transport::hid_api::hid_connect;
 use ikc_transport::message::send_apdu;
 use parking_lot::Mutex;
 use rand::rngs::OsRng;
 use regex::Regex;
-use ring::digest;
 use rsa::{BigUint, PaddingScheme, PublicKey as RSAPublic, RsaPublicKey};
 use secp256k1::{ecdh, PublicKey, SecretKey};
 use sha1::Sha1;
@@ -121,7 +121,7 @@ impl DeviceManage {
         data.extend(binding_code_bytes);
         data.extend(&key_manager_obj.pub_key);
         data.extend(&key_manager_obj.se_pub_key);
-        let data_hash = digest::digest(&digest::SHA256, data.as_slice());
+        let data_hash = sha256_hash(data.as_slice());
 
         //encryption hash value by session key
         let ciphertext = encrypt_pkcs7(
@@ -162,11 +162,11 @@ fn select_imk_applet() -> Result<()> {
 generator iv
 */
 fn gen_iv(auth_code: &String) -> [u8; 16] {
-    let salt_bytes = digest::digest(&digest::SHA256, "bindingCode".as_bytes());
-    let auth_code_hash = digest::digest(&digest::SHA256, auth_code.as_bytes());
+    let salt_bytes = sha256_hash("bindingCode".as_bytes());
+    let auth_code_hash = sha256_hash(auth_code.as_bytes());
     let mut result = [0u8; 32];
-    for (index, value) in auth_code_hash.as_ref().iter().enumerate() {
-        result[index] = value ^ salt_bytes.as_ref().get(index).unwrap();
+    for (index, value) in auth_code_hash.iter().enumerate() {
+        result[index] = value ^ salt_bytes.get(index).unwrap();
     }
     let mut return_data = [0u8; 16];
     return_data.copy_from_slice(&result[..16]);

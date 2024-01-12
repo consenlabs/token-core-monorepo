@@ -13,7 +13,6 @@ ikc-transport = {path = "../../ikc-transport"}
 bitcoin = "=0.29.2"
 hex = "=0.4.3"
 secp256k1 = {version ="=0.24.3", features = ["rand", "recovery"] }
-ring = "=0.16.20"
 bitcoin_hashes = "=0.11.0"
 num-bigint = "=0.4.3"
 failure = "=0.1.8"

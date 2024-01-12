@@ -12,7 +12,6 @@ ikc-transport = {path = "../ikc-transport"}
 serde = { version = "=1.0.147", features = ["derive"] }
 serde_derive = "=1.0.147"
 serde_json = "=1.0.89"
-ring = "=0.16.20"
 base64 = "=0.13.1"
 hex = "=0.4.3"
 secp256k1 = {version ="=0.24.3", features = ["rand", "recovery", "rand-std"] }
