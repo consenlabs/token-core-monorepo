@@ -4,7 +4,7 @@ use std::ffi::{CStr, CString};
 
 use std::os::raw::c_char;
 
-use handler::sign_bls_to_execution_change;
+use handler::{backup, sign_bls_to_execution_change};
 use prost::Message;
 
 pub mod api;
@@ -94,6 +94,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "exists_json" => landingpad(|| exists_json(&action.param.unwrap().value)),
         "import_json" => landingpad(|| import_json(&action.param.unwrap().value)),
         "export_json" => landingpad(|| export_json(&action.param.unwrap().value)),
+        "backup" => landingpad(|| backup(&action.param.unwrap().value)),
 
         // !!! WARNING !!! used for `cache_dk` feature
         "get_derived_key" => landingpad(|| get_derived_key(&action.param.unwrap().value)),
@@ -180,20 +181,21 @@ mod tests {
     use tcx_keystore::keystore::IdentityNetwork;
 
     use crate::api::{
-        export_private_key_param, migrate_keystore_param, sign_param, CreateKeystoreParam,
-        DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
-        DerivedKeyResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
-        ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicResult,
-        ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult, GetPublicKeysParam,
-        GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
-        ImportPrivateKeyResult, InitTokenCoreXParam, KeystoreResult, MigrateKeystoreParam,
-        MigrateKeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
-        PublicKeyDerivation, SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
+        export_private_key_param, migrate_keystore_param, sign_param, BackupResult,
+        CreateKeystoreParam, DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam,
+        DeriveSubAccountsResult, DerivedKeyResult, ExistsJsonParam, ExistsKeystoreResult,
+        ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult,
+        ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
+        GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam,
+        ImportPrivateKeyParam, ImportPrivateKeyResult, InitTokenCoreXParam, KeystoreResult,
+        MigrateKeystoreParam, MigrateKeystoreResult, MnemonicToPublicKeyParam,
+        MnemonicToPublicKeyResult, PublicKeyDerivation, SignHashesParam, SignHashesResult,
+        SignParam, WalletKeyParam,
     };
     use crate::handler::import_mnemonic;
     use crate::handler::{encode_message, import_private_key};
     use prost::Message;
-    use tcx_constants::{sample_key, CurveType, TEST_PRIVATE_KEY};
+    use tcx_constants::{sample_key, CurveType, TEST_PRIVATE_KEY, TEST_WIF};
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::Keystore;
 
@@ -290,6 +292,7 @@ mod tests {
             password: TEST_PASSWORD.to_string(),
             name: "import_default_pk_store".to_string(),
             password_hint: "".to_string(),
+            network: "".to_string(),
             overwrite: true,
         };
 
@@ -304,6 +307,7 @@ mod tests {
             password: TEST_PASSWORD.to_string(),
             name: "import_filecoin_pk_store".to_string(),
             password_hint: "".to_string(),
+            network: "".to_string(),
             overwrite: true,
         };
 
@@ -1122,6 +1126,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "test_tezos_import_private_key_export".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
 
@@ -1264,6 +1269,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "test_filecoin_import_private_key".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
 
@@ -1330,6 +1336,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "test_filecoin_import_private_key".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
 
@@ -1395,6 +1402,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "test_64bytes_import_private_key".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
 
@@ -1801,6 +1809,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "test_import_to_pk_which_from_hd".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
 
@@ -1874,6 +1883,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "test_delete_keystore".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
 
@@ -3558,15 +3568,13 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "import_private_key_wallet".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
             let ret = call_api("import_private_key", param).unwrap();
             let import_result: ImportPrivateKeyResult =
                 ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
-            assert_eq!(
-                vec!["ETHEREUM".to_string(), "TRON".to_string(),],
-                import_result.identified_chain_types
-            );
+            assert_eq!(Vec::<String>::new(), import_result.identified_chain_types);
             assert_eq!("secp256k1", import_result.identified_curve);
             assert_eq!("", import_result.identified_network);
             assert_eq!("PRIVATE", import_result.source);
@@ -3608,6 +3616,55 @@ mod tests {
             assert!(export_result
                 .json
                 .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
+        })
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_import_wif_network_mismatch() {
+        run_test(|| {
+            let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
+                private_key: TEST_WIF.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                name: "import_private_key_wallet".to_string(),
+                password_hint: "".to_string(),
+                network: "".to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_private_key", param);
+            assert_eq!(
+                format!("{}", ret.unwrap_err()),
+                "private_key_network_mismatch"
+            );
+
+            let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
+                private_key: TEST_WIF.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                name: "import_private_key_wallet".to_string(),
+                password_hint: "".to_string(),
+                network: "MAINNET".to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_private_key", param);
+            // let import_result: ImportPrivateKeyResult =
+            //     ImportPrivateKeyResult::decode(ret.as_slice());
+            assert_eq!(
+                format!("{}", ret.unwrap_err()),
+                "private_key_network_mismatch"
+            );
+
+            let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
+                private_key: TEST_WIF.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                name: "import_private_key_wallet".to_string(),
+                password_hint: "".to_string(),
+                network: "TESTNET".to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_private_key", param).unwrap();
+            let import_result: ImportPrivateKeyResult =
+                ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(import_result.identified_network, "TESTNET");
         })
     }
 
@@ -4170,10 +4227,9 @@ mod tests {
             let decrypted = unlocker
                 .decrypt_enc_pair(&keystore.store().enc_original)
                 .unwrap();
-            let hex = String::from_utf8_lossy(&decrypted);
-            assert_eq!(
-                "7e480e9ef0faccdf1a3aa773682742e099620f6177e95a878c2a612a0785fc7c",
-                hex
+            let json = String::from_utf8_lossy(&decrypted);
+            assert!(
+                json.contains("9b62a4c07c96ca9b0b82b5b5eae4e7c9b2b7db531a6d2991198eb6809a8c35ac")
             );
         }
 
@@ -4243,5 +4299,54 @@ mod tests {
         // assert!(keystore.store().enc_original.is_none());
 
         // fs::remove_dir_all("../test-data/walletsV2").unwrap();
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_backup() {
+        run_test(|| {
+            let json = r#"{
+                "version": 3,
+                "id": "5c24e96a-8fd8-4872-9702-3fd2fc9166cd",
+                "crypto": {
+                  "cipher": "aes-128-ctr",
+                  "cipherparams": { "iv": "56ed1daad9226d7edd75e8ab34e32309" },
+                  "ciphertext": "95cae71ef4d76c3def64bf77d267608a823fc65cda6254ea24d1cbbe09de6b6b",
+                  "kdf": "pbkdf2",
+                  "kdfparams": {
+                    "c": 262144,
+                    "prf": "hmac-sha256",
+                    "dklen": 32,
+                    "salt": "63c89a7275a65bd659a937fe374c668e5aa3b05a9b0ef3ec9178aa9182f42666"
+                  },
+                  "mac": "2adc6da2f5f183e528a063b36ebeddaf0d3a90269ef797b99dc143d58ba3bb58"
+                },
+                "address": "0x6031564e7b2F5cc33737807b2E58DaFF870B590b"
+              }
+              "#;
+
+            let param: ImportJsonParam = ImportJsonParam {
+                password: TEST_PASSWORD.to_string(),
+                json: json.to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_json", param).unwrap();
+            let import_result: ImportPrivateKeyResult =
+                ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(
+                vec!["ETHEREUM".to_string()],
+                import_result.identified_chain_types
+            );
+
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+            };
+            let ret = call_api("backup", param).unwrap();
+            let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
+            assert!(export_result
+                .original
+                .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
+        })
     }
 }

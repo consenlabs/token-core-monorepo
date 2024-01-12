@@ -163,6 +163,17 @@ fn import_private_key_internal(
     }
 
     let decoded_ret = decode_private_key(&param.private_key)?;
+    if !decoded_ret.network.is_empty() {
+        let expected_network = if param.network.is_empty() {
+            "MAINNET"
+        } else {
+            param.network.as_str()
+        };
+        if decoded_ret.network != expected_network {
+            return Err(format_err!("{}", "private_key_network_mismatch"));
+        }
+    }
+
     let private_key = decoded_ret.bytes.to_hex();
     let meta_source = if let Some(source) = source {
         source
@@ -240,8 +251,6 @@ fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
         if let Ok(decoded_data) = decoded {
             if decoded_data.len() == 32 {
                 private_key_bytes = decoded_data;
-                chain_types.push("ETHEREUM".to_string());
-                chain_types.push("TRON".to_string());
             } else if decoded_data.len() == 64 {
                 let sr25519_key = Sr25519PrivateKey::from_slice(&decoded_data)?;
                 private_key_bytes = sr25519_key.to_bytes();
@@ -870,11 +879,13 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
     let param: ImportJsonParam = ImportJsonParam::decode(data).expect("import_json param");
     if let Ok(parse_v3_result) = key_info_from_v3(&param.json, &param.password) {
         let (sec_key_bytes, name) = parse_v3_result;
+        // network is required when import wif
         let pk_import_param = ImportPrivateKeyParam {
             private_key: sec_key_bytes.to_hex(),
             password: param.password.to_string(),
             name,
             password_hint: "".to_string(),
+            network: "".to_string(),
             overwrite: param.overwrite,
         };
         let mut ret = import_private_key_internal(
@@ -895,6 +906,7 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
             password: param.password.to_string(),
             name,
             password_hint: "".to_string(),
+            network: "".to_string(),
             overwrite: param.overwrite,
         };
         let mut ret = import_private_key_internal(
@@ -1271,17 +1283,5 @@ mod tests {
         assert_eq!(decoded.curve, CurveType::SECP256k1);
         assert_eq!(decoded.network, "".to_string());
         assert_eq!(decoded.source, Source::Wif);
-    }
-
-    #[test]
-    #[serial]
-    fn test_decode_private_key_with_network() {}
-
-    #[test]
-    #[serial]
-    fn test_backup() {
-        let json_str = include_str!(
-            "../../test-data/wallets-ios-2_14_1/fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb.json"
-        );
     }
 }

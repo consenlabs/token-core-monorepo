@@ -231,7 +231,6 @@ impl Crypto {
         match key {
             Key::Password(password) => {
                 let derived_key = self.derive_key(password)?;
-                dbg!(derived_key.to_0x_hex());
                 if !self.mac.is_empty() && !self.verify_derived_key(&derived_key) {
                     return Err(Error::PasswordIncorrect.into());
                 }
