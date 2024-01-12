@@ -48,7 +48,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 };
 
                 let public_key = BtcAddress::get_pub_key(&derivation.path)?;
-                let public_key = uncompress_pubkey_2_compress(&public_key).to_uppercase();
+                let public_key = uncompress_pubkey_2_compress(&public_key);
                 account_rsp.public_key = format!("0x{}", public_key);
                 let btc_fork_network = network_from_param(
                     &derivation.chain_type,
@@ -65,14 +65,14 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
             }
             "ETHEREUM" => {
                 let public_key = EthAddress::get_pub_key(&derivation.path)?;
-                let public_key = uncompress_pubkey_2_compress(&public_key[..130]).to_uppercase();
+                let public_key = uncompress_pubkey_2_compress(&public_key[..130]);
                 account_rsp.public_key = format!("0x{}", public_key);
                 account_rsp.address = EthAddress::get_address(&derivation.path)?;
                 CosmosAddress::get_xpub(&account_path)?
             }
             "COSMOS" => {
                 let public_key = CosmosAddress::get_pub_key(&derivation.path)?;
-                let public_key = uncompress_pubkey_2_compress(&public_key[..130]).to_uppercase();
+                let public_key = uncompress_pubkey_2_compress(&public_key[..130]);
                 account_rsp.public_key = format!("0x{}", public_key);
                 account_rsp.address = CosmosAddress::get_address(&derivation.path)?;
                 CosmosAddress::get_xpub(&account_path)?
@@ -92,7 +92,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                     &derivation.path,
                     &AddressType::from_str(&derivation.chain_type)?,
                 )?;
-                account_rsp.public_key = format!("0x{}", public_key);
+                account_rsp.public_key = format!("0x{}", public_key).to_lowercase();
                 account_rsp.address = SubstrateAddress::get_address(
                     &derivation.path,
                     &AddressType::from_str(&derivation.chain_type)?,
@@ -101,7 +101,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
             }
             "TRON" => {
                 let public_key = hex::encode(TronAddress::get_pub_key(&derivation.path)?);
-                let public_key = uncompress_pubkey_2_compress(&public_key[..130]).to_uppercase();
+                let public_key = uncompress_pubkey_2_compress(&public_key[..130]);
                 account_rsp.public_key = format!("0x{}", public_key);
                 account_rsp.address = TronAddress::get_address(&derivation.path)?;
                 TronAddress::get_xpub(&account_path)?
@@ -117,7 +117,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
             }
             "EOS" => {
                 let public_key = EosPubkey::get_sub_pubkey(&derivation.path)?;
-                let public_key = uncompress_pubkey_2_compress(&public_key[..130]).to_uppercase();
+                let public_key = uncompress_pubkey_2_compress(&public_key[..130]);
                 account_rsp.public_key = format!("0x{}", public_key);
                 account_rsp.address = EosPubkey::get_pubkey(&derivation.path)?;
                 EosPubkey::get_xpub(&account_path)?
@@ -129,7 +129,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                     _ => Network::Testnet,
                 };
                 let public_key = BchAddress::get_pub_key(network, &derivation.path)?;
-                let public_key = uncompress_pubkey_2_compress(&public_key).to_uppercase();
+                let public_key = uncompress_pubkey_2_compress(&public_key);
                 account_rsp.public_key = format!("0x{}", public_key);
                 account_rsp.address = BchAddress::get_address(network, &derivation.path)?;
                 BtcAddress::get_xpub(network, &account_path)?

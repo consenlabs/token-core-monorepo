@@ -7,12 +7,7 @@ pub fn check_path_validity(path: &str) -> Result<()> {
     //check depth and length
     let strings: Vec<&str> = path.split("/").collect();
     let depth = strings.len();
-    if !(2..=10).contains(&depth) || path.len() > 100 {
-        return Err(CommonError::ImkeyPathIllegal.into());
-    }
-    //regx check
-    let re = Regex::new(r"^m/[0-9'/]+$").unwrap();
-    if !re.is_match(path) {
+    if depth < 2 || depth > 10 {
         return Err(CommonError::ImkeyPathIllegal.into());
     }
     Ok(())
@@ -22,12 +17,7 @@ pub fn check_path_max_five_depth(path: &str) -> Result<()> {
     //check depth and length
     let strings: Vec<&str> = path.split("/").collect();
     let depth = strings.len();
-    if !(2..=6).contains(&depth) {
-        return Err(CommonError::ImkeyPathIllegal.into());
-    }
-    //regx check
-    let re = Regex::new(r"^m/[0-9'/]+$").unwrap();
-    if !re.is_match(path) {
+    if depth < 2 || depth > 6 {
         return Err(CommonError::ImkeyPathIllegal.into());
     }
     Ok(())

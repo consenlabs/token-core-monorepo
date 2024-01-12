@@ -567,7 +567,7 @@ mod tests {
             derived_accounts.accounts[0].address
         );
         assert_eq!(
-            "0x0289CA41680EDBC5594EE6378EBD937E42CD6B4B969E40DD82C20EF2A8AA5BAD7B",
+            "0x0289ca41680edbc5594ee6378ebd937e42cd6b4b969e40dd82c20ef2a8aa5bad7b",
             derived_accounts.accounts[0].public_key
         );
         assert_eq!("xpub6D3MqTwuLWB5veAfhDjPu1oHfS6L1imVbf22zQFWJW9EtnSmYYqiGMGkW1MCsT2HmkW872tefMY9deewW6DGd8zE7RcXVv8wKhZnbJeidjT", derived_accounts.accounts[0].extended_public_key);
@@ -578,7 +578,7 @@ mod tests {
             derived_accounts.accounts[1].address
         );
         assert_eq!(
-            "0x03ACE3B0DA84C9944A077D62FC839C95324C2BDAA01786353F5538F89FBC24F428",
+            "0x03ace3b0da84c9944a077d62fc839c95324c2bdaa01786353f5538f89fbc24f428",
             derived_accounts.accounts[1].public_key
         );
         assert_eq!("ypub6Y37Xmn4afXWyQduPKYWPXSbX6YUCewxo4qKJqqtKsGJzPnS95QNT261uvzfQJH95CeuGn3xEysWHau3knBKxy1tNs21HipL9cpG1LJy4Wc", derived_accounts.accounts[1].extended_public_key);
@@ -589,7 +589,7 @@ mod tests {
             derived_accounts.accounts[2].address
         );
         assert_eq!(
-            "0x031AEE5E20399D68CF0035D1A21564868F22BC448AB205292B4279136B15ECAEBC",
+            "0x031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc",
             derived_accounts.accounts[2].public_key
         );
         assert_eq!("upub5E4woDJohDBJ2trk6HqhsvEeZXtjjWMAbHV4LWRhfR9thcpfkjJbBRnvBS21L2JjsZAGC6LhkqAoYgD5VHSXBRNW7gszbiGJP7B6CR35QhD", derived_accounts.accounts[2].extended_public_key);
@@ -600,7 +600,7 @@ mod tests {
             derived_accounts.accounts[3].address
         );
         assert_eq!(
-            "0x037B5253C24CE2A293566F9E066051366CDA5073E4A43B25F07C990D7C9AC0AAB5",
+            "0x037b5253c24ce2a293566f9e066051366cda5073e4a43b25f07c990d7c9ac0aab5",
             derived_accounts.accounts[3].public_key
         );
         assert_eq!("tpubDCxD6k9PreNhSacpfSZ3iErESZnncY1n7qU7e3stZXLPh84xVVt5ERMAqKeefUU8jswx2GpCkQpeYow4xH3PGx2iim6ftPa32GNvTKAtknz", derived_accounts.accounts[3].extended_public_key);
@@ -611,7 +611,7 @@ mod tests {
             derived_accounts.accounts[4].address
         );
         assert_eq!(
-            "0x03554851980004FF256888612BF0D64D9B1002BF82331450FD5A7405D1B23CC5BD",
+            "0x03554851980004ff256888612bf0d64d9b1002bf82331450fd5a7405d1b23cc5bd",
             derived_accounts.accounts[4].public_key
         );
         assert_eq!("tpubDDMZ3uNczagkRgAQBT6vmHFwM6Tc8RwYKU4ufqywmZEUNVfYNNyrVyXgmSpDTVsthVEbEzH5QjhxQPExpjBtVXVWZinpdRjiRGtpXuALuND", derived_accounts.accounts[4].extended_public_key);
@@ -622,7 +622,7 @@ mod tests {
             derived_accounts.accounts[5].address
         );
         assert_eq!(
-            "0x03BD460186D29FD9AC68EE88B110C3ACC4A4443648A1EC7607AF9CE306AD76F785",
+            "0x03bd460186d29fd9ac68ee88b110c3acc4a4443648a1ec7607af9ce306ad76f785",
             derived_accounts.accounts[5].public_key
         );
         assert_eq!("tpubDDaEZaaDDmwnZTP6u7m3yTKFgnbSx2uTaxp1hKM5oiVZo6iBB46rWnWpdkpbPxtfdYiyLbyhqgbXRXYff3LfW4rCpYyfpb5pC67CPZdKkZB", derived_accounts.accounts[5].extended_public_key);
@@ -633,7 +633,7 @@ mod tests {
             derived_accounts.accounts[6].address
         );
         assert_eq!(
-            "0x0232C1EF21D73C19531B0AA4E863CF397C2B982B2F958F60CDB62969824C096D65",
+            "0x0232c1ef21d73c19531b0aa4e863cf397c2b982b2f958f60cdb62969824c096d65",
             derived_accounts.accounts[6].public_key
         );
         assert_eq!("xpub6CrWRZY39gj49G1ipdmcVunEnb5RoTGf9o6QnJQp8c4b84V2piN1Rdy1xWVJ4P7VXNx5Ckg6rZcvSNvJtvWz8zs3RkPayHn9vMMuK9ERrFr", derived_accounts.accounts[6].extended_public_key);
@@ -644,7 +644,7 @@ mod tests {
             derived_accounts.accounts[7].address
         );
         assert_eq!(
-            "0x03AAF80E479AAC0813B17950C390A16438B307AEE9A814689D6706BE4FB4A4E30A",
+            "0x03aaf80e479aac0813b17950c390a16438b307aee9a814689d6706be4fb4a4e30a",
             derived_accounts.accounts[7].public_key
         );
         assert_eq!("xpub6CUtvjXi3yjmhjaC2GxjiWE9FbQs1TrtqAgRDhB2gmDBsPzTfwqZ7MvGGYScKiVx8PBNFSmHm4mCnFDCaX23c1nJS4p8ynR2wnGne4qEEX9", derived_accounts.accounts[7].extended_public_key);
@@ -655,7 +655,7 @@ mod tests {
             derived_accounts.accounts[8].address
         );
         assert_eq!(
-            "0x0280C98B8EA7CAB630DEFB0C09A4295C2193CDEE016C1D5B9B0CB18572B9C370FE",
+            "0x0280c98b8ea7cab630defb0c09a4295c2193cdee016c1d5b9b0cb18572b9c370fe",
             derived_accounts.accounts[8].public_key
         );
         assert_eq!("tpubDCvte6zYB6DKMaEy4fwyoXpuExA4ery3Hu6dVSBZeY9Rg57VKFLwNPMfywWtqRFM1Df5gQJTu42RaaNCgVEyngdVfnYRh9Kb1UCoEYojURc", derived_accounts.accounts[8].extended_public_key);
@@ -666,7 +666,7 @@ mod tests {
             derived_accounts.accounts[9].address
         );
         assert_eq!(
-            "0x026B5B6A9D041BC5187E0B34F9E496436C7BFF261C6C1B5F3C06B433C61394B868",
+            "0x026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
             derived_accounts.accounts[9].public_key
         );
         assert_eq!("xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8", derived_accounts.accounts[9].extended_public_key);
@@ -677,7 +677,7 @@ mod tests {
             derived_accounts.accounts[10].address
         );
         assert_eq!(
-            "0x03036695C5F3DE2E2792B170F59679D4DB88A8516728012EAA42A22CE6F8BF593B",
+            "0x03036695c5f3de2e2792b170f59679d4db88a8516728012eaa42a22ce6f8bf593b",
             derived_accounts.accounts[10].public_key
         );
         assert_eq!("ypub6Wdz1gzMKLnPxXti2GbSjQGXSqrA5NMKNP3C5JS2ZJKRDEecuZH8AhSvYQs4dZHi7b6Yind7bLekuTH9fNbJcH1MXMy9meoifu2wST55sav", derived_accounts.accounts[10].extended_public_key);
@@ -688,7 +688,7 @@ mod tests {
             derived_accounts.accounts[11].address
         );
         assert_eq!(
-            "0x873CF8E52A7B93A55197EF2846E9627A6F105B0A06C86659C813F1A50438B479",
+            "0x873cf8e52a7b93a55197ef2846e9627a6f105b0a06c86659c813f1a50438b479",
             derived_accounts.accounts[11].public_key
         );
         assert_eq!("", derived_accounts.accounts[11].extended_public_key);
@@ -702,7 +702,7 @@ mod tests {
             derived_accounts.accounts[12].address
         );
         assert_eq!(
-            "0xEDB9955556C8E07287DF95AD77FAD826168F8A50488CCE0D738DF3769E24613A",
+            "0xedb9955556c8e07287df95ad77fad826168f8a50488cce0d738df3769e24613a",
             derived_accounts.accounts[12].public_key
         );
         assert_eq!("", derived_accounts.accounts[12].extended_public_key);
@@ -716,7 +716,7 @@ mod tests {
             derived_accounts.accounts[13].address
         );
         assert_eq!(
-            "0x0251492DFB299F21E426307180B577F927696B6DF0B61883215F88EB9685D3D449",
+            "0x0251492dfb299f21e426307180b577f927696b6df0b61883215f88eb9685d3d449",
             derived_accounts.accounts[13].public_key
         );
         assert_eq!("xpub6Bmkv3mmRZZWoFSBdj9vDMqR2PCPSP6DEj8u3bBuv44g3Ncnro6cPVqZAw6wTEcxHQuodkuJG4EmAinqrrRXGsN3HHnRRMtAvzfYTiBATV1", derived_accounts.accounts[13].extended_public_key);

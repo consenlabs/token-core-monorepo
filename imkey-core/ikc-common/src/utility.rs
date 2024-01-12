@@ -76,9 +76,9 @@ pub fn uncompress_pubkey_2_compress(uncomprs_pubkey: &str) -> String {
 
     let (_d, m) = y_bint.div_mod_floor(&two_bint);
     return if m.is_zero() {
-        "02".to_owned() + x
+        ("02".to_owned() + x).to_lowercase()
     } else {
-        "03".to_owned() + x
+        ("03".to_owned() + x).to_lowercase()
     };
 }
 
