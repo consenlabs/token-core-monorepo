@@ -20,6 +20,8 @@ tcx-primitive = { path = "../tcx-primitive" }
 tcx-constants = { path = "../tcx-constants" }
 tcx-tezos = { path = "../tcx-tezos" }
 tcx-tron = { path = "../tcx-tron" }
+tcx-substrate = { path = "../tcx-substrate" }
+tcx-filecoin = { path = "../tcx-filecoin" }
 # tcx-eth2 = { path = "../tcx-eth2" }
 tcx-eth = { path = "../tcx-eth" }
 tcx-common = { path = "../tcx-common" }

@@ -32,8 +32,7 @@ pub struct Store {
     pub identity: Identity,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub curve: Option<CurveType>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub enc_original: Option<EncPair>,
+    pub enc_original: EncPair,
     #[serde(rename = "imTokenMeta")]
     pub meta: Metadata,
 }
@@ -399,6 +398,16 @@ impl Keystore {
             Keystore::Hd(ks) => ks.get_deterministic_public_key(curve, derivation_path),
             _ => Err(Error::CannotDeriveKey.into()),
         }
+    }
+
+    pub fn backup(&self, password: &str) -> Result<String> {
+        let unlocker = self
+            .store()
+            .crypto
+            .use_key(&Key::Password(password.to_string()))?;
+        let decrypted = unlocker.decrypt_enc_pair(&self.store().enc_original)?;
+        let original = String::from_utf8_lossy(&decrypted);
+        Ok(original.to_string())
     }
 
     pub fn identity(&self) -> &Identity {

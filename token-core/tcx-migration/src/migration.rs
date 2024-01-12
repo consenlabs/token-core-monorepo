@@ -189,6 +189,8 @@ impl LegacyKeystore {
             .to_metadata();
 
         let identity = Identity::from_seed(&seed, &unlocker, &identity_network)?;
+
+        let enc_original = unlocker.encrypt_with_random_iv(mnemonic.as_bytes())?;
         let mut store = Store {
             id: self.id.to_string(),
             version: HdKeystore::VERSION,
@@ -197,7 +199,7 @@ impl LegacyKeystore {
             identity,
             meta,
             curve: None,
-            enc_original: None,
+            enc_original,
         };
 
         let derived_key = unlocker.derived_key();
@@ -227,6 +229,15 @@ impl LegacyKeystore {
                 Secp256k1PrivateKey::from_wif(&String::from_utf8_lossy(&decrypted))?.to_bytes(),
                 decrypted,
             )
+        } else if self.im_token_meta.is_some()
+            && self.im_token_meta.as_ref().unwrap().source == Some("KEYSTORE".to_string())
+        {
+            let v3_keystore = LegacyKeystore {
+                im_token_meta: None,
+                ..self.clone()
+            };
+            let ks_json = serde_json::to_string(&v3_keystore)?;
+            (decrypted, ks_json.as_bytes().to_vec())
         } else {
             (decrypted.clone(), decrypted.to_hex().as_bytes().to_vec())
         };
@@ -240,11 +251,8 @@ impl LegacyKeystore {
         let identity =
             Identity::from_private_key(&private_key.to_hex(), &unlocker, &identity_network)?;
 
-        let enc_original = if is_wif {
-            Some(unlocker.encrypt_with_random_iv(&original)?)
-        } else {
-            None
-        };
+        let enc_original = unlocker.encrypt_with_random_iv(&original)?;
+
         let mut store = Store {
             id: self.id.to_string(),
             version: PrivateKeystore::VERSION,
@@ -253,7 +261,7 @@ impl LegacyKeystore {
             meta: im_token_meta.to_metadata(),
             identity,
             curve: Some(curve),
-            enc_original: enc_original,
+            enc_original,
         };
 
         let unlocker = self.crypto.use_key(key)?;
@@ -504,4 +512,95 @@ mod tests {
             "private_key_and_address_not_match".to_string()
         );
     }
+
+    #[test]
+    fn test_original_after_migrated_wif() {
+        let json_str =
+            include_str!("../../test-data/wallets-ios-2_14_1/f3615a56-cb03-4aa4-a893-89944e49920d");
+        let old_ks = LegacyKeystore::from_json_str(json_str).unwrap();
+        let ks = old_ks
+            .migrate(
+                &Key::DerivedKey("0xa5b0cb9cb0536d6ec6ab21da77415bd59aff62c44c1da40d377c4faf2a44608693a72efb4079f57a5dca710ecff75dc5b54beb4ad6d9f9d47b63583810b50c61".to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+
+        assert_eq!(ori, "L1xDTJYPqhofU8DQCiwjStEBr1X6dhiNfweUhxhoRSgYyMJPcZ6B");
+    }
+
+    #[test]
+    fn test_original_after_migrated_keystore_json() {
+        let json_str =
+            include_str!("../../test-data/wallets-ios-2_14_1/60573d8d-8e83-45c3-85a5-34fbb2aad5e1");
+        let old_ks = LegacyKeystore::from_json_str(json_str).unwrap();
+        let ks = old_ks
+            .migrate(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        // ciphertext is 9b62...
+        assert!(ori.contains("9b62a4c07c96ca9b0b82b5b5eae4e7c9b2b7db531a6d2991198eb6809a8c35ac"));
+    }
+
+    #[test]
+    fn test_original_after_migrated_mnemonic() {
+        let json_str =
+            include_str!("../../test-data/wallets-ios-2_14_1/0597526e-105f-425b-bb44-086fc9dc9568");
+        let old_ks = LegacyKeystore::from_json_str(json_str).unwrap();
+        let ks = old_ks
+            .migrate(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+
+        assert_eq!(
+            ori,
+            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch"
+        );
+    }
+
+    #[test]
+    fn test_original_after_migrated_hex() {
+        let json_str =
+            include_str!("../../test-data/wallets-ios-2_14_1/f3615a56-cb03-4aa4-a893-89944e49920d");
+        let old_ks = LegacyKeystore::from_json_str(json_str).unwrap();
+        let ks = old_ks
+            .migrate(
+                &Key::DerivedKey("0x79c74b67fc73a255bc66afc1e7c25867a19e6d2afa5b8e3107a472de13201f1924fed05e811e7f5a4c3e72a8a6e047a80393c215412bde239ec7ded520896630".to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+
+        assert_eq!(
+            ori,
+            "4b8e7a47497d810cd11f209b8ce9d3b0eec34e85dc8bad5d12cb602425dd3d6b"
+        );
+    }
+
+    #[test]
+    fn test_original_after_migrated_cosmos() {
+        let json_str =
+            include_str!("../../test-data/wallets-ios-2_14_1/f3615a56-cb03-4aa4-a893-89944e49920d");
+        let old_ks = LegacyKeystore::from_json_str(json_str).unwrap();
+        let ks = old_ks
+            .migrate(
+                &Key::DerivedKey("0x79c74b67fc73a255bc66afc1e7c25867a19e6d2afa5b8e3107a472de13201f1924fed05e811e7f5a4c3e72a8a6e047a80393c215412bde239ec7ded520896630".to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+
+        assert_eq!(
+            ori,
+            "4b8e7a47497d810cd11f209b8ce9d3b0eec34e85dc8bad5d12cb602425dd3d6b"
+        );
+    }
+
+    // TODO: add cosmos testcase
 }

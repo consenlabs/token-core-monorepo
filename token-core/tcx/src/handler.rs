@@ -30,13 +30,13 @@ use tcx_filecoin::KeyInfo;
 use crate::api::derive_accounts_param::Derivation;
 use crate::api::sign_param::Key;
 use crate::api::{
-    export_private_key_param, migrate_keystore_param, AccountResponse, CreateKeystoreParam,
-    DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam, DeriveAccountsResult,
-    DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, EncryptDataToIpfsParam,
-    EncryptDataToIpfsResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
-    ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicParam,
-    ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
-    GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
+    export_private_key_param, migrate_keystore_param, AccountResponse, BackupResult,
+    CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam,
+    DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult,
+    EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsJsonParam, ExistsKeystoreResult,
+    ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult,
+    ExportMnemonicParam, ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult,
+    GeneralResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
     GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
     ImportPrivateKeyResult, KeystoreResult, LegacyKeystoreResult, MigrateKeystoreParam,
     MigrateKeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
@@ -69,7 +69,7 @@ use tcx_substrate::{decode_substrate_keystore, encode_substrate_keystore, Substr
 
 use tcx_migration::migration::{LegacyKeystore, NumberOrNumberStr};
 use tcx_primitive::TypedDeterministicPublicKey;
-use tcx_tezos::{build_tezos_base58_private_key, parse_tezos_private_key};
+use tcx_tezos::{encode_tezos_private_key, parse_tezos_private_key};
 
 use crate::macros::{impl_to_key, use_chains};
 
@@ -129,14 +129,17 @@ fn key_data_from_any_format_pk(pk: &str) -> Result<Vec<u8>> {
 }
 
 fn fingerprint_from_any_format_pk(pk: &str) -> Result<String> {
-    let key_data = key_data_from_any_format_pk(pk)?;
+    let key_data = if pk.starts_with("edsk") {
+        parse_tezos_private_key(pk)?
+    } else {
+        key_data_from_any_format_pk(pk)?
+    };
     fingerprint_from_private_key(&key_data)
 }
 
-fn fingerprint_from_tezos_format_pk(pk: &str) -> Result<String> {
-    let key_data = parse_tezos_private_key(pk)?;
-    fingerprint_from_private_key(&key_data)
-}
+// fn fingerprint_from_tezos_format_pk(pk: &str) -> Result<String> {
+//     fingerprint_from_private_key(&key_data)
+// }
 
 fn import_private_key_internal(
     param: &ImportPrivateKeyParam,
@@ -145,11 +148,7 @@ fn import_private_key_internal(
 ) -> Result<ImportPrivateKeyResult> {
     let mut founded_id: Option<String> = None;
     {
-        let fingerprint = if param.private_key.starts_with("edsk") {
-            fingerprint_from_tezos_format_pk(&param.private_key)?
-        } else {
-            fingerprint_from_any_format_pk(&param.private_key)?
-        };
+        let fingerprint = fingerprint_from_any_format_pk(&param.private_key)?;
         let map = KEYSTORE_MAP.read();
         if let Some(founded) = map
             .values()
@@ -632,7 +631,7 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
             .to_json()?
             .to_hex())
     } else if "TEZOS".contains(param.chain_type.as_str()) {
-        Ok(build_tezos_base58_private_key(&private_key_bytes.to_hex())?)
+        Ok(encode_tezos_private_key(&private_key_bytes.to_hex())?)
     } else if "EOS".contains(&param.chain_type) {
         encode_eos_wif(&private_key_bytes)
     } else {
@@ -694,11 +693,8 @@ pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn exists_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: ExistsPrivateKeyParam =
         ExistsPrivateKeyParam::decode(data).expect("exists_private_key param");
-    let fingerprint = if param.private_key.starts_with("edsk") {
-        fingerprint_from_tezos_format_pk(&param.private_key)?
-    } else {
-        fingerprint_from_any_format_pk(&param.private_key)?
-    };
+    let fingerprint = fingerprint_from_any_format_pk(&param.private_key)?;
+
     exists_fingerprint(&fingerprint)
 }
 
@@ -758,7 +754,6 @@ pub(crate) fn sign_hashes(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 impl_to_key!(crate::api::get_public_keys_param::Key);
-
 pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     let param: GetPublicKeysParam =
         GetPublicKeysParam::decode(data).expect("get_public_keys param");
@@ -1010,6 +1005,36 @@ pub(crate) fn exists_json(data: &[u8]) -> Result<Vec<u8>> {
     exists_private_key(&exists_param_bytes)
 }
 
+pub(crate) fn backup(data: &[u8]) -> Result<Vec<u8>> {
+    let param: WalletKeyParam = WalletKeyParam::decode(data).expect("backup param");
+
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(format_err!("{}", "wallet_not_found")),
+    }?;
+
+    let original = keystore.backup(&param.password)?;
+
+    let private_key_str = if let Ok((private_key, _)) = key_info_from_v3(&original, &param.password)
+    {
+        private_key.to_hex()
+    } else if let Ok((private_key, _)) =
+        key_info_from_substrate_keystore(&original, &param.password)
+    {
+        private_key.to_hex()
+    } else {
+        original.to_string()
+    };
+
+    let fingerprint = fingerprint_from_any_format_pk(&private_key_str)?;
+    if fingerprint.eq_ignore_ascii_case(keystore.fingerprint()) {
+        encode_message(BackupResult { original })
+    } else {
+        Err(format_err!("fingerprint_not_match"))
+    }
+}
+
 pub(crate) fn unlock_then_crash(data: &[u8]) -> Result<Vec<u8>> {
     let param: WalletKeyParam = WalletKeyParam::decode(data).unwrap();
     let mut map = KEYSTORE_MAP.write();
@@ -1246,5 +1271,17 @@ mod tests {
         assert_eq!(decoded.curve, CurveType::SECP256k1);
         assert_eq!(decoded.network, "".to_string());
         assert_eq!(decoded.source, Source::Wif);
+    }
+
+    #[test]
+    #[serial]
+    fn test_decode_private_key_with_network() {}
+
+    #[test]
+    #[serial]
+    fn test_backup() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb.json"
+        );
     }
 }

@@ -1,14 +1,19 @@
 use failure::format_err;
 use serde_json::{json, Value};
+use tcx_btc_kin::WIFDisplay;
 use tcx_common::ToHex;
-use tcx_constants::CurveType;
+use tcx_constants::{coin_info_from_param, CurveType};
 use tcx_crypto::{Crypto, Key};
+use tcx_filecoin::KeyInfo;
 use tcx_keystore::identity::Identity;
 use tcx_keystore::keystore::IdentityNetwork;
 use tcx_keystore::{
     fingerprint_from_mnemonic, fingerprint_from_private_key, fingerprint_from_seed,
-    mnemonic_to_seed, HdKeystore, Keystore, PrivateKeystore, Result, Source,
+    mnemonic_to_seed, tcx_ensure, HdKeystore, Keystore, PrivateKeystore, Result, Source,
 };
+use tcx_primitive::TypedPrivateKey;
+use tcx_substrate::encode_substrate_keystore;
+use tcx_tezos::encode_tezos_private_key;
 
 pub fn mapping_curve_name(old_curve_name: &str) -> String {
     let new_curve_name = match old_curve_name {
@@ -100,6 +105,15 @@ impl KeystoreUpgrade {
                         .expect("activeAccounts need contains chainType");
                     json["imTokenMeta"]["identifiedChainTypes"] = json!(vec![chain_type]);
                     // tcx pk keystore has lost the original private key
+                    let original = self.restore_private_key_original(
+                        key,
+                        &private_key,
+                        chain_type,
+                        &new_curve_name,
+                        account_json,
+                    )?;
+                    let enc_pair = unlocker.encrypt_with_random_iv(original.as_bytes())?;
+                    json["encOriginal"] = json!(enc_pair);
                 }
             }
             11000 => {
@@ -110,11 +124,60 @@ impl KeystoreUpgrade {
                 json["version"] = json!(HdKeystore::VERSION);
                 json["identity"] =
                     json!(Identity::from_seed(&seed, &unlocker, &identity_network,)?);
+                let enc_pair = unlocker.encrypt_with_random_iv(mnemonic.as_bytes())?;
+                json["encOriginal"] = json!(enc_pair);
             }
             _ => return Err(format_err!("invalid version")),
         }
 
         Keystore::from_json(&json.to_string())
+    }
+
+    fn restore_private_key_original(
+        &self,
+        key: &Key,
+        private_key_bytes: &[u8],
+        chain_type: &str,
+        new_curve_name: &str,
+        account_json: &Value,
+    ) -> Result<String> {
+        match chain_type {
+            "KUSAMA" | "POLKADOT" => {
+                let coin = coin_info_from_param(chain_type, "", "", "")?;
+                let Key::Password(password) = key else {
+                    return Err(format_err!("substrate cannot use derived_key"));
+                };
+
+                let mut substrate_ks =
+                    encode_substrate_keystore(&password, &private_key_bytes, &coin)?;
+                let name = self.json["imTokenMeta"]["name"]
+                    .as_str()
+                    .unwrap_or_default();
+                let created_at = self.json["imTokenMeta"]["timestamp"]
+                    .as_i64()
+                    .unwrap_or_default();
+                substrate_ks.meta.name = name.to_string();
+                substrate_ks.meta.when_created = created_at;
+                let json = serde_json::to_string(&substrate_ks)?;
+                Ok(json)
+            }
+            "TEZOS" => Ok(encode_tezos_private_key(&private_key_bytes.to_hex())?),
+            "FILECOIN" => {
+                let curve_type = CurveType::from_str(&new_curve_name);
+                Ok(KeyInfo::from_private_key(curve_type, &private_key_bytes)?
+                    .to_json()?
+                    .to_hex())
+            }
+            "BITCOINCASH" | "LITECOIN" => {
+                let network = account_json["network"].as_str().unwrap_or("MAINNET");
+                let seg_wit = account_json["segWit"].as_str().unwrap_or("");
+                let coin_info = coin_info_from_param(&chain_type, network, seg_wit, "secp256k1")?;
+                let typed_pk =
+                    TypedPrivateKey::from_slice(CurveType::SECP256k1, &private_key_bytes)?;
+                typed_pk.fmt(&coin_info)
+            }
+            _ => Ok(private_key_bytes.to_hex()),
+        }
     }
 }
 
@@ -122,10 +185,12 @@ impl KeystoreUpgrade {
 mod tests {
     use serde_json::{json, Value};
     use tcx_common::ToHex;
-    use tcx_constants::CurveType;
+    use tcx_constants::{CurveType, TEST_PASSWORD};
     use tcx_crypto::Error::PasswordIncorrect;
     use tcx_crypto::Key;
     use tcx_keystore::{keystore::IdentityNetwork, Keystore, Source};
+
+    use super::KeystoreUpgrade;
 
     fn pk_json(version: i64, source: &str, name: &str) -> Value {
         json!(
@@ -485,5 +550,134 @@ mod tests {
             .upgrade(&key, &IdentityNetwork::Testnet)
             .unwrap();
         assert_eq!(upgraded.store().curve, None);
+    }
+
+    #[test]
+    fn test_original_after_migrate_tron() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        assert_eq!(
+            ori,
+            "685634d212eabe016a1cb09d9f1ea1ea757ebe590b9a097d7b1c9379ad280171"
+        );
+    }
+
+    #[test]
+    fn test_original_after_migrate_tezos() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/4d5cbfcf-aee1-4908-9991-9d060eb68a0e.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        assert_eq!(
+            ori,
+            "edskS3E5CLrkwHRYAbDvw5xC913C9GGseMcyNGeGbeaD57Yvvi2jqizpAAZyzUtRK626UvkKYdJwCYE9oKMcqFCtJeBpDYcrVH"
+        );
+    }
+
+    #[test]
+    fn test_original_after_migrate_lite() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/46e8e653-dd05-4217-b225-faafc8451a2c.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        assert_eq!(ori, "TBRMznXcDf2HK2jBKJsqjBpsEdaiaZUBGKN8aKdwTMrPnMNB5UQM");
+    }
+
+    #[test]
+    fn test_original_after_migrate_bch() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/483cb13e-5e59-4428-a219-018de4ce60f6.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        assert_eq!(ori, "L1xDTJYPqhofU8DQCiwjStEBr1X6dhiNfweUhxhoRSgYyMJPcZ6B");
+    }
+
+    #[test]
+    fn test_original_after_migrate_kusama() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/949bada8-776c-4554-ad0c-001e3726a0f8.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        assert!(ori.contains("FDS7ZJpJg4R7Kd2hzfsEc6mtW5iknjZ3UazX76EsnbH74v8"));
+    }
+
+    #[test]
+    fn test_original_after_migrate_file_coin() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/a7294912-b24f-44ba-86c1-48d76117808a.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let expected_ori =
+            r#"{"Type":"secp256k1","PrivateKey":"o5JgTvwvrZwLPaQ7X2mKLj8nDxcNhZkSvg1UdCJ1xfY="}"#;
+        assert_eq!(ori, expected_ori.as_bytes().to_hex());
+    }
+
+    #[test]
+    fn test_original_after_migrate_file_coin_bls() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let expected_ori =
+            r#"{"Type":"bls","PrivateKey":"i7kO+zxc6QS+v7YygcmUYh7MUYSRes6anigiLhKF808="}"#;
+        assert_eq!(ori, expected_ori.as_bytes().to_hex());
     }
 }

@@ -122,7 +122,8 @@ message ImportPrivateKeyParam {
     string password = 2;
     string name = 3;
     string passwordHint = 4;
-    bool overwrite = 5;
+    string network = 5;
+    bool overwrite = 6;
 }
 
 // FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): ExistsKeystoreResult
@@ -272,4 +273,9 @@ message MigrateKeystoreParam {
     string network = 3;
     string source = 4;
     repeated LegacyKeystoreResult keystores = 5;
+  }
+
+
+  message BackupResult {
+    string original = 1;
   }

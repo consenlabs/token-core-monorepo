@@ -50,7 +50,7 @@ use tcx_substrate::{decode_substrate_keystore, encode_substrate_keystore, Substr
 
 use tcx_migration::migration::{LegacyKeystore, NumberOrNumberStr};
 use tcx_primitive::TypedDeterministicPublicKey;
-use tcx_tezos::{build_tezos_base58_private_key, parse_tezos_private_key};
+use tcx_tezos::{encode_tezos_private_key, parse_tezos_private_key};
 
 pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let param: MigrateKeystoreParam =

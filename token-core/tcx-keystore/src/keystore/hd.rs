@@ -159,13 +159,14 @@ impl HdKeystore {
     }
 
     pub fn from_mnemonic(mnemonic: &str, password: &str, meta: Metadata) -> Result<HdKeystore> {
-        let mnemonic = &mnemonic.split_whitespace().collect::<Vec<&str>>().join(" ");
-        let seed = mnemonic_to_seed(mnemonic)?;
+        let valid_mnemonic = &mnemonic.split_whitespace().collect::<Vec<&str>>().join(" ");
+        let seed = mnemonic_to_seed(valid_mnemonic)?;
         let fingerprint = fingerprint_from_seed(&seed)?;
 
-        let crypto: Crypto = Crypto::new(password, mnemonic.as_bytes());
+        let crypto: Crypto = Crypto::new(password, valid_mnemonic.as_bytes());
         let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
         let identity = Identity::from_seed(&seed, &unlocker, &meta.network)?;
+        let enc_original = unlocker.encrypt_with_random_iv(mnemonic.as_bytes())?;
 
         Ok(HdKeystore {
             store: Store {
@@ -176,7 +177,7 @@ impl HdKeystore {
                 meta,
                 identity,
                 curve: None,
-                enc_original: None,
+                enc_original,
             },
 
             cache: None,

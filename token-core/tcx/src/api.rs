@@ -408,7 +408,9 @@ pub struct ImportPrivateKeyParam {
     pub name: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
     pub password_hint: ::prost::alloc::string::String,
-    #[prost(bool, tag = "5")]
+    #[prost(string, tag = "5")]
+    pub network: ::prost::alloc::string::String,
+    #[prost(bool, tag = "6")]
     pub overwrite: bool,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -648,6 +650,12 @@ pub struct ScanLegacyKeystoresResult {
     pub source: ::prost::alloc::string::String,
     #[prost(message, repeated, tag = "5")]
     pub keystores: ::prost::alloc::vec::Vec<LegacyKeystoreResult>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BackupResult {
+    #[prost(string, tag = "1")]
+    pub original: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

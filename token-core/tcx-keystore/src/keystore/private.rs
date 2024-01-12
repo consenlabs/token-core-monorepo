@@ -99,8 +99,12 @@ impl PrivateKeystore {
         let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
         let identity = Identity::from_private_key(private_key, &unlocker, &meta.network)?;
 
-        let enc_original =
-            original.and_then(|ori| unlocker.encrypt_with_random_iv(ori.as_bytes()).ok());
+        let ori = if original.is_some() {
+            original.unwrap()
+        } else {
+            private_key.to_string()
+        };
+        let enc_original = unlocker.encrypt_with_random_iv(ori.as_bytes())?;
 
         let store = Store {
             source_fingerprint: fingerprint,

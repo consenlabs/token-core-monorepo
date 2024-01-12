@@ -4137,7 +4137,7 @@ mod tests {
                 .use_key(&tcx_crypto::Key::DerivedKey("01073f22079380d2180300c518f6b510d4761fd83ce738271460c9e745b9055dabb28f93ff3a8fd54e0c71c005b5e799f8d52bcce1a81e08b5f15f9604531574".to_string()))
                 .unwrap();
             let wif_bytes = unlocker
-                .decrypt_enc_pair(keystore.store().enc_original.as_ref().unwrap())
+                .decrypt_enc_pair(&keystore.store().enc_original)
                 .unwrap();
             let wif = String::from_utf8_lossy(&wif_bytes);
             assert_eq!("L1xDTJYPqhofU8DQCiwjStEBr1X6dhiNfweUhxhoRSgYyMJPcZ6B", wif);
@@ -4168,7 +4168,7 @@ mod tests {
                 .use_key(&tcx_crypto::Key::DerivedKey("8f2316895af6d58b5b75d424977cdaeae2a619c6b941ca5f77dcfed592cd3b23b698040caf397df6153db6f2d5b2815bf8f8cd32f99998ca46534242df82d1ca".to_string()))
                 .unwrap();
             let decrypted = unlocker
-                .decrypt_enc_pair(keystore.store().enc_original.as_ref().unwrap())
+                .decrypt_enc_pair(&keystore.store().enc_original)
                 .unwrap();
             let hex = String::from_utf8_lossy(&decrypted);
             assert_eq!(
@@ -4191,7 +4191,7 @@ mod tests {
         let keystore = Keystore::from_json(&json).unwrap();
         assert!(keystore.meta().identified_chain_types.is_none());
 
-        assert!(keystore.store().enc_original.is_none());
+        // assert!(keystore.store().enc_original.is_none());
 
         let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "f3615a56-cb03-4aa4-a893-89944e49920d".to_string(),
@@ -4216,7 +4216,7 @@ mod tests {
             .use_key(&tcx_crypto::Key::DerivedKey("0x79c74b67fc73a255bc66afc1e7c25867a19e6d2afa5b8e3107a472de13201f1924fed05e811e7f5a4c3e72a8a6e047a80393c215412bde239ec7ded520896630".to_string()))
             .unwrap();
         let decrypted = unlocker
-            .decrypt_enc_pair(keystore.store().enc_original.as_ref().unwrap())
+            .decrypt_enc_pair(&keystore.store().enc_original)
             .unwrap();
         let hex = String::from_utf8_lossy(&decrypted);
         assert_eq!(
@@ -4240,7 +4240,7 @@ mod tests {
             keystore.meta().identified_chain_types,
             Some(vec!["FILECOIN".to_string()])
         );
-        assert!(keystore.store().enc_original.is_none());
+        // assert!(keystore.store().enc_original.is_none());
 
         // fs::remove_dir_all("../test-data/walletsV2").unwrap();
     }
