@@ -216,21 +216,21 @@ mod tests {
         )
         .unwrap();
         let fingerprint = fingerprint_from_private_key(&pk_data).unwrap();
-        assert_eq!(fingerprint, "0x1468dba9");
+        assert_eq!(fingerprint, "0x1468dba9c246fe22183c056540ab4d8b04553217");
 
         let pk_data = &Vec::<u8>::from_hex(
             "257cd2f8eb13f6930ecb95ac7736dd25e65d231ce1a3b1669e51f6737350b43e",
         )
         .unwrap();
         let fingerprint = fingerprint_from_private_key(&pk_data).unwrap();
-        assert_eq!(fingerprint, "0xf6f23259");
+        assert_eq!(fingerprint, "0xf6f232595e79dd9723aa4e840d548e792d44aea6");
 
         let pk_data = &Vec::<u8>::from_hex(
             "ad87a08796efbdd9276e2ca5a10f938937cb5d2b7d5f698c06a94d8eeed3f600257cd2f8eb13f6930ecb95ac7736dd25e65d231ce1a3b1669e51f6737350b43e",
         )
             .unwrap();
         let fingerprint = fingerprint_from_private_key(&pk_data).unwrap();
-        assert_eq!(fingerprint, "0x404ba38b");
+        assert_eq!(fingerprint, "0x404ba38b37b9c682526621118094a43220a95bd6");
     }
 
     #[test]

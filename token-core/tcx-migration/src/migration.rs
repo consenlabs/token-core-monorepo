@@ -516,11 +516,11 @@ mod tests {
     #[test]
     fn test_original_after_migrated_wif() {
         let json_str =
-            include_str!("../../test-data/wallets-ios-2_14_1/f3615a56-cb03-4aa4-a893-89944e49920d");
+            include_str!("../../test-data/wallets-ios-2_14_1/9f4acb4a-7431-4c7d-bd25-a19656a86ea0");
         let old_ks = LegacyKeystore::from_json_str(json_str).unwrap();
         let ks = old_ks
             .migrate(
-                &Key::DerivedKey("0xa5b0cb9cb0536d6ec6ab21da77415bd59aff62c44c1da40d377c4faf2a44608693a72efb4079f57a5dca710ecff75dc5b54beb4ad6d9f9d47b63583810b50c61".to_string()),
+                &Key::Password(TEST_PASSWORD.to_string()),
                 &IdentityNetwork::Mainnet,
             )
             .unwrap();
@@ -586,11 +586,11 @@ mod tests {
     #[test]
     fn test_original_after_migrated_cosmos() {
         let json_str =
-            include_str!("../../test-data/wallets-ios-2_14_1/f3615a56-cb03-4aa4-a893-89944e49920d");
+            include_str!("../../test-data/wallets-ios-2_14_1/ac59ccc1-285b-47a7-92f5-a6c432cee21a");
         let old_ks = LegacyKeystore::from_json_str(json_str).unwrap();
         let ks = old_ks
             .migrate(
-                &Key::DerivedKey("0x79c74b67fc73a255bc66afc1e7c25867a19e6d2afa5b8e3107a472de13201f1924fed05e811e7f5a4c3e72a8a6e047a80393c215412bde239ec7ded520896630".to_string()),
+                &Key::Password(TEST_PASSWORD.to_string()),
                 &IdentityNetwork::Mainnet,
             )
             .unwrap();
@@ -598,9 +598,9 @@ mod tests {
 
         assert_eq!(
             ori,
-            "4b8e7a47497d810cd11f209b8ce9d3b0eec34e85dc8bad5d12cb602425dd3d6b"
+            "inject kidney empty canal shadow pact comfort wife crush horse wife sketch"
         );
     }
 
-    // TODO: add cosmos testcase
+    // TODO: add eos testcase
 }

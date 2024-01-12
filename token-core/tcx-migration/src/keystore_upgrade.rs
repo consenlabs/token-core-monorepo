@@ -245,7 +245,10 @@ mod tests {
             let upgraded = upgrade_keystore.upgrade(&key, &IdentityNetwork::Mainnet);
 
             assert!(!upgrade_keystore.need_upgrade());
-            assert_eq!(upgraded.err().unwrap().to_string(), "invalid version");
+            assert_eq!(
+                upgraded.err().unwrap().to_string(),
+                "upgrade wrong version keystore"
+            );
         }
     }
 
@@ -464,7 +467,7 @@ mod tests {
              "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
              "crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2",
                 "kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},
-                "activeAccounts": [{"address": "t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa", "curve": "BLS"}],
+                "activeAccounts": [{"address": "t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa", "curve": "BLS", "coin": "FILECOIN"}],
             "imTokenMeta":{"name":name.to_string(),"passwordHint":"","timestamp":1576733295,"source":source.to_string()}}
         )
     }
@@ -477,7 +480,7 @@ mod tests {
              "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
              "crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2",
                 "kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},
-                "activeAccounts": [{"address": "", "curve": "SECP256k1"}],
+                "activeAccounts": [{"address": "", "curve": "SECP256k1", "coin": "BITCOINCASH"}],
             "imTokenMeta":{"name":name.to_string(),"passwordHint":"","timestamp":1576733295,"source":source.to_string()}}
         )
     }
@@ -490,7 +493,7 @@ mod tests {
              "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
              "crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2",
                 "kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},
-                "activeAccounts": [{"address": "", "curve": "ED25519"}],
+                "activeAccounts": [{"address": "", "curve": "ED25519", "coin": "TEZOS"}],
             "imTokenMeta":{"name":name.to_string(),"passwordHint":"","timestamp":1576733295,"source":source.to_string()}}
         )
     }
@@ -501,9 +504,20 @@ mod tests {
              "id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b",
              "version":version,
              "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
-             "crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2",
-                "kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},
-                "activeAccounts": [{"address": "", "curve": "SubSr25519"}],
+             "crypto": {
+                "cipher": "aes-128-ctr",
+                "cipherparams": { "iv": "31deaa1033b2a55cc39916b347453649" },
+                "ciphertext": "c52bbc9842da2e9afdf8b905585db5ea4b86920f54f76e5ce686586604a29c3cc152ba9f309d2a1995cddb0ecafbe4d1f43ad033d1e0f5a02e68eda7c2f71687",
+                "kdf": "pbkdf2",
+                "kdfparams": {
+                  "c": 1,
+                  "prf": "hmac-sha256",
+                  "dklen": 32,
+                  "salt": "87436212538c3d747df0988246078a308bed9245388badf88dbeb21806e6dd49"
+                },
+                "mac": "53af7ee52b69782e775a46def178d0b629c94b04e70fbddc5adafa437b6144e6"
+              },
+                "activeAccounts": [{"address": "", "curve": "SubSr25519", "coin": "POLKADOT"}],
             "imTokenMeta":{"name":name.to_string(),"passwordHint":"","timestamp":1576733295,"source":source.to_string()}}
         )
     }
@@ -532,7 +546,10 @@ mod tests {
             super::KeystoreUpgrade::new(pk_json_with_subsr25519(11001, "PRIVATE", "vvvvvv"));
 
         let upgraded = upgrade_keystore
-            .upgrade(&key, &IdentityNetwork::Testnet)
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Testnet,
+            )
             .unwrap();
         assert_eq!(upgraded.store().curve, Some(CurveType::SR25519));
 

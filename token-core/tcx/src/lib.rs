@@ -243,23 +243,6 @@ mod tests {
     }
 
     fn teardown() {
-        // let p = Path::new("/tmp/imtoken/wallets");
-        // let walk_dir = std::fs::read_dir(p).expect("read dir");
-        // for entry in walk_dir {
-        //     let entry = entry.expect("DirEntry");
-        //     let fp = entry.path();
-        //     if !fp
-        //         .file_name()
-        //         .expect("file_name")
-        //         .to_str()
-        //         .expect("file_name str")
-        //         .ends_with(".json")
-        //     {
-        //         continue;
-        //     }
-
-        //     remove_file(fp.as_path()).expect("should remove file");
-        // }
         fs::remove_dir_all("/tmp/imtoken").expect("remove test directory");
     }
 
@@ -378,18 +361,15 @@ mod tests {
     #[ignore = "for debug"]
     fn test_call_tcx_api() {
         run_test(|| {
-            let bytes = &Vec::<u8>::from_hex_auto("0a0b7369676e5f68617368657312d7010a136170692e5369676e486173686573506172616d12bf010a2461646330633662342d353062382d346234332d386663322d6236313031303931313539341208696d746f6b656e711a8c010a403365303635386438323834643866353063306161386661366364626431626465306562333730643462333438396132366338333736333637316163653862316312106d2f31323338312f333630302f302f301a09626c7331325f333831222b424c535f5349475f424c53313233383147325f584d443a5348412d3235365f535357555f524f5f504f505f").unwrap();
+            let bytes = &Vec::<u8>::from_hex_auto("0a0f6465726976655f6163636f756e747312770a176170692e4465726976654163636f756e7473506172616d125c0a2430313831653533662d346566642d343262352d623430302d39333134656239376339373412083132333435363738222a0a08455448455245554d12106d2f3434272f3630272f30272f302f302a01313209736563703235366b31").unwrap();
             let action = TcxAction::decode(bytes.as_slice()).unwrap();
+            dbg!(&action);
             let mut param =
-                SignHashesParam::decode(action.param.unwrap().value.as_slice()).unwrap();
+                DeriveAccountsParam::decode(action.param.unwrap().value.as_slice()).unwrap();
             let wallet = import_default_wallet();
-            param.id = wallet.id.to_string();
-            param.key = Some(crate::api::sign_hashes_param::Key::Password(
-                TEST_PASSWORD.to_owned(),
-            ));
-            let ret_bytes = call_api("sign_hashes", param).unwrap();
-            let ret: SignHashesResult = SignHashesResult::decode(ret_bytes.as_slice()).unwrap();
-            assert_eq!(ret.signatures[0], "0xb5c9a0cf842bf8766f297f3b7e8f4cb8ea6dc31bf1a61997255c153312bf990d1100ee56a223ebf1aa5ba8e235094fe4022e547c94560ca2805166f169efc807a97636a847e08963c020f0970fa934e7e693102539ac399f10c369bd6d9f2421");
+            dbg!(&param);
+            // call_tcx_api(bytes.to_hex())
+            assert!(false);
         });
     }
 
@@ -470,6 +450,7 @@ mod tests {
                 account.encrypted_extended_public_key,
                 "wAKUeR6fOGFL+vi50V+MdVSH58gLy8Jx7zSxywz0tN++l2E0UNG7zv+R1FVgnrqU6d0wl699Q/I7O618UxS7gnpFxkGuK0sID4fi7pGf9aivFxuKy/7AJJ6kOmXH1Rz6FCS6b8W7NKlzgbcZpJmDsQ=="
             );
+
             remove_created_wallet(&import_result.id);
         })
     }

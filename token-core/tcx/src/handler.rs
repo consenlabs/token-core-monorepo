@@ -40,8 +40,8 @@ use crate::api::{
     GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
     ImportPrivateKeyResult, KeystoreResult, LegacyKeystoreResult, MigrateKeystoreParam,
     MigrateKeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
-    ScanLegacyKeystoresResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
-    SignHashesParam, SignHashesResult, WalletKeyParam,
+    ScanKeystoresResult, ScanLegacyKeystoresResult, SignAuthenticationMessageParam,
+    SignAuthenticationMessageResult, SignHashesParam, SignHashesResult, WalletKeyParam,
 };
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
@@ -381,12 +381,14 @@ pub fn init_token_core_x(data: &[u8]) -> Result<()> {
 
     Ok(())
 }
-
-pub(crate) fn scan_keystores() -> Result<()> {
+pub(crate) fn scan_keystores() -> Result<ScanKeystoresResult> {
     clean_keystore();
     let file_dir = WALLET_FILE_DIR.read();
     let p = Path::new(file_dir.as_str());
     let walk_dir = std::fs::read_dir(p).expect("read dir");
+
+    let mut hd_keystores: Vec<KeystoreResult> = Vec::new();
+    let mut private_key_keystores: Vec<ImportPrivateKeyResult> = Vec::new();
 
     for entry in walk_dir {
         let entry = entry.expect("DirEntry");
@@ -411,30 +413,63 @@ pub(crate) fn scan_keystores() -> Result<()> {
 
         if version == HdKeystore::VERSION || version == PrivateKeystore::VERSION {
             let keystore = Keystore::from_json(&contents)?;
+
+            if version == HdKeystore::VERSION {
+                let keystore_result = KeystoreResult {
+                    id: keystore.id(),
+                    name: keystore.meta().name.to_string(),
+                    identifier: keystore.identity().identifier.to_string(),
+                    ipfs_id: keystore.identity().ipfs_id.to_string(),
+                    source: keystore.meta().source.to_string(),
+                    created_at: keystore.meta().timestamp,
+                    source_fingerprint: keystore.fingerprint().to_string(),
+                };
+                hd_keystores.push(keystore_result);
+            } else {
+                let curve = keystore
+                    .get_curve()
+                    .expect("pk keystore must contains curve");
+                let kestore_result = ImportPrivateKeyResult {
+                    id: keystore.id(),
+                    name: keystore.meta().name.to_string(),
+                    identifier: keystore.identity().identifier.to_string(),
+                    ipfs_id: keystore.identity().ipfs_id.to_string(),
+                    source: keystore.meta().source.to_string(),
+                    created_at: keystore.meta().timestamp,
+                    source_fingerprint: keystore.fingerprint().to_string(),
+                    identified_chain_types: curve_to_chain_type(&curve),
+                    identified_network: keystore.meta().network.to_string(),
+                    identified_curve: curve.as_str().to_string(),
+                };
+                private_key_keystores.push(kestore_result);
+            }
             cache_keystore(keystore);
         }
     }
 
-    Ok(())
+    Ok(ScanKeystoresResult {
+        hd_keystores,
+        private_key_keystores,
+    })
 }
 
-// fn curve_to_chain_type(curve: &CurveType) -> Vec<String> {
-//     match curve {
-//         CurveType::SECP256k1 => vec![
-//             "BITCOIN".to_string(),
-//             "BITCOINCASH".to_string(),
-//             "LITECOIN".to_string(),
-//             "FILECOIN".to_string(),
-//             "EOS".to_string(),
-//             "TRON".to_string(),
-//             "COSMOS".to_string(),
-//         ],
-//         CurveType::ED25519 => vec!["TEZOS".to_string()],
-//         CurveType::SR25519 => vec!["KUSAMA".to_string(), "POLKADOT".to_string()],
-//         CurveType::BLS => vec!["FILECOIN".to_string()],
-//         _ => vec![],
-//     }
-// }
+fn curve_to_chain_type(curve: &CurveType) -> Vec<String> {
+    match curve {
+        CurveType::SECP256k1 => vec![
+            "BITCOIN".to_string(),
+            "BITCOINCASH".to_string(),
+            "LITECOIN".to_string(),
+            "FILECOIN".to_string(),
+            "EOS".to_string(),
+            "TRON".to_string(),
+            "COSMOS".to_string(),
+        ],
+        CurveType::ED25519 => vec!["TEZOS".to_string()],
+        CurveType::SR25519 => vec!["KUSAMA".to_string(), "POLKADOT".to_string()],
+        CurveType::BLS => vec!["FILECOIN".to_string()],
+        _ => vec![],
+    }
+}
 
 pub(crate) fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let param: CreateKeystoreParam =
@@ -1255,10 +1290,7 @@ mod tests {
 
         let private_key = "0x43fe394358d14f2e096f4efe80894b4e51a3fdcb73c06b77e937b80deb8c746b";
         let decoded = decode_private_key(&private_key).unwrap();
-        assert_eq!(
-            decoded.chain_types,
-            vec!["ETHEREUM".to_string(), "TRON".to_string()]
-        );
+        assert_eq!(decoded.chain_types, Vec::<String>::new());
         assert_eq!(decoded.curve, CurveType::SECP256k1);
         assert_eq!(decoded.network, "".to_string());
         assert_eq!(decoded.source, Source::Private);
@@ -1283,5 +1315,109 @@ mod tests {
         assert_eq!(decoded.curve, CurveType::SECP256k1);
         assert_eq!(decoded.network, "".to_string());
         assert_eq!(decoded.source, Source::Wif);
+    }
+
+    #[test]
+    fn test_scan_keystores() {
+        *WALLET_FILE_DIR.write() = "../test-data/scan-keystores-fixtures/".to_string();
+        let result = scan_keystores().unwrap();
+        assert_eq!(result.hd_keystores.len(), 1);
+        let hd = result.hd_keystores.first().unwrap();
+        assert_eq!(hd.id, "1055741c-2904-4973-b7ee-4b69bfd8bcc6");
+        assert_eq!(hd.identifier, "im14x5UYkoqtYbJFTLam7c9Ft4BQiFvJbieKWfK");
+        assert_eq!(hd.ipfs_id, "Qme1RuM33X8SmVjisWS3sP4irqNZv6vuqL3L3T6poZ6c2b");
+        assert_eq!(
+            hd.source_fingerprint,
+            "0x572d4a6f166f1f25e7e1c7da85cf158568de63d2"
+        );
+        assert_eq!(hd.created_at, 1705040852);
+        assert_eq!(hd.source, "MNEMONIC");
+        assert_eq!(hd.name, "test-wallet");
+        assert_eq!(result.private_key_keystores.len(), 4);
+
+        let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
+            .private_key_keystores
+            .iter()
+            .filter(|x| x.id == "7e1c2c55-5b7f-4a5a-8061-c42b594ceb2f")
+            .collect();
+        let pk = founded_pk_stores.first().unwrap();
+        assert_eq!(pk.identifier, "im14x5LYRt5YsM5iTr2xd6dQ75euijaoDs3nRB2");
+        assert_eq!(pk.ipfs_id, "QmSpWyzy5gkYyJiagFHzfkJwqzDdcjCA3qeu8T3JFd54vZ");
+        assert_eq!(
+            pk.source_fingerprint,
+            "0xc7b60806a2af1e89f107b9410da3ab8a825fe5a2"
+        );
+        assert_eq!(pk.created_at, 1705040730);
+        assert_eq!(pk.source, "PRIVATE");
+        assert_eq!(pk.name, "test_filecoin_import_private_key");
+        assert_eq!(pk.identified_curve, "bls12-381");
+
+        let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
+            .private_key_keystores
+            .iter()
+            .filter(|x| x.id == "1233134b-8377-4fb0-b06f-56062e858708")
+            .collect();
+        let pk = founded_pk_stores.first().unwrap();
+        assert_eq!(pk.identifier, "im14x5FoX7EWwJ1KkNyfSzjafR6JZ6wqUUVr3mR");
+        assert_eq!(pk.ipfs_id, "QmQmj2fza2Ep3hxZZRoeco3ZKccoP1vvGJ3ddjDrDMV9UF");
+        assert_eq!(
+            pk.source_fingerprint,
+            "0xa27b5222f4f53dee8c446a380cf40370a48992c3"
+        );
+        assert_eq!(pk.created_at, 1705041327);
+        assert_eq!(pk.source, "SUBSTRATE_KEYSTORE");
+        assert_eq!(pk.name, "test account");
+        assert_eq!(pk.identified_curve, "sr25519");
+
+        let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
+            .private_key_keystores
+            .iter()
+            .filter(|x| x.id == "beb68589-0f0f-41e2-94d9-d78f10a72dec")
+            .collect();
+        let pk = founded_pk_stores.first().unwrap();
+        assert_eq!(pk.identifier, "im14x5UPbCXmU2HMQ8jfeKcCDrQYhDppRYaa5C6");
+        assert_eq!(pk.ipfs_id, "QmczBPUeohPPaE8UnPiESyynPwffBqrn4RqrU6nPJw95VT");
+        assert_eq!(
+            pk.source_fingerprint,
+            "0xe6cfaab9a59ba187f0a45db0b169c21bb48f09b3"
+        );
+        assert_eq!(pk.created_at, 1705040607);
+        assert_eq!(pk.source, "PRIVATE");
+        assert_eq!(pk.name, "test_filecoin_import_private_key");
+        assert_eq!(pk.identified_curve, "secp256k1");
+
+        let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
+            .private_key_keystores
+            .iter()
+            .filter(|x| x.id == "beb68589-0f0f-41e2-94d9-d78f10a72dec")
+            .collect();
+        let pk = founded_pk_stores.first().unwrap();
+        assert_eq!(pk.identifier, "im14x5UPbCXmU2HMQ8jfeKcCDrQYhDppRYaa5C6");
+        assert_eq!(pk.ipfs_id, "QmczBPUeohPPaE8UnPiESyynPwffBqrn4RqrU6nPJw95VT");
+        assert_eq!(
+            pk.source_fingerprint,
+            "0xe6cfaab9a59ba187f0a45db0b169c21bb48f09b3"
+        );
+        assert_eq!(pk.created_at, 1705040607);
+        assert_eq!(pk.source, "PRIVATE");
+        assert_eq!(pk.name, "test_filecoin_import_private_key");
+        assert_eq!(pk.identified_curve, "secp256k1");
+
+        let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
+            .private_key_keystores
+            .iter()
+            .filter(|x| x.id == "efcfffb2-9b63-418b-a9d0-ec3600012284")
+            .collect();
+        let pk = founded_pk_stores.first().unwrap();
+        assert_eq!(pk.identifier, "im14x5AU2zU5oRyNdGgNbemdP39ATmu16eVgPFQ");
+        assert_eq!(pk.ipfs_id, "Qmb8K5w1fzdTbjTiATvSecNgZYvbMJ6gJB9JPG254aEY8F");
+        assert_eq!(
+            pk.source_fingerprint,
+            "0x6bd7cc4e20a7de71296b81758d29447dfde9a388"
+        );
+        assert_eq!(pk.created_at, 1705041022);
+        assert_eq!(pk.source, "PRIVATE");
+        assert_eq!(pk.name, "test_tezos_import_private_key_export");
+        assert_eq!(pk.identified_curve, "ed25519");
     }
 }

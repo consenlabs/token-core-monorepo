@@ -259,6 +259,11 @@ message MigrateKeystoreParam {
     KeystoreResult keystore = 3;
   }
 
+  message ScanKeystoresResult {
+    repeated KeystoreResult hdKeystores = 1;
+    repeated ImportPrivateKeyResult privateKeyKeystores = 2;
+}
+
   message LegacyKeystoreResult {
     string id = 1;
     string name = 2;

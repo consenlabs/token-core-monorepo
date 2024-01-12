@@ -625,6 +625,14 @@ pub struct MigrateKeystoreResult {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ScanKeystoresResult {
+    #[prost(message, repeated, tag = "1")]
+    pub hd_keystores: ::prost::alloc::vec::Vec<KeystoreResult>,
+    #[prost(message, repeated, tag = "2")]
+    pub private_key_keystores: ::prost::alloc::vec::Vec<ImportPrivateKeyResult>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct LegacyKeystoreResult {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
