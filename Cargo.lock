@@ -5887,6 +5887,7 @@ dependencies = [
  "parking_lot",
  "serde",
  "serde_json",
+ "tcx-common",
 ]
 
 [[package]]
@@ -6055,9 +6056,11 @@ dependencies = [
  "tcx-crypto",
  "tcx-eos",
  "tcx-eth",
+ "tcx-filecoin",
  "tcx-keystore",
  "tcx-primitive",
  "tcx-proto",
+ "tcx-substrate",
  "tcx-tezos",
  "tcx-tron",
  "uuid 1.2.2",

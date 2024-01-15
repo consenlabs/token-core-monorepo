@@ -19,7 +19,7 @@ pub use self::{
 };
 
 use crate::identity::Identity;
-use tcx_crypto::{Crypto, Key};
+use tcx_crypto::{Crypto, EncPair, Key};
 use tcx_primitive::{Derive, TypedDeterministicPublicKey, TypedPrivateKey, TypedPublicKey};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ pub struct Store {
     pub identity: Identity,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub curve: Option<CurveType>,
-
+    pub enc_original: EncPair,
     #[serde(rename = "imTokenMeta")]
     pub meta: Metadata,
 }
@@ -183,6 +183,8 @@ pub struct Metadata {
     pub source: Source,
     #[serde(default = "metadata_default_network")]
     pub network: IdentityNetwork,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub identified_chain_types: Option<Vec<String>>,
 }
 
 fn metadata_default_time() -> i64 {
@@ -207,6 +209,7 @@ impl Default for Metadata {
             timestamp: metadata_default_time(),
             source: Source::Mnemonic,
             network: IdentityNetwork::Mainnet,
+            identified_chain_types: None,
         }
     }
 }
@@ -223,12 +226,14 @@ impl Keystore {
         password: &str,
         curve: CurveType,
         meta: Metadata,
+        original: Option<String>,
     ) -> Result<Keystore> {
         Ok(Keystore::PrivateKey(PrivateKeystore::from_private_key(
             private_key,
             password,
             curve,
             meta,
+            original,
         )?))
     }
 
@@ -393,6 +398,16 @@ impl Keystore {
             Keystore::Hd(ks) => ks.get_deterministic_public_key(curve, derivation_path),
             _ => Err(Error::CannotDeriveKey.into()),
         }
+    }
+
+    pub fn backup(&self, password: &str) -> Result<String> {
+        let unlocker = self
+            .store()
+            .crypto
+            .use_key(&Key::Password(password.to_string()))?;
+        let decrypted = unlocker.decrypt_enc_pair(&self.store().enc_original)?;
+        let original = String::from_utf8_lossy(&decrypted);
+        Ok(original.to_string())
     }
 
     pub fn identity(&self) -> &Identity {
@@ -560,7 +575,7 @@ pub(crate) mod tests {
         {
     "id": "7719d1e3-3f67-439f-a18e-d9ae413e00e1",
     "version": 12000,
-    "fingerprint": "efbe00a55ddd4c5350e295a9533d28f93cac001bfdad8cf4275140461ea03e9e",
+    "sourceFingerprint": "0xefbe00a55ddd4c5350e295a9533d28f93cac001bfdad8cf4275140461ea03e9e",
     "crypto": {
         "cipher": "aes-128-ctr",
         "cipherparams": {
@@ -576,6 +591,11 @@ pub(crate) mod tests {
         },
         "mac": "56af7c5faf0a791cbb4911c4c20070156e4ad0a03f8253b2a2fb005a68d7a026"
     },
+    "encOriginal":
+            {
+                "encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca",
+                "nonce":"d117ae86c627850341f1a5d6bd9cd855"
+            },
     "identity":{
         "encAuthKey":
             {
@@ -592,20 +612,19 @@ pub(crate) mod tests {
         "timestamp": 1575605134,
         "source": "MNEMONIC",
         "network":"MAINNET"
-    },
-    "curve": null
+    }
 }
 "#;
 
     static PK_KEYSTORE_JSON: &'static str = r#"
     {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":12001,
-    "fingerprint":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"identity":{"encAuthKey":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"},"encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3","identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf","ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"},"imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE","network":"MAINNET"},
-    "curve": null
+    "sourceFingerprint":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"identity":{"encAuthKey":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"},"encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3","identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf","ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"},"encOriginal":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"}, "imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE","network":"MAINNET"},
+    "curve": "secp256k1"
     }
     "#;
 
     static INVALID_PK_KEYSTORE_JSON: &'static str = r#"
-    {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":10001,"fingerprint":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"identity":{"encAuthKey":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"},"encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3","identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf","ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"},"imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE","network":"MAINNET"}}
+    {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":10001,"sourceFingerprint":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"identity":{"encAuthKey":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"},"encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3","identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf","ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"},"encOriginal":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"}, "imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE","network":"MAINNET"}}
     "#;
 
     static OLD_KEYSTORE_JSON: &'static str = r#"
@@ -829,7 +848,10 @@ pub(crate) mod tests {
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
         let keystore = Hd(hd_store);
         assert!(keystore.derivable());
-        assert_eq!(keystore.fingerprint(), "0x1468dba9");
+        assert_eq!(
+            keystore.fingerprint(),
+            "0x1468dba9c246fe22183c056540ab4d8b04553217"
+        );
 
         let meta = Metadata {
             name: "test_create".to_string(),
@@ -842,6 +864,7 @@ pub(crate) mod tests {
             TEST_PASSWORD,
             CurveType::SECP256k1,
             meta,
+            None,
         )
         .unwrap();
         let keystore = PrivateKey(pk_store);
@@ -927,6 +950,7 @@ pub(crate) mod tests {
             TEST_PASSWORD,
             CurveType::SECP256k1,
             Metadata::default(),
+            None,
         )
         .unwrap();
 

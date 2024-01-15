@@ -8,4 +8,7 @@ build-tcx:
 	cd token-core; cargo build
 
 test-tcx:
-	cd token-core; cargo test
+	KDF_ROUNDS=1 cargo test --workspace --exclude 'ikc*' --exclude 'coin*'
+
+test-ikc:
+	KDF_ROUNDS=1 cargo test --workspace --exclude 'tcx*' 

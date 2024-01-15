@@ -231,7 +231,6 @@ impl Crypto {
         match key {
             Key::Password(password) => {
                 let derived_key = self.derive_key(password)?;
-
                 if !self.mac.is_empty() && !self.verify_derived_key(&derived_key) {
                     return Err(Error::PasswordIncorrect.into());
                 }
@@ -242,7 +241,7 @@ impl Crypto {
                 })
             }
             Key::DerivedKey(derived_key_hex) => {
-                let derived_key = Vec::from_hex(derived_key_hex)?;
+                let derived_key = Vec::from_hex_auto(derived_key_hex)?;
                 if !self.verify_derived_key(&derived_key) {
                     return Err(Error::PasswordIncorrect.into());
                 }

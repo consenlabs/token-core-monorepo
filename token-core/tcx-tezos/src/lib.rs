@@ -6,7 +6,7 @@ use tcx_common::FromHex;
 use tcx_keystore::Result;
 use tcx_primitive::{Ed25519PrivateKey, PrivateKey, PublicKey};
 
-pub fn build_tezos_base58_private_key(sk: &str) -> Result<String> {
+pub fn encode_tezos_private_key(sk: &str) -> Result<String> {
     //tezos private key prefix
     let edsk_prefix: [u8; 4] = [43, 246, 78, 7];
 
@@ -40,12 +40,12 @@ pub mod tezos {
 #[cfg(test)]
 mod tests {
 
-    use crate::{build_tezos_base58_private_key, parse_tezos_private_key};
+    use crate::{encode_tezos_private_key, parse_tezos_private_key};
     use tcx_common::ToHex;
 
     #[test]
     fn test_build_tezos_private_key() {
-        let base58_prikey = build_tezos_base58_private_key(
+        let base58_prikey = encode_tezos_private_key(
             "5740dedadb610333de66ef2db2d91fd648fcbe419dff766f921ae97d536f94ce",
         )
         .unwrap();

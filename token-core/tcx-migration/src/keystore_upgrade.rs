@@ -1,16 +1,21 @@
 use failure::format_err;
 use serde_json::{json, Value};
+use tcx_btc_kin::WIFDisplay;
 use tcx_common::ToHex;
-use tcx_constants::CurveType;
+use tcx_constants::{coin_info_from_param, CurveType};
 use tcx_crypto::{Crypto, Key};
+use tcx_filecoin::KeyInfo;
 use tcx_keystore::identity::Identity;
 use tcx_keystore::keystore::IdentityNetwork;
 use tcx_keystore::{
     fingerprint_from_mnemonic, fingerprint_from_private_key, fingerprint_from_seed,
-    mnemonic_to_seed, HdKeystore, Keystore, PrivateKeystore, Result, Source,
+    mnemonic_to_seed, tcx_ensure, HdKeystore, Keystore, PrivateKeystore, Result, Source,
 };
+use tcx_primitive::TypedPrivateKey;
+use tcx_substrate::encode_substrate_keystore;
+use tcx_tezos::encode_tezos_private_key;
 
-pub(crate) fn mapping_curve_name(old_curve_name: &str) -> String {
+pub fn mapping_curve_name(old_curve_name: &str) -> String {
     let new_curve_name = match old_curve_name {
         "ED25519" => CurveType::ED25519,
         "SECP256k1" => CurveType::SECP256k1,
@@ -38,12 +43,12 @@ impl KeystoreUpgrade {
             && self.json["imTokenMeta"].is_object()
     }
 
-    pub fn upgrade(&self, key: &Key) -> Result<Keystore> {
+    pub fn upgrade(&self, key: &Key, identity_network: &IdentityNetwork) -> Result<Keystore> {
         let version = self.json["version"].as_i64().unwrap_or(0);
 
         let mut json = self.json.clone();
 
-        let source = json["imTokenMeta"]["source"].as_str().unwrap_or("");
+        let source: &str = json["imTokenMeta"]["source"].as_str().unwrap_or("");
         json["imTokenMeta"]["source"] = match (version, source) {
             (11000, "NEW_IDENTITY") => json!(Source::NewMnemonic.to_string()),
             (11000, "RECOVERED_IDENTITY") => json!(Source::Mnemonic.to_string()),
@@ -74,11 +79,6 @@ impl KeystoreUpgrade {
         }?;
         json["sourceFingerprint"] = json!(fingerprint);
 
-        let identity_network = match json["meta"]["network"].as_str().unwrap_or("") {
-            "TESTNET" => IdentityNetwork::Testnet,
-            _ => IdentityNetwork::Mainnet,
-        };
-
         match version {
             11001 => {
                 json["version"] = json!(PrivateKeystore::VERSION);
@@ -100,6 +100,20 @@ impl KeystoreUpgrade {
                         .expect("activeAccounts need contains curve");
                     let new_curve_name = mapping_curve_name(&old_curve_name);
                     json["curve"] = json!(new_curve_name);
+                    let chain_type = account_json["coin"]
+                        .as_str()
+                        .expect("activeAccounts need contains chainType");
+                    json["imTokenMeta"]["identifiedChainTypes"] = json!(vec![chain_type]);
+                    // tcx pk keystore has lost the original private key
+                    let original = self.restore_private_key_original(
+                        key,
+                        &private_key,
+                        chain_type,
+                        &new_curve_name,
+                        account_json,
+                    )?;
+                    let enc_pair = unlocker.encrypt_with_random_iv(original.as_bytes())?;
+                    json["encOriginal"] = json!(enc_pair);
                 }
             }
             11000 => {
@@ -110,11 +124,60 @@ impl KeystoreUpgrade {
                 json["version"] = json!(HdKeystore::VERSION);
                 json["identity"] =
                     json!(Identity::from_seed(&seed, &unlocker, &identity_network,)?);
+                let enc_pair = unlocker.encrypt_with_random_iv(mnemonic.as_bytes())?;
+                json["encOriginal"] = json!(enc_pair);
             }
             _ => return Err(format_err!("invalid version")),
         }
 
         Keystore::from_json(&json.to_string())
+    }
+
+    fn restore_private_key_original(
+        &self,
+        key: &Key,
+        private_key_bytes: &[u8],
+        chain_type: &str,
+        new_curve_name: &str,
+        account_json: &Value,
+    ) -> Result<String> {
+        match chain_type {
+            "KUSAMA" | "POLKADOT" => {
+                let coin = coin_info_from_param(chain_type, "", "", "")?;
+                let Key::Password(password) = key else {
+                    return Err(format_err!("substrate cannot use derived_key"));
+                };
+
+                let mut substrate_ks =
+                    encode_substrate_keystore(&password, &private_key_bytes, &coin)?;
+                let name = self.json["imTokenMeta"]["name"]
+                    .as_str()
+                    .unwrap_or_default();
+                let created_at = self.json["imTokenMeta"]["timestamp"]
+                    .as_i64()
+                    .unwrap_or_default();
+                substrate_ks.meta.name = name.to_string();
+                substrate_ks.meta.when_created = created_at;
+                let json = serde_json::to_string(&substrate_ks)?;
+                Ok(json)
+            }
+            "TEZOS" => Ok(encode_tezos_private_key(&private_key_bytes.to_hex())?),
+            "FILECOIN" => {
+                let curve_type = CurveType::from_str(&new_curve_name);
+                Ok(KeyInfo::from_private_key(curve_type, &private_key_bytes)?
+                    .to_json()?
+                    .to_hex())
+            }
+            "BITCOINCASH" | "LITECOIN" => {
+                let network = account_json["network"].as_str().unwrap_or("MAINNET");
+                let seg_wit = account_json["segWit"].as_str().unwrap_or("");
+                let coin_info = coin_info_from_param(&chain_type, network, seg_wit, "secp256k1")?;
+                let typed_pk =
+                    TypedPrivateKey::from_slice(CurveType::SECP256k1, &private_key_bytes)?;
+                typed_pk.fmt(&coin_info)
+            }
+            _ => Ok(private_key_bytes.to_hex()),
+        }
     }
 }
 
@@ -122,10 +185,12 @@ impl KeystoreUpgrade {
 mod tests {
     use serde_json::{json, Value};
     use tcx_common::ToHex;
-    use tcx_constants::CurveType;
+    use tcx_constants::{CurveType, TEST_PASSWORD};
     use tcx_crypto::Error::PasswordIncorrect;
     use tcx_crypto::Key;
-    use tcx_keystore::{Keystore, Source};
+    use tcx_keystore::{keystore::IdentityNetwork, Keystore, Source};
+
+    use super::KeystoreUpgrade;
 
     fn pk_json(version: i64, source: &str, name: &str) -> Value {
         json!(
@@ -177,10 +242,13 @@ mod tests {
             let upgrade_keystore = super::KeystoreUpgrade::new(hd_json(t.0, t.1, "Unknown"));
             let key = Key::DerivedKey(hd_derived_key());
 
-            let upgraded = upgrade_keystore.upgrade(&key);
+            let upgraded = upgrade_keystore.upgrade(&key, &IdentityNetwork::Mainnet);
 
             assert!(!upgrade_keystore.need_upgrade());
-            assert_eq!(upgraded.err().unwrap().to_string(), "invalid version");
+            assert_eq!(
+                upgraded.err().unwrap().to_string(),
+                "upgrade wrong version keystore"
+            );
         }
     }
 
@@ -190,7 +258,9 @@ mod tests {
             super::KeystoreUpgrade::new(hd_json(11000, "NEW_IDENTITY", "Unknown"));
         let key = Key::Password("imtoken1".to_owned());
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
 
         assert!(upgrade_keystore.need_upgrade());
         assert_eq!(upgraded.store().version, 12000);
@@ -203,7 +273,9 @@ mod tests {
             super::KeystoreUpgrade::new(hd_json(11000, "NEW_IDENTITY", "Unknown"));
         let key = Key::DerivedKey("9e6c4391999f0f578105284fe25eb9cf1b60ab75473ac155c83091ae36bf2bb64eb6ec5cbe39dab3a100f87442ee580619700291c15e84961fec2a259c808e69".to_owned());
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
 
         assert!(upgrade_keystore.need_upgrade());
         assert_eq!(upgraded.store().version, 12000);
@@ -225,12 +297,39 @@ mod tests {
             let upgrade_keystore = super::KeystoreUpgrade::new(hd_json(11000, t.0, "Unknown"));
             let key = Key::DerivedKey(hd_derived_key());
 
-            let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+            let upgraded = upgrade_keystore
+                .upgrade(&key, &IdentityNetwork::Testnet)
+                .unwrap();
 
             assert!(upgrade_keystore.need_upgrade());
             assert_eq!(upgraded.store().version, 12000);
             assert_eq!(upgraded.store().meta.source, t.1);
         }
+    }
+
+    #[test]
+    fn test_upgrade_hd_identity_network() {
+        let upgrade_keystore =
+            super::KeystoreUpgrade::new(hd_json(11000, "NEW_IDENTITY", "Unknown"));
+        let key = Key::DerivedKey(hd_derived_key());
+
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
+
+        assert_eq!(
+            upgraded.identity().identifier,
+            "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg"
+        );
+
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Mainnet)
+            .unwrap();
+
+        assert_eq!(
+            upgraded.identity().identifier,
+            "im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf"
+        );
     }
 
     #[test]
@@ -248,7 +347,9 @@ mod tests {
             let upgrade_keystore = super::KeystoreUpgrade::new(pk_json(11001, t.0, "vvvvvv"));
             let key = Key::DerivedKey(private_derived_key());
 
-            let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+            let upgraded = upgrade_keystore
+                .upgrade(&key, &IdentityNetwork::Testnet)
+                .unwrap();
 
             assert!(upgrade_keystore.need_upgrade());
             assert_eq!(upgraded.store().version, 12001);
@@ -257,11 +358,35 @@ mod tests {
     }
 
     #[test]
+    fn test_upgrade_pk_identity_network() {
+        let upgrade_keystore = super::KeystoreUpgrade::new(pk_json(11001, "WIF", "vvvvvv"));
+        let key = Key::DerivedKey(private_derived_key());
+
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
+
+        assert_eq!(
+            upgraded.identity().identifier,
+            "im18MDUZKTuAALuXb1Wait1XBb984rdjVpFeBgu"
+        );
+
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Mainnet)
+            .unwrap();
+
+        assert_eq!(
+            upgraded.identity().identifier,
+            "im14x5UPbCXmU2HMQ8jfeKcCDrQYhDppRYaa5C6"
+        );
+    }
+
+    #[test]
     fn test_invalid_version() {
         let upgrade_keystore = super::KeystoreUpgrade::new(pk_json(11002, "PRIVATE", "SSS"));
         let key = Key::DerivedKey(hd_derived_key());
 
-        let upgraded = upgrade_keystore.upgrade(&key);
+        let upgraded = upgrade_keystore.upgrade(&key, &IdentityNetwork::Testnet);
         assert!(upgraded.is_err());
     }
 
@@ -327,7 +452,7 @@ mod tests {
         let upgrade_keystore = super::KeystoreUpgrade::new(pk_json(11001, "PRIVATE", "vvvvvv"));
         let key = Key::Password("imtoken2".to_owned());
 
-        let upgraded = upgrade_keystore.upgrade(&key);
+        let upgraded = upgrade_keystore.upgrade(&key, &IdentityNetwork::Testnet);
         assert_eq!(
             upgraded.err().unwrap().to_string(),
             PasswordIncorrect.to_string()
@@ -342,7 +467,7 @@ mod tests {
              "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
              "crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2",
                 "kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},
-                "activeAccounts": [{"address": "t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa", "curve": "BLS"}],
+                "activeAccounts": [{"address": "t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa", "curve": "BLS", "coin": "FILECOIN"}],
             "imTokenMeta":{"name":name.to_string(),"passwordHint":"","timestamp":1576733295,"source":source.to_string()}}
         )
     }
@@ -355,7 +480,7 @@ mod tests {
              "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
              "crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2",
                 "kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},
-                "activeAccounts": [{"address": "", "curve": "SECP256k1"}],
+                "activeAccounts": [{"address": "", "curve": "SECP256k1", "coin": "BITCOINCASH"}],
             "imTokenMeta":{"name":name.to_string(),"passwordHint":"","timestamp":1576733295,"source":source.to_string()}}
         )
     }
@@ -368,7 +493,7 @@ mod tests {
              "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
              "crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2",
                 "kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},
-                "activeAccounts": [{"address": "", "curve": "ED25519"}],
+                "activeAccounts": [{"address": "", "curve": "ED25519", "coin": "TEZOS"}],
             "imTokenMeta":{"name":name.to_string(),"passwordHint":"","timestamp":1576733295,"source":source.to_string()}}
         )
     }
@@ -379,9 +504,20 @@ mod tests {
              "id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b",
              "version":version,
              "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
-             "crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2",
-                "kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},
-                "activeAccounts": [{"address": "", "curve": "SubSr25519"}],
+             "crypto": {
+                "cipher": "aes-128-ctr",
+                "cipherparams": { "iv": "31deaa1033b2a55cc39916b347453649" },
+                "ciphertext": "c52bbc9842da2e9afdf8b905585db5ea4b86920f54f76e5ce686586604a29c3cc152ba9f309d2a1995cddb0ecafbe4d1f43ad033d1e0f5a02e68eda7c2f71687",
+                "kdf": "pbkdf2",
+                "kdfparams": {
+                  "c": 1,
+                  "prf": "hmac-sha256",
+                  "dklen": 32,
+                  "salt": "87436212538c3d747df0988246078a308bed9245388badf88dbeb21806e6dd49"
+                },
+                "mac": "53af7ee52b69782e775a46def178d0b629c94b04e70fbddc5adafa437b6144e6"
+              },
+                "activeAccounts": [{"address": "", "curve": "SubSr25519", "coin": "POLKADOT"}],
             "imTokenMeta":{"name":name.to_string(),"passwordHint":"","timestamp":1576733295,"source":source.to_string()}}
         )
     }
@@ -393,30 +529,172 @@ mod tests {
         let upgrade_keystore =
             super::KeystoreUpgrade::new(pk_json_with_bls(11001, "PRIVATE", "vvvvvv"));
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
         assert_eq!(upgraded.store().curve, Some(CurveType::BLS));
 
         let upgrade_keystore =
             super::KeystoreUpgrade::new(pk_json_with_ed25519(11001, "PRIVATE", "vvvvvv"));
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
         assert_eq!(upgraded.store().curve, Some(CurveType::ED25519));
 
         let upgrade_keystore =
             super::KeystoreUpgrade::new(pk_json_with_subsr25519(11001, "PRIVATE", "vvvvvv"));
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Testnet,
+            )
+            .unwrap();
         assert_eq!(upgraded.store().curve, Some(CurveType::SR25519));
 
         let upgrade_keystore =
             super::KeystoreUpgrade::new(pk_json_with_secp256k1(11001, "PRIVATE", "vvvvvv"));
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
         assert_eq!(upgraded.store().curve, Some(CurveType::SECP256k1));
 
         let upgrade_keystore = super::KeystoreUpgrade::new(hd_json(11000, "MNEMONIC", "vvvvvv"));
 
-        let upgraded = upgrade_keystore.upgrade(&key).unwrap();
+        let upgraded = upgrade_keystore
+            .upgrade(&key, &IdentityNetwork::Testnet)
+            .unwrap();
         assert_eq!(upgraded.store().curve, None);
+    }
+
+    #[test]
+    fn test_original_after_migrate_tron() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        assert_eq!(
+            ori,
+            "685634d212eabe016a1cb09d9f1ea1ea757ebe590b9a097d7b1c9379ad280171"
+        );
+    }
+
+    #[test]
+    fn test_original_after_migrate_tezos() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/4d5cbfcf-aee1-4908-9991-9d060eb68a0e.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        assert_eq!(
+            ori,
+            "edskS3E5CLrkwHRYAbDvw5xC913C9GGseMcyNGeGbeaD57Yvvi2jqizpAAZyzUtRK626UvkKYdJwCYE9oKMcqFCtJeBpDYcrVH"
+        );
+    }
+
+    #[test]
+    fn test_original_after_migrate_lite() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/46e8e653-dd05-4217-b225-faafc8451a2c.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        assert_eq!(ori, "TBRMznXcDf2HK2jBKJsqjBpsEdaiaZUBGKN8aKdwTMrPnMNB5UQM");
+    }
+
+    #[test]
+    fn test_original_after_migrate_bch() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/483cb13e-5e59-4428-a219-018de4ce60f6.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        assert_eq!(ori, "L1xDTJYPqhofU8DQCiwjStEBr1X6dhiNfweUhxhoRSgYyMJPcZ6B");
+    }
+
+    #[test]
+    fn test_original_after_migrate_kusama() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/949bada8-776c-4554-ad0c-001e3726a0f8.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        assert!(ori.contains("FDS7ZJpJg4R7Kd2hzfsEc6mtW5iknjZ3UazX76EsnbH74v8"));
+    }
+
+    #[test]
+    fn test_original_after_migrate_file_coin() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/a7294912-b24f-44ba-86c1-48d76117808a.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let expected_ori =
+            r#"{"Type":"secp256k1","PrivateKey":"o5JgTvwvrZwLPaQ7X2mKLj8nDxcNhZkSvg1UdCJ1xfY="}"#;
+        assert_eq!(ori, expected_ori.as_bytes().to_hex());
+    }
+
+    #[test]
+    fn test_original_after_migrate_file_coin_bls() {
+        let json_str = include_str!(
+            "../../test-data/wallets-ios-2_14_1/fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb.json"
+        );
+        let json = serde_json::from_str(json_str).unwrap();
+        let old_ks = KeystoreUpgrade::new(json);
+        let ks = old_ks
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Mainnet,
+            )
+            .unwrap();
+        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let expected_ori =
+            r#"{"Type":"bls","PrivateKey":"i7kO+zxc6QS+v7YygcmUYh7MUYSRes6anigiLhKF808="}"#;
+        assert_eq!(ori, expected_ori.as_bytes().to_hex());
     }
 }

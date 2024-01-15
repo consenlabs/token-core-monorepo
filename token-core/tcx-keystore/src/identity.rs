@@ -392,6 +392,7 @@ mod test {
             &PASSWORD,
             tcx_constants::CurveType::SECP256k1,
             meta,
+            None,
         )
         .unwrap();
         let identity = &keystore.store().identity;
@@ -410,9 +411,14 @@ mod test {
     fn test_create_identity_from_private_key_testnet() {
         let mut meta = Metadata::default();
         meta.network = IdentityNetwork::Testnet;
-        let keystore =
-            PrivateKeystore::from_private_key(&PRIVATE_KEY, &PASSWORD, CurveType::SECP256k1, meta)
-                .unwrap();
+        let keystore = PrivateKeystore::from_private_key(
+            &PRIVATE_KEY,
+            &PASSWORD,
+            CurveType::SECP256k1,
+            meta,
+            None,
+        )
+        .unwrap();
         let identity = &keystore.store().identity;
 
         assert_eq!(

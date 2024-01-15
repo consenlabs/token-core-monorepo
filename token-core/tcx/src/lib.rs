@@ -4,7 +4,7 @@ use std::ffi::{CStr, CString};
 
 use std::os::raw::c_char;
 
-use handler::sign_bls_to_execution_change;
+use handler::{backup, sign_bls_to_execution_change};
 use prost::Message;
 
 pub mod api;
@@ -13,6 +13,7 @@ use crate::api::{GeneralResult, TcxAction};
 
 pub mod error_handling;
 pub mod handler;
+pub mod migration;
 use failure::Error;
 use std::result;
 
@@ -22,9 +23,10 @@ use crate::handler::{
     encode_message, encrypt_data_to_ipfs, eth_recover_address, exists_json, exists_mnemonic,
     exists_private_key, export_json, export_mnemonic, export_private_key, get_derived_key,
     get_extended_public_keys, get_public_keys, import_json, import_mnemonic, import_private_key,
-    migrate_keystore, mnemonic_to_public, sign_authentication_message, sign_hashes, sign_message,
-    sign_tx, unlock_then_crash, verify_password,
+    mnemonic_to_public, sign_authentication_message, sign_hashes, sign_message, sign_tx,
+    unlock_then_crash, verify_password,
 };
+use crate::migration::{migrate_keystore, scan_legacy_keystores};
 
 mod filemanager;
 // mod identity;
@@ -72,9 +74,9 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
             handler::init_token_core_x(&action.param.unwrap().value).unwrap();
             Ok(vec![])
         }),
-        "scan_keystores" => landingpad(|| {
-            handler::scan_keystores().unwrap();
-            Ok(vec![])
+        "scan_legacy_keystores" => landingpad(|| {
+            let ret = migration::scan_legacy_keystores()?;
+            encode_message(ret)
         }),
         "create_keystore" => landingpad(|| create_keystore(&action.param.unwrap().value)),
         "import_mnemonic" => landingpad(|| import_mnemonic(&action.param.unwrap().value)),
@@ -92,6 +94,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "exists_json" => landingpad(|| exists_json(&action.param.unwrap().value)),
         "import_json" => landingpad(|| import_json(&action.param.unwrap().value)),
         "export_json" => landingpad(|| export_json(&action.param.unwrap().value)),
+        "backup" => landingpad(|| backup(&action.param.unwrap().value)),
 
         // !!! WARNING !!! used for `cache_dk` feature
         "get_derived_key" => landingpad(|| get_derived_key(&action.param.unwrap().value)),
@@ -178,20 +181,21 @@ mod tests {
     use tcx_keystore::keystore::IdentityNetwork;
 
     use crate::api::{
-        export_private_key_param, migrate_keystore_param, sign_param, CreateKeystoreParam,
-        DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
-        DerivedKeyResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
-        ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicResult,
-        ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult, GetPublicKeysParam,
-        GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
-        ImportPrivateKeyResult, InitTokenCoreXParam, KeystoreResult, MigrateKeystoreParam,
-        MigrateKeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
-        PublicKeyDerivation, SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
+        export_private_key_param, migrate_keystore_param, sign_param, BackupResult,
+        CreateKeystoreParam, DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam,
+        DeriveSubAccountsResult, DerivedKeyResult, ExistsJsonParam, ExistsKeystoreResult,
+        ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult,
+        ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
+        GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam,
+        ImportPrivateKeyParam, ImportPrivateKeyResult, InitTokenCoreXParam, KeystoreResult,
+        MigrateKeystoreParam, MigrateKeystoreResult, MnemonicToPublicKeyParam,
+        MnemonicToPublicKeyResult, PublicKeyDerivation, SignHashesParam, SignHashesResult,
+        SignParam, WalletKeyParam,
     };
     use crate::handler::import_mnemonic;
     use crate::handler::{encode_message, import_private_key};
     use prost::Message;
-    use tcx_constants::{sample_key, CurveType, TEST_PRIVATE_KEY};
+    use tcx_constants::{sample_key, CurveType, TEST_PRIVATE_KEY, TEST_WIF};
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::Keystore;
 
@@ -239,23 +243,6 @@ mod tests {
     }
 
     fn teardown() {
-        // let p = Path::new("/tmp/imtoken/wallets");
-        // let walk_dir = std::fs::read_dir(p).expect("read dir");
-        // for entry in walk_dir {
-        //     let entry = entry.expect("DirEntry");
-        //     let fp = entry.path();
-        //     if !fp
-        //         .file_name()
-        //         .expect("file_name")
-        //         .to_str()
-        //         .expect("file_name str")
-        //         .ends_with(".json")
-        //     {
-        //         continue;
-        //     }
-
-        //     remove_file(fp.as_path()).expect("should remove file");
-        // }
         fs::remove_dir_all("/tmp/imtoken").expect("remove test directory");
     }
 
@@ -288,6 +275,7 @@ mod tests {
             password: TEST_PASSWORD.to_string(),
             name: "import_default_pk_store".to_string(),
             password_hint: "".to_string(),
+            network: "".to_string(),
             overwrite: true,
         };
 
@@ -302,6 +290,7 @@ mod tests {
             password: TEST_PASSWORD.to_string(),
             name: "import_filecoin_pk_store".to_string(),
             password_hint: "".to_string(),
+            network: "".to_string(),
             overwrite: true,
         };
 
@@ -372,18 +361,15 @@ mod tests {
     #[ignore = "for debug"]
     fn test_call_tcx_api() {
         run_test(|| {
-            let bytes = &Vec::<u8>::from_hex_auto("0a0b7369676e5f68617368657312d7010a136170692e5369676e486173686573506172616d12bf010a2461646330633662342d353062382d346234332d386663322d6236313031303931313539341208696d746f6b656e711a8c010a403365303635386438323834643866353063306161386661366364626431626465306562333730643462333438396132366338333736333637316163653862316312106d2f31323338312f333630302f302f301a09626c7331325f333831222b424c535f5349475f424c53313233383147325f584d443a5348412d3235365f535357555f524f5f504f505f").unwrap();
+            let bytes = &Vec::<u8>::from_hex_auto("0a0f6465726976655f6163636f756e747312770a176170692e4465726976654163636f756e7473506172616d125c0a2430313831653533662d346566642d343262352d623430302d39333134656239376339373412083132333435363738222a0a08455448455245554d12106d2f3434272f3630272f30272f302f302a01313209736563703235366b31").unwrap();
             let action = TcxAction::decode(bytes.as_slice()).unwrap();
+            dbg!(&action);
             let mut param =
-                SignHashesParam::decode(action.param.unwrap().value.as_slice()).unwrap();
+                DeriveAccountsParam::decode(action.param.unwrap().value.as_slice()).unwrap();
             let wallet = import_default_wallet();
-            param.id = wallet.id.to_string();
-            param.key = Some(crate::api::sign_hashes_param::Key::Password(
-                TEST_PASSWORD.to_owned(),
-            ));
-            let ret_bytes = call_api("sign_hashes", param).unwrap();
-            let ret: SignHashesResult = SignHashesResult::decode(ret_bytes.as_slice()).unwrap();
-            assert_eq!(ret.signatures[0], "0xb5c9a0cf842bf8766f297f3b7e8f4cb8ea6dc31bf1a61997255c153312bf990d1100ee56a223ebf1aa5ba8e235094fe4022e547c94560ca2805166f169efc807a97636a847e08963c020f0970fa934e7e693102539ac399f10c369bd6d9f2421");
+            dbg!(&param);
+            // call_tcx_api(bytes.to_hex())
+            assert!(false);
         });
     }
 
@@ -464,6 +450,7 @@ mod tests {
                 account.encrypted_extended_public_key,
                 "wAKUeR6fOGFL+vi50V+MdVSH58gLy8Jx7zSxywz0tN++l2E0UNG7zv+R1FVgnrqU6d0wl699Q/I7O618UxS7gnpFxkGuK0sID4fi7pGf9aivFxuKy/7AJJ6kOmXH1Rz6FCS6b8W7NKlzgbcZpJmDsQ=="
             );
+
             remove_created_wallet(&import_result.id);
         })
     }
@@ -1120,6 +1107,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "test_tezos_import_private_key_export".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
 
@@ -1262,6 +1250,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "test_filecoin_import_private_key".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
 
@@ -1328,6 +1317,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "test_filecoin_import_private_key".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
 
@@ -1393,6 +1383,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "test_64bytes_import_private_key".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
 
@@ -1799,6 +1790,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "test_import_to_pk_which_from_hd".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
 
@@ -1872,6 +1864,7 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "test_delete_keystore".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
 
@@ -2424,7 +2417,6 @@ mod tests {
         })
     }
 
-    // TODO: private key store need know private key curve
     #[test]
     #[serial]
     pub fn test_import_multi_curve() {
@@ -3557,17 +3549,15 @@ mod tests {
                 password: TEST_PASSWORD.to_string(),
                 name: "import_private_key_wallet".to_string(),
                 password_hint: "".to_string(),
+                network: "".to_string(),
                 overwrite: true,
             };
             let ret = call_api("import_private_key", param).unwrap();
             let import_result: ImportPrivateKeyResult =
                 ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
-            assert_eq!(
-                vec!["ETHEREUM".to_string(), "TRON".to_string(),],
-                import_result.suggest_chain_types
-            );
-            assert_eq!("secp256k1", import_result.suggest_curve);
-            assert_eq!("", import_result.suggest_network);
+            assert_eq!(Vec::<String>::new(), import_result.identified_chain_types);
+            assert_eq!("secp256k1", import_result.identified_curve);
+            assert_eq!("", import_result.identified_network);
             assert_eq!("PRIVATE", import_result.source);
 
             let param: ExistsPrivateKeyParam = ExistsPrivateKeyParam {
@@ -3607,6 +3597,55 @@ mod tests {
             assert!(export_result
                 .json
                 .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
+        })
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_import_wif_network_mismatch() {
+        run_test(|| {
+            let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
+                private_key: TEST_WIF.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                name: "import_private_key_wallet".to_string(),
+                password_hint: "".to_string(),
+                network: "".to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_private_key", param);
+            assert_eq!(
+                format!("{}", ret.unwrap_err()),
+                "private_key_network_mismatch"
+            );
+
+            let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
+                private_key: TEST_WIF.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                name: "import_private_key_wallet".to_string(),
+                password_hint: "".to_string(),
+                network: "MAINNET".to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_private_key", param);
+            // let import_result: ImportPrivateKeyResult =
+            //     ImportPrivateKeyResult::decode(ret.as_slice());
+            assert_eq!(
+                format!("{}", ret.unwrap_err()),
+                "private_key_network_mismatch"
+            );
+
+            let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
+                private_key: TEST_WIF.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                name: "import_private_key_wallet".to_string(),
+                password_hint: "".to_string(),
+                network: "TESTNET".to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_private_key", param).unwrap();
+            let import_result: ImportPrivateKeyResult =
+                ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(import_result.identified_network, "TESTNET");
         })
     }
 
@@ -3652,10 +3691,10 @@ mod tests {
                 ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
             assert_eq!(
                 vec!["ETHEREUM".to_string()],
-                import_result.suggest_chain_types
+                import_result.identified_chain_types
             );
-            assert_eq!("secp256k1", import_result.suggest_curve);
-            assert_eq!("", import_result.suggest_network);
+            assert_eq!("secp256k1", import_result.identified_curve);
+            assert_eq!("", import_result.identified_network);
             assert_eq!("KEYSTORE_V3", import_result.source);
 
             let param: ExistsJsonParam = ExistsJsonParam {
@@ -3770,11 +3809,11 @@ mod tests {
         assert_eq!(keystore.id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
         assert_eq!(
             keystore.identifier,
-            "im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf"
+            "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg"
         );
         assert_eq!(
             keystore.ipfs_id,
-            "QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"
+            "QmSTTidyfa4np9ak9BZP38atuzkCHy4K59oif23f4dNAGU"
         );
         assert_eq!(keystore.created_at, 1703213098);
         assert_eq!(keystore.source, "MNEMONIC");
@@ -3871,7 +3910,7 @@ mod tests {
         let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
         assert_eq!(result.keystore.unwrap().source, "PRIVATE");
 
-        fs::remove_dir_all("../test-data/walletsV2").unwrap();
+        // fs::remove_dir_all("../test-data/walletsV2").unwrap();
     }
 
     #[test]
@@ -4055,5 +4094,240 @@ mod tests {
         assert_eq!(keystore.get_curve().unwrap(), CurveType::SECP256k1);
         assert_eq!(keystore.id(), "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca");
         fs::remove_dir_all("../test-data/walletsV2").unwrap();
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_identified_network_flush() {
+        let _ = fs::remove_dir_all("../test-data/walletsV2");
+        let param = InitTokenCoreXParam {
+            file_dir: "../test-data".to_string(),
+            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
+            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
+            is_debug: true,
+        };
+
+        handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "1a60471067b6c6a3202e0014de2ce9b2d45fd73e2289b3cc3d8e5b58fe99ff242fd61e9fe63e75abbdc0ed87a50756cc10c57daf1d6297b99ec9a3b174eee017".to_string(),
+            )),
+        };
+        let _ = call_api("migrate_keystore", param).unwrap();
+        // let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        let json = fs::read_to_string(format!(
+            "../test-data/walletsV2/4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca.json"
+        ))
+        .unwrap();
+        let mut keystore = Keystore::from_json(&json).unwrap();
+        assert_eq!(
+            keystore.fingerprint(),
+            "0x8b650646c72d8ec3f2a6da9f76dfe624a862c578"
+        );
+
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        assert_eq!(
+            keystore.export().unwrap(),
+            "685634d212eabe016a1cb09d9f1ea1ea757ebe590b9a097d7b1c9379ad280171"
+        );
+
+        assert_eq!(keystore.get_curve().unwrap(), CurveType::SECP256k1);
+        assert_eq!(keystore.id(), "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca");
+        fs::remove_dir_all("../test-data/walletsV2").unwrap();
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_migrate_keystores_identified_chain_types() {
+        let _ = fs::remove_dir_all("../test-data/walletsV2");
+        let param = InitTokenCoreXParam {
+            file_dir: "../test-data".to_string(),
+            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
+            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
+            is_debug: true,
+        };
+
+        handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
+
+        // original = wif, identified_chain_types = BITCOIN
+        {
+            let param: MigrateKeystoreParam = MigrateKeystoreParam {
+                id: "d9e3bb9c-87fd-4836-b146-10a3e249eb75".to_string(),
+                key: Some(migrate_keystore_param::Key::DerivedKey(
+                    "01073f22079380d2180300c518f6b510d4761fd83ce738271460c9e745b9055dabb28f93ff3a8fd54e0c71c005b5e799f8d52bcce1a81e08b5f15f9604531574".to_string(),
+                )),
+            };
+            call_api("migrate_keystore", param).unwrap();
+            let json = fs::read_to_string(format!(
+                "../test-data/walletsV2/d9e3bb9c-87fd-4836-b146-10a3e249eb75.json"
+            ))
+            .unwrap();
+            let keystore = Keystore::from_json(&json).unwrap();
+            assert_eq!(
+                keystore.meta().identified_chain_types,
+                Some(vec!["BITCOIN".to_string()])
+            );
+            let unlocker = keystore
+                .store()
+                .crypto
+                .use_key(&tcx_crypto::Key::DerivedKey("01073f22079380d2180300c518f6b510d4761fd83ce738271460c9e745b9055dabb28f93ff3a8fd54e0c71c005b5e799f8d52bcce1a81e08b5f15f9604531574".to_string()))
+                .unwrap();
+            let wif_bytes = unlocker
+                .decrypt_enc_pair(&keystore.store().enc_original)
+                .unwrap();
+            let wif = String::from_utf8_lossy(&wif_bytes);
+            assert_eq!("L1xDTJYPqhofU8DQCiwjStEBr1X6dhiNfweUhxhoRSgYyMJPcZ6B", wif);
+        }
+
+        // original = hex, identified_chain_types = ETEHREUM
+        {
+            let param: MigrateKeystoreParam = MigrateKeystoreParam {
+                id: "60573d8d-8e83-45c3-85a5-34fbb2aad5e1".to_string(),
+                key: Some(migrate_keystore_param::Key::DerivedKey(
+                    "8f2316895af6d58b5b75d424977cdaeae2a619c6b941ca5f77dcfed592cd3b23b698040caf397df6153db6f2d5b2815bf8f8cd32f99998ca46534242df82d1ca".to_string(),
+                )),
+            };
+            call_api("migrate_keystore", param).unwrap();
+            let json = fs::read_to_string(format!(
+                "../test-data/walletsV2/60573d8d-8e83-45c3-85a5-34fbb2aad5e1.json"
+            ))
+            .unwrap();
+            let keystore = Keystore::from_json(&json).unwrap();
+            assert_eq!(
+                keystore.meta().identified_chain_types,
+                Some(vec!["ETHEREUM".to_string()])
+            );
+
+            let unlocker = keystore
+                .store()
+                .crypto
+                .use_key(&tcx_crypto::Key::DerivedKey("8f2316895af6d58b5b75d424977cdaeae2a619c6b941ca5f77dcfed592cd3b23b698040caf397df6153db6f2d5b2815bf8f8cd32f99998ca46534242df82d1ca".to_string()))
+                .unwrap();
+            let decrypted = unlocker
+                .decrypt_enc_pair(&keystore.store().enc_original)
+                .unwrap();
+            let json = String::from_utf8_lossy(&decrypted);
+            assert!(
+                json.contains("9b62a4c07c96ca9b0b82b5b5eae4e7c9b2b7db531a6d2991198eb6809a8c35ac")
+            );
+        }
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "792a0051-16d7-44a7-921a-9b4a0c893b8f".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "0xebe2739dd04525823b967b914a74a5dedd0086622d0da3449c1354199518673dd33fca8f6bd64870d6e6dc28b0f6e9de169243679b1668750f23cfe9523c03b3".to_string(),
+            )),
+        };
+        call_api("migrate_keystore", param).unwrap();
+        let json = fs::read_to_string(format!(
+            "../test-data/walletsV2/792a0051-16d7-44a7-921a-9b4a0c893b8f.json"
+        ))
+        .unwrap();
+        let keystore = Keystore::from_json(&json).unwrap();
+        assert!(keystore.meta().identified_chain_types.is_none());
+
+        // assert!(keystore.store().enc_original.is_none());
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "f3615a56-cb03-4aa4-a893-89944e49920d".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "0x79c74b67fc73a255bc66afc1e7c25867a19e6d2afa5b8e3107a472de13201f1924fed05e811e7f5a4c3e72a8a6e047a80393c215412bde239ec7ded520896630".to_string(),
+            )),
+        };
+        call_api("migrate_keystore", param).unwrap();
+        let json = fs::read_to_string(format!(
+            "../test-data/walletsV2/f3615a56-cb03-4aa4-a893-89944e49920d.json"
+        ))
+        .unwrap();
+        let keystore = Keystore::from_json(&json).unwrap();
+        assert_eq!(
+            keystore.meta().identified_chain_types,
+            Some(vec!["ETHEREUM".to_string()])
+        );
+
+        let unlocker = keystore
+            .store()
+            .crypto
+            .use_key(&tcx_crypto::Key::DerivedKey("0x79c74b67fc73a255bc66afc1e7c25867a19e6d2afa5b8e3107a472de13201f1924fed05e811e7f5a4c3e72a8a6e047a80393c215412bde239ec7ded520896630".to_string()))
+            .unwrap();
+        let decrypted = unlocker
+            .decrypt_enc_pair(&keystore.store().enc_original)
+            .unwrap();
+        let hex = String::from_utf8_lossy(&decrypted);
+        assert_eq!(
+            "4b8e7a47497d810cd11f209b8ce9d3b0eec34e85dc8bad5d12cb602425dd3d6b",
+            hex
+        );
+
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        call_api("migrate_keystore", param).unwrap();
+        let json = fs::read_to_string(format!(
+            "../test-data/walletsV2/fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb.json"
+        ))
+        .unwrap();
+        let keystore = Keystore::from_json(&json).unwrap();
+        assert_eq!(
+            keystore.meta().identified_chain_types,
+            Some(vec!["FILECOIN".to_string()])
+        );
+        // assert!(keystore.store().enc_original.is_none());
+
+        // fs::remove_dir_all("../test-data/walletsV2").unwrap();
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_backup() {
+        run_test(|| {
+            let json = r#"{
+                "version": 3,
+                "id": "5c24e96a-8fd8-4872-9702-3fd2fc9166cd",
+                "crypto": {
+                  "cipher": "aes-128-ctr",
+                  "cipherparams": { "iv": "56ed1daad9226d7edd75e8ab34e32309" },
+                  "ciphertext": "95cae71ef4d76c3def64bf77d267608a823fc65cda6254ea24d1cbbe09de6b6b",
+                  "kdf": "pbkdf2",
+                  "kdfparams": {
+                    "c": 262144,
+                    "prf": "hmac-sha256",
+                    "dklen": 32,
+                    "salt": "63c89a7275a65bd659a937fe374c668e5aa3b05a9b0ef3ec9178aa9182f42666"
+                  },
+                  "mac": "2adc6da2f5f183e528a063b36ebeddaf0d3a90269ef797b99dc143d58ba3bb58"
+                },
+                "address": "0x6031564e7b2F5cc33737807b2E58DaFF870B590b"
+              }
+              "#;
+
+            let param: ImportJsonParam = ImportJsonParam {
+                password: TEST_PASSWORD.to_string(),
+                json: json.to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_json", param).unwrap();
+            let import_result: ImportPrivateKeyResult =
+                ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(
+                vec!["ETHEREUM".to_string()],
+                import_result.identified_chain_types
+            );
+
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+            };
+            let ret = call_api("backup", param).unwrap();
+            let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
+            assert!(export_result
+                .original
+                .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
+        })
     }
 }
