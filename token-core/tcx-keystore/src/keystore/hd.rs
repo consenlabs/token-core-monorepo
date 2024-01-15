@@ -7,12 +7,12 @@ use super::{transform_mnemonic_error, Account, Address, Error, Metadata, Result,
 
 use std::collections::{hash_map::Entry, HashMap};
 
-use tcx_common::{FromHex, ToHex};
+use tcx_common::ToHex;
 use tcx_constants::{coin_info::get_xpub_prefix, CoinInfo, CurveType};
 use tcx_crypto::{Crypto, Key};
 use tcx_primitive::{
     generate_mnemonic, get_account_path, Bip32DeterministicPrivateKey, Derive,
-    DeterministicPrivateKey, Ss58Codec, TypedDeterministicPrivateKey, TypedDeterministicPublicKey,
+    DeterministicPrivateKey, TypedDeterministicPrivateKey, TypedDeterministicPublicKey,
     TypedPrivateKey,
 };
 
@@ -137,10 +137,15 @@ impl HdKeystore {
         let cache = self.cache.as_mut().ok_or(Error::KeystoreLocked)?;
         let mnemonic = cache.mnemonic.clone();
 
-        cache.get_or_insert(derivation_path, curve, || {
-            let root = TypedDeterministicPrivateKey::from_mnemonic(curve, &mnemonic)?;
+        let root = cache.get_or_insert("", curve, || {
+            TypedDeterministicPrivateKey::from_mnemonic(curve, &mnemonic)
+        })?;
+
+        if derivation_path.len() > 0 {
             root.derive(derivation_path)
-        })
+        } else {
+            Ok(root)
+        }
     }
 
     pub(crate) fn get_private_key(
@@ -185,9 +190,9 @@ impl HdKeystore {
     }
 
     pub fn derive_coin<A: Address>(&mut self, coin_info: &CoinInfo) -> Result<Account> {
-        let cache = self.cache.as_ref().ok_or(Error::KeystoreLocked)?;
+        self.cache.as_ref().ok_or(Error::KeystoreLocked)?;
 
-        let root = TypedDeterministicPrivateKey::from_mnemonic(coin_info.curve, &cache.mnemonic)?;
+        let root = self.get_deterministic_private_key(coin_info.curve, "")?;
 
         let private_key = root.derive(&coin_info.derivation_path)?.private_key();
         let public_key = private_key.public_key();
