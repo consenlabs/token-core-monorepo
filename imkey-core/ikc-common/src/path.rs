@@ -1,6 +1,5 @@
 use crate::error::CommonError;
 use crate::Result;
-use regex::Regex;
 use std::str::FromStr;
 
 pub fn check_path_validity(path: &str) -> Result<()> {

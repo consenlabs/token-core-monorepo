@@ -9,7 +9,6 @@ use regex::Regex;
 use ring::digest;
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId, Signature};
 use secp256k1::{Message, PublicKey as PublicKey2, Secp256k1, SecretKey};
-use std::str::FromStr;
 
 pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
     let ret_data;

@@ -89,20 +89,20 @@ impl TronAddress {
         check_path_validity(path)?;
 
         let pub_key = hex::encode(Self::get_pub_key(get_parent_path(path)?)?);
-        let sub_pub_Key = PublicKey::from_str(&pub_key[..130])?;
+        let sub_pub_key = PublicKey::from_str(&pub_key[..130])?;
         let chain_code_obj = ChainCode::try_from(hex::decode(&pub_key[130..])?.as_slice())?;
         let ext_pub_key = ExtendedPubKey {
             network: Network::Testnet,
             depth: 0u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
-            public_key: sub_pub_Key,
+            public_key: sub_pub_key,
             chain_code: chain_code_obj,
         };
         let fingerprint_obj = ext_pub_key.fingerprint();
 
         let pub_key = hex::encode(Self::get_pub_key(path)?);
-        let sub_pub_Key = PublicKey::from_str(&pub_key[..130])?;
+        let sub_pub_key = PublicKey::from_str(&pub_key[..130])?;
         let chain_code_obj = ChainCode::try_from(hex::decode(&pub_key[130..])?.as_slice())?;
         let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
         let ext_pub_key = ExtendedPubKey {
@@ -110,7 +110,7 @@ impl TronAddress {
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
             child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
-            public_key: sub_pub_Key,
+            public_key: sub_pub_key,
             chain_code: chain_code_obj,
         };
 

@@ -49,11 +49,10 @@ impl CosmosAddress {
     }
 
     pub fn get_address(path: &str) -> Result<String> {
-        // let comprs_pubkey = CosmosAddress::get_pub_key(path)?;
-        let comprs_pubkey =
+        let compress_pubkey =
             utility::uncompress_pubkey_2_compress(&CosmosAddress::get_pub_key(path)?);
         //hash160
-        let pub_key_bytes = hex::decode(comprs_pubkey).unwrap();
+        let pub_key_bytes = hex::decode(compress_pubkey).unwrap();
         let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).to_hex();
         let hh = Vec::from_hex(&pub_key_hash).unwrap();
         let address = encode("cosmos", hh.to_base32(), Variant::Bech32)?;

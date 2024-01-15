@@ -28,7 +28,7 @@ impl SubstrateAddress {
     }
 
     pub fn get_public_key(path: &str, address_type: &AddressType) -> Result<String> {
-        // check_path_max_five_depth(path)?;
+        check_path_max_five_depth(path)?;
 
         let aid = match address_type {
             AddressType::Polkadot => POLKADOT_AID,
