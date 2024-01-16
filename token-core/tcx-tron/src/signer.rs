@@ -135,7 +135,7 @@ mod tests {
         };
 
         let message = TronMessageInput {
-            value: "hello world".to_string(),
+            value: "hello world".as_bytes().to_hex(),
             is_tron_header: true,
         };
 
@@ -144,7 +144,7 @@ mod tests {
         assert_eq!(signed.signature, "0x8686cc3cf49e772d96d3a8147a59eb3df2659c172775f3611648bfbe7e3c48c11859b873d9d2185567a4f64a14fa38ce78dc385a7364af55109c5b6426e4c0f61b");
 
         let message = TronMessageInput {
-            value: "hello world".to_string(),
+            value: "hello world".as_bytes().to_hex(),
             is_tron_header: false,
         };
 

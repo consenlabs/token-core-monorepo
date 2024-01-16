@@ -75,7 +75,7 @@ impl KeystoreUpgrade {
         let fingerprint = match version {
             11000 => fingerprint_from_mnemonic(&String::from_utf8_lossy(&unlocker.plaintext()?)),
             11001 => fingerprint_from_private_key(unlocker.plaintext()?.as_slice()),
-            _ => panic!("upgrade wrong version keystore"),
+            _ => return Err(format_err!("upgrade wrong version keystore")),
         }?;
         json["sourceFingerprint"] = json!(fingerprint);
 
