@@ -49,9 +49,9 @@ message ImportPrivateKeyResult {
     string ipfsId = 4;
     string source = 5;
     int64 createdAt = 6;
-    repeated string suggestChainTypes = 7;
-    string suggestNetwork = 8;
-    string suggestCurve = 9;
+    repeated string identifiedChainTypes = 7;
+    string identifiedNetwork = 8;
+    string identifiedCurve = 9;
     string sourceFingerprint = 10;
 }
 
@@ -83,6 +83,7 @@ message AccountResponse {
     string publicKey = 5;
     string extendedPublicKey = 6;
     string encryptedExtendedPublicKey = 7;
+    string segWit = 8;
 }
 
 message DeriveAccountsResult {
@@ -121,7 +122,8 @@ message ImportPrivateKeyParam {
     string password = 2;
     string name = 3;
     string passwordHint = 4;
-    bool overwrite = 5;
+    string network = 5;
+    bool overwrite = 6;
 }
 
 // FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): ExistsKeystoreResult
@@ -243,11 +245,6 @@ message MnemonicToPublicKeyResult {
     string publicKey = 1;
 }
 
-message ScanKeystoresResult {
-    repeated KeystoreResult hdKeystores = 1;
-    repeated ImportPrivateKeyResult privateKeyKeystores = 2;
-}
-
 message MigrateKeystoreParam {
     string id = 1;
     oneof key {
@@ -256,8 +253,34 @@ message MigrateKeystoreParam {
     }
 }
   
-message MigrateKeystoreResult {
-  bool isExisted = 1;
-  string existedId = 2;
-  KeystoreResult keystore = 3;
+  message MigrateKeystoreResult {
+    bool isExisted = 1;
+    string existedId = 2;
+    KeystoreResult keystore = 3;
+  }
+
+  message ScanKeystoresResult {
+    repeated KeystoreResult hdKeystores = 1;
+    repeated ImportPrivateKeyResult privateKeyKeystores = 2;
 }
+
+  message LegacyKeystoreResult {
+    string id = 1;
+    string name = 2;
+    string source = 3;
+    int64 createdAt = 4;
+    repeated AccountResponse accounts = 5;
+}
+
+  message ScanLegacyKeystoresResult {
+    string identifier = 1;
+    string ipfsId = 2;
+    string network = 3;
+    string source = 4;
+    repeated LegacyKeystoreResult keystores = 5;
+  }
+
+
+  message BackupResult {
+    string original = 1;
+  }

@@ -1,13 +1,31 @@
 use crate::curve::CurveType;
 use crate::Result;
 use failure::format_err;
+use tcx_common::FromHex;
 
 use parking_lot::RwLock;
 
-// pub enum Coin {
-//     Ethereum { path: String, chain_id: i32 },
-// }
-
+pub fn get_xpub_prefix(network: &str, derivation_path: &str) -> Vec<u8> {
+    if derivation_path.starts_with("m/49'") {
+        if network == "MAINNET" {
+            Vec::from_hex("049d7cb2").unwrap()
+        } else {
+            Vec::from_hex("044a5262").unwrap()
+        }
+    } else if derivation_path.starts_with("m/84'") {
+        if network == "MAINNET" {
+            Vec::from_hex("04b24746").unwrap()
+        } else {
+            Vec::from_hex("045f1cf6").unwrap()
+        }
+    } else {
+        if network == "MAINNET" {
+            Vec::from_hex("0488b21e").unwrap()
+        } else {
+            Vec::from_hex("043587cf").unwrap()
+        }
+    }
+}
 /// Blockchain basic config
 #[derive(Clone)]
 pub struct CoinInfo {

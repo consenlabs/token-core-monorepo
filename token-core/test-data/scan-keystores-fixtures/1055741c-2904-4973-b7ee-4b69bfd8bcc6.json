@@ -1,33 +1,37 @@
 {
   "id": "1055741c-2904-4973-b7ee-4b69bfd8bcc6",
   "version": 12000,
-  "sourceFingerprint": "0x1468dba9c246fe22183c056540ab4d8b04553217",
+  "sourceFingerprint": "0x572d4a6f166f1f25e7e1c7da85cf158568de63d2",
   "crypto": {
     "cipher": "aes-128-ctr",
-    "cipherparams": { "iv": "d150f6fc944584be8b3addd0bb1190ca" },
-    "ciphertext": "c31543b923b3ec367b479d4fafa7d94d1505b9e7223445e50ef6fd84f04c62da43aaf3dddb92b5a4c8357ae155919021a45ef856b18e9fd73e9495f44131cf7fafc81be8d5efa397ca4c",
+    "cipherparams": { "iv": "53fce95f7949b0e6414069274b1b6a46" },
+    "ciphertext": "c72dab8e5d50d971884bce863a7b05cf03df03f341e1e1cb11eef318422a67d5d3d0dfb23f58ea196d8690d58026bb42a356d2f1566a64d442c48eaf73e15ca18a1643657dab8927a173",
     "kdf": "pbkdf2",
     "kdfparams": {
       "c": 1,
       "prf": "hmac-sha256",
       "dklen": 32,
-      "salt": "1319ae254669eccdccdd1e158183e957cb33c222e3a38768dc03c83953b877fd"
+      "salt": "3155ddb9a3d8574ea2da02fc797ceb4c1e3f47246f62e523a052d33a93407905"
     },
-    "mac": "928c51acc7a26ec0412fbd3c240066fb6f17083d756846be589a325055c5a851"
+    "mac": "0ebe924875dc1ba7c4bc90a0013746aad4319e1b40d587055589183610b518d3"
   },
   "identity": {
     "encAuthKey": {
-      "encStr": "b1f4d88ef74db3e372a6593c05f28e6d76d8e2bb3b8d09e2feab3fa1bbf7febd",
-      "nonce": "83e733357cf50bfa8017088562c524bf"
+      "encStr": "1962d698be31e8587e90dfd0ba84e947a3a6e2c09d11679119fcdc87d8941124",
+      "nonce": "cc24fcd80df0c769597fddece1c92e40"
     },
-    "encKey": "ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3",
-    "identifier": "im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf",
-    "ipfsId": "QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"
+    "encKey": "bc914e88212e1548868f2f4df5182ed18638b881d49ea6949d0098e2476c45b4",
+    "identifier": "im14x5UYkoqtYbJFTLam7c9Ft4BQiFvJbieKWfK",
+    "ipfsId": "Qme1RuM33X8SmVjisWS3sP4irqNZv6vuqL3L3T6poZ6c2b"
+  },
+  "encOriginal": {
+    "encStr": "8ea1342fb801666b760fb230860e601dcc5c18b4b01026a46ab3e5f5e12edf22903267fc562aa201a0b898c65ce2d7487f8c9ae34fc63ef6db588392ef5f2e7b179ec3a05d207450abf8",
+    "nonce": "f5d58f0db798cd5c9f80fb088fe8dd91"
   },
   "imTokenMeta": {
     "name": "test-wallet",
     "passwordHint": "imtoken",
-    "timestamp": 1704252563,
+    "timestamp": 1705040852,
     "source": "MNEMONIC",
     "network": "MAINNET"
   }

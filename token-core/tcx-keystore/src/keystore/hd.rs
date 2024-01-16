@@ -7,12 +7,12 @@ use super::{transform_mnemonic_error, Account, Address, Error, Metadata, Result,
 
 use std::collections::{hash_map::Entry, HashMap};
 
-use tcx_common::{FromHex, ToHex};
-use tcx_constants::{CoinInfo, CurveType};
+use tcx_common::ToHex;
+use tcx_constants::{coin_info::get_xpub_prefix, CoinInfo, CurveType};
 use tcx_crypto::{Crypto, Key};
 use tcx_primitive::{
     generate_mnemonic, get_account_path, Bip32DeterministicPrivateKey, Derive,
-    DeterministicPrivateKey, Ss58Codec, TypedDeterministicPrivateKey, TypedDeterministicPublicKey,
+    DeterministicPrivateKey, TypedDeterministicPrivateKey, TypedDeterministicPublicKey,
     TypedPrivateKey,
 };
 
@@ -137,10 +137,15 @@ impl HdKeystore {
         let cache = self.cache.as_mut().ok_or(Error::KeystoreLocked)?;
         let mnemonic = cache.mnemonic.clone();
 
-        cache.get_or_insert(derivation_path, curve, || {
-            let root = TypedDeterministicPrivateKey::from_mnemonic(curve, &mnemonic)?;
+        let root = cache.get_or_insert("", curve, || {
+            TypedDeterministicPrivateKey::from_mnemonic(curve, &mnemonic)
+        })?;
+
+        if derivation_path.len() > 0 {
             root.derive(derivation_path)
-        })
+        } else {
+            Ok(root)
+        }
     }
 
     pub(crate) fn get_private_key(
@@ -159,13 +164,14 @@ impl HdKeystore {
     }
 
     pub fn from_mnemonic(mnemonic: &str, password: &str, meta: Metadata) -> Result<HdKeystore> {
-        let mnemonic = &mnemonic.split_whitespace().collect::<Vec<&str>>().join(" ");
-        let seed = mnemonic_to_seed(mnemonic)?;
+        let valid_mnemonic = &mnemonic.split_whitespace().collect::<Vec<&str>>().join(" ");
+        let seed = mnemonic_to_seed(valid_mnemonic)?;
         let fingerprint = fingerprint_from_seed(&seed)?;
 
-        let crypto: Crypto = Crypto::new(password, mnemonic.as_bytes());
+        let crypto: Crypto = Crypto::new(password, valid_mnemonic.as_bytes());
         let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
         let identity = Identity::from_seed(&seed, &unlocker, &meta.network)?;
+        let enc_original = unlocker.encrypt_with_random_iv(mnemonic.as_bytes())?;
 
         Ok(HdKeystore {
             store: Store {
@@ -176,38 +182,17 @@ impl HdKeystore {
                 meta,
                 identity,
                 curve: None,
+                enc_original,
             },
 
             cache: None,
         })
     }
 
-    pub fn get_ext_version(network: &str, derivation_path: &str) -> Vec<u8> {
-        if derivation_path.starts_with("m/49'") {
-            if network == "MAINNET" {
-                Vec::from_hex("049d7cb2").unwrap()
-            } else {
-                Vec::from_hex("044a5262").unwrap()
-            }
-        } else if derivation_path.starts_with("m/84'") {
-            if network == "MAINNET" {
-                Vec::from_hex("04b24746").unwrap()
-            } else {
-                Vec::from_hex("045f1cf6").unwrap()
-            }
-        } else {
-            if network == "MAINNET" {
-                Vec::from_hex("0488b21e").unwrap()
-            } else {
-                Vec::from_hex("043587cf").unwrap()
-            }
-        }
-    }
-
     pub fn derive_coin<A: Address>(&mut self, coin_info: &CoinInfo) -> Result<Account> {
-        let cache = self.cache.as_ref().ok_or(Error::KeystoreLocked)?;
+        self.cache.as_ref().ok_or(Error::KeystoreLocked)?;
 
-        let root = TypedDeterministicPrivateKey::from_mnemonic(coin_info.curve, &cache.mnemonic)?;
+        let root = self.get_deterministic_private_key(coin_info.curve, "")?;
 
         let private_key = root.derive(&coin_info.derivation_path)?.private_key();
         let public_key = private_key.public_key();
@@ -218,7 +203,7 @@ impl HdKeystore {
             _ => root
                 .derive(&get_account_path(&coin_info.derivation_path)?)?
                 .deterministic_public_key()
-                .to_ss58check_with_version(&Self::get_ext_version(
+                .to_ss58check_with_version(&get_xpub_prefix(
                     &coin_info.network,
                     &coin_info.derivation_path,
                 )),
@@ -259,6 +244,7 @@ mod tests {
     use tcx_common::FromHex;
     use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_primitive::{PublicKey, Secp256k1PublicKey, TypedPublicKey};
+    use test::Bencher;
 
     // A mnemonic word separated by a full-width or half-width space
     static MNEMONIC_WITH_WHITESPACE: &'static str =
@@ -288,6 +274,7 @@ mod tests {
             timestamp: metadata_default_time(),
             source: Source::Mnemonic,
             network: IdentityNetwork::Mainnet,
+            identified_chain_types: None,
         };
 
         assert_eq!(meta.name, expected.name);
@@ -637,5 +624,27 @@ mod tests {
         };
 
         assert_eq!(acc, expected);
+    }
+
+    #[bench]
+    fn bench_derive_account(m: &mut Bencher) {
+        let mut keystore =
+            HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        let _ = keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap();
+
+        let coin_info = CoinInfo {
+            coin: "BITCOIN".to_string(),
+            derivation_path: "m/44'/0'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+
+        m.iter(|| {
+            let account = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
+            assert_eq!(account.ext_pub_key, "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8");
+        });
     }
 }

@@ -1,35 +1,40 @@
 {
   "id": "1233134b-8377-4fb0-b06f-56062e858708",
   "version": 12001,
-  "sourceFingerprint": "0x60c8e832975b284511e4be509e1486020b3d058a",
+  "sourceFingerprint": "0xa27b5222f4f53dee8c446a380cf40370a48992c3",
   "crypto": {
     "cipher": "aes-128-ctr",
-    "cipherparams": { "iv": "b6d29edba218965c57838b36c7a24a98" },
-    "ciphertext": "6841ac080d14bad7fdb48c70a91ff507bfe4445d48a3f471165076994a9457cfae443d76c33c818d0c9377837dbffd669fef65f7b50140d7fd047b2878252d39",
+    "cipherparams": { "iv": "31deaa1033b2a55cc39916b347453649" },
+    "ciphertext": "c52bbc9842da2e9afdf8b905585db5ea4b86920f54f76e5ce686586604a29c3cc152ba9f309d2a1995cddb0ecafbe4d1f43ad033d1e0f5a02e68eda7c2f71687",
     "kdf": "pbkdf2",
     "kdfparams": {
       "c": 1,
       "prf": "hmac-sha256",
       "dklen": 32,
-      "salt": "b55340fe319c29ec991ba56fe7906f10431e92e98e12c64a92202eee5605557e"
+      "salt": "87436212538c3d747df0988246078a308bed9245388badf88dbeb21806e6dd49"
     },
-    "mac": "5bb394c5f24a7aae0f7be3bd5bbd2b371ba7794198071f8926e185e0ef6e1f73"
+    "mac": "53af7ee52b69782e775a46def178d0b629c94b04e70fbddc5adafa437b6144e6"
   },
   "identity": {
     "encAuthKey": {
-      "encStr": "13edb6200fbb88a579bfebc1ba26c46d14e19acc85637deb590c5fb20e315045",
-      "nonce": "2fc95b4e8a240258ddf09bac7f5ed741"
+      "encStr": "469a36a33162394918b11ef94af8b6df6a497e75abde1fdf94d8bb2f99f45525",
+      "nonce": "3cadd1f99f1ed15f86b4e809281a523c"
     },
-    "encKey": "339f2bf78c2dc3eded309e9de71c197479a193d73da20bdf6dc342d026e340bb",
-    "identifier": "im14x5JEvG1gEwF9ukFv5EsVyQ47V3BegEA3hVa",
-    "ipfsId": "QmZ86PZ1ipPUz8BzoJCSqRpkmmkph59xDzavvfkvzHbfqv"
+    "encKey": "579b60c2484957677b9de76f6cfec64aa506f223781dc9ca6bd5e9dbc4cf6708",
+    "identifier": "im14x5FoX7EWwJ1KkNyfSzjafR6JZ6wqUUVr3mR",
+    "ipfsId": "QmQmj2fza2Ep3hxZZRoeco3ZKccoP1vvGJ3ddjDrDMV9UF"
   },
   "curve": "sr25519",
+  "encOriginal": {
+    "encStr": "1800fbe9cd5b4a553173b2f6602767653ca4056fbfa10a8c99a672c134751073346e4bafffcdaad4dc3124e2dca9b5c69777d93fba97f93f99269fb3186684822f273c046185753d9825c74d1686ad235f717463c90602cd42bdaa0772d54eed3608865a552ae5e939440685eafd23bba92899f1026e1ebf16287a80897b6e069c4e3dab05d37b6f909e4630f33774e72123bafdbbae674e70eeb0e64b21e1c83f0dc972b3e24abe1e9fcbf15231e898d7cf976506384ef3368df7b2239531c30ca4b5e62818b8b8ef6b69c7b34e903ebab5a892df1502a29e78f3da7d1b626b7e5c27c1ada685978be1f0e1573f3c98c3014efd2dc5ffd209be4222e7600b5bdd190648d528fedd7bb6291f4491b4545e7c1f35f4203f83f97067e721738ac5d2afea6444dc347d69a105570ac367b2df0bf96948b91a66f28e2eb2bfe93ff4bf9ae9c1b23eb840694d93e12eea156b63372bb56094d47769383823f8a48fdedb4044d9cc18dd515c49437d48a605909dbd49817f80d12a9336b6dce2a71e112379b1714541bc63bf3ba25c4a6509038b98991fd1eac0801a96a75c74bf3aa53a5b7dd5c4c6e8386836b5daa6cd8d90222a652ba72633c69c9fe66765174ee2d40277c3c1159233ec910ea03e02b7a40b8a366cf774bc9ef24d4934556d78b793cea567180854db62e5fceab5d21e1935cb7af1fcf3c06e1b58705a9fb6e93680fb2b5064b93d23cf74a321f37abb5507ab308290bfc4eae8cd49b3569169cae40de135865f466b99246bdafb6bc63eeb88ec732a9c5ca967c223f84161433c8402e453e0ca90d07ba573b5c6ce64d6779037048fda77d606728589e349b4a01ff991520ff21c7cbd50d172bd0d6a9135a316e4cf54e32a94bc2ecea0dcedfa2d32ed91c95628464c34e3384cdc940a8cd99e820dc58b63ae073b142d47fb01071eebc6d82f13b1d6c01232c29642a78d034bb953324d42f5d5a687729f3449da6d363be09aa0accc4a9e338cefcfd7a9ac2b7a742db45fecabea3f56586f0e68b2dc6e3978e81529caa587bd571647c1fdcea7ed",
+    "nonce": "ec689fea9630cdcac4ba30b17fee9908"
+  },
   "imTokenMeta": {
-    "name": "test_64bytes_import_private_key",
+    "name": "test account",
     "passwordHint": "",
-    "timestamp": 1704252030,
+    "timestamp": 1705041327,
     "source": "SUBSTRATE_KEYSTORE",
-    "network": "MAINNET"
+    "network": "MAINNET",
+    "identifiedChainTypes": ["KUSAMA", "POLKADOT"]
   }
 }

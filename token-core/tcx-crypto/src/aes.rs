@@ -1,9 +1,10 @@
 pub mod ctr {
-    use aes_ctr::Aes128Ctr;
-
     use crate::{Error, Result};
-    use aes_ctr::cipher::generic_array::GenericArray;
-    use aes_ctr::cipher::{NewStreamCipher, SyncStreamCipher};
+    use aes::cipher::generic_array::GenericArray;
+    use aes::cipher::{KeyIvInit, StreamCipher};
+
+    type Aes128CtrEnc = ctr::Ctr128BE<aes::Aes128>;
+    type Aes128CtrDec = ctr::Ctr128BE<aes::Aes128>;
 
     pub fn encrypt_nopadding(data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
         if key.len() != 16 || iv.len() != 16 {
@@ -11,7 +12,7 @@ pub mod ctr {
         }
         let key = GenericArray::from_slice(key);
         let iv = GenericArray::from_slice(iv);
-        let mut cipher = Aes128Ctr::new(key, iv);
+        let mut cipher = Aes128CtrEnc::new(key, iv);
         let mut data_copy = vec![0; data.len()];
         data_copy.copy_from_slice(data);
         cipher.apply_keystream(&mut data_copy);
@@ -24,7 +25,7 @@ pub mod ctr {
         }
         let key = GenericArray::from_slice(key);
         let iv = GenericArray::from_slice(iv);
-        let mut cipher = Aes128Ctr::new(key, iv);
+        let mut cipher = Aes128CtrDec::new(key, iv);
         let mut data_copy = vec![0; data.len()];
         data_copy.copy_from_slice(data);
         cipher.apply_keystream(&mut data_copy);
@@ -33,26 +34,39 @@ pub mod ctr {
 }
 
 pub mod cbc {
-    extern crate aes_soft;
-    extern crate block_modes;
-    use crate::Error;
-    use crate::Result;
-    use aes_soft::Aes128;
-    use block_modes::block_padding::Pkcs7;
-    use block_modes::{BlockMode, Cbc};
 
+    use crate::{Error, Result};
+    use aes::cipher::generic_array::GenericArray;
+    use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, BlockEncryptMut, KeyIvInit};
+
+    type Aes128CbcEnc = cbc::Encryptor<aes::Aes128>;
+    type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
     #[inline]
     pub fn encrypt_pkcs7(data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
-        let cipher = Cbc::<Aes128, Pkcs7>::new_var(key, iv)?;
-        Ok(cipher.encrypt_vec(data))
+        if key.len() != 16 || iv.len() != 16 {
+            return Err(Error::InvalidKeyIvLength.into());
+        }
+        let padding_len = 16 - (data.len() % 16);
+        let mut buf = vec![0u8; data.len() + padding_len];
+        let ct = Aes128CbcEnc::new(key.into(), iv.into())
+            .encrypt_padded_b2b_mut::<Pkcs7>(data, &mut buf)
+            .unwrap();
+
+        Ok(ct.to_vec())
     }
 
     #[inline]
     pub fn decrypt_pkcs7(encrypted: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
-        let cipher = Cbc::<Aes128, Pkcs7>::new_var(key, iv)?;
-        cipher
-            .decrypt_vec(encrypted)
-            .map_err(|_| Error::InvalidCiphertext.into())
+        if key.len() != 16 || iv.len() != 16 {
+            return Err(Error::InvalidKeyIvLength.into());
+        }
+        let mut buf = vec![0u8; encrypted.len()];
+        let key = GenericArray::from_slice(key);
+        let iv = GenericArray::from_slice(iv);
+        let pt = Aes128CbcDec::new(key, iv)
+            .decrypt_padded_b2b_mut::<Pkcs7>(encrypted, &mut buf)
+            .unwrap();
+        Ok(pt.to_vec())
     }
 }
 

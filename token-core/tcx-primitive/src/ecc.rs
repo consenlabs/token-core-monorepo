@@ -513,7 +513,10 @@ mod tests {
             .deterministic_public_key();
 
         assert_eq!(dpk.to_string(), "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8");
-        assert_eq!(dpk.fingerprint().unwrap().to_hex(), "b2e61ff1");
+        assert_eq!(
+            dpk.fingerprint().unwrap().to_hex(),
+            "a6381e76634d662f9f66a1d0f43cc058102e98c5"
+        );
         assert_eq!(dpk.curve_type(), CurveType::SECP256k1);
         assert_eq!(
             dpk.public_key().to_bytes().to_hex(),

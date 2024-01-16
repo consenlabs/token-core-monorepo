@@ -4,32 +4,37 @@
   "sourceFingerprint": "0xc7b60806a2af1e89f107b9410da3ab8a825fe5a2",
   "crypto": {
     "cipher": "aes-128-ctr",
-    "cipherparams": { "iv": "4008c233ac1b562191d928a43d80f939" },
-    "ciphertext": "91260281bf955f3ee3690d8c7136da86de9a04b3ce923392dbb6bf2ccb3183f6",
+    "cipherparams": { "iv": "4886f87d5146bdf736f994a8f2fdb1ef" },
+    "ciphertext": "9a0c5425268293ec8ceb22e8020eb604861b38ad37643d2cce9f1d7c342535a7",
     "kdf": "pbkdf2",
     "kdfparams": {
       "c": 1,
       "prf": "hmac-sha256",
       "dklen": 32,
-      "salt": "ba860b7214535013ccfa9dcd5a11473b893bfbf7b591d97b6d13812dbe535444"
+      "salt": "6495d26f1ce474c79c2df4278ceb102e0638ab496d5a046069bc248ba33abc4e"
     },
-    "mac": "ebf0150fa09977ae70f3cbafbb36f4a8747160cad66f853977a8c40b13cd1205"
+    "mac": "972cebf11e0556a0524c82df89d7cf0c9a4cd73b3c1e52df2d16ab609f3ea300"
   },
   "identity": {
     "encAuthKey": {
-      "encStr": "a657ed08e0d55fd7381c731eb5dc8e5075d907a3356198b60001aa95ec615ed4",
-      "nonce": "037fd63d79adab7daa433a4df4a51276"
+      "encStr": "e15d8f4066dfbf21f6c6639c412bfc60cc62ed914724712e14fd7e7a5e02f0fd",
+      "nonce": "2f0b92fb11a23a0db55ea1c7a63eb568"
     },
     "encKey": "d2ada8f248a6593fe9a7094650b7349554e7b310acd4ac0344dd654c18e27724",
     "identifier": "im14x5LYRt5YsM5iTr2xd6dQ75euijaoDs3nRB2",
     "ipfsId": "QmSpWyzy5gkYyJiagFHzfkJwqzDdcjCA3qeu8T3JFd54vZ"
   },
   "curve": "bls12-381",
+  "encOriginal": {
+    "encStr": "40609c3b01d036a06281a968aa625499c33e411008f7a0badd68ef484e4283df694a61f6f21f0bfdfdf9c7cb653d9ae0c188b1551bcb548151db1581a40239e5b234054f572570f4ce5bd6afab51b2924eb6333063124d69b21eb612e4c45512da5ae41a682aa72d435a91fe0186545147c44fd94bbb57f13d49b7a82e3c3d4e5ba77c0d6222b5e19a8970ba61b8092445fbce17",
+    "nonce": "35ef6f3ac243ffc8a1f5dcacfed2d37b"
+  },
   "imTokenMeta": {
     "name": "test_filecoin_import_private_key",
     "passwordHint": "",
-    "timestamp": 1704251911,
+    "timestamp": 1705040730,
     "source": "PRIVATE",
-    "network": "MAINNET"
+    "network": "MAINNET",
+    "identifiedChainTypes": ["FILECOIN"]
   }
 }

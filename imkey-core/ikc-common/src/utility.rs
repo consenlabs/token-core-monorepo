@@ -1,12 +1,9 @@
 use crate::Result;
-use bitcoin::util::base58;
-use bitcoin::util::bip32::ExtendedPubKey;
-use byteorder::{BigEndian, ByteOrder};
+use bitcoin::hashes::{sha256, Hash};
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_traits::{FromPrimitive, Num, Zero};
 use regex::Regex;
-use ring::digest;
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId, Signature};
 use secp256k1::{Message, PublicKey as PublicKey2, Secp256k1, SecretKey};
 
@@ -21,8 +18,7 @@ pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
 }
 
 pub fn sha256_hash(data: &[u8]) -> Vec<u8> {
-    let digest_obj = digest::digest(&digest::SHA256, data);
-    digest_obj.as_ref().to_vec()
+    sha256::Hash::hash(data).into_inner().to_vec()
 }
 
 pub fn secp256k1_sign(private_key: &[u8], message: &[u8]) -> Result<Vec<u8>> {

@@ -5,8 +5,7 @@ use forest_address::Address;
 use forest_cid::Cid;
 use forest_encoding::Cbor;
 use forest_message::UnsignedMessage as ForestUnsignedMessage;
-use forest_vm::Serialized;
-use num_bigint_chainsafe::BigInt;
+use forest_vm::{Serialized, TokenAmount};
 use std::convert::TryFrom;
 use std::str::FromStr;
 use tcx_constants::CurveType;
@@ -20,12 +19,12 @@ impl TryFrom<&UnsignedMessage> for ForestUnsignedMessage {
     ) -> core::result::Result<ForestUnsignedMessage, Self::Error> {
         let to = Address::from_str(&message.to).map_err(|_| Error::InvalidAddress)?;
         let from = Address::from_str(&message.from).map_err(|_| Error::InvalidAddress)?;
-        let value = BigInt::from_str(&message.value).map_err(|_| Error::InvalidNumber)?;
+        let value = TokenAmount::from_str(&message.value).map_err(|_| Error::InvalidNumber)?;
         let gas_limit = message.gas_limit;
         let gas_fee_cap =
-            BigInt::from_str(&message.gas_fee_cap).map_err(|_| Error::InvalidNumber)?;
+            TokenAmount::from_str(&message.gas_fee_cap).map_err(|_| Error::InvalidNumber)?;
         let gas_premium =
-            BigInt::from_str(&message.gas_premium).map_err(|_| Error::InvalidNumber)?;
+            TokenAmount::from_str(&message.gas_premium).map_err(|_| Error::InvalidNumber)?;
 
         let message_params_bytes =
             base64::decode(&message.params).map_err(|_| Error::InvalidParam)?;
@@ -126,6 +125,7 @@ mod tests {
             "Password",
             CurveType::SECP256k1,
             Metadata::default(),
+            None,
         )
         .unwrap();
         ks.unlock_by_password("Password").unwrap();
@@ -172,6 +172,7 @@ mod tests {
             "Password",
             CurveType::SECP256k1,
             Metadata::default(),
+            None,
         )
         .unwrap();
         ks.unlock_by_password("Password").unwrap();
@@ -218,6 +219,7 @@ mod tests {
             "Password",
             CurveType::SECP256k1,
             Metadata::default(),
+            None,
         )
         .unwrap();
         ks.unlock_by_password("Password").unwrap();

@@ -82,6 +82,7 @@ mod tests {
             TEST_PASSWORD,
             CurveType::SECP256k1,
             Metadata::default(),
+            None,
         )
         .unwrap();
         let derived_key = ks.get_derived_key(&TEST_PASSWORD).unwrap();

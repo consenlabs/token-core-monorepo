@@ -15,7 +15,6 @@ ikc-transport = {path = "../../ikc-transport"}
 bitcoin_hashes = "=0.11.0"
 hex = "=0.4.3"
 secp256k1 = {version ="=0.24.3", features = ["rand", "recovery"] }
-ring = "=0.16.20"
 bech32 = "=0.9.1"
 num-bigint = "=0.4.3"
 num-traits = "=0.2.15"
@@ -30,7 +29,6 @@ linked-hash-map = { version = "=0.5.6", features = ["serde_impl"] }
 base32 = "=0.4.0"
 blake2b-rs = "=0.2.0"
 serde = { version = "=1.0.147", features = ["derive"] }
-serde_cbor = "=0.11.1"
 serde_json = "=1.0.89"
 
 forest_vm = "=0.3.2"

@@ -65,6 +65,7 @@ mod tests {
     fn test_ripemd160() {
         let tests = vec![
             ("", "9c1185a5c5e9fc54612808977ee8f548b2258d31"),
+            ("a", "0bdc9d2d256b3ee9daae347be6f4dc835a467ffe"),
             ("abc", "8eb208f7e05d987a9b044a8e98c6b087f15a0bfc"),
             ("message digest", "5d0689ef49d2fae572b881b123a85ffa21595f36"),
             (
@@ -95,6 +96,10 @@ mod tests {
         //generate sha256d unit tests
         let tests = vec![
             (
+                "\0",
+                "1406e05881e299367766d313e26c05564ec91bf721d31726bd6e46e60689539a",
+            ),
+            (
                 "",
                 "5df6e0e2761359d30a8275058e299fcc0381534545f55cf43e41983f5d4c9456",
             ),
@@ -105,6 +110,10 @@ mod tests {
             (
                 "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
                 "0cffe17f68954dac3a84fb1458bd5ec99209449749b2b308b7cb55812f9563af",
+            ),
+            (
+                "The quick brown fox jumps over the lazy dog",
+                "6d37795021e544d82b41850edf7aabab9a0ebe274e54a519840c4666f35b3937",
             ),
         ];
 
@@ -118,12 +127,24 @@ mod tests {
         //generate keccak256 unit tests
         let tests = vec![
             (
+                "\0",
+                "bc36789e7a1e281436464229828f817d6612f7b477d66591ff96a9e064bcc98a",
+            ),
+            (
+                "",
+                "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+            ),
+            (
                 "abc",
                 "4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45",
             ),
             (
                 "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
                 "45d3b367a6904e6e8d502ee04999a7c27647f91fa845d456525fd352ae3d7371",
+            ),
+            (
+                "The quick brown fox jumps over the lazy dog",
+                "4d741b6f1eb29cb2a9b9911c82f56fa8d73b04959d3d9d222895df6c0b28aa15",
             ),
         ];
 
@@ -136,12 +157,24 @@ mod tests {
     fn test_sha256() {
         let tests = vec![
             (
+                "\0",
+                "6e340b9cffb37a989ca544e6bb780a2c78901d3fb33738768511a30617afa01d",
+            ),
+            (
                 "",
                 "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
             ),
             (
                 "abc",
                 "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            ),
+            (
+                "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+                "248d6a61d20638b8e5c026930c3e6039a33ce45964ff2167f6ecedd419db06c1",
+            ),
+            (
+                "The quick brown fox jumps over the lazy dog",
+                "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592",
             ),
         ];
 

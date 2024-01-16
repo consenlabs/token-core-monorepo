@@ -428,6 +428,7 @@ mod tests {
             TEST_PASSWORD,
             CurveType::SECP256k1,
             Metadata::default(),
+            None,
         )
         .unwrap();
         ks.unlock_by_password(TEST_PASSWORD).unwrap();
