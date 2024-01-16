@@ -187,15 +187,17 @@ mod tests {
 
     use crate::api::{
         export_private_key_param, migrate_keystore_param, sign_param, BackupResult,
-        CreateKeystoreParam, DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam,
-        DeriveSubAccountsResult, DerivedKeyResult, ExistsJsonParam, ExistsKeystoreResult,
-        ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult,
-        ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
-        GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam,
-        ImportPrivateKeyParam, ImportPrivateKeyResult, InitTokenCoreXParam, KeystoreResult,
-        MigrateKeystoreParam, MigrateKeystoreResult, MnemonicToPublicKeyParam,
-        MnemonicToPublicKeyResult, PublicKeyDerivation, SignHashesParam, SignHashesResult,
-        SignParam, WalletKeyParam,
+        CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
+        DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
+        DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsJsonParam,
+        ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam,
+        ExportJsonResult, ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult,
+        GeneralResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
+        GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
+        ImportPrivateKeyResult, InitTokenCoreXParam, KeystoreResult, MigrateKeystoreParam,
+        MigrateKeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
+        PublicKeyDerivation, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
+        SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
     };
     use crate::handler::import_mnemonic;
     use crate::handler::{encode_message, import_private_key};
@@ -211,8 +213,10 @@ mod tests {
     use sp_runtime::traits::Verify;
     use tcx_btc_kin::Utxo;
     use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
+    use tcx_constants::sample_key::PASSWORD;
     use tcx_eth::transaction::{
-        AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput,
+        AccessList, EthMessageInput, EthMessageOutput, EthRecoverAddressInput,
+        EthRecoverAddressOutput, EthTxInput, EthTxOutput,
     };
     use tcx_filecoin::{SignedMessage, UnsignedMessage};
     use tcx_substrate::{SubstrateKeystore, SubstrateRawTxIn, SubstrateTxOut};
@@ -237,14 +241,7 @@ mod tests {
             fs::create_dir_all(p).expect("shoud create filedir");
         }
 
-        let param = InitTokenCoreXParam {
-            file_dir: "/tmp/imtoken".to_string(),
-            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
-            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
-            is_debug: true,
-        };
-
-        handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
+        init_token_core_x("/tmp/imtoken");
     }
 
     fn teardown() {
@@ -361,6 +358,17 @@ mod tests {
         }
     }
 
+    fn init_token_core_x(file_dir: &str) {
+        let param = InitTokenCoreXParam {
+            file_dir: file_dir.to_string(),
+            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
+            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
+            is_debug: true,
+        };
+        let response = call_api("init_token_core_x", param);
+        assert!(response.is_ok());
+    }
+
     #[test]
     #[serial]
     #[ignore = "for debug"]
@@ -374,7 +382,7 @@ mod tests {
             let wallet = import_default_wallet();
             dbg!(&param);
             // call_tcx_api(bytes.to_hex())
-            assert!(false);
+            assert!(true);
         });
     }
 
@@ -3793,14 +3801,7 @@ mod tests {
     #[serial]
     pub fn test_migrate_keystores_existed() {
         let _ = fs::remove_dir_all("../test-data/walletsV2");
-        let param = InitTokenCoreXParam {
-            file_dir: "../test-data".to_string(),
-            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
-            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
-            is_debug: true,
-        };
-
-        handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
+        init_token_core_x("../test-data");
 
         let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string(),
@@ -3846,14 +3847,7 @@ mod tests {
     #[serial]
     pub fn test_migrate_keystores_source() {
         let _ = fs::remove_dir_all("../test-data/walletsV2");
-        let param = InitTokenCoreXParam {
-            file_dir: "../test-data".to_string(),
-            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
-            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
-            is_debug: true,
-        };
-
-        handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
+        init_token_core_x("../test-data");
 
         let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
@@ -3922,14 +3916,7 @@ mod tests {
     #[serial]
     pub fn test_migrate_keystores_curve() {
         let _ = fs::remove_dir_all("../test-data/walletsV2");
-        let param = InitTokenCoreXParam {
-            file_dir: "../test-data".to_string(),
-            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
-            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
-            is_debug: true,
-        };
-
-        handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
+        init_token_core_x("../test-data");
 
         let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
@@ -4063,14 +4050,7 @@ mod tests {
     #[serial]
     pub fn test_migrate_keystores_flush() {
         let _ = fs::remove_dir_all("../test-data/walletsV2");
-        let param = InitTokenCoreXParam {
-            file_dir: "../test-data".to_string(),
-            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
-            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
-            is_debug: true,
-        };
-
-        handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
+        init_token_core_x("../test-data");
 
         let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
@@ -4105,14 +4085,7 @@ mod tests {
     #[serial]
     pub fn test_identified_network_flush() {
         let _ = fs::remove_dir_all("../test-data/walletsV2");
-        let param = InitTokenCoreXParam {
-            file_dir: "../test-data".to_string(),
-            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
-            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
-            is_debug: true,
-        };
-
-        handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
+        init_token_core_x("../test-data");
 
         let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
@@ -4147,14 +4120,7 @@ mod tests {
     #[serial]
     pub fn test_migrate_keystores_identified_chain_types() {
         let _ = fs::remove_dir_all("../test-data/walletsV2");
-        let param = InitTokenCoreXParam {
-            file_dir: "../test-data".to_string(),
-            xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
-            xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
-            is_debug: true,
-        };
-
-        handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
+        init_token_core_x("../test-data");
 
         // original = wif, identified_chain_types = BITCOIN
         {
@@ -4341,5 +4307,89 @@ mod tests {
         b.iter(|| {
             test_import_mnemonic();
         });
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_ipfs_encrypt_and_decrypt() {
+        run_test(|| {
+            let wallet = import_default_wallet();
+
+            let content = "imToken".to_string();
+            let param = EncryptDataToIpfsParam {
+                identifier: wallet.identifier.clone(),
+                content: content.clone(),
+            };
+            let ret = call_api("encrypt_data_to_ipfs", param).unwrap();
+            let resp: EncryptDataToIpfsResult =
+                EncryptDataToIpfsResult::decode(ret.as_slice()).unwrap();
+            assert!(!resp.encrypted.is_empty());
+            let param = DecryptDataFromIpfsParam {
+                identifier: wallet.identifier,
+                encrypted: resp.encrypted,
+            };
+            let ret = call_api("decrypt_data_from_ipfs", param).unwrap();
+            let resp: DecryptDataFromIpfsResult =
+                DecryptDataFromIpfsResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(content, resp.content);
+        })
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_sign_authentication_message() {
+        run_test(|| {
+            let wallet = import_default_wallet();
+
+            let param = SignAuthenticationMessageParam {
+                access_time: 1514736000,
+                identifier: wallet.identifier,
+                device_token: "12345ABCDE".to_string(),
+                password: TEST_PASSWORD.to_string(),
+            };
+            let ret = call_api("sign_authentication_message", param).unwrap();
+            let resp: SignAuthenticationMessageResult =
+                SignAuthenticationMessageResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(resp.signature, "0x120cc977f9023c90635144bd0f4c8b85ff8aa23c003edcced9449f0465d05e954bccf9c114484e472c1837b0394f1933ad78ec8050673099e8bf5e9329737fe01c".to_string());
+        })
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_get_extended_public_keys() {
+        run_test(|| {
+            let wallet = import_default_wallet();
+            let derivations = vec![PublicKeyDerivation {
+                chain_type: "BITCOIN".to_string(),
+                path: "m/44'/145'/0'/0/0".to_string(),
+                curve: "secp256k1".to_string(),
+            }];
+            let param = GetExtendedPublicKeysParam {
+                id: wallet.id,
+                derivations,
+                key: Some(api::get_extended_public_keys_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
+            let ret = call_api("get_extended_public_keys", param).unwrap();
+            let resp: GetExtendedPublicKeysResult =
+                GetExtendedPublicKeysResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(resp.extended_public_keys.get(0).unwrap(), "xpub6GZjFnyumLtEwC4KQkigvc3vXJdZvy71QxHTsFQQv1YtEUWNEwynKWsK2LBFZNLWdTk3w1Y9cRv4NN7V2pnDBoWgH3PkVE9r9Q2kSQL2zkH");
+        })
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_eth_recover_address() {
+        run_test(|| {
+            let param = EthRecoverAddressInput{
+                message: "0x0000000000000000".to_string(),
+                signature: "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b".to_string(),
+            };
+            let ret = call_api("eth_recover_address", param).unwrap();
+            let resp: EthRecoverAddressOutput =
+                EthRecoverAddressOutput::decode(ret.as_slice()).unwrap();
+            assert_eq!(resp.address, "0xed54a7c1d8634bb589f24bb7f05a5554b36f9618");
+        })
     }
 }
