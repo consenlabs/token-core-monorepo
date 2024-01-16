@@ -2,13 +2,14 @@ use crate::Result;
 use ikc_common::apdu::{Apdu, ApduCheck, Ed25519Apdu};
 use ikc_common::constants::{KUSAMA_AID, POLKADOT_AID};
 use ikc_common::error::CoinError;
-use ikc_common::path::check_path_validity;
+use ikc_common::path::check_path_max_five_depth;
 use ikc_common::utility::{secp256k1_sign, secp256k1_sign_verify};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
 use sp_core::ed25519::Public;
 use sp_core::ByteArray;
+use std::str::FromStr;
 
 pub struct SubstrateAddress();
 impl SubstrateAddress {
@@ -27,7 +28,7 @@ impl SubstrateAddress {
     }
 
     pub fn get_public_key(path: &str, address_type: &AddressType) -> Result<String> {
-        check_path_validity(path).expect("check path error");
+        check_path_max_five_depth(path)?;
 
         let aid = match address_type {
             AddressType::Polkadot => POLKADOT_AID,
@@ -92,6 +93,17 @@ impl SubstrateAddress {
 pub enum AddressType {
     Polkadot,
     Kusama,
+}
+
+impl FromStr for AddressType {
+    type Err = failure::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        match s {
+            "POLKADOT" => Ok(AddressType::Polkadot),
+            "KUSAMA" => Ok(AddressType::Kusama),
+            _ => Err(CoinError::AddressTypeMismatch.into()),
+        }
+    }
 }
 
 #[cfg(test)]

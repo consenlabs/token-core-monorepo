@@ -224,7 +224,7 @@ mod tests {
     use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 
     static OTHER_MNEMONIC: &'static str =
-        "calm release clay imitate top extend close draw quiz refuse shuffle injury";
+        "inject kidney empty canal shadow pact comfort wife crush horse wife sketch";
 
     fn _to_c_char(str: &str) -> *const c_char {
         CString::new(str).unwrap().into_raw()

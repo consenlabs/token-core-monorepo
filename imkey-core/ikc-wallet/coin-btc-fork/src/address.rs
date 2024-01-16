@@ -16,6 +16,7 @@ use ikc_common::error::{CoinError, CommonError};
 use ikc_common::path::check_path_validity;
 
 use bech32::{u5, ToBase32, Variant};
+use ikc_common::utility::uncompress_pubkey_2_compress;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -170,6 +171,19 @@ impl BtcForkAddress {
         } else {
             let addr: BtcForkAddress = ret.unwrap();
             addr.network.network == coin.network
+        }
+    }
+
+    pub fn get_pub_key(path: &str) -> Result<String> {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data(path, true)?;
+        let pub_key = uncompress_pubkey_2_compress(&xpub_data[..130]);
+
+        if pub_key.starts_with("0x") {
+            Ok(pub_key)
+        } else {
+            Ok(format!("0x{}", pub_key))
         }
     }
 }

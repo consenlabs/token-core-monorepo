@@ -6,7 +6,6 @@ use num_traits::{FromPrimitive, Num, Zero};
 use regex::Regex;
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId, Signature};
 use secp256k1::{Message, PublicKey as PublicKey2, Secp256k1, SecretKey};
-use std::str::FromStr;
 
 pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
     let ret_data;
@@ -72,9 +71,9 @@ pub fn uncompress_pubkey_2_compress(uncomprs_pubkey: &str) -> String {
 
     let (_d, m) = y_bint.div_mod_floor(&two_bint);
     return if m.is_zero() {
-        "02".to_owned() + x
+        ("02".to_owned() + x).to_lowercase()
     } else {
-        "03".to_owned() + x
+        ("03".to_owned() + x).to_lowercase()
     };
 }
 
@@ -117,17 +116,41 @@ pub fn retrieve_recid(msg: &[u8], sign_compact: &[u8], pubkey: &Vec<u8>) -> Resu
     Ok(rec_id)
 }
 
-pub fn get_account_path(path: &str) -> Result<String> {
-    // example: m/44'/60'/0'/0/0
-    let _ = bitcoin::util::bip32::DerivationPath::from_str(path)?;
-    let mut children: Vec<&str> = path.split('/').collect();
+pub fn to_ss58check_with_version(extended_key: ExtendedPubKey, version: &[u8]) -> String {
+    let mut ret = [0; 78];
+    // let extended_key = self.0;
+    ret[0..4].copy_from_slice(version);
+    ret[4] = extended_key.depth;
+    ret[5..9].copy_from_slice(&extended_key.parent_fingerprint[..]);
 
-    ensure!(children.len() >= 4, format!("{} path is too short", path));
+    BigEndian::write_u32(&mut ret[9..13], u32::from(extended_key.child_number));
 
-    while children.len() > 4 {
-        children.remove(children.len() - 1);
-    }
-    Ok(children.join("/"))
+    ret[13..45].copy_from_slice(&extended_key.chain_code[..]);
+    ret[45..78].copy_from_slice(&extended_key.public_key.serialize()[..]);
+    base58::check_encode_slice(&ret[..])
+}
+
+pub fn get_ext_version(network: &str, derivation_path: &str) -> Result<Vec<u8>> {
+    let ret = if derivation_path.starts_with("m/49'") {
+        if network == "MAINNET" {
+            hex_to_bytes("049d7cb2")?
+        } else {
+            hex_to_bytes("044a5262")?
+        }
+    } else if derivation_path.starts_with("m/84'") {
+        if network == "MAINNET" {
+            hex_to_bytes("04b24746")?
+        } else {
+            hex_to_bytes("045f1cf6")?
+        }
+    } else {
+        if network == "MAINNET" {
+            hex_to_bytes("0488b21e").unwrap()
+        } else {
+            hex_to_bytes("043587cf").unwrap()
+        }
+    };
+    Ok(ret)
 }
 
 #[cfg(test)]

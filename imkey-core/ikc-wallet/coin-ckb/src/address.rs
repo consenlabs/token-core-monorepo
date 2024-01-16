@@ -32,7 +32,7 @@ impl CkbAddress {
     }
 
     pub fn get_public_key(path: &str) -> Result<String> {
-        check_path_validity(path).expect("check path error");
+        check_path_validity(path)?;
 
         let select_apdu = Apdu::select_applet(NERVOS_AID);
         let select_response = send_apdu(select_apdu)?;

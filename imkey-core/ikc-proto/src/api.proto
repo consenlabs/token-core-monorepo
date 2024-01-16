@@ -1,5 +1,5 @@
 syntax = "proto3";
-package ikc;
+package api;
 
 import "google/protobuf/any.proto";
 
@@ -100,4 +100,31 @@ message BtcForkWallet {
     string chainType = 2;
     string address = 3;
     string encXPub = 4;
+}
+
+message DeriveAccountsParam {
+    message Derivation {
+        string chainType = 1;
+        string path = 2;
+        string network = 3;
+        string segWit = 4;
+        string chainId = 5;
+        string curve = 6;
+        string bech32Prefix = 7;
+    }
+    repeated Derivation derivations= 3;
+}
+
+message AccountResponse {
+    string chainType = 1;
+    string address = 2;
+    string path = 3;
+    string curve = 4;
+    string publicKey = 5;
+    string extendedPublicKey = 6;
+    string encryptedExtendedPublicKey = 7;
+}
+
+message DeriveAccountsResult {
+    repeated AccountResponse accounts = 1;
 }

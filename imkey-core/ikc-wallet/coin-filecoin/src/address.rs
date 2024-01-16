@@ -1,15 +1,20 @@
 use crate::utils::{digest, HashSize};
 use crate::Result;
+use std::str::FromStr;
 
 use base32::Alphabet;
+use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bitcoin::Network;
 use hex;
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::FILECOIN_AID;
 use ikc_common::error::CoinError;
 use ikc_common::path;
+use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::utility;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
+use secp256k1::PublicKey;
 
 const MAINNET_PREFIX: &'static str = "f";
 const TESTNET_PREFIX: &'static str = "t";
@@ -59,7 +64,7 @@ impl FilecoinAddress {
             return Err(CoinError::ImkeySignatureVerifyFail.into());
         }
 
-        let uncomprs_pubkey: String = res_msg_pubkey.chars().take(130).collect();
+        let uncomprs_pubkey: String = res_msg_pubkey.chars().take(194).collect();
         Ok(uncomprs_pubkey)
     }
 
@@ -78,7 +83,7 @@ impl FilecoinAddress {
         };
 
         let uncomprs_pubkey = Self::get_pub_key(path).unwrap();
-        let pub_key_bytes = hex::decode(uncomprs_pubkey).unwrap();
+        let pub_key_bytes = hex::decode(&uncomprs_pubkey[..130]).unwrap();
         let protocol = Protocol::Secp256k1;
 
         let payload = Self::address_hash(&pub_key_bytes);
@@ -104,6 +109,54 @@ impl FilecoinAddress {
         ApduCheck::check_response(&res_reg)?;
         Ok(address)
     }
+
+    pub fn get_xpub(network: Network, path: &str) -> Result<String> {
+        //path check
+        check_path_validity(path)?;
+
+        //get xpub data
+        let xpub_data = Self::get_pub_key(path)?;
+        let xpub_data = &xpub_data[..194];
+
+        //get public key and chain code
+        let pub_key = &xpub_data[..130];
+        let sub_chain_code = &xpub_data[130..];
+        let pub_key_obj = PublicKey::from_str(pub_key)?;
+
+        //build parent public key obj
+        let parent_xpub_data = Self::get_pub_key(get_parent_path(path)?)?;
+        let parent_xpub_data = &parent_xpub_data[..194];
+        let parent_pub_key = &parent_xpub_data[..130];
+        let parent_chain_code = &parent_xpub_data[130..];
+        let parent_pub_key_obj = PublicKey::from_str(parent_pub_key)?;
+
+        //get parent public key fingerprint
+        let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
+        let parent_ext_pub_key = ExtendedPubKey {
+            network,
+            depth: 0 as u8,
+            parent_fingerprint: Fingerprint::default(),
+            child_number: ChildNumber::from_normal_idx(0).unwrap(),
+            public_key: parent_pub_key_obj,
+            chain_code: parent_chain_code,
+        };
+        let fingerprint_obj = parent_ext_pub_key.fingerprint();
+
+        //build extend public key obj
+        let sub_chain_code_obj = ChainCode::from(hex::decode(sub_chain_code)?.as_slice());
+
+        let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
+        let extend_public_key = ExtendedPubKey {
+            network,
+            depth: chain_number_vec.len() as u8,
+            parent_fingerprint: fingerprint_obj,
+            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            public_key: pub_key_obj,
+            chain_code: sub_chain_code_obj,
+        };
+        //get and return xpub
+        Ok(extend_public_key.to_string())
+    }
 }
 
 #[cfg(test)]
@@ -119,7 +172,7 @@ mod test {
         let uncomprs_pubkey = FilecoinAddress::get_pub_key(constants::FILECOIN_PATH).unwrap();
         assert_eq!(
             &uncomprs_pubkey,
-            "044B9C3C0E1CEFD90897798E7CE471FEFF0D1BE4C6BA24061D7D9F68CFDB19A0EC0192392A94B121743ADB91C7029C6F3C80FD18B6E34E8B8F9EA87E559C68FDC4"
+            "044B9C3C0E1CEFD90897798E7CE471FEFF0D1BE4C6BA24061D7D9F68CFDB19A0EC0192392A94B121743ADB91C7029C6F3C80FD18B6E34E8B8F9EA87E559C68FDC41F7C8E9139DB9850A4E4AD3B91713D9ABD0C887141EBE0EBBD3B607FBC91B017"
         );
     }
 
