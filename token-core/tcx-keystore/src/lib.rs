@@ -1,5 +1,6 @@
 //! TokenCore Chain
 //! This is an abstract package to define basic chain data structures.
+#![feature(test)]
 #[cfg_attr(tarpaulin, ignore)]
 #[macro_use]
 mod macros {
@@ -54,3 +55,6 @@ pub enum Error {
     #[fail(display = "invalid_encryption_data")]
     InvalidEncryptionData,
 }
+
+#[cfg(test)]
+extern crate test;

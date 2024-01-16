@@ -244,6 +244,7 @@ mod tests {
     use tcx_common::FromHex;
     use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_primitive::{PublicKey, Secp256k1PublicKey, TypedPublicKey};
+    use test::Bencher;
 
     // A mnemonic word separated by a full-width or half-width space
     static MNEMONIC_WITH_WHITESPACE: &'static str =
@@ -623,5 +624,27 @@ mod tests {
         };
 
         assert_eq!(acc, expected);
+    }
+
+    #[bench]
+    fn bench_derive_account(m: &mut Bencher) {
+        let mut keystore =
+            HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        let _ = keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap();
+
+        let coin_info = CoinInfo {
+            coin: "BITCOIN".to_string(),
+            derivation_path: "m/44'/0'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+
+        m.iter(|| {
+            let account = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
+            assert_eq!(account.ext_pub_key, "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8");
+        });
     }
 }

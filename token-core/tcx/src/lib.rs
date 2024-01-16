@@ -1,4 +1,5 @@
 #![feature(more_qualified_paths)]
+#![feature(test)]
 
 use std::ffi::{CStr, CString};
 
@@ -163,6 +164,9 @@ pub unsafe extern "C" fn get_last_err_message() -> *const c_char {
 }
 
 #[cfg(test)]
+extern crate test;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::api::derive_accounts_param::Derivation;
@@ -179,6 +183,7 @@ mod tests {
     use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
     use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
     use tcx_keystore::keystore::IdentityNetwork;
+    use test::Bencher;
 
     use crate::api::{
         export_private_key_param, migrate_keystore_param, sign_param, BackupResult,
@@ -4329,5 +4334,12 @@ mod tests {
                 .original
                 .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
         })
+    }
+
+    #[bench]
+    fn bench_import_mnemonic(b: &mut Bencher) {
+        b.iter(|| {
+            test_import_mnemonic();
+        });
     }
 }
