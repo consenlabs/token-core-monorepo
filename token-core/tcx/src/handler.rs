@@ -975,10 +975,7 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
         if ["POLKADOT".to_string(), "KUSAMA".to_string()].contains(&param.chain_type)
             && keystore.derivable()
         {
-            return Err(format_err!(
-                "{}",
-                "hd_wallet_cannot_export_substrate_keystore"
-            ));
+            return Err(format_err!("{}", "only_support_sr25519_keystore"));
         }
         meta = keystore.meta();
     }
