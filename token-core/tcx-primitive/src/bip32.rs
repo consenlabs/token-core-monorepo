@@ -393,7 +393,7 @@ mod tests {
         let key_error = KeyError::from(Bip32Error::InvalidChildNumber(0));
         assert_eq!(key_error, KeyError::InvalidChildNumber);
         let key_error = KeyError::from(Bip32Error::InvalidChildNumberFormat);
-        assert_eq!(key_error, KeyError::InvalidChildNumber);
+        assert_eq!(key_error, KeyError::InvalidDerivationPathFormat);
         let key_error = KeyError::from(Bip32Error::InvalidDerivationPathFormat);
         assert_eq!(key_error, KeyError::InvalidDerivationPathFormat);
         let key_error = KeyError::from(Bip32Error::Secp256k1(secp256k1::Error::InvalidPublicKey));

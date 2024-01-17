@@ -21,11 +21,11 @@ use std::result;
 use crate::error_handling::{landingpad, LAST_BACKTRACE, LAST_ERROR};
 use crate::handler::{
     create_keystore, decrypt_data_from_ipfs, delete_keystore, derive_accounts, derive_sub_accounts,
-    encode_message, encrypt_data_to_ipfs, eth_recover_address, exists_json, exists_mnemonic,
-    exists_private_key, export_json, export_mnemonic, export_private_key, get_derived_key,
-    get_extended_public_keys, get_public_keys, import_json, import_mnemonic, import_private_key,
-    mnemonic_to_public, sign_authentication_message, sign_hashes, sign_message, sign_tx,
-    unlock_then_crash, verify_password,
+    encode_message, encrypt_data_to_ipfs, exists_json, exists_mnemonic, exists_private_key,
+    export_json, export_mnemonic, export_private_key, get_derived_key, get_extended_public_keys,
+    get_public_keys, import_json, import_mnemonic, import_private_key, mnemonic_to_public,
+    sign_authentication_message, sign_hashes, sign_message, sign_tx, unlock_then_crash,
+    verify_password,
 };
 use crate::migration::{migrate_keystore, scan_legacy_keystores};
 
@@ -110,7 +110,6 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
             landingpad(|| sign_authentication_message(&action.param.unwrap().value))
         }
         "migrate_keystore" => landingpad(|| migrate_keystore(&action.param.unwrap().value)),
-        "eth_recover_address" => landingpad(|| eth_recover_address(&action.param.unwrap().value)),
 
         "get_extended_public_keys" => {
             landingpad(|| get_extended_public_keys(&action.param.unwrap().value))
@@ -4372,21 +4371,6 @@ mod tests {
             let resp: GetExtendedPublicKeysResult =
                 GetExtendedPublicKeysResult::decode(ret.as_slice()).unwrap();
             assert_eq!(resp.extended_public_keys.get(0).unwrap(), "xpub6GZjFnyumLtEwC4KQkigvc3vXJdZvy71QxHTsFQQv1YtEUWNEwynKWsK2LBFZNLWdTk3w1Y9cRv4NN7V2pnDBoWgH3PkVE9r9Q2kSQL2zkH");
-        })
-    }
-
-    #[test]
-    #[serial]
-    pub fn test_eth_recover_address() {
-        run_test(|| {
-            let param = EthRecoverAddressInput{
-                message: "0x0000000000000000".to_string(),
-                signature: "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b".to_string(),
-            };
-            let ret = call_api("eth_recover_address", param).unwrap();
-            let resp: EthRecoverAddressOutput =
-                EthRecoverAddressOutput::decode(ret.as_slice()).unwrap();
-            assert_eq!(resp.address, "0xed54a7c1d8634bb589f24bb7f05a5554b36f9618");
         })
     }
 }

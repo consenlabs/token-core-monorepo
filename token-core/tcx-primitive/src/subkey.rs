@@ -13,6 +13,7 @@ use sp_core::Pair as TraitPair;
 
 impl Derive for Sr25519PrivateKey {
     fn derive(&self, path: &str) -> Result<Self> {
+        is_valid_substrate_path(path)?;
         let re_junction = Regex::new(r"/(/?[^/]+)")?;
         let junctions = re_junction
             .captures_iter(path)
@@ -23,12 +24,21 @@ impl Derive for Sr25519PrivateKey {
 
 impl Derive for Sr25519PublicKey {
     fn derive(&self, path: &str) -> Result<Self> {
+        is_valid_substrate_path(path)?;
         let re_junction = Regex::new(r"/(/?[^/]+)")?;
         let junctions = re_junction
             .captures_iter(path)
             .map(|f| DeriveJunction::from(&f[1]));
         Ok(Sr25519PublicKey(self.0.derive(junctions).unwrap()))
     }
+}
+
+fn is_valid_substrate_path(path: &str) -> Result<()> {
+    let valid_path_regex = Regex::new(r"^(//[\w\d]+)+$")?;
+    if !valid_path_regex.is_match(path) {
+        return Err(format_err!("substrate_path_invalid"));
+    }
+    Ok(())
 }
 
 impl DeterministicPrivateKey for Sr25519PrivateKey {
@@ -104,6 +114,12 @@ mod tests {
         let child_key: Sr25519PrivateKey = hd_key.derive("//imToken//Polakdot//0").unwrap();
         assert_eq!("80126147d195fe90976e29489d6b181202d71f66531ce4430d9fd550942d947022d0cb94e2bb0f5df0db08a4eaeb49124f5086f8512380206a3f7367e5693fc4",
                    child_key.to_bytes().to_hex());
+
+        let child_key = hd_key.derive("*&^$xfwf.de");
+        assert_eq!(
+            format!("{}", &child_key.err().unwrap()),
+            "substrate_path_invalid"
+        );
     }
 
     #[test]

@@ -136,8 +136,6 @@ impl BtcKinAddress {
     }
 }
 
-/// Extract the bech32 prefix.
-/// Returns the same slice when no prefix is found.
 fn bech32_network(bech32: &str) -> Option<&BtcKinNetwork> {
     let bech32_prefix = bech32.rfind('1').map(|sep| bech32.split_at(sep).0);
 

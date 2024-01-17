@@ -27,6 +27,9 @@ impl TraitPrivateKey for BLSPrivateKey {
         if data.len() < 31 || data.len() > 32 {
             return Err(KeyError::InvalidBlsKey.into());
         }
+
+        // unlike ETH2, which stores private keys in big-endian order, Filecoin stores and interprets private keys in little-endian order
+        // https://docs.filecoin.io/basics/the-blockchain/addresses#public-keys
         let mut temp_data = data.to_vec();
         temp_data.reverse();
         if data.len() == 31 {

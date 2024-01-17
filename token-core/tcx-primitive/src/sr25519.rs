@@ -130,31 +130,4 @@ mod tests {
         let pair_again = Pair::from(ed25519_prv_key_again);
         assert_eq!(pair_41.public(), pair_again.public());
     }
-
-    #[test]
-    fn test_sr25519_mask() {
-        let scalar = Vec::from_0x_hex("0x416c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f").unwrap();
-        let mut scalar = scalar[0..32].to_vec();
-        let mut low = 0u8;
-        for i in scalar.iter_mut().rev() {
-            let r = *i & 0b00000111; // save remainder
-            *i >>= 3; // divide by 8
-            *i += low;
-            low = r << 5;
-        }
-        let masked_hex = scalar.to_0x_hex();
-        assert_eq!(
-            masked_hex,
-            "0x882d6dac0c040404040404040404040404040404040404040404040404040404"
-        );
-
-        // Ensure that s < 2^255 by masking the high bit
-        scalar[31] &= 0b0111_1111;
-
-        let masked_hex = scalar.to_0x_hex();
-        assert_eq!(
-            masked_hex,
-            "0x882d6dac0c040404040404040404040404040404040404040404040404040404"
-        );
-    }
 }

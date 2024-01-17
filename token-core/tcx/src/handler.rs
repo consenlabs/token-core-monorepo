@@ -1091,14 +1091,6 @@ pub(crate) fn unlock_then_crash(data: &[u8]) -> Result<Vec<u8>> {
     panic!("test_unlock_then_crash");
 }
 
-pub(crate) fn eth_recover_address(data: &[u8]) -> Result<Vec<u8>> {
-    let input: EthRecoverAddressInput =
-        EthRecoverAddressInput::decode(data).expect("EthRecoverAddressParam");
-    let result: Result<EthRecoverAddressOutput> = input.recover_address();
-
-    encode_message(result?)
-}
-
 pub(crate) fn encrypt_data_to_ipfs(data: &[u8]) -> Result<Vec<u8>> {
     let param = EncryptDataToIpfsParam::decode(data).expect("EncryptDataToIpfsParam");
 

@@ -113,5 +113,9 @@ mod test {
         let eth_address = "0xD1220A0cf47c7B9Be7A2E6BA89F429762e7b9aDb";
         let result = is_valid_address(eth_address).unwrap();
         assert_eq!(true, result);
+
+        let eth_address = "0x80427Ae1f55bCf60ee4CD2db7549b8BC69a74303";
+        let result = is_valid_address(eth_address).unwrap();
+        assert_eq!(true, result);
     }
 }
