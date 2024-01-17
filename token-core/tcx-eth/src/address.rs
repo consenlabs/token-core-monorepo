@@ -1,5 +1,6 @@
 use crate::Result;
 use ethereum_types::H160;
+use ethers::{prelude::Address as EthersAddress, utils};
 use failure::format_err;
 use regex::Regex;
 use std::str::FromStr;
@@ -64,10 +65,12 @@ pub fn is_valid_address(address: &str) -> bool {
     let hash_str = hash.to_hex();
 
     for (i, c) in address.chars().enumerate() {
-        let char_int =
-            u8::from_str_radix(&hash_str.chars().nth(i).unwrap().to_string(), 16).unwrap();
-        if (c.is_uppercase() && char_int <= 7) || (c.is_lowercase() && char_int > 7) {
-            return false;
+        if c.is_alphabetic() {
+            let char_int =
+                u8::from_str_radix(&hash_str.chars().nth(i).unwrap().to_string(), 16).unwrap();
+            if (c.is_uppercase() && char_int <= 7) || (c.is_lowercase() && char_int > 7) {
+                return false;
+            }
         }
     }
 
@@ -76,7 +79,7 @@ pub fn is_valid_address(address: &str) -> bool {
 
 #[cfg(test)]
 mod test {
-    use std::{result, str::FromStr};
+    use std::str::FromStr;
 
     use crate::address::EthAddress;
     use tcx_common::FromHex;
@@ -147,6 +150,19 @@ mod test {
         for address in invalid_address_list.iter() {
             let result = is_valid_address(address);
             assert_eq!(result, false);
+        }
+    }
+
+    #[test]
+    fn test_valid_address() {
+        let address_list = vec![
+            "0x6031564e7b2F5cc33737807b2E58DaFF870B590b",
+            "0x80427Ae1f55bCf60ee4CD2db7549b8BC69a74303",
+            "0x80427ae1f55bcf60ee4cd2db7549b8bc69a74303",
+        ];
+        for address in address_list.iter() {
+            let result = is_valid_address(address);
+            assert!(result);
         }
     }
 }
