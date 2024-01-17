@@ -1,27 +1,48 @@
-use crate::transaction::{
+use crate::address::pubkey_to_address;
+use crate::api::{
     EthMessageInput, EthMessageOutput, EthRecoverAddressInput, EthRecoverAddressOutput, EthTxInput,
     EthTxOutput, SignatureType,
 };
+use crate::transaction::{Signature, Transaction, TransactionType};
 use crate::Result;
 use ethereum_types::{Address, H256, U256, U64};
-use ethers::signers::LocalWallet;
-use ethers::types::transaction::eip2718::TypedTransaction;
-use ethers::types::transaction::eip2930::{AccessList, AccessListItem};
-use ethers::types::{Bytes, Eip1559TransactionRequest, Signature, TransactionRequest};
-use ethers::utils::{hash_message, keccak256};
-use keccak_hash::keccak;
 use std::str::FromStr;
-use tcx_common::{utf8_or_hex_to_bytes, FromHex, ToHex};
-use tcx_keystore::{Keystore, MessageSigner, SignatureParameters, TransactionSigner};
+use tcx_common::{keccak256, parse_U256, parse_U64, utf8_or_hex_to_bytes, FromHex, Hash256, ToHex};
+use tcx_keystore::{Keystore, MessageSigner, SignatureParameters, Signer, TransactionSigner};
+use tcx_primitive::Secp256k1PublicKey;
+
+fn hash_message<T: AsRef<[u8]>>(message: T) -> Hash256 {
+    const PREFIX: &str = "\x19Ethereum Signed Message:\n";
+
+    let message = message.as_ref();
+    let len = message.len();
+    let len_string = len.to_string();
+
+    let mut eth_message = Vec::with_capacity(PREFIX.len() + len_string.len() + len);
+    eth_message.extend_from_slice(PREFIX.as_bytes());
+    eth_message.extend_from_slice(len_string.as_bytes());
+    eth_message.extend_from_slice(message);
+
+    keccak256(&eth_message)
+}
 
 impl TransactionSigner<EthTxInput, EthTxOutput> for Keystore {
     fn sign_transaction(
         &mut self,
         params: &SignatureParameters,
-        tx: &EthTxInput,
+        input: &EthTxInput,
     ) -> tcx_keystore::Result<EthTxOutput> {
-        let private_key = self.get_private_key(params.curve, &params.derivation_path)?;
-        tx.sign_transaction(&private_key.to_bytes())
+        let tx: Transaction = input.try_into()?;
+
+        let signature = Signature::from_slice(
+            &self.secp256k1_ecdsa_sign_recoverable(&tx.sighash(), &params.derivation_path)?,
+        )?;
+        let signed_tx = tx.to_signed_tx(signature);
+
+        Ok(EthTxOutput {
+            signature: signed_tx.raw().to_hex(),
+            tx_hash: signed_tx.hash().to_0x_hex(),
+        })
     }
 }
 
@@ -31,132 +52,88 @@ impl MessageSigner<EthMessageInput, EthMessageOutput> for Keystore {
         params: &SignatureParameters,
         message: &EthMessageInput,
     ) -> tcx_keystore::Result<EthMessageOutput> {
-        let private_key = self.get_private_key(params.curve, &params.derivation_path)?;
-        if message.signature_type == SignatureType::PersonalSign as i32 {
-            message.sign_message(&private_key.to_bytes())
-        } else {
-            message.ec_sign(&private_key.to_bytes())
-        }
+        let signature = Signature::from_slice(
+            &self.secp256k1_ecdsa_sign_recoverable(&message.hash()?, &params.derivation_path)?,
+        )?;
+
+        Ok(EthMessageOutput {
+            signature: signature.to_0x_hex(),
+        })
+    }
+}
+
+impl TryFrom<&EthTxInput> for Transaction {
+    type Error = failure::Error;
+
+    fn try_from(tx: &EthTxInput) -> std::result::Result<Self, Self::Error> {
+        Ok(Transaction {
+            to: Address::from_slice(&Vec::from_0x_hex(&tx.to)?),
+            nonce: parse_U64(&tx.nonce)?,
+            gas: parse_U256(&tx.gas_limit)?,
+            gas_price: parse_U256(&tx.gas_price)?,
+            value: parse_U256(&tx.value)?,
+            data: Vec::<u8>::from_0x_hex(&tx.data)?,
+            transaction_type: TransactionType::from_str(&tx.tx_type)?,
+            access_list: tx.access_list()?,
+            max_priority_fee_per_gas: parse_U256(&tx.max_priority_fee_per_gas)?,
+            chain_id: parse_U64(&tx.chain_id)?,
+            max_fee_per_gas: parse_U256(&tx.max_fee_per_gas)?,
+        })
     }
 }
 
 impl EthTxInput {
-    pub fn sign_transaction(&self, private_key: &[u8]) -> Result<EthTxOutput> {
-        let wallet = LocalWallet::from_bytes(private_key)?;
-        let chain_id = parse_u64(self.chain_id.as_str())?;
-        let ret_result = if self.tx_type.to_lowercase() == "0x02"
-            || self.tx_type.to_lowercase() == "0x2"
-            || self.tx_type == "02"
-        {
-            let eip1559_tx = Eip1559TransactionRequest::new()
-                .nonce(U256::from_dec_str(&self.nonce)?)
-                .to(self.to.parse::<Address>()?)
-                .value(U256::from_dec_str(&self.value)?)
-                .gas(U256::from_dec_str(&self.gas_limit)?)
-                .data(Bytes::from_str(&self.data)?)
-                .chain_id(chain_id)
-                .max_priority_fee_per_gas(U256::from_dec_str(&self.max_priority_fee_per_gas)?)
-                .max_fee_per_gas(U256::from_dec_str(&self.max_fee_per_gas)?)
-                .access_list(self.parse_access_list_item()?);
+    pub fn access_list(&self) -> Result<crate::transaction::AccessList> {
+        let mut ret_access_list = vec![];
 
-            let signature =
-                wallet.sign_transaction_sync(&TypedTransaction::Eip1559(eip1559_tx.clone()))?;
-            let sign_result = eip1559_tx.rlp_signed(&signature);
+        for item in &self.access_list {
+            let mut storage_keys = vec![];
+            for key in &item.storage_keys {
+                storage_keys.push(H256::from_str(key)?);
+            }
 
-            let mut sign_bytes = vec![];
-            sign_bytes.push(parse_u64(self.tx_type.as_str())?.byte(0));
-            sign_bytes.extend(sign_result.as_ref().iter());
-
-            let signature = sign_bytes.to_hex();
-            let tx_hash = keccak(sign_bytes).as_ref().to_0x_hex();
-            EthTxOutput { signature, tx_hash }
-        } else {
-            let legacy_tx = TransactionRequest::new()
-                .nonce(U256::from_dec_str(&self.nonce)?)
-                .to(self.to.parse::<Address>()?)
-                .value(U256::from_dec_str(&self.value)?)
-                .gas_price(U256::from_dec_str(&self.gas_price)?)
-                .gas(U256::from_dec_str(&self.gas_limit)?)
-                .data(Bytes::from_str(&self.data)?)
-                .chain_id(chain_id);
-
-            let signature: Signature =
-                wallet.sign_transaction_sync(&TypedTransaction::Legacy(legacy_tx.clone()))?;
-
-            let sign_result = legacy_tx.rlp_signed(&signature);
-            let signature = sign_result.to_hex();
-            let tx_hash = keccak(sign_result).as_ref().to_0x_hex();
-
-            EthTxOutput { signature, tx_hash }
-        };
-
-        Ok(ret_result)
-    }
-
-    fn parse_access_list_item(&self) -> Result<AccessList> {
-        if self.access_list.is_empty() {
-            return Ok(AccessList::default());
+            ret_access_list.push(crate::transaction::AccessListItem {
+                address: Address::from_slice(&Vec::from_0x_hex(&item.address)?),
+                storage_keys,
+            });
         }
-        let mut ret_access_list = AccessList::default();
-        for access in &self.access_list {
-            let item = AccessListItem {
-                address: ethereum_types::Address::from_str(&access.address)?,
-                storage_keys: {
-                    let mut storage_keys: Vec<H256> = Vec::new();
-                    for key in &access.storage_keys {
-                        let key_bytes: [u8; 32] =
-                            Vec::from_hex_auto(key.as_str())?.try_into().unwrap();
-                        storage_keys.push(H256(key_bytes));
-                    }
-                    storage_keys
-                },
-            };
-            ret_access_list.0.push(item);
-        }
+
         Ok(ret_access_list)
     }
 }
 
 impl EthMessageInput {
-    pub fn sign_message(&self, private_key: &[u8]) -> Result<EthMessageOutput> {
-        let wallet = LocalWallet::from_bytes(private_key)?;
+    pub fn hash(&self) -> Result<Hash256> {
         let message = utf8_or_hex_to_bytes(&self.message)?;
-        let message_hash = hash_message(message);
-        let sign_result = wallet.sign_hash(message_hash)?;
-
-        let signature = format!("0x{}", sign_result.to_string());
-        Ok(EthMessageOutput { signature })
-    }
-
-    pub fn ec_sign(&self, private_key: &[u8]) -> Result<EthMessageOutput> {
-        let wallet = LocalWallet::from_bytes(private_key)?;
-        let message = utf8_or_hex_to_bytes(&self.message)?;
-
-        let h256_hash = H256(keccak256(message));
-        let sign_result = wallet.sign_hash(h256_hash)?;
-        let signature = format!("0x{}", sign_result.to_string());
-        Ok(EthMessageOutput { signature })
+        if self.signature_type == SignatureType::PersonalSign as i32 {
+            Ok(hash_message(&message))
+        } else {
+            Ok(keccak256(&message))
+        }
     }
 }
 
-fn parse_u64(s: &str) -> Result<U64> {
-    if let Some(s) = s.strip_prefix("0x") {
-        Ok(U64::from_str_radix(s, 16)?)
-    } else {
-        let r = U64::from_dec_str(s);
-        // if r.is_err() {
-        //     return Ok(U64::from_str_radix(s, 16)?);
-        // }
-        Ok(r?)
+impl EthRecoverAddressInput {
+    pub fn recover_address(&self) -> Result<EthRecoverAddressOutput> {
+        let signature = Signature::from_slice(&Vec::<u8>::from_hex_auto(&self.signature)?)?;
+        let message = utf8_or_hex_to_bytes(&self.message)?;
+        let hash = keccak256(&message);
+        let pubkey = signature
+            .recover_public_key(&hash)?
+            .serialize_uncompressed();
+        let address = pubkey_to_address(&pubkey);
+
+        Ok(EthRecoverAddressOutput { address })
     }
 }
 
 #[cfg(test)]
 mod test {
-    use crate::transaction::{
+    use crate::api::{
         AccessList, EthMessageInput, EthMessageOutput, EthRecoverAddressInput, EthTxInput,
         EthTxOutput, SignatureType,
     };
+    use ethereum_types::U256;
     use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::{Keystore, MessageSigner, Metadata, SignatureParameters, TransactionSigner};
 
@@ -267,11 +244,11 @@ mod test {
         };
 
         let tx_output = keystore.sign_transaction(&params, &tx).unwrap();
+        assert_eq!(tx_output.signature, "02f8732a820225847735940084773594008252089403e2b0f5369297a2e7a13d6f8e6d4bfbb9cf7dc78701c6bf5263400080c001a0b6bd8b2f4d94910d72906cb20f83e9ec0808e00e92e8338f68a496ee77c29245a00c77abda1141f4991774b240f0fcd55faa19584e06d2bd43d4d5ceb6d4381207");
         assert_eq!(
             tx_output.tx_hash,
             "0x812824e60c60f8d46aa5e211c8e4a50baf92350c98c83e71c379d273ce0a0787"
         );
-        assert_eq!(tx_output.signature, "02f8732a820225847735940084773594008252089403e2b0f5369297a2e7a13d6f8e6d4bfbb9cf7dc78701c6bf5263400080c001a0b6bd8b2f4d94910d72906cb20f83e9ec0808e00e92e8338f68a496ee77c29245a00c77abda1141f4991774b240f0fcd55faa19584e06d2bd43d4d5ceb6d4381207");
 
         let tx = EthTxInput {
             nonce: "548".to_string(),
@@ -520,7 +497,7 @@ mod test {
             to: "0x3535353535353535353535353535353535353535".to_string(),
             value: "512".to_string(),
             data: "".to_string(),
-            chain_id: "A3".to_string(),
+            chain_id: "0xA3".to_string(),
             tx_type: "".to_string(),
             max_fee_per_gas: "1076634600920".to_string(),
             max_priority_fee_per_gas: "226".to_string(),

@@ -16,6 +16,10 @@ where
     fn from_hex<T: AsRef<[u8]>>(value: T) -> Result<Self>;
 
     fn from_0x_hex<T: AsRef<[u8]>>(value: T) -> Result<Self> {
+        if value.as_ref().len() == 0 {
+            return Ok(Self::from_hex("")?);
+        }
+
         let bytes = value.as_ref();
         Self::from_hex(&bytes[2..bytes.len()])
     }

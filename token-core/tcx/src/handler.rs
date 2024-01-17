@@ -60,7 +60,7 @@ use tcx_constants::coin_info::{coin_info_from_param, get_xpub_prefix};
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::KDF_ROUNDS;
-use tcx_eth::transaction::{EthRecoverAddressInput, EthRecoverAddressOutput};
+use tcx_eth::api::{EthRecoverAddressInput, EthRecoverAddressOutput};
 use tcx_keystore::{MessageSigner, TransactionSigner};
 use tcx_migration::keystore_upgrade::{mapping_curve_name, KeystoreUpgrade};
 

@@ -40,5 +40,4 @@ hex = "=0.4.3"
 base64 = "=0.13.1"
 base58 = "=0.2.0"
 parking_lot = "=0.12.1"
-ethers = "=2.0.3"
 uuid = { version = "=1.2.2", features = ["serde", "v4"] }

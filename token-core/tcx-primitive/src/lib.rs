@@ -20,6 +20,7 @@ pub type Result<T> = result::Result<T, failure::Error>;
 use tcx_constants::CurveType;
 
 pub use crate::bip32::{Bip32DeterministicPrivateKey, Bip32DeterministicPublicKey};
+pub use crate::constant::SECP256K1_ENGINE;
 pub use crate::derive::{get_account_path, Derive, DeriveJunction, DerivePath};
 pub use crate::ecc::{
     DeterministicPrivateKey, DeterministicPublicKey, PrivateKey, PublicKey,

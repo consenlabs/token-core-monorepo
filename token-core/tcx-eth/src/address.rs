@@ -1,6 +1,5 @@
 use crate::Result;
 use ethereum_types::H160;
-use ethers::{prelude::Address as EthersAddress, utils};
 use failure::format_err;
 use regex::Regex;
 use std::str::FromStr;
@@ -11,6 +10,37 @@ use tcx_primitive::TypedPublicKey;
 
 #[derive(PartialEq, Eq, Clone)]
 pub struct EthAddress(H160);
+
+pub fn to_checksum(addr: &ethereum_types::Address, chain_id: Option<u8>) -> String {
+    let prefixed_addr = match chain_id {
+        Some(chain_id) => format!("{chain_id}0x{addr:x}"),
+        None => format!("{addr:x}"),
+    };
+    let hash = keccak256(prefixed_addr.as_bytes()).to_hex();
+    let hash = hash.as_bytes();
+
+    let addr_hex = addr.as_bytes().to_hex();
+    let addr_hex = addr_hex.as_bytes();
+
+    addr_hex
+        .iter()
+        .zip(hash)
+        .fold("0x".to_owned(), |mut encoded, (addr, hash)| {
+            encoded.push(if *hash >= 56 {
+                addr.to_ascii_uppercase() as char
+            } else {
+                addr.to_ascii_lowercase() as char
+            });
+            encoded
+        })
+}
+
+pub fn pubkey_to_address(compressed_pubkey: &[u8]) -> String {
+    let pubkey_hash = keccak256(compressed_pubkey[1..].as_ref());
+    let addr_bytes = pubkey_hash[12..].to_vec();
+    let addr = H160::from_slice(&addr_bytes);
+    addr.as_bytes().to_0x_hex()
+}
 
 impl Address for EthAddress {
     fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
@@ -28,7 +58,7 @@ impl Address for EthAddress {
 
 impl ToString for EthAddress {
     fn to_string(&self) -> String {
-        ethers::utils::to_checksum(&self.0, None)
+        to_checksum(&self.0, None)
     }
 }
 

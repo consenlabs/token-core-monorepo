@@ -213,7 +213,7 @@ mod tests {
     use tcx_btc_kin::Utxo;
     use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
     use tcx_constants::sample_key::PASSWORD;
-    use tcx_eth::transaction::{
+    use tcx_eth::api::{
         AccessList, EthMessageInput, EthMessageOutput, EthRecoverAddressInput,
         EthRecoverAddressOutput, EthTxInput, EthTxOutput,
     };

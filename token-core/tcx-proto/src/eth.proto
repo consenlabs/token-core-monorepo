@@ -1,5 +1,5 @@
 syntax = "proto3";
-package transaction;
+package api;
 
 message EthTxInput {
   string nonce = 1;
