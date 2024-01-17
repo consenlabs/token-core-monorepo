@@ -1,5 +1,9 @@
 use crate::Result;
 use bitcoin::hashes::{sha256, Hash};
+use bitcoin::util::base58;
+use bitcoin::util::bip32::ExtendedPubKey;
+use byteorder::BigEndian;
+use byteorder::ByteOrder;
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_traits::{FromPrimitive, Num, Zero};

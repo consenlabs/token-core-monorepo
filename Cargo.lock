@@ -840,6 +840,7 @@ dependencies = [
  "bytes",
  "failure",
  "forest_address",
+ "forest_bigint",
  "forest_cid",
  "forest_crypto",
  "forest_encoding",
@@ -2789,6 +2790,7 @@ version = "0.1.0"
 dependencies = [
  "aes",
  "bitcoin",
+ "byteorder 1.4.3",
  "bytes",
  "cbc",
  "failure",

@@ -224,7 +224,7 @@ mod tests {
     use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 
     static OTHER_MNEMONIC: &'static str =
-        "inject kidney empty canal shadow pact comfort wife crush horse wife sketch";
+        "calm release clay imitate top extend close draw quiz refuse shuffle injury";
 
     fn _to_c_char(str: &str) -> *const c_char {
         CString::new(str).unwrap().into_raw()
@@ -3405,7 +3405,6 @@ mod tests {
 
             let (wallet, accounts) = import_and_derive(derivation);
             let params = DeriveSubAccountsParam {
-                id: wallet.id.to_string(),
                 chain_type: "BITCOIN".to_string(),
                 curve: "secp256k1".to_string(),
                 network: "MAINNET".to_string(),
@@ -3447,7 +3446,6 @@ mod tests {
 
             let (wallet, accounts) = import_and_derive(derivation);
             let params = DeriveSubAccountsParam {
-                id: wallet.id.to_string(),
                 chain_type: "BITCOIN".to_string(),
                 curve: "secp256k1".to_string(),
                 network: "MAINNET".to_string(),
@@ -3489,7 +3487,6 @@ mod tests {
 
             let (wallet, accounts) = import_and_derive(derivation);
             let params = DeriveSubAccountsParam {
-                id: wallet.id.to_string(),
                 chain_type: "ETHEREUM".to_string(),
                 curve: "secp256k1".to_string(),
                 network: "MAINNET".to_string(),

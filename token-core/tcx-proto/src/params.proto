@@ -180,13 +180,12 @@ message SignParam {
 }
 
 message DeriveSubAccountsParam {
-    string id = 1;
-    string chainType = 2;
-    string curve = 3;
-    string network = 4;
-    string segWit = 5;
-    repeated string relativePaths = 6;
-    string extendedPublicKey = 7;
+    string chainType = 1;
+    string curve = 2;
+    string network = 3;
+    string segWit = 4;
+    repeated string relativePaths = 5;
+    string extendedPublicKey = 6;
 }
 
 message DeriveSubAccountsResult {
