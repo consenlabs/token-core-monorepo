@@ -665,4 +665,20 @@ mod tests {
             "4fb8657d6464adcaa086d6758d7f0b6b6fc026c98dc1671fcc6460b5a74abc62"
         );
     }
+
+    #[test]
+    fn test_bip49_spec_vertors() {
+        let root =
+            TypedDeterministicPrivateKey::from_mnemonic(CurveType::SECP256k1, "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about")
+                .unwrap();
+        let pri_key = root.derive("m/49'/1'/0'").unwrap();
+        assert_eq!(
+            pri_key.to_string(),
+            "uprv91G7gZkzehuMVxDJTYE6tLivdF8e4rvzSu1LFfKw3b2Qx1Aj8vpoFnHdfUZ3hmi9jsvPifmZ24RTN2KhwB8BfMLTVqaBReibyaFFcTP1s9n"
+        );
+        assert_eq!(
+            pri_key.deterministic_public_key().to_string(),
+            "upub5EFU65HtV5TeiSHmZZm7FUffBGy8UKeqp7vw43jYbvZPpoVsgU93oac7Wk3u6moKegAEWtGNF8DehrnHtv21XXEMYRUocHqguyjknFHYfgY"
+        );
+    }
 }

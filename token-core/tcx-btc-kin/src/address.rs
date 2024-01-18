@@ -476,4 +476,47 @@ mod tests {
             .to_string();
         assert_eq!(address, "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
     }
+
+    #[test]
+    fn test_bip84_spec_vector() {
+        let pub_key = TypedPublicKey::from_slice(
+            CurveType::SECP256k1,
+            &Vec::from_hex("0330d54fd0dd420a6e5f8d3624f5f3482cae350f79d5f0753bf5beef9c2d91af3c")
+                .unwrap(),
+        )
+        .unwrap();
+        let coin_info = CoinInfo {
+            coin: "BITCOIN".to_string(),
+            derivation_path: "m/84'/0'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "VERSION_0".to_string(),
+        };
+        let address = BtcKinAddress::from_public_key(&pub_key, &coin_info)
+            .unwrap()
+            .to_string();
+        assert_eq!(address, "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu");
+
+        let pub_key = TypedPublicKey::from_slice(
+            CurveType::SECP256k1,
+            &Vec::from_hex("03e775fd51f0dfb8cd865d9ff1cca2a158cf651fe997fdc9fee9c1d3b5e995ea77")
+                .unwrap(),
+        )
+        .unwrap();
+        let address = BtcKinAddress::from_public_key(&pub_key, &coin_info)
+            .unwrap()
+            .to_string();
+        assert_eq!(address, "bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g");
+
+        let pub_key = TypedPublicKey::from_slice(
+            CurveType::SECP256k1,
+            &Vec::from_hex("03025324888e429ab8e3dbaf1f7802648b9cd01e9b418485c5fa4c1b9b5700e1a6")
+                .unwrap(),
+        )
+        .unwrap();
+        let address = BtcKinAddress::from_public_key(&pub_key, &coin_info)
+            .unwrap()
+            .to_string();
+        assert_eq!(address, "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el");
+    }
 }
