@@ -266,7 +266,10 @@ mod tests {
 
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType};
-    use tcx_primitive::{Bip32DeterministicPrivateKey, Derive, DeterministicPrivateKey, Ss58Codec};
+    use tcx_primitive::{
+        Bip32DeterministicPrivateKey, Derive, DeterministicPrivateKey, Ss58Codec, TypedPrivateKey,
+        TypedPublicKey,
+    };
 
     use crate::address::BtcKinAddress;
     use crate::tcx_keystore::Address;
@@ -433,5 +436,44 @@ mod tests {
 
         let coin = coin_info_from_param("LITECOIN", "MAINNET", "P2WPKH", "").unwrap();
         assert!(!BtcKinAddress::is_valid("aaa", &coin));
+    }
+
+    #[test]
+    fn cross_test_tw() {
+        let prv_str = "28071bf4e2b0340db41b807ed8a5514139e5d6427ff9d58dbd22b7ed187103a4";
+        let pub_key =
+            TypedPrivateKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(prv_str).unwrap())
+                .unwrap()
+                .public_key();
+        let mut coin_info = CoinInfo {
+            coin: "BITCOIN".to_string(),
+            derivation_path: "m/44'/2'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+        let address = BtcKinAddress::from_public_key(&pub_key, &coin_info)
+            .unwrap()
+            .to_string();
+        assert_eq!(address, "1PeUvjuxyf31aJKX6kCXuaqxhmG78ZUdL1");
+
+        let pub_str = "030589ee559348bd6a7325994f9c8eff12bd5d73cc683142bd0dd1a17abc99b0dc";
+        let pub_key =
+            TypedPublicKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(pub_str).unwrap())
+                .unwrap();
+        let address = BtcKinAddress::from_public_key(&pub_key, &coin_info)
+            .unwrap()
+            .to_string();
+        assert_eq!(address, "1KbUJ4x8epz6QqxkmZbTc4f79JbWWz6g37");
+
+        let pub_str = "0279BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798";
+        let pub_key =
+            TypedPublicKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(pub_str).unwrap())
+                .unwrap();
+        coin_info.seg_wit = "VERSION_0".to_string();
+        let address = BtcKinAddress::from_public_key(&pub_key, &coin_info)
+            .unwrap()
+            .to_string();
+        assert_eq!(address, "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
     }
 }

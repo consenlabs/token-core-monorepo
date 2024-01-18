@@ -149,4 +149,28 @@ mod test {
             "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9"
         );
     }
+
+    #[test]
+    fn cross_test_tw() {
+        let coin_info = CoinInfo {
+            coin: "TEZOS".to_string(),
+            derivation_path: "".to_string(),
+            curve: CurveType::ED25519,
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        let pub_key = TypedPublicKey::from_slice(
+            CurveType::ED25519,
+            &Vec::from_hex("fe157cc8011727936c592f856c9071d39cf4acdadfa6d76435e4619c9dc56f63")
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            TezosAddress::from_public_key(&pub_key, &coin_info)
+                .unwrap()
+                .to_string(),
+            "tz1cG2jx3W4bZFeVGBjsTxUAG8tdpTXtE8PT"
+        );
+    }
 }

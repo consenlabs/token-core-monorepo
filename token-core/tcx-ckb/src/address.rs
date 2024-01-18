@@ -89,7 +89,7 @@ mod tests {
     use tcx_keystore::Address;
 
     use tcx_constants::{CoinInfo, CurveType};
-    use tcx_primitive::TypedPublicKey;
+    use tcx_primitive::{TypedPrivateKey, TypedPublicKey};
 
     #[test]
     fn pubkey_to_address() {
@@ -177,5 +177,25 @@ mod tests {
         let expect_address = "ckb1qyqdmeuqrsrnm7e5vnrmruzmsp4m9wacf6vsxasryq";
         let ckb_address = CkbAddress::from_str(expect_address).unwrap();
         assert_eq!(ckb_address.to_string(), expect_address);
+    }
+
+    #[test]
+    fn cross_test_tw() {
+        let prv_str = "8a2a726c44e46d1efaa0f9c2a8efed932f0e96d6050b914fde762ee285e61feb";
+        let pub_key =
+            TypedPrivateKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(prv_str).unwrap())
+                .unwrap()
+                .public_key();
+        let mut coin_info = CoinInfo {
+            coin: "NERVOS".to_string(),
+            derivation_path: "".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+        };
+        let address = CkbAddress::from_public_key(&pub_key, &coin_info)
+            .unwrap()
+            .to_string();
+        assert_eq!(address, "ckb1qyqvfdgvtjxswncx8mq2wl0dp6hlp7nmvhdqcecnt6");
     }
 }

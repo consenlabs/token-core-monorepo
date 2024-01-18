@@ -107,6 +107,7 @@ mod tests {
     use tcx_common::FromHex;
 
     use crate::address::WIFDisplay;
+    use crate::BtcKinAddress;
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType};
     use tcx_keystore::Address;
@@ -272,5 +273,25 @@ mod tests {
         for (coin_info, wif) in coin_infos {
             assert_eq!(wif, typed_private_key.fmt(&coin_info).unwrap());
         }
+    }
+
+    #[test]
+    fn cross_test_tw() {
+        let prv_str = "28071bf4e2b0340db41b807ed8a5514139e5d6427ff9d58dbd22b7ed187103a4";
+        let pub_key =
+            TypedPrivateKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(prv_str).unwrap())
+                .unwrap()
+                .public_key();
+        let mut coin_info = CoinInfo {
+            coin: "BITCOINCASH".to_string(),
+            derivation_path: "m/44'/2'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+        let address = BchAddress::from_public_key(&pub_key, &coin_info)
+            .unwrap()
+            .to_string();
+        assert_eq!(address, "qruxj7zq6yzpdx8dld0e9hfvt7u47zrw9gfr5hy0vh");
     }
 }

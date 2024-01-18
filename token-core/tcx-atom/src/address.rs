@@ -69,7 +69,7 @@ mod tests {
 
     use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
-    use tcx_primitive::TypedPublicKey;
+    use tcx_primitive::{TypedPrivateKey, TypedPublicKey};
 
     fn get_test_coin() -> CoinInfo {
         CoinInfo {
@@ -139,5 +139,25 @@ mod tests {
         let address = "cosmos1r5v5srda7xfth3hn2s26txvrcrntldjumt8mhl";
         let atom_address = AtomAddress::from_str(address).unwrap();
         assert_eq!(atom_address.to_string(), address);
+    }
+
+    #[test]
+    fn cross_test_tw() {
+        let prv_str = "80e81ea269e66a0a05b11236df7919fb7fbeedba87452d667489d7403a02f005";
+        let pub_key =
+            TypedPrivateKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(prv_str).unwrap())
+                .unwrap()
+                .public_key();
+        let mut coin_info = CoinInfo {
+            coin: "COSMOS".to_string(),
+            derivation_path: "m/44'/118'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+        let address = AtomAddress::from_public_key(&pub_key, &coin_info)
+            .unwrap()
+            .to_string();
+        assert_eq!(address, "cosmos1hsk6jryyqjfhp5dhc55tc9jtckygx0eph6dd02");
     }
 }

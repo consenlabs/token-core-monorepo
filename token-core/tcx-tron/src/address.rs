@@ -55,7 +55,7 @@ mod tests {
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::{Keystore, Metadata};
-    use tcx_primitive::TypedPublicKey;
+    use tcx_primitive::{TypedPrivateKey, TypedPublicKey};
 
     #[test]
     fn tron_address() {
@@ -118,5 +118,35 @@ mod tests {
 
         let acc = keystore.derive_coin::<TronAddress>(&coin_info).unwrap();
         assert_eq!(acc.address, "TY2uroBeZ5trA9QT96aEWj32XLkAAhQ9R2");
+    }
+
+    #[test]
+    fn cross_test_tw() {
+        let prv_str = "2d8f68944bdbfbc0769542fba8fc2d2a3de67393334471624364c7006da2aa54";
+        let pub_key =
+            TypedPrivateKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(prv_str).unwrap())
+                .unwrap()
+                .public_key();
+        let mut coin_info = CoinInfo {
+            coin: "BITCOINCASH".to_string(),
+            derivation_path: "m/44'/2'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+        let address = TronAddress::from_public_key(&pub_key, &coin_info)
+            .unwrap()
+            .to_string();
+        assert_eq!(address, "TJRyWwFs9wTFGZg3JbrVriFbNfCug5tDeC");
+
+        let prv_str = "BE88DF1D0BF30A923CB39C3BB953178BAAF3726E8D3CE81E7C8462E046E0D835";
+        let pub_key =
+            TypedPrivateKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(prv_str).unwrap())
+                .unwrap()
+                .public_key();
+        let address = TronAddress::from_public_key(&pub_key, &coin_info)
+            .unwrap()
+            .to_string();
+        assert_eq!(address, "THRF3GuPnvvPzKoaT8pJex5XHmo8NNbCb3");
     }
 }

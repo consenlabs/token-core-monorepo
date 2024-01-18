@@ -192,4 +192,24 @@ mod test {
             assert!(result);
         }
     }
+
+    #[test]
+    fn cross_test_tw() {
+        let prv_str = "afeefca74d9a325cf1d6b6911d61a65c32afa8e02bd5e78e2e4ac2910bab45f5";
+        let pub_key =
+            TypedPrivateKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(prv_str).unwrap())
+                .unwrap()
+                .public_key();
+        let mut coin_info = CoinInfo {
+            coin: "ETHEREUM".to_string(),
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+        let address = EthAddress::from_public_key(&pub_key, &coin_info)
+            .unwrap()
+            .to_string();
+        assert_eq!(address, "0xAc1ec44E4f0ca7D172B7803f6836De87Fb72b309");
+    }
 }

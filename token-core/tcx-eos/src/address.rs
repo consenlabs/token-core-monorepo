@@ -52,9 +52,9 @@ mod tests {
 
     use crate::address::EosPublicKeyEncoder;
     use tcx_common::FromHex;
-    use tcx_constants::CoinInfo;
+    use tcx_constants::{CoinInfo, CurveType};
     use tcx_keystore::{Address, PublicKeyEncoder};
-    use tcx_primitive::{PublicKey, Secp256k1PublicKey, TypedPublicKey};
+    use tcx_primitive::{PublicKey, Secp256k1PublicKey, TypedPrivateKey, TypedPublicKey};
 
     #[test]
     fn test_encode_public_key() {
@@ -81,6 +81,33 @@ mod tests {
             let bytes = Vec::from_0x_hex(i.0).unwrap();
             let k1_pub_key = Secp256k1PublicKey::from_slice(&bytes).unwrap();
             let typed_pub_key = TypedPublicKey::Secp256k1(k1_pub_key);
+            assert_eq!(
+                EosPublicKeyEncoder::encode(&typed_pub_key, &CoinInfo::default()).unwrap(),
+                i.1
+            );
+        }
+    }
+
+    #[test]
+    fn cross_test_tw() {
+        let tests = [
+            (
+                "0x8e14ef506fee5e0aaa32f03a45242d32d0eb993ffe25ce77542ef07219db667c",
+                "EOS6TFKUKVvtvjRq9T4fV9pdxNUuJke92nyb4rzSFtZfdR5ssmVuY",
+            ),
+            (
+                "0xe2bfd815c5923f404388a3257aa5527f0f52e92ce364e1e26a04d270c901edda",
+                "EOS5YtaCcbPJ3BknNBTDezE9eJoGNnAVuUwT8bnxhSRS5dqRvyfxr",
+            ),
+        ];
+
+        for i in tests {
+            let bytes = Vec::from_0x_hex(i.0).unwrap();
+            // let k1_pub_key = Secp256k1PublicKey::from_slice(&bytes).unwrap();
+            // let typed_pub_key = TypedPublicKey::Secp256k1(k1_pub_key);
+            let typed_pub_key = TypedPrivateKey::from_slice(CurveType::SECP256k1, &bytes)
+                .unwrap()
+                .public_key();
             assert_eq!(
                 EosPublicKeyEncoder::encode(&typed_pub_key, &CoinInfo::default()).unwrap(),
                 i.1
