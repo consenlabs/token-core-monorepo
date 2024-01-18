@@ -634,4 +634,35 @@ mod tests {
         let sign_ret = sk.sign_recoverable(message);
         assert!(sign_ret.is_ok());
     }
+
+    #[test]
+    fn cross_test_tw() {
+        let root =
+            TypedDeterministicPrivateKey::from_mnemonic(CurveType::SECP256k1, "ripple scissors kick mammal hire column oak again sun offer wealth tomorrow wagon turn fatal")
+                .unwrap();
+
+        let dpk = root
+            .derive("m/84'/0'/0'/0/0")
+            .unwrap()
+            .deterministic_public_key();
+        assert_eq!(
+            dpk.public_key().to_bytes().to_hex(),
+            "02df9ef2a7a5552765178b181e1e1afdefc7849985c7dfe9647706dd4fa40df6ac"
+        );
+
+        let dpk = root
+            .derive("m/84'/0'/0'/0/2")
+            .unwrap()
+            .deterministic_public_key();
+        assert_eq!(
+            dpk.public_key().to_bytes().to_hex(),
+            "031e1f64d2f6768dccb6814545b2e2d58e26ad5f91b7cbaffe881ed572c65060db"
+        );
+
+        let dsk = root.derive("m/44'/539'/0'/0/0").unwrap();
+        assert_eq!(
+            dsk.private_key().to_bytes().to_hex(),
+            "4fb8657d6464adcaa086d6758d7f0b6b6fc026c98dc1671fcc6460b5a74abc62"
+        );
+    }
 }

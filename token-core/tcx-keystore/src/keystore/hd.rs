@@ -647,4 +647,64 @@ mod tests {
             assert_eq!(account.ext_pub_key, "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8");
         });
     }
+
+    #[test]
+    fn cross_test_tw() {
+        let mut keystore =
+            HdKeystore::from_mnemonic("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", TEST_PASSWORD, Metadata::default()).unwrap();
+        let _ = keystore
+            .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
+            .unwrap();
+
+        let coin_infos = [
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/44'/0'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/49'/0'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/84'/0'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/84'/0'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "VERSION_0".to_string(),
+            },
+            CoinInfo {
+                coin: "BITCOIN".to_string(),
+                derivation_path: "m/84'/0'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "VERSION_1".to_string(),
+            },
+        ];
+
+        let excepts = [
+            "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj",
+            "ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCxoJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP",
+            "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
+            "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
+            "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
+        ];
+
+        for (i, coin_info) in coin_infos.iter().enumerate() {
+            let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
+            assert_eq!(acc.ext_pub_key, excepts[i]);
+        }
+    }
 }
