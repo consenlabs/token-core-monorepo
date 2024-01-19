@@ -75,7 +75,7 @@ impl KeystoreUpgrade {
         let fingerprint = match version {
             11000 => fingerprint_from_mnemonic(&String::from_utf8_lossy(&unlocker.plaintext()?)),
             11001 => fingerprint_from_private_key(unlocker.plaintext()?.as_slice()),
-            _ => return Err(anyhow!("upgrade wrong version keystore")),
+            _ => return Err(anyhow!("unknown_version_when_upgrade_keystore")),
         }?;
         json["sourceFingerprint"] = json!(fingerprint);
 
@@ -127,7 +127,7 @@ impl KeystoreUpgrade {
                 let enc_pair = unlocker.encrypt_with_random_iv(mnemonic.as_bytes())?;
                 json["encOriginal"] = json!(enc_pair);
             }
-            _ => return Err(anyhow!("invalid version")),
+            _ => return Err(anyhow!("unknown_version_when_upgrade_keystore")),
         }
 
         Keystore::from_json(&json.to_string())
@@ -145,7 +145,7 @@ impl KeystoreUpgrade {
             "KUSAMA" | "POLKADOT" => {
                 let coin = coin_info_from_param(chain_type, "", "", "")?;
                 let Key::Password(password) = key else {
-                    return Err(anyhow!("substrate cannot use derived_key"));
+                    return Err(anyhow!("substrate_cannot_use_derived_key"));
                 };
 
                 let mut substrate_ks =

@@ -132,7 +132,7 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
             return ret;
         }
     } else {
-        Err(anyhow!("invalid version in keystore"))
+        Err(anyhow!("unknown_version_when_upgrade_keystore"))
     }
 }
 

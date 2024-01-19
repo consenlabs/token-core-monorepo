@@ -66,7 +66,7 @@ impl FromStr for EthAddress {
     type Err = anyhow::Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         if !is_valid_address(s) {
-            return Err(anyhow!("invalid_address"));
+            return Err(anyhow!("invalid_eth_address"));
         }
 
         let bytes = Vec::from_hex(&s[2..])?;

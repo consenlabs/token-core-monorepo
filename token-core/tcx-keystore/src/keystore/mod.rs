@@ -160,7 +160,7 @@ impl FromStr for IdentityNetwork {
         match input {
             "MAINNET" => Ok(IdentityNetwork::Mainnet),
             "TESTNET" => Ok(IdentityNetwork::Testnet),
-            _ => Err(anyhow!("unknown_network")),
+            _ => Err(anyhow!("unknown_identify_network")),
         }
     }
 }

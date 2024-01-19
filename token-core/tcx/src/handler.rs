@@ -269,7 +269,7 @@ fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
         } else {
             let data_len = private_key
                 .from_base58()
-                .map_err(|_| anyhow!("decode private from base58 error"))?
+                .map_err(|_| anyhow!("invalid_wif"))?
                 .len();
             let (k1_pk, ver) = Secp256k1PrivateKey::from_ss58check_with_version(private_key)?;
             private_key_bytes = k1_pk.0.to_bytes();
@@ -1092,7 +1092,7 @@ pub(crate) fn encrypt_data_to_ipfs(data: &[u8]) -> Result<Vec<u8>> {
 
     let map = KEYSTORE_MAP.read();
     let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
-        return Err(anyhow::anyhow!("identity not found"));
+        return Err(anyhow::anyhow!("identity_not_found"));
     };
 
     let cipher_text = identity_ks.identity().encrypt_ipfs(&param.content)?;
@@ -1110,7 +1110,7 @@ pub(crate) fn decrypt_data_from_ipfs(data: &[u8]) -> Result<Vec<u8>> {
 
     let map = KEYSTORE_MAP.read();
     let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
-        return Err(anyhow::anyhow!("identity not found"));
+        return Err(anyhow::anyhow!("identity_not_found"));
     };
 
     let content = identity_ks.identity().decrypt_ipfs(&param.encrypted)?;
@@ -1129,7 +1129,7 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
 
     let map = KEYSTORE_MAP.read();
     let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
-            return Err(anyhow::anyhow!("identity not found"));
+            return Err(anyhow::anyhow!("identity_not_found"));
         };
 
     let key = tcx_crypto::Key::Password(param.password);
