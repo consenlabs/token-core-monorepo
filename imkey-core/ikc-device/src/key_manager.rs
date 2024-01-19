@@ -70,7 +70,7 @@ impl KeyManager {
         data.extend(&hash[..4]);
 
         //AES-CBC encryption
-        let ciphertext = encrypt_pkcs7(&self.encry_key, &self.iv, &data)?;
+        let ciphertext = encrypt_pkcs7(&data, &self.encry_key, &self.iv)?;
 
         //base64 coding
         Ok(encode(&ciphertext))
