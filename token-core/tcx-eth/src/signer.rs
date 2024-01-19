@@ -63,7 +63,7 @@ impl MessageSigner<EthMessageInput, EthMessageOutput> for Keystore {
 }
 
 impl TryFrom<&EthTxInput> for Transaction {
-    type Error = failure::Error;
+    type Error = anyhow::Error;
 
     fn try_from(tx: &EthTxInput) -> std::result::Result<Self, Self::Error> {
         Ok(Transaction {

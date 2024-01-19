@@ -16,7 +16,7 @@ tcx-common = { path = "../tcx-common" }
 prost = "=0.11.2"
 bytes = "=1.4.0"
 blake2b-rs = "=0.2.0"
-failure = "=0.1.8"
+anyhow = { version = "=1.0.79", features = [] }
 byteorder = "=1.4.3"
 base32 = "=0.4.0"
 serde = { version = "=1.0.147", features = ["derive"] }
@@ -29,3 +29,4 @@ forest_address = "=0.3.2"
 forest_encoding = "=0.2.2"
 forest_cid = "=0.3.0"
 forest_crypto = "0.5.3"
+thiserror = "1.0.56"

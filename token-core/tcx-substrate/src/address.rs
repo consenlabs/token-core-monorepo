@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use sp_core::crypto::Ss58AddressFormat;
 use sp_core::crypto::Ss58Codec;
 use sp_core::sr25519::Public;
@@ -20,7 +21,7 @@ impl Address for SubstrateAddress {
             "POLKADOT" => sr_pk
                 .0
                 .to_ss58check_with_version(Ss58AddressFormat::custom(0)),
-            _ => return Err(failure::err_msg("wrong_coin_type")),
+            _ => return Err(anyhow!("wrong_coin_type")),
         };
 
         Ok(SubstrateAddress(address))
@@ -39,7 +40,7 @@ impl Address for SubstrateAddress {
 }
 
 impl FromStr for SubstrateAddress {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
         Ok(SubstrateAddress(s.to_string()))

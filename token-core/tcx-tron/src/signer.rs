@@ -7,7 +7,7 @@ use tcx_keystore::{
 use bitcoin_hashes::sha256::Hash;
 use bitcoin_hashes::Hash as TraitHash;
 
-use failure::format_err;
+use anyhow::anyhow;
 use tcx_common::{keccak256, utf8_or_hex_to_bytes, FromHex, ToHex};
 
 // http://jsoneditoronline.org/index.html?id=2b86a8503ba641bebed73f32b4ac9c42
@@ -56,7 +56,7 @@ impl TraitTransactionSigner<TronTxInput, TronTxOutput> for Keystore {
             Ok(r) => Ok(TronTxOutput {
                 signatures: vec![r.to_hex()],
             }),
-            Err(_e) => Err(format_err!("{}", "can not format error")),
+            Err(_e) => Err(anyhow!("{}", "can not format error")),
         }
     }
 }
@@ -93,7 +93,7 @@ mod tests {
     use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
 
     #[test]
-    fn test_sign_transaction() -> core::result::Result<(), failure::Error> {
+    fn test_sign_transaction() -> core::result::Result<(), anyhow::Error> {
         let tx = TronTxInput {
             raw_data: "0a0208312208b02efdc02638b61e40f083c3a7c92d5a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a1541a1e81654258bf14f63feb2e8d1380075d45b0dac1215410b3e84ec677b3e63c99affcadb91a6b4e086798f186470a0bfbfa7c92d".to_string()
         };

@@ -1,9 +1,9 @@
-use failure::Fail;
+use thiserror::Error;
 
-#[derive(Fail, Debug)]
+#[derive(Error, Debug)]
 pub enum CommonError {
-    #[fail(display = "invalid_address")]
+    #[error("invalid_address")]
     InvalidAddress,
-    #[fail(display = "invalid_address_checksum")]
+    #[error("invalid_address_checksum")]
     InvalidAddressChecksum,
 }

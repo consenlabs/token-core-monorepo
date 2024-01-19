@@ -1,6 +1,7 @@
 use crate::transaction::{Signature, SignedMessage, UnsignedMessage};
 use crate::utils::{digest, HashSize};
 use crate::Error;
+use anyhow::anyhow;
 use forest_address::Address;
 use forest_cid::Cid;
 use forest_encoding::Cbor;
@@ -74,7 +75,7 @@ impl TransactionSigner<UnsignedMessage, SignedMessage> for Keystore {
                 };
                 cid = forest_signed_msg
                     .cid()
-                    .map_err(|_e| format_err!("{}", "forest_message cid error"))?;
+                    .map_err(|_e| anyhow!("{}", "forest_message cid error"))?;
             }
             CurveType::BLS => {
                 signature_type = 2;

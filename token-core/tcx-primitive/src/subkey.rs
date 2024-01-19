@@ -8,6 +8,7 @@ use regex::Regex;
 use sp_core::crypto::Derive as SpDerive;
 use sp_core::crypto::DeriveJunction;
 
+use anyhow::anyhow;
 use sp_core::sr25519::Pair;
 use sp_core::Pair as TraitPair;
 
@@ -36,7 +37,7 @@ impl Derive for Sr25519PublicKey {
 fn is_valid_substrate_path(path: &str) -> Result<()> {
     let valid_path_regex = Regex::new(r"^(//[\w\d]+)+$")?;
     if !valid_path_regex.is_match(path) {
-        return Err(format_err!("substrate_path_invalid"));
+        return Err(anyhow!("substrate_path_invalid"));
     }
     Ok(())
 }
@@ -46,12 +47,12 @@ impl DeterministicPrivateKey for Sr25519PrivateKey {
     type PrivateKey = Sr25519PrivateKey;
 
     fn from_seed(seed: &[u8]) -> Result<Self> {
-        let pair = Pair::from_seed_slice(seed).map_err(|_| format_err!("invalid_seed"))?;
+        let pair = Pair::from_seed_slice(seed).map_err(|_| anyhow!("invalid_seed"))?;
         Ok(Sr25519PrivateKey(pair))
     }
 
     fn from_mnemonic(mnemonic: &str) -> Result<Self> {
-        let pair = Pair::from_phrase(mnemonic, None).map_err(|_| format_err!("mnemonic_error"))?;
+        let pair = Pair::from_phrase(mnemonic, None).map_err(|_| anyhow!("mnemonic_error"))?;
         Ok(Sr25519PrivateKey(pair.0))
     }
 

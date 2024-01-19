@@ -22,6 +22,9 @@ use crate::identity::Identity;
 use tcx_crypto::{Crypto, EncPair, Key};
 use tcx_primitive::{Derive, TypedDeterministicPublicKey, TypedPrivateKey, TypedPublicKey};
 
+use anyhow::anyhow;
+use thiserror::Error;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Store {
@@ -37,29 +40,29 @@ pub struct Store {
     pub meta: Metadata,
 }
 
-#[derive(Fail, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum Error {
-    #[fail(display = "mnemonic_invalid")]
+    #[error("mnemonic_invalid")]
     MnemonicInvalid,
-    #[fail(display = "mnemonic_word_invalid")]
+    #[error("mnemonic_word_invalid")]
     MnemonicWordInvalid,
-    #[fail(display = "mnemonic_length_invalid")]
+    #[error("mnemonic_length_invalid")]
     MnemonicLengthInvalid,
-    #[fail(display = "mnemonic_checksum_invalid")]
+    #[error("mnemonic_checksum_invalid")]
     MnemonicChecksumInvalid,
-    #[fail(display = "account_not_found")]
+    #[error("account_not_found")]
     AccountNotFound,
-    #[fail(display = "can_not_derive_key")]
+    #[error("can_not_derive_key")]
     CannotDeriveKey,
-    #[fail(display = "keystore_locked")]
+    #[error("keystore_locked")]
     KeystoreLocked,
-    #[fail(display = "invalid_version")]
+    #[error("invalid_version")]
     InvalidVersion,
-    #[fail(display = "pkstore_can_not_add_other_curve_account")]
+    #[error("pkstore_can_not_add_other_curve_account")]
     PkstoreCannotAddOtherCurveAccount,
 }
 
-fn transform_mnemonic_error(err: failure::Error) -> Error {
+fn transform_mnemonic_error(err: anyhow::Error) -> Error {
     let err = err.downcast::<bip39::ErrorKind>();
     if let Ok(err) = err {
         match err {
@@ -113,7 +116,7 @@ pub enum Source {
 }
 
 impl FromStr for Source {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(input: &str) -> std::result::Result<Source, Self::Err> {
         match input {
@@ -123,7 +126,7 @@ impl FromStr for Source {
             "SUBSTRATE_KEYSTORE" => Ok(Source::SubstrateKeystore),
             "MNEMONIC" => Ok(Source::Mnemonic),
             "NEW_MNEMONIC" => Ok(Source::NewMnemonic),
-            _ => Err(format_err!("unknown_source")),
+            _ => Err(anyhow!("unknown_source")),
         }
     }
 }
@@ -151,13 +154,13 @@ pub enum IdentityNetwork {
 }
 
 impl FromStr for IdentityNetwork {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(input: &str) -> std::result::Result<IdentityNetwork, Self::Err> {
         match input {
             "MAINNET" => Ok(IdentityNetwork::Mainnet),
             "TESTNET" => Ok(IdentityNetwork::Testnet),
-            _ => Err(format_err!("unknown_network")),
+            _ => Err(anyhow!("unknown_network")),
         }
     }
 }
@@ -528,6 +531,7 @@ pub(crate) mod tests {
         Address, HdKeystore, Keystore, Metadata, PrivateKeystore, SignatureParameters, Signer,
         Source,
     };
+    use anyhow::anyhow;
     use serde_json::Value;
     use std::str::FromStr;
 
@@ -559,7 +563,7 @@ pub(crate) mod tests {
     }
 
     impl FromStr for MockAddress {
-        type Err = failure::Error;
+        type Err = anyhow::Error;
         fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
             Ok(MockAddress(Vec::from_hex(s).unwrap()))
         }
@@ -1098,7 +1102,7 @@ pub(crate) mod tests {
         let err = transform_mnemonic_error(bip39::ErrorKind::InvalidKeysize(1).into());
         assert_eq!(err.to_string(), "mnemonic_invalid");
 
-        let err = transform_mnemonic_error(format_err!("test"));
+        let err = transform_mnemonic_error(anyhow!("test"));
         assert_eq!(err.to_string(), "mnemonic_invalid");
     }
 }

@@ -18,5 +18,4 @@ pub use crate::util::*;
 
 use std::result;
 
-extern crate failure;
-pub type Result<T> = result::Result<T, failure::Error>;
+pub type Result<T> = result::Result<T, anyhow::Error>;

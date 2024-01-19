@@ -4,6 +4,7 @@ use serde::{de, Deserialize, Deserializer, Serialize};
 use std::convert::TryInto;
 use tcx_keystore::{tcx_ensure, Address};
 
+use anyhow::anyhow;
 use byteorder::LittleEndian;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use regex::Regex;
@@ -14,16 +15,17 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tcx_common::{random_u8_32, FromHex};
 use tcx_constants::{CoinInfo, Result};
 use tcx_primitive::{PrivateKey, PublicKey, Sr25519PrivateKey, TypedPublicKey};
+use thiserror::Error;
 use xsalsa20poly1305::aead::{generic_array::GenericArray, Aead};
 use xsalsa20poly1305::{KeyInit, XSalsa20Poly1305};
 
-#[derive(Fail, Debug, PartialOrd, PartialEq)]
+#[derive(Error, Debug, PartialOrd, PartialEq)]
 pub enum Error {
-    #[fail(display = "invalid_keystore# {}", _0)]
+    #[error("invalid_keystore# {0}")]
     InvalidKeystore(String),
-    #[fail(display = "keystore_public_key_unmatch")]
+    #[error("keystore_public_key_unmatch")]
     KeystorePublicKeyUnmatch,
-    #[fail(display = "password_incorrect")]
+    #[error("password_incorrect")]
     PasswordIncorrect,
 }
 
@@ -132,7 +134,7 @@ fn scrypt_param_from_encoded(encoded: &[u8]) -> Result<(scrypt::Params, Vec<u8>)
 
     let inner_params = scrypt::Params::new(log_n as u8, r, p).expect("init scrypt params");
     if n != PJS_SCRYPT_N || p != PJS_SCRYPT_P || r != PJS_SCRYPT_R {
-        Err(format_err!("Pjs fixtures invalid params"))
+        Err(anyhow!("Pjs fixtures invalid params"))
     } else {
         Ok((inner_params, salt.to_vec()))
     }
@@ -199,14 +201,13 @@ impl SubstrateKeystore {
     fn decode_cipher_text(&self) -> Result<Vec<u8>> {
         let hex_re = Regex::new(r"^(?:0[xX])?[0-9a-fA-F]+$").unwrap();
         if self.encoding.version == "3" && !hex_re.is_match(&self.encoded) {
-            return base64::decode(&self.encoded).map_err(|_| format_err!("decode_cipher_text"));
+            return base64::decode(&self.encoded).map_err(|_| anyhow!("decode_cipher_text"));
         }
 
         if self.encoded.starts_with("0x") {
-            Vec::from_hex(&self.encoded[2..])
-                .map_err(|_| format_err!("decode_cipher_text decode hex"))
+            Vec::from_hex(&self.encoded[2..]).map_err(|_| anyhow!("decode_cipher_text decode hex"))
         } else {
-            Vec::from_hex(&self.encoded).map_err(|_| format_err!("decode_cipher_text decode hex"))
+            Vec::from_hex(&self.encoded).map_err(|_| anyhow!("decode_cipher_text decode hex"))
         }
     }
 
@@ -282,7 +283,7 @@ fn encrypt_content(password: &str, plaintext: &[u8]) -> Result<String> {
     let nonce = GenericArray::from_slice(&nonce_bytes);
     let encoded = cipher
         .encrypt(nonce, plaintext)
-        .map_err(|_e| format_err!("{}", "encrypt error"))?;
+        .map_err(|_e| anyhow!("{}", "encrypt error"))?;
 
     let scrypt_params_encoded = [
         salt,
@@ -317,7 +318,7 @@ pub fn decode_substrate_keystore(keystore: &SubstrateKeystore, password: &str) -
     let (secret_key_bytes, pub_key) = keystore.decrypt(password)?;
     tcx_ensure!(
         secret_key_bytes.len() == SECRET_KEY_LENGTH,
-        format_err!("secret from substrate keystore must be 64 bytes")
+        anyhow!("secret from substrate keystore must be 64 bytes")
     );
 
     let priv_key = Sr25519PrivateKey::from_slice(&secret_key_bytes)?;

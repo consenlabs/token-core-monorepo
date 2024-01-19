@@ -169,7 +169,7 @@ impl ScriptPubkey for BtcKinAddress {
 }
 
 impl FromStr for BtcKinAddress {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<BtcKinAddress> {
         // try bech32

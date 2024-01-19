@@ -48,7 +48,7 @@ impl Address for AtomAddress {
 }
 
 impl FromStr for AtomAddress {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Ok(AtomAddress(s.to_string()))

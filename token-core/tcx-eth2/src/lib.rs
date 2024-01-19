@@ -4,7 +4,8 @@ mod bls_to_execution_change;
 pub mod signer;
 pub mod transaction;
 use crate::transaction::sign_bls_to_execution_change_param::Key;
-use failure::Fail;
+
+use thiserror::Error;
 
 impl From<Key> for tcx_crypto::Key {
     fn from(key: Key) -> Self {
@@ -15,8 +16,8 @@ impl From<Key> for tcx_crypto::Key {
     }
 }
 
-#[derive(Fail, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum Error {
-    #[fail(display = "invalid_eth_address")]
+    #[error("invalid_eth_address")]
     InvalidEthAddress,
 }

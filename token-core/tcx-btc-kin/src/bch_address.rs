@@ -43,7 +43,7 @@ fn bch_to_legacy(addr: &str) -> Result<String> {
 }
 
 impl FromStr for BchAddress {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<BchAddress> {
         let legacy = bch_to_legacy(s)?;

@@ -6,7 +6,7 @@ pub mod api;
 
 use core::result;
 
-pub type Result<T> = result::Result<T, failure::Error>;
+pub type Result<T> = result::Result<T, anyhow::Error>;
 
 pub mod ethereum {
     use crate::address::EthAddress;

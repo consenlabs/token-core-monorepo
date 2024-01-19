@@ -66,7 +66,7 @@ pub fn fingerprint_from_mnemonic(mnemonic: &str) -> Result<String> {
     fingerprint_from_seed(&seed)
 }
 
-pub fn mnemonic_to_seed(mnemonic: &str) -> std::result::Result<Seed, Error> {
+pub fn mnemonic_to_seed(mnemonic: &str) -> Result<Seed> {
     let m = Mnemonic::from_phrase(mnemonic, Language::English).map_err(transform_mnemonic_error)?;
     Ok(Seed::new(&m, ""))
 }

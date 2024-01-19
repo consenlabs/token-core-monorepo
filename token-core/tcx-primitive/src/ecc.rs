@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use serde::Serialize;
 use tcx_common::{FromHex, ToHex};
 
@@ -15,57 +16,58 @@ use crate::ed25519_bip32::{Ed25519DeterministicPrivateKey, Ed25519DeterministicP
 use crate::sr25519::{Sr25519PrivateKey, Sr25519PublicKey};
 use sp_core::Pair;
 use tcx_constants::CurveType;
+use thiserror::Error;
 
-#[derive(Fail, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum KeyError {
-    #[fail(display = "invalid_child_number_format")]
+    #[error("invalid_child_number_format")]
     InvalidChildNumberFormat,
-    #[fail(display = "invalid_derivation_path_format")]
+    #[error("invalid_derivation_path_format")]
     InvalidDerivationPathFormat,
-    #[fail(display = "invalid_signature")]
+    #[error("invalid_signature")]
     InvalidSignature,
-    #[fail(display = "invalid_child_number")]
+    #[error("invalid_child_number")]
     InvalidChildNumber,
-    #[fail(display = "cannot_derive_from_hardened_key")]
+    #[error("cannot_derive_from_hardened_key")]
     CannotDeriveFromHardenedKey,
     // todo: why use this key?
-    #[fail(display = "cannot_derive_key")]
+    #[error("cannot_derive_key")]
     InvalidBase58,
-    #[fail(display = "invalid_private_key")]
+    #[error("invalid_private_key")]
     InvalidPrivateKey,
-    #[fail(display = "invalid_public_key")]
+    #[error("invalid_public_key")]
     InvalidPublicKey,
-    #[fail(display = "invalid_message")]
+    #[error("invalid_message")]
     InvalidMessage,
-    #[fail(display = "invalid_recovery_id")]
+    #[error("invalid_recovery_id")]
     InvalidRecoveryId,
-    #[fail(display = "invalid_tweak")]
+    #[error("invalid_tweak")]
     InvalidTweak,
-    #[fail(display = "not_enough_memory")]
+    #[error("not_enough_memory")]
     NotEnoughMemory,
-    #[fail(display = "invalid_curve_type")]
+    #[error("invalid_curve_type")]
     InvalidCurveType,
-    #[fail(display = "invalid_sr25519_key")]
+    #[error("invalid_sr25519_key")]
     InvalidSR25519Key,
-    #[fail(display = "invalid_ed25519_key")]
+    #[error("invalid_ed25519_key")]
     InvalidEd25519Key,
-    #[fail(display = "unsupport_ed25519_pubkey_derivation")]
+    #[error("unsupport_ed25519_pubkey_derivation")]
     UnsupportEd25519PubkeyDerivation,
-    #[fail(display = "unsupport_normal_derivation")]
+    #[error("unsupport_normal_derivation")]
     UnsupportNormalDerivation,
-    #[fail(display = "not_implement")]
+    #[error("not_implement")]
     NotImplement,
-    #[fail(display = "secp256k1_error")]
+    #[error("secp256k1_error")]
     Secp256k1,
-    #[fail(display = "unknown_version")]
+    #[error("unknown_version")]
     UnknownVersion,
-    #[fail(display = "wrong_extended_key_length")]
+    #[error("wrong_extended_key_length")]
     WrongExtendedKeyLength,
-    #[fail(display = "base58_encoding_error")]
+    #[error("base58_encoding_error")]
     Base58,
-    #[fail(display = "hexadecimal_decoding_error")]
+    #[error("hexadecimal_decoding_error")]
     Hex,
-    #[fail(display = "invalid_bls_key")]
+    #[error("invalid_bls_key")]
     InvalidBlsKey,
 }
 
@@ -243,7 +245,7 @@ impl TypedPublicKey {
     pub fn as_secp256k1(&self) -> Result<&Secp256k1PublicKey> {
         match self {
             TypedPublicKey::Secp256k1(pk) => Ok(pk),
-            _ => Err(format_err!("not support")),
+            _ => Err(anyhow!("not support")),
         }
     }
 }
@@ -285,7 +287,7 @@ impl TypedDeterministicPublicKey {
     pub fn fingerprint(&self) -> Result<Vec<u8>> {
         match self {
             TypedDeterministicPublicKey::Bip32Sepc256k1(epk) => Ok(epk.fingerprint()),
-            _ => Err(format_err!("bls or ed25519 not support fingerprint")),
+            _ => Err(anyhow!("bls or ed25519 not support fingerprint")),
         }
     }
 

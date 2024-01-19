@@ -371,7 +371,7 @@ impl KdfParams for KdfType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use failure::_core::str::FromStr;
+    use std::str::FromStr;
     use tcx_common::random_u8_64;
     use tcx_constants::TEST_PASSWORD;
 

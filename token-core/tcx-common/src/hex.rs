@@ -1,5 +1,5 @@
 use super::Result;
-use failure::format_err;
+use anyhow::anyhow;
 
 pub trait ToHex {
     fn to_hex(&self) -> String;
@@ -48,7 +48,7 @@ impl ToHex for [u8] {
 
 impl FromHex for Vec<u8> {
     fn from_hex<T: AsRef<[u8]>>(value: T) -> Result<Self> {
-        hex::decode(value).map_err(|e| format_err!("{}", e.to_string()))
+        hex::decode(value).map_err(|e| anyhow!("{}", e.to_string()))
     }
 }
 

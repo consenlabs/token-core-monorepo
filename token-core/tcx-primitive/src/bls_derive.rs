@@ -6,6 +6,7 @@ use super::Result;
 use crate::bls::{BLSPrivateKey, BLSPublicKey};
 use crate::ecc::KeyError;
 use crate::{Derive, DeterministicPrivateKey, DeterministicPublicKey, PrivateKey};
+use anyhow::anyhow;
 use num_traits::{FromPrimitive, Num, Pow};
 use sha2::digest::FixedOutput;
 use sha2::{Digest, Sha256};
@@ -48,7 +49,7 @@ impl DeterministicPrivateKey for BLSDeterministicPrivateKey {
     fn from_seed(seed: &[u8]) -> Result<Self> {
         let master_sk = derive_master_sk(seed);
         if master_sk.is_err() {
-            return Err(failure::err_msg("invalid seed"));
+            return Err(anyhow!("invalid seed"));
         }
 
         Ok(BLSDeterministicPrivateKey(master_sk.unwrap()))
@@ -178,9 +179,7 @@ pub fn derive_child(parent_sk: BigUint, index: BigUint) -> BigUint {
 
 pub fn derive_master_sk(seed: &[u8]) -> Result<BigUint> {
     if seed.len() < 16 {
-        return Err(failure::err_msg(
-            "seed must be greater than or equal to 16 bytes",
-        ));
+        return Err(anyhow!("seed must be greater than or equal to 16 bytes",));
     }
 
     Ok(hkdf_mod_r(seed))

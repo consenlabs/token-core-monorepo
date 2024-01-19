@@ -6,25 +6,25 @@ pub use crypto::{Crypto, EncPair, KdfParams, Key, Pbkdf2Params, SCryptParams};
 use parking_lot::RwLock;
 
 #[macro_use]
-extern crate failure;
-#[macro_use]
 extern crate lazy_static;
 
-pub type Result<T> = result::Result<T, failure::Error>;
+pub type Result<T> = result::Result<T, anyhow::Error>;
 
-#[derive(Fail, Debug, PartialOrd, PartialEq)]
+use thiserror::Error;
+
+#[derive(Error, Debug, PartialOrd, PartialEq)]
 pub enum Error {
-    #[fail(display = "kdf_params_invalid")]
+    #[error("kdf_params_invalid")]
     KdfParamsInvalid,
-    #[fail(display = "password_incorrect")]
+    #[error("password_incorrect")]
     PasswordIncorrect,
-    #[fail(display = "derived_key_not_matched")]
+    #[error("derived_key_not_matched")]
     DerivedKeyNotMatched,
-    #[fail(display = "invalid_key_iv_length")]
+    #[error("invalid_key_iv_length")]
     InvalidKeyIvLength,
-    #[fail(display = "invalid_ciphertext")]
+    #[error("invalid_ciphertext")]
     InvalidCiphertext,
-    #[fail(display = "cached_dk_feature_not_support")]
+    #[error("cached_dk_feature_not_support")]
     CachedDkFeatureNotSupport,
 }
 

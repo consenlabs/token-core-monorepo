@@ -32,7 +32,7 @@ impl Address for TronAddress {
 }
 
 impl FromStr for TronAddress {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Ok(TronAddress(s.to_string()))

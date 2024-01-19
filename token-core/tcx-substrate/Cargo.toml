@@ -24,7 +24,7 @@ base58 = "=0.2.0"
 codec = { package = "parity-scale-codec", default-features = false, features = ["derive"] }
 rand = "=0.8.5"
 
-failure = "=0.1.8"
+anyhow = { version = "=1.0.79", features = [] }
 #tweetnacl = "0.2.1"
 xsalsa20poly1305 = "=0.9.0"
 serde_json = "=1.0.89"
@@ -33,6 +33,7 @@ base64 = "=0.13.1"
 scrypt = { version = "=0.10.0", default-features = false }
 regex = "=1.9.3"
 schnorrkel = "=0.9.1"
+thiserror = "1.0.56"
 
 
 [dev-dependencies]

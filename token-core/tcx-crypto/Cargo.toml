@@ -22,13 +22,14 @@ cbc = "=0.1.2"
 pbkdf2 = "=0.11.0"
 bitcoin_hashes = "=0.11.0"
 crypto-mac = "=0.11.1"
-failure = "=0.1.8"
+anyhow = { version = "=1.0.79", features = [] }
 secp256k1 = {version ="=0.24.3", features = ["rand", "recovery"] }
 hex = "=0.4.3"
 lazy_static = "=1.4.0"
 regex = "=1.9.3"
 
 parking_lot = "=0.12.1"
+thiserror = "1.0.56"
 
 [features]
 default = []

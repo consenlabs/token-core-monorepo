@@ -35,7 +35,7 @@ impl Address for EosAddress {
 }
 
 impl FromStr for EosAddress {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Ok(EosAddress {})
     }

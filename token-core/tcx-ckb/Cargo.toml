@@ -16,10 +16,11 @@ tcx-common = { path = "../tcx-common"}
 prost = "=0.11.2"
 bytes = "=1.4.0"
 blake2b-rs = "=0.2.0"
-failure = "=0.1.8"
+anyhow = { version = "=1.0.79", features = [] }
 byteorder = "=1.4.3"
 bech32 = "=0.9.1"
 
 hex = "=0.4.3"
 lazy_static = "=1.4.0"
+thiserror = "1.0.56"
 

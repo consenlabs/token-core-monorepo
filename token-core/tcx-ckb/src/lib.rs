@@ -5,45 +5,44 @@ mod signer;
 mod transaction;
 mod transaction_helper;
 
-use failure::Fail;
-
 pub use address::CkbAddress;
 pub use serializer::Serializer;
+use thiserror::Error;
 pub use transaction::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
 
-#[derive(Fail, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum Error {
-    #[fail(display = "invalid_output_point")]
+    #[error("invalid_output_point")]
     InvalidOutputPoint,
 
-    #[fail(display = "invalid_outputs_data_length")]
+    #[error("invalid_outputs_data_length")]
     InvalidOutputsDataLength,
 
-    #[fail(display = "required_witness")]
+    #[error("required_witness")]
     RequiredWitness,
 
-    #[fail(display = "invalid_input_cells")]
+    #[error("invalid_input_cells")]
     InvalidInputCells,
 
-    #[fail(display = "required_output_data")]
+    #[error("required_output_data")]
     RequiredOutputsData,
 
-    #[fail(display = "witness_group_empty")]
+    #[error("witness_group_empty")]
     WitnessGroupEmpty,
 
-    #[fail(display = "witness_empty")]
+    #[error("witness_empty")]
     WitnessEmpty,
 
-    #[fail(display = "invalid_tx_hash")]
+    #[error("invalid_tx_hash")]
     InvalidTxHash,
 
-    #[fail(display = "invalid_hash_type")]
+    #[error("invalid_hash_type")]
     InvalidHashType,
 
-    #[fail(display = "cell_input_not_cached")]
+    #[error("cell_input_not_cached")]
     CellInputNotCached,
 
-    #[fail(display = "invalid_hex_value")]
+    #[error("invalid_hex_value")]
     InvalidHexValue,
 }
 pub mod nervos {

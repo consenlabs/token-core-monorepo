@@ -1,3 +1,4 @@
+use anyhow::anyhow;
 use bytes::BytesMut;
 use prost::Message;
 use serde::{Deserialize, Serialize};
@@ -131,7 +132,7 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
             return ret;
         }
     } else {
-        Err(format_err!("invalid version in keystore"))
+        Err(anyhow!("invalid version in keystore"))
     }
 }
 

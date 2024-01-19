@@ -5,6 +5,7 @@ use std::ffi::{CStr, CString};
 
 use std::os::raw::c_char;
 
+use anyhow::anyhow;
 use handler::{backup, sign_bls_to_execution_change};
 use prost::Message;
 
@@ -15,10 +16,10 @@ use crate::api::{GeneralResult, TcxAction};
 pub mod error_handling;
 pub mod handler;
 pub mod migration;
-use failure::Error;
+use anyhow::Error;
 use std::result;
 
-use crate::error_handling::{landingpad, LAST_BACKTRACE, LAST_ERROR};
+use crate::error_handling::{landingpad, LAST_ERROR};
 use crate::handler::{
     create_keystore, decrypt_data_from_ipfs, delete_keystore, derive_accounts, derive_sub_accounts,
     encode_message, encrypt_data_to_ipfs, exists_json, exists_mnemonic, exists_private_key,
@@ -38,8 +39,6 @@ use tcx_common::{FromHex, ToHex};
 
 extern crate serde_json;
 
-#[macro_use]
-extern crate failure;
 #[macro_use]
 extern crate lazy_static;
 
@@ -120,7 +119,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "sign_bls_to_execution_change" => {
             landingpad(|| sign_bls_to_execution_change(&action.param.unwrap().value))
         }
-        _ => landingpad(|| Err(format_err!("unsupported_method"))),
+        _ => landingpad(|| Err(anyhow!("unsupported_method"))),
     };
     match reply {
         Ok(reply) => {
@@ -136,9 +135,6 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
 #[no_mangle]
 pub unsafe extern "C" fn clear_err() {
     LAST_ERROR.with(|e| {
-        *e.borrow_mut() = None;
-    });
-    LAST_BACKTRACE.with(|e| {
         *e.borrow_mut() = None;
     });
 }
@@ -351,7 +347,7 @@ mod tests {
         if !err.is_empty() {
             let err_bytes = Vec::from_hex(err).unwrap();
             let err_ret: GeneralResult = GeneralResult::decode(err_bytes.as_slice()).unwrap();
-            Err(format_err!("{}", err_ret.error))
+            Err(anyhow!("{}", err_ret.error))
         } else {
             Ok(Vec::from_hex(ret_hex).unwrap())
         }

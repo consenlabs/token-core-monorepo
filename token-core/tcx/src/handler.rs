@@ -24,6 +24,7 @@ use tcx_keystore::{
 };
 use tcx_keystore::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
 
+use anyhow::anyhow;
 use tcx_crypto::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
 use tcx_filecoin::KeyInfo;
 
@@ -159,7 +160,7 @@ fn import_private_key_internal(
     }
 
     if founded_id.is_some() && !param.overwrite {
-        return Err(format_err!("{}", "address_already_exist"));
+        return Err(anyhow!("{}", "address_already_exist"));
     }
 
     let decoded_ret = decode_private_key(&param.private_key)?;
@@ -170,7 +171,7 @@ fn import_private_key_internal(
             param.network.as_str()
         };
         if decoded_ret.network != expected_network {
-            return Err(format_err!("{}", "private_key_network_mismatch"));
+            return Err(anyhow!("{}", "private_key_network_mismatch"));
         }
     }
 
@@ -268,7 +269,7 @@ fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
         } else {
             let data_len = private_key
                 .from_base58()
-                .map_err(|_| format_err!("decode private from base58 error"))?
+                .map_err(|_| anyhow!("decode private from base58 error"))?
                 .len();
             let (k1_pk, ver) = Secp256k1PrivateKey::from_ss58check_with_version(private_key)?;
             private_key_bytes = k1_pk.0.to_bytes();
@@ -298,12 +299,7 @@ fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
                     network = "MAINNET".to_string();
                     chain_types.push("LITECOIN".to_string());
                 }
-                _ => {
-                    return Err(format_err!(
-                        "unknow ver header when parse wif, ver: {}",
-                        ver[0]
-                    ))
-                }
+                _ => return Err(anyhow!("unknow ver header when parse wif, ver: {}", ver[0])),
             }
         }
     }
@@ -523,7 +519,7 @@ pub(crate) fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
     }
 
     if founded_id.is_some() && !param.overwrite {
-        return Err(format_err!("{}", "address_already_exist"));
+        return Err(anyhow!("{}", "address_already_exist"));
     }
 
     let meta = Metadata {
@@ -569,7 +565,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
     let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
@@ -621,14 +617,14 @@ pub(crate) fn export_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
     let guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
 
     tcx_ensure!(
         guard.keystore().derivable(),
-        format_err!("{}", "private_keystore_cannot_export_mnemonic")
+        anyhow!("{}", "private_keystore_cannot_export_mnemonic")
     );
 
     let export_result = ExportMnemonicResult {
@@ -657,7 +653,7 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
     let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
@@ -698,7 +694,7 @@ pub(crate) fn verify_password(data: &[u8]) -> Result<Vec<u8>> {
     let map = KEYSTORE_MAP.read();
     let keystore: &Keystore = match map.get(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
     if keystore.verify_password(&param.password) {
@@ -708,7 +704,7 @@ pub(crate) fn verify_password(data: &[u8]) -> Result<Vec<u8>> {
         };
         encode_message(rsp)
     } else {
-        Err(format_err!("{}", "password_incorrect"))
+        Err(anyhow!("{}", "password_incorrect"))
     }
 }
 
@@ -717,7 +713,7 @@ pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let mut map = KEYSTORE_MAP.write();
     let keystore: &Keystore = match map.get(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
     if keystore.verify_password(&param.password) {
@@ -730,7 +726,7 @@ pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
         };
         encode_message(rsp)
     } else {
-        Err(format_err!("{}", "password_incorrect"))
+        Err(anyhow!("{}", "password_incorrect"))
     }
 }
 
@@ -759,7 +755,7 @@ pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
     let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
@@ -774,7 +770,7 @@ pub(crate) fn sign_hashes(data: &[u8]) -> Result<Vec<u8>> {
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
     let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
@@ -805,7 +801,7 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
     let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
@@ -851,7 +847,7 @@ pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
     let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
@@ -881,7 +877,7 @@ pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
     let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
@@ -898,7 +894,7 @@ pub(crate) fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
     > = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
     let dk = keystore.get_derived_key(&param.password)?;
@@ -954,7 +950,7 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
         ret.identified_network = "".to_string();
         return encode_message(ret);
     } else {
-        return Err(format_err!("unsupport_chain"));
+        return Err(anyhow!("unsupport_chain"));
     }
 }
 
@@ -966,7 +962,7 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
 
         let keystore: &Keystore = match map.get(&param.id) {
             Some(keystore) => Ok(keystore),
-            _ => Err(format_err!("{}", "wallet_not_found")),
+            _ => Err(anyhow!("{}", "wallet_not_found")),
         }?;
 
         // !!! Warning !!! HDKeystore only can export raw sr25519 key,
@@ -975,7 +971,7 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
         if ["POLKADOT".to_string(), "KUSAMA".to_string()].contains(&param.chain_type)
             && keystore.derivable()
         {
-            return Err(format_err!("{}", "only_support_sr25519_keystore"));
+            return Err(anyhow!("{}", "only_support_sr25519_keystore"));
         }
         meta = keystore.meta();
     }
@@ -1017,7 +1013,7 @@ pub(crate) fn export_json(data: &[u8]) -> Result<Vec<u8>> {
             let keystore = LegacyKeystore::new_v3(&private_key_bytes, &param.password)?;
             serde_json::to_string(&keystore)?
         }
-        _ => return Err(format_err!("unsupported_chain")),
+        _ => return Err(anyhow!("unsupported_chain")),
     };
 
     let ret = ExportJsonResult {
@@ -1039,7 +1035,7 @@ pub(crate) fn exists_json(data: &[u8]) -> Result<Vec<u8>> {
         let (sec_key_bytes, _) = parse_substrate_result;
         sec_key_bytes.to_hex()
     } else {
-        return Err(format_err!("decrypt_json_error"));
+        return Err(anyhow!("decrypt_json_error"));
     };
 
     let exists_param = ExistsPrivateKeyParam {
@@ -1055,7 +1051,7 @@ pub(crate) fn backup(data: &[u8]) -> Result<Vec<u8>> {
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
     let original = keystore.backup(&param.password)?;
@@ -1075,7 +1071,7 @@ pub(crate) fn backup(data: &[u8]) -> Result<Vec<u8>> {
     if fingerprint.eq_ignore_ascii_case(keystore.fingerprint()) {
         encode_message(BackupResult { original })
     } else {
-        Err(format_err!("fingerprint_not_match"))
+        Err(anyhow!("fingerprint_not_match"))
     }
 }
 
@@ -1084,7 +1080,7 @@ pub(crate) fn unlock_then_crash(data: &[u8]) -> Result<Vec<u8>> {
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
     let _guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
@@ -1096,7 +1092,7 @@ pub(crate) fn encrypt_data_to_ipfs(data: &[u8]) -> Result<Vec<u8>> {
 
     let map = KEYSTORE_MAP.read();
     let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
-        return Err(failure::format_err!("identity not found"));
+        return Err(anyhow::anyhow!("identity not found"));
     };
 
     let cipher_text = identity_ks.identity().encrypt_ipfs(&param.content)?;
@@ -1114,7 +1110,7 @@ pub(crate) fn decrypt_data_from_ipfs(data: &[u8]) -> Result<Vec<u8>> {
 
     let map = KEYSTORE_MAP.read();
     let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
-        return Err(failure::format_err!("identity not found"));
+        return Err(anyhow::anyhow!("identity not found"));
     };
 
     let content = identity_ks.identity().decrypt_ipfs(&param.encrypted)?;
@@ -1133,7 +1129,7 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
 
     let map = KEYSTORE_MAP.read();
     let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
-            return Err(failure::format_err!("identity not found"));
+            return Err(anyhow::anyhow!("identity not found"));
         };
 
     let key = tcx_crypto::Key::Password(param.password);
@@ -1215,7 +1211,7 @@ pub(crate) fn sign_bls_to_execution_change(data: &[u8]) -> Result<Vec<u8>> {
     let mut map = KEYSTORE_MAP.write();
     let keystore: &mut Keystore = match map.get_mut(&param.id) {
         Some(keystore) => Ok(keystore),
-        _ => Err(format_err!("{}", "wallet_not_found")),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
     let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
     let result: SignBlsToExecutionChangeResult =

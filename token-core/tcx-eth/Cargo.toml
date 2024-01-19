@@ -11,7 +11,7 @@ tcx-primitive = {path = "../tcx-primitive"}
 tcx-constants = {path = "../tcx-constants"}
 tcx-common = {path = "../tcx-common"}
 
-failure = "=0.1.8"
+anyhow = { version = "=1.0.79", features = [] }
 hex = "=0.4.3"
 ethereum-types = "=0.14.0"
 rlp = "=0.5.2"

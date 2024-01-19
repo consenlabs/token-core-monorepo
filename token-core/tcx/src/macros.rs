@@ -5,6 +5,7 @@ use tcx_keystore::{
     Address, Keystore, MessageSigner, PublicKeyEncoder, SignatureParameters, TransactionSigner,
 };
 
+use anyhow::anyhow;
 use tcx_primitive::TypedPublicKey;
 
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -20,8 +21,8 @@ impl TransactionSigner<MockTransactionInput, MockTransactionOutput> for Keystore
         &mut self,
         _sign_param: &SignatureParameters,
         _input: &MockTransactionInput,
-    ) -> std::result::Result<MockTransactionOutput, failure::Error> {
-        Err(format_err!("unsupported_chain"))
+    ) -> std::result::Result<MockTransactionOutput, anyhow::Error> {
+        Err(anyhow!("unsupported_chain"))
     }
 }
 
@@ -39,7 +40,7 @@ impl MessageSigner<MockMessageInput, MockMessageOutput> for Keystore {
         _sign_param: &SignatureParameters,
         _message: &MockMessageInput,
     ) -> tcx_keystore::Result<MockMessageOutput> {
-        Err(format_err!("unsupported_chain"))
+        Err(anyhow!("unsupported_chain"))
     }
 }
 
@@ -51,7 +52,7 @@ impl Address for MockAddress {
         _public_key: &TypedPublicKey,
         _coin: &CoinInfo,
     ) -> tcx_keystore::Result<Self> {
-        Err(format_err!("unsupported_chain"))
+        Err(anyhow!("unsupported_chain"))
     }
 
     fn is_valid(_address: &str, _coin: &CoinInfo) -> bool {
@@ -60,10 +61,10 @@ impl Address for MockAddress {
 }
 
 impl FromStr for MockAddress {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(_s: &str) -> Result<Self, Self::Err> {
-        Err(format_err!("unsupported_chain"))
+        Err(anyhow!("unsupported_chain"))
     }
 }
 
@@ -78,7 +79,7 @@ pub struct MockPublicKeyEncoder();
 
 impl PublicKeyEncoder for MockPublicKeyEncoder {
     fn encode(_public_key: &TypedPublicKey, _coin_info: &CoinInfo) -> tcx_keystore::Result<String> {
-        Err(format_err!("unsupported_chain"))
+        Err(anyhow!("unsupported_chain"))
     }
 }
 
@@ -88,7 +89,7 @@ macro_rules! use_chains {
         use crate::macros::{MockTransactionInput, MockTransactionOutput, MockAddress, MockPublicKeyEncoder, MockMessageInput, MockMessageOutput};
 
         #[allow(dead_code)]
-        fn sign_transaction_internal(params: &SignParam, keystore: &mut Keystore) -> std::result::Result<Vec<u8>, failure::Error> {
+        fn sign_transaction_internal(params: &SignParam, keystore: &mut Keystore) -> std::result::Result<Vec<u8>, anyhow::Error> {
             type TransactionInput = MockTransactionInput;
             type TransactionOutput = MockTransactionOutput;
 
@@ -123,7 +124,7 @@ macro_rules! use_chains {
                 }
             })*
 
-            Err(format_err!("unsupported_chain"))
+            Err(anyhow!("unsupported_chain"))
         }
 
         #[allow(dead_code)]
@@ -138,7 +139,7 @@ macro_rules! use_chains {
                 }
             })*
 
-            Err(format_err!("unsupported_chain"))
+            Err(anyhow!("unsupported_chain"))
         }
 
         #[allow(dead_code)]
@@ -153,7 +154,7 @@ macro_rules! use_chains {
                 }
             })*
 
-            Err(format_err!("unsupported_chain"))
+            Err(anyhow!("unsupported_chain"))
         }
 
         fn sign_message_internal(params:&SignParam, keystore: &mut Keystore) -> Result<Vec<u8>> {
@@ -188,7 +189,7 @@ macro_rules! use_chains {
                 }
             })*
 
-            Err(format_err!("unsupported_chain"))
+            Err(anyhow!("unsupported_chain"))
         }
 
         fn encode_public_key_internal(public_key: &TypedPublicKey, coin_info:&CoinInfo,) -> Result<String> {

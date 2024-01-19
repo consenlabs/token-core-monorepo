@@ -16,8 +16,6 @@ mod macros {
 
 use core::result;
 
-#[macro_use]
-extern crate failure;
 extern crate regex;
 
 pub mod identity;
@@ -32,27 +30,29 @@ pub use keystore::{
 
 pub use signer::{HashSigner, MessageSigner, SignatureParameters, Signer, TransactionSigner};
 
-pub type Result<T> = result::Result<T, failure::Error>;
+use thiserror::Error;
 
-#[derive(Fail, Debug, PartialOrd, PartialEq)]
+pub type Result<T> = result::Result<T, anyhow::Error>;
+
+#[derive(Error, Debug, PartialOrd, PartialEq)]
 pub enum Error {
-    #[fail(display = "network_params_invalid")]
+    #[error("network_params_invalid")]
     NetworkParamsInvalid,
-    #[fail(display = "unsupported_chain")]
+    #[error("unsupported_chain")]
     WalletInvalidType,
-    #[fail(display = "wallet_not_found")]
+    #[error("wallet_not_found")]
     WalletNotFound,
-    #[fail(display = "keystore_file_not_exist")]
+    #[error("keystore_file_not_exist")]
     KeystoreFileNotExist,
-    #[fail(display = "password_incorrect")]
+    #[error("password_incorrect")]
     WalletInvalidPassword,
-    #[fail(display = "invalid_mnemonic")]
+    #[error("invalid_mnemonic")]
     InvalidMnemonic,
-    #[fail(display = "unsupport_encryption_data_version")]
+    #[error("unsupport_encryption_data_version")]
     UnsupportEncryptionDataVersion,
-    #[fail(display = "invalid_encryption_data_signature")]
+    #[error("invalid_encryption_data_signature")]
     InvalidEncryptionDataSignature,
-    #[fail(display = "invalid_encryption_data")]
+    #[error("invalid_encryption_data")]
     InvalidEncryptionData,
 }
 

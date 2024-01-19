@@ -68,7 +68,7 @@ impl Address for CkbAddress {
 }
 
 impl FromStr for CkbAddress {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Ok(CkbAddress(s.to_string()))

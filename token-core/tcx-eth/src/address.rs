@@ -1,6 +1,6 @@
 use crate::Result;
+use anyhow::anyhow;
 use ethereum_types::H160;
-use failure::format_err;
 use regex::Regex;
 use std::str::FromStr;
 use tcx_common::{keccak256, FromHex, ToHex};
@@ -63,10 +63,10 @@ impl ToString for EthAddress {
 }
 
 impl FromStr for EthAddress {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         if !is_valid_address(s) {
-            return Err(format_err!("invalid_address"));
+            return Err(anyhow!("invalid_address"));
         }
 
         let bytes = Vec::from_hex(&s[2..])?;

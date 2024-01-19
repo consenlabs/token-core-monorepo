@@ -1,6 +1,6 @@
 use super::Result;
+use anyhow::anyhow;
 use ethereum_types::{Address, H256, U256, U64};
-use failure::format_err;
 use rlp::RlpStream;
 use secp256k1::{ecdsa::RecoverableSignature, ecdsa::RecoveryId, Message, PublicKey};
 use std::str::FromStr;
@@ -25,7 +25,7 @@ impl Default for TransactionType {
 }
 
 impl FromStr for TransactionType {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(tx_type: &str) -> Result<Self> {
         match tx_type {
@@ -81,7 +81,7 @@ impl From<&Signature> for [u8; 65] {
 impl Signature {
     pub fn from_slice(data: &[u8]) -> Result<Self> {
         if data.len() != 65 {
-            return Err(format_err!("Invalid signature length"));
+            return Err(anyhow!("Invalid signature length"));
         }
 
         let v = if data[64] >= 27 {

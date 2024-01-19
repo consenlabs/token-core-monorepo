@@ -10,9 +10,7 @@ pub mod signer;
 pub mod transaction;
 
 use core::result;
-
-#[macro_use]
-extern crate failure;
+use thiserror::Error;
 
 extern crate num_bigint;
 extern crate num_integer;
@@ -22,7 +20,7 @@ extern crate num_traits;
 extern crate tcx_keystore;
 extern crate core;
 
-pub type Result<T> = result::Result<T, failure::Error>;
+pub type Result<T> = result::Result<T, anyhow::Error>;
 
 pub use address::{BtcKinAddress, WIFDisplay};
 pub use bch_address::BchAddress;
@@ -36,25 +34,25 @@ pub const LITECOIN: &str = "LITECOIN";
 
 pub const OMNI: &str = "OMNI";
 
-#[derive(Fail, Debug)]
+#[derive(Error, Debug)]
 pub enum Error {
-    #[fail(display = "decrypt_xpub_error")]
+    #[error("decrypt_xpub_error")]
     DecryptXPubError,
-    #[fail(display = "unsupported_chain")]
+    #[error("unsupported_chain")]
     UnsupportedChain,
-    #[fail(display = "missing_network")]
+    #[error("missing_network")]
     MissingNetwork,
-    #[fail(display = "invalid_utxo")]
+    #[error("invalid_utxo")]
     InvalidUtxo,
-    #[fail(display = "invalid_address")]
+    #[error("invalid_address")]
     InvalidAddress,
-    #[fail(display = "bch_convert_to_legacy_address_failed# address: {}", _0)]
+    #[error("bch_convert_to_legacy_address_failed# address: {0}")]
     ConvertToLegacyAddressFailed(String),
-    #[fail(display = "bch_convert_to_cash_address_failed# address: {}", _0)]
+    #[error("bch_convert_to_cash_address_failed# address: {0}")]
     ConvertToCashAddressFailed(String),
-    #[fail(display = "construct_bch_address_failed# address: {}", _0)]
+    #[error("construct_bch_address_failed# address: {0}")]
     ConstructBchAddressFailed(String),
-    #[fail(display = "unsupported_taproot")]
+    #[error("unsupported_taproot")]
     UnsupportedTaproot,
 }
 

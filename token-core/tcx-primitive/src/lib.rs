@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate failure;
-
 mod bip32;
 mod bls;
 mod bls_derive;
@@ -15,7 +12,7 @@ mod sr25519;
 mod subkey;
 use core::result;
 
-pub type Result<T> = result::Result<T, failure::Error>;
+pub type Result<T> = result::Result<T, anyhow::Error>;
 
 use tcx_constants::CurveType;
 

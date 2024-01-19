@@ -72,7 +72,7 @@ impl ToString for TezosAddress {
 }
 
 impl FromStr for TezosAddress {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
     fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         Ok(TezosAddress(s.to_string()))
     }

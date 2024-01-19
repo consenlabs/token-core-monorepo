@@ -3,6 +3,7 @@ use crate::Result;
 
 use bitcoin::util::bip32::ChildNumber;
 
+use anyhow::ensure;
 use std::convert::TryInto;
 use std::str::FromStr;
 
@@ -53,7 +54,7 @@ impl DeriveJunction {
 }
 
 impl FromStr for DeriveJunction {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(inp: &str) -> Result<Self> {
         Ok(
@@ -74,7 +75,7 @@ impl FromStr for DeriveJunction {
 }
 
 impl TryInto<ChildNumber> for DeriveJunction {
-    type Error = failure::Error;
+    type Error = anyhow::Error;
 
     fn try_into(self) -> Result<ChildNumber> {
         if let Ok(num) = match self {
@@ -92,7 +93,7 @@ impl TryInto<ChildNumber> for DeriveJunction {
 pub struct DerivePath(Vec<DeriveJunction>);
 
 impl FromStr for DerivePath {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(path: &str) -> Result<Self> {
         let mut parts = path.split('/').peekable();
@@ -233,13 +234,13 @@ mod tests {
             DeriveJunction::Hard(2147483648),
         ];
         for invalid_dj in invalid_djs {
-            let ret: Result<ChildNumber, failure::Error> = invalid_dj.try_into();
+            let ret: Result<ChildNumber, anyhow::Error> = invalid_dj.try_into();
             assert!(ret.is_err());
         }
 
         let invalid_djs = vec![DeriveJunction::Soft(1), DeriveJunction::Hard(1)];
         for invalid_dj in invalid_djs {
-            let ret: Result<ChildNumber, failure::Error> = invalid_dj.try_into();
+            let ret: Result<ChildNumber, anyhow::Error> = invalid_dj.try_into();
             assert!(ret.is_ok());
         }
     }

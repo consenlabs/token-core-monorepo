@@ -1,4 +1,4 @@
-use failure::format_err;
+use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tcx_common::{FromHex, ToHex};
@@ -141,7 +141,7 @@ impl LegacyKeystore {
         if calc_addr_bytes == addr_bytes {
             Ok(())
         } else {
-            Err(format_err!("private_key_and_address_not_match"))
+            Err(anyhow!("private_key_and_address_not_match"))
         }
     }
 
@@ -156,7 +156,7 @@ impl LegacyKeystore {
             && keystore.version != 3
             && keystore.version != 10001
         {
-            return Err(format_err!("unsupported version {}", keystore.version));
+            return Err(anyhow!("unsupported version {}", keystore.version));
         }
 
         Ok(keystore)

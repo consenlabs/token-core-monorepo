@@ -29,7 +29,7 @@ impl From<Bip32Error> for KeyError {
         match err {
             Bip32Error::CannotDeriveFromHardenedKey => KeyError::CannotDeriveFromHardenedKey,
             Bip32Error::InvalidChildNumber(_) => KeyError::InvalidChildNumber,
-            Bip32Error::InvalidChildNumberFormat => KeyError::InvalidChildNumber,
+            Bip32Error::InvalidChildNumberFormat => KeyError::InvalidChildNumberFormat,
             Bip32Error::InvalidDerivationPathFormat => KeyError::InvalidDerivationPathFormat,
             Bip32Error::Secp256k1(_) => KeyError::Secp256k1,
             Bip32Error::UnknownVersion(_) => KeyError::UnknownVersion,
@@ -394,7 +394,7 @@ mod tests {
         let key_error = KeyError::from(Bip32Error::InvalidChildNumber(0));
         assert_eq!(key_error, KeyError::InvalidChildNumber);
         let key_error = KeyError::from(Bip32Error::InvalidChildNumberFormat);
-        assert_eq!(key_error, KeyError::InvalidDerivationPathFormat);
+        assert_eq!(key_error, KeyError::InvalidChildNumberFormat);
         let key_error = KeyError::from(Bip32Error::InvalidDerivationPathFormat);
         assert_eq!(key_error, KeyError::InvalidDerivationPathFormat);
         let key_error = KeyError::from(Bip32Error::Secp256k1(secp256k1::Error::InvalidPublicKey));

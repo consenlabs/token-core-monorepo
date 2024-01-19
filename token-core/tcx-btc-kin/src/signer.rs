@@ -30,6 +30,7 @@ use crate::transaction::{BtcKinTxInput, BtcKinTxOutput, OmniTxInput, Utxo};
 use crate::{BchAddress, Result, BITCOIN, BITCOINCASH};
 
 use super::Error;
+use anyhow::ensure;
 
 const MIN_TX_FEE: u64 = 546;
 
@@ -182,7 +183,7 @@ impl TxSigner {
     }
 }
 
-pub struct KinTransaction<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> {
+pub struct KinTransaction<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> {
     inputs: Vec<Utxo>,
     amount: u64,
     fee: u64,
@@ -192,7 +193,7 @@ pub struct KinTransaction<T: Address + ScriptPubkey + FromStr<Err = failure::Err
     phantom: PhantomData<T>,
 }
 
-impl<T: Address + ScriptPubkey + FromStr<Err = failure::Error>> KinTransaction<T> {
+impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T> {
     fn tx_outs(&self, change_script: Script) -> Result<Vec<TxOut>> {
         let mut total_amount = 0u64;
 
