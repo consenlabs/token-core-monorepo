@@ -112,7 +112,7 @@ message DeriveAccountsParam {
         string curve = 6;
         string bech32Prefix = 7;
     }
-    repeated Derivation derivations= 3;
+    repeated Derivation derivations= 1;
 }
 
 message AccountResponse {

@@ -163,7 +163,7 @@ pub struct BtcForkWallet {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeriveAccountsParam {
-    #[prost(message, repeated, tag = "3")]
+    #[prost(message, repeated, tag = "1")]
     pub derivations: ::prost::alloc::vec::Vec<derive_accounts_param::Derivation>,
 }
 /// Nested message and enum types in `DeriveAccountsParam`.

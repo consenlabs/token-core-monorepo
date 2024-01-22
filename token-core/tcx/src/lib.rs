@@ -2207,6 +2207,33 @@ mod tests {
 
     #[test]
     #[serial]
+    pub fn test_get_public_keys_ethereum2() {
+        run_test(|| {
+            let wallet = import_default_wallet();
+
+            let param: GetPublicKeysParam = GetPublicKeysParam {
+                id: wallet.id.to_string(),
+                key: Some(crate::api::get_public_keys_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+                derivations: vec![PublicKeyDerivation {
+                    chain_type: "ETEHREUM2".to_string(),
+                    path: "m/12381/3600/0/0".to_string(),
+                    curve: "bls12-381".to_string(),
+                }],
+            };
+            let ret_bytes = call_api("get_public_keys", param).unwrap();
+            let public_key_result: GetPublicKeysResult =
+                GetPublicKeysResult::decode(ret_bytes.as_slice()).unwrap();
+            assert_eq!(
+                "0x99833eeee8cfad1bb7a82a5ceecca02590eeb342ad491c64c270fdb9bd739c398b7f8ca8608bfada25ba4efb5d8e5653",
+                public_key_result.public_keys[0]
+            );
+        })
+    }
+
+    #[test]
+    #[serial]
     pub fn test_import_substrate_keystore() {
         run_test(|| {
             let wrong_keystore_str: &str = r#"{
