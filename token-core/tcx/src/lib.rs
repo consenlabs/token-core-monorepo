@@ -4369,4 +4369,101 @@ mod tests {
             assert_eq!(resp.extended_public_keys.get(0).unwrap(), "xpub6GZjFnyumLtEwC4KQkigvc3vXJdZvy71QxHTsFQQv1YtEUWNEwynKWsK2LBFZNLWdTk3w1Y9cRv4NN7V2pnDBoWgH3PkVE9r9Q2kSQL2zkH");
         })
     }
+
+    #[test]
+    #[serial]
+    fn polkadotjs_cross_test() {
+        run_test(|| {
+            let param = ImportMnemonicParam {
+                mnemonic: TEST_MNEMONIC.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                network: "TESTNET".to_string(),
+                name: "test-wallet".to_string(),
+                password_hint: "imtoken".to_string(),
+                overwrite: true,
+            };
+            let ret = import_mnemonic(&encode_message(param).unwrap()).unwrap();
+            let wallet = KeystoreResult::decode(ret.as_slice()).unwrap();
+
+            let derivations = vec![
+                Derivation {
+                    chain_type: "POLKADOT".to_string(),
+                    path: "//imToken//polakdot/0".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: "sr25519".to_string(),
+                    bech32_prefix: "".to_string(),
+                },
+                Derivation {
+                    chain_type: "POLKADOT".to_string(),
+                    path: "//imToken//polakdot/0/0".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: "sr25519".to_string(),
+                    bech32_prefix: "".to_string(),
+                },
+                Derivation {
+                    chain_type: "POLKADOT".to_string(),
+                    path: "".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: "sr25519".to_string(),
+                    bech32_prefix: "".to_string(),
+                },
+                Derivation {
+                    chain_type: "KUSAMA".to_string(),
+                    path: "//imToken//polakdot/0".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: "sr25519".to_string(),
+                    bech32_prefix: "".to_string(),
+                },
+                Derivation {
+                    chain_type: "KUSAMA".to_string(),
+                    path: "//imToken//polakdot/0//1".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: "sr25519".to_string(),
+                    bech32_prefix: "".to_string(),
+                },
+                Derivation {
+                    chain_type: "KUSAMA".to_string(),
+                    path: "".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: "sr25519".to_string(),
+                    bech32_prefix: "".to_string(),
+                },
+            ];
+            let param = DeriveAccountsParam {
+                id: wallet.id.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+                derivations,
+            };
+            let expected = vec![
+                "148fArFqHEtURxdvYAtLkSUkuHxqzPGsaC7Ro1zaUWFJ5dNF",
+                "15YFBQp1kUWEXm22QXySuWyVZckk7QCZiuBfENLAfmbevstt",
+                "16hsF1UW1kob7vUR7tymVNCmp1eo18uhhtc4szetH4xbYpbd",
+                "FhygqLe3pdvk5SrMEePWF1cCGFS6kXux5Dh2PHBQDSGeJSW",
+                "EkkpqYe4XGLst9o8NhvFRhMwto7MNxrsW9vboMzffdwUW3F",
+                "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS",
+            ];
+
+            let ret = call_api("derive_accounts", param).unwrap();
+            let result: DeriveAccountsResult =
+                DeriveAccountsResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(result.accounts.len(), 6);
+            for (index, account) in result.accounts.iter().enumerate() {
+                assert_eq!(account.address, expected[index]);
+            }
+        })
+    }
 }
