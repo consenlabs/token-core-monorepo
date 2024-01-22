@@ -1,6 +1,7 @@
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use super::hid_api;
 use crate::Result;
+use anyhow::anyhow;
 use parking_lot::Mutex;
 use parking_lot::RwLock;
 use std::ffi::{CStr, CString};
@@ -89,7 +90,7 @@ fn get_apdu_return_r() -> Result<String> {
         thread::sleep(Duration::from_millis(100));
         if loop_count >= loop_max {
             println!("timeout panic!");
-            return Err(format_err!("imkey_send_apdu_timeout"));
+            return Err(anyhow!("imkey_send_apdu_timeout"));
         }
     }
 }
@@ -137,7 +138,7 @@ pub fn send_apdu_timeout(apdu: String, timeout: i32) -> Result<String> {
     // let prefix = "communication_error_";
     // if res.starts_with(prefix){
     //     let error = &res[..prefix.len()-1];
-    //     return Err(format_err!("{}", error))
+    //     return Err(anyhow!("{}", error))
     // }else {
     //     return Ok(res)
     // }
@@ -148,7 +149,7 @@ pub fn send_apdu_timeout(apdu: String, timeout: i32) -> Result<String> {
         return if res.starts_with(prefix) {
             let error = &res[prefix.len()..];
             println!("{}", error);
-            Err(format_err!("{}", error))
+            Err(anyhow!("{}", error))
         } else {
             println!("{}", res);
             Ok(res)

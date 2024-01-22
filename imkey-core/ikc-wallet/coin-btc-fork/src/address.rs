@@ -189,7 +189,7 @@ impl BtcForkAddress {
 }
 
 impl FromStr for BtcForkAddress {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<BtcForkAddress> {
         // try bech32

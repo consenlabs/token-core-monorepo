@@ -14,7 +14,7 @@ use tcx_common::FromHex;
 pub struct TezosPublicKeyEncoder {}
 
 impl PublicKeyEncoder for TezosPublicKeyEncoder {
-    fn encode(public_key: &TypedPublicKey, coin_info: &CoinInfo) -> Result<String> {
+    fn encode(public_key: &TypedPublicKey, _coin_info: &CoinInfo) -> Result<String> {
         let edpk_prefix: Vec<u8> = vec![0x0D, 0x0F, 0x25, 0xD9];
         let to_hash = [edpk_prefix, public_key.to_bytes()].concat();
         let hashed = sha256d(&to_hash);

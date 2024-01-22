@@ -5,7 +5,7 @@ use rlp::RlpStream;
 use secp256k1::{ecdsa::RecoverableSignature, ecdsa::RecoveryId, Message, PublicKey};
 use std::str::FromStr;
 use tcx_common::{keccak256, Hash256, ToHex};
-use tcx_primitive::{Secp256k1PublicKey, SECP256K1_ENGINE};
+use tcx_primitive::SECP256K1_ENGINE;
 
 pub fn to_eip155_v<T: Into<u64>>(recovery_id: T, chain_id: U64) -> U64 {
     U64::from(recovery_id.into() + 35 + chain_id.as_u64() * 2)

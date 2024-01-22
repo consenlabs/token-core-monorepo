@@ -1,8 +1,5 @@
-use crate::api::{
-    AddressParam, DeriveAccountsParam, ErrorResponse, ExternalAddressParam, ImkeyAction,
-    PubKeyParam,
-};
-use failure::Error;
+use crate::api::{AddressParam, ErrorResponse, ExternalAddressParam, ImkeyAction, PubKeyParam};
+use anyhow::{anyhow, Error};
 use ikc_common::SignParam;
 use prost::Message;
 use std::ffi::{CStr, CString};
@@ -41,10 +38,8 @@ pub mod tezos_signer;
 
 #[macro_use]
 extern crate lazy_static;
-
-#[macro_use]
-extern crate failure;
-use crate::error_handling::{landingpad, LAST_BACKTRACE, LAST_ERROR};
+extern crate anyhow;
+use crate::error_handling::{landingpad, LAST_ERROR};
 use crate::handler::derive_accounts;
 use crate::message_handler::encode_message;
 use ikc_transport::message;
@@ -149,7 +144,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                 "TEZOS" => tezos_address::get_address(&param),
                 "BITCOINCASH" => bch_address::get_address(&param),
                 "LITECOIN" => btc_fork_address::get_address(&param),
-                _ => Err(format_err!("get_address unsupported_chain")),
+                _ => Err(anyhow!("get_address unsupported_chain")),
             }
         }),
         "derive_accounts" => landingpad(|| derive_accounts(&action.param.unwrap().value)),
@@ -160,7 +155,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                 "EOS" => eos_pubkey::get_eos_pubkey(&param),
                 "TEZOS" => tezos_address::get_pub_key(&param),
                 "COSMOS" => cosmos_address::get_cosmos_pub_key(&param),
-                _ => Err(format_err!("get_pub_key unsupported_chain")),
+                _ => Err(anyhow!("get_pub_key unsupported_chain")),
             }
         }),
 
@@ -169,7 +164,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                 .expect("imkey_illegal_param");
             match param.chain_type.as_str() {
                 "EOS" => eos_pubkey::display_eos_pubkey(&param),
-                _ => Err(format_err!("register_pub_key unsupported_chain")),
+                _ => Err(anyhow!("register_pub_key unsupported_chain")),
             }
         }),
 
@@ -186,7 +181,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                 "TRON" => tron_address::display_address(&param),
                 "NERVOS" => nervos_address::display_address(&param),
                 "TEZOS" => tezos_address::display_tezos_address(&param),
-                _ => Err(format_err!("register_address unsupported_chain")),
+                _ => Err(anyhow!("register_address unsupported_chain")),
             }
         }),
 
@@ -234,7 +229,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                 "LITECOIN" => {
                     btc_fork_signer::sign_transaction(&param.clone().input.unwrap().value, &param)
                 }
-                _ => Err(format_err!("sign_tx unsupported_chain")),
+                _ => Err(anyhow!("sign_tx unsupported_chain")),
             }
         }),
 
@@ -251,7 +246,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                     &param,
                 ),
                 "TRON" => tron_signer::sign_message(&param.clone().input.unwrap().value, &param),
-                _ => Err(format_err!(
+                _ => Err(anyhow!(
                     "sign message is not supported the chain {}",
                     param.chain_type
                 )),
@@ -265,13 +260,13 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                     .expect("calc external address unpack error");
             match param.chain_type.as_str() {
                 "BITCOIN" => btc_address::calc_external_address(&param),
-                _ => Err(format_err!("only support calc bitcoin external address")),
+                _ => Err(anyhow!("only support calc bitcoin external address")),
             }
         }),
 
         "btc_get_xpub" => landingpad(|| btc_address::get_btc_xpub(&action.param.unwrap().value)),
 
-        _ => landingpad(|| Err(format_err!("unsupported_method"))),
+        _ => landingpad(|| Err(anyhow!("unsupported_method"))),
     };
     match reply {
         Ok(reply) => {
@@ -285,9 +280,6 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
 #[no_mangle]
 pub unsafe extern "C" fn imkey_clear_err() {
     LAST_ERROR.with(|e| {
-        *e.borrow_mut() = None;
-    });
-    LAST_BACKTRACE.with(|e| {
         *e.borrow_mut() = None;
     });
 }
@@ -313,7 +305,7 @@ pub unsafe extern "C" fn imkey_get_last_err_message() -> *const c_char {
 mod tests {
     use super::*;
     use crate::api::derive_accounts_param::Derivation;
-    use crate::api::{CommonResponse, DeriveAccountsResult};
+    use crate::api::{CommonResponse, DeriveAccountsParam, DeriveAccountsResult};
     use ikc_device::device_binding::DeviceManage;
     use ikc_device::deviceapi::{BindAcquireReq, BindCheckRes};
     use ikc_transport::hid_api::hid_connect;
@@ -369,8 +361,8 @@ mod tests {
         // let param_bytes = encode_message(param).unwrap();
         // let param_bytes = hex::decode("0a0c636865636b5f757064617465").unwrap();
         // let param_hex = hex::encode(param_bytes);
-        hid_connect("imKey Pro").is_ok();
-        let check_result =
+        assert!(hid_connect("imKey Pro").is_ok());
+        let _check_result =
             DeviceManage::bind_check(&"../test-data".to_string()).unwrap_or_default();
         // DeviceManage::bind_acquire(&"".to_string()).unwrap();
         // device::device_manager::app_delete("BCH");
@@ -393,7 +385,7 @@ mod tests {
 
     #[test]
     fn test_derive_accounts() {
-        hid_connect("imKey Pro").is_ok();
+        assert!(hid_connect("imKey Pro").is_ok());
         let action: ImkeyAction = ImkeyAction {
             method: "bind_check".to_string(),
             param: None,

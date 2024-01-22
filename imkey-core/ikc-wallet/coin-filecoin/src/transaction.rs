@@ -9,6 +9,7 @@ use ikc_common::utility::{hex_to_bytes, secp256k1_sign};
 use ikc_common::{constants, path, utility, SignParam};
 use ikc_device::device_binding::KEY_MANAGER;
 
+use anyhow::anyhow;
 use forest_address::Address;
 use forest_cid::Cid;
 use forest_encoding::Cbor;
@@ -143,7 +144,7 @@ impl Transaction {
         };
         cid = forest_signed_msg
             .cid()
-            .map_err(|_e| format_err!("{}", "forest_message cid error"))?;
+            .map_err(|_e| anyhow!("{}", "forest_message cid error"))?;
 
         let signature_type = 1;
 

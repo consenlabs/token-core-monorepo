@@ -96,7 +96,7 @@ pub enum AddressType {
 }
 
 impl FromStr for AddressType {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
     fn from_str(s: &str) -> Result<Self> {
         match s {
             "POLKADOT" => Ok(AddressType::Polkadot),

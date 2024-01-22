@@ -1,6 +1,7 @@
 use crate::eosapi::{EosMessageInput, EosMessageOutput, EosSignResult, EosTxInput, EosTxOutput};
 use crate::pubkey::EosPubkey;
 use crate::Result;
+use anyhow::anyhow;
 use bitcoin::secp256k1::ecdsa::Signature;
 use bitcoin::util::base58;
 use bitcoin_hashes::hex::ToHex;
@@ -97,7 +98,7 @@ impl EosTransaction {
                 comprs_pubkey_slice.extend(check_sum);
                 let eos_pk = "EOS".to_owned() + base58::encode_slice(&comprs_pubkey_slice).as_ref();
                 if pub_key != &eos_pk {
-                    return Err(format_err!("imkey_publickey_mismatch_with_path"));
+                    return Err(anyhow!("imkey_publickey_mismatch_with_path"));
                 }
 
                 //sign
@@ -197,7 +198,7 @@ impl EosTransaction {
         let pubkey = EosPubkey::pubkey_from_response(&prepare_response).unwrap();
         let mut signature = "".to_string();
         if &pubkey != &input.pubkey {
-            return Err(format_err!("imkey_publickey_mismatch_with_path"));
+            return Err(anyhow!("imkey_publickey_mismatch_with_path"));
         }
         //sign
         let mut nonce = 0;

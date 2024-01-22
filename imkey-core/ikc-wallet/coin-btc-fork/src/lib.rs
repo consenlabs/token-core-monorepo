@@ -6,16 +6,8 @@ pub mod btcforkapi;
 pub mod common;
 pub mod transaction;
 
-pub type Result<T> = result::Result<T, failure::Error>;
-extern crate failure;
+pub type Result<T> = result::Result<T, anyhow::Error>;
+extern crate anyhow;
 
 #[macro_use]
 extern crate lazy_static;
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}

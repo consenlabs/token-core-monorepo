@@ -4,7 +4,6 @@ use crate::constant::SECP256K1_ENGINE;
 use crate::ecc::{DeterministicPrivateKey, DeterministicPublicKey, KeyError};
 
 use crate::{Derive, Secp256k1PrivateKey, Secp256k1PublicKey, Ss58Codec};
-use bitcoin::psbt::serialize::Serialize;
 use tcx_common::{ripemd160, sha256, FromHex, ToHex};
 
 use bitcoin::util::base58;

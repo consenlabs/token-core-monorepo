@@ -14,9 +14,8 @@ ikc-transport = {path = "../../ikc-transport"}
 bch_addr = "=0.1.0"
 bitcoin = "=0.29.2"
 secp256k1 = {version ="=0.24.3", features = ["rand", "recovery"] }
-tiny-bip39 = "=0.7.3"
-#bitcoinconsensus = { version = "0.16", optional = true }
-failure = "=0.1.8"
+tiny-bip39 = "=1.0.0"
+anyhow = "=1.0.79"
 hex = "=0.4.3"
 serde = { version = "=1.0.147", features = ["derive"] }
 serde_json = "=1.0.89"

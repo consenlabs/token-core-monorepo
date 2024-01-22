@@ -1,6 +1,5 @@
 use std::str::FromStr;
 use tcx_constants::CoinInfo;
-use tcx_crypto::Key;
 use tcx_keystore::{
     Address, Keystore, MessageSigner, PublicKeyEncoder, SignatureParameters, TransactionSigner,
 };

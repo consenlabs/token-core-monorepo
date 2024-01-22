@@ -35,4 +35,4 @@ hkdf = "=0.12.3"
 sp-core = "=7.0.0"
 regex = { version = "=1.9.3"}
 schnorrkel = "=0.9.1"
-thiserror = "1.0.56"
+thiserror = "=1.0.56"

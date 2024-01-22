@@ -1,5 +1,12 @@
+use crate::api::{
+    migrate_keystore_param, AccountResponse, KeystoreResult, LegacyKeystoreResult,
+    MigrateKeystoreParam, MigrateKeystoreResult, ScanLegacyKeystoresResult,
+};
+use crate::error_handling::Result;
+use crate::filemanager::{cache_keystore, KEYSTORE_MAP};
+use crate::filemanager::{flush_keystore, LEGACY_WALLET_FILE_DIR};
+use crate::handler::{encode_message, encrypt_xpub};
 use anyhow::anyhow;
-use bytes::BytesMut;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -7,51 +14,14 @@ use std::fs;
 use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
-use tcx_eos::address::{EosAddress, EosPublicKeyEncoder};
-use tcx_eos::encode_eos_wif;
-use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
+use tcx_common::{FromHex, ToHex};
+use tcx_constants::coin_info::get_xpub_prefix;
 use tcx_keystore::keystore::IdentityNetwork;
-
-use tcx_common::{sha256d, FromHex, ToHex};
-use tcx_primitive::{
-    private_key_without_version, PrivateKey, PublicKey, Secp256k1PrivateKey, Secp256k1PublicKey,
-    Sr25519PrivateKey, TypedPrivateKey, TypedPublicKey,
-};
-
-use tcx_btc_kin::WIFDisplay;
-use tcx_keystore::{
-    fingerprint_from_mnemonic, fingerprint_from_private_key, Address, Keystore, KeystoreGuard,
-    SignatureParameters, Signer,
-};
-use tcx_keystore::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
-
-use tcx_crypto::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
-use tcx_filecoin::KeyInfo;
-
-use crate::api::{
-    migrate_keystore_param, AccountResponse, KeystoreResult, LegacyKeystoreResult,
-    MigrateKeystoreParam, MigrateKeystoreResult, ScanLegacyKeystoresResult,
-};
-use crate::error_handling::Result;
-use crate::filemanager::{cache_keystore, delete_keystore_file, KEYSTORE_MAP};
-use crate::filemanager::{flush_keystore, LEGACY_WALLET_FILE_DIR};
-
-use crate::handler::{encode_message, encrypt_xpub};
-use crate::IS_DEBUG;
-
-use base58::FromBase58;
-use tcx_keystore::tcx_ensure;
-
-use tcx_constants::coin_info::{coin_info_from_param, get_xpub_prefix};
-use tcx_constants::{CoinInfo, CurveType};
+use tcx_keystore::Keystore;
+use tcx_keystore::Metadata;
 use tcx_migration::keystore_upgrade::{mapping_curve_name, KeystoreUpgrade};
-
-use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
-use tcx_substrate::{decode_substrate_keystore, encode_substrate_keystore, SubstrateKeystore};
-
 use tcx_migration::migration::{LegacyKeystore, NumberOrNumberStr};
-use tcx_primitive::TypedDeterministicPublicKey;
-use tcx_tezos::{encode_tezos_private_key, parse_tezos_private_key};
+use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
 
 pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let param: MigrateKeystoreParam =

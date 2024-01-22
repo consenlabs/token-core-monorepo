@@ -546,11 +546,11 @@ dependencies = [
 name = "coin-bch"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bch_addr",
  "bitcoin",
  "bitcoin_hashes",
  "bytes",
- "failure",
  "hex",
  "ikc-common",
  "ikc-device",
@@ -561,17 +561,17 @@ dependencies = [
  "secp256k1",
  "serde",
  "serde_json",
- "tiny-bip39 0.7.3",
+ "tiny-bip39 1.0.0",
 ]
 
 [[package]]
 name = "coin-bitcoin"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bitcoin",
  "bitcoin_hashes",
  "bytes",
- "failure",
  "hex",
  "ikc-common",
  "ikc-device",
@@ -586,12 +586,12 @@ dependencies = [
 name = "coin-btc-fork"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "base64 0.13.1",
  "bech32 0.9.1",
  "bitcoin",
  "bitcoin_hashes",
  "bytes",
- "failure",
  "hex",
  "ikc-common",
  "ikc-device",
@@ -604,19 +604,19 @@ dependencies = [
  "secp256k1",
  "serde",
  "serde_json",
- "tiny-bip39 0.7.3",
+ "tiny-bip39 1.0.0",
 ]
 
 [[package]]
 name = "coin-ckb"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "base64 0.13.1",
  "bech32 0.9.1",
  "bitcoin",
  "blake2b-rs",
  "byteorder 1.4.3",
- "failure",
  "hex",
  "ikc-common",
  "ikc-device",
@@ -624,18 +624,19 @@ dependencies = [
  "lazy_static",
  "prost",
  "secp256k1",
+ "thiserror",
 ]
 
 [[package]]
 name = "coin-cosmos"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "base64 0.13.1",
  "bech32 0.9.1",
  "bitcoin",
  "bitcoin_hashes",
  "bytes",
- "failure",
  "hex",
  "ikc-common",
  "ikc-device",
@@ -656,10 +657,10 @@ dependencies = [
 name = "coin-eos"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bitcoin",
  "bitcoin_hashes",
  "bytes",
- "failure",
  "hex",
  "ikc-common",
  "ikc-device",
@@ -672,13 +673,13 @@ dependencies = [
 name = "coin-ethereum"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "base64 0.13.1",
  "bitcoin",
  "bitcoin_hashes",
  "bytes",
  "dotenv",
  "ethereum-types",
- "failure",
  "hex",
  "ikc-common",
  "ikc-device",
@@ -705,6 +706,7 @@ dependencies = [
 name = "coin-filecoin"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "base32",
  "base64 0.13.1",
  "bech32 0.9.1",
@@ -712,7 +714,6 @@ dependencies = [
  "bitcoin_hashes",
  "blake2b-rs",
  "bytes",
- "failure",
  "forest_address",
  "forest_bigint",
  "forest_cid",
@@ -739,7 +740,7 @@ dependencies = [
 name = "coin-substrate"
 version = "0.1.0"
 dependencies = [
- "failure",
+ "anyhow",
  "hex",
  "ikc-common",
  "ikc-device",
@@ -755,9 +756,9 @@ dependencies = [
 name = "coin-tezos"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bitcoin",
  "blake2b_simd 1.0.1",
- "failure",
  "hex",
  "ikc-common",
  "ikc-device",
@@ -770,9 +771,9 @@ dependencies = [
 name = "coin-tron"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bitcoin",
  "byteorder 1.4.3",
- "failure",
  "hex",
  "ikc-common",
  "ikc-device",
@@ -860,22 +861,12 @@ dependencies = [
 
 [[package]]
 name = "crypto-mac"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4434400df11d95d556bac068ddfedd482915eb18fe8bea89bc80b6e4b1c179e5"
-dependencies = [
- "generic-array 0.12.4",
- "subtle 1.0.0",
-]
-
-[[package]]
-name = "crypto-mac"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b584a330336237c1eecd3e94266efb216c56ed91225d634cb2991c5f3fd1aeab"
 dependencies = [
  "generic-array 0.14.7",
- "subtle 2.4.1",
+ "subtle",
 ]
 
 [[package]]
@@ -885,7 +876,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1d1a86f49236c215f271d40892d5fc950490551400b02ef360692c29815c714"
 dependencies = [
  "generic-array 0.14.7",
- "subtle 2.4.1",
+ "subtle",
 ]
 
 [[package]]
@@ -937,7 +928,7 @@ dependencies = [
  "byteorder 1.4.3",
  "digest 0.8.1",
  "rand_core 0.5.1",
- "subtle 2.4.1",
+ "subtle",
  "zeroize",
 ]
 
@@ -950,7 +941,7 @@ dependencies = [
  "byteorder 1.4.3",
  "digest 0.9.0",
  "rand_core 0.5.1",
- "subtle 2.4.1",
+ "subtle",
  "zeroize",
 ]
 
@@ -967,7 +958,7 @@ dependencies = [
  "fiat-crypto",
  "platforms",
  "rustc_version",
- "subtle 2.4.1",
+ "subtle",
  "zeroize",
 ]
 
@@ -1152,7 +1143,7 @@ dependencies = [
  "block-buffer 0.10.4",
  "const-oid",
  "crypto-common",
- "subtle 2.4.1",
+ "subtle",
 ]
 
 [[package]]
@@ -1233,7 +1224,7 @@ dependencies = [
  "rand_core 0.6.4",
  "serde",
  "sha2 0.10.6",
- "subtle 2.4.1",
+ "subtle",
  "zeroize",
 ]
 
@@ -1813,16 +1804,6 @@ dependencies = [
 
 [[package]]
 name = "hmac"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5dcb5e64cda4c23119ab41ba960d1e170a774c8e4b9d9e6a9bc18aabf5e59695"
-dependencies = [
- "crypto-mac 0.7.0",
- "digest 0.8.1",
-]
-
-[[package]]
-name = "hmac"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "126888268dcc288495a26bf004b38c5fdbb31682f992c84ceb046a1f0fe38840"
@@ -1983,6 +1964,7 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 name = "ikc"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "base64 0.13.1",
  "bitcoin",
  "bytes",
@@ -1998,7 +1980,6 @@ dependencies = [
  "coin-tezos",
  "coin-tron",
  "ethereum-types",
- "failure",
  "hex",
  "ikc-common",
  "ikc-device",
@@ -2017,11 +1998,11 @@ name = "ikc-common"
 version = "0.1.0"
 dependencies = [
  "aes",
+ "anyhow",
  "bitcoin",
  "byteorder 1.4.3",
  "bytes",
  "cbc",
- "failure",
  "hex",
  "hyper",
  "hyper-timeout",
@@ -2039,6 +2020,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
+ "thiserror",
  "tokio",
 ]
 
@@ -2046,9 +2028,9 @@ dependencies = [
 name = "ikc-device"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "base64 0.13.1",
  "bytes",
- "failure",
  "hex",
  "ikc-common",
  "ikc-transport",
@@ -2065,6 +2047,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "sha1",
+ "thiserror",
 ]
 
 [[package]]
@@ -2081,12 +2064,13 @@ dependencies = [
 name = "ikc-transport"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "cargo-husky",
- "failure",
  "hex",
  "hidapi",
  "lazy_static",
  "parking_lot",
+ "thiserror",
 ]
 
 [[package]]
@@ -2313,7 +2297,7 @@ checksum = "d0f6ab710cec28cef759c5f18671a27dae2a5f952cdaaee1d8e2908cb2478a80"
 dependencies = [
  "crunchy",
  "digest 0.9.0",
- "subtle 2.4.1",
+ "subtle",
 ]
 
 [[package]]
@@ -2324,7 +2308,7 @@ checksum = "5be9b9bb642d8522a44d533eab56c16c738301965504753b03ad1de3425d5451"
 dependencies = [
  "crunchy",
  "digest 0.9.0",
- "subtle 2.4.1",
+ "subtle",
 ]
 
 [[package]]
@@ -2739,9 +2723,6 @@ name = "once_cell"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
-dependencies = [
- "parking_lot_core",
-]
 
 [[package]]
 name = "opaque-debug"
@@ -2889,7 +2870,7 @@ checksum = "7676374caaee8a325c9e7a2ae557f216c5563a171d6997b0ef8a65af35147700"
 dependencies = [
  "base64ct",
  "rand_core 0.6.4",
- "subtle 2.4.1",
+ "subtle",
 ]
 
 [[package]]
@@ -2897,16 +2878,6 @@ name = "paste"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "de3145af08024dea9fa9914f381a17b8fc6034dfb00f3a84013f7ff43f29ed4c"
-
-[[package]]
-name = "pbkdf2"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "006c038a43a45995a9670da19e67600114740e8511d4333bf97a56e66a7542d9"
-dependencies = [
- "byteorder 1.4.3",
- "crypto-mac 0.7.0",
-]
 
 [[package]]
 name = "pbkdf2"
@@ -3427,7 +3398,7 @@ dependencies = [
  "rand_core 0.6.4",
  "signature 1.6.4",
  "smallvec",
- "subtle 2.4.1",
+ "subtle",
  "zeroize",
 ]
 
@@ -3547,7 +3518,7 @@ dependencies = [
  "rand 0.7.3",
  "rand_core 0.5.1",
  "sha2 0.8.2",
- "subtle 2.4.1",
+ "subtle",
  "zeroize",
 ]
 
@@ -4320,12 +4291,6 @@ dependencies = [
 
 [[package]]
 name = "subtle"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d67a5a62ba6e01cb2192ff309324cb4875d0c451d55fe2319433abe7a05a8ee"
-
-[[package]]
-name = "subtle"
 version = "2.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6bdef32e8150c2a081110b42772ffe7d7c9032b606bc226c8260fd97e0976601"
@@ -4885,22 +4850,6 @@ dependencies = [
 
 [[package]]
 name = "tiny-bip39"
-version = "0.7.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0165e045cc2ae1660270ca65e1676dbaab60feb0f91b10f7d0665e9b47e31f2"
-dependencies = [
- "failure",
- "hmac 0.7.1",
- "once_cell",
- "pbkdf2 0.3.0",
- "rand 0.7.3",
- "rustc-hash",
- "sha2 0.8.2",
- "unicode-normalization",
-]
-
-[[package]]
-name = "tiny-bip39"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ffc59cb9dfc85bb312c3a78fd6aa8a8582e310b0fa885d5bb877f6dcc601839d"
@@ -5224,7 +5173,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc1de2c688dc15305988b563c3854064043356019f97a4b46276fe734c4f07ea"
 dependencies = [
  "crypto-common",
- "subtle 2.4.1",
+ "subtle",
 ]
 
 [[package]]
@@ -5648,7 +5597,7 @@ dependencies = [
  "aead",
  "poly1305",
  "salsa20",
- "subtle 2.4.1",
+ "subtle",
  "zeroize",
 ]
 

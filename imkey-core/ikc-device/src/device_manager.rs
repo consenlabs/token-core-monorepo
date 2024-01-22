@@ -11,6 +11,7 @@ use crate::device_binding::DeviceManage;
 use crate::se_query::SeQueryResponse;
 use crate::ServiceResponse;
 use crate::{Result, TsmService};
+use anyhow::anyhow;
 use app_update::AppUpdateRequest;
 use ikc_common::apdu::{Apdu, ApduCheck};
 use ikc_common::applet;
@@ -116,7 +117,7 @@ pub fn get_ble_name() -> Result<String> {
 pub fn set_ble_name(ble_name: String) -> Result<String> {
     let name_verify_regex = Regex::new(r"[0-9A-Za-z]{1,12}").unwrap();
     if !name_verify_regex.is_match(ble_name.as_ref()) {
-        return Err(format_err!("imkey_device_name_invalid"));
+        return Err(anyhow!("imkey_device_name_invalid"));
     }
     let apdu = Apdu::set_ble_name(ble_name.as_ref());
     let res = send_apdu(apdu)?;

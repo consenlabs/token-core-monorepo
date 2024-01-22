@@ -1,5 +1,6 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
+use anyhow::anyhow;
 use coin_ethereum::ethapi::{EthMessageInput, EthTxInput};
 use coin_ethereum::transaction::{AccessListItem, Transaction};
 use coin_ethereum::types::Action;
@@ -97,10 +98,9 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
 
 fn parse_eth_argument(str: &str) -> Result<U256> {
     if str.to_lowercase().starts_with("0x") {
-        U256::from_str(&str[2..].to_string())
-            .map_err(|_err| format_err!("unpack eth argument error"))
+        U256::from_str(&str[2..].to_string()).map_err(|_err| anyhow!("unpack eth argument error"))
     } else {
-        U256::from_dec_str(str).map_err(|_err| format_err!("unpack eth argument dec error"))
+        U256::from_dec_str(str).map_err(|_err| anyhow!("unpack eth argument dec error"))
     }
 }
 

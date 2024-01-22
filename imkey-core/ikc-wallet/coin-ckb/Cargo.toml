@@ -11,7 +11,7 @@ ikc-common = {path = "../../ikc-common"}
 ikc-device = {path = "../../ikc-device"}
 ikc-transport = {path = "../../ikc-transport"}
 blake2b-rs = "=0.2.0"
-failure = "=0.1.8"
+anyhow = "=1.0.79"
 bech32 = "=0.9.1"
 hex = "=0.4.3"
 byteorder = "=1.4.3"
@@ -20,3 +20,4 @@ lazy_static = "=1.4.0"
 secp256k1 = {version ="=0.24.3", features = ["rand", "recovery"] }
 base64 = "=0.13.1"
 bitcoin = "=0.29.2"
+thiserror = "=1.0.56"

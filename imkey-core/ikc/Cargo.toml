@@ -31,7 +31,7 @@ prost = "=0.11.2"
 bytes = "=1.4.0"
 prost-types = "=0.11.2"
 hex = "=0.4.3"
-failure = "=0.1.8"
+anyhow = "=1.0.79"
 linked-hash-map = { version = "=0.5.6", features = ["serde_impl"] }
 serde_json = { version = "=1.0.89", default-features = false, features = ["alloc"] }
 base64 = "=0.13.1"

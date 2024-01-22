@@ -14,6 +14,6 @@ ikc-transport = {path = "../../ikc-transport"}
 hex = "=0.4.3"
 blake2b_simd = "=1.0.1"
 bitcoin = "=0.29.2"
-failure = "=0.1.8"
+anyhow = "=1.0.79"
 prost = "=0.11.2"
 prost-types = "=0.11.2"

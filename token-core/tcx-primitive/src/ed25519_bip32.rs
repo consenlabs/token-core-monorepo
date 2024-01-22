@@ -33,7 +33,7 @@ impl Derive for Ed25519DeterministicPrivateKey {
     fn derive(&self, path: &str) -> Result<Self> {
         let mut extended_key = self.0.clone();
         let derivation_path = DerivationPath::from_str(path);
-        if let Err(e) = derivation_path {
+        if let Err(_e) = derivation_path {
             return Err(KeyError::InvalidDerivationPathFormat.into());
         };
         let path: DerivationPath = path.parse()?;

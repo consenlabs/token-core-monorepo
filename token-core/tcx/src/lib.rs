@@ -75,7 +75,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
             Ok(vec![])
         }),
         "scan_legacy_keystores" => landingpad(|| {
-            let ret = migration::scan_legacy_keystores()?;
+            let ret = scan_legacy_keystores()?;
             encode_message(ret)
         }),
         "create_keystore" => landingpad(|| create_keystore(&action.param.unwrap().value)),

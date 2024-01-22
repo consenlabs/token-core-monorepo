@@ -1,6 +1,7 @@
 use crate::api::{AccountResponse, DeriveAccountsParam, DeriveAccountsResult};
 use crate::message_handler::encode_message;
 use crate::Result;
+use anyhow::anyhow;
 use bitcoin::util::bip32::ExtendedPubKey;
 use bitcoin::Network;
 use coin_bch::address::BchAddress;
@@ -21,6 +22,7 @@ use ikc_common::utility::{
 };
 use prost::Message;
 use std::str::FromStr;
+
 pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
     let param: DeriveAccountsParam =
         DeriveAccountsParam::decode(data).expect("derive_accounts param");
@@ -134,7 +136,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 account_rsp.address = BchAddress::get_address(network, &derivation.path)?;
                 BtcAddress::get_xpub(network, &account_path)?
             }
-            _ => return Err(format_err!("unsupported_chain_type")),
+            _ => return Err(anyhow!("unsupported_chain_type")),
         };
 
         if !ext_public_key.is_empty() {

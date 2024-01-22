@@ -1,25 +1,23 @@
 use bytes::BytesMut;
 use prost::Message;
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
-use tcx_eos::address::{EosAddress, EosPublicKeyEncoder};
 use tcx_eos::encode_eos_wif;
 use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_keystore::keystore::IdentityNetwork;
 
-use tcx_common::{sha256d, FromHex, ToHex};
+use tcx_common::{FromHex, ToHex};
 use tcx_primitive::{
-    private_key_without_version, PrivateKey, PublicKey, Secp256k1PrivateKey, Secp256k1PublicKey,
-    Sr25519PrivateKey, TypedPrivateKey, TypedPublicKey,
+    private_key_without_version, PrivateKey, Secp256k1PrivateKey, Sr25519PrivateKey,
+    TypedPrivateKey, TypedPublicKey,
 };
 
 use tcx_btc_kin::WIFDisplay;
 use tcx_keystore::{
-    fingerprint_from_mnemonic, fingerprint_from_private_key, Address, Keystore, KeystoreGuard,
+    fingerprint_from_mnemonic, fingerprint_from_private_key, Keystore, KeystoreGuard,
     SignatureParameters, Signer,
 };
 use tcx_keystore::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
@@ -29,20 +27,18 @@ use tcx_crypto::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
 use tcx_filecoin::KeyInfo;
 
 use crate::api::derive_accounts_param::Derivation;
-use crate::api::sign_param::Key;
 use crate::api::{
-    export_private_key_param, migrate_keystore_param, AccountResponse, BackupResult,
-    CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam,
-    DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult,
-    EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsJsonParam, ExistsKeystoreResult,
-    ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult,
-    ExportMnemonicParam, ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult,
-    GeneralResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
+    export_private_key_param, AccountResponse, BackupResult, CreateKeystoreParam,
+    DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam, DeriveAccountsResult,
+    DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, EncryptDataToIpfsParam,
+    EncryptDataToIpfsResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
+    ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicParam,
+    ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
+    GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
     GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
-    ImportPrivateKeyResult, KeystoreResult, LegacyKeystoreResult, MigrateKeystoreParam,
-    MigrateKeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
-    ScanKeystoresResult, ScanLegacyKeystoresResult, SignAuthenticationMessageParam,
-    SignAuthenticationMessageResult, SignHashesParam, SignHashesResult, WalletKeyParam,
+    ImportPrivateKeyResult, KeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
+    ScanKeystoresResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
+    SignHashesParam, SignHashesResult, WalletKeyParam,
 };
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
@@ -57,18 +53,16 @@ use crate::IS_DEBUG;
 use base58::FromBase58;
 use tcx_keystore::tcx_ensure;
 
-use tcx_constants::coin_info::{coin_info_from_param, get_xpub_prefix};
+use tcx_constants::coin_info::coin_info_from_param;
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::KDF_ROUNDS;
-use tcx_eth::api::{EthRecoverAddressInput, EthRecoverAddressOutput};
 use tcx_keystore::{MessageSigner, TransactionSigner};
-use tcx_migration::keystore_upgrade::{mapping_curve_name, KeystoreUpgrade};
 
-use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
+use tcx_primitive::Ss58Codec;
 use tcx_substrate::{decode_substrate_keystore, encode_substrate_keystore, SubstrateKeystore};
 
-use tcx_migration::migration::{LegacyKeystore, NumberOrNumberStr};
+use tcx_migration::migration::LegacyKeystore;
 use tcx_primitive::TypedDeterministicPublicKey;
 use tcx_tezos::{encode_tezos_private_key, parse_tezos_private_key};
 

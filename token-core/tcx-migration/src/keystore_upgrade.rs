@@ -9,7 +9,7 @@ use tcx_keystore::identity::Identity;
 use tcx_keystore::keystore::IdentityNetwork;
 use tcx_keystore::{
     fingerprint_from_mnemonic, fingerprint_from_private_key, fingerprint_from_seed,
-    mnemonic_to_seed, tcx_ensure, HdKeystore, Keystore, PrivateKeystore, Result, Source,
+    mnemonic_to_seed, HdKeystore, Keystore, PrivateKeystore, Result, Source,
 };
 use tcx_primitive::TypedPrivateKey;
 use tcx_substrate::encode_substrate_keystore;

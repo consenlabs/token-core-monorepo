@@ -1,7 +1,6 @@
 use crate::curve::CurveType;
 use crate::Result;
-use failure::format_err;
-
+use anyhow::anyhow;
 use parking_lot::RwLock;
 
 /// Blockchain basic config
@@ -176,7 +175,7 @@ pub fn coin_info_from_param(
         .collect::<Vec<CoinInfo>>();
 
     if coins.is_empty() {
-        Err(format_err!("unsupported_chain"))
+        Err(anyhow!("unsupported_chain"))
     } else {
         Ok(coins.pop().expect("coin_info_from_param"))
     }

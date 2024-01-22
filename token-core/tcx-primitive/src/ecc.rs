@@ -1,5 +1,4 @@
 use anyhow::anyhow;
-use serde::Serialize;
 use tcx_common::{FromHex, ToHex};
 
 use super::{Result, Ss58Codec};

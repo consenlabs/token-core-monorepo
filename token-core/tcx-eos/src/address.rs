@@ -1,6 +1,6 @@
 use bitcoin::util::base58;
 use std::str::FromStr;
-use tcx_common::{ripemd160, CommonError};
+use tcx_common::ripemd160;
 use tcx_constants::CoinInfo;
 use tcx_keystore::{keystore::PublicKeyEncoder, Address, Result};
 use tcx_primitive::TypedPublicKey;
@@ -36,7 +36,7 @@ impl Address for EosAddress {
 
 impl FromStr for EosAddress {
     type Err = anyhow::Error;
-    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+    fn from_str(_s: &str) -> std::result::Result<Self, Self::Err> {
         Ok(EosAddress {})
     }
 }

@@ -5,11 +5,10 @@ use crate::api::{
 };
 use crate::transaction::{Signature, Transaction, TransactionType};
 use crate::Result;
-use ethereum_types::{Address, H256, U256, U64};
+use ethereum_types::{Address, H256};
 use std::str::FromStr;
-use tcx_common::{keccak256, parse_U256, parse_U64, utf8_or_hex_to_bytes, FromHex, Hash256, ToHex};
+use tcx_common::{keccak256, parse_u256, parse_u64, utf8_or_hex_to_bytes, FromHex, Hash256, ToHex};
 use tcx_keystore::{Keystore, MessageSigner, SignatureParameters, Signer, TransactionSigner};
-use tcx_primitive::Secp256k1PublicKey;
 
 fn hash_message<T: AsRef<[u8]>>(message: T) -> Hash256 {
     const PREFIX: &str = "\x19Ethereum Signed Message:\n";
@@ -68,16 +67,16 @@ impl TryFrom<&EthTxInput> for Transaction {
     fn try_from(tx: &EthTxInput) -> std::result::Result<Self, Self::Error> {
         Ok(Transaction {
             to: Address::from_slice(&Vec::from_0x_hex(&tx.to)?),
-            nonce: parse_U64(&tx.nonce)?,
-            gas: parse_U256(&tx.gas_limit)?,
-            gas_price: parse_U256(&tx.gas_price)?,
-            value: parse_U256(&tx.value)?,
+            nonce: parse_u64(&tx.nonce)?,
+            gas: parse_u256(&tx.gas_limit)?,
+            gas_price: parse_u256(&tx.gas_price)?,
+            value: parse_u256(&tx.value)?,
             data: Vec::<u8>::from_0x_hex(&tx.data)?,
             transaction_type: TransactionType::from_str(&tx.tx_type)?,
             access_list: tx.access_list()?,
-            max_priority_fee_per_gas: parse_U256(&tx.max_priority_fee_per_gas)?,
-            chain_id: parse_U64(&tx.chain_id)?,
-            max_fee_per_gas: parse_U256(&tx.max_fee_per_gas)?,
+            max_priority_fee_per_gas: parse_u256(&tx.max_priority_fee_per_gas)?,
+            chain_id: parse_u64(&tx.chain_id)?,
+            max_fee_per_gas: parse_u256(&tx.max_fee_per_gas)?,
         })
     }
 }

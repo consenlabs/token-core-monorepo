@@ -1,4 +1,5 @@
 use crate::Result;
+use anyhow::anyhow;
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::util::base58;
 use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
@@ -39,7 +40,7 @@ impl EosPubkey {
             hex::decode(sign_source_val).unwrap().as_slice(),
         )?;
         if !sign_verify_result {
-            return Err(format_err!("imkey_signature_verify_fail"));
+            return Err(anyhow!("imkey_signature_verify_fail"));
         }
 
         //compressed key
@@ -83,7 +84,7 @@ impl EosPubkey {
             hex::decode(sign_source_val).unwrap().as_slice(),
         )?;
         if !sign_verify_result {
-            return Err(format_err!("imkey_signature_verify_fail"));
+            return Err(anyhow!("imkey_signature_verify_fail"));
         }
 
         Ok(sign_source_val.to_string())
