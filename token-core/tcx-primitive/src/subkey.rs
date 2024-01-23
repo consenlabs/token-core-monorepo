@@ -35,7 +35,7 @@ impl Derive for Sr25519PublicKey {
 }
 
 fn is_valid_substrate_path(path: &str) -> Result<()> {
-    let valid_path_regex = Regex::new(r"^(//[\w\d]+)+$")?;
+    let valid_path_regex = Regex::new(r"^(/{1,2}[\w\d]+)+$")?;
     if !valid_path_regex.is_match(path) {
         return Err(anyhow!("substrate_path_invalid"));
     }
