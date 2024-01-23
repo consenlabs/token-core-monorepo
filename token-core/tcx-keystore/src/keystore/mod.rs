@@ -1084,7 +1084,7 @@ pub(crate) mod tests {
             IdentityNetwork::from_str("UNKNOWN")
                 .unwrap_err()
                 .to_string(),
-            "unknown_network"
+            "unknown_identify_network"
         );
     }
 

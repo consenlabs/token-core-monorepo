@@ -203,10 +203,7 @@ impl HdKeystore {
             _ => root
                 .derive(&get_account_path(&coin_info.derivation_path)?)?
                 .deterministic_public_key()
-                .to_ss58check_with_version(&get_xpub_prefix(
-                    &coin_info.network,
-                    &coin_info.derivation_path,
-                )),
+                .to_ss58check_with_version(&get_xpub_prefix(&coin_info.network)),
         };
 
         let account = Account {
@@ -395,12 +392,12 @@ mod tests {
 
         let excepts = [
             "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8",
-            "ypub6Wdz1gzMKLnPxXti2GbSjQGXSqrA5NMKNP3C5JS2ZJKRDEecuZH8AhSvYQs4dZHi7b6Yind7bLekuTH9fNbJcH1MXMy9meoifu2wST55sav",
-            "zpub6qytVKvhi1obMLUuCvgvVYCnHQbwh9W8NWZJcu9LjYSr8UbKjjCbKEhBQWBdRrfXrtBbFETgvNo6sjKQrCNGouiMNKhmrYrcmm5UL17MzUV",
+            "xpub6Boii2KSAfEv7EhbBuopXKB2Gshi8kMpTGWyHuY9BHwYA8qPeu7ZYdnnXCuUdednhwyjyK2Z8gJD2AfawgBHp3Kkf2GjBjzEQAyJ3uJ4SuG",
+            "xpub6CKMszasQeidek6fYD7g5N1mwUK3ouX8YHWs47MZyXh62GxsEQsU57NuN6GTS3Mh3bwykHGa14617A6HQoYFDSM9deJvgjDeEJxBYsfJ1bs",
             "xpub6CHyG1anQPWb9ss5CUeZ7cHnvoxqAZNzJBNx6fpxaWPmybH7YbJMxjp4wFp5gnxqX59hCAAbwbQTVTzAbwJsVYgBw4CYU3eAeCGn2tUajR3",
             "tpubDCpWeoTY6x4BR2PqoTFJnEdfYbjnC4G8VvKoDUPFjt2dvZJWkMRxLST1pbVW56P7zY3L5jq9MRSeff2xsLnvf9qBBN9AgvrhwfZgw5dJG6R",
-            "upub5E4woDJohDBJ2trk6HqhsvEeZXtjjWMAbHV4LWRhfR9thcpfkjJbBRnvBS21L2JjsZAGC6LhkqAoYgD5VHSXBRNW7gszbiGJP7B6CR35QhD",
-            "vpub5ZbhUa5EheCJVJLskohSBEyL1qSAxZpMNCN36aQeHHt1jndkpeeiV48YHNiQGafTu5dPZz5e1RyjHzWu8vpAj4vixVUt1rhkrFJR8Fp2EF1",
+            "tpubDCwNET9ErXmBracx3ZBfi6rXQZRjYkpitFe23FAW9M3RcCw4aveNC4SAV5yYrFDjtP3b46eFfv4VtiYP3EXoTZsbnJia2yNznExS8EEcACv",
+            "tpubDDdrc9EkiHEiTguxsiFmoLVhgtpiqCJQk3zn1vFZPDPfbGvvQBpvsd7eZpiMntvYWGPugWndTrWskkEdyBVSCykDkmd2sCzxyf27fSKWTnB",
             "tpubDCStmH3ozU1kcGXtRW6e3yE1UoLUehvSGKBFGEjAXeE6Nk9xNWvRySanhaALGsZYU1ivo64CFYHMMdZm1EjM2Vw8uWUBqd77SCL4VCyHSoS",
             "",
         ];
@@ -696,10 +693,10 @@ mod tests {
 
         let excepts = [
             "xpub6BosfCnifzxcFwrSzQiqu2DBVTshkCXacvNsWGYJVVhhawA7d4R5WSWGFNbi8Aw6ZRc1brxMyWMzG3DSSSSoekkudhUd9yLb6qx39T9nMdj",
-            "ypub6Ww3ibxVfGzLrAH1PNcjyAWenMTbbAosGNB6VvmSEgytSER9azLDWCxoJwW7Ke7icmizBMXrzBx9979FfaHxHcrArf3zbeJJJUZPf663zsP",
-            "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
-            "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
-            "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs",
+            "xpub6C6nQwHaWbSrzs5tZ1q7m5R9cPK9eYpNMFesiXsYrgc1P8bvLLAet9JfHjYXKjToD8cBRswJXXbbFpXgwsswVPAZzKMa1jUp2kVkGVUaJa7",
+            "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V",
+            "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V",
+            "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V",
         ];
 
         for (i, coin_info) in coin_infos.iter().enumerate() {
@@ -724,7 +721,7 @@ mod tests {
             seg_wit: "NONE".to_string(),
         };
         let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
-        assert_eq!(acc.ext_pub_key, "upub5EFU65HtV5TeiSHmZZm7FUffBGy8UKeqp7vw43jYbvZPpoVsgU93oac7Wk3u6moKegAEWtGNF8DehrnHtv21XXEMYRUocHqguyjknFHYfgY");
+        assert_eq!(acc.ext_pub_key, "tpubDD7tXK8KeQ3YY83yWq755fHY2JW8Ha8Q765tknUM5rSvjPcGWfUppDFMpQ1ScziKfW3ZNtZvAD7M3u7bSs7HofjTD3KP3YxPK7X6hwV8Rk2");
 
         let coin_info = CoinInfo {
             coin: "BITCOIN".to_string(),
@@ -756,7 +753,7 @@ mod tests {
             seg_wit: "NONE".to_string(),
         };
         let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
-        assert_eq!(acc.ext_pub_key, "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs");
+        assert_eq!(acc.ext_pub_key, "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V");
 
         coin_info.derivation_path = "m/84'/0'/0'/0/0".to_string();
         let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();

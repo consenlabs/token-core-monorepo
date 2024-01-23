@@ -265,8 +265,7 @@ fn parse_tcx_keystore(v: &Value) -> Result<LegacyKeystoreResult> {
             let Ok(hd_key) = Bip32DeterministicPublicKey::from_hex_auto(&legacy_account.ext_pub_key) else {
                     continue;
                 };
-            let xpub_prefix =
-                get_xpub_prefix(&legacy_account.network, &legacy_account.derivation_path);
+            let xpub_prefix = get_xpub_prefix(&legacy_account.network);
             let extended_public_key = hd_key.to_ss58check_with_version(&xpub_prefix);
 
             (
