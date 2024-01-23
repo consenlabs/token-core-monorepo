@@ -164,7 +164,13 @@ mod test {
         let result = EthAddress::from_str("0xef678007D18427E6022059Dbc264f27507CD1ffCXX");
         assert_eq!(
             result.err().unwrap().to_string(),
-            "invalid_address".to_string()
+            "invalid_eth_address".to_string()
+        );
+
+        let result = EthAddress::from_str("0xef678007D18427E6022059Dbc264f27507CD1ffc");
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "invalid_eth_address".to_string()
         );
     }
 

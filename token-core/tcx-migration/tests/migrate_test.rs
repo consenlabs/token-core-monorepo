@@ -103,7 +103,7 @@ mod tests {
             (
                 include_str!("./fixtures/ios-214/949bada8-776c-4554-ad0c-001e3726a0f8.json"),
                 "daa734e276c7420bd7eb6f9d59d39f3072d9ab0c4c0bda09eb410ab930c745302fb39714a2c4ca1935b18d1d216db11455a4c962daf8bf360ba41c65d872a5a8",
-                Source::Private,
+                Source::SubstrateKeystore,
                 "test account",
                 "70e74176bfe0e2ae30f75653ab075deee9dae54437cb249e311ca7fef495f34b7351a3f69c82513bcd0c91ca16c99ca116cf87be91683baecab352a9be69f693",
             ),
@@ -173,7 +173,7 @@ mod tests {
             (
                 include_str!("./fixtures/android-2911/5e870760-0e65-4e2c-a56b-f57c340cfc49.json"),
                 "165493034342f9401673647e86072eb85b30e471a211fcdf5e397afe456a17404a03a266dc6d219059b61330cc798f0224018fe7f143b342a45bb3a2a6146e86",
-                Source::Private,
+                Source::SubstrateKeystore,
                 "ksmaccount",
                 "40b241ebd06c214ae6d0df24d889b25bf0506d12aa0d756eb7be050233542c50ffe8721c5955d24a25133d0f60906283a8fab3eb6d0b78c9d59b29ff7b9b159b",
             ),
@@ -363,7 +363,15 @@ mod tests {
                     let keystore_upgrade = KeystoreUpgrade::new(json);
                     assert!(keystore_upgrade.need_upgrade());
 
-                    let key = Key::DerivedKey(t.1.to_owned());
+                    let key = match id.as_str().unwrap() {
+                        "5e870760-0e65-4e2c-a56b-f57c340cfc49" => {
+                            Key::Password("12341234".to_string())
+                        }
+                        "949bada8-776c-4554-ad0c-001e3726a0f8" => {
+                            Key::Password("Insecure Pa55w0rd".to_string())
+                        }
+                        _ => Key::DerivedKey(t.1.to_owned()),
+                    };
 
                     let mut keystore = keystore_upgrade
                         .upgrade(&key, &IdentityNetwork::Testnet)

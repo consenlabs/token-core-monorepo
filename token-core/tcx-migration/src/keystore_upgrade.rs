@@ -247,7 +247,7 @@ mod tests {
             assert!(!upgrade_keystore.need_upgrade());
             assert_eq!(
                 upgraded.err().unwrap().to_string(),
-                "upgrade wrong version keystore"
+                "unknown_version_when_upgrade_keystore"
             );
         }
     }
