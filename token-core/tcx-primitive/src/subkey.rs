@@ -35,6 +35,9 @@ impl Derive for Sr25519PublicKey {
 }
 
 fn is_valid_substrate_path(path: &str) -> Result<()> {
+    if path.is_empty() {
+        return Ok(());
+    }
     let valid_path_regex = Regex::new(r"^(/{1,2}[\w\d]+)+$")?;
     if !valid_path_regex.is_match(path) {
         return Err(anyhow!("substrate_path_invalid"));
@@ -81,6 +84,7 @@ mod tests {
     use crate::ecc::DeterministicPublicKey;
     use crate::ecc::PrivateKey;
     use crate::ecc::PublicKey;
+    use crate::subkey::is_valid_substrate_path;
     use bitcoin_hashes::hex::ToHex;
     use sp_core::crypto::Pair;
     use tcx_common::FromHex;
@@ -142,5 +146,17 @@ mod tests {
             "8a8ae5479922fc2dac8a8fe867b20afada11edc63bca61793bedd6e5fc50c954",
             child_key.to_bytes().to_hex()
         );
+    }
+
+    #[test]
+    fn test_is_valid_substrate_path() {
+        assert!(is_valid_substrate_path("/imToken/Polakdot/0").is_ok());
+        assert!(is_valid_substrate_path("/imToken/Polakdot/0/123456789").is_ok());
+        assert!(is_valid_substrate_path("//kusama").is_ok());
+        assert!(is_valid_substrate_path("").is_ok());
+
+        assert!(is_valid_substrate_path("//imToken/").is_err());
+        assert!(is_valid_substrate_path("imToken/").is_err());
+        assert!(is_valid_substrate_path("//#$").is_err());
     }
 }
