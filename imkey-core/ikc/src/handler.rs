@@ -70,7 +70,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 let public_key = uncompress_pubkey_2_compress(&public_key[..130]);
                 account_rsp.public_key = format!("0x{}", public_key);
                 account_rsp.address = EthAddress::get_address(&derivation.path)?;
-                CosmosAddress::get_xpub(&account_path)?
+                EthAddress::get_xpub(&account_path)?
             }
             "COSMOS" => {
                 let public_key = CosmosAddress::get_pub_key(&derivation.path)?;
@@ -114,8 +114,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 account_rsp.public_key = format!("0x{}", public_key);
                 account_rsp.address =
                     CkbAddress::get_address(&derivation.network, &derivation.path)?;
-                let network = Network::from_str(&derivation.network.to_lowercase())?;
-                CkbAddress::get_xpub(network, &account_path)?
+                CkbAddress::get_xpub(&derivation.network, &account_path)?
             }
             "EOS" => {
                 let public_key = EosPubkey::get_sub_pubkey(&derivation.path)?;

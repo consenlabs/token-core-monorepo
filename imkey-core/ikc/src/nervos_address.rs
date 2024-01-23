@@ -6,15 +6,9 @@ use coin_ckb::address::CkbAddress;
 use ikc_common::path::get_account_path;
 
 pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
-    let network = match param.network.as_ref() {
-        "MAINNET" => Network::Bitcoin,
-        "TESTNET" => Network::Testnet,
-        _ => Network::Testnet,
-    };
-
     let address = CkbAddress::get_address(param.network.as_ref(), param.path.as_ref())?;
     let account_path = get_account_path(&param.path)?;
-    let enc_xpub = CkbAddress::get_enc_xpub(network, &account_path)?;
+    let enc_xpub = CkbAddress::get_enc_xpub(&param.network, &account_path)?;
 
     let address_message = BtcForkWallet {
         path: param.path.to_owned(),

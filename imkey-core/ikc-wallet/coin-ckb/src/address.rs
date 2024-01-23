@@ -88,7 +88,7 @@ impl CkbAddress {
         Ok(address)
     }
 
-    pub fn get_enc_xpub(network: Network, path: &str) -> Result<String> {
+    pub fn get_enc_xpub(network: &str, path: &str) -> Result<String> {
         let xpub = Self::get_xpub(network, path)?;
         let key = ikc_common::XPUB_COMMON_KEY_128.read();
         let iv = ikc_common::XPUB_COMMON_IV.read();
@@ -99,7 +99,7 @@ impl CkbAddress {
         Ok(base64::encode(&encrypted))
     }
 
-    pub fn get_xpub(network: Network, path: &str) -> Result<String> {
+    pub fn get_xpub(network: &str, path: &str) -> Result<String> {
         //path check
         check_path_validity(path)?;
 
@@ -121,9 +121,14 @@ impl CkbAddress {
 
         //get parent public key fingerprint
         let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
+        let network = match network.to_uppercase().as_str() {
+            "MAINNET" => Network::Bitcoin,
+            "TESTNET" => Network::Testnet,
+            _ => Network::Testnet,
+        };
         let parent_ext_pub_key = ExtendedPubKey {
-            network: network,
-            depth: 0 as u8,
+            network,
+            depth: 0u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
             public_key: parent_pub_key_obj,
@@ -247,16 +252,14 @@ mod tests {
         *XPUB_COMMON_KEY_128.write() = "4A2B655485ABBAB54BD30298BB0A5B55".to_string();
         *XPUB_COMMON_IV.write() = "73518399CB98DCD114D873E06EBF4BCC".to_string();
 
-        let version: Network = Network::Bitcoin;
         let path: &str = "m/44'/309'/0'";
-        let get_xpub_result = CkbAddress::get_xpub(version, path);
+        let get_xpub_result = CkbAddress::get_xpub("MAINNET", path);
         assert!(get_xpub_result.is_ok());
         let xpub = get_xpub_result.ok().unwrap();
         assert_eq!("xpub6CyvXfYwHJjJ9syYjG7qZMva1yMx93SUmqUcKHvoReUadCzqJA8mMXrrXQjRvzveuahgdQmCsdsuiCkMRsLec63DW83Wwu5UqKJQmsonKpo", xpub);
 
-        let version: Network = Network::Bitcoin;
         let path: &str = "m/44'/309'/0'";
-        let get_enc_xpub_result = CkbAddress::get_enc_xpub(version, path);
+        let get_enc_xpub_result = CkbAddress::get_enc_xpub("MAINNET", path);
         let enc_xpub = get_enc_xpub_result.ok().unwrap();
         assert_eq!("xkpmspgDJhDx7nBk/se+P0CRS/fbPKYivQiqocPEdXFIsNLCHy5lZEc59LGLbsFFamWX7j8TUs5ugKynEign+y0hDQIhm3y1PypmU+frhoWckc7vgkdzbd9xGdMTVv7J+JW4Zlenksb8a9UNkRfrJg==", enc_xpub);
     }

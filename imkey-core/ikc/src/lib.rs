@@ -539,6 +539,15 @@ mod tests {
                 curve: "secp256k1".to_string(),
                 bech32_prefix: "".to_string(),
             },
+            Derivation {
+                chain_type: "NERVOS".to_string(),
+                path: "m/44'/309'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "secp256k1".to_string(),
+                bech32_prefix: "".to_string(),
+            },
         ];
         let param = DeriveAccountsParam { derivations };
         let action: ImkeyAction = ImkeyAction {
@@ -712,6 +721,15 @@ mod tests {
             derived_accounts.accounts[13].public_key
         );
         assert_eq!("xpub6Bmkv3mmRZZWoFSBdj9vDMqR2PCPSP6DEj8u3bBuv44g3Ncnro6cPVqZAw6wTEcxHQuodkuJG4EmAinqrrRXGsN3HHnRRMtAvzfYTiBATV1", derived_accounts.accounts[13].extended_public_key);
-        assert_eq!("MwDMFXVWDEuWvBogeW1v/MOMFDnGnnflm2JAPvJaJZO4HXp8fCsWETA7u8MzOW3KaPksglpUHLN3xkDr2QWMEQq0TewFZoZ3KsjmLW0KGMRN7XQKqo/omkSEsPfalVnp9Zxm2lpxVmIacqvlernVSg==", derived_accounts.accounts[0].encrypted_extended_public_key);
+
+        assert_eq!(
+            "ckb1qyqtr684u76tu7r8efkd24hw8922xfvhnazst8nagx",
+            derived_accounts.accounts[14].address
+        );
+        assert_eq!(
+            "0x03554851980004ff256888612bf0d64d9b1002bf82331450fd5a7405d1b23cc5bd",
+            derived_accounts.accounts[14].public_key
+        );
+        assert_eq!("xpub6CyvXfYwHJjJ9syYjG7qZMva1yMx93SUmqUcKHvoReUadCzqJA8mMXrrXQjRvzveuahgdQmCsdsuiCkMRsLec63DW83Wwu5UqKJQmsonKpo", derived_accounts.accounts[14].extended_public_key);
     }
 }
