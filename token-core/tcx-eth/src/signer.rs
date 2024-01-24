@@ -658,4 +658,15 @@ mod test {
             "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
         );
     }
+
+    #[test]
+    fn test_address_recover() {
+        let input = EthRecoverAddressInput {
+            message: "0x0000000000000000".to_string(),
+            signature: "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b".to_string(),
+        };
+        let output = input.recover_address().unwrap();
+        println!("{}", output.address);
+        assert_eq!(output.address, "0xed54a7c1d8634bb589f24bb7f05a5554b36f9618");
+    }
 }
