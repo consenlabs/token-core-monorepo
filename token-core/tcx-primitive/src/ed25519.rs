@@ -24,6 +24,12 @@ impl From<Pair> for Ed25519PrivateKey {
     }
 }
 
+impl Ed25519PrivateKey {
+    pub fn sign(&self, data: &[u8]) -> Result<Vec<u8>> {
+        Ok(self.0.sign(data).0.to_vec())
+    }
+}
+
 impl TraitPrivateKey for Ed25519PrivateKey {
     type PublicKey = Ed25519PublicKey;
 
@@ -37,18 +43,6 @@ impl TraitPrivateKey for Ed25519PrivateKey {
 
     fn public_key(&self) -> Self::PublicKey {
         Ed25519PublicKey(self.0.public())
-    }
-
-    fn sign(&self, data: &[u8]) -> Result<Vec<u8>> {
-        Ok(self.0.sign(data).0.to_vec())
-    }
-
-    fn sign_specified_hash(&self, _: &[u8], _: &str) -> Result<Vec<u8>> {
-        Err(KeyError::NotImplement.into())
-    }
-
-    fn sign_recoverable(&self, data: &[u8]) -> Result<Vec<u8>> {
-        self.sign(data)
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -167,13 +161,9 @@ mod test {
         let pair: Pair/* Type */ = sp_core::Pair::from_seed(b"12345678901234567890123456789012");
         let ed25519_private_key = Ed25519PrivateKey::from(pair);
         let signature = ed25519_private_key
-            .sign_recoverable(b"12345678901234567890123456789012")
+            .sign(b"12345678901234567890123456789012")
             .unwrap();
         assert_eq!(signature.to_hex(), "23e1797e5d729e7bb21cd8a37d8c5be7171fb7626c9e45e7bd17e74bfab3a6255fb60f95e0042406b3a67d41cc65f7fc193c4ca161df9be3c8d0accf4c30cf03");
-
-        let signature =
-            ed25519_private_key.sign_specified_hash(b"12345678901234567890123456789012", "blake2b");
-        assert_eq!(signature.err().unwrap().to_string(), "not_implement");
 
         let public_key = ed25519_private_key.public_key().0;
         assert_eq!(

@@ -455,23 +455,10 @@ impl Signer for Keystore {
     ) -> Result<Vec<u8>> {
         match (curve, sig_alg.to_uppercase().as_str()) {
             ("secp256k1", "ECDSA") => self.secp256k1_ecdsa_sign_recoverable(hash, derivation_path),
-            ("bls12-381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_") => {
-                self.bls_sign(hash, derivation_path)
-            }
-            ("bls12-381", "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_") => self
-                .bls_sign_specified_alg(
-                    hash,
-                    derivation_path,
-                    "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_",
-                ),
-            (curve, _) => {
-                let curve_type = CurveType::from_str(curve);
-                let private_key = match self {
-                    Keystore::PrivateKey(ks) => ks.get_private_key(curve_type)?,
-                    Keystore::Hd(ks) => ks.get_private_key(curve_type, derivation_path)?,
-                };
-                private_key.sign(hash)
-            }
+            ("bls12-381", dst) => self.bls_sign(hash, derivation_path, dst),
+            ("ed25519", _) => self.ed25519_sign(hash, derivation_path),
+            ("sr25519", _) => self.sr25519_sign(hash, derivation_path),
+            (_, _) => Err(anyhow!("unsupported curve: {} sig_alg: {}", curve, sig_alg)),
         }
     }
 
@@ -485,29 +472,16 @@ impl Signer for Keystore {
             Keystore::Hd(ks) => ks.get_private_key(CurveType::SECP256k1, derivation_path)?,
         };
 
-        private_key.sign_recoverable(hash)
+        private_key.as_secp256k1()?.sign_recoverable(hash)
     }
 
-    fn bls_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>> {
+    fn bls_sign(&mut self, hash: &[u8], derivation_path: &str, dst: &str) -> Result<Vec<u8>> {
         let private_key = match self {
             Keystore::PrivateKey(ks) => ks.get_private_key(CurveType::BLS)?,
             Keystore::Hd(ks) => ks.get_private_key(CurveType::BLS, derivation_path)?,
         };
 
-        private_key.sign(hash)
-    }
-
-    fn bls_sign_specified_alg(
-        &mut self,
-        hash: &[u8],
-        derivation_path: &str,
-        sig_alg: &str,
-    ) -> Result<Vec<u8>> {
-        let private_key: TypedPrivateKey = match self {
-            Keystore::PrivateKey(ks) => ks.get_private_key(CurveType::BLS)?,
-            Keystore::Hd(ks) => ks.get_private_key(CurveType::BLS, derivation_path)?,
-        };
-        private_key.sign_specified_hash(hash, sig_alg)
+        private_key.as_bls()?.sign(hash, dst)
     }
 
     fn sr25519_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>> {
@@ -516,11 +490,16 @@ impl Signer for Keystore {
             Keystore::Hd(ks) => ks.get_private_key(CurveType::SR25519, derivation_path)?,
         };
 
-        private_key.sign(hash)
+        private_key.as_sr25519()?.sign(hash)
     }
 
-    fn schnorr_sign(&mut self, _hash: &[u8], _derivation_path: &str) -> Result<Vec<u8>> {
-        todo!()
+    fn ed25519_sign(&mut self, hash: &[u8], derivation_path: &str) -> Result<Vec<u8>> {
+        let private_key = match self {
+            Keystore::PrivateKey(ks) => ks.get_private_key(CurveType::ED25519)?,
+            Keystore::Hd(ks) => ks.get_private_key(CurveType::ED25519, derivation_path)?,
+        };
+
+        private_key.as_ed25519()?.sign(hash)
     }
 }
 

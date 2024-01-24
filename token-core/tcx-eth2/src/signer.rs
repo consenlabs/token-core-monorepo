@@ -31,7 +31,7 @@ impl SignBlsToExecutionChangeParam {
             bls_to_execution_request.validator_index = *validator_index;
             let message = bls_to_execution_request.generate_bls_to_execution_change_hash()?;
 
-            let signature = keystore.bls_sign_specified_alg(
+            let signature = keystore.bls_sign(
                 Vec::from_hex_auto(&message)?.as_slice(),
                 "m/12381/3600/0/0",
                 "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_",

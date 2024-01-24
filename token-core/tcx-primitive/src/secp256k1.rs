@@ -60,6 +60,22 @@ impl Secp256k1PrivateKey {
     }
 }
 
+impl Secp256k1PrivateKey {
+    pub fn sign(&self, data: &[u8]) -> Result<Vec<u8>> {
+        let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
+        let signature = SECP256K1_ENGINE.sign_ecdsa(&msg, &self.0.inner);
+        Ok(signature.serialize_der().to_vec())
+    }
+
+    pub fn sign_recoverable(&self, data: &[u8]) -> Result<Vec<u8>> {
+        let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
+        let signature = SECP256K1_ENGINE.sign_ecdsa_recoverable(&msg, &self.0.inner);
+        let (recover_id, sign) = signature.serialize_compact();
+        let signed_bytes = [sign[..].to_vec(), vec![(recover_id.to_i32()) as u8]].concat();
+        Ok(signed_bytes)
+    }
+}
+
 impl TraitPrivateKey for Secp256k1PrivateKey {
     type PublicKey = Secp256k1PublicKey;
 
@@ -74,24 +90,6 @@ impl TraitPrivateKey for Secp256k1PrivateKey {
 
     fn public_key(&self) -> Self::PublicKey {
         Secp256k1PublicKey(self.0.public_key(&SECP256K1_ENGINE))
-    }
-
-    fn sign(&self, data: &[u8]) -> Result<Vec<u8>> {
-        let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
-        let signature = SECP256K1_ENGINE.sign_ecdsa(&msg, &self.0.inner);
-        Ok(signature.serialize_der().to_vec())
-    }
-
-    fn sign_specified_hash(&self, _: &[u8], _: &str) -> Result<Vec<u8>> {
-        Err(KeyError::NotImplement.into())
-    }
-
-    fn sign_recoverable(&self, data: &[u8]) -> Result<Vec<u8>> {
-        let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
-        let signature = SECP256K1_ENGINE.sign_ecdsa_recoverable(&msg, &self.0.inner);
-        let (recover_id, sign) = signature.serialize_compact();
-        let signed_bytes = [sign[..].to_vec(), vec![(recover_id.to_i32()) as u8]].concat();
-        Ok(signed_bytes)
     }
 
     fn to_bytes(&self) -> Vec<u8> {

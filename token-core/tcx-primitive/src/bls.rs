@@ -20,6 +20,18 @@ impl From<SecretKey> for BLSPrivateKey {
     }
 }
 
+impl BLSPrivateKey {
+    pub const DEFAULT_DST: &'static str = "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_";
+
+    pub fn sign(&self, message: &[u8], dst: &str) -> Result<Vec<u8>> {
+        Ok(self
+            .0
+            .sign(message, dst.as_bytes(), &[])
+            .compress()
+            .to_vec())
+    }
+}
+
 impl TraitPrivateKey for BLSPrivateKey {
     type PublicKey = BLSPublicKey;
 
@@ -42,26 +54,6 @@ impl TraitPrivateKey for BLSPrivateKey {
 
     fn public_key(&self) -> Self::PublicKey {
         BLSPublicKey(self.0.sk_to_pk())
-    }
-
-    fn sign(&self, message: &[u8]) -> Result<Vec<u8>> {
-        Ok(self
-            .0
-            .sign(message, b"BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_", &[])
-            .compress()
-            .to_vec())
-    }
-
-    fn sign_specified_hash(&self, message: &[u8], dst: &str) -> Result<Vec<u8>> {
-        Ok(self
-            .0
-            .sign(message, dst.as_bytes(), &[])
-            .compress()
-            .to_vec())
-    }
-
-    fn sign_recoverable(&self, _: &[u8]) -> Result<Vec<u8>> {
-        Err(KeyError::NotImplement.into())
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -143,11 +135,6 @@ mod tests {
 
     #[test]
     fn test_bls_sign() {
-        // let private_key = BLSPrivateKey::from_slice(
-        //     &Vec::from_hex("068dce0c90cb428ab37a74af0191eac49648035f1aaef077734b91e05985ec55")
-        //         .unwrap(),
-        // )
-        // .unwrap();
         let mut sec_key_bytes =
             Vec::from_hex("068dce0c90cb428ab37a74af0191eac49648035f1aaef077734b91e05985ec55")
                 .unwrap();
@@ -156,16 +143,9 @@ mod tests {
         let message =
             Vec::from_hex("23ba0fe9dc5d2fae789f31fdccb4e28e74b89aec26bafdd6c96ced598542f53e")
                 .unwrap();
-        let sign_result = private_key.sign_specified_hash(
+        let sign_result = private_key.sign(
             message.clone().as_slice(),
             "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_",
-        );
-        assert_eq!(sign_result.unwrap().to_hex(),
-                   "8c8ce9f8aedf380e47548501d348afa28fbfc282f50edf33555a3ed72eb24d710bc527b5108022cffb764b953941ec4014c44106d2708387d26cc84cbc5c546a1e6e56fdc194cf2649719e6ac149596d80c86bf6844b36bd47038ee96dd3962f");
-        let sign_result = private_key.sign_recoverable(message.as_slice());
-        assert_eq!(
-            sign_result.err().unwrap().to_string(),
-            KeyError::NotImplement.to_string()
         );
     }
 

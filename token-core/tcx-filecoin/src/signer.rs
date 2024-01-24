@@ -79,7 +79,11 @@ impl TransactionSigner<UnsignedMessage, SignedMessage> for Keystore {
             }
             CurveType::BLS => {
                 signature_type = 2;
-                signature = self.bls_sign(&cid.to_bytes(), &sign_context.derivation_path)?;
+                signature = self.bls_sign(
+                    &cid.to_bytes(),
+                    &sign_context.derivation_path,
+                    "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_",
+                )?;
                 cid = unsigned_message.cid()?;
             }
             _ => return Err(Error::InvalidCurveType.into()),

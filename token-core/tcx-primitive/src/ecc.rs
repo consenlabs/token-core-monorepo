@@ -52,8 +52,6 @@ pub enum KeyError {
     InvalidEd25519Key,
     #[error("unsupport_ed25519_pubkey_derivation")]
     UnsupportEd25519PubkeyDerivation,
-    #[error("unsupport_normal_derivation")]
-    UnsupportNormalDerivation,
     #[error("not_implement")]
     NotImplement,
     #[error("secp256k1_error")]
@@ -82,12 +80,6 @@ pub trait PrivateKey: Sized {
     fn from_slice(data: &[u8]) -> Result<Self>;
 
     fn public_key(&self) -> Self::PublicKey;
-
-    fn sign(&self, _: &[u8]) -> Result<Vec<u8>>;
-
-    fn sign_specified_hash(&self, _: &[u8], dst: &str) -> Result<Vec<u8>>;
-
-    fn sign_recoverable(&self, data: &[u8]) -> Result<Vec<u8>>;
 
     fn to_bytes(&self) -> Vec<u8>;
 }
@@ -155,6 +147,27 @@ impl TypedPrivateKey {
         }
     }
 
+    pub fn as_sr25519(&self) -> Result<&Sr25519PrivateKey> {
+        match self {
+            TypedPrivateKey::SR25519(sk) => Ok(sk),
+            _ => Err(KeyError::InvalidCurveType.into()),
+        }
+    }
+
+    pub fn as_bls(&self) -> Result<&BLSPrivateKey> {
+        match self {
+            TypedPrivateKey::BLS(sk) => Ok(sk),
+            _ => Err(KeyError::InvalidCurveType.into()),
+        }
+    }
+
+    pub fn as_ed25519(&self) -> Result<&Ed25519PrivateKey> {
+        match self {
+            TypedPrivateKey::Ed25519(sk) => Ok(sk),
+            _ => Err(KeyError::InvalidCurveType.into()),
+        }
+    }
+
     pub fn to_bytes(&self) -> Vec<u8> {
         match self {
             TypedPrivateKey::Secp256k1(sk) => sk.to_bytes(),
@@ -170,33 +183,6 @@ impl TypedPrivateKey {
             TypedPrivateKey::SR25519(sk) => TypedPublicKey::SR25519(sk.public_key()),
             TypedPrivateKey::Ed25519(sk) => TypedPublicKey::Ed25519(sk.public_key()),
             TypedPrivateKey::BLS(sk) => TypedPublicKey::BLS(sk.public_key()),
-        }
-    }
-
-    pub fn sign(&self, data: &[u8]) -> Result<Vec<u8>> {
-        match self {
-            TypedPrivateKey::Secp256k1(sk) => sk.sign(data),
-            TypedPrivateKey::SR25519(sk) => sk.sign(data),
-            TypedPrivateKey::Ed25519(sk) => sk.sign(data),
-            TypedPrivateKey::BLS(sk) => sk.sign(data),
-        }
-    }
-
-    pub fn sign_specified_hash(&self, data: &[u8], dst: &str) -> Result<Vec<u8>> {
-        match self {
-            TypedPrivateKey::Secp256k1(sk) => sk.sign_specified_hash(data, dst),
-            TypedPrivateKey::SR25519(sk) => sk.sign_specified_hash(data, dst),
-            TypedPrivateKey::Ed25519(sk) => sk.sign_specified_hash(data, dst),
-            TypedPrivateKey::BLS(sk) => sk.sign_specified_hash(data, dst),
-        }
-    }
-
-    pub fn sign_recoverable(&self, data: &[u8]) -> Result<Vec<u8>> {
-        match self {
-            TypedPrivateKey::Secp256k1(sk) => sk.sign_recoverable(data),
-            TypedPrivateKey::SR25519(sk) => sk.sign_recoverable(data),
-            TypedPrivateKey::Ed25519(sk) => sk.sign_recoverable(data),
-            TypedPrivateKey::BLS(sk) => sk.sign_recoverable(data),
         }
     }
 }
@@ -487,7 +473,7 @@ mod tests {
         "fc581c897af481b10cf846d88754f1d115e486e5b7bcc39c0588c01b0a9b7a11";
 
     #[test]
-    fn typed_private_key() {
+    fn test_typed_private_key() {
         let ret = TypedPrivateKey::from_slice(CurveType::ED25519, &default_private_key());
         assert!(ret.is_ok());
 
@@ -498,12 +484,16 @@ mod tests {
         assert_eq!(sk.curve_type(), CurveType::SECP256k1);
         assert_eq!(sk.public_key().to_bytes().to_hex(), PUB_KEY_HEX);
 
-        let sign_ret = sk.sign(&default_private_key()).unwrap();
+        let sign_ret = sk
+            .as_secp256k1()
+            .unwrap()
+            .sign(&default_private_key())
+            .unwrap();
         assert_eq!(sign_ret.to_hex(), "304402206614e4bfa3ba1f6c975286a0a683871d6f0525a0860631afa5bea4da78ca012a02207a663d4980abed218683f66a63bbb766975fd525b8442a0424f6347c3d4f9261");
     }
 
     #[test]
-    fn typed_deterministic_private_key() {
+    fn test_typed_deterministic_private_key() {
         let root =
             TypedDeterministicPrivateKey::from_mnemonic(CurveType::SECP256k1, &TEST_MNEMONIC)
                 .unwrap();
@@ -537,7 +527,7 @@ mod tests {
     // todo:
     // this test run failure because of the invalid path
     // #[test]
-    fn typed_deterministic_private_key_sr25519() {
+    fn test_typed_deterministic_private_key_sr25519() {
         let root = TypedDeterministicPrivateKey::from_mnemonic(CurveType::SR25519, &TEST_MNEMONIC)
             .unwrap();
 
@@ -611,35 +601,19 @@ mod tests {
     }
 
     #[test]
-    fn test_sign_specified_hash() {
-        let message = "0000000000000000000000000000000000000000000000000000000000000000".as_bytes();
-        let sk = TypedPrivateKey::from_slice(CurveType::SECP256k1, &default_private_key()).unwrap();
-        let sign_ret = sk.sign_specified_hash(message, "blake2b");
-        assert_eq!(sign_ret.err().unwrap().to_string(), "not_implement");
-
-        let sk = TypedPrivateKey::from_slice(CurveType::ED25519, &default_private_key()).unwrap();
-        let sign_ret = sk.sign_specified_hash(message, "blake2b");
-        assert_eq!(sign_ret.err().unwrap().to_string(), "not_implement");
-
-        let sk = TypedPrivateKey::from_slice(CurveType::SR25519, message).unwrap();
-        let sign_ret = sk.sign_specified_hash(message, "blake2b");
-        assert_eq!(sign_ret.err().unwrap().to_string(), "not_implement");
-    }
-
-    #[test]
-    fn test_sign_recoverable() {
+    fn test_sign() {
         let message = "0000000000000000000000000000000000000000000000000000000000000000".as_bytes();
         let sk = TypedPrivateKey::from_slice(CurveType::ED25519, &default_private_key()).unwrap();
-        let sign_ret = sk.sign_recoverable(message).unwrap();
+        let sign_ret = sk.as_ed25519().unwrap().sign(message).unwrap();
         assert_eq!(sign_ret.to_hex(), "65879392febf60e1fe01dfc301832c45b978f154639b2b0a3137264acc56bf41c380a81d73fa621753236dcab456afff2a4228f16fb80cce249dff3a8d7bf90b");
 
         let sk = TypedPrivateKey::from_slice(CurveType::SR25519, message).unwrap();
-        let sign_ret = sk.sign_recoverable(message);
+        let sign_ret = sk.as_sr25519().unwrap().sign(message);
         assert!(sign_ret.is_ok());
     }
 
     #[test]
-    fn cross_test_tw() {
+    fn test_cross_tw() {
         let root =
             TypedDeterministicPrivateKey::from_mnemonic(CurveType::SECP256k1, "ripple scissors kick mammal hire column oak again sun offer wealth tomorrow wagon turn fatal")
                 .unwrap();
