@@ -682,7 +682,6 @@ mod tests {
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
-            //Because of the schnorr signature is not determined, can't compare to the raw tx
             //please see https://blockstream.info/testnet/tx/b9d297c17be4fd659959a40fc6df7bf659f5f6e1b46c29d613d6fa25c711616b?expand
             assert_eq!(actual.raw_tx, "02000000000101bd664c499285eee216711ded70a21064fafe9b4ea9ccd08a4233554f2b5cbcce0100000000ffffffff0250c30000000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c23330750000000000002251209303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea0615502483045022100bed2bc8b4bf2beb4dacda077b47f96b4070af659ca241c343eccfe3ebc4a6f600220379c51f6456adff08a7605496a88653689af9e44f5d324e2ad2e1eae330b434f012102e24f625a31c9a8bae42239f2bf945a306c01a450a03fd123316db0e837a660c000000000");
             assert_eq!(
@@ -724,7 +723,6 @@ mod tests {
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
-            //Because of the schnorr signature is not determined, can't compare to the raw tx
             //please see https://blockstream.info/testnet/tx/0fb223cd2cd90830827ab235b752de841153d69a75649d8f92ffa2198d645852?expand
             assert_eq!(
                 actual.tx_hash,
