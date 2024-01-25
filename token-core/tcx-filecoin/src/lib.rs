@@ -29,6 +29,9 @@ pub enum Error {
 
     #[error("invalid_number")]
     InvalidNumber,
+
+    #[error("invalid_method_id")]
+    InvalidMethodId,
 }
 
 pub mod filecoin {

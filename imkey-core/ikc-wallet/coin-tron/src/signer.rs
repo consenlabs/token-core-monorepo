@@ -32,6 +32,8 @@ impl TronSigner {
             }
             false => input.message.into_bytes(),
         };
+
+        // this code is from tron wallet
         let header = match input.is_tron_header {
             true => "\x19TRON Signed Message:\n32".as_bytes(),
             false => "\x19Ethereum Signed Message:\n32".as_bytes(),

@@ -23,8 +23,8 @@ pub fn encode_tezos_private_key(sk: &str) -> Result<String> {
 
 pub fn parse_tezos_private_key(private_key: &str) -> Result<Vec<u8>> {
     let data = base58::from_check(private_key)?;
-    let pk = Ed25519PrivateKey::from_slice(&data[4..36])?;
-    Ok(pk.to_bytes())
+    let sec_key = Ed25519PrivateKey::from_slice(&data[4..36])?;
+    Ok(sec_key.to_bytes())
 }
 
 pub mod tezos {

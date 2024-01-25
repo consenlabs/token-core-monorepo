@@ -716,6 +716,15 @@ mod tests {
                     curve: "secp256k1".to_string(),
                     bech32_prefix: "".to_string(),
                 },
+                Derivation {
+                    chain_type: "TEZOS".to_string(),
+                    path: "m/44'/1729'/0'/0'".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: "ed25519".to_string(),
+                    bech32_prefix: "".to_string(),
+                },
             ];
 
             let param = DeriveAccountsParam {
@@ -728,7 +737,7 @@ mod tests {
             let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
             let derived_accounts: DeriveAccountsResult =
                 DeriveAccountsResult::decode(derived_accounts_bytes.as_slice()).unwrap();
-            assert_eq!(16, derived_accounts.accounts.len());
+            assert_eq!(17, derived_accounts.accounts.len());
             assert_eq!(
                 "LQ3JqCohgLQ3x1CJXYERnJTy1ySaqr1E32",
                 derived_accounts.accounts[0].address
@@ -802,6 +811,11 @@ mod tests {
             assert_eq!(
                 "bc1phazpdjkaruvcqhaakmk56tvmqcd4kx5svvrjdrck5m7g3q2uadpszxypw0",
                 derived_accounts.accounts[15].address
+            );
+
+            assert_eq!(
+                "tz1YhnU6rUigVp6Jei1VJQHofGSbzGKphVmG",
+                derived_accounts.accounts[16].address
             );
 
             remove_created_wallet(&import_result.id);

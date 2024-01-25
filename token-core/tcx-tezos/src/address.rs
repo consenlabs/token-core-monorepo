@@ -111,12 +111,19 @@ mod test {
             "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9"
         );
 
-        let _pub_key = TypedPublicKey::from_slice(
+        let pub_key = TypedPublicKey::from_slice(
             CurveType::ED25519,
             &Vec::from_hex("d0c5ee97112a8a6f192ec44ab10f6a51bbfa327f7736e8e8b30b9ec636bc533b")
                 .unwrap(),
         )
         .unwrap();
+
+        assert_eq!(
+            TezosAddress::from_public_key(&pub_key, &coin_info)
+                .unwrap()
+                .to_string(),
+            "tz1KenEed7WbMRsNUBv24vnCzVgbdrvy44cr"
+        );
     }
 
     #[test]

@@ -1,8 +1,9 @@
 use crate::transaction::{EosMessageInput, EosMessageOutput, EosTxInput, EosTxOutput, SigData};
 use tcx_keystore::{
-    Keystore, MessageSigner, Result, SignatureParameters, Signer, TransactionSigner,
+    tcx_ensure, Keystore, MessageSigner, Result, SignatureParameters, Signer, TransactionSigner,
 };
 
+use anyhow::anyhow;
 use bitcoin::util::base58;
 use tcx_common::{ripemd160, sha256, FromHex, ToHex};
 
@@ -58,6 +59,10 @@ impl MessageSigner<EosMessageInput, EosMessageOutput> for Keystore {
             sha256(bytes).to_vec()
         };
 
+        tcx_ensure!(
+            data_hashed.len() == 32,
+            anyhow!("{}", "hashed data must be 32 bytes")
+        );
         let sign_result =
             self.secp256k1_ecdsa_sign_recoverable(data_hashed.as_slice(), &params.derivation_path)?;
         // EOS need v r s

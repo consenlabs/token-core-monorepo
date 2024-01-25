@@ -531,30 +531,28 @@ mod tests {
         let root = TypedDeterministicPrivateKey::from_mnemonic(CurveType::SR25519, &TEST_MNEMONIC)
             .unwrap();
 
-        let dpk = root
-            .derive("m/44'/0'/0'")
-            .unwrap()
-            .deterministic_public_key();
+        let dpk = root.derive("//imToken").unwrap().deterministic_public_key();
 
         assert_eq!(
             dpk.to_string(),
-            "5Cntm6VLcdbFTSKUqyjuTjEfYrJgQparwoio6Coutb18Jbjv"
+            "5ESCvFvYLLakjmzst4aPUZXDPR5iTXJ3NwKiJ78E7hGUoQo6"
         );
         assert_eq!(dpk.curve_type(), CurveType::SR25519);
         assert_eq!(
             dpk.public_key().to_bytes().to_hex(),
-            "202d03479aee4051f74ec9edf422b1a5272eee3720d29b3b2b9587a32faf450f"
+            "68de739095eeaf297751644dcd723d6a9319069fe6fe440d28426ed89dddb454"
         );
-        let child_dpk = dpk.derive("0/0").unwrap();
+        let child_dpk = dpk.derive("/Polkadot/0").unwrap();
         assert_eq!(
             child_dpk.to_string(),
-            "5FCuuGpkXAqc4WG5JgV6yFmAt1tykiuXCEb5yRGacGcoxkSh"
+            "5EHrYeBgkMX8Q2yMcF2gYZKdpRF31cqMxKMtbM19YPRCBYpv"
         );
 
-        let child_dpk = dpk.derive("m/0/0").unwrap();
+        // TODO: why can derive from public key
+        let child_dpk = dpk.derive("/KUSAMA/0").unwrap();
         assert_eq!(
             child_dpk.to_string(),
-            "5Dt1Pst8UQBuYv83dcNi1BDpCQPsXHLMwNDPr4efev1psrEB"
+            "5DyZBGXwBtcwbra7QnDqJX5VnJmb9aicTdUamXSurgxY5dpW"
         );
     }
 
@@ -651,7 +649,7 @@ mod tests {
         let pri_key = root.derive("m/49'/1'/0'").unwrap();
         assert_eq!(
             pri_key.to_string(),
-            "xprv9ykubZmk6kXo3qnexcayWc1S99ZytiuVCEZzbr1bBcA47JcQtuKV7yG3j6RohVfuxoGoy6ZEQ3V71tAQ6GNE44PG6rfTBPB4nkSBnA1qcy5",
+            "xprv9ykubZmk6kXo3qnexcayWc1S99ZytiuVCEZzbr1bBcA47JcQtuKV7yG3j6RohVfuxoGoy6ZEQ3V71tAQ6GNE44PG6rfTBPB4nkSBnA1qcy5"
         );
         assert_eq!(
             pri_key.deterministic_public_key().to_string(),

@@ -14,6 +14,8 @@ fn remove_bch_prefix(addr: &str) -> String {
     if let Some(sep) = addr.rfind(':') {
         if addr.len() > sep + 1 {
             return addr.split_at(sep + 1).1.to_owned();
+        } else {
+            return "".to_string();
         }
     }
     addr.to_owned()
@@ -107,7 +109,6 @@ mod tests {
     use tcx_common::FromHex;
 
     use crate::address::WIFDisplay;
-    use crate::BtcKinAddress;
     use tcx_constants::coin_info::coin_info_from_param;
     use tcx_constants::{CoinInfo, CurveType};
     use tcx_keystore::Address;
@@ -210,7 +211,8 @@ mod tests {
             remove_bch_prefix("qq2ug6v04ht22n0daxxzl0rzlvsmzwcdwuymj77ymy"),
             "qq2ug6v04ht22n0daxxzl0rzlvsmzwcdwuymj77ymy"
         );
-        assert_eq!(remove_bch_prefix("bitcoincash:"), "bitcoincash:");
+
+        assert_eq!(remove_bch_prefix("bitcoincash:"), "");
         assert_eq!(
             remove_bch_prefix("qq2ug6v04ht22n0daxxzl0rzlvsmzwcdwuymj77ymy"),
             "qq2ug6v04ht22n0daxxzl0rzlvsmzwcdwuymj77ymy"
@@ -282,9 +284,9 @@ mod tests {
             TypedPrivateKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(prv_str).unwrap())
                 .unwrap()
                 .public_key();
-        let mut coin_info = CoinInfo {
+        let coin_info = CoinInfo {
             coin: "BITCOINCASH".to_string(),
-            derivation_path: "m/44'/2'/0'/0/0".to_string(),
+            derivation_path: "".to_string(),
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),

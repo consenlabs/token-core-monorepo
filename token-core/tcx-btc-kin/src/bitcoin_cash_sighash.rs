@@ -124,6 +124,7 @@ impl BitcoinCashSighash {
             let mut single_enc = Sighash::engine();
             self.tx.output[input_index].consensus_encode(&mut single_enc)?;
             Sighash::from_engine(single_enc).consensus_encode(&mut writer)?;
+            // padding zero hash, copy form bitcoin core
         } else {
             zero_hash.consensus_encode(&mut writer)?;
         }

@@ -12,6 +12,7 @@ tcx-keystore = { path = "../tcx-keystore" }
 tcx-constants = { path = "../tcx-constants" }
 tcx-primitive = { path = "../tcx-primitive" }
 tcx-crypto = { path = "../tcx-crypto" }
+tcx-eth = { path = "../tcx-eth" }
 
 prost = "=0.11.2"
 bytes = "=1.4.0"

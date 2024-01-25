@@ -4554,6 +4554,7 @@ dependencies = [
  "tcx-common",
  "tcx-constants",
  "tcx-crypto",
+ "tcx-eth",
  "tcx-keystore",
  "tcx-primitive",
  "thiserror",

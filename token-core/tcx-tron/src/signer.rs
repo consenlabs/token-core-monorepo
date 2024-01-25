@@ -50,14 +50,11 @@ impl TraitTransactionSigner<TronTxInput, TronTxOutput> for Keystore {
         let hash = Hash::hash(&data);
 
         let sign_result =
-            self.secp256k1_ecdsa_sign_recoverable(&hash[..], &sign_context.derivation_path);
+            self.secp256k1_ecdsa_sign_recoverable(&hash[..], &sign_context.derivation_path)?;
 
-        match sign_result {
-            Ok(r) => Ok(TronTxOutput {
-                signatures: vec![r.to_hex()],
-            }),
-            Err(_e) => Err(anyhow!("{}", "can not format error")),
-        }
+        Ok(TronTxOutput {
+            signatures: vec![sign_result.to_hex()],
+        })
     }
 }
 

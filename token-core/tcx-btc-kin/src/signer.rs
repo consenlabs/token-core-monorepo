@@ -608,7 +608,7 @@ mod tests {
                 vout: 0,
                 amount: 100000,
                 address: "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r".to_string(),
-                derived_path: "m/44'/145'/0'/1/0".to_string(),
+                derived_path: "".to_string(),
             }];
 
             let tx_input = BtcKinTxInput {
@@ -635,7 +635,7 @@ mod tests {
                 chain_type: BITCOINCASH.to_string(),
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                derivation_path: "m/44'/145'/0'/0/0".to_string(),
+                derivation_path: "".to_string(),
             };
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
