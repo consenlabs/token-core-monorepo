@@ -6,6 +6,8 @@ pub enum CommonError {
     ImkeyPathIllegal,
     #[error("invalid_key_iv_length")]
     InvalidKeyIvLength,
+    #[error("invalid_base58")]
+    InvalidBase58,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]

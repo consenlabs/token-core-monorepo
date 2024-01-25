@@ -19,9 +19,10 @@ use std::str::FromStr;
 pub struct TronAddress {}
 
 impl TronAddress {
-    pub fn address_from_pubkey(pubkey: &[u8]) -> Result<String> {
-        let pubkey_hash = keccak(pubkey[1..].as_ref());
-        let address = [vec![0x41], pubkey_hash[12..].to_vec()].concat();
+    pub fn from_pub_key(pub_key: &[u8]) -> Result<String> {
+        let public_key = PublicKey::from_slice(pub_key)?.serialize_uncompressed();
+        let keccak_hash = keccak(public_key[1..].as_ref());
+        let address = [vec![0x41], keccak_hash[12..].to_vec()].concat();
         let base58_address = base58::check_encode_slice(&address);
         Ok(base58_address)
     }
@@ -31,7 +32,7 @@ impl TronAddress {
 
         let pubkey_raw = TronAddress::get_pub_key(path)?;
 
-        let address = TronAddress::address_from_pubkey(&pubkey_raw[..65])?;
+        let address = TronAddress::from_pub_key(&pubkey_raw[..65])?;
         Ok(address)
     }
 
@@ -146,7 +147,7 @@ mod tests {
         let bytes = hex::decode("04DAAC763B1B3492720E404C53D323BAF29391996F7DD5FA27EF0D12F7D50D694700684A32AD97FF4C09BF9CF0B9D0AC7F0091D9C6CB8BE9BB6A1106DA557285D8").unwrap();
 
         assert_eq!(
-            TronAddress::address_from_pubkey(&bytes).unwrap(),
+            TronAddress::from_pub_key(&bytes).unwrap(),
             "THfuSDVRvSsjNDPFdGjMU19Ha4Kf7acotq"
         );
     }
@@ -170,12 +171,11 @@ mod tests {
     fn test_get_xpub() {
         bind_test();
         let xpub = TronAddress::get_xpub(&get_account_path("m/44'/195'/0'/0/0").unwrap()).unwrap();
-        println!("xpub:{}", &xpub);
         let extended_pub_key = ExtendedPubKey::from_str(&xpub).unwrap();
         let res = TronAddress::to_ss58check_with_version(
             extended_pub_key,
             &hex::decode("043587cf").unwrap(),
         );
-        println!("res-->:{}", &res);
+        assert_eq!("tpubDCxD6k9PreNhSacpfSZ3iErESZnncY1n7qU7e3stZXLPh84xVVt5ERMAqKeefUU8jswx2GpCkQpeYow4xH3PGx2iim6ftPa32GNvTKAtknz", res);
     }
 }

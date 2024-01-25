@@ -158,6 +158,16 @@ impl EosPubkey {
         ApduCheck::check_response(&res_reg)?;
         Ok(pubkey)
     }
+
+    pub fn from_pub_key(pub_key: &[u8]) -> Result<String> {
+        let mut compressed_pub_key = PublicKey::from_slice(pub_key)?.serialize().to_vec();
+        //checksum base58
+        let pub_key_hash = ripemd160::Hash::hash(&compressed_pub_key);
+        let check_sum = &pub_key_hash[0..4];
+        compressed_pub_key.extend(check_sum);
+        let eos_pk = "EOS".to_owned() + base58::encode_slice(&compressed_pub_key).as_ref();
+        Ok(eos_pk)
+    }
 }
 
 #[cfg(test)]

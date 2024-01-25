@@ -129,6 +129,19 @@ impl BchAddress {
             return false;
         }
     }
+
+    pub fn from_pub_key(pub_key: &[u8], network: &str) -> Result<String> {
+        let network = match network.to_uppercase().as_str() {
+            "MAINNET" => Network::Bitcoin,
+            "TESTNET" => Network::Testnet,
+            _ => Network::Testnet,
+        };
+        //get pub key
+        let mut pub_key_obj = PublicKey::from_slice(pub_key)?;
+        pub_key_obj.compressed = true;
+        let addr = BtcAddress::p2pkh(&pub_key_obj, network).to_string();
+        legacy_to_bch(&addr)
+    }
 }
 
 impl FromStr for BchAddress {

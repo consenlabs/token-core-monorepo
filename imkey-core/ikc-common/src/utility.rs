@@ -1,7 +1,12 @@
+use crate::constants::SECP256K1_ENGINE;
+use crate::error::CommonError;
 use crate::Result;
 use bitcoin::hashes::{sha256, Hash};
 use bitcoin::util::base58;
-use bitcoin::util::bip32::ExtendedPubKey;
+use bitcoin::util::bip32::{
+    ChainCode, ChildNumber, Error as Bip32Error, ExtendedPubKey, Fingerprint,
+};
+use bitcoin::Network;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use num_bigint::BigInt;
@@ -134,6 +139,47 @@ pub fn to_ss58check_with_version(extended_key: ExtendedPubKey, version: &[u8]) -
     base58::check_encode_slice(&ret[..])
 }
 
+pub fn from_ss58check_with_version(s: &str) -> Result<(ExtendedPubKey, Vec<u8>)> {
+    let data = base58::from_check(s)?;
+
+    if data.len() != 78 {
+        return Err(CommonError::InvalidBase58.into());
+    }
+    let cn_int: u32 = BigEndian::read_u32(&data[9..13]);
+    let child_number: ChildNumber = ChildNumber::from(cn_int);
+
+    let epk = ExtendedPubKey {
+        network: Network::Bitcoin,
+        depth: data[4],
+        parent_fingerprint: Fingerprint::from(&data[5..9]),
+        child_number,
+        chain_code: ChainCode::from(&data[13..45]),
+        public_key: secp256k1::PublicKey::from_slice(&data[45..78])?,
+    };
+
+    let mut network = [0; 4];
+    network.copy_from_slice(&data[0..4]);
+    Ok((epk, network.to_vec()))
+}
+
+pub fn extended_pub_key_derive(
+    extended_pub_key: &ExtendedPubKey,
+    path: &str,
+) -> Result<ExtendedPubKey> {
+    let mut parts = path.split('/').peekable();
+    if *parts.peek().unwrap() == "m" {
+        parts.next();
+    }
+
+    let children_nums = parts
+        .map(str::parse)
+        .collect::<std::result::Result<Vec<ChildNumber>, Bip32Error>>()?;
+
+    let child_key = extended_pub_key.derive_pub(&SECP256K1_ENGINE, &children_nums)?;
+
+    Ok(child_key)
+}
+
 pub fn get_ext_version(network: &str, derivation_path: &str) -> Result<Vec<u8>> {
     let ret = if derivation_path.starts_with("m/49'") {
         if network == "MAINNET" {
@@ -155,6 +201,14 @@ pub fn get_ext_version(network: &str, derivation_path: &str) -> Result<Vec<u8>> 
         }
     };
     Ok(ret)
+}
+
+pub fn get_xpub_prefix(network: &str) -> Vec<u8> {
+    if network == "MAINNET" {
+        hex_to_bytes("0488b21e").unwrap()
+    } else {
+        hex_to_bytes("043587cf").unwrap()
+    }
 }
 
 #[cfg(test)]

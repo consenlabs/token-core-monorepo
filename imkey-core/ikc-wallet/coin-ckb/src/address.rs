@@ -10,7 +10,8 @@ use ikc_common::path::check_path_validity;
 use ikc_common::utility::{secp256k1_sign, secp256k1_sign_verify, uncompress_pubkey_2_compress};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
-use secp256k1::PublicKey as Secp256k1PublicKey;
+use secp256k1::hashes::hex::FromHex;
+use secp256k1::{PublicKey as Secp256k1PublicKey, PublicKey};
 use std::str::FromStr;
 
 pub struct CkbAddress {}
@@ -21,8 +22,7 @@ impl CkbAddress {
             "TESTNET" => "ckt",
             _ => "ckb",
         };
-
-        let pub_key_hash = blake2b_160(pubkey);
+        let pub_key_hash = blake2b_160(PublicKey::from_slice(pubkey)?.serialize());
 
         let mut buf = vec![];
         buf.extend(vec![0x1, 0x00]); // append short version for locks with popular codehash and default code hash index
@@ -73,9 +73,7 @@ impl CkbAddress {
 
     pub fn get_address(network: &str, path: &str) -> Result<String> {
         let pub_key = CkbAddress::get_public_key(path)?;
-        let comprs_pubkey = uncompress_pubkey_2_compress(&pub_key);
-        let comprs_pubkey_bytes = hex::decode(&comprs_pubkey).expect("decode ckb pubkey error");
-        let address = CkbAddress::from_public_key(network, &comprs_pubkey_bytes)?;
+        let address = CkbAddress::from_public_key(network, &Vec::from_hex(&pub_key)?)?;
         Ok(address)
     }
 

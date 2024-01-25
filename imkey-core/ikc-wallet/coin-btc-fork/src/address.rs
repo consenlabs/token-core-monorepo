@@ -1,4 +1,6 @@
-use crate::btc_fork_network::{network_form_hrp, network_from_coin, BtcForkNetwork};
+use crate::btc_fork_network::{
+    network_form_hrp, network_from_coin, network_from_param, BtcForkNetwork,
+};
 use crate::common::get_xpub_data;
 use crate::Result;
 use bitcoin::hash_types::{PubkeyHash, ScriptHash};
@@ -16,6 +18,8 @@ use ikc_common::error::{CoinError, CommonError};
 use ikc_common::path::check_path_validity;
 
 use bech32::{u5, ToBase32, Variant};
+use bitcoin::psbt::serialize::Serialize;
+use bitcoin_hashes::hex::ToHex;
 use ikc_common::utility::uncompress_pubkey_2_compress;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -185,6 +189,28 @@ impl BtcForkAddress {
         } else {
             Ok(format!("0x{}", pub_key))
         }
+    }
+
+    pub fn from_pub_key(pub_key: Vec<u8>, btc_fork_network: BtcForkNetwork) -> Result<String> {
+        let mut public_key = PublicKey::from_slice(&pub_key)?;
+        public_key.compressed = true;
+        let address = match btc_fork_network.seg_wit.to_uppercase().as_str() {
+            "P2WPKH" => {
+                let addr = Address::p2shwpkh(&public_key, Network::Bitcoin).unwrap();
+                BtcForkAddress {
+                    payload: addr.payload,
+                    network: btc_fork_network,
+                }
+            }
+            _ => {
+                let addr = Address::p2pkh(&public_key, Network::Bitcoin);
+                BtcForkAddress {
+                    payload: addr.payload,
+                    network: btc_fork_network,
+                }
+            }
+        };
+        Ok(address.to_string())
     }
 }
 

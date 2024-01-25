@@ -15,13 +15,14 @@ use std::str::FromStr;
 pub struct EthAddress {}
 
 impl EthAddress {
-    pub fn address_from_pubkey(pubkey: Vec<u8>) -> Result<String> {
-        let pubkey_hash = keccak(pubkey[1..].as_ref());
-        let addr_bytes = &pubkey_hash[12..];
-        Ok(hex::encode(addr_bytes))
+    pub fn from_pub_key(pub_key: Vec<u8>) -> Result<String> {
+        let pub_key_hash = keccak(pub_key[1..].as_ref());
+        let addr_bytes = &pub_key_hash[12..];
+        let address = EthAddress::address_checksum(&hex::encode(addr_bytes));
+        Ok(address)
     }
 
-    pub fn address_checksummed(address: &str) -> String {
+    pub fn address_checksum(address: &str) -> String {
         let re = Regex::new(r"^0x").expect("address_checksummed");
         let address = address.to_lowercase();
         let address = re.replace_all(&address, "").to_string();
@@ -60,8 +61,7 @@ impl EthAddress {
 
         let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
 
-        let address_main = EthAddress::address_from_pubkey(pubkey_raw.clone())?;
-        let address_checksum = EthAddress::address_checksummed(&address_main);
+        let address_checksum = EthAddress::from_pub_key(pubkey_raw.clone())?;
         Ok(address_checksum)
     }
 
@@ -148,21 +148,20 @@ mod test {
         let pubkey_string = "04efb99d9860f4dec4cb548a5722c27e9ef58e37fbab9719c5b33d55c216db49311221a01f638ce5f255875b194e0acaa58b19a89d2e56a864427298f826a7f887";
 
         let address_derived =
-            EthAddress::address_from_pubkey(hex::decode(pubkey_string).unwrap()).unwrap();
-        println!("address is {}", address_derived);
+            EthAddress::from_pub_key(hex::decode(pubkey_string).unwrap()).unwrap();
         assert_eq!(
             address_derived,
-            "c2d7cf95645d33006175b78989035c7c9061d3f9".to_string()
+            "0xC2D7CF95645D33006175B78989035C7c9061d3F9".to_string()
         );
     }
 
     #[test]
     fn test_checksummed_address() {
         let address_orignial = "0xfb6916095ca1df60bb79ce92ce3ea74c37c5d359";
-        let address_checksummed = EthAddress::address_checksummed(address_orignial);
-        println!("checksummed address is {}", address_checksummed);
+        let address_checksum = EthAddress::address_checksum(address_orignial);
+        println!("checksummed address is {}", address_checksum);
         assert_eq!(
-            address_checksummed,
+            address_checksum,
             "0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359".to_string()
         );
     }
