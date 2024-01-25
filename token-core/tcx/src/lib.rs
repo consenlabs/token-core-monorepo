@@ -793,6 +793,10 @@ mod tests {
 
             assert_eq!("", derived_accounts.accounts[10].address);
             assert_eq!(
+                "EOS7Nf9TU1vZaQQgZA3cELTHJf1nnDJ6xVvqHvVzbHehsgcjrzNkq",
+                derived_accounts.accounts[10].public_key
+            );
+            assert_eq!(
                 "0x37c6713aa848bCdeE372A620eEbCdcCBA55c695F",
                 derived_accounts.accounts[11].address
             );

@@ -475,6 +475,22 @@ impl Signer for Keystore {
         private_key.as_secp256k1()?.sign_recoverable(hash)
     }
 
+    fn secp256k1_ecdsa_sign_recoverable_with_noncedata(
+        &mut self,
+        hash: &[u8],
+        derivation_path: &str,
+        noncedata: &[u8; 32],
+    ) -> Result<Vec<u8>> {
+        let private_key = match self {
+            Keystore::PrivateKey(ks) => ks.get_private_key(CurveType::SECP256k1)?,
+            Keystore::Hd(ks) => ks.get_private_key(CurveType::SECP256k1, derivation_path)?,
+        };
+
+        private_key
+            .as_secp256k1()?
+            .sign_recoverable_with_noncedata(hash, noncedata)
+    }
+
     fn bls_sign(&mut self, hash: &[u8], derivation_path: &str, dst: &str) -> Result<Vec<u8>> {
         let private_key = match self {
             Keystore::PrivateKey(ks) => ks.get_private_key(CurveType::BLS)?,

@@ -74,6 +74,19 @@ impl Secp256k1PrivateKey {
         let signed_bytes = [sign[..].to_vec(), vec![(recover_id.to_i32()) as u8]].concat();
         Ok(signed_bytes)
     }
+
+    pub fn sign_recoverable_with_noncedata(
+        &self,
+        data: &[u8],
+        noncedata: &[u8; 32],
+    ) -> Result<Vec<u8>> {
+        let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
+        let signature =
+            SECP256K1_ENGINE.sign_ecdsa_recoverable_with_noncedata(&msg, &self.0.inner, noncedata);
+        let (recover_id, sign) = signature.serialize_compact();
+        let signed_bytes = [sign[..].to_vec(), vec![(recover_id.to_i32()) as u8]].concat();
+        Ok(signed_bytes)
+    }
 }
 
 impl TraitPrivateKey for Secp256k1PrivateKey {
