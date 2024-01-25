@@ -4,7 +4,6 @@ use std::str::FromStr;
 
 use base32::Alphabet;
 use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
-use bitcoin::Network;
 use hex;
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::FILECOIN_AID;
@@ -12,6 +11,7 @@ use ikc_common::error::CoinError;
 use ikc_common::path;
 use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::utility;
+use ikc_common::utility::network_convert;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
 use secp256k1::PublicKey;
@@ -132,11 +132,7 @@ impl FilecoinAddress {
 
         //get parent public key fingerprint
         let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
-        let network = match network.to_uppercase().as_str() {
-            "MAINNET" => Network::Bitcoin,
-            "TESTNET" => Network::Testnet,
-            _ => Network::Testnet,
-        };
+        let network = network_convert(network);
         let parent_ext_pub_key = ExtendedPubKey {
             network,
             depth: 0 as u8,

@@ -2,12 +2,13 @@ use crate::hash::blake2b_160;
 use crate::Result;
 use bech32::{ToBase32, Variant};
 use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
-use bitcoin::Network;
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::NERVOS_AID;
 use ikc_common::error::{CoinError, CommonError};
 use ikc_common::path::check_path_validity;
-use ikc_common::utility::{secp256k1_sign, secp256k1_sign_verify, uncompress_pubkey_2_compress};
+use ikc_common::utility::{
+    network_convert, secp256k1_sign, secp256k1_sign_verify, uncompress_pubkey_2_compress,
+};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
 use secp256k1::hashes::hex::FromHex;
@@ -119,11 +120,7 @@ impl CkbAddress {
 
         //get parent public key fingerprint
         let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
-        let network = match network.to_uppercase().as_str() {
-            "MAINNET" => Network::Bitcoin,
-            "TESTNET" => Network::Testnet,
-            _ => Network::Testnet,
-        };
+        let network = network_convert(network);
         let parent_ext_pub_key = ExtendedPubKey {
             network,
             depth: 0u8,
@@ -188,7 +185,6 @@ impl CkbAddress {
 #[cfg(test)]
 mod tests {
     use crate::address::CkbAddress;
-    use bitcoin::Network;
     use ikc_common::constants;
     use ikc_common::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
     use ikc_device::device_binding::bind_test;

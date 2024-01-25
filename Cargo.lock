@@ -1999,6 +1999,7 @@ version = "0.1.0"
 dependencies = [
  "aes",
  "anyhow",
+ "base64 0.13.1",
  "bitcoin",
  "byteorder 1.4.3",
  "bytes",
