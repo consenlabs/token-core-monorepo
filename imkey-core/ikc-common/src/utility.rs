@@ -1,7 +1,13 @@
+use crate::aes::cbc::encrypt_pkcs7;
+use crate::constants::SECP256K1_ENGINE;
+use crate::error::CommonError;
 use crate::Result;
 use bitcoin::hashes::{sha256, Hash};
 use bitcoin::util::base58;
-use bitcoin::util::bip32::ExtendedPubKey;
+use bitcoin::util::bip32::{
+    ChainCode, ChildNumber, Error as Bip32Error, ExtendedPubKey, Fingerprint,
+};
+use bitcoin::Network;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
 use num_bigint::BigInt;
@@ -134,37 +140,81 @@ pub fn to_ss58check_with_version(extended_key: ExtendedPubKey, version: &[u8]) -
     base58::check_encode_slice(&ret[..])
 }
 
-pub fn get_ext_version(network: &str, derivation_path: &str) -> Result<Vec<u8>> {
-    let ret = if derivation_path.starts_with("m/49'") {
-        if network == "MAINNET" {
-            hex_to_bytes("049d7cb2")?
-        } else {
-            hex_to_bytes("044a5262")?
-        }
-    } else if derivation_path.starts_with("m/84'") {
-        if network == "MAINNET" {
-            hex_to_bytes("04b24746")?
-        } else {
-            hex_to_bytes("045f1cf6")?
-        }
-    } else {
-        if network == "MAINNET" {
-            hex_to_bytes("0488b21e").unwrap()
-        } else {
-            hex_to_bytes("043587cf").unwrap()
-        }
+pub fn from_ss58check_with_version(s: &str) -> Result<(ExtendedPubKey, Vec<u8>)> {
+    let data = base58::from_check(s)?;
+
+    if data.len() != 78 {
+        return Err(CommonError::InvalidBase58.into());
+    }
+    let cn_int: u32 = BigEndian::read_u32(&data[9..13]);
+    let child_number: ChildNumber = ChildNumber::from(cn_int);
+
+    let epk = ExtendedPubKey {
+        network: Network::Bitcoin,
+        depth: data[4],
+        parent_fingerprint: Fingerprint::from(&data[5..9]),
+        child_number,
+        chain_code: ChainCode::from(&data[13..45]),
+        public_key: secp256k1::PublicKey::from_slice(&data[45..78])?,
     };
-    Ok(ret)
+
+    let mut network = [0; 4];
+    network.copy_from_slice(&data[0..4]);
+    Ok((epk, network.to_vec()))
+}
+
+pub fn extended_pub_key_derive(
+    extended_pub_key: &ExtendedPubKey,
+    path: &str,
+) -> Result<ExtendedPubKey> {
+    let mut parts = path.split('/').peekable();
+    if *parts.peek().unwrap() == "m" {
+        parts.next();
+    }
+
+    let children_nums = parts
+        .map(str::parse)
+        .collect::<std::result::Result<Vec<ChildNumber>, Bip32Error>>()?;
+
+    let child_key = extended_pub_key.derive_pub(&SECP256K1_ENGINE, &children_nums)?;
+
+    Ok(child_key)
+}
+
+pub fn get_xpub_prefix(network: &str) -> Vec<u8> {
+    if network == "MAINNET" {
+        hex_to_bytes("0488b21e").unwrap()
+    } else {
+        hex_to_bytes("043587cf").unwrap()
+    }
+}
+
+pub fn encrypt_xpub(xpub: &str) -> Result<String> {
+    let key = crate::XPUB_COMMON_KEY_128.read();
+    let iv = crate::XPUB_COMMON_IV.read();
+    let key_bytes = hex::decode(&*key)?;
+    let iv_bytes = hex::decode(&*iv)?;
+    let encrypted = encrypt_pkcs7(xpub.as_bytes(), &key_bytes, &iv_bytes)?;
+    anyhow::Ok(base64::encode(encrypted))
+}
+
+pub fn network_convert(network: &str) -> Network {
+    match network.to_uppercase().as_str() {
+        "MAINNET" => Network::Bitcoin,
+        "TESTNET" => Network::Testnet,
+        _ => Network::Testnet,
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::utility;
-    use crate::utility::is_valid_hex;
     use crate::utility::{
         bigint_to_byte_vec, retrieve_recid, secp256k1_sign, secp256k1_sign_verify, sha256_hash,
         uncompress_pubkey_2_compress,
     };
+    use crate::utility::{is_valid_hex, network_convert};
+    use bitcoin::Network;
     use hex::FromHex;
 
     #[test]
@@ -254,5 +304,17 @@ mod tests {
         assert_eq!(is_valid_hex(input1), false,);
         let input1 = "d8549e61c7c5fa21315f86c9b6bd7f2efd0e7aef8647c467679a8cfefff9996329c47a6509487d2ca4d0408ff8f683449d438a0491c8bf11d54fa3b2d6af9849c808ddd1b67e84e8029edc5df4dc485e41fb1de2cbdd3143f204fb4cb58ca9155a194e465dcc7fbcb9fc729147efba62fbba2ba0356a97dcf816ab1fa8f4ebedf8506fa2920ac1f92bf2d3709b3b1cbb57124db22beb866a3b42e6286a6f6b4bcab27ec9cf7403db78f43c3d957de89d5fb23b3d9bcb23c0f62d9064da159714";
         assert_eq!(is_valid_hex(input1), true,);
+    }
+
+    #[test]
+    fn test_network_convert() {
+        let network = network_convert("MAINNET");
+        assert_eq!(network, Network::Bitcoin);
+        let network = network_convert("TESTNET");
+        assert_eq!(network, Network::Testnet);
+        let network = network_convert("mainnet");
+        assert_eq!(network, Network::Bitcoin);
+        let network = network_convert("ERRORNET");
+        assert_eq!(network, Network::Testnet);
     }
 }

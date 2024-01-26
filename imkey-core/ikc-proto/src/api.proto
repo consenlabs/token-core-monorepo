@@ -123,8 +123,22 @@ message AccountResponse {
     string publicKey = 5;
     string extendedPublicKey = 6;
     string encryptedExtendedPublicKey = 7;
+    string segWit = 8;
 }
 
 message DeriveAccountsResult {
+    repeated AccountResponse accounts = 1;
+}
+
+message DeriveSubAccountsParam {
+    string chainType = 1;
+    string curve = 2;
+    string network = 3;
+    string segWit = 4;
+    repeated string relativePaths = 5;
+    string extendedPublicKey = 6;
+}
+
+message DeriveSubAccountsResult {
     repeated AccountResponse accounts = 1;
 }

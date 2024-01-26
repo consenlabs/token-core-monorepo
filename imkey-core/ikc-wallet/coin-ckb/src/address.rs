@@ -2,15 +2,15 @@ use crate::hash::blake2b_160;
 use crate::Result;
 use bech32::{ToBase32, Variant};
 use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
-use bitcoin::Network;
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::NERVOS_AID;
 use ikc_common::error::{CoinError, CommonError};
 use ikc_common::path::check_path_validity;
-use ikc_common::utility::{secp256k1_sign, secp256k1_sign_verify, uncompress_pubkey_2_compress};
+use ikc_common::utility::{network_convert, secp256k1_sign, secp256k1_sign_verify};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
-use secp256k1::PublicKey as Secp256k1PublicKey;
+use secp256k1::hashes::hex::FromHex;
+use secp256k1::{PublicKey as Secp256k1PublicKey, PublicKey};
 use std::str::FromStr;
 
 pub struct CkbAddress {}
@@ -21,8 +21,7 @@ impl CkbAddress {
             "TESTNET" => "ckt",
             _ => "ckb",
         };
-
-        let pub_key_hash = blake2b_160(pubkey);
+        let pub_key_hash = blake2b_160(PublicKey::from_slice(pubkey)?.serialize());
 
         let mut buf = vec![];
         buf.extend(vec![0x1, 0x00]); // append short version for locks with popular codehash and default code hash index
@@ -73,9 +72,7 @@ impl CkbAddress {
 
     pub fn get_address(network: &str, path: &str) -> Result<String> {
         let pub_key = CkbAddress::get_public_key(path)?;
-        let comprs_pubkey = uncompress_pubkey_2_compress(&pub_key);
-        let comprs_pubkey_bytes = hex::decode(&comprs_pubkey).expect("decode ckb pubkey error");
-        let address = CkbAddress::from_public_key(network, &comprs_pubkey_bytes)?;
+        let address = CkbAddress::from_public_key(network, &Vec::from_hex(&pub_key)?)?;
         Ok(address)
     }
 
@@ -121,11 +118,7 @@ impl CkbAddress {
 
         //get parent public key fingerprint
         let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
-        let network = match network.to_uppercase().as_str() {
-            "MAINNET" => Network::Bitcoin,
-            "TESTNET" => Network::Testnet,
-            _ => Network::Testnet,
-        };
+        let network = network_convert(network);
         let parent_ext_pub_key = ExtendedPubKey {
             network,
             depth: 0u8,
@@ -190,7 +183,6 @@ impl CkbAddress {
 #[cfg(test)]
 mod tests {
     use crate::address::CkbAddress;
-    use bitcoin::Network;
     use ikc_common::constants;
     use ikc_common::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
     use ikc_device::device_binding::bind_test;

@@ -126,8 +126,7 @@ impl Transaction {
 
         let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
 
-        let address_main = EthAddress::address_from_pubkey(pubkey_raw.clone()).unwrap();
-        let address_checksummed = EthAddress::address_checksummed(&address_main);
+        let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone()).unwrap();
         //compare address
         if address_checksummed != *sender {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());
@@ -315,8 +314,7 @@ impl Transaction {
         let msg_pubkey = EthApdu::get_xpub(&sign_param.path, false);
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
-        let address_main = EthAddress::address_from_pubkey(pubkey_raw.clone()).unwrap();
-        let address_checksummed = EthAddress::address_checksummed(&address_main);
+        let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone()).unwrap();
 
         if &address_checksummed != &sign_param.sender {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());

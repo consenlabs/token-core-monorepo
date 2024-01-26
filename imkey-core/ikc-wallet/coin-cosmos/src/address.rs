@@ -114,6 +114,14 @@ impl CosmosAddress {
         //get and return xpub
         Ok(extend_public_key.to_string())
     }
+
+    pub fn from_pub_key(pub_key: Vec<u8>) -> Result<String> {
+        let mut public_key = PublicKey::from_slice(pub_key.as_slice())?;
+        let compressed_pubkey = public_key.serialize();
+        let pub_key_hash = hash160::Hash::hash(&compressed_pubkey).to_vec();
+        let address = encode("cosmos", pub_key_hash.to_base32(), Variant::Bech32)?;
+        Ok(address)
+    }
 }
 
 #[cfg(test)]

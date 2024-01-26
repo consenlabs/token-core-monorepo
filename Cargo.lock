@@ -9,7 +9,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
 dependencies = [
  "lazy_static",
- "regex 1.9.3",
+ "regex",
 ]
 
 [[package]]
@@ -57,15 +57,6 @@ dependencies = [
  "getrandom 0.2.9",
  "once_cell",
  "version_check",
-]
-
-[[package]]
-name = "aho-corasick"
-version = "0.6.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81ce3d38065e618af2d7b77e10c5ad9a069859b4be3c2250f674af3840d9c8a5"
-dependencies = [
- "memchr",
 ]
 
 [[package]]
@@ -678,7 +669,6 @@ dependencies = [
  "bitcoin",
  "bitcoin_hashes",
  "bytes",
- "dotenv",
  "ethereum-types",
  "hex",
  "ikc-common",
@@ -692,7 +682,7 @@ dependencies = [
  "num-traits",
  "prost",
  "prost-types",
- "regex 1.9.3",
+ "regex",
  "rlp",
  "rustc-hex",
  "secp256k1",
@@ -1144,15 +1134,6 @@ dependencies = [
  "const-oid",
  "crypto-common",
  "subtle",
-]
-
-[[package]]
-name = "dotenv"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "400b347fe65ccfbd8f545c9d9a75d04b0caf23fec49aaa838a9a05398f94c019"
-dependencies = [
- "regex 0.2.11",
 ]
 
 [[package]]
@@ -1999,6 +1980,7 @@ version = "0.1.0"
 dependencies = [
  "aes",
  "anyhow",
+ "base64 0.13.1",
  "bitcoin",
  "byteorder 1.4.3",
  "bytes",
@@ -2014,7 +1996,7 @@ dependencies = [
  "parking_lot",
  "prost",
  "prost-types",
- "regex 1.9.3",
+ "regex",
  "rustc-serialize",
  "secp256k1",
  "serde",
@@ -2040,7 +2022,7 @@ dependencies = [
  "prost",
  "prost-types",
  "rand 0.8.5",
- "regex 1.9.3",
+ "regex",
  "rsa",
  "secp256k1",
  "serde",
@@ -3012,7 +2994,7 @@ dependencies = [
  "itertools",
  "normalize-line-endings",
  "predicates-core",
- "regex 1.9.3",
+ "regex",
 ]
 
 [[package]]
@@ -3133,7 +3115,7 @@ dependencies = [
  "prettyplease",
  "prost",
  "prost-types",
- "regex 1.9.3",
+ "regex",
  "syn 1.0.109",
  "tempfile",
  "which",
@@ -3307,24 +3289,11 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9329abc99e39129fcceabd24cf5d85b4671ef7c29c50e972bc5afe32438ec384"
-dependencies = [
- "aho-corasick 0.6.10",
- "memchr",
- "regex-syntax 0.5.6",
- "thread_local 0.3.6",
- "utf8-ranges",
-]
-
-[[package]]
-name = "regex"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81bc1d4caf89fac26a70747fe603c130093b53c773888797a6329091246d651a"
 dependencies = [
- "aho-corasick 1.1.2",
+ "aho-corasick",
  "memchr",
  "regex-automata 0.3.9",
  "regex-syntax 0.7.5",
@@ -3345,18 +3314,9 @@ version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "59b23e92ee4318893fa3fe3e6fb365258efbfe6ac6ab30f090cdcbb7aa37efa9"
 dependencies = [
- "aho-corasick 1.1.2",
+ "aho-corasick",
  "memchr",
  "regex-syntax 0.7.5",
-]
-
-[[package]]
-name = "regex-syntax"
-version = "0.5.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d707a4fa2637f2dca2ef9fd02225ec7661fe01a53623c1e6515b6916511f7a7"
-dependencies = [
- "ucd-util",
 ]
 
 [[package]]
@@ -3862,7 +3822,7 @@ dependencies = [
  "parking_lot",
  "primitive-types",
  "rand 0.7.3",
- "regex 1.9.3",
+ "regex",
  "scale-info",
  "schnorrkel",
  "secp256k1",
@@ -3984,7 +3944,7 @@ checksum = "97549ec99cb289db2a9f5c656b6880f7c90097135e1ca6c6ae4fe5694232e526"
 dependencies = [
  "backtrace",
  "lazy_static",
- "regex 1.9.3",
+ "regex",
 ]
 
 [[package]]
@@ -4456,7 +4416,7 @@ dependencies = [
  "hex",
  "keccak-hash",
  "rand 0.8.5",
- "regex 1.9.3",
+ "regex",
  "secp256k1",
  "thiserror",
  "tiny-bip39 1.0.0",
@@ -4491,7 +4451,7 @@ dependencies = [
  "parking_lot",
  "pbkdf2 0.11.0",
  "rand 0.8.5",
- "regex 1.9.3",
+ "regex",
  "scrypt",
  "secp256k1",
  "serde",
@@ -4512,7 +4472,7 @@ dependencies = [
  "bitcoin",
  "bytes",
  "prost",
- "regex 1.9.3",
+ "regex",
  "tcx-common",
  "tcx-constants",
  "tcx-crypto",
@@ -4529,7 +4489,7 @@ dependencies = [
  "hex",
  "prost",
  "prost-types",
- "regex 1.9.3",
+ "regex",
  "rlp",
  "secp256k1",
  "tcx-common",
@@ -4548,7 +4508,7 @@ dependencies = [
  "lazy_static",
  "prost",
  "prost-types",
- "regex 1.9.3",
+ "regex",
  "ssz_rs",
  "ssz_rs_derive",
  "tcx-common",
@@ -4604,7 +4564,7 @@ dependencies = [
  "multihash 0.18.1",
  "parking_lot",
  "prost",
- "regex 1.9.3",
+ "regex",
  "secp256k1",
  "serde",
  "serde_json",
@@ -4672,7 +4632,7 @@ dependencies = [
  "lazy_static",
  "num-bigint 0.4.3",
  "num-traits",
- "regex 1.9.3",
+ "regex",
  "schnorrkel",
  "secp256k1",
  "serde",
@@ -4708,7 +4668,7 @@ dependencies = [
  "prost",
  "prost-types",
  "rand 0.8.5",
- "regex 1.9.3",
+ "regex",
  "schnorrkel",
  "scrypt",
  "serde",
@@ -4819,15 +4779,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.48",
-]
-
-[[package]]
-name = "thread_local"
-version = "0.3.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6b53e329000edc2b34dbe8545fd20e55a333362d0a321909685a19bd28c3f1b"
-dependencies = [
- "lazy_static",
 ]
 
 [[package]]
@@ -5070,12 +5021,12 @@ dependencies = [
  "chrono",
  "lazy_static",
  "matchers",
- "regex 1.9.3",
+ "regex",
  "serde",
  "serde_json",
  "sharded-slab",
  "smallvec",
- "thread_local 1.1.7",
+ "thread_local",
  "tracing",
  "tracing-core",
  "tracing-log",
@@ -5127,12 +5078,6 @@ name = "typenum"
 version = "1.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42ff0bf0c66b8238c6f3b578df37d0b7848e55df8577b3f74f92a69acceeb825"
-
-[[package]]
-name = "ucd-util"
-version = "0.1.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abd2fc5d32b590614af8b0a20d837f32eca055edd0bbead59a9cfe80858be003"
 
 [[package]]
 name = "uint"
@@ -5188,12 +5133,6 @@ name = "unsigned-varint"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6889a77d49f1f013504cec6bf97a2c730394adedaeb1deb5ea08949a50541105"
-
-[[package]]
-name = "utf8-ranges"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fcfc827f90e53a02eaef5e535ee14266c1d569214c6aa70133a624d8a3164ba"
 
 [[package]]
 name = "uuid"

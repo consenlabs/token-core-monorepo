@@ -7,7 +7,6 @@ use tcx_keystore::{
 use bitcoin_hashes::sha256::Hash;
 use bitcoin_hashes::Hash as TraitHash;
 
-use anyhow::anyhow;
 use tcx_common::{keccak256, FromHex, ToHex};
 
 // http://jsoneditoronline.org/index.html?id=2b86a8503ba641bebed73f32b4ac9c42

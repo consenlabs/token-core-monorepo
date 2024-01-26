@@ -14,6 +14,7 @@ use ikc_common::utility;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
 
+use ikc_common::utility::network_convert;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -128,6 +129,14 @@ impl BchAddress {
         } else {
             return false;
         }
+    }
+
+    pub fn from_pub_key(pub_key: &[u8], network: &str) -> Result<String> {
+        let network = network_convert(network);
+        let mut pub_key_obj = PublicKey::from_slice(pub_key)?;
+        pub_key_obj.compressed = true;
+        let addr = BtcAddress::p2pkh(&pub_key_obj, network).to_string();
+        legacy_to_bch(&addr)
     }
 }
 

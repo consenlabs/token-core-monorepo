@@ -4,7 +4,6 @@ use std::str::FromStr;
 
 use base32::Alphabet;
 use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
-use bitcoin::Network;
 use hex;
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::FILECOIN_AID;
@@ -12,6 +11,7 @@ use ikc_common::error::CoinError;
 use ikc_common::path;
 use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::utility;
+use ikc_common::utility::network_convert;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
 use secp256k1::PublicKey;
@@ -110,7 +110,7 @@ impl FilecoinAddress {
         Ok(address)
     }
 
-    pub fn get_xpub(network: Network, path: &str) -> Result<String> {
+    pub fn get_xpub(network: &str, path: &str) -> Result<String> {
         //path check
         check_path_validity(path)?;
 
@@ -132,6 +132,7 @@ impl FilecoinAddress {
 
         //get parent public key fingerprint
         let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
+        let network = network_convert(network);
         let parent_ext_pub_key = ExtendedPubKey {
             network,
             depth: 0 as u8,
@@ -156,6 +157,29 @@ impl FilecoinAddress {
         };
         //get and return xpub
         Ok(extend_public_key.to_string())
+    }
+
+    pub fn from_pub_key(pub_key: Vec<u8>, network: &str) -> Result<String> {
+        let ntwk = match network {
+            "TESTNET" => TESTNET_PREFIX,
+            _ => MAINNET_PREFIX,
+        };
+
+        let pub_key_bytes = PublicKey::from_slice(pub_key.as_slice())?.serialize_uncompressed();
+        let protocol = Protocol::Secp256k1;
+        let payload = Self::address_hash(&pub_key_bytes);
+        let checksum = Self::checksum(&[vec![protocol as u8], payload.clone().to_vec()].concat());
+
+        Ok(format!(
+            "{}{}{}",
+            ntwk,
+            protocol as i8,
+            base32::encode(
+                Alphabet::RFC4648 { padding: false },
+                &[payload, checksum].concat()
+            )
+            .to_lowercase()
+        ))
     }
 }
 

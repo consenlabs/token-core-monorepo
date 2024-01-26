@@ -247,6 +247,20 @@ lazy_static! {
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
             },
+            CoinInfo {
+                coin: "COSMOS".to_string(),
+                derivation_path: "m/44'/118'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "".to_string(),
+            },
+            CoinInfo {
+                coin: "EOS".to_string(),
+                derivation_path: "m/44'/194'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "".to_string(),
+            },
         ];
 
         RwLock::new(coin_infos)

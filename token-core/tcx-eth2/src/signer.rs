@@ -4,8 +4,6 @@ use crate::transaction::{
     SignedBlsToExecutionChange,
 };
 use crate::Error;
-use keccak_hash;
-use regex::Regex;
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::CoinInfo;
 use tcx_eth::address::EthAddress;

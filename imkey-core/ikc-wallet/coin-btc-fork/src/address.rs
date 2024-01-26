@@ -186,6 +186,28 @@ impl BtcForkAddress {
             Ok(format!("0x{}", pub_key))
         }
     }
+
+    pub fn from_pub_key(pub_key: Vec<u8>, btc_fork_network: BtcForkNetwork) -> Result<String> {
+        let mut public_key = PublicKey::from_slice(&pub_key)?;
+        public_key.compressed = true;
+        let address = match btc_fork_network.seg_wit.to_uppercase().as_str() {
+            "P2WPKH" => {
+                let addr = Address::p2shwpkh(&public_key, Network::Bitcoin).unwrap();
+                BtcForkAddress {
+                    payload: addr.payload,
+                    network: btc_fork_network,
+                }
+            }
+            _ => {
+                let addr = Address::p2pkh(&public_key, Network::Bitcoin);
+                BtcForkAddress {
+                    payload: addr.payload,
+                    network: btc_fork_network,
+                }
+            }
+        };
+        Ok(address.to_string())
+    }
 }
 
 impl FromStr for BtcForkAddress {

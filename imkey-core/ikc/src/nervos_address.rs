@@ -1,7 +1,6 @@
 use crate::api::{AddressParam, AddressResult, BtcForkWallet};
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
-use bitcoin::Network;
 use coin_ckb::address::CkbAddress;
 use ikc_common::path::get_account_path;
 
