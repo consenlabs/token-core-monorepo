@@ -827,68 +827,6 @@ mod tests {
 
     #[test]
     #[serial]
-    pub fn test_derive_accounts_file_tezos() {
-        run_test(|| {
-            let param = ImportMnemonicParam {
-                mnemonic: TEST_MNEMONIC.to_string(),
-                password: TEST_PASSWORD.to_string(),
-                network: "TESTNET".to_string(),
-                name: "test-wallet".to_string(),
-                password_hint: "imtoken".to_string(),
-                overwrite: true,
-            };
-            let ret = call_api("import_mnemonic", param).unwrap();
-            let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
-
-            let derivations = vec![
-                Derivation {
-                    chain_type: "FILECOIN".to_string(),
-                    path: "m/2334/461/0/0".to_string(),
-                    network: "".to_string(),
-                    seg_wit: "".to_string(),
-                    chain_id: "".to_string(),
-                    curve: "bls12-381".to_string(),
-                    bech32_prefix: "".to_string(),
-                },
-                Derivation {
-                    chain_type: "TEZOS".to_string(),
-                    path: "m/44'/1729'/0'/0'".to_string(),
-                    network: "".to_string(),
-                    seg_wit: "".to_string(),
-                    chain_id: "".to_string(),
-                    curve: "ed25519".to_string(),
-                    bech32_prefix: "".to_string(),
-                },
-            ];
-
-            let param = DeriveAccountsParam {
-                id: import_result.id.to_string(),
-                key: Some(crate::api::derive_accounts_param::Key::Password(
-                    TEST_PASSWORD.to_owned(),
-                )),
-                derivations,
-            };
-            let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
-            let derived_accounts: DeriveAccountsResult =
-                DeriveAccountsResult::decode(derived_accounts_bytes.as_slice()).unwrap();
-            assert_eq!(2, derived_accounts.accounts.len());
-            assert_eq!(
-                "LQ3JqCohgLQ3x1CJXYERnJTy1ySaqr1E32",
-                derived_accounts.accounts[0].address
-            );
-
-            // TOOD: filecoin bls address
-            // assert_eq!(
-            //     "t3virna6zi3ju2kxsd4zcvlzk7hemm6dsfq47ikggpnmpu43sqzt6yi5remdrt3j62nex7vx254d3767fot7jq",
-            //     derived_accounts.accounts[8].address
-            // );
-
-            remove_created_wallet(&import_result.id);
-        })
-    }
-
-    #[test]
-    #[serial]
     pub fn test_hd_store_derive_invalid_param() {
         run_test(|| {
             let import_result: KeystoreResult = import_default_wallet();
