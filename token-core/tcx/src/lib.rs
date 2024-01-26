@@ -781,11 +781,10 @@ mod tests {
                 "t1k7yhkb42jhgrsx4nhr7rfkxfiahmkyxq5cw74ry",
                 derived_accounts.accounts[7].address
             );
-            // TOOD: filecoin bls address
-            // assert_eq!(
-            //     "t3virna6zi3ju2kxsd4zcvlzk7hemm6dsfq47ikggpnmpu43sqzt6yi5remdrt3j62nex7vx254d3767fot7jq",
-            //     derived_accounts.accounts[8].address
-            // );
+            assert_eq!(
+                "t3qnoxt4gpoyahbgmh2n2cvpeqoqa7jowlyxyuo3jgedp4gdyauhvcydd6var2d3i6yyrdhpqsixqxozp7b64a",
+                derived_accounts.accounts[8].address
+            );
             assert_eq!(
                 "cosmos1m566v5rcklnac8vc0dftfu4lnvznhlu7d3f404",
                 derived_accounts.accounts[9].address
@@ -821,6 +820,68 @@ mod tests {
                 "tz1YhnU6rUigVp6Jei1VJQHofGSbzGKphVmG",
                 derived_accounts.accounts[16].address
             );
+
+            remove_created_wallet(&import_result.id);
+        })
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_derive_accounts_file_tezos() {
+        run_test(|| {
+            let param = ImportMnemonicParam {
+                mnemonic: TEST_MNEMONIC.to_string(),
+                password: TEST_PASSWORD.to_string(),
+                network: "TESTNET".to_string(),
+                name: "test-wallet".to_string(),
+                password_hint: "imtoken".to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_mnemonic", param).unwrap();
+            let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+
+            let derivations = vec![
+                Derivation {
+                    chain_type: "FILECOIN".to_string(),
+                    path: "m/2334/461/0/0".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: "bls12-381".to_string(),
+                    bech32_prefix: "".to_string(),
+                },
+                Derivation {
+                    chain_type: "TEZOS".to_string(),
+                    path: "m/44'/1729'/0'/0'".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: "ed25519".to_string(),
+                    bech32_prefix: "".to_string(),
+                },
+            ];
+
+            let param = DeriveAccountsParam {
+                id: import_result.id.to_string(),
+                key: Some(crate::api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+                derivations,
+            };
+            let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
+            let derived_accounts: DeriveAccountsResult =
+                DeriveAccountsResult::decode(derived_accounts_bytes.as_slice()).unwrap();
+            assert_eq!(2, derived_accounts.accounts.len());
+            assert_eq!(
+                "LQ3JqCohgLQ3x1CJXYERnJTy1ySaqr1E32",
+                derived_accounts.accounts[0].address
+            );
+
+            // TOOD: filecoin bls address
+            // assert_eq!(
+            //     "t3virna6zi3ju2kxsd4zcvlzk7hemm6dsfq47ikggpnmpu43sqzt6yi5remdrt3j62nex7vx254d3767fot7jq",
+            //     derived_accounts.accounts[8].address
+            // );
 
             remove_created_wallet(&import_result.id);
         })
@@ -1402,6 +1463,99 @@ mod tests {
 
     #[test]
     #[serial]
+    pub fn test_fil_bls_tezos_reimport() {
+        run_test(|| {
+            let hd_import_result = import_default_wallet();
+            let test_case = vec![
+                (
+                    "TEZOS".to_string(),
+                    "m/44'/1729'/0'/0'".to_string(),
+                    "ed25519".to_string(),
+                ),
+                (
+                    "FILECOIN".to_string(),
+                    "m/2334/461/0/0".to_string(),
+                    "bls12-381".to_string(),
+                ),
+            ];
+
+            for case in test_case.iter() {
+                let derivations = vec![Derivation {
+                    chain_type: case.0.to_string(),
+                    path: case.1.to_string(),
+                    network: "MAINNET".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: case.2.to_string(),
+                    bech32_prefix: "".to_string(),
+                }];
+                let param = DeriveAccountsParam {
+                    id: hd_import_result.id.to_string(),
+                    key: Some(crate::api::derive_accounts_param::Key::Password(
+                        TEST_PASSWORD.to_owned(),
+                    )),
+                    derivations,
+                };
+                let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
+                let derived_accounts: DeriveAccountsResult =
+                    DeriveAccountsResult::decode(derived_accounts_bytes.as_slice()).unwrap();
+
+                let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
+                    id: hd_import_result.id.to_string(),
+                    key: Some(export_private_key_param::Key::Password(
+                        TEST_PASSWORD.to_string(),
+                    )),
+                    chain_type: case.0.to_string(),
+                    network: "MAINNET".to_string(),
+                    curve: case.2.to_string(),
+                    path: case.1.to_string(),
+                };
+                let ret_bytes = call_api("export_private_key", param).unwrap();
+                let export_result: ExportPrivateKeyResult =
+                    ExportPrivateKeyResult::decode(ret_bytes.as_slice()).unwrap();
+
+                let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
+                    private_key: export_result.private_key.to_string(),
+                    password: TEST_PASSWORD.to_string(),
+                    name: "reimport".to_string(),
+                    password_hint: "".to_string(),
+                    network: "".to_string(),
+                    overwrite: true,
+                };
+
+                let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
+                let pk_import_result: KeystoreResult =
+                    KeystoreResult::decode(ret.as_slice()).unwrap();
+
+                let derivations = vec![Derivation {
+                    chain_type: case.0.to_string(),
+                    path: case.1.to_string(),
+                    network: "MAINNET".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: case.2.to_string(),
+                    bech32_prefix: "".to_string(),
+                }];
+                let param = DeriveAccountsParam {
+                    id: pk_import_result.id.to_string(),
+                    key: Some(crate::api::derive_accounts_param::Key::Password(
+                        TEST_PASSWORD.to_owned(),
+                    )),
+                    derivations,
+                };
+                let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
+                let pk_derived_accounts: DeriveAccountsResult =
+                    DeriveAccountsResult::decode(derived_accounts_bytes.as_slice()).unwrap();
+                assert_eq!(
+                    derived_accounts.accounts.first().unwrap().address,
+                    pk_derived_accounts.accounts.first().unwrap().address
+                );
+            }
+        });
+    }
+
+    #[test]
+    #[serial]
     pub fn test_import_sr25519_private_key() {
         run_test(|| {
             let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
@@ -1693,7 +1847,6 @@ mod tests {
     #[serial]
     pub fn test_export_private_key_from_hd_store() {
         run_test(|| {
-            // TODO: make sure filecoin bls and tezos export right
             let pks = vec![
                 "L39VXyorp19JfsEJfbD7Tfr4pBEX93RJuVXW7E13C51ZYAhUWbYa",
                 "KyLGdagds7tY1vupT5Kf8C1Cc5wkzzWRK51e4vsh1svCSvYk4Abo",
@@ -1749,23 +1902,6 @@ mod tests {
             }
 
             remove_created_wallet(&import_result.id);
-
-            // let import_result: KeystoreResult = import_default_wallet();
-
-            // let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
-            //     id: import_result.id.to_string(),
-            //     password: TEST_PASSWORD.to_string(),
-            //     chain_type: "LITECOIN".to_string(),
-            //     network: "MAINNET".to_string(),
-            //     curve: "secp256k1".to_string(),
-            //     path: "m/44'/2'/0'/0/0".to_string(),
-            // };
-            // let ret = call_api("export_private_key", param);
-            // assert!(ret.is_ok());
-            // let export_result: ExportPrivateKeyResult =
-            //     ExportPrivateKeyResult::decode(ret.unwrap().as_slice()).unwrap();
-
-            // remove_created_wallet(&import_result.id);
         })
     }
 

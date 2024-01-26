@@ -1127,7 +1127,6 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
         };
 
     let key = tcx_crypto::Key::Password(param.password);
-    // TODO: hide crypto object
     let unlocker = identity_ks.store().crypto.use_key(&key)?;
 
     let signature = identity_ks.identity().sign_authentication_message(
