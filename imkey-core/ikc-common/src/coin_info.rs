@@ -112,14 +112,14 @@ lazy_static! {
             CoinInfo {
                 coin: "POLKADOT".to_string(),
                 derivation_path: "m/44'/354'/0'/0/0".to_string(),
-                curve: CurveType::SR25519,
+                curve: CurveType::ED25519,
                 network: "".to_string(),
                 seg_wit: "".to_string(),
             },
             CoinInfo {
                 coin: "KUSAMA".to_string(),
                 derivation_path: "m/44'/434'/0'/0/0".to_string(),
-                curve: CurveType::SR25519,
+                curve: CurveType::ED25519,
                 network: "".to_string(),
                 seg_wit: "".to_string(),
             },
