@@ -38,7 +38,7 @@ pub fn set_callback(callback: extern "C" fn(apdu: *const c_char, timeout: i32) -
 
 pub fn get_apdu() -> *const c_char {
     let apdu = APDU.read();
-    return CString::new(apdu.to_owned()).unwrap().into_raw();
+    CString::new(apdu.to_owned()).unwrap().into_raw()
 }
 
 #[allow(dead_code)]
@@ -49,7 +49,7 @@ fn set_apdu_r(apdu: String) {
         if *_apdu == "" {
             //debug!("is null set");
             println!("is null set");
-            *_apdu = String::from(apdu.clone());
+            *_apdu = apdu;
             break;
         } else {
             println!("not null...{}", _apdu);
@@ -58,12 +58,11 @@ fn set_apdu_r(apdu: String) {
     }
 }
 
-pub fn set_apdu(apdu: *const c_char) {
+pub unsafe fn set_apdu(apdu: *const c_char) {
     let mut _apdu = APDU.write();
     let c_str: &CStr = unsafe { CStr::from_ptr(apdu) };
     let str_slice: &str = c_str.to_str().unwrap();
     let str_buf: String = str_slice.to_owned();
-    //debug!("set_apdu...{}", str_buf);
     *_apdu = str_buf;
     drop(_apdu);
 }
@@ -79,13 +78,13 @@ fn get_apdu_return_r() -> Result<String> {
             println!("get_apdu_return_r not null {}", apdu_return.clone());
             let temp = apdu_return.clone();
             *apdu_return = String::from("");
-            return Ok(String::from(temp.to_owned()));
+            return Ok(String::from(temp));
         } else {
             println!("get_apdu_return_r is null {}", apdu_return.clone());
         }
         drop(apdu_return);
 
-        loop_count = loop_count + 1;
+        loop_count += 1;
         println!("loop time:{}", &loop_count);
         thread::sleep(Duration::from_millis(100));
         if loop_count >= loop_max {
@@ -97,16 +96,14 @@ fn get_apdu_return_r() -> Result<String> {
 
 pub fn get_apdu_return() -> *const c_char {
     let apdu = APDU_RETURN.read();
-    //debug!("get_apdu_return...{}", apdu.clone());
-    return CString::new(apdu.to_owned()).unwrap().into_raw();
+    CString::new(apdu.to_owned()).unwrap().into_raw()
 }
 
-pub fn set_apdu_return(apdu_return: *const c_char) {
+pub unsafe fn set_apdu_return(apdu_return: *const c_char) {
     let mut _apdu_return = APDU_RETURN.write();
     let c_str: &CStr = unsafe { CStr::from_ptr(apdu_return) };
     let str_slice: &str = c_str.to_str().unwrap();
     let str_buf: String = str_slice.to_owned();
-    //debug!("set_apdu_return...{}", str_buf);
     *_apdu_return = str_buf;
     drop(_apdu_return);
 }

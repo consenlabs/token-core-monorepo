@@ -6,9 +6,7 @@ use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::NERVOS_AID;
 use ikc_common::error::{CoinError, CommonError};
 use ikc_common::path::check_path_validity;
-use ikc_common::utility::{
-    network_convert, secp256k1_sign, secp256k1_sign_verify, uncompress_pubkey_2_compress,
-};
+use ikc_common::utility::{network_convert, secp256k1_sign, secp256k1_sign_verify};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
 use secp256k1::hashes::hex::FromHex;

@@ -58,7 +58,9 @@ pub extern "C" fn get_apdu() -> *const c_char {
 
 #[no_mangle]
 pub extern "C" fn set_apdu(apdu: *const c_char) {
-    message::set_apdu(apdu);
+    unsafe {
+        message::set_apdu(unsafe { apdu });
+    }
 }
 
 #[no_mangle]
@@ -68,7 +70,9 @@ pub extern "C" fn get_apdu_return() -> *const c_char {
 
 #[no_mangle]
 pub extern "C" fn set_apdu_return(apdu_return: *const c_char) {
-    message::set_apdu_return(apdu_return);
+    unsafe {
+        message::set_apdu_return(unsafe { apdu_return });
+    }
 }
 
 #[no_mangle]
@@ -202,7 +206,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                     eos_signer::sign_eos_transaction(&param.clone().input.unwrap().value, &param)
                 }
                 "COSMOS" => cosmos_signer::sign_cosmos_transaction(
-                    &param.clone().clone().input.unwrap().value,
+                    &param.clone().input.unwrap().value,
                     &param,
                 ),
                 "FILECOIN" => filecoin_signer::sign_filecoin_transaction(

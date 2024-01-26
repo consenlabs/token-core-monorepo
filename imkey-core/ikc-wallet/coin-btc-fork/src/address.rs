@@ -1,6 +1,4 @@
-use crate::btc_fork_network::{
-    network_form_hrp, network_from_coin, network_from_param, BtcForkNetwork,
-};
+use crate::btc_fork_network::{network_form_hrp, network_from_coin, BtcForkNetwork};
 use crate::common::get_xpub_data;
 use crate::Result;
 use bitcoin::hash_types::{PubkeyHash, ScriptHash};
@@ -18,8 +16,6 @@ use ikc_common::error::{CoinError, CommonError};
 use ikc_common::path::check_path_validity;
 
 use bech32::{u5, ToBase32, Variant};
-use bitcoin::psbt::serialize::Serialize;
-use bitcoin_hashes::hex::ToHex;
 use ikc_common::utility::uncompress_pubkey_2_compress;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
