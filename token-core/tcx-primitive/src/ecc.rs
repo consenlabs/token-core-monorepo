@@ -524,9 +524,7 @@ mod tests {
         assert_eq!(dsk.to_string(), "xprv9yrdwPSRnvomqFK4u1y5uW2SaXS2Vnr3pAYTjJjbyRZR8p9BwoadRsCxtgUFdAKeRPbwvGRcCSYMV69nNK4N2kadevJ6L5iQVy1SwGKDTHQ");
     }
 
-    // todo:
-    // this test run failure because of the invalid path
-    // #[test]
+    #[test]
     fn test_typed_deterministic_private_key_sr25519() {
         let root = TypedDeterministicPrivateKey::from_mnemonic(CurveType::SR25519, &TEST_MNEMONIC)
             .unwrap();
@@ -548,7 +546,6 @@ mod tests {
             "5EHrYeBgkMX8Q2yMcF2gYZKdpRF31cqMxKMtbM19YPRCBYpv"
         );
 
-        // TODO: why can derive from public key
         let child_dpk = dpk.derive("/KUSAMA/0").unwrap();
         assert_eq!(
             child_dpk.to_string(),

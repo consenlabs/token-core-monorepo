@@ -601,6 +601,4 @@ mod tests {
             "inject kidney empty canal shadow pact comfort wife crush horse wife sketch"
         );
     }
-
-    // TODO: add eos testcase
 }

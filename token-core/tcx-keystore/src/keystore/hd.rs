@@ -543,7 +543,6 @@ mod tests {
         .unwrap();
         let public_key = TypedPublicKey::Secp256k1(k1_pub_key);
 
-        //TODO: why btc address is publickey
         let expected = Account {
             address: "026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
