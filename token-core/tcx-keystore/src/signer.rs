@@ -32,11 +32,6 @@ pub trait MessageSigner<Input, Output> {
     fn sign_message(&mut self, params: &SignatureParameters, message: &Input) -> Result<Output>;
 }
 
-// The ec_sign
-pub trait HashSigner {
-    fn sign(&self, ks: &mut Keystore, symbol: &str, address: &str, hash: &[u8]) -> Result<Vec<u8>>;
-}
-
 pub trait Signer {
     fn sign_hash(
         &mut self,
@@ -50,6 +45,13 @@ pub trait Signer {
         &mut self,
         hash: &[u8],
         derivation_path: &str,
+    ) -> Result<Vec<u8>>;
+
+    fn secp256k1_ecdsa_sign_recoverable_with_noncedata(
+        &mut self,
+        hash: &[u8],
+        derivation_path: &str,
+        noncedata: &[u8; 32],
     ) -> Result<Vec<u8>>;
 
     fn bls_sign(&mut self, hash: &[u8], derivation_path: &str, dst: &str) -> Result<Vec<u8>>;

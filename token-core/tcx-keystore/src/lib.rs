@@ -28,7 +28,7 @@ pub use keystore::{
     PrivateKeystore, PublicKeyEncoder, Source,
 };
 
-pub use signer::{HashSigner, MessageSigner, SignatureParameters, Signer, TransactionSigner};
+pub use signer::{MessageSigner, SignatureParameters, Signer, TransactionSigner};
 
 use thiserror::Error;
 
