@@ -51,7 +51,7 @@ impl Address for BtcKinAddress {
     fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
         let network = BtcKinNetwork::find_by_coin(&coin.coin, &coin.network);
         tcx_ensure!(network.is_some(), Error::MissingNetwork);
-        let network = network.expect("network");
+        let network = network.unwrap();
 
         let address = match coin.seg_wit.as_str() {
             "P2WPKH" => BtcKinAddress::p2shwpkh(&public_key.to_bytes(), network)?,

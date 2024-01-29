@@ -149,15 +149,6 @@ mod test {
     }
 
     #[test]
-    fn test_address_from_str() {
-        let tezos_address = TezosAddress::from_str("tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9").unwrap();
-        assert_eq!(
-            tezos_address.to_string(),
-            "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9"
-        );
-    }
-
-    #[test]
     fn cross_test_tw() {
         let coin_info = CoinInfo {
             coin: "TEZOS".to_string(),

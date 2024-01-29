@@ -347,7 +347,6 @@ impl Display for BtcForkAddress {
 }
 
 /// Extract the bech32 prefix.
-/// Returns the same slice when no prefix is found.
 fn bech32_network(bech32: &str) -> Option<BtcForkNetwork> {
     let bech32_prefix = match bech32.rfind('1') {
         None => None,

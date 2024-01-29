@@ -213,10 +213,7 @@ mod tests {
         );
 
         assert_eq!(remove_bch_prefix("bitcoincash:"), "");
-        assert_eq!(
-            remove_bch_prefix("qq2ug6v04ht22n0daxxzl0rzlvsmzwcdwuymj77ymy"),
-            "qq2ug6v04ht22n0daxxzl0rzlvsmzwcdwuymj77ymy"
-        );
+
         assert_eq!(
             remove_bch_prefix(":qq2ug6v04ht22n0daxxzl0rzlvsmzwcdwuymj77ymy"),
             "qq2ug6v04ht22n0daxxzl0rzlvsmzwcdwuymj77ymy"

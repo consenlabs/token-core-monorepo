@@ -2,7 +2,7 @@
 
 pub mod address;
 pub mod bch_address;
-mod bitcoin_cash_sighash;
+mod bch_sighash;
 mod sighash;
 
 pub mod network;

@@ -24,7 +24,7 @@ use tcx_keystore::{Keystore, TransactionSigner};
 use tcx_primitive::{get_account_path, Derive, PrivateKey, PublicKey, Secp256k1PrivateKey};
 
 use crate::address::{BtcKinAddress, ScriptPubkey};
-use crate::bitcoin_cash_sighash::BitcoinCashSighash;
+use crate::bch_sighash::BitcoinCashSighash;
 use crate::sighash::TxSignatureHasher;
 use crate::transaction::{BtcKinTxInput, BtcKinTxOutput, OmniTxInput, Utxo};
 use crate::{BchAddress, Result, BITCOIN, BITCOINCASH};

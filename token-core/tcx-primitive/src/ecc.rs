@@ -472,10 +472,16 @@ mod tests {
     const SR25519_PUB_KEY_HEX: &str =
         "fc581c897af481b10cf846d88754f1d115e486e5b7bcc39c0588c01b0a9b7a11";
 
+    const ED25519_PUBLIC_KEY_HEX: &str =
+        "ca57eed30e4a7274ef4c648f56f58f880b20d2ca25725d9e5c13c83c08c09aeb";
+
+    const BLS_PUBLIC_KEY_HEX: &str =
+        "80f0d9dfb26b6c66254fd6663f4cbe39c4ca46e54f779c2e30c618fb57350e5b7f55b51c16e04c9d2550f3b731551ed7";
+
     #[test]
     fn test_typed_private_key() {
-        let ret = TypedPrivateKey::from_slice(CurveType::ED25519, &default_private_key());
-        assert!(ret.is_ok());
+        let ret = TypedPrivateKey::from_slice(CurveType::ED25519, &default_private_key()).unwrap();
+        assert_eq!(ret.public_key().to_bytes().to_hex(), ED25519_PUBLIC_KEY_HEX);
 
         let sk = TypedPrivateKey::from_slice(CurveType::SECP256k1, &default_private_key()).unwrap();
 
@@ -483,13 +489,28 @@ mod tests {
         assert_eq!(sk.as_secp256k1().unwrap().to_bytes(), default_private_key());
         assert_eq!(sk.curve_type(), CurveType::SECP256k1);
         assert_eq!(sk.public_key().to_bytes().to_hex(), PUB_KEY_HEX);
-
         let sign_ret = sk
             .as_secp256k1()
             .unwrap()
             .sign(&default_private_key())
             .unwrap();
         assert_eq!(sign_ret.to_hex(), "304402206614e4bfa3ba1f6c975286a0a683871d6f0525a0860631afa5bea4da78ca012a02207a663d4980abed218683f66a63bbb766975fd525b8442a0424f6347c3d4f9261");
+
+        let ret = TypedPrivateKey::from_slice(
+            CurveType::SR25519,
+            &Vec::from_hex(SR25519_PRI_KEY_HEX).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(ret.to_bytes().to_hex(), SR25519_PRI_KEY_HEX);
+        assert_eq!(ret.public_key().to_bytes().to_hex(), SR25519_PUB_KEY_HEX);
+
+        let ret = TypedPrivateKey::from_slice(
+            CurveType::BLS,
+            &Vec::from_hex("8bb90efb3c5ce904bebfb63281c994621ecc5184917ace9a9e28222e1285f34f")
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(ret.public_key().to_bytes().to_hex(), BLS_PUBLIC_KEY_HEX);
     }
 
     #[test]
@@ -593,6 +614,22 @@ mod tests {
         .unwrap();
         assert_eq!(pk.curve_type(), CurveType::SR25519);
         assert_eq!(pk.to_bytes().to_hex(), SR25519_PUB_KEY_HEX);
+
+        let pk = TypedPublicKey::from_slice(
+            CurveType::ED25519,
+            Vec::from_hex(ED25519_PUBLIC_KEY_HEX).unwrap().as_slice(),
+        )
+        .unwrap();
+        assert_eq!(pk.curve_type(), CurveType::ED25519);
+        assert_eq!(pk.to_bytes().to_hex(), ED25519_PUBLIC_KEY_HEX);
+
+        let pk = TypedPublicKey::from_slice(
+            CurveType::BLS,
+            Vec::from_hex(BLS_PUBLIC_KEY_HEX).unwrap().as_slice(),
+        )
+        .unwrap();
+        assert_eq!(pk.curve_type(), CurveType::BLS);
+        assert_eq!(pk.to_bytes().to_hex(), BLS_PUBLIC_KEY_HEX);
     }
 
     #[test]

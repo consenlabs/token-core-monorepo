@@ -14,6 +14,7 @@ use sp_core::blake2_256;
 pub struct Transaction {}
 
 impl Transaction {
+    // Ref: https://github.com/paritytech/txwrapper-core/blob/8c7c9e16ab877f0247e547ee6368e22e5579b492/packages/txwrapper-core/src/core/construct/createSigningPayload.ts#L37-L42
     pub fn hash_unsigned_payload(payload: &[u8]) -> Result<Vec<u8>> {
         if payload.len() > PAYLOAD_HASH_THRESHOLD {
             Ok(blake2_256(&payload).to_vec())
