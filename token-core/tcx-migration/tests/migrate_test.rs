@@ -1,9 +1,3 @@
-use serde_json::Value;
-use tcx_crypto::Key;
-use tcx_keystore::{Keystore, Source};
-use tcx_migration::keystore_upgrade::KeystoreUpgrade;
-use tcx_migration::migration::LegacyKeystore;
-
 #[cfg(test)]
 mod tests {
     use serde_json::Value;

@@ -86,7 +86,7 @@ mod tests {
     use super::*;
     use tcx_constants::{coin_info_from_param, CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::{HdKeystore, Keystore, KeystoreGuard, Metadata};
-    use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
+    use tcx_primitive::Secp256k1PrivateKey;
 
     #[test]
     fn test_sign_transaction() -> core::result::Result<(), anyhow::Error> {

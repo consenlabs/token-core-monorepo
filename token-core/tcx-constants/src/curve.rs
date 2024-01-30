@@ -80,11 +80,4 @@ mod test {
         let curve_type = CurveType::from_str("bls12-381");
         assert_eq!(curve_type, CurveType::BLS);
     }
-
-    /*    #[test]
-       #[should_panic(expected = "Invalid curve type")]
-    */
-    fn test_curve_type_from_str_invalid_curve_type() {
-        let actual = CurveType::from_str("TEST");
-    }
 }

@@ -55,7 +55,7 @@ mod tests {
     fn test_keystore_failure() {
         let mut ks =
             Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
-        let mut guard = KeystoreGuard::unlock_by_password(&mut ks, WRONG_PASSWORD);
+        let guard = KeystoreGuard::unlock_by_password(&mut ks, WRONG_PASSWORD);
 
         assert!(guard.is_err());
     }

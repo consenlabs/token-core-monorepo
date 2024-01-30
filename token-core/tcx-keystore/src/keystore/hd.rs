@@ -255,7 +255,7 @@ mod tests {
 
     #[test]
     fn test_verify_password() {
-        let mut keystore =
+        let keystore =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
 
         assert!(keystore.verify_password(TEST_PASSWORD));

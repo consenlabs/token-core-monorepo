@@ -312,10 +312,9 @@ mod tests {
     use super::*;
     use crate::api::derive_accounts_param::Derivation;
     use crate::api::{
-        CommonResponse, DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam,
-        DeriveSubAccountsResult,
+        DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
     };
-    use ikc_device::device_binding::DeviceManage;
+
     use ikc_device::deviceapi::{BindAcquireReq, BindCheckRes};
     use ikc_transport::hid_api::hid_connect;
     use prost::Message;

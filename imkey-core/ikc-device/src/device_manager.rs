@@ -265,7 +265,7 @@ mod test {
     fn app_download_wrong_appname_test() {
         assert!(hid_connect(constants::DEVICE_MODEL_NAME).is_ok());
         //Enter the wrong app name
-        let result = app_download("TEST");
+        let _result = app_download("TEST");
     }
 
     #[test]
@@ -279,7 +279,7 @@ mod test {
     #[should_panic(expected = "imkey_app_name_not_exist")]
     fn app_update_wrong_app_name_test() {
         assert!(hid_connect(constants::DEVICE_MODEL_NAME).is_ok());
-        let result = app_update("TEST");
+        let _result = app_update("TEST");
     }
 
     #[test]

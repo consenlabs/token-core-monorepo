@@ -188,7 +188,7 @@ mod tests {
     use tcx_constants::{CurveType, TEST_PASSWORD};
     use tcx_crypto::Error::PasswordIncorrect;
     use tcx_crypto::Key;
-    use tcx_keystore::{keystore::IdentityNetwork, Keystore, Source};
+    use tcx_keystore::{keystore::IdentityNetwork, Source};
 
     use super::KeystoreUpgrade;
 

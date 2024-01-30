@@ -537,9 +537,7 @@ pub(crate) mod tests {
     use crate::Result;
     use tcx_common::{FromHex, ToHex};
     use tcx_constants::sample_key::WRONG_PASSWORD;
-    use tcx_constants::{
-        coin_info_from_param, CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY,
-    };
+    use tcx_constants::{CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY};
     use tcx_crypto::Key;
     use tcx_primitive::{
         PublicKey, Secp256k1PublicKey, Ss58Codec, TypedDeterministicPublicKey, TypedPublicKey,
@@ -800,27 +798,20 @@ pub(crate) mod tests {
             .unwrap();
         assert!(pk.as_secp256k1().is_ok());
 
-        let pk = keystore
-            .get_private_key(CurveType::SECP256k1, "m/44'/0'/0'/0/0")
-            .unwrap();
-
-        /*
         assert_eq!(
-                pk.as_secp256k1()
+            pk.as_secp256k1()
                 .unwrap()
                 .to_ss58check_with_version(&[0x80]),
-            "L39VXyorp19JfsEJfbD7Tfr4pBEX93RJuVXW7E13C51ZYAhUWbYa"
+            "KxBhnk7DGkXY7Fsw4MaRGXtHrmeqpxxc6u1Rr9aGjNQhH514gkU4"
         );
 
         let public_key = keystore
-            .get_deterministic_public_key(
-                CurveType::SECP256k1,
-                "m/44'/0'/0'/0/0",
-            )
+            .get_deterministic_public_key(CurveType::SECP256k1, "m/44'/0'/0'/0/0")
             .unwrap();
-        assert_eq!(public_key.to_hex(), "031064f6a580000000251d72997d4cf931a7e6819f7da37725166100fc7dae9ca6afc3f8fd8a3d3a7f0303f2f84851514bf2f40a46b5bb9dbf4e5913fbacde1a96968cda08f9fd882caa");
-
-         */
+        assert_eq!(
+            public_key.to_hex(),
+            "0543ed2f690000000024027546ee9ddc756de6e83d93e74f4d0d2751de1e209fdcc1d07b4185dace25026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868"
+        );
     }
 
     #[test]

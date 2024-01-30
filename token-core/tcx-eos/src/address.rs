@@ -53,7 +53,7 @@ mod tests {
     use crate::address::EosPublicKeyEncoder;
     use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
-    use tcx_keystore::{Address, PublicKeyEncoder};
+    use tcx_keystore::PublicKeyEncoder;
     use tcx_primitive::{PublicKey, Secp256k1PublicKey, TypedPrivateKey, TypedPublicKey};
 
     #[test]

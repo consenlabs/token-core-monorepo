@@ -476,8 +476,6 @@ mod tests {
     use std::str::FromStr;
 
     use ikc_device::device_binding::bind_test;
-    use ikc_device::device_binding::DeviceManage;
-    use ikc_transport::hid_api::hid_connect;
 
     #[test]
     fn test_sign_transaction() {

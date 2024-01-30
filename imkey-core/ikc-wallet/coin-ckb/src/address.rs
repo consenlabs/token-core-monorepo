@@ -212,7 +212,7 @@ mod tests {
     fn test_get_public_key() {
         bind_test();
 
-        let network = "TESTNET";
+        let _network = "TESTNET";
         let pk = CkbAddress::get_public_key(constants::NERVOS_PATH).expect("get pubkey fail");
         assert_eq!(&pk, "04554851980004FF256888612BF0D64D9B1002BF82331450FD5A7405D1B23CC5BD2F4DDA9D71F6502CD761AFB29B1A89AECEBC832851CD361D3351216F08635BBF");
     }

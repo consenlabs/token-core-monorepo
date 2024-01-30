@@ -284,13 +284,10 @@ mod tests {
     use tcx_btc_kin::BtcKinAddress;
     use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType, TEST_PASSWORD, TEST_PRIVATE_KEY};
-    use tcx_crypto::{EncPair, Key};
+    use tcx_crypto::Key;
     use tcx_eos::address::{EosAddress, EosPublicKeyEncoder};
     use tcx_eth::address::EthAddress;
-    use tcx_keystore::{
-        keystore::IdentityNetwork, Keystore, KeystoreGuard, Metadata, PrivateKeystore,
-        PublicKeyEncoder, Source,
-    };
+    use tcx_keystore::{keystore::IdentityNetwork, PublicKeyEncoder};
 
     use super::LegacyKeystore;
 

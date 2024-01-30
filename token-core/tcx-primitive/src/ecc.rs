@@ -443,7 +443,7 @@ impl Derive for TypedDeterministicPrivateKey {
 #[cfg(test)]
 mod tests {
     use super::{PrivateKey, PublicKey, TypedDeterministicPrivateKey, TypedPrivateKey};
-    use crate::{bls::BLSPrivateKey, Derive, Sr25519PrivateKey, TypedPublicKey};
+    use crate::{Derive, TypedPublicKey};
     use bip39::{Language, Mnemonic, Seed};
     use tcx_common::{FromHex, ToHex};
 

@@ -218,13 +218,12 @@ impl Identity {
 
 #[cfg(test)]
 mod test {
-    use bip39::{Language, Mnemonic};
+
     use tcx_common::FromHex;
     use tcx_constants::sample_key::{MNEMONIC, PASSWORD, PRIVATE_KEY};
     use tcx_constants::CurveType;
     use tcx_crypto::Key;
 
-    use crate::identity::Identity;
     use crate::{keystore::IdentityNetwork, Error, HdKeystore, Metadata, PrivateKeystore};
 
     #[test]
@@ -283,9 +282,7 @@ mod test {
              Error::InvalidEncryptionDataSignature)
             ];
 
-        let unix_timestamp = 1514779200u64;
         for t in tests {
-            let iv: [u8; 16] = Vec::from_hex(t.1).unwrap().try_into().unwrap();
             assert_eq!(
                 identity.decrypt_ipfs(t.2).err().unwrap().to_string(),
                 t.3.to_string(),
@@ -333,11 +330,6 @@ mod test {
             "abandon abandon abandon aba",
             "rocket wash opera menu stomach genre write husband observe cigar stand famous cancel duty",
         ];
-
-        let crypto = tcx_crypto::crypto::Crypto::default();
-        let unlocker = crypto
-            .use_key(&Key::Password(PASSWORD.to_string()))
-            .unwrap();
 
         for t in tests {
             let mut meta = Metadata::default();

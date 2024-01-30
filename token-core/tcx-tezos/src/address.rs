@@ -80,7 +80,6 @@ impl FromStr for TezosAddress {
 
 #[cfg(test)]
 mod test {
-    use std::str::FromStr;
 
     use crate::address::TezosAddress;
     use hex::FromHex;

@@ -132,7 +132,7 @@ mod test {
         AccessList, EthMessageInput, EthMessageOutput, EthRecoverAddressInput, EthTxInput,
         EthTxOutput, SignatureType,
     };
-    use ethereum_types::U256;
+
     use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::{Keystore, MessageSigner, Metadata, SignatureParameters, TransactionSigner};
 

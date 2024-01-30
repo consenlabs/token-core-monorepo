@@ -1081,7 +1081,7 @@ mod tests {
         let sender = "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string();
         let fee = "0.0032 ether".to_string();
 
-        let tx_result = tx
+        let _tx_result = tx
             .sign(Some(28), &path, &payment, &receiver, &sender, &fee)
             .unwrap();
 
@@ -1110,7 +1110,7 @@ mod tests {
         let sender = "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string();
         let fee = "0.002499941511088808 ether".to_string();
 
-        let tx_result = tx
+        let _tx_result = tx
             .sign(Some(28), &path, &payment, &receiver, &sender, &fee)
             .unwrap();
 
@@ -1139,7 +1139,7 @@ mod tests {
         let sender = "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string();
         let fee = "0.002654792885876068 ether".to_string();
 
-        let tx_result = tx
+        let _tx_result = tx
             .sign(Some(28), &path, &payment, &receiver, &sender, &fee)
             .unwrap();
 
@@ -1193,7 +1193,7 @@ mod tests {
         let sender = "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string();
         let fee = "0.0033 ether".to_string();
 
-        let tx_result = tx
+        let _tx_result = tx
             .sign(Some(63), &path, &payment, &receiver, &sender, &fee)
             .unwrap();
 
@@ -1222,7 +1222,7 @@ mod tests {
         let sender = "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string();
         let fee = "0.11 ether".to_string();
 
-        let tx_result = tx
+        let _tx_result = tx
             .sign(Some(28), &path, &payment, &receiver, &sender, &fee)
             .unwrap();
     }

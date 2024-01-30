@@ -166,7 +166,7 @@ mod tests {
     use super::*;
     use crate::api::derive_accounts_param::Derivation;
     use crate::api::sign_hashes_param::DataToSign;
-    use crate::filemanager::{KEYSTORE_BASE_DIR, KEYSTORE_MAP};
+    use crate::filemanager::KEYSTORE_MAP;
     use api::sign_param::Key;
     use error_handling::Result;
     use serial_test::serial;
@@ -208,11 +208,8 @@ mod tests {
     use sp_runtime::traits::Verify;
     use tcx_btc_kin::Utxo;
     use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
-    use tcx_constants::sample_key::PASSWORD;
-    use tcx_eth::api::{
-        AccessList, EthMessageInput, EthMessageOutput, EthRecoverAddressInput,
-        EthRecoverAddressOutput, EthTxInput, EthTxOutput,
-    };
+
+    use tcx_eth::api::{AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput};
     use tcx_filecoin::{SignedMessage, UnsignedMessage};
     use tcx_substrate::{SubstrateKeystore, SubstrateRawTxIn, SubstrateTxOut};
     use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
@@ -372,9 +369,9 @@ mod tests {
             let bytes = &Vec::<u8>::from_hex_auto("0a0f6465726976655f6163636f756e747312770a176170692e4465726976654163636f756e7473506172616d125c0a2430313831653533662d346566642d343262352d623430302d39333134656239376339373412083132333435363738222a0a08455448455245554d12106d2f3434272f3630272f30272f302f302a01313209736563703235366b31").unwrap();
             let action = TcxAction::decode(bytes.as_slice()).unwrap();
             dbg!(&action);
-            let mut param =
+            let param =
                 DeriveAccountsParam::decode(action.param.unwrap().value.as_slice()).unwrap();
-            let wallet = import_default_wallet();
+            let _wallet = import_default_wallet();
             dbg!(&param);
             // call_tcx_api(bytes.to_hex())
             assert!(true);
@@ -3518,7 +3515,7 @@ mod tests {
                 bech32_prefix: "".to_string(),
             };
 
-            let (wallet, accounts) = import_and_derive(derivation);
+            let (_wallet, accounts) = import_and_derive(derivation);
             let params = DeriveSubAccountsParam {
                 chain_type: "BITCOIN".to_string(),
                 curve: "secp256k1".to_string(),
@@ -3559,7 +3556,7 @@ mod tests {
                 bech32_prefix: "".to_string(),
             };
 
-            let (wallet, accounts) = import_and_derive(derivation);
+            let (_wallet, accounts) = import_and_derive(derivation);
             let params = DeriveSubAccountsParam {
                 chain_type: "BITCOIN".to_string(),
                 curve: "secp256k1".to_string(),
@@ -3600,7 +3597,7 @@ mod tests {
                 bech32_prefix: "".to_string(),
             };
 
-            let (wallet, accounts) = import_and_derive(derivation);
+            let (_, accounts) = import_and_derive(derivation);
             let params = DeriveSubAccountsParam {
                 chain_type: "ETHEREUM".to_string(),
                 curve: "secp256k1".to_string(),

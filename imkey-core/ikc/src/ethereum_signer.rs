@@ -123,11 +123,11 @@ mod tests {
     use super::*;
     use crate::ethereum_signer::sign_eth_transaction;
     use coin_ethereum::ethapi::{AccessList, EthTxInput, EthTxOutput};
-    use ethereum_types::{Address, U256};
+    use ethereum_types::U256;
     use hex;
     use ikc_common::constants;
-    use ikc_device::device_binding::{bind_test, DeviceManage};
-    use ikc_transport::hid_api::hid_connect;
+    use ikc_device::device_binding::bind_test;
+
     use std::str::FromStr;
 
     #[test]
@@ -151,7 +151,7 @@ mod tests {
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.001316 ETH".to_string(),
         };
-        let x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
+        let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
         println!("sign");
     }
 
@@ -170,7 +170,7 @@ mod tests {
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.001316 ETH".to_string(),
         };
-        let x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
+        let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
         println!("sign");
     }
 
@@ -189,7 +189,7 @@ mod tests {
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.001316 ETH".to_string(),
         };
-        let x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
+        let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
         println!("sign");
     }
 
@@ -208,7 +208,7 @@ mod tests {
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.001316 ETH".to_string(),
         };
-        let x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
+        let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
         println!("sign");
     }
 

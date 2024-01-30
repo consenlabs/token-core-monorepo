@@ -445,7 +445,6 @@ mod tests {
         );
         for data_list in test_data.iter() {
             let seed = Vec::from_hex(data_list.0).unwrap();
-            let pri_key = Bip32DeterministicPrivateKey::from_seed(&seed).unwrap();
             for data in data_list.1.iter().enumerate() {
                 let pri_key = Bip32DeterministicPrivateKey::from_seed(&seed).unwrap();
                 if data.0 == 0 && "m".eq(data.1 .0) {

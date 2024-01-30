@@ -148,7 +148,7 @@ mod tests {
             TypedPrivateKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(prv_str).unwrap())
                 .unwrap()
                 .public_key();
-        let mut coin_info = CoinInfo {
+        let coin_info = CoinInfo {
             coin: "COSMOS".to_string(),
             derivation_path: "m/44'/118'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,

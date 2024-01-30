@@ -1,4 +1,4 @@
-use crate::{Keystore, Result};
+use crate::Result;
 use tcx_constants::CurveType;
 
 #[derive(Debug, Clone, PartialEq)]

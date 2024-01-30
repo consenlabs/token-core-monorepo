@@ -1217,10 +1217,7 @@ mod tests {
     use tcx_constants::CurveType;
     use tcx_keystore::Source;
 
-    use crate::{
-        api::ImportPrivateKeyResult,
-        filemanager::{LEGACY_WALLET_FILE_DIR, WALLET_FILE_DIR},
-    };
+    use crate::{api::ImportPrivateKeyResult, filemanager::WALLET_FILE_DIR};
 
     use super::{decode_private_key, scan_keystores};
     use serial_test::serial;

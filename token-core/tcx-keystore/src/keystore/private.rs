@@ -162,7 +162,7 @@ mod tests {
     use crate::keystore::tests::MockAddress;
     use crate::{Metadata, PrivateKeystore, Source};
     use tcx_common::FromHex;
-    use tcx_constants::{CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY};
+    use tcx_constants::{CoinInfo, CurveType, TEST_PASSWORD, TEST_PRIVATE_KEY};
     use tcx_crypto::Key;
     use tcx_primitive::{PublicKey, Secp256k1PublicKey, TypedPublicKey};
 
@@ -196,7 +196,7 @@ mod tests {
 
     #[test]
     fn test_verify_password() {
-        let mut keystore = PrivateKeystore::from_private_key(
+        let keystore = PrivateKeystore::from_private_key(
             TEST_PRIVATE_KEY,
             TEST_PASSWORD,
             CurveType::SECP256k1,
