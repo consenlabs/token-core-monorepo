@@ -4557,6 +4557,24 @@ mod tests {
                     curve: "sr25519".to_string(),
                     bech32_prefix: "".to_string(),
                 },
+                Derivation {
+                    chain_type: "KUSAMA".to_string(),
+                    path: "//0".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: "sr25519".to_string(),
+                    bech32_prefix: "".to_string(),
+                },
+                Derivation {
+                    chain_type: "POLKADOT".to_string(),
+                    path: "//0".to_string(),
+                    network: "".to_string(),
+                    seg_wit: "".to_string(),
+                    chain_id: "".to_string(),
+                    curve: "sr25519".to_string(),
+                    bech32_prefix: "".to_string(),
+                },
             ];
             let param = DeriveAccountsParam {
                 id: wallet.id.to_string(),
@@ -4572,12 +4590,14 @@ mod tests {
                 "FhygqLe3pdvk5SrMEePWF1cCGFS6kXux5Dh2PHBQDSGeJSW",
                 "EkkpqYe4XGLst9o8NhvFRhMwto7MNxrsW9vboMzffdwUW3F",
                 "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS",
+                "JKZKcChQMRYd4zFdeSL5DX3EPNMtaLqAddnycJ4gEL2kJTK",
+                "16kEod7tdmg6JxBKpagHKQzBwR5mnD5nnkXXkF1TkX94BooY",
             ];
 
             let ret = call_api("derive_accounts", param).unwrap();
             let result: DeriveAccountsResult =
                 DeriveAccountsResult::decode(ret.as_slice()).unwrap();
-            assert_eq!(result.accounts.len(), 6);
+            assert_eq!(result.accounts.len(), 8);
             for (index, account) in result.accounts.iter().enumerate() {
                 assert_eq!(account.address, expected[index]);
             }
