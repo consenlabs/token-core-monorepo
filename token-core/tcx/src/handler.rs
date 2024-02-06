@@ -28,13 +28,13 @@ use tcx_filecoin::KeyInfo;
 
 use crate::api::derive_accounts_param::Derivation;
 use crate::api::{
-    export_private_key_param, AccountResponse, BackupResult, CreateKeystoreParam,
-    DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam, DeriveAccountsResult,
-    DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, EncryptDataToIpfsParam,
-    EncryptDataToIpfsResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
-    ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicParam,
-    ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
-    GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
+    self, export_private_key_param, wallet_key_param, AccountResponse, BackupResult,
+    CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam,
+    DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult,
+    EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsJsonParam, ExistsKeystoreResult,
+    ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult,
+    ExportMnemonicParam, ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult,
+    GeneralResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
     GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
     ImportPrivateKeyResult, KeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
     ScanKeystoresResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
@@ -131,10 +131,6 @@ fn fingerprint_from_any_format_pk(pk: &str) -> Result<String> {
     };
     fingerprint_from_private_key(&key_data)
 }
-
-// fn fingerprint_from_tezos_format_pk(pk: &str) -> Result<String> {
-//     fingerprint_from_private_key(&key_data)
-// }
 
 fn import_private_key_internal(
     param: &ImportPrivateKeyParam,
@@ -333,8 +329,8 @@ fn key_info_from_v3(keystore: &str, password: &str) -> Result<(Vec<u8>, String)>
     ks.validate_v3(password)?;
     let key = tcx_crypto::Key::Password(password.to_string());
     let unlocker = ks.crypto.use_key(&key)?;
-    let pk = unlocker.plaintext()?;
-    Ok((pk, "Imported ETH".to_string()))
+    let private_key = unlocker.plaintext()?;
+    Ok((private_key, "Imported ETH".to_string()))
 }
 
 fn key_info_from_substrate_keystore(keystore: &str, password: &str) -> Result<(Vec<u8>, String)> {
@@ -342,6 +338,24 @@ fn key_info_from_substrate_keystore(keystore: &str, password: &str) -> Result<(V
     ks.validate()?;
     let pk = decode_substrate_keystore(&ks, password)?;
     Ok((pk, ks.meta.name))
+}
+
+fn curve_to_chain_type(curve: &CurveType) -> Vec<String> {
+    match curve {
+        CurveType::SECP256k1 => vec![
+            "BITCOIN".to_string(),
+            "BITCOINCASH".to_string(),
+            "LITECOIN".to_string(),
+            "FILECOIN".to_string(),
+            "EOS".to_string(),
+            "TRON".to_string(),
+            "COSMOS".to_string(),
+        ],
+        CurveType::ED25519 => vec!["TEZOS".to_string()],
+        CurveType::SR25519 => vec!["KUSAMA".to_string(), "POLKADOT".to_string()],
+        CurveType::BLS => vec!["FILECOIN".to_string()],
+        _ => vec![],
+    }
 }
 
 pub fn init_token_core_x(data: &[u8]) -> Result<()> {
@@ -371,6 +385,7 @@ pub fn init_token_core_x(data: &[u8]) -> Result<()> {
 
     Ok(())
 }
+
 pub(crate) fn scan_keystores() -> Result<ScanKeystoresResult> {
     clean_keystore();
     let file_dir = WALLET_FILE_DIR.read();
@@ -441,24 +456,6 @@ pub(crate) fn scan_keystores() -> Result<ScanKeystoresResult> {
         hd_keystores,
         private_key_keystores,
     })
-}
-
-fn curve_to_chain_type(curve: &CurveType) -> Vec<String> {
-    match curve {
-        CurveType::SECP256k1 => vec![
-            "BITCOIN".to_string(),
-            "BITCOINCASH".to_string(),
-            "LITECOIN".to_string(),
-            "FILECOIN".to_string(),
-            "EOS".to_string(),
-            "TRON".to_string(),
-            "COSMOS".to_string(),
-        ],
-        CurveType::ED25519 => vec!["TEZOS".to_string()],
-        CurveType::SR25519 => vec!["KUSAMA".to_string(), "POLKADOT".to_string()],
-        CurveType::BLS => vec!["FILECOIN".to_string()],
-        _ => vec![],
-    }
 }
 
 pub(crate) fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
@@ -552,7 +549,6 @@ pub(crate) fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 impl_to_key!(crate::api::derive_accounts_param::Key);
-
 pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
     let param: DeriveAccountsParam =
         DeriveAccountsParam::decode(data).expect("derive_accounts param");
@@ -691,7 +687,7 @@ pub(crate) fn verify_password(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    if keystore.verify_password(&param.password) {
+    if keystore.verify_password(&param.key.clone().unwrap().into()) {
         let rsp = GeneralResult {
             is_success: true,
             error: "".to_owned(),
@@ -702,6 +698,7 @@ pub(crate) fn verify_password(data: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
+impl_to_key!(crate::api::wallet_key_param::Key);
 pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let param: WalletKeyParam = WalletKeyParam::decode(data).expect("delete_keystore param");
     let mut map = KEYSTORE_MAP.write();
@@ -710,7 +707,7 @@ pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    if keystore.verify_password(&param.password) {
+    if keystore.verify_password(&param.key.clone().unwrap().into()) {
         delete_keystore_file(&param.id)?;
         map.remove(&param.id);
 
@@ -891,7 +888,10 @@ pub(crate) fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let dk = keystore.get_derived_key(&param.password)?;
+    let Some(api::wallet_key_param::Key::Password(password)) = param.key else {
+        return Err(anyhow!("{}", "get_derived_key need password"));
+    };
+    let dk = keystore.get_derived_key(&password)?;
 
     let ret = DerivedKeyResult {
         id: param.id.to_owned(),
@@ -1047,17 +1047,23 @@ pub(crate) fn backup(data: &[u8]) -> Result<Vec<u8>> {
         Some(keystore) => Ok(keystore),
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
-    let original = keystore.backup(&param.password)?;
+
+    let original = keystore.backup(&param.key.clone().unwrap().into())?;
     let fingerprint = match keystore.meta().source {
         Source::Mnemonic | Source::NewMnemonic => fingerprint_from_mnemonic(&original)?,
         Source::KeystoreV3 => {
-            let (private_key_bytes, _) = key_info_from_v3(&original, &param.password)?;
+            let Some(api::wallet_key_param::Key::Password(password)) = param.key else {
+        return Err(anyhow!("{}", "backup_keystore_need_password"));
+    };
+            let (private_key_bytes, _) = key_info_from_v3(&original, &password)?;
             let private_key = private_key_bytes.to_hex();
             fingerprint_from_any_format_pk(&private_key)?
         }
         Source::SubstrateKeystore => {
-            let (private_key_bytes, _) =
-                key_info_from_substrate_keystore(&original, &param.password)?;
+            let Some(api::wallet_key_param::Key::Password(password)) = param.key else {
+        return Err(anyhow!("{}", "backup_keystore_need_password"));
+    };
+            let (private_key_bytes, _) = key_info_from_substrate_keystore(&original, &password)?;
             let private_key = private_key_bytes.to_hex();
             fingerprint_from_any_format_pk(&private_key)?
         }
@@ -1078,7 +1084,7 @@ pub(crate) fn unlock_then_crash(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let _guard = KeystoreGuard::unlock_by_password(keystore, &param.password)?;
+    let _guard = keystore.unlock(&param.key.unwrap().into());
     panic!("test_unlock_then_crash");
 }
 
@@ -1118,6 +1124,7 @@ pub(crate) fn decrypt_data_from_ipfs(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(output)
 }
 
+impl_to_key!(crate::api::sign_authentication_message_param::Key);
 pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
     let param =
         SignAuthenticationMessageParam::decode(data).expect("SignAuthenticationMessageParam");
@@ -1127,8 +1134,10 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
             return Err(anyhow::anyhow!("identity_not_found"));
         };
 
-    let key = tcx_crypto::Key::Password(param.password);
-    let unlocker = identity_ks.store().crypto.use_key(&key)?;
+    let unlocker = identity_ks
+        .store()
+        .crypto
+        .use_key(&param.key.clone().unwrap().into())?;
 
     let signature = identity_ks.identity().sign_authentication_message(
         param.access_time,

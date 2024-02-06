@@ -1153,7 +1153,6 @@ mod tests {
     }
 
     mod ltc {
-        //todo: test error
         use super::*;
 
         #[test]

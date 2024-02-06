@@ -29,8 +29,7 @@ pub enum KeyError {
     InvalidChildNumber,
     #[error("cannot_derive_from_hardened_key")]
     CannotDeriveFromHardenedKey,
-    // todo: why use this key?
-    #[error("cannot_derive_key")]
+    #[error("invalid_base58")]
     InvalidBase58,
     #[error("invalid_private_key")]
     InvalidPrivateKey,

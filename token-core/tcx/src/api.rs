@@ -196,8 +196,19 @@ pub struct ExportJsonParam {
 pub struct WalletKeyParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
+    #[prost(oneof = "wallet_key_param::Key", tags = "2, 3")]
+    pub key: ::core::option::Option<wallet_key_param::Key>,
+}
+/// Nested message and enum types in `WalletKeyParam`.
+pub mod wallet_key_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "2")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "3")]
+        DerivedKey(::prost::alloc::string::String),
+    }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -510,20 +521,6 @@ pub struct DeriveSubAccountsResult {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RemoveWalletParam {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub password: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct RemoveWalletResult {
-    #[prost(bool, tag = "1")]
-    pub is_success: bool,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EncryptDataToIpfsParam {
     #[prost(string, tag = "1")]
     pub identifier: ::prost::alloc::string::String,
@@ -563,8 +560,19 @@ pub struct SignAuthenticationMessageParam {
     pub identifier: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub device_token: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub password: ::prost::alloc::string::String,
+    #[prost(oneof = "sign_authentication_message_param::Key", tags = "4, 5")]
+    pub key: ::core::option::Option<sign_authentication_message_param::Key>,
+}
+/// Nested message and enum types in `SignAuthenticationMessageParam`.
+pub mod sign_authentication_message_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "4")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "5")]
+        DerivedKey(::prost::alloc::string::String),
+    }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

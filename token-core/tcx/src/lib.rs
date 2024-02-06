@@ -529,7 +529,9 @@ mod tests {
 
             let param = WalletKeyParam {
                 id: wallet.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
             };
             let ret = call_api("export_mnemonic", param).unwrap();
             let result: ExportMnemonicResult =
@@ -541,7 +543,9 @@ mod tests {
 
             let param = WalletKeyParam {
                 id: wallet.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
             };
             unsafe { clear_err() };
             let ret = call_api("export_mnemonic", param);
@@ -1934,7 +1938,9 @@ mod tests {
             for id in wallet_id {
                 let param: WalletKeyParam = WalletKeyParam {
                     id: id.to_string(),
-                    password: TEST_PASSWORD.to_string(),
+                    key: Some(api::wallet_key_param::Key::Password(
+                        TEST_PASSWORD.to_owned(),
+                    )),
                 };
 
                 let ret_bytes = call_api("verify_password", param).unwrap();
@@ -1943,7 +1949,9 @@ mod tests {
 
                 let param: WalletKeyParam = WalletKeyParam {
                     id: id.to_string(),
-                    password: "WRONG PASSWORD".to_string(),
+                    key: Some(api::wallet_key_param::Key::Password(
+                        "WRONG PASSWORD".to_string(),
+                    )),
                 };
 
                 let ret = call_api("verify_password", param);
@@ -1955,7 +1963,7 @@ mod tests {
 
     #[test]
     #[serial]
-    pub fn test_delete_keystore() {
+    pub fn test_delete_keystore_by_password() {
         run_test(|| {
             let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
                 private_key: "5JZc7wGRUr4J1RHDcM9ySWKLfQ2xjRUEo612qC4RLJ3G7jzJ4qx".to_string(),
@@ -1969,10 +1977,11 @@ mod tests {
             let ret_bytes = import_private_key(&encode_message(param).unwrap()).unwrap();
             let import_result: KeystoreResult =
                 KeystoreResult::decode(ret_bytes.as_slice()).unwrap();
-
             let param: WalletKeyParam = WalletKeyParam {
                 id: import_result.id.to_string(),
-                password: "WRONG PASSWORD".to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    "WRONG PASSWORD".to_string(),
+                )),
             };
 
             let ret = call_api("delete_keystore", param);
@@ -1981,7 +1990,69 @@ mod tests {
 
             let param: WalletKeyParam = WalletKeyParam {
                 id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
+
+            let ret_bytes = call_api("delete_keystore", param).unwrap();
+            let ret: GeneralResult = GeneralResult::decode(ret_bytes.as_slice()).unwrap();
+            assert!(ret.is_success);
+
+            let param: ExistsPrivateKeyParam = ExistsPrivateKeyParam {
+                private_key: "5JZc7wGRUr4J1RHDcM9ySWKLfQ2xjRUEo612qC4RLJ3G7jzJ4qx".to_string(),
+            };
+
+            let ret_bytes = call_api("exists_private_key", param).unwrap();
+            let ret: ExistsKeystoreResult =
+                ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
+
+            assert_eq!(false, ret.is_exists);
+        })
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_delete_keystore_by_derived_key() {
+        run_test(|| {
+            let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
+                private_key: "5JZc7wGRUr4J1RHDcM9ySWKLfQ2xjRUEo612qC4RLJ3G7jzJ4qx".to_string(),
                 password: TEST_PASSWORD.to_string(),
+                name: "test_delete_keystore".to_string(),
+                password_hint: "".to_string(),
+                network: "".to_string(),
+                overwrite: true,
+            };
+
+            let ret_bytes = import_private_key(&encode_message(param).unwrap()).unwrap();
+            let import_result: KeystoreResult =
+                KeystoreResult::decode(ret_bytes.as_slice()).unwrap();
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
+            let ret_bytes = get_derived_key(&encode_message(param).unwrap()).unwrap();
+            let derived_key_result: DerivedKeyResult =
+                DerivedKeyResult::decode(ret_bytes.as_slice()).unwrap();
+
+            let param: WalletKeyParam = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::DerivedKey(
+                    "2de5cb10b712be587f31e428e22984bd9ee420d198ddd742f70d746fff27d19904629dd64246a0ce2dbb1484c193d51bb2fd47d5611def5b4db4531d7abed824".to_string(),
+                )),
+            };
+
+            let ret = call_api("delete_keystore", param);
+            assert!(ret.is_err());
+            assert_eq!(format!("{}", ret.err().unwrap()), "password_incorrect");
+
+            let param: WalletKeyParam = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::DerivedKey(
+                    derived_key_result.derived_key.to_owned(),
+                )),
             };
 
             let ret_bytes = call_api("delete_keystore", param).unwrap();
@@ -2819,7 +2890,9 @@ mod tests {
 
             let param = WalletKeyParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
             };
             let ret_bytes = get_derived_key(&encode_message(param).unwrap()).unwrap();
             let ret: DerivedKeyResult = DerivedKeyResult::decode(ret_bytes.as_slice()).unwrap();
@@ -2925,7 +2998,9 @@ mod tests {
 
             let dk_param = WalletKeyParam {
                 id: wallet.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
             };
 
             let ret_bytes = get_derived_key(&encode_message(dk_param).unwrap()).unwrap();
@@ -3074,37 +3149,6 @@ mod tests {
         })
     }
 
-    // #[test]
-    // fn test_get_derived_key() {
-    //     let param = InitTokenCoreXParam {
-    //         file_dir: "../test-data".to_string(),
-    //         xpub_common_key: "B888D25EC8C12BD5043777B1AC49F872".to_string(),
-    //         xpub_common_iv: "9C0C30889CBCC5E01AB5B2BB88715799".to_string(),
-    //         is_debug: true,
-    //     };
-
-    //     handler::init_token_core_x(&encode_message(param).unwrap()).expect("should init tcx");
-
-    //     let param = WalletKeyParam {
-    //         id: "cb1ba2d7-7b89-4595-9753-d16b6e317c6b".to_string(),
-    //         password: "WRONG PASSWORD".to_string(),
-    //     };
-
-    //     let ret = call_api("get_derived_key", param);
-    //     assert!(ret.is_err());
-    //     assert_eq!(format!("{}", ret.err().unwrap()), "password_incorrect");
-
-    //     let param = WalletKeyParam {
-    //         id: "cb1ba2d7-7b89-4595-9753-d16b6e317c6b".to_string(),
-    //         password: TEST_PASSWORD.to_string(),
-    //     };
-
-    //     let ret = call_api("get_derived_key", param).unwrap();
-    //     let dk_ret: DerivedKeyResult = DerivedKeyResult::decode(ret.as_slice()).unwrap();
-    //     assert_eq!(dk_ret.derived_key, "119a38ab626aaf8806e223833b29da7aa1d0623e282164d1dd73b0b5e0a88fb4b88937efadd9ca9d4ee931d7b2b33594d75ac4f4d651602819998237b27860fa");
-    // }
-    //
-
     #[test]
     #[serial]
     #[ignore = "this case is test panic"]
@@ -3113,7 +3157,9 @@ mod tests {
             let wallet = import_default_wallet();
             let param = WalletKeyParam {
                 id: wallet.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
             };
             let _ret = call_api("unlock_then_crash", param);
             let err = unsafe { _to_str(get_last_err_message()) };
@@ -4364,7 +4410,7 @@ mod tests {
 
     #[test]
     #[serial]
-    pub fn test_backup() {
+    pub fn test_backup_v3_keystore() {
         run_test(|| {
             let json = r#"{
                 "version": 3,
@@ -4401,13 +4447,164 @@ mod tests {
 
             let param = WalletKeyParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
             };
             let ret = call_api("backup", param).unwrap();
             let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
             assert!(export_result
                 .original
                 .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
+
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
+
+            let ret = call_api("get_derived_key", param).unwrap();
+            let derived_key_result: DerivedKeyResult =
+                DerivedKeyResult::decode(ret.as_slice()).unwrap();
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::DerivedKey(
+                    derived_key_result.derived_key,
+                )),
+            };
+            let ret = call_api("backup", param);
+            assert_eq!(
+                format!("{}", ret.err().unwrap()),
+                "backup_keystore_need_password"
+            );
+        })
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_backup_pjs_kystore() {
+        run_test(|| {
+            let keystore_str: &str = r#"{
+                "address": "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS",
+                "encoded": "0xf7e7e89d3016c9b4d93bb1129adf69e5949ca1fb58c29da4591ddc72c52238a35835e3f2ae023f9867ff301bc4132463527ac03525eaac54664a7cb658eae68a0bbc99354222c194d6100b2bf3a492639229077a2e2818d8196e002f0b5556104be23b11633858259dbbd3f91ea1d34d6ce182b62d8381af1ef3c35e9ab1583267cfa41aa58bfd64435c2b5047baf9052f0953d9f7854d2d396dfcad13",
+                "encoding": {
+                    "content": [
+                    "pkcs8",
+                    "sr25519"
+                    ],
+                    "type": "xsalsa20-poly1305",
+                    "version": "2"
+                },
+                "meta": {
+                    "genesisHash": "0xb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe",
+                    "name": "i_can_save_name",
+                    "tags": [],
+                    "whenCreated": 1593591324334
+                }
+                }"#;
+            let param: ImportJsonParam = ImportJsonParam {
+                password: TEST_PASSWORD.to_string(),
+                json: keystore_str.to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_json", param).unwrap();
+            let import_result: ImportPrivateKeyResult =
+                ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(
+                vec!["KUSAMA".to_string(), "POLKADOT".to_string(),],
+                import_result.identified_chain_types
+            );
+
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
+            let ret = call_api("backup", param).unwrap();
+            let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
+            assert!(export_result
+                .original
+                .contains("JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS"));
+
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
+
+            let ret = call_api("get_derived_key", param).unwrap();
+            let derived_key_result: DerivedKeyResult =
+                DerivedKeyResult::decode(ret.as_slice()).unwrap();
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::DerivedKey(
+                    derived_key_result.derived_key,
+                )),
+            };
+            let ret = call_api("backup", param);
+            assert_eq!(
+                format!("{}", ret.err().unwrap()),
+                "backup_keystore_need_password"
+            );
+        })
+    }
+
+    #[test]
+    #[serial]
+    pub fn test_backup_private_key() {
+        run_test(|| {
+            let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
+                password: TEST_PASSWORD.to_string(),
+                private_key: TEST_WIF.to_string(),
+                name: "".to_string(),
+                password_hint: "".to_string(),
+                network: "TESTNET".to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_private_key", param).unwrap();
+            let import_result: ImportPrivateKeyResult =
+                ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(
+                vec![
+                    "BITCOIN".to_string(),
+                    "BITCOINCASH".to_string(),
+                    "LITECOIN".to_string()
+                ],
+                import_result.identified_chain_types
+            );
+
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
+            let ret = call_api("backup", param).unwrap();
+            let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(export_result.original, TEST_WIF);
+
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
+
+            let ret = call_api("get_derived_key", param).unwrap();
+            let derived_key_result: DerivedKeyResult =
+                DerivedKeyResult::decode(ret.as_slice()).unwrap();
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::DerivedKey(
+                    derived_key_result.derived_key,
+                )),
+            };
+            let ret = call_api("backup", param).unwrap();
+            let backup_result = BackupResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(backup_result.original, TEST_WIF);
         })
     }
 
@@ -4417,9 +4614,9 @@ mod tests {
         run_test(|| {
             let param: ImportMnemonicParam = ImportMnemonicParam {
                 password: TEST_PASSWORD.to_string(),
-                name: "".to_string(),
-                password_hint: "".to_string(),
                 mnemonic: TEST_MNEMONIC.to_string(),
+                password_hint: "".to_string(),
+                name: "".to_string(),
                 network: "MAINNET".to_string(),
                 overwrite: true,
             };
@@ -4428,7 +4625,29 @@ mod tests {
 
             let param = WalletKeyParam {
                 id: import_result.id.to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
+            let ret = call_api("backup", param).unwrap();
+            let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(export_result.original, TEST_MNEMONIC.to_string());
+
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
+
+            let ret = call_api("get_derived_key", param).unwrap();
+            let derived_key_result: DerivedKeyResult =
+                DerivedKeyResult::decode(ret.as_slice()).unwrap();
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::DerivedKey(
+                    derived_key_result.derived_key,
+                )),
             };
             let ret = call_api("backup", param).unwrap();
             let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
@@ -4479,7 +4698,9 @@ mod tests {
                 access_time: 1514736000,
                 identifier: wallet.identifier,
                 device_token: "12345ABCDE".to_string(),
-                password: TEST_PASSWORD.to_string(),
+                key: Some(api::sign_authentication_message_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
             };
             let ret = call_api("sign_authentication_message", param).unwrap();
             let resp: SignAuthenticationMessageResult =
