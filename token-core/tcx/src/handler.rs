@@ -1047,21 +1047,22 @@ pub(crate) fn backup(data: &[u8]) -> Result<Vec<u8>> {
         Some(keystore) => Ok(keystore),
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
-
     let original = keystore.backup(&param.password)?;
-
-    let private_key_str = if let Ok((private_key, _)) = key_info_from_v3(&original, &param.password)
-    {
-        private_key.to_hex()
-    } else if let Ok((private_key, _)) =
-        key_info_from_substrate_keystore(&original, &param.password)
-    {
-        private_key.to_hex()
-    } else {
-        original.to_string()
+    let fingerprint = match keystore.meta().source {
+        Source::Mnemonic | Source::NewMnemonic => fingerprint_from_mnemonic(&original)?,
+        Source::KeystoreV3 => {
+            let (private_key_bytes, _) = key_info_from_v3(&original, &param.password)?;
+            let private_key = private_key_bytes.to_hex();
+            fingerprint_from_any_format_pk(&private_key)?
+        }
+        Source::SubstrateKeystore => {
+            let (private_key_bytes, _) =
+                key_info_from_substrate_keystore(&original, &param.password)?;
+            let private_key = private_key_bytes.to_hex();
+            fingerprint_from_any_format_pk(&private_key)?
+        }
+        Source::Private | Source::Wif => fingerprint_from_any_format_pk(&original)?,
     };
-
-    let fingerprint = fingerprint_from_any_format_pk(&private_key_str)?;
     if fingerprint.eq_ignore_ascii_case(keystore.fingerprint()) {
         encode_message(BackupResult { original })
     } else {

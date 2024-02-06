@@ -4411,6 +4411,31 @@ mod tests {
         })
     }
 
+    #[test]
+    #[serial]
+    pub fn test_backup_mnemonic() {
+        run_test(|| {
+            let param: ImportMnemonicParam = ImportMnemonicParam {
+                password: TEST_PASSWORD.to_string(),
+                name: "".to_string(),
+                password_hint: "".to_string(),
+                mnemonic: TEST_MNEMONIC.to_string(),
+                network: "MAINNET".to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_mnemonic", param).unwrap();
+            let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                password: TEST_PASSWORD.to_string(),
+            };
+            let ret = call_api("backup", param).unwrap();
+            let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(export_result.original, TEST_MNEMONIC.to_string());
+        })
+    }
+
     #[bench]
     fn bench_import_mnemonic(b: &mut Bencher) {
         b.iter(|| {
