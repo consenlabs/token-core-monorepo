@@ -167,6 +167,7 @@ mod tests {
     use crate::api::derive_accounts_param::Derivation;
     use crate::api::sign_hashes_param::DataToSign;
     use crate::filemanager::KEYSTORE_MAP;
+    use crate::handler::scan_keystores;
     use api::sign_param::Key;
     use error_handling::Result;
     use serial_test::serial;
@@ -206,10 +207,12 @@ mod tests {
 
     use sp_core::ByteArray;
     use sp_runtime::traits::Verify;
-    use tcx_btc_kin::Utxo;
+    use tcx_btc_kin::{OmniTxInput, Utxo};
     use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
 
-    use tcx_eth::api::{AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput};
+    use tcx_eth::transaction::{
+        AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput,
+    };
     use tcx_filecoin::{SignedMessage, UnsignedMessage};
     use tcx_substrate::{SubstrateKeystore, SubstrateRawTxIn, SubstrateTxOut};
     use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
@@ -366,14 +369,17 @@ mod tests {
     #[ignore = "for debug"]
     fn test_call_tcx_api() {
         run_test(|| {
-            let bytes = &Vec::<u8>::from_hex_auto("0a0f6465726976655f6163636f756e747312770a176170692e4465726976654163636f756e7473506172616d125c0a2430313831653533662d346566642d343262352d623430302d39333134656239376339373412083132333435363738222a0a08455448455245554d12106d2f3434272f3630272f30272f302f302a01313209736563703235366b31").unwrap();
+            let bytes = &Vec::<u8>::from_hex_auto("0a077369676e5f747812c6020a0d6170692e5369676e506172616d12b4020a2431613663643861642d376265392d343762622d613533642d306463363962366134643966120b71713330373939303538382207424954434f494e2a0f6d2f3439272f30272f30272f302f303209736563703235366b313a074d41494e4e45544206503257504b484ac8010a197472616e73616374696f6e2e4274634b696e5478496e70757412aa010a7d0a4066646461616535663763346565323135343135333361636163653934376162363464626434663061383932353864613763333636643339343064373663383661100018e38a032222334d465a673136634b79547047527054547947746a4e594c63337a734a78764a61352a0f6d2f3439272f30272f30272f302f3012223351657271594e5143644854357a504545314a3532673354376d5971714e7362503618c0843d208b1f").unwrap();
             let action = TcxAction::decode(bytes.as_slice()).unwrap();
             dbg!(&action);
-            let param =
-                DeriveAccountsParam::decode(action.param.unwrap().value.as_slice()).unwrap();
+            let param = SignParam::decode(action.param.unwrap().value.as_slice()).unwrap();
+            let input = OmniTxInput::decode(param.input.unwrap().value.as_slice()).unwrap();
+
             let _wallet = import_default_wallet();
-            dbg!(&param);
-            // call_tcx_api(bytes.to_hex())
+            dbg!(&input);
+            unsafe {
+                call_tcx_api(CString::new(bytes.to_hex()).unwrap().as_ptr());
+            }
             assert!(true);
         });
     }
@@ -4473,11 +4479,11 @@ mod tests {
                     derived_key_result.derived_key,
                 )),
             };
-            let ret = call_api("backup", param);
-            assert_eq!(
-                format!("{}", ret.err().unwrap()),
-                "backup_keystore_need_password"
-            );
+            let ret = call_api("backup", param).unwrap();
+            let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
+            assert!(export_result
+                .original
+                .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
         })
     }
 
@@ -4544,11 +4550,11 @@ mod tests {
                     derived_key_result.derived_key,
                 )),
             };
-            let ret = call_api("backup", param);
-            assert_eq!(
-                format!("{}", ret.err().unwrap()),
-                "backup_keystore_need_password"
-            );
+            let ret = call_api("backup", param).unwrap();
+            let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
+            assert!(export_result
+                .original
+                .contains("JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS"));
         })
     }
 
@@ -4602,9 +4608,15 @@ mod tests {
                     derived_key_result.derived_key,
                 )),
             };
-            let ret = call_api("backup", param).unwrap();
+            let ret = call_api("backup", param.clone()).unwrap();
             let backup_result = BackupResult::decode(ret.as_slice()).unwrap();
             assert_eq!(backup_result.original, TEST_WIF);
+
+            change_fingerprint_in_keystore(&import_result.id, &import_result.source_fingerprint);
+            scan_keystores().unwrap();
+
+            let ret = call_api("backup", param);
+            assert_eq!(format!("{}", ret.err().unwrap()), "fingerprint_not_match");
         })
     }
 
@@ -4649,10 +4661,23 @@ mod tests {
                     derived_key_result.derived_key,
                 )),
             };
-            let ret = call_api("backup", param).unwrap();
+            let ret = call_api("backup", param.clone()).unwrap();
             let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
             assert_eq!(export_result.original, TEST_MNEMONIC.to_string());
+
+            change_fingerprint_in_keystore(&import_result.id, &import_result.source_fingerprint);
+            scan_keystores().unwrap();
+
+            let ret = call_api("backup", param);
+            assert_eq!(format!("{}", ret.err().unwrap()), "fingerprint_not_match");
         })
+    }
+
+    fn change_fingerprint_in_keystore(id: &str, fingerprint: &str) {
+        let file_path = format!("/tmp/imtoken/walletsV2/{}.json", id);
+        let contents = fs::read_to_string(&file_path).unwrap();
+        let new_contents = contents.replace(fingerprint, "0x00000000000000000000");
+        fs::write(file_path, new_contents).expect("change fingerprint");
     }
 
     #[bench]

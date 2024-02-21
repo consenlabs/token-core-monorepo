@@ -1050,26 +1050,15 @@ pub(crate) fn backup(data: &[u8]) -> Result<Vec<u8>> {
 
     let original = keystore.backup(&param.key.clone().unwrap().into())?;
     let fingerprint = match keystore.meta().source {
-        Source::Mnemonic | Source::NewMnemonic => fingerprint_from_mnemonic(&original)?,
-        Source::KeystoreV3 => {
-            let Some(api::wallet_key_param::Key::Password(password)) = param.key else {
-        return Err(anyhow!("{}", "backup_keystore_need_password"));
+        Source::Mnemonic | Source::NewMnemonic => Some(fingerprint_from_mnemonic(&original)?),
+        Source::Private | Source::Wif => Some(fingerprint_from_any_format_pk(&original)?),
+        Source::KeystoreV3 | Source::SubstrateKeystore => None,
     };
-            let (private_key_bytes, _) = key_info_from_v3(&original, &password)?;
-            let private_key = private_key_bytes.to_hex();
-            fingerprint_from_any_format_pk(&private_key)?
-        }
-        Source::SubstrateKeystore => {
-            let Some(api::wallet_key_param::Key::Password(password)) = param.key else {
-        return Err(anyhow!("{}", "backup_keystore_need_password"));
-    };
-            let (private_key_bytes, _) = key_info_from_substrate_keystore(&original, &password)?;
-            let private_key = private_key_bytes.to_hex();
-            fingerprint_from_any_format_pk(&private_key)?
-        }
-        Source::Private | Source::Wif => fingerprint_from_any_format_pk(&original)?,
-    };
-    if fingerprint.eq_ignore_ascii_case(keystore.fingerprint()) {
+    if fingerprint.is_none()
+        || fingerprint
+            .unwrap()
+            .eq_ignore_ascii_case(keystore.fingerprint())
+    {
         encode_message(BackupResult { original })
     } else {
         Err(anyhow!("fingerprint_not_match"))

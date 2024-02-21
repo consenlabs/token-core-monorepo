@@ -1,8 +1,8 @@
 pub mod address;
 pub mod signer;
-pub mod transaction;
+pub mod transaction_types;
 
-pub mod api;
+pub mod transaction;
 
 use core::result;
 
@@ -14,8 +14,8 @@ pub mod ethereum {
     pub const CHAINS: [&str; 1] = ["ETHEREUM"];
 
     pub type Address = EthAddress;
-    pub type TransactionInput = crate::api::EthTxInput;
-    pub type TransactionOutput = crate::api::EthTxOutput;
-    pub type MessageInput = crate::api::EthMessageInput;
-    pub type MessageOutput = crate::api::EthMessageOutput;
+    pub type TransactionInput = crate::transaction::EthTxInput;
+    pub type TransactionOutput = crate::transaction::EthTxOutput;
+    pub type MessageInput = crate::transaction::EthMessageInput;
+    pub type MessageOutput = crate::transaction::EthMessageOutput;
 }
