@@ -229,6 +229,33 @@ pub mod export_mnemonic_param {
         DerivedKey(::prost::alloc::string::String),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EthBatchPersonalSignParam {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "4")]
+    pub data: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(oneof = "eth_batch_personal_sign_param::Key", tags = "2, 3")]
+    pub key: ::core::option::Option<eth_batch_personal_sign_param::Key>,
+}
+/// Nested message and enum types in `EthBatchPersonalSignParam`.
+pub mod eth_batch_personal_sign_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "2")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "3")]
+        DerivedKey(::prost::alloc::string::String),
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EthBatchPersonalSignResult {
+    #[prost(string, repeated, tag = "1")]
+    pub signatures: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
 /// FUNCTION: create_keystore(CreateKeystoreParam): KeystoreResult
 ///
 /// create a new hd keystore
