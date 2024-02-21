@@ -654,8 +654,10 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
         .get_private_key(curve, &param.path)?
         .to_bytes();
 
-    let value = if ["TRON", "POLKADOT", "KUSAMA", "ETHEREUM"].contains(&param.chain_type.as_str()) {
+    let value = if ["POLKADOT", "KUSAMA"].contains(&param.chain_type.as_str()) {
         Ok(private_key_bytes.to_0x_hex())
+    } else if ["TRON", "ETHEREUM"].contains(&param.chain_type.as_str()) {
+        Ok(private_key_bytes.to_hex())
     } else if "FILECOIN".contains(param.chain_type.as_str()) {
         Ok(KeyInfo::from_private_key(curve, &private_key_bytes)?
             .to_json()?

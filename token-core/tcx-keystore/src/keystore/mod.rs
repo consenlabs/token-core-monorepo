@@ -958,7 +958,7 @@ pub(crate) mod tests {
         assert_ne!(keystore.id(), "");
 
         assert_eq!(
-            format!("0x{}", keystore.export().unwrap()),
+            format!("{}", keystore.export().unwrap()),
             TEST_PRIVATE_KEY.to_string()
         );
         let derived_key = keystore.get_derived_key(TEST_PASSWORD).unwrap();

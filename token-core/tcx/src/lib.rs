@@ -1638,7 +1638,7 @@ mod tests {
             let export_result: ExportPrivateKeyResult =
                 ExportPrivateKeyResult::decode(ret_bytes.as_slice()).unwrap();
             assert_eq!(
-                "0xa392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6",
+                "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6",
                 export_result.private_key
             );
             remove_created_wallet(&import_result.id);
@@ -1753,8 +1753,8 @@ mod tests {
             let pks = vec![
                 "L2hfzPyVC1jWH7n2QLTe7tVTb6btg9smp5UVzhEBxLYaSFF7sCZB",
                 "cT4fTJyLd5RmSZFHnkGmVCzXDKuJLbyTt7cy77ghTTCagzNdPH1j",
-                "0xa392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6",
-                "0xa392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6",
+                "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6",
+                "a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6",
                 "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226f354a6754767776725a774c5061513758326d4b4c6a386e4478634e685a6b537667315564434a317866593d227d",
                 "cT4fTJyLd5RmSZFHnkGmVCzXDKuJLbyTt7cy77ghTTCagzNdPH1j",
                 "L2hfzPyVC1jWH7n2QLTe7tVTb6btg9smp5UVzhEBxLYaSFF7sCZB",
@@ -1796,10 +1796,10 @@ mod tests {
                 "L39VXyorp19JfsEJfbD7Tfr4pBEX93RJuVXW7E13C51ZYAhUWbYa",
                 "KyLGdagds7tY1vupT5Kf8C1Cc5wkzzWRK51e4vsh1svCSvYk4Abo",
                 "cN4b1V3cicEexrYXiEhaWEdURyhZiVX6PzAZNFSzZaWfSNZG2cJX",
-                "0xb2a3f2ad9ea57b03aae9584a50b36e8b8f9ddfdc1b5c2ca26f90a041fb28f260",
+                "b2a3f2ad9ea57b03aae9584a50b36e8b8f9ddfdc1b5c2ca26f90a041fb28f260",
                 "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a222f5059574777574e577a58614d5675437a613958502b314b4a695a4474696f4c76777863754268783041553d227d",
                 "7b2254797065223a22626c73222c22507269766174654b6579223a226e763064516a49635965556341682f6a792b6d7a77656a306c4a75495447504238433938766576713046513d227d",
-                "0xcce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2",
+                "cce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2",
                 "cSLf8bi4X2EBNBDagaKuzkLB7jonh1Rqp6is2Md6wDdXMekFqFzN",
                 "KxBhnk7DGkXY7Fsw4MaRGXtHrmeqpxxc6u1Rr9aGjNQhH514gkU4",
                 "KzDsQasE4c45YHDiuidSiiss85Srs913BQeWcTthv4Y6bvBSio9w",
