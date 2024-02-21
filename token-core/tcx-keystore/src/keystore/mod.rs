@@ -403,11 +403,8 @@ impl Keystore {
         }
     }
 
-    pub fn backup(&self, password: &str) -> Result<String> {
-        let unlocker = self
-            .store()
-            .crypto
-            .use_key(&Key::Password(password.to_string()))?;
+    pub fn backup(&self, key: &Key) -> Result<String> {
+        let unlocker = self.store().crypto.use_key(key)?;
         let decrypted = unlocker.decrypt_enc_pair(&self.store().enc_original)?;
         let original = String::from_utf8_lossy(&decrypted);
         Ok(original.to_string())
@@ -417,10 +414,10 @@ impl Keystore {
         &self.store().identity
     }
 
-    pub fn verify_password(&self, password: &str) -> bool {
+    pub fn verify_password(&self, key: &Key) -> bool {
         match self {
-            Keystore::PrivateKey(ks) => ks.verify_password(password),
-            Keystore::Hd(ks) => ks.verify_password(password),
+            Keystore::PrivateKey(ks) => ks.verify_password(key),
+            Keystore::Hd(ks) => ks.verify_password(key),
         }
     }
 
@@ -773,8 +770,11 @@ pub(crate) mod tests {
             "password_incorrect"
         );
 
-        assert!(keystore.verify_password(TEST_PASSWORD));
-        assert!(!keystore.verify_password("WRONG PASSWORD"));
+        let derived_key = keystore.get_derived_key(TEST_PASSWORD).unwrap();
+        assert!(keystore.verify_password(&Key::Password(TEST_PASSWORD.to_string())));
+        assert!(keystore.verify_password(&Key::DerivedKey(derived_key.to_string())));
+        assert!(!keystore.verify_password(&Key::Password("WRONG PASSWORD".to_string())));
+        assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
         assert_eq!(
             "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
@@ -889,9 +889,11 @@ pub(crate) mod tests {
         assert!(keystore.identity().identifier.starts_with("im"));
         assert_eq!(keystore.meta().name, "Unknown");
         assert_ne!(keystore.id(), "");
-
-        assert!(keystore.verify_password(&TEST_PASSWORD));
-        assert!(!keystore.verify_password(&WRONG_PASSWORD));
+        let derived_key = keystore.get_derived_key(TEST_PASSWORD).unwrap();
+        assert!(keystore.verify_password(&Key::Password(TEST_PASSWORD.to_string())));
+        assert!(keystore.verify_password(&Key::DerivedKey(derived_key.to_string())));
+        assert!(!keystore.verify_password(&Key::Password("WRONG PASSWORD".to_string())));
+        assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
 
         let coin_info = CoinInfo {
             coin: "BITCOIN".to_string(),
@@ -959,9 +961,11 @@ pub(crate) mod tests {
             format!("0x{}", keystore.export().unwrap()),
             TEST_PRIVATE_KEY.to_string()
         );
-
-        assert!(keystore.verify_password(&TEST_PASSWORD));
-        assert!(!keystore.verify_password(&WRONG_PASSWORD));
+        let derived_key = keystore.get_derived_key(TEST_PASSWORD).unwrap();
+        assert!(keystore.verify_password(&Key::Password(TEST_PASSWORD.to_string())));
+        assert!(keystore.verify_password(&Key::DerivedKey(derived_key.to_string())));
+        assert!(!keystore.verify_password(&Key::Password("WRONG PASSWORD".to_string())));
+        assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
 
         let coin_info = CoinInfo {
             coin: "BITCOIN".to_string(),

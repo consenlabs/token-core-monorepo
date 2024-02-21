@@ -576,13 +576,15 @@ mod tests {
         );
         let json = serde_json::from_str(json_str).unwrap();
         let old_ks = KeystoreUpgrade::new(json);
-        let ks = old_ks
-            .upgrade(
-                &Key::Password(TEST_PASSWORD.to_string()),
-                &IdentityNetwork::Mainnet,
-            )
-            .unwrap();
-        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let key = Key::Password(TEST_PASSWORD.to_string());
+        let ks = old_ks.upgrade(&key, &IdentityNetwork::Mainnet).unwrap();
+        let ori = ks.backup(&key).unwrap();
+        assert_eq!(
+            ori,
+            "685634d212eabe016a1cb09d9f1ea1ea757ebe590b9a097d7b1c9379ad280171"
+        );
+
+        let ori = ks.backup(&Key::DerivedKey("1a60471067b6c6a3202e0014de2ce9b2d45fd73e2289b3cc3d8e5b58fe99ff242fd61e9fe63e75abbdc0ed87a50756cc10c57daf1d6297b99ec9a3b174eee017".to_string())).unwrap();
         assert_eq!(
             ori,
             "685634d212eabe016a1cb09d9f1ea1ea757ebe590b9a097d7b1c9379ad280171"
@@ -596,13 +598,15 @@ mod tests {
         );
         let json = serde_json::from_str(json_str).unwrap();
         let old_ks = KeystoreUpgrade::new(json);
-        let ks = old_ks
-            .upgrade(
-                &Key::Password(TEST_PASSWORD.to_string()),
-                &IdentityNetwork::Mainnet,
-            )
-            .unwrap();
-        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let key = Key::Password(TEST_PASSWORD.to_string());
+        let ks = old_ks.upgrade(&key, &IdentityNetwork::Mainnet).unwrap();
+        let ori = ks.backup(&key).unwrap();
+        assert_eq!(
+            ori,
+            "edskS3E5CLrkwHRYAbDvw5xC913C9GGseMcyNGeGbeaD57Yvvi2jqizpAAZyzUtRK626UvkKYdJwCYE9oKMcqFCtJeBpDYcrVH"
+        );
+
+        let ori = ks.backup(&Key::DerivedKey("b009d3c4e961411836028a9fffbea994e03c71f75589a571cd52125884537f2ac165b92e7bc49c7828d4be0c5c05263a306744f0b9dc785142c8562d45ce4345".to_string())).unwrap();
         assert_eq!(
             ori,
             "edskS3E5CLrkwHRYAbDvw5xC913C9GGseMcyNGeGbeaD57Yvvi2jqizpAAZyzUtRK626UvkKYdJwCYE9oKMcqFCtJeBpDYcrVH"
@@ -616,13 +620,13 @@ mod tests {
         );
         let json = serde_json::from_str(json_str).unwrap();
         let old_ks = KeystoreUpgrade::new(json);
-        let ks = old_ks
-            .upgrade(
-                &Key::Password(TEST_PASSWORD.to_string()),
-                &IdentityNetwork::Mainnet,
-            )
-            .unwrap();
-        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let key = Key::Password(TEST_PASSWORD.to_string());
+        let ks = old_ks.upgrade(&key, &IdentityNetwork::Mainnet).unwrap();
+        let ori = ks.backup(&key).unwrap();
+
+        assert_eq!(ori, "TBRMznXcDf2HK2jBKJsqjBpsEdaiaZUBGKN8aKdwTMrPnMNB5UQM");
+        let ori = ks.backup(&Key::DerivedKey("2e70651f06a28d2f6053a90ee55ab8cb14518ab82182cd922926b4239713286ac6746ad4448608fc1599e6f4e0af33c65f70bc5de13a376933e5e145681d0f80".to_string())).unwrap();
+
         assert_eq!(ori, "TBRMznXcDf2HK2jBKJsqjBpsEdaiaZUBGKN8aKdwTMrPnMNB5UQM");
     }
 
@@ -633,13 +637,14 @@ mod tests {
         );
         let json = serde_json::from_str(json_str).unwrap();
         let old_ks = KeystoreUpgrade::new(json);
-        let ks = old_ks
-            .upgrade(
-                &Key::Password(TEST_PASSWORD.to_string()),
-                &IdentityNetwork::Mainnet,
-            )
-            .unwrap();
-        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let key = Key::Password(TEST_PASSWORD.to_string());
+        let ks = old_ks.upgrade(&key, &IdentityNetwork::Mainnet).unwrap();
+        let ori = ks.backup(&key).unwrap();
+
+        assert_eq!(ori, "L1xDTJYPqhofU8DQCiwjStEBr1X6dhiNfweUhxhoRSgYyMJPcZ6B");
+
+        let ori = ks.backup(&Key::DerivedKey("d175dad756f59a59b6a311f2b369802537d92011c8e3bf6dc2dfaf8df00d942648bf83133bd0204ebc43efcbd0ab79a8d5551c8dcf7ae1f67fc2d1d4aff33c06".to_string())).unwrap();
+
         assert_eq!(ori, "L1xDTJYPqhofU8DQCiwjStEBr1X6dhiNfweUhxhoRSgYyMJPcZ6B");
     }
 
@@ -650,13 +655,11 @@ mod tests {
         );
         let json = serde_json::from_str(json_str).unwrap();
         let old_ks = KeystoreUpgrade::new(json);
-        let ks = old_ks
-            .upgrade(
-                &Key::Password(TEST_PASSWORD.to_string()),
-                &IdentityNetwork::Mainnet,
-            )
-            .unwrap();
-        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let key = Key::Password(TEST_PASSWORD.to_string());
+        let ks = old_ks.upgrade(&key, &IdentityNetwork::Mainnet).unwrap();
+        let ori = ks.backup(&key).unwrap();
+        assert!(ori.contains("FDS7ZJpJg4R7Kd2hzfsEc6mtW5iknjZ3UazX76EsnbH74v8"));
+        let ori = ks.backup(&Key::DerivedKey("daa734e276c7420bd7eb6f9d59d39f3072d9ab0c4c0bda09eb410ab930c745302fb39714a2c4ca1935b18d1d216db11455a4c962daf8bf360ba41c65d872a5a8".to_string())).unwrap();
         assert!(ori.contains("FDS7ZJpJg4R7Kd2hzfsEc6mtW5iknjZ3UazX76EsnbH74v8"));
     }
 
@@ -667,13 +670,15 @@ mod tests {
         );
         let json = serde_json::from_str(json_str).unwrap();
         let old_ks = KeystoreUpgrade::new(json);
-        let ks = old_ks
-            .upgrade(
-                &Key::Password(TEST_PASSWORD.to_string()),
-                &IdentityNetwork::Mainnet,
-            )
-            .unwrap();
-        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let key = Key::Password(TEST_PASSWORD.to_string());
+        let ks = old_ks.upgrade(&key, &IdentityNetwork::Mainnet).unwrap();
+        let ori = ks.backup(&key).unwrap();
+
+        let expected_ori =
+            r#"{"Type":"secp256k1","PrivateKey":"o5JgTvwvrZwLPaQ7X2mKLj8nDxcNhZkSvg1UdCJ1xfY="}"#;
+        assert_eq!(ori, expected_ori.as_bytes().to_hex());
+
+        let ori = ks.backup(&Key::DerivedKey("bee56a3cc9e6536dd22a695742ff1b4a00a797fa6c0ddd6f2c3bfd2ec25d05d61918ab3ceaf5c135f771d957889ee2b361c5d70f1911cc8857299d349a0d9ee6".to_string())).unwrap();
         let expected_ori =
             r#"{"Type":"secp256k1","PrivateKey":"o5JgTvwvrZwLPaQ7X2mKLj8nDxcNhZkSvg1UdCJ1xfY="}"#;
         assert_eq!(ori, expected_ori.as_bytes().to_hex());
@@ -686,13 +691,15 @@ mod tests {
         );
         let json = serde_json::from_str(json_str).unwrap();
         let old_ks = KeystoreUpgrade::new(json);
-        let ks = old_ks
-            .upgrade(
-                &Key::Password(TEST_PASSWORD.to_string()),
-                &IdentityNetwork::Mainnet,
-            )
-            .unwrap();
-        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let key = Key::Password(TEST_PASSWORD.to_string());
+        let ks = old_ks.upgrade(&key, &IdentityNetwork::Mainnet).unwrap();
+        let ori = ks.backup(&key).unwrap();
+
+        let expected_ori =
+            r#"{"Type":"bls","PrivateKey":"i7kO+zxc6QS+v7YygcmUYh7MUYSRes6anigiLhKF808="}"#;
+        assert_eq!(ori, expected_ori.as_bytes().to_hex());
+
+        let ori = ks.backup(&Key::DerivedKey("f3207a9f25adbdae5eff58bb13a9d9be4d763c6d47269fb14e4bd7a59ed667ba7282f1ba40746c60ae842c3f9dfeba91060f29f547ef2a94a66cfee93573ffaa".to_string())).unwrap();
         let expected_ori =
             r#"{"Type":"bls","PrivateKey":"i7kO+zxc6QS+v7YygcmUYh7MUYSRes6anigiLhKF808="}"#;
         assert_eq!(ori, expected_ori.as_bytes().to_hex());

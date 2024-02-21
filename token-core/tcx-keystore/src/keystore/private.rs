@@ -1,5 +1,6 @@
 use super::Account;
 use super::{Address, Metadata};
+use bitcoin::util;
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::{Crypto, Key};
 
@@ -82,8 +83,18 @@ impl PrivateKeystore {
         Ok(account)
     }
 
-    pub(crate) fn verify_password(&self, password: &str) -> bool {
-        self.store.crypto.verify_password(password)
+    pub(crate) fn verify_password(&self, key: &Key) -> bool {
+        match key {
+            Key::Password(password) => {
+                return self.store.crypto.verify_password(password);
+            }
+            Key::DerivedKey(derived_key_hex) => {
+                let Ok(derived_key) = Vec::from_hex_auto(derived_key_hex) else {
+                    return false;
+                };
+                return self.store.crypto.verify_derived_key(&derived_key);
+            }
+        }
     }
 
     pub fn from_private_key(
@@ -160,7 +171,7 @@ impl PrivateKeystore {
 mod tests {
     use crate::keystore::private::fingerprint_from_private_key;
     use crate::keystore::tests::MockAddress;
-    use crate::{Metadata, PrivateKeystore, Source};
+    use crate::{Keystore, Metadata, PrivateKeystore, Source};
     use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType, TEST_PASSWORD, TEST_PRIVATE_KEY};
     use tcx_crypto::Key;
@@ -205,8 +216,13 @@ mod tests {
         )
         .unwrap();
 
-        assert!(keystore.verify_password(TEST_PASSWORD));
-        assert!(!keystore.verify_password("WrongPassword"));
+        let derived_key = Keystore::PrivateKey(keystore.clone())
+            .get_derived_key(TEST_PASSWORD)
+            .unwrap();
+        assert!(keystore.verify_password(&Key::Password(TEST_PASSWORD.to_string())));
+        assert!(keystore.verify_password(&Key::DerivedKey(derived_key.to_string())));
+        assert!(!keystore.verify_password(&Key::Password("WRONG PASSWORD".to_string())));
+        assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
     }
 
     #[test]

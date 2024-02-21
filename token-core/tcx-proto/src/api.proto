@@ -117,7 +117,10 @@ message ExportJsonParam {
 //// verify the password of the keystore
 message WalletKeyParam {
     string id = 1;
-    string password = 2;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
 }
 
 message ExportMnemonicParam {

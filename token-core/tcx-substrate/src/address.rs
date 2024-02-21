@@ -12,7 +12,6 @@ pub struct SubstrateAddress(String);
 
 impl Address for SubstrateAddress {
     fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
-        // todo: TypedPublicKey to public key
         let sr_pk = Sr25519PublicKey::from_slice(&public_key.to_bytes())?;
         let address = match coin.coin.as_str() {
             "KUSAMA" => sr_pk

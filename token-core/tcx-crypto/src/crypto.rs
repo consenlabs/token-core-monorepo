@@ -304,6 +304,7 @@ impl Crypto {
     fn derive_key(&self, password: &str) -> Result<Vec<u8>> {
         let mut derived_key: Credential = [0u8; CREDENTIAL_LEN];
         self.kdf.derive_key(password.as_bytes(), &mut derived_key);
+
         Ok(derived_key.to_vec())
     }
 

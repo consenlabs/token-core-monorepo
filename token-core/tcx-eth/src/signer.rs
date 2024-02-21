@@ -1,9 +1,9 @@
 use crate::address::pubkey_to_address;
-use crate::api::{
+use crate::transaction::{
     EthMessageInput, EthMessageOutput, EthRecoverAddressInput, EthRecoverAddressOutput, EthTxInput,
     EthTxOutput, SignatureType,
 };
-use crate::transaction::{Signature, Transaction, TransactionType};
+use crate::transaction_types::{Signature, Transaction, TransactionType};
 use crate::Result;
 use ethereum_types::{Address, H256};
 use std::str::FromStr;
@@ -82,7 +82,7 @@ impl TryFrom<&EthTxInput> for Transaction {
 }
 
 impl EthTxInput {
-    pub fn access_list(&self) -> Result<crate::transaction::AccessList> {
+    pub fn access_list(&self) -> Result<crate::transaction_types::AccessList> {
         let mut ret_access_list = vec![];
 
         for item in &self.access_list {
@@ -91,7 +91,7 @@ impl EthTxInput {
                 storage_keys.push(H256::from_str(key)?);
             }
 
-            ret_access_list.push(crate::transaction::AccessListItem {
+            ret_access_list.push(crate::transaction_types::AccessListItem {
                 address: Address::from_slice(&Vec::from_0x_hex(&item.address)?),
                 storage_keys,
             });
@@ -128,7 +128,7 @@ impl EthRecoverAddressInput {
 
 #[cfg(test)]
 mod test {
-    use crate::api::{
+    use crate::transaction::{
         AccessList, EthMessageInput, EthMessageOutput, EthRecoverAddressInput, EthTxInput,
         EthTxOutput, SignatureType,
     };

@@ -192,15 +192,6 @@ message DeriveSubAccountsResult {
     repeated AccountResponse accounts = 1;
 }
 
-message RemoveWalletParam {
-    string id = 1;
-    string password = 2;
-}
-
-message RemoveWalletResult {
-    bool isSuccess = 1;
-}
-
 message EncryptDataToIpfsParam {
     string identifier = 1;
     string content = 2;
@@ -225,7 +216,10 @@ message SignAuthenticationMessageParam {
     uint64 accessTime = 1;
     string identifier = 2 ;
     string deviceToken = 3;
-    string password = 4;
+    oneof key {
+        string password = 4;
+        string derivedKey = 5;
+    }
 }
 
 message SignAuthenticationMessageResult {

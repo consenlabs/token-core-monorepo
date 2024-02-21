@@ -515,13 +515,9 @@ mod tests {
         let json_str =
             include_str!("../../test-data/wallets-ios-2_14_1/9f4acb4a-7431-4c7d-bd25-a19656a86ea0");
         let old_ks = LegacyKeystore::from_json_str(json_str).unwrap();
-        let ks = old_ks
-            .migrate(
-                &Key::Password(TEST_PASSWORD.to_string()),
-                &IdentityNetwork::Mainnet,
-            )
-            .unwrap();
-        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let key = Key::Password(TEST_PASSWORD.to_string());
+        let ks = old_ks.migrate(&key, &IdentityNetwork::Mainnet).unwrap();
+        let ori = ks.backup(&key).unwrap();
 
         assert_eq!(ori, "L1xDTJYPqhofU8DQCiwjStEBr1X6dhiNfweUhxhoRSgYyMJPcZ6B");
     }
@@ -531,13 +527,9 @@ mod tests {
         let json_str =
             include_str!("../../test-data/wallets-ios-2_14_1/60573d8d-8e83-45c3-85a5-34fbb2aad5e1");
         let old_ks = LegacyKeystore::from_json_str(json_str).unwrap();
-        let ks = old_ks
-            .migrate(
-                &Key::Password(TEST_PASSWORD.to_string()),
-                &IdentityNetwork::Mainnet,
-            )
-            .unwrap();
-        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let key = Key::Password(TEST_PASSWORD.to_string());
+        let ks = old_ks.migrate(&key, &IdentityNetwork::Mainnet).unwrap();
+        let ori = ks.backup(&key).unwrap();
         // ciphertext is 9b62...
         assert!(ori.contains("9b62a4c07c96ca9b0b82b5b5eae4e7c9b2b7db531a6d2991198eb6809a8c35ac"));
     }
@@ -547,13 +539,9 @@ mod tests {
         let json_str =
             include_str!("../../test-data/wallets-ios-2_14_1/0597526e-105f-425b-bb44-086fc9dc9568");
         let old_ks = LegacyKeystore::from_json_str(json_str).unwrap();
-        let ks = old_ks
-            .migrate(
-                &Key::Password(TEST_PASSWORD.to_string()),
-                &IdentityNetwork::Mainnet,
-            )
-            .unwrap();
-        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let key = Key::Password(TEST_PASSWORD.to_string());
+        let ks = old_ks.migrate(&key, &IdentityNetwork::Mainnet).unwrap();
+        let ori = ks.backup(&key).unwrap();
 
         assert_eq!(
             ori,
@@ -566,13 +554,9 @@ mod tests {
         let json_str =
             include_str!("../../test-data/wallets-ios-2_14_1/f3615a56-cb03-4aa4-a893-89944e49920d");
         let old_ks = LegacyKeystore::from_json_str(json_str).unwrap();
-        let ks = old_ks
-            .migrate(
-                &Key::DerivedKey("0x79c74b67fc73a255bc66afc1e7c25867a19e6d2afa5b8e3107a472de13201f1924fed05e811e7f5a4c3e72a8a6e047a80393c215412bde239ec7ded520896630".to_string()),
-                &IdentityNetwork::Mainnet,
-            )
-            .unwrap();
-        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let key = Key::DerivedKey("0x79c74b67fc73a255bc66afc1e7c25867a19e6d2afa5b8e3107a472de13201f1924fed05e811e7f5a4c3e72a8a6e047a80393c215412bde239ec7ded520896630".to_string());
+        let ks = old_ks.migrate(&key, &IdentityNetwork::Mainnet).unwrap();
+        let ori = ks.backup(&key).unwrap();
 
         assert_eq!(
             ori,
@@ -585,13 +569,9 @@ mod tests {
         let json_str =
             include_str!("../../test-data/wallets-ios-2_14_1/ac59ccc1-285b-47a7-92f5-a6c432cee21a");
         let old_ks = LegacyKeystore::from_json_str(json_str).unwrap();
-        let ks = old_ks
-            .migrate(
-                &Key::Password(TEST_PASSWORD.to_string()),
-                &IdentityNetwork::Mainnet,
-            )
-            .unwrap();
-        let ori = ks.backup(TEST_PASSWORD).unwrap();
+        let key = Key::Password(TEST_PASSWORD.to_string());
+        let ks = old_ks.migrate(&key, &IdentityNetwork::Mainnet).unwrap();
+        let ori = ks.backup(&key).unwrap();
 
         assert_eq!(
             ori,

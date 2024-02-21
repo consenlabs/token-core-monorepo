@@ -7,7 +7,7 @@ use super::{transform_mnemonic_error, Account, Address, Error, Metadata, Result,
 
 use std::collections::{hash_map::Entry, HashMap};
 
-use tcx_common::ToHex;
+use tcx_common::{FromHex, ToHex};
 use tcx_constants::{coin_info::get_xpub_prefix, CoinInfo, CurveType};
 use tcx_crypto::{Crypto, Key};
 use tcx_primitive::{
@@ -224,8 +224,18 @@ impl HdKeystore {
         &self.store().identity
     }
 
-    pub(crate) fn verify_password(&self, password: &str) -> bool {
-        self.store.crypto.verify_password(password)
+    pub(crate) fn verify_password(&self, key: &Key) -> bool {
+        match key {
+            Key::Password(password) => {
+                return self.store.crypto.verify_password(password);
+            }
+            Key::DerivedKey(derived_key_hex) => {
+                let Ok(derived_key) = Vec::from_hex_auto(derived_key_hex) else {
+                    return false;
+                };
+                return self.store.crypto.verify_derived_key(&derived_key);
+            }
+        }
     }
 }
 
@@ -235,7 +245,7 @@ mod tests {
     use crate::keystore::{metadata_default_time, IdentityNetwork};
 
     use crate::keystore::tests::MockAddress;
-    use crate::Source;
+    use crate::{Keystore, Source};
     use bitcoin_hashes::hex::ToHex;
     use std::string::ToString;
     use tcx_common::FromHex;
@@ -258,8 +268,13 @@ mod tests {
         let keystore =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
 
-        assert!(keystore.verify_password(TEST_PASSWORD));
-        assert!(!keystore.verify_password("WrongPassword"));
+        let derived_key = Keystore::Hd(keystore.clone())
+            .get_derived_key(TEST_PASSWORD)
+            .unwrap();
+        assert!(keystore.verify_password(&Key::Password(TEST_PASSWORD.to_string())));
+        assert!(keystore.verify_password(&Key::DerivedKey(derived_key.to_string())));
+        assert!(!keystore.verify_password(&Key::Password("WRONG PASSWORD".to_string())));
+        assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
     }
 
     #[test]
