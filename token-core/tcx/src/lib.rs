@@ -185,19 +185,20 @@ mod tests {
     use test::Bencher;
 
     use crate::api::{
-        export_private_key_param, migrate_keystore_param, sign_param, BackupResult,
-        CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
+        export_mnemonic_param, export_private_key_param, migrate_keystore_param, sign_param,
+        BackupResult, CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
         DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
         DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult,
         EthBatchPersonalSignParam, EthBatchPersonalSignResult, ExistsJsonParam,
         ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam,
-        ExportJsonResult, ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult,
-        GeneralResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
-        GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
-        ImportPrivateKeyResult, InitTokenCoreXParam, KeystoreResult, MigrateKeystoreParam,
-        MigrateKeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
-        PublicKeyDerivation, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
-        SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
+        ExportJsonResult, ExportMnemonicParam, ExportMnemonicResult, ExportPrivateKeyParam,
+        ExportPrivateKeyResult, GeneralResult, GetExtendedPublicKeysParam,
+        GetExtendedPublicKeysResult, GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam,
+        ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult, InitTokenCoreXParam,
+        KeystoreResult, MigrateKeystoreParam, MigrateKeystoreResult, MnemonicToPublicKeyParam,
+        MnemonicToPublicKeyResult, PublicKeyDerivation, SignAuthenticationMessageParam,
+        SignAuthenticationMessageResult, SignHashesParam, SignHashesResult, SignParam,
+        WalletKeyParam,
     };
     use crate::handler::import_mnemonic;
     use crate::handler::{encode_message, import_private_key};
@@ -1228,9 +1229,9 @@ mod tests {
 
     #[test]
     #[serial]
-    pub fn test_tezos_hd_private_key_import_export() {
+    pub fn test_tezos_hd_private_key_export() {
         run_test(|| {
-            let import_result = import_default_pk_store();
+            let import_result = import_default_wallet();
 
             let derivations = vec![Derivation {
                 chain_type: "TEZOS".to_string(),
@@ -1238,7 +1239,7 @@ mod tests {
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
-                curve: "".to_string(),
+                curve: "ed25519".to_string(),
                 bech32_prefix: "".to_string(),
             }];
             let param = DeriveAccountsParam {
@@ -1252,7 +1253,7 @@ mod tests {
             let derived_accounts: DeriveAccountsResult =
                 DeriveAccountsResult::decode(derived_accounts_bytes.as_slice()).unwrap();
             assert_eq!(
-                "tz1RTCY2tQdBCWYacqmV18UYy5YMBdCgcpL1",
+                "tz1d2TfcvWBwtPqo7f21DVv7HSSCoNAVp8gz",
                 derived_accounts.accounts[0].address
             );
 
@@ -1271,7 +1272,7 @@ mod tests {
                 ExportPrivateKeyResult::decode(export_pk_bytes.as_slice()).unwrap();
             assert_eq!(
                 export_pk.private_key,
-                "edskRyQy6W7Vs3eDVZtqu3bsAEVPuFCWbsPKXpFn5uDmkbwDfyBA6Qx8tuD516GCCf92W57LeMgU6kdgefRGpE6H3w9VZYRxAG"
+                "edskRjTYrWf4xZje3NbZ7WCYXwY4DqL4WwyYbbnv8opNa1tNHo9AcLaB6sV42uqeTohjzu5ohTTn9vQg5EJ4cDcTZTtrDi4Fxn"
             );
             remove_created_wallet(&import_result.id);
         })
@@ -2687,7 +2688,7 @@ mod tests {
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
-                curve: "".to_string(),
+                curve: "secp256k1".to_string(),
                 bech32_prefix: "".to_string(),
             };
 
@@ -2701,11 +2702,10 @@ mod tests {
 
             let ret = call_api("derive_accounts", param);
             assert!(ret.is_err());
-            // assert_eq!(
-            //     format!("{}", ret.err().unwrap()),
-            //     "pkstore_can_not_add_other_curve_account"
-            // );
-            assert_eq!(format!("{}", ret.err().unwrap()), "invalid_private_key");
+            assert_eq!(
+                format!("{}", ret.err().unwrap()),
+                "private_key_curve_not_match"
+            );
 
             remove_created_wallet(&wallet_ret.id);
         })
@@ -4901,6 +4901,71 @@ mod tests {
             assert_eq!(ret.signatures[1], "0xb12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b".to_string());
         });
     }
+    fn test_migrate_duplicate_keystore() {
+        init_token_core_x("../test-data/migrate-duplication-fixtures");
+        let param = MigrateKeystoreParam {
+            id: "300b42bc-0948-4734-82cb-4293dfeeefd2".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        call_api("migrate_keystore", param).unwrap();
+        let param = ExportMnemonicParam {
+            id: "300b42bc-0948-4734-82cb-4293dfeeefd2".to_string(),
+            key: Some(export_mnemonic_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let ret = call_api("export_mnemonic", param).unwrap();
+        let exported = ExportMnemonicResult::decode(ret.as_slice())
+            .unwrap()
+            .mnemonic;
+        assert_eq!(OTHER_MNEMONIC, exported);
+        // CKB imported 300b42bc-0948-4734-82cb-4293dfeeefd2
+        // 9b696367-69c1-4cfe-8325-e5530399fc3f
+        let param = MigrateKeystoreParam {
+            id: "9b696367-69c1-4cfe-8325-e5530399fc3f".to_string(),
+            key: Some(migrate_keystore_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        call_api("migrate_keystore", param).unwrap();
+        let param = ExportMnemonicParam {
+            id: "9b696367-69c1-4cfe-8325-e5530399fc3f".to_string(),
+            key: Some(export_mnemonic_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let ret = call_api("export_mnemonic", param).unwrap();
+        let exported = ExportMnemonicResult::decode(ret.as_slice())
+            .unwrap()
+            .mnemonic;
+        assert_eq!(OTHER_MNEMONIC, exported);
+
+        let raw_data = "0a91010a8e010a1c2f636f736d6f732e62616e6b2e763162657461312e4d736753656e64126e0a2d636f736d6f733175616d6e346b74706d657332656664663671666837386d356365646b66637467617436657661122d636f736d6f73316a30636c726371727a636135326c6167707a3237687774713734776c327265353438346177681a0e0a057561746f6d1205313030303012680a510a460a1f2f636f736d6f732e63727970746f2e736563703235366b312e5075624b657912230a210232c1ef21d73c19531b0aa4e863cf397c2b982b2f958f60cdb62969824c096d6512040a02080118930312130a0d0a057561746f6d12043230303410b1f2041a0b636f736d6f736875622d34208cb201".to_string();
+        let input = AtomTxInput { raw_data };
+        let input_value = encode_message(input).unwrap();
+
+        let tx = SignParam {
+            id: "9b696367-69c1-4cfe-8325-e5530399fc3f".to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "COSMOS".to_string(),
+            path: "m/44'/118'/0'/0/0".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value,
+            }),
+        };
+
+        let ret = call_api("sign_tx", tx).unwrap();
+        let output: AtomTxOutput = AtomTxOutput::decode(ret.as_slice()).unwrap();
+        let expected_sig = "3/FXveMRWVXcdJRSaz1hBbEReka2/vXqAoHlj1L1jl9y0worNAjEqo3Y9CWx8ddl9qKwghWBRQ70mJDNsXnoJQ==";
+        assert_eq!(expected_sig, output.signature);
+        fs::remove_dir_all("../test-data/migrate-duplication-fixtures/walletsV2").unwrap();
+    }
 
     #[test]
     #[serial]
@@ -4923,5 +4988,98 @@ mod tests {
             assert_eq!(ret.signatures[0], "0xb270b1e5ee1345c693b7b4fd7f5287f6b6372059c89590dfcadc4edf94ec9293296d3e205495f1468953a4f893cd6798b66301a51571fe2a419e75d5755b5bc91c".to_string());
             assert_eq!(ret.signatures[1], "0x19671e4c92847629fa5bbba59e70402f54366e61db0555984a83cc512413fc462d6be1508f1accdee6ad0040ed7401ac2db33d17e1aa4e66bedcb9f75c250cfa1b".to_string());
         });
+    }
+    fn test_derive_other_curve_on_pk_keystore() {
+        run_test(|| {
+            let param = ImportPrivateKeyParam {
+                password: TEST_PASSWORD.to_string(),
+                private_key: TEST_PRIVATE_KEY.to_string(),
+                name: "hex pk".to_string(),
+                password_hint: "".to_string(),
+                network: "".to_string(),
+                overwrite: true,
+            };
+            let ret = call_api("import_private_key", param).unwrap();
+            let imported = ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+
+            let derive_param = DeriveAccountsParam {
+                id: imported.id.to_string(),
+                derivations: vec![
+                    Derivation {
+                        chain_type: "ETHEREUM".to_string(),
+                        chain_id: "".to_string(),
+                        path: "".to_string(),
+                        network: "".to_string(),
+                        curve: "secp256k1".to_string(),
+                        seg_wit: "".to_string(),
+                        bech32_prefix: "".to_string(),
+                    },
+                    Derivation {
+                        chain_type: "FILECOIN".to_string(),
+                        chain_id: "".to_string(),
+                        path: "".to_string(),
+                        network: "".to_string(),
+                        curve: "secp256k1".to_string(),
+                        seg_wit: "".to_string(),
+                        bech32_prefix: "".to_string(),
+                    },
+                ],
+                key: Some(api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_string(),
+                )),
+            };
+            let ret = call_api("derive_accounts", derive_param).unwrap();
+            let accounts = DeriveAccountsResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(
+                accounts.accounts[0].address,
+                "0x6031564e7b2F5cc33737807b2E58DaFF870B590b"
+            );
+            assert_eq!(
+                accounts.accounts[1].address,
+                "t1cwgcugpo6lmjw2h4kwxei7i7lqcuth3en3h4eli"
+            );
+
+            let derive_param = DeriveAccountsParam {
+                id: imported.id.to_string(),
+                derivations: vec![Derivation {
+                    chain_type: "TEZOS".to_string(),
+                    chain_id: "".to_string(),
+                    path: "".to_string(),
+                    network: "".to_string(),
+                    curve: "ed25519".to_string(),
+                    seg_wit: "".to_string(),
+                    bech32_prefix: "".to_string(),
+                }],
+                key: Some(api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_string(),
+                )),
+            };
+            let ret = call_api("derive_accounts", derive_param);
+            assert_eq!(
+                format!("{}", ret.err().unwrap()),
+                "private_key_curve_not_match"
+            );
+
+            let derive_param = DeriveAccountsParam {
+                id: imported.id.to_string(),
+                derivations: vec![Derivation {
+                    chain_type: "KUSAMA".to_string(),
+                    chain_id: "".to_string(),
+                    path: "".to_string(),
+                    network: "".to_string(),
+                    curve: "sr25519".to_string(),
+                    seg_wit: "".to_string(),
+                    bech32_prefix: "".to_string(),
+                }],
+                key: Some(api::derive_accounts_param::Key::Password(
+                    TEST_PASSWORD.to_string(),
+                )),
+            };
+            let ret = call_api("derive_accounts", derive_param);
+            assert_eq!(
+                format!("{}", ret.err().unwrap()),
+                "private_key_curve_not_match"
+            );
+        })
     }
 }

@@ -14,3 +14,5 @@
 !mainnet-identity/*
 !testnet-identity
 !testnet-identity/*
+!migrate-duplication-fixtures
+!migrate-duplication-fixtures/wallets/**
