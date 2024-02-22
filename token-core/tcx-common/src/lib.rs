@@ -2,7 +2,7 @@ mod hash;
 mod rand;
 
 mod errors;
-mod hex;
+pub mod hex;
 mod time;
 
 mod uint;
