@@ -28,11 +28,10 @@ use tcx_filecoin::KeyInfo;
 
 use crate::api::derive_accounts_param::Derivation;
 use crate::api::{
-    self, export_private_key_param, wallet_key_param, AccountResponse, BackupResult,
-    CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam,
-    DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult,
-    EncryptDataToIpfsParam, EncryptDataToIpfsResult, EthBatchPersonalSignParam,
-    EthBatchPersonalSignResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
+    self, export_private_key_param, AccountResponse, BackupResult, CreateKeystoreParam,
+    DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam, DeriveAccountsResult,
+    DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, EncryptDataToIpfsParam,
+    EncryptDataToIpfsResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
     ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicParam,
     ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
     GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
@@ -41,6 +40,7 @@ use crate::api::{
     ScanKeystoresResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
     SignHashesParam, SignHashesResult, WalletKeyParam,
 };
+use crate::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult};
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
 use crate::filemanager::{

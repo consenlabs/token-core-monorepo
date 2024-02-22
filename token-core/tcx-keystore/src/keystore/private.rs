@@ -1,7 +1,7 @@
 use super::Account;
 use super::{Address, Metadata};
 use anyhow::ensure;
-use bitcoin::util;
+
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::{Crypto, Key};
 

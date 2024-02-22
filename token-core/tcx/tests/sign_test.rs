@@ -1,65 +1,47 @@
 use common::run_test;
 use serial_test::serial;
-use tcx::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult, TcxAction};
+use tcx::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult};
 
 mod common;
 use api::sign_param::Key;
-use error_handling::Result;
-use std::ffi::{CStr, CString};
-use std::fs::remove_file;
-use std::os::raw::c_char;
-use std::panic;
-use std::path::Path;
+
 use tcx::api::derive_accounts_param::Derivation;
 use tcx::api::sign_hashes_param::DataToSign;
 use tcx::filemanager::KEYSTORE_MAP;
-use tcx::handler::scan_keystores;
+
 use tcx::*;
 use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
-use tcx_common::ToHex;
+
 use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
-use tcx_keystore::keystore::IdentityNetwork;
 
 use crate::common::*;
 use prost::Message;
 use sp_core::ByteArray;
 use sp_runtime::traits::Verify;
-use std::fs;
+
 use tcx::api::{
-    export_mnemonic_param, export_private_key_param, migrate_keystore_param, sign_param,
-    BackupResult, CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
-    DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
-    DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsJsonParam,
-    ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam,
-    ExportJsonResult, ExportMnemonicParam, ExportMnemonicResult, ExportPrivateKeyParam,
-    ExportPrivateKeyResult, GeneralResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult,
-    GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam,
-    ImportPrivateKeyParam, ImportPrivateKeyResult, InitTokenCoreXParam, KeystoreResult,
-    MigrateKeystoreParam, MigrateKeystoreResult, MnemonicToPublicKeyParam,
-    MnemonicToPublicKeyResult, PublicKeyDerivation, SignAuthenticationMessageParam,
-    SignAuthenticationMessageResult, SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
+    sign_param, DeriveAccountsParam, DeriveAccountsResult, DerivedKeyResult, GeneralResult,
+    GetPublicKeysParam, GetPublicKeysResult, ImportMnemonicParam, KeystoreResult,
+    PublicKeyDerivation, SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
 };
-use tcx::handler::import_mnemonic;
-use tcx::handler::{derive_sub_accounts, get_derived_key};
-use tcx::handler::{encode_message, import_private_key};
+
+use tcx::handler::encode_message;
+use tcx::handler::get_derived_key;
 use tcx_btc_kin::transaction::BtcKinTxInput;
-use tcx_btc_kin::{OmniTxInput, Utxo};
+use tcx_btc_kin::Utxo;
 use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
-use tcx_constants::{sample_key, CurveType, TEST_PRIVATE_KEY, TEST_WIF};
-use tcx_constants::{OTHER_MNEMONIC, TEST_MNEMONIC, TEST_PASSWORD};
+use tcx_constants::{sample_key, CurveType};
+use tcx_constants::{OTHER_MNEMONIC, TEST_PASSWORD};
 use tcx_keystore::Keystore;
 
-use anyhow::anyhow;
 use tcx_common::hex::FromHex;
 use tcx_eth::transaction::{
     AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput,
 };
 use tcx_filecoin::{SignedMessage, UnsignedMessage};
-use tcx_substrate::{SubstrateKeystore, SubstrateRawTxIn, SubstrateTxOut};
+use tcx_substrate::{SubstrateRawTxIn, SubstrateTxOut};
 use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
 use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
-
-use crate::common::*;
 
 #[test]
 #[serial]
