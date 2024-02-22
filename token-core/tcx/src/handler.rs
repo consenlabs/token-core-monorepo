@@ -31,10 +31,11 @@ use crate::api::{
     self, export_private_key_param, wallet_key_param, AccountResponse, BackupResult,
     CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam,
     DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult,
-    EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsJsonParam, ExistsKeystoreResult,
-    ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult,
-    ExportMnemonicParam, ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult,
-    GeneralResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
+    EncryptDataToIpfsParam, EncryptDataToIpfsResult, EthBatchPersonalSignParam,
+    EthBatchPersonalSignResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
+    ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicParam,
+    ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
+    GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
     GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
     ImportPrivateKeyResult, KeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
     ScanKeystoresResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
@@ -57,6 +58,7 @@ use tcx_constants::coin_info::coin_info_from_param;
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::KDF_ROUNDS;
+use tcx_eth::signer::batch_personal_sign;
 use tcx_keystore::{MessageSigner, TransactionSigner};
 
 use tcx_primitive::Ss58Codec;
@@ -1211,6 +1213,23 @@ pub(crate) fn sign_bls_to_execution_change(data: &[u8]) -> Result<Vec<u8>> {
     let result: SignBlsToExecutionChangeResult =
         param.sign_bls_to_execution_change(guard.keystore_mut())?;
     encode_message(result)
+}
+
+impl_to_key!(crate::api::eth_batch_personal_sign_param::Key);
+pub(crate) fn eth_batch_personal_sign(data: &[u8]) -> Result<Vec<u8>> {
+    let param: EthBatchPersonalSignParam = EthBatchPersonalSignParam::decode(data)?;
+
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
+    }?;
+
+    let mut keystore = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+
+    let signatures = batch_personal_sign(keystore.keystore_mut(), param.data)?;
+
+    encode_message(EthBatchPersonalSignResult { signatures })
 }
 
 #[cfg(test)]

@@ -126,6 +126,17 @@ impl EthRecoverAddressInput {
     }
 }
 
+pub fn batch_personal_sign(keystore: &mut Keystore, data: Vec<String>) -> Result<Vec<String>> {
+    let mut signatures = vec![];
+    for val in data.iter() {
+        let message = hash_message(utf8_or_hex_to_bytes(&val)?);
+        let mut signature = keystore.secp256k1_ecdsa_sign_recoverable(&message, "")?;
+        signature[64] = signature[64] + 27;
+        signatures.push(signature.to_0x_hex());
+    }
+    Ok(signatures)
+}
+
 #[cfg(test)]
 mod test {
     use crate::transaction::{
@@ -133,6 +144,7 @@ mod test {
         EthTxOutput, SignatureType,
     };
 
+    use crate::signer::batch_personal_sign;
     use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::{Keystore, MessageSigner, Metadata, SignatureParameters, TransactionSigner};
 
@@ -668,5 +680,20 @@ mod test {
         let output = input.recover_address().unwrap();
         println!("{}", output.address);
         assert_eq!(output.address, "0xed54a7c1d8634bb589f24bb7f05a5554b36f9618");
+    }
+
+    #[test]
+    fn test_batch_personal_sign() {
+        let mut keystore =
+            private_key_store("a392604efc2fad9c0b3da43b5f698a2e3f270f170d859912be0d54742275c5f6");
+
+        let test_data = vec![
+            "Hello imToken".to_string(),
+            "0xef678007d18427e6022059dbc264f27507cd1ffc".to_string(),
+        ];
+
+        let result = batch_personal_sign(&mut keystore, test_data).unwrap();
+        assert_eq!(result[0], "0x1be38ff0ab0e6d97cba73cf61421f0641628be8ee91dcb2f73315e7fdf4d0e2770b0cb3cc7350426798d43f0fb05602664a28bb2c9fcf46a07fa1c8c4e322ec01b".to_string());
+        assert_eq!(result[1], "0xb12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b".to_string());
     }
 }

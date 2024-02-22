@@ -22,11 +22,11 @@ use std::result;
 use crate::error_handling::{landingpad, LAST_ERROR};
 use crate::handler::{
     create_keystore, decrypt_data_from_ipfs, delete_keystore, derive_accounts, derive_sub_accounts,
-    encode_message, encrypt_data_to_ipfs, exists_json, exists_mnemonic, exists_private_key,
-    export_json, export_mnemonic, export_private_key, get_derived_key, get_extended_public_keys,
-    get_public_keys, import_json, import_mnemonic, import_private_key, mnemonic_to_public,
-    sign_authentication_message, sign_hashes, sign_message, sign_tx, unlock_then_crash,
-    verify_password,
+    encode_message, encrypt_data_to_ipfs, eth_batch_personal_sign, exists_json, exists_mnemonic,
+    exists_private_key, export_json, export_mnemonic, export_private_key, get_derived_key,
+    get_extended_public_keys, get_public_keys, import_json, import_mnemonic, import_private_key,
+    mnemonic_to_public, sign_authentication_message, sign_hashes, sign_message, sign_tx,
+    unlock_then_crash, verify_password,
 };
 use crate::migration::{migrate_keystore, scan_legacy_keystores};
 
@@ -119,6 +119,9 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "sign_bls_to_execution_change" => {
             landingpad(|| sign_bls_to_execution_change(&action.param.unwrap().value))
         }
+        "eth_batch_personal_sign" => {
+            landingpad(|| eth_batch_personal_sign(&action.param.unwrap().value))
+        }
         _ => landingpad(|| Err(anyhow!("unsupported_method"))),
     };
     match reply {
@@ -185,7 +188,8 @@ mod tests {
         export_private_key_param, migrate_keystore_param, sign_param, BackupResult,
         CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult,
         DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
-        DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult, ExistsJsonParam,
+        DerivedKeyResult, EncryptDataToIpfsParam, EncryptDataToIpfsResult,
+        EthBatchPersonalSignParam, EthBatchPersonalSignResult, ExistsJsonParam,
         ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam, ExportJsonParam,
         ExportJsonResult, ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult,
         GeneralResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
@@ -4873,5 +4877,51 @@ mod tests {
                 assert_eq!(account.address, expected[index]);
             }
         })
+    }
+
+    #[test]
+    #[serial]
+    fn test_eth_batch_personal_sign_by_private_key() {
+        run_test(|| {
+            let wallet = import_default_pk_store();
+            let param = EthBatchPersonalSignParam {
+                id: wallet.id.to_string(),
+                key: Some(api::eth_batch_personal_sign_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+                data: vec![
+                    "Hello imToken".to_string(),
+                    "0xef678007d18427e6022059dbc264f27507cd1ffc".to_string(),
+                ],
+            };
+            let sign_result = call_api("eth_batch_personal_sign", param).unwrap();
+            let ret: EthBatchPersonalSignResult =
+                EthBatchPersonalSignResult::decode(sign_result.as_slice()).unwrap();
+            assert_eq!(ret.signatures[0], "0x1be38ff0ab0e6d97cba73cf61421f0641628be8ee91dcb2f73315e7fdf4d0e2770b0cb3cc7350426798d43f0fb05602664a28bb2c9fcf46a07fa1c8c4e322ec01b".to_string());
+            assert_eq!(ret.signatures[1], "0xb12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b".to_string());
+        });
+    }
+
+    #[test]
+    #[serial]
+    fn test_eth_batch_personal_sign_by_hd() {
+        run_test(|| {
+            let wallet = import_default_wallet();
+            let param = EthBatchPersonalSignParam {
+                id: wallet.id.to_string(),
+                key: Some(api::eth_batch_personal_sign_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+                data: vec![
+                    "Hello imToken".to_string(),
+                    "0xef678007d18427e6022059dbc264f27507cd1ffc".to_string(),
+                ],
+            };
+            let sign_result = call_api("eth_batch_personal_sign", param).unwrap();
+            let ret: EthBatchPersonalSignResult =
+                EthBatchPersonalSignResult::decode(sign_result.as_slice()).unwrap();
+            assert_eq!(ret.signatures[0], "0xb270b1e5ee1345c693b7b4fd7f5287f6b6372059c89590dfcadc4edf94ec9293296d3e205495f1468953a4f893cd6798b66301a51571fe2a419e75d5755b5bc91c".to_string());
+            assert_eq!(ret.signatures[1], "0x19671e4c92847629fa5bbba59e70402f54366e61db0555984a83cc512413fc462d6be1508f1accdee6ad0040ed7401ac2db33d17e1aa4e66bedcb9f75c250cfa1b".to_string());
+        });
     }
 }

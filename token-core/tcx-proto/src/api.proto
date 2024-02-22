@@ -131,3 +131,16 @@ message ExportMnemonicParam {
     }
 }
 
+message EthBatchPersonalSignParam {
+    string id = 1;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
+    repeated string data = 4;
+}
+
+message EthBatchPersonalSignResult {
+    repeated string signatures = 1;
+}
+
