@@ -279,24 +279,6 @@ pub struct IdentityResult {
     #[prost(string, tag = "2")]
     pub ipfs_id: ::prost::alloc::string::String,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct KeystoreResult {
-    #[prost(string, tag = "1")]
-    pub id: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub name: ::prost::alloc::string::String,
-    #[prost(string, tag = "3")]
-    pub identifier: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub ipfs_id: ::prost::alloc::string::String,
-    #[prost(string, tag = "5")]
-    pub source: ::prost::alloc::string::String,
-    #[prost(int64, tag = "6")]
-    pub created_at: i64,
-    #[prost(string, tag = "7")]
-    pub source_fingerprint: ::prost::alloc::string::String,
-}
 /// FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
 ///
 /// create a new hd keystore by mnemonic
@@ -318,7 +300,7 @@ pub struct ImportMnemonicParam {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ImportPrivateKeyResult {
+pub struct KeystoreResult {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
@@ -660,9 +642,7 @@ pub struct MigrateKeystoreResult {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScanKeystoresResult {
     #[prost(message, repeated, tag = "1")]
-    pub hd_keystores: ::prost::alloc::vec::Vec<KeystoreResult>,
-    #[prost(message, repeated, tag = "2")]
-    pub private_key_keystores: ::prost::alloc::vec::Vec<ImportPrivateKeyResult>,
+    pub keystores: ::prost::alloc::vec::Vec<KeystoreResult>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

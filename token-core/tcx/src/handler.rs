@@ -36,9 +36,9 @@ use crate::api::{
     ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
     GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
     GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
-    ImportPrivateKeyResult, KeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
-    ScanKeystoresResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
-    SignHashesParam, SignHashesResult, WalletKeyParam,
+    KeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult, ScanKeystoresResult,
+    SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
+    SignHashesResult, WalletKeyParam,
 };
 use crate::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult};
 use crate::api::{InitTokenCoreXParam, SignParam};
@@ -138,7 +138,7 @@ fn import_private_key_internal(
     param: &ImportPrivateKeyParam,
     source: Option<Source>,
     original: Option<String>,
-) -> Result<ImportPrivateKeyResult> {
+) -> Result<KeystoreResult> {
     let mut founded_id: Option<String> = None;
     {
         let fingerprint = fingerprint_from_any_format_pk(&param.private_key)?;
@@ -205,7 +205,7 @@ fn import_private_key_internal(
 
     let meta = keystore.meta();
     let identity = keystore.identity();
-    let wallet = ImportPrivateKeyResult {
+    let wallet = KeystoreResult {
         id: keystore.id(),
         name: meta.name.to_owned(),
         source: meta_source.to_string(),
@@ -394,8 +394,7 @@ pub fn scan_keystores() -> Result<ScanKeystoresResult> {
     let p = Path::new(file_dir.as_str());
     let walk_dir = std::fs::read_dir(p).expect("read dir");
 
-    let mut hd_keystores: Vec<KeystoreResult> = Vec::new();
-    let mut private_key_keystores: Vec<ImportPrivateKeyResult> = Vec::new();
+    let mut keystores: Vec<KeystoreResult> = Vec::new();
 
     for entry in walk_dir {
         let entry = entry.expect("DirEntry");
@@ -430,13 +429,14 @@ pub fn scan_keystores() -> Result<ScanKeystoresResult> {
                     source: keystore.meta().source.to_string(),
                     created_at: keystore.meta().timestamp,
                     source_fingerprint: keystore.fingerprint().to_string(),
+                    ..Default::default()
                 };
-                hd_keystores.push(keystore_result);
+                keystores.push(keystore_result);
             } else {
                 let curve = keystore
                     .get_curve()
                     .expect("pk keystore must contains curve");
-                let kestore_result = ImportPrivateKeyResult {
+                let kestore_result = KeystoreResult {
                     id: keystore.id(),
                     name: keystore.meta().name.to_string(),
                     identifier: keystore.identity().identifier.to_string(),
@@ -448,16 +448,13 @@ pub fn scan_keystores() -> Result<ScanKeystoresResult> {
                     identified_network: keystore.meta().network.to_string(),
                     identified_curve: curve.as_str().to_string(),
                 };
-                private_key_keystores.push(kestore_result);
+                keystores.push(kestore_result);
             }
             cache_keystore(keystore);
         }
     }
 
-    Ok(ScanKeystoresResult {
-        hd_keystores,
-        private_key_keystores,
-    })
+    Ok(ScanKeystoresResult { keystores })
 }
 
 pub fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
@@ -488,6 +485,7 @@ pub fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
         identifier: identity.identifier.to_string(),
         ipfs_id: identity.ipfs_id.to_string(),
         source_fingerprint: keystore.fingerprint().to_string(),
+        ..Default::default()
     };
 
     let ret = encode_message(wallet)?;
@@ -544,6 +542,7 @@ pub fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
         identifier: identity.identifier.to_string(),
         ipfs_id: identity.ipfs_id.to_string(),
         source_fingerprint: keystore.fingerprint().to_string(),
+        ..Default::default()
     };
     let ret = encode_message(wallet)?;
     cache_keystore(keystore);
@@ -1237,7 +1236,7 @@ mod tests {
     use tcx_constants::CurveType;
     use tcx_keystore::Source;
 
-    use crate::{api::ImportPrivateKeyResult, filemanager::WALLET_FILE_DIR};
+    use crate::{api::KeystoreResult, filemanager::WALLET_FILE_DIR};
 
     use super::{decode_private_key, scan_keystores};
     use serial_test::serial;
@@ -1316,8 +1315,18 @@ mod tests {
     fn test_scan_keystores() {
         *WALLET_FILE_DIR.write() = "../test-data/scan-keystores-fixtures/".to_string();
         let result = scan_keystores().unwrap();
-        assert_eq!(result.hd_keystores.len(), 1);
-        let hd = result.hd_keystores.first().unwrap();
+        let hd_keystores: Vec<&KeystoreResult> = result
+            .keystores
+            .iter()
+            .filter(|x| x.source == Source::Mnemonic.to_string())
+            .collect();
+        let private_keystores: Vec<&KeystoreResult> = result
+            .keystores
+            .iter()
+            .filter(|x| x.source != Source::Mnemonic.to_string())
+            .collect();
+        assert_eq!(hd_keystores.len(), 1);
+        let hd = hd_keystores.first().unwrap();
         assert_eq!(hd.id, "1055741c-2904-4973-b7ee-4b69bfd8bcc6");
         assert_eq!(hd.identifier, "im14x5UYkoqtYbJFTLam7c9Ft4BQiFvJbieKWfK");
         assert_eq!(hd.ipfs_id, "Qme1RuM33X8SmVjisWS3sP4irqNZv6vuqL3L3T6poZ6c2b");
@@ -1328,10 +1337,10 @@ mod tests {
         assert_eq!(hd.created_at, 1705040852);
         assert_eq!(hd.source, "MNEMONIC");
         assert_eq!(hd.name, "test-wallet");
-        assert_eq!(result.private_key_keystores.len(), 4);
 
-        let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
-            .private_key_keystores
+        assert_eq!(private_keystores.len(), 4);
+
+        let founded_pk_stores: Vec<&&KeystoreResult> = private_keystores
             .iter()
             .filter(|x| x.id == "7e1c2c55-5b7f-4a5a-8061-c42b594ceb2f")
             .collect();
@@ -1347,8 +1356,8 @@ mod tests {
         assert_eq!(pk.name, "test_filecoin_import_private_key");
         assert_eq!(pk.identified_curve, "bls12-381");
 
-        let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
-            .private_key_keystores
+        let founded_pk_stores: Vec<&KeystoreResult> = result
+            .keystores
             .iter()
             .filter(|x| x.id == "1233134b-8377-4fb0-b06f-56062e858708")
             .collect();
@@ -1364,8 +1373,8 @@ mod tests {
         assert_eq!(pk.name, "test account");
         assert_eq!(pk.identified_curve, "sr25519");
 
-        let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
-            .private_key_keystores
+        let founded_pk_stores: Vec<&KeystoreResult> = result
+            .keystores
             .iter()
             .filter(|x| x.id == "beb68589-0f0f-41e2-94d9-d78f10a72dec")
             .collect();
@@ -1381,8 +1390,8 @@ mod tests {
         assert_eq!(pk.name, "test_filecoin_import_private_key");
         assert_eq!(pk.identified_curve, "secp256k1");
 
-        let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
-            .private_key_keystores
+        let founded_pk_stores: Vec<&KeystoreResult> = result
+            .keystores
             .iter()
             .filter(|x| x.id == "beb68589-0f0f-41e2-94d9-d78f10a72dec")
             .collect();
@@ -1398,8 +1407,8 @@ mod tests {
         assert_eq!(pk.name, "test_filecoin_import_private_key");
         assert_eq!(pk.identified_curve, "secp256k1");
 
-        let founded_pk_stores: Vec<&ImportPrivateKeyResult> = result
-            .private_key_keystores
+        let founded_pk_stores: Vec<&KeystoreResult> = result
+            .keystores
             .iter()
             .filter(|x| x.id == "efcfffb2-9b63-418b-a9d0-ec3600012284")
             .collect();

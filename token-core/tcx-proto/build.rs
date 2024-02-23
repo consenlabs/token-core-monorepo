@@ -1,18 +1,22 @@
 use std::env;
-extern crate prost_build;
+// extern crate prost_build;
 
 fn main() {
     // tcx-api
+    let mut prost_build = prost_build::Config::new();
     env::set_var("OUT_DIR", "../tcx/src");
-    prost_build::compile_protos(
-        &[
-            "src/api.proto",
-            "src/params.proto",
-            "src/cache_derived_key.proto",
-        ],
-        &["src/"],
-    )
-    .unwrap();
+    // let mut config = prost_build::Config::new();
+    // prost_build.type_attribute(".", "#[derive(Default)]");
+    prost_build
+        .compile_protos(
+            &[
+                "src/api.proto",
+                "src/params.proto",
+                "src/cache_derived_key.proto",
+            ],
+            &["src/"],
+        )
+        .unwrap();
 
     // tcx-atom
     env::set_var("OUT_DIR", "../tcx-atom/src");

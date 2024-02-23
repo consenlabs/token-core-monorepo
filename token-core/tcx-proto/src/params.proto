@@ -20,15 +20,6 @@ message IdentityResult {
     string ipfsId = 2;
 }
 
-message KeystoreResult {
-    string id = 1;
-    string name = 2;
-    string identifier = 3;
-    string ipfsId = 4;
-    string source = 5;
-    int64 createdAt = 6;
-    string sourceFingerprint = 7;
-}
 
 // FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
 //
@@ -42,7 +33,7 @@ message ImportMnemonicParam {
     bool overwrite = 6;
 }
 
-message ImportPrivateKeyResult {
+message KeystoreResult {
     string id = 1;
     string name = 2;
     string identifier = 3;
@@ -253,8 +244,7 @@ message MigrateKeystoreParam {
   }
 
   message ScanKeystoresResult {
-    repeated KeystoreResult hdKeystores = 1;
-    repeated ImportPrivateKeyResult privateKeyKeystores = 2;
+    repeated KeystoreResult keystores = 1;
 }
 
   message LegacyKeystoreResult {

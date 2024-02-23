@@ -84,6 +84,11 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
             });
         } else {
             let identity = keystore.identity();
+            let identified_curve = if let Some(curve) = keystore.get_curve() {
+                curve.as_str().to_string()
+            } else {
+                "".to_string()
+            };
 
             let keystore_result = KeystoreResult {
                 id: keystore.id(),
@@ -93,6 +98,8 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
                 identifier: identity.identifier.to_string(),
                 ipfs_id: identity.ipfs_id.to_string(),
                 source_fingerprint: keystore.fingerprint().to_string(),
+                identified_curve: identified_curve,
+                ..Default::default()
             };
 
             let ret = encode_message(MigrateKeystoreResult {
