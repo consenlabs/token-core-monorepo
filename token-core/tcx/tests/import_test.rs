@@ -14,7 +14,7 @@ use tcx::api::{
     export_private_key_param, CreateKeystoreParam, DeriveAccountsParam, DeriveAccountsResult,
     ExistsJsonParam, ExistsKeystoreResult, ExistsPrivateKeyParam, ExportJsonParam,
     ExportJsonResult, ExportPrivateKeyParam, ExportPrivateKeyResult, ImportJsonParam,
-    ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult, KeystoreResult,
+    ImportMnemonicParam, ImportPrivateKeyParam, KeystoreResult,
 };
 
 use tcx::handler::{encode_message, import_private_key};
@@ -657,8 +657,7 @@ pub fn test_import_sr25519_private_key() {
             };
 
         let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
-        let import_result: ImportPrivateKeyResult =
-            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
         assert_eq!(
             "im14x5JEvG1gEwF9ukFv5EsVyQ47V3BegEA3hVa",
             import_result.identifier
@@ -1094,8 +1093,7 @@ pub fn test_import_hex_private_key() {
             overwrite: true,
         };
         let ret = call_api("import_private_key", param).unwrap();
-        let import_result: ImportPrivateKeyResult =
-            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
         assert_eq!(Vec::<String>::new(), import_result.identified_chain_types);
         assert_eq!("secp256k1", import_result.identified_curve);
         assert_eq!("", import_result.identified_network);
@@ -1168,8 +1166,8 @@ pub fn test_import_wif_network_mismatch() {
             overwrite: true,
         };
         let ret = call_api("import_private_key", param);
-        // let import_result: ImportPrivateKeyResult =
-        //     ImportPrivateKeyResult::decode(ret.as_slice());
+        // let import_result: KeystoreResult =
+        //     KeystoreResult::decode(ret.as_slice());
         assert_eq!(
             format!("{}", ret.unwrap_err()),
             "private_key_network_mismatch"
@@ -1184,8 +1182,7 @@ pub fn test_import_wif_network_mismatch() {
             overwrite: true,
         };
         let ret = call_api("import_private_key", param).unwrap();
-        let import_result: ImportPrivateKeyResult =
-            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
         assert_eq!(import_result.identified_network, "TESTNET");
     })
 }
@@ -1228,8 +1225,7 @@ pub fn test_import_v3_keystore_json() {
             overwrite: true,
         };
         let ret = call_api("import_json", param).unwrap();
-        let import_result: ImportPrivateKeyResult =
-            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
         assert_eq!(
             vec!["ETHEREUM".to_string()],
             import_result.identified_chain_types

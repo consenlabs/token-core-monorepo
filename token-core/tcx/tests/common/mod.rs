@@ -14,7 +14,7 @@ use tcx_common::ToHex;
 use prost::Message;
 use tcx::api::{
     DeriveAccountsParam, DeriveAccountsResult, GeneralResult, ImportMnemonicParam,
-    ImportPrivateKeyParam, ImportPrivateKeyResult, InitTokenCoreXParam, KeystoreResult, TcxAction,
+    ImportPrivateKeyParam, InitTokenCoreXParam, KeystoreResult, TcxAction,
 };
 use tcx::handler::import_mnemonic;
 use tcx::handler::{encode_message, import_private_key};
@@ -73,7 +73,7 @@ pub fn import_default_wallet() -> KeystoreResult {
     KeystoreResult::decode(ret.as_slice()).unwrap()
 }
 
-pub fn import_default_pk_store() -> ImportPrivateKeyResult {
+pub fn import_default_pk_store() -> KeystoreResult {
     let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
         private_key: "L2hfzPyVC1jWH7n2QLTe7tVTb6btg9smp5UVzhEBxLYaSFF7sCZB".to_string(),
         password: TEST_PASSWORD.to_string(),
@@ -84,7 +84,7 @@ pub fn import_default_pk_store() -> ImportPrivateKeyResult {
     };
 
     let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
-    ImportPrivateKeyResult::decode(ret.as_slice()).unwrap()
+    KeystoreResult::decode(ret.as_slice()).unwrap()
 }
 
 pub fn import_filecoin_pk_store() -> KeystoreResult {
@@ -118,9 +118,7 @@ pub fn import_and_derive(derivation: Derivation) -> (KeystoreResult, DeriveAccou
     (wallet, accounts)
 }
 
-pub fn import_pk_and_derive(
-    derivation: Derivation,
-) -> (ImportPrivateKeyResult, DeriveAccountsResult) {
+pub fn import_pk_and_derive(derivation: Derivation) -> (KeystoreResult, DeriveAccountsResult) {
     let wallet = import_default_pk_store();
 
     let param = DeriveAccountsParam {

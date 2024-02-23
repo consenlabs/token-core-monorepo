@@ -11,8 +11,8 @@ use prost::Message;
 use tcx::api::{
     DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
     GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
-    GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult,
-    KeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult, PublicKeyDerivation,
+    GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam, KeystoreResult,
+    MnemonicToPublicKeyParam, MnemonicToPublicKeyResult, PublicKeyDerivation,
 };
 use tcx::handler::encode_message;
 use tcx::handler::import_mnemonic;
@@ -739,7 +739,7 @@ fn test_derive_other_curve_on_pk_keystore() {
             overwrite: true,
         };
         let ret = call_api("import_private_key", param).unwrap();
-        let imported = ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+        let imported = KeystoreResult::decode(ret.as_slice()).unwrap();
 
         let derive_param = DeriveAccountsParam {
             id: imported.id.to_string(),

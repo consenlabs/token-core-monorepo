@@ -13,8 +13,8 @@ use tcx::api::{
     export_private_key_param, BackupResult, DeriveAccountsParam, DeriveAccountsResult,
     DerivedKeyResult, ExistsKeystoreResult, ExistsPrivateKeyParam, ExportMnemonicResult,
     ExportPrivateKeyParam, ExportPrivateKeyResult, GetPublicKeysParam, GetPublicKeysResult,
-    ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult,
-    KeystoreResult, PublicKeyDerivation, WalletKeyParam,
+    ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam, KeystoreResult,
+    PublicKeyDerivation, WalletKeyParam,
 };
 
 use tcx::handler::{encode_message, import_private_key};
@@ -540,8 +540,7 @@ pub fn test_backup_v3_keystore() {
             overwrite: true,
         };
         let ret = call_api("import_json", param).unwrap();
-        let import_result: ImportPrivateKeyResult =
-            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
         assert_eq!(
             vec!["ETHEREUM".to_string()],
             import_result.identified_chain_types
@@ -611,8 +610,7 @@ pub fn test_backup_pjs_kystore() {
             overwrite: true,
         };
         let ret = call_api("import_json", param).unwrap();
-        let import_result: ImportPrivateKeyResult =
-            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
         assert_eq!(
             vec!["KUSAMA".to_string(), "POLKADOT".to_string(),],
             import_result.identified_chain_types
@@ -667,8 +665,7 @@ pub fn test_backup_private_key() {
             overwrite: true,
         };
         let ret = call_api("import_private_key", param).unwrap();
-        let import_result: ImportPrivateKeyResult =
-            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
         assert_eq!(
             vec![
                 "BITCOIN".to_string(),

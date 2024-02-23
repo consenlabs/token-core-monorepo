@@ -152,18 +152,9 @@ pub fn test_migrate_keystores_curve() {
                 "1a60471067b6c6a3202e0014de2ce9b2d45fd73e2289b3cc3d8e5b58fe99ff242fd61e9fe63e75abbdc0ed87a50756cc10c57daf1d6297b99ec9a3b174eee017".to_string(),
             )),
         };
-    let _ = call_api("migrate_keystore", param).unwrap();
-    // let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
-    {
-        let map = KEYSTORE_MAP.read();
-        assert_eq!(
-            map.get("4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca")
-                .unwrap()
-                .get_curve()
-                .unwrap(),
-            CurveType::SECP256k1
-        );
-    }
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(result.keystore.unwrap().identified_curve, "secp256k1");
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "9f4acb4a-7431-4c7d-bd25-a19656a86ea0".to_string(),
@@ -171,51 +162,29 @@ pub fn test_migrate_keystores_curve() {
                 "a5b0cb9cb0536d6ec6ab21da77415bd59aff62c44c1da40d377c4faf2a44608693a72efb4079f57a5dca710ecff75dc5b54beb4ad6d9f9d47b63583810b50c61".to_string(),
             )),
         };
-    let _ = call_api("migrate_keystore", param).unwrap();
-    {
-        let map = KEYSTORE_MAP.read();
-        assert_eq!(
-            map.get("9f4acb4a-7431-4c7d-bd25-a19656a86ea0")
-                .unwrap()
-                .get_curve()
-                .unwrap(),
-            CurveType::SECP256k1
-        );
-    }
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(result.keystore.unwrap().identified_curve, "secp256k1");
+
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "949bada8-776c-4554-ad0c-001e3726a0f8".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
     };
-    let _ = call_api("migrate_keystore", param).unwrap();
-    {
-        let map = KEYSTORE_MAP.read();
-        assert_eq!(
-            map.get("949bada8-776c-4554-ad0c-001e3726a0f8")
-                .unwrap()
-                .get_curve()
-                .unwrap(),
-            CurveType::SR25519
-        );
-    }
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(result.keystore.unwrap().identified_curve, "sr25519");
+
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "60573d8d-8e83-45c3-85a5-34fbb2aad5e1".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
     };
-    let _ = call_api("migrate_keystore", param).unwrap();
-    {
-        let map = KEYSTORE_MAP.read();
-        assert_eq!(
-            map.get("60573d8d-8e83-45c3-85a5-34fbb2aad5e1")
-                .unwrap()
-                .get_curve()
-                .unwrap(),
-            CurveType::SECP256k1
-        );
-    }
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(result.keystore.unwrap().identified_curve, "secp256k1");
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb".to_string(),
@@ -223,35 +192,9 @@ pub fn test_migrate_keystores_curve() {
             TEST_PASSWORD.to_string(),
         )),
     };
-    let _ = call_api("migrate_keystore", param).unwrap();
-    {
-        let map = KEYSTORE_MAP.read();
-        assert_eq!(
-            map.get("fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb")
-                .unwrap()
-                .get_curve()
-                .unwrap(),
-            CurveType::BLS
-        );
-    }
-
-    let param: MigrateKeystoreParam = MigrateKeystoreParam {
-        id: "fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb".to_string(),
-        key: Some(migrate_keystore_param::Key::Password(
-            TEST_PASSWORD.to_string(),
-        )),
-    };
-    let _ = call_api("migrate_keystore", param).unwrap();
-    {
-        let map = KEYSTORE_MAP.read();
-        assert_eq!(
-            map.get("fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb")
-                .unwrap()
-                .get_curve()
-                .unwrap(),
-            CurveType::BLS
-        );
-    }
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(result.keystore.unwrap().identified_curve, "bls12-381");
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "4d5cbfcf-aee1-4908-9991-9d060eb68a0e".to_string(),
@@ -259,17 +202,9 @@ pub fn test_migrate_keystores_curve() {
             TEST_PASSWORD.to_string(),
         )),
     };
-    let _ = call_api("migrate_keystore", param).unwrap();
-    {
-        let map = KEYSTORE_MAP.read();
-        assert_eq!(
-            map.get("4d5cbfcf-aee1-4908-9991-9d060eb68a0e")
-                .unwrap()
-                .get_curve()
-                .unwrap(),
-            CurveType::ED25519
-        );
-    }
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(result.keystore.unwrap().identified_curve, "ed25519");
 
     fs::remove_dir_all("../test-data/walletsV2").unwrap();
 }
