@@ -244,6 +244,16 @@ fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
         if let Ok(decoded_data) = decoded {
             if decoded_data.len() == 32 {
                 private_key_bytes = decoded_data;
+                chain_types = vec![
+                    "BITCOIN".to_string(),
+                    "ETHEREUM".to_string(),
+                    "BITCOINCASH".to_string(),
+                    "LITECOIN".to_string(),
+                    "EOS".to_string(),
+                    "TRON".to_string(),
+                    "FILECOIN".to_string(),
+                ];
+                curve = CurveType::SECP256k1;
             } else if decoded_data.len() == 64 {
                 let sr25519_key = Sr25519PrivateKey::from_slice(&decoded_data)?;
                 private_key_bytes = sr25519_key.to_bytes();
@@ -1285,7 +1295,18 @@ mod tests {
 
         let private_key = "0x43fe394358d14f2e096f4efe80894b4e51a3fdcb73c06b77e937b80deb8c746b";
         let decoded = decode_private_key(&private_key).unwrap();
-        assert_eq!(decoded.chain_types, Vec::<String>::new());
+        assert_eq!(
+            decoded.chain_types,
+            vec![
+                "BITCOIN".to_string(),
+                "ETHEREUM".to_string(),
+                "BITCOINCASH".to_string(),
+                "LITECOIN".to_string(),
+                "EOS".to_string(),
+                "TRON".to_string(),
+                "FILECOIN".to_string(),
+            ]
+        );
         assert_eq!(decoded.curve, CurveType::SECP256k1);
         assert_eq!(decoded.network, "".to_string());
         assert_eq!(decoded.source, Source::Private);

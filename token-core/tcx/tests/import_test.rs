@@ -1096,7 +1096,18 @@ pub fn test_import_hex_private_key() {
         let ret = call_api("import_private_key", param).unwrap();
         let import_result: ImportPrivateKeyResult =
             ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
-        assert_eq!(Vec::<String>::new(), import_result.identified_chain_types);
+        assert_eq!(
+            vec![
+                "BITCOIN".to_string(),
+                "ETHEREUM".to_string(),
+                "BITCOINCASH".to_string(),
+                "LITECOIN".to_string(),
+                "EOS".to_string(),
+                "TRON".to_string(),
+                "FILECOIN".to_string(),
+            ],
+            import_result.identified_chain_types
+        );
         assert_eq!("secp256k1", import_result.identified_curve);
         assert_eq!("", import_result.identified_network);
         assert_eq!("PRIVATE", import_result.source);
