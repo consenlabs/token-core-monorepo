@@ -533,7 +533,7 @@ pub(crate) mod tests {
     };
     use crate::Result;
     use tcx_common::{FromHex, ToHex};
-    use tcx_constants::sample_key::WRONG_PASSWORD;
+
     use tcx_constants::{CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY};
     use tcx_crypto::Key;
     use tcx_primitive::{

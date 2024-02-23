@@ -63,7 +63,7 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
         let mut existed_id = "".to_string();
         let fingerprint = keystore.fingerprint();
         {
-            let keystore_map = KEYSTORE_MAP.read();
+            let mut keystore_map = KEYSTORE_MAP.write();
             let existed_ks: Vec<&Keystore> = keystore_map
                 .values()
                 .filter(|ks| ks.fingerprint() == fingerprint)
@@ -71,6 +71,9 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
             if existed_ks.len() > 0 {
                 is_existed = true;
                 existed_id = existed_ks[0].id().to_string();
+                // Note: Temporary retention of the old ID,
+                // so that users can continue to use the old ID for subsequent operations.
+                keystore_map.insert(param.id, keystore.clone());
             }
         }
         if is_existed {

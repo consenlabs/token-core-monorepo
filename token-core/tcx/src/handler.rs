@@ -28,11 +28,10 @@ use tcx_filecoin::KeyInfo;
 
 use crate::api::derive_accounts_param::Derivation;
 use crate::api::{
-    self, export_private_key_param, wallet_key_param, AccountResponse, BackupResult,
-    CreateKeystoreParam, DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam,
-    DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult,
-    EncryptDataToIpfsParam, EncryptDataToIpfsResult, EthBatchPersonalSignParam,
-    EthBatchPersonalSignResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
+    self, export_private_key_param, AccountResponse, BackupResult, CreateKeystoreParam,
+    DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam, DeriveAccountsResult,
+    DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, EncryptDataToIpfsParam,
+    EncryptDataToIpfsResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
     ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicParam,
     ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
     GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
@@ -41,6 +40,7 @@ use crate::api::{
     ScanKeystoresResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
     SignHashesParam, SignHashesResult, WalletKeyParam,
 };
+use crate::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult};
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
 use crate::filemanager::{
@@ -84,7 +84,7 @@ use_chains!(
     tcx_tron::tron,
 );
 
-pub(crate) fn encode_message(msg: impl Message) -> Result<Vec<u8>> {
+pub fn encode_message(msg: impl Message) -> Result<Vec<u8>> {
     let mut buf = BytesMut::with_capacity(msg.encoded_len());
     msg.encode(&mut buf)?;
     Ok(buf.to_vec())
@@ -388,7 +388,7 @@ pub fn init_token_core_x(data: &[u8]) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn scan_keystores() -> Result<ScanKeystoresResult> {
+pub fn scan_keystores() -> Result<ScanKeystoresResult> {
     clean_keystore();
     let file_dir = WALLET_FILE_DIR.read();
     let p = Path::new(file_dir.as_str());
@@ -460,7 +460,7 @@ pub(crate) fn scan_keystores() -> Result<ScanKeystoresResult> {
     })
 }
 
-pub(crate) fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
+pub fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let param: CreateKeystoreParam =
         CreateKeystoreParam::decode(data).expect("create_keystore param");
 
@@ -495,7 +495,7 @@ pub(crate) fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
     Ok(ret)
 }
 
-pub(crate) fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
+pub fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
     let param: ImportMnemonicParam =
         ImportMnemonicParam::decode(data).expect("import_mnemonic param");
 
@@ -551,7 +551,7 @@ pub(crate) fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 impl_to_key!(crate::api::derive_accounts_param::Key);
-pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
+pub fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
     let param: DeriveAccountsParam =
         DeriveAccountsParam::decode(data).expect("derive_accounts param");
     let mut map = KEYSTORE_MAP.write();
@@ -627,7 +627,7 @@ pub(crate) fn export_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(export_result)
 }
 
-pub(crate) fn import_private_key(data: &[u8]) -> Result<Vec<u8>> {
+pub fn import_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: ImportPrivateKeyParam =
         ImportPrivateKeyParam::decode(data).expect("import_private_key param");
 
@@ -880,7 +880,7 @@ pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
     sign_message_internal(&param, guard.keystore_mut())
 }
 
-pub(crate) fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
+pub fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: WalletKeyParam = WalletKeyParam::decode(data).expect("get_derived_key param");
     let mut map: parking_lot::lock_api::RwLockWriteGuard<
         '_,
@@ -1144,7 +1144,7 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
     })
 }
 
-pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
+pub fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
     let param: DeriveSubAccountsParam =
         DeriveSubAccountsParam::decode(data).expect("DeriveSubAccountsParam");
 
@@ -1187,7 +1187,7 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(DeriveSubAccountsResult { accounts })
 }
 
-pub(crate) fn mnemonic_to_public(data: &[u8]) -> Result<Vec<u8>> {
+pub fn mnemonic_to_public(data: &[u8]) -> Result<Vec<u8>> {
     let param = MnemonicToPublicKeyParam::decode(data)?;
     let public_key = tcx_primitive::mnemonic_to_public(&param.mnemonic, &param.path, &param.curve)?;
     let coin_info = CoinInfo {

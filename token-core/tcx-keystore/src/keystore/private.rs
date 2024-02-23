@@ -1,6 +1,7 @@
 use super::Account;
 use super::{Address, Metadata};
-use bitcoin::util;
+use anyhow::ensure;
+
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::{Crypto, Key};
 
@@ -77,6 +78,10 @@ impl PrivateKeystore {
         tcx_ensure!(self.private_key.is_some(), Error::KeystoreLocked);
 
         let sk = self.private_key.as_ref().unwrap();
+        ensure!(
+            coin_info.curve == self.store().curve.expect("private keysore need curve"),
+            "private_key_curve_not_match"
+        );
 
         let account = Self::private_key_to_account::<A>(coin_info, sk)?;
 
