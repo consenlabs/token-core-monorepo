@@ -41,7 +41,7 @@ pub mod tezos_signer;
 extern crate lazy_static;
 extern crate anyhow;
 use crate::error_handling::{landingpad, LAST_ERROR};
-use crate::handler::derive_accounts;
+use crate::handler::{derive_accounts, get_extended_public_key};
 use crate::message_handler::encode_message;
 use ikc_transport::message;
 
@@ -272,6 +272,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
 
         "btc_get_xpub" => landingpad(|| btc_address::get_btc_xpub(&action.param.unwrap().value)),
 
+        "get_extended_public_key" => landingpad(|| get_extended_public_key(&action.param.unwrap().value)),
         _ => landingpad(|| Err(anyhow!("unsupported_method"))),
     };
     match reply {
@@ -311,9 +312,7 @@ pub unsafe extern "C" fn imkey_get_last_err_message() -> *const c_char {
 mod tests {
     use super::*;
     use crate::api::derive_accounts_param::Derivation;
-    use crate::api::{
-        DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
-    };
+    use crate::api::{DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, PublicKeyDerivation};
 
     use ikc_device::deviceapi::{BindAcquireReq, BindCheckRes};
     use ikc_transport::hid_api::hid_connect;
@@ -1398,6 +1397,175 @@ mod tests {
         assert_eq!(
             "0x0394f89191b900da3b605d0334a8fe7f3d4bad7031ebc2bdca36b32b929551fa9c",
             derived_sub_accounts.accounts[1].public_key
+        );
+    }
+
+    #[test]
+    fn test_get_extended_public_key() {
+        connect_and_bind();
+
+        let derivations = vec![
+            PublicKeyDerivation{
+                chain_type: "BITCOIN".to_string(),
+                path: "m/44'/145'/0'/0/0".to_string(),
+                curve: "secp256k1".to_string(),
+            },
+            PublicKeyDerivation{
+                chain_type: "ETHEREUM".to_string(),
+                path: "m/44'/60'/0'/0/0".to_string(),
+                curve: "secp256k1".to_string(),
+            },
+            PublicKeyDerivation{
+                chain_type: "POLKADOT".to_string(),
+                path: "m/44'/354'/0'/0'/0'".to_string(),
+                curve: "ed25519".to_string(),
+            },
+            PublicKeyDerivation{
+                chain_type: "KUSAMA".to_string(),
+                path: "m/44'/434'/0'/0'/0'".to_string(),
+                curve: "ed25519".to_string(),
+            },
+            PublicKeyDerivation{
+                chain_type: "BITCOIN".to_string(),
+                path: "m/0/1".to_string(),
+                curve: "secp256k1".to_string(),
+            },
+            PublicKeyDerivation{
+                chain_type: "POLKADOT".to_string(),
+                path: "m/0'/1'".to_string(),
+                curve: "ed25519".to_string(),
+            },
+        ];
+        let param = GetExtendedPublicKeysParam{
+            derivations,
+        };
+        let action: ImkeyAction = ImkeyAction {
+            method: "get_extended_public_key".to_string(),
+            param: Some(::prost_types::Any {
+                type_url: "get_extended_public_key".to_string(),
+                value: encode_message(param).unwrap(),
+            }),
+        };
+        let action = hex::encode(encode_message(action).unwrap());
+        let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
+        let ret_bytes = hex::decode(ret_hex).unwrap();
+        let extended_public_key: GetExtendedPublicKeysResult =
+            GetExtendedPublicKeysResult::decode(ret_bytes.as_slice()).unwrap();
+        assert_eq!(extended_public_key.extended_public_keys[0], "xpub6GZjFnyumLtEwC4KQkigvc3vXJdZvy71QxHTsFQQv1YtEUWNEwynKWsK2LBFZNLWdTk3w1Y9cRv4NN7V2pnDBoWgH3PkVE9r9Q2kSQL2zkH");
+        assert_eq!(extended_public_key.extended_public_keys[1], "xpub6FmdMKZ36pLzf1iF7DLCzKtZms33cZ6mVjvBSy2dCPugFCH23cS3jgHfQ9PKmxs989ZyiyALuADMtLokCzpw7Fi35ap4uybfQAY5WVakan7");
+        assert_eq!(extended_public_key.extended_public_keys[2], "edb9955556c8e07287df95ad77fad826168f8a50488cce0d738df3769e24613a");
+        assert_eq!(extended_public_key.extended_public_keys[3], "873cf8e52a7b93a55197ef2846e9627a6f105b0a06c86659c813f1a50438b479");
+        assert_eq!(extended_public_key.extended_public_keys[4], "xpub6AQmexrYd5utZNmD9Gnf4CjrzJ4kuvaxacLyuSD5sA34g4oKuzBpX5rhAZrCZoxkcqWLVyWSz1rEh5ECs4PDRN16PLfNKFftxm48y6zsWX3");
+        assert_eq!(extended_public_key.extended_public_keys[5], "99908c0806ddcda0a8779c4f0c0a87fb679c08c444798cafb21a28cd459388fe");
+    }
+
+    #[test]
+    fn test_get_extended_public_key_error_case() {
+        connect_and_bind();
+
+        let test_data = vec![
+            vec![
+                PublicKeyDerivation{
+                    chain_type: "POLKADOT".to_string(),
+                    path: "m/44'/354'/0'/0'/0'".to_string(),
+                    curve: "sr25519".to_string(),
+                },
+            ],
+            vec![
+                PublicKeyDerivation{
+                    chain_type: "BITCOIN".to_string(),
+                    path: "".to_string(),
+                    curve: "secp256k1".to_string(),
+                },
+            ],
+            vec![
+                PublicKeyDerivation{
+                    chain_type: "BITCOIN".to_string(),
+                    path: "m/0".to_string(),
+                    curve: "secp256k1".to_string(),
+                },
+            ],
+            vec![
+                PublicKeyDerivation{
+                    chain_type: "POLKADOT".to_string(),
+                    path: "".to_string(),
+                    curve: "ed25519".to_string(),
+                },
+            ],
+            vec![
+                PublicKeyDerivation{
+                    chain_type: "POLKADOT".to_string(),
+                    path: "m/0'".to_string(),
+                    curve: "ed25519".to_string(),
+                },
+            ],
+        ];
+        for i in 0..test_data.len() {
+            let param = GetExtendedPublicKeysParam{
+                derivations: test_data[i].clone(),
+            };
+            let action: ImkeyAction = ImkeyAction {
+                method: "get_extended_public_key".to_string(),
+                param: Some(::prost_types::Any {
+                    type_url: "get_extended_public_key".to_string(),
+                    value: encode_message(param).unwrap(),
+                }),
+            };
+            let action = hex::encode(encode_message(action).unwrap());
+            let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
+            let err = unsafe { _to_str(imkey_get_last_err_message()) };
+            assert!(!err.is_empty());
+            let error_ret: ErrorResponse = ErrorResponse::decode(hex::decode(err).unwrap().as_slice()).unwrap();
+            match i {
+                0 => { assert_eq!(error_ret.error, "unsupported_chain_type"); },
+                1 => { assert_eq!(error_ret.error, "imkey_path_illegal"); },
+                2 => { assert_eq!(error_ret.error, "imkey_path_illegal"); },
+                3 => { assert_eq!(error_ret.error, "imkey_path_illegal"); },
+                4 => { assert_eq!(error_ret.error, "imkey_path_illegal"); },
+                _ => {}
+            };
+        }
+    }
+
+    #[test]
+    fn test_get_extended_public_key_wrong_path() {
+        connect_and_bind();
+
+        let derivations = vec![
+            PublicKeyDerivation{
+                chain_type: "POLKADOT".to_string(),
+                path: "m/44'/354'/0'/0'/0'".to_string(),
+                curve: "sr25519".to_string(),
+            },
+            // PublicKeyDerivation{
+            //     chain_type: "BITCOIN".to_string(),
+            //     path: "".to_string(),
+            //     curve: "secp256k1".to_string(),
+            // },
+            // PublicKeyDerivation{
+            //     chain_type: "BITCOIN".to_string(),
+            //     path: "m/0".to_string(),
+            //     curve: "secp256k1".to_string(),
+            // },
+        ];
+        let param = GetExtendedPublicKeysParam{
+            derivations,
+        };
+        let action: ImkeyAction = ImkeyAction {
+            method: "get_extended_public_key".to_string(),
+            param: Some(::prost_types::Any {
+                type_url: "get_extended_public_key".to_string(),
+                value: encode_message(param).unwrap(),
+            }),
+        };
+        let action = hex::encode(encode_message(action).unwrap());
+        let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
+        let err = unsafe { _to_str(imkey_get_last_err_message()) };
+        assert!(!err.is_empty());
+        let error_ret: ErrorResponse = ErrorResponse::decode(hex::decode(err).unwrap().as_slice()).unwrap();
+        assert_eq!(
+            error_ret.error,
+            "unsupported_chain_type"
         );
     }
 

@@ -1,7 +1,4 @@
-use crate::api::{
-    AccountResponse, DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam,
-    DeriveSubAccountsResult,
-};
+use crate::api::{AccountResponse, DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult};
 use crate::message_handler::encode_message;
 use crate::Result;
 use anyhow::anyhow;
@@ -26,6 +23,7 @@ use ikc_common::utility::{
 };
 use prost::Message;
 use std::str::FromStr;
+use bitcoin::Network;
 
 pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
     let param: DeriveAccountsParam =
@@ -192,6 +190,23 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
 
     encode_message(DeriveSubAccountsResult {
         accounts: account_responses,
+    })
+}
+
+pub(crate) fn get_extended_public_key(data: &[u8]) -> Result<Vec<u8>> {
+    let param: GetExtendedPublicKeysParam = GetExtendedPublicKeysParam::decode(data)?;
+    let mut extended_public_keys = vec![];
+    for public_key_derivation in param.derivations.iter(){
+        // if "".eq(&public_key_derivation.path) || &public_key_derivation.path.split("/") {  }
+        let extended_public_key = match public_key_derivation.curve.as_str() {
+            "secp256k1" => BtcAddress::get_xpub(Network::Bitcoin, public_key_derivation.path.as_str())?,
+            "ed25519" => SubstrateAddress::get_public_key(public_key_derivation.path.as_str(), &AddressType::Polkadot)?,
+            _ => return Err(anyhow!("unsupported_chain_type")),
+        };
+        extended_public_keys.push(extended_public_key);
+    }
+    encode_message(GetExtendedPublicKeysResult{
+        extended_public_keys
     })
 }
 
