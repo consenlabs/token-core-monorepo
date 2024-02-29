@@ -41,7 +41,7 @@ pub mod tezos_signer;
 extern crate lazy_static;
 extern crate anyhow;
 use crate::error_handling::{landingpad, LAST_ERROR};
-use crate::handler::{derive_accounts, get_extended_public_key};
+use crate::handler::{derive_accounts, get_extended_public_keys};
 use crate::message_handler::encode_message;
 use ikc_transport::message;
 
@@ -272,7 +272,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
 
         "btc_get_xpub" => landingpad(|| btc_address::get_btc_xpub(&action.param.unwrap().value)),
 
-        "get_extended_public_key" => landingpad(|| get_extended_public_key(&action.param.unwrap().value)),
+        "get_extended_public_keys" => landingpad(|| get_extended_public_keys(&action.param.unwrap().value)),
         _ => landingpad(|| Err(anyhow!("unsupported_method"))),
     };
     match reply {
@@ -1401,7 +1401,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_extended_public_key() {
+    fn test_get_extended_public_keys() {
         connect_and_bind();
 
         let derivations = vec![
@@ -1435,14 +1435,24 @@ mod tests {
                 path: "m/0'/1'".to_string(),
                 curve: "ed25519".to_string(),
             },
+            PublicKeyDerivation{
+                chain_type: "BITCOIN".to_string(),
+                path: "m/44'/145'/0'".to_string(),
+                curve: "secp256k1".to_string(),
+            },
+            PublicKeyDerivation{
+                chain_type: "POLKADOT".to_string(),
+                path: "m/44'/354'/0'".to_string(),
+                curve: "ed25519".to_string(),
+            },
         ];
         let param = GetExtendedPublicKeysParam{
             derivations,
         };
         let action: ImkeyAction = ImkeyAction {
-            method: "get_extended_public_key".to_string(),
+            method: "get_extended_public_keys".to_string(),
             param: Some(::prost_types::Any {
-                type_url: "get_extended_public_key".to_string(),
+                type_url: "get_extended_public_keys".to_string(),
                 value: encode_message(param).unwrap(),
             }),
         };
@@ -1457,10 +1467,12 @@ mod tests {
         assert_eq!(extended_public_key.extended_public_keys[3], "873cf8e52a7b93a55197ef2846e9627a6f105b0a06c86659c813f1a50438b479");
         assert_eq!(extended_public_key.extended_public_keys[4], "xpub6AQmexrYd5utZNmD9Gnf4CjrzJ4kuvaxacLyuSD5sA34g4oKuzBpX5rhAZrCZoxkcqWLVyWSz1rEh5ECs4PDRN16PLfNKFftxm48y6zsWX3");
         assert_eq!(extended_public_key.extended_public_keys[5], "99908c0806ddcda0a8779c4f0c0a87fb679c08c444798cafb21a28cd459388fe");
+        assert_eq!(extended_public_key.extended_public_keys[6], "xpub6Bmkv3mmRZZWoFSBdj9vDMqR2PCPSP6DEj8u3bBuv44g3Ncnro6cPVqZAw6wTEcxHQuodkuJG4EmAinqrrRXGsN3HHnRRMtAvzfYTiBATV1");
+        assert_eq!(extended_public_key.extended_public_keys[7], "2d9aecea337e9eee9d9a86f2d81aadafa88557fe5fb49efa187ce8ca3bc4e2a2");
     }
 
     #[test]
-    fn test_get_extended_public_key_error_case() {
+    fn test_get_extended_public_keys_error_case() {
         connect_and_bind();
 
         let test_data = vec![
@@ -1505,9 +1517,9 @@ mod tests {
                 derivations: test_data[i].clone(),
             };
             let action: ImkeyAction = ImkeyAction {
-                method: "get_extended_public_key".to_string(),
+                method: "get_extended_public_keys".to_string(),
                 param: Some(::prost_types::Any {
-                    type_url: "get_extended_public_key".to_string(),
+                    type_url: "get_extended_public_keys".to_string(),
                     value: encode_message(param).unwrap(),
                 }),
             };
@@ -1517,7 +1529,7 @@ mod tests {
             assert!(!err.is_empty());
             let error_ret: ErrorResponse = ErrorResponse::decode(hex::decode(err).unwrap().as_slice()).unwrap();
             match i {
-                0 => { assert_eq!(error_ret.error, "unsupported_chain_type"); },
+                0 => { assert_eq!(error_ret.error, "unsupported_curve_type"); },
                 1 => { assert_eq!(error_ret.error, "imkey_path_illegal"); },
                 2 => { assert_eq!(error_ret.error, "imkey_path_illegal"); },
                 3 => { assert_eq!(error_ret.error, "imkey_path_illegal"); },
@@ -1525,48 +1537,6 @@ mod tests {
                 _ => {}
             };
         }
-    }
-
-    #[test]
-    fn test_get_extended_public_key_wrong_path() {
-        connect_and_bind();
-
-        let derivations = vec![
-            PublicKeyDerivation{
-                chain_type: "POLKADOT".to_string(),
-                path: "m/44'/354'/0'/0'/0'".to_string(),
-                curve: "sr25519".to_string(),
-            },
-            // PublicKeyDerivation{
-            //     chain_type: "BITCOIN".to_string(),
-            //     path: "".to_string(),
-            //     curve: "secp256k1".to_string(),
-            // },
-            // PublicKeyDerivation{
-            //     chain_type: "BITCOIN".to_string(),
-            //     path: "m/0".to_string(),
-            //     curve: "secp256k1".to_string(),
-            // },
-        ];
-        let param = GetExtendedPublicKeysParam{
-            derivations,
-        };
-        let action: ImkeyAction = ImkeyAction {
-            method: "get_extended_public_key".to_string(),
-            param: Some(::prost_types::Any {
-                type_url: "get_extended_public_key".to_string(),
-                value: encode_message(param).unwrap(),
-            }),
-        };
-        let action = hex::encode(encode_message(action).unwrap());
-        let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
-        let err = unsafe { _to_str(imkey_get_last_err_message()) };
-        assert!(!err.is_empty());
-        let error_ret: ErrorResponse = ErrorResponse::decode(hex::decode(err).unwrap().as_slice()).unwrap();
-        assert_eq!(
-            error_ret.error,
-            "unsupported_chain_type"
-        );
     }
 
     fn derive_account(derivation: Derivation) -> DeriveAccountsResult {

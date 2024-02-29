@@ -238,7 +238,7 @@ pub struct DeriveSubAccountsResult {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetExtendedPublicKeysParam {
-    #[prost(message, repeated, tag = "4")]
+    #[prost(message, repeated, tag = "1")]
     pub derivations: ::prost::alloc::vec::Vec<PublicKeyDerivation>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
