@@ -166,6 +166,7 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
         let ext_pub_key = extended_pub_key_derive(&xpub.0, &relative_path)?;
         let pub_key_uncompressed = ext_pub_key.public_key.serialize_uncompressed().to_vec();
         account.public_key = format!("0x{}", ext_pub_key.public_key.serialize().to_hex());
+        account.path = relative_path;
         let address = match param.chain_type.as_str() {
             "ETHEREUM" => EthAddress::from_pub_key(pub_key_uncompressed)?,
             "BITCOIN" | "LITECOIN" => {
