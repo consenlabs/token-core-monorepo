@@ -69,6 +69,7 @@ use tcx_primitive::TypedDeterministicPublicKey;
 use tcx_tezos::{encode_tezos_private_key, parse_tezos_private_key};
 
 use crate::macros::{impl_to_key, use_chains};
+use crate::migration::remove_old_keystore_by_id;
 
 use_chains!(
     tcx_btc_kin::bitcoin,
@@ -724,6 +725,8 @@ pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
     if keystore.verify_password(&param.key.clone().unwrap().into()) {
         delete_keystore_file(&param.id)?;
         map.remove(&param.id);
+
+        remove_old_keystore_by_id(&param.id.clone());
 
         let rsp = GeneralResult {
             is_success: true,

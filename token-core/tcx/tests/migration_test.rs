@@ -3,15 +3,15 @@ use serial_test::serial;
 mod common;
 use api::sign_param::Key;
 
-use tcx::filemanager::KEYSTORE_MAP;
+use tcx::filemanager::{KEYSTORE_MAP, LEGACY_WALLET_FILE_DIR};
 
 use tcx::*;
 use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
 
 use prost::Message;
 use tcx::api::{
-    export_mnemonic_param, migrate_keystore_param, ExportMnemonicParam, ExportMnemonicResult,
-    MigrateKeystoreParam, MigrateKeystoreResult, SignParam,
+    export_mnemonic_param, migrate_keystore_param, wallet_key_param, ExportMnemonicParam,
+    ExportMnemonicResult, MigrateKeystoreParam, MigrateKeystoreResult, SignParam, WalletKeyParam,
 };
 
 use tcx::handler::encode_message;
@@ -19,7 +19,9 @@ use tcx_constants::CurveType;
 use tcx_constants::{OTHER_MNEMONIC, TEST_PASSWORD};
 use tcx_keystore::Keystore;
 
+use anyhow::{anyhow, format_err};
 use std::fs;
+use std::path::Path;
 
 use sp_core::ByteArray;
 
@@ -479,10 +481,36 @@ pub fn test_migrate_keystores_identified_chain_types() {
     // fs::remove_dir_all("../test-data/walletsV2").unwrap();
 }
 
+fn copy_dir(src: &Path, dst: &Path) -> Result<()> {
+    if src.is_dir() {
+        fs::create_dir_all(dst)?; // Create destination directory if it doesn't exist
+        for entry in src.read_dir()? {
+            let entry = entry?;
+            let path = entry.path();
+            let new_dest = dst.join(path.strip_prefix(src)?);
+            if path.is_dir() {
+                copy_dir(&path, &new_dest)?; // Recursively copy subdirectories
+            } else {
+                fs::copy(&path, &new_dest)?; // Copy files
+            }
+        }
+    } else {
+        return Err(anyhow!("source is not a directory"));
+    }
+    Ok(())
+}
+
+fn setup_test(old_wallet_dir: &str) {
+    let _ = fs::remove_dir_all("/tmp/token-core-x");
+    copy_dir(&Path::new(old_wallet_dir), &Path::new("/tmp/token-core-x")).unwrap();
+
+    init_token_core_x("/tmp/token-core-x");
+}
+
 #[test]
 #[serial]
-fn test_migrate_duplicate_keystore() {
-    init_token_core_x("../test-data/migrate-duplication-fixtures");
+fn test_migrate_duplicate_then_delete_keystore() {
+    setup_test("../test-data/migrate-duplication-fixtures");
     let param = MigrateKeystoreParam {
         id: "300b42bc-0948-4734-82cb-4293dfeeefd2".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
@@ -545,5 +573,23 @@ fn test_migrate_duplicate_keystore() {
     let expected_sig =
         "3/FXveMRWVXcdJRSaz1hBbEReka2/vXqAoHlj1L1jl9y0worNAjEqo3Y9CWx8ddl9qKwghWBRQ70mJDNsXnoJQ==";
     assert_eq!(expected_sig, output.signature);
-    fs::remove_dir_all("../test-data/migrate-duplication-fixtures/walletsV2").unwrap();
+
+    let param = WalletKeyParam {
+        id: "300b42bc-0948-4734-82cb-4293dfeeefd2".to_string(),
+        key: Some(wallet_key_param::Key::Password(TEST_PASSWORD.to_string())),
+    };
+    let ret = call_api("delete_keystore", param).unwrap();
+
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/300b42bc-0948-4734-82cb-4293dfeeefd2.json").exists(),
+        false
+    );
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/9b696367-69c1-4cfe-8325-e5530399fc3f").exists(),
+        false
+    );
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/_migrated").exists(),
+        false
+    );
 }

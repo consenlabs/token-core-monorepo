@@ -10,6 +10,7 @@ use anyhow::anyhow;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Read;
 use std::path::Path;
@@ -22,6 +23,72 @@ use tcx_keystore::Metadata;
 use tcx_migration::keystore_upgrade::{mapping_curve_name, KeystoreUpgrade};
 use tcx_migration::migration::{LegacyKeystore, NumberOrNumberStr};
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
+
+fn read_migrated_map() -> (String, HashMap<String, Vec<String>>) {
+    let legacy_file_dir = {
+        let dir = LEGACY_WALLET_FILE_DIR.read();
+        dir.to_string()
+    };
+
+    let migrated_file = format!("{}/_migrated.json", legacy_file_dir);
+    let map = if let Ok(json_str) = fs::read_to_string(&migrated_file) {
+        serde_json::from_str::<HashMap<String, Vec<String>>>(&json_str).unwrap_or(HashMap::new())
+    } else {
+        HashMap::new()
+    };
+
+    (migrated_file, map)
+}
+
+pub fn remove_old_keystore_by_id(id: &str) {
+    let legacy_file_dir = {
+        let dir = LEGACY_WALLET_FILE_DIR.read();
+        dir.to_string()
+    };
+
+    let result = read_migrated_map();
+
+    let migrated_file = result.0;
+    let mut map = result.1;
+
+    if let Some(files) = map.get(id) {
+        for file_id in files.iter() {
+            let mut file_path = format!("{}/{}.json", legacy_file_dir, file_id);
+            if !Path::new(&file_path).exists() {
+                file_path = format!("{}/{}", legacy_file_dir, file_id);
+            }
+
+            if Path::new(&file_path).exists() {
+                fs::remove_file(&file_path);
+            }
+        }
+    }
+
+    map.remove(id);
+
+    if !map.is_empty() {
+        let json_str = serde_json::to_string(&map).unwrap();
+        fs::write(&migrated_file, json_str);
+    } else {
+        fs::remove_file(&migrated_file);
+    }
+}
+
+fn mark_keystore_as_migrated(legacy_file_id: &str, migrated_file_id: &str) {
+    let result = read_migrated_map();
+    let mut map: HashMap<String, Vec<String>> = result.1;
+    let migrated_file = result.0;
+
+    let file_ids = map.entry(migrated_file_id.to_string()).or_insert(vec![]);
+    if file_ids.contains(&legacy_file_id.to_string()) {
+        return;
+    }
+
+    file_ids.push(legacy_file_id.to_string());
+
+    let json_str = serde_json::to_string(&map).unwrap();
+    fs::write(&migrated_file, json_str).expect("write migrated.json");
+}
 
 pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let param: MigrateKeystoreParam =
@@ -58,7 +125,7 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
                 keystore = legacy_keystore.migrate(&key, &IdentityNetwork::Testnet)?;
             }
         }
-
+        let id = param.id.clone();
         let mut is_existed = false;
         let mut existed_id = "".to_string();
         let fingerprint = keystore.fingerprint();
@@ -76,13 +143,18 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
                 keystore_map.insert(param.id, keystore.clone());
             }
         }
+
         if is_existed {
+            mark_keystore_as_migrated(&id, &existed_id);
+
             return encode_message(MigrateKeystoreResult {
                 is_existed: true,
                 existed_id,
                 keystore: None,
             });
         } else {
+            mark_keystore_as_migrated(&id, &keystore.id());
+
             let identity = keystore.identity();
 
             let keystore_result = KeystoreResult {
