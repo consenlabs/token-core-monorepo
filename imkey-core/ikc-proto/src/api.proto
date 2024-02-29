@@ -144,7 +144,7 @@ message DeriveSubAccountsResult {
 }
 
 message GetExtendedPublicKeysParam {
-    repeated PublicKeyDerivation derivations = 4;
+    repeated PublicKeyDerivation derivations = 1;
 }
 
 message GetExtendedPublicKeysResult {
