@@ -35,6 +35,7 @@ pub fn test_migrate_keystores_existed() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string(),
+        network: "TESTNET".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
@@ -61,6 +62,7 @@ pub fn test_migrate_keystores_existed() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "00fc0804-7cea-46d8-9e95-ed1efac65358".to_string(),
+            network: "TESTNET".to_string(),
             key: Some(migrate_keystore_param::Key::DerivedKey(
                 "2d7380db28736ae5b0693340a5731e137759d32bbcc1f7988574bc5a1ffd97f3411b4edc14ea648fa17d511129e81a84d2b8a00d45bc37f4784e49b641d5c3be".to_string(),
             )),
@@ -81,6 +83,7 @@ pub fn test_migrate_keystores_source() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
+            network: "TESTNET".to_string(),
             key: Some(migrate_keystore_param::Key::DerivedKey(
                 "1a60471067b6c6a3202e0014de2ce9b2d45fd73e2289b3cc3d8e5b58fe99ff242fd61e9fe63e75abbdc0ed87a50756cc10c57daf1d6297b99ec9a3b174eee017".to_string(),
             )),
@@ -91,6 +94,7 @@ pub fn test_migrate_keystores_source() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "6c3eae60-ad03-48db-a5e5-61a6f72aef8d".to_string(),
+            network: "TESTNET".to_string(),
             key: Some(migrate_keystore_param::Key::DerivedKey(
                 "9f65c31b4a61c430cd6c976e7f1b1b912bb09b46ec718447bbb5dccc353b19becb6b386405b3fcc7d43bd8e617764c3407d45824e52984d0074ac3f75c68bd92".to_string()
             )),
@@ -101,6 +105,7 @@ pub fn test_migrate_keystores_source() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "9f4acb4a-7431-4c7d-bd25-a19656a86ea0".to_string(),
+            network: "TESTNET".to_string(),
             key: Some(migrate_keystore_param::Key::DerivedKey(
                 "a5b0cb9cb0536d6ec6ab21da77415bd59aff62c44c1da40d377c4faf2a44608693a72efb4079f57a5dca710ecff75dc5b54beb4ad6d9f9d47b63583810b50c61".to_string(),
             )),
@@ -111,6 +116,7 @@ pub fn test_migrate_keystores_source() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "949bada8-776c-4554-ad0c-001e3726a0f8".to_string(),
+        network: "TESTNET".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
@@ -121,6 +127,7 @@ pub fn test_migrate_keystores_source() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "60573d8d-8e83-45c3-85a5-34fbb2aad5e1".to_string(),
+        network: "TESTNET".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
@@ -131,6 +138,7 @@ pub fn test_migrate_keystores_source() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb".to_string(),
+        network: "TESTNET".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
@@ -150,6 +158,7 @@ pub fn test_migrate_keystores_curve() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
+            network: "TESTNET".to_string(),
             key: Some(migrate_keystore_param::Key::DerivedKey(
                 "1a60471067b6c6a3202e0014de2ce9b2d45fd73e2289b3cc3d8e5b58fe99ff242fd61e9fe63e75abbdc0ed87a50756cc10c57daf1d6297b99ec9a3b174eee017".to_string(),
             )),
@@ -169,6 +178,7 @@ pub fn test_migrate_keystores_curve() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "9f4acb4a-7431-4c7d-bd25-a19656a86ea0".to_string(),
+            network: "TESTNET".to_string(),
             key: Some(migrate_keystore_param::Key::DerivedKey(
                 "a5b0cb9cb0536d6ec6ab21da77415bd59aff62c44c1da40d377c4faf2a44608693a72efb4079f57a5dca710ecff75dc5b54beb4ad6d9f9d47b63583810b50c61".to_string(),
             )),
@@ -186,6 +196,7 @@ pub fn test_migrate_keystores_curve() {
     }
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "949bada8-776c-4554-ad0c-001e3726a0f8".to_string(),
+        network: "TESTNET".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
@@ -203,6 +214,7 @@ pub fn test_migrate_keystores_curve() {
     }
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "60573d8d-8e83-45c3-85a5-34fbb2aad5e1".to_string(),
+        network: "TESTNET".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
@@ -221,6 +233,7 @@ pub fn test_migrate_keystores_curve() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb".to_string(),
+        network: "TESTNET".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
@@ -239,6 +252,7 @@ pub fn test_migrate_keystores_curve() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb".to_string(),
+        network: "TESTNET".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
@@ -257,6 +271,7 @@ pub fn test_migrate_keystores_curve() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "4d5cbfcf-aee1-4908-9991-9d060eb68a0e".to_string(),
+        network: "TESTNET".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
@@ -284,6 +299,7 @@ pub fn test_migrate_keystores_flush() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
+            network: "TESTNET".to_string(),
             key: Some(migrate_keystore_param::Key::DerivedKey(
                 "1a60471067b6c6a3202e0014de2ce9b2d45fd73e2289b3cc3d8e5b58fe99ff242fd61e9fe63e75abbdc0ed87a50756cc10c57daf1d6297b99ec9a3b174eee017".to_string(),
             )),
@@ -319,6 +335,7 @@ pub fn test_identified_network_flush() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
+            network: "TESTNET".to_string(),
             key: Some(migrate_keystore_param::Key::DerivedKey(
                 "1a60471067b6c6a3202e0014de2ce9b2d45fd73e2289b3cc3d8e5b58fe99ff242fd61e9fe63e75abbdc0ed87a50756cc10c57daf1d6297b99ec9a3b174eee017".to_string(),
             )),
@@ -356,6 +373,7 @@ pub fn test_migrate_keystores_identified_chain_types() {
     {
         let param: MigrateKeystoreParam = MigrateKeystoreParam {
                 id: "d9e3bb9c-87fd-4836-b146-10a3e249eb75".to_string(),
+                network: "TESTNET".to_string(),
                 key: Some(migrate_keystore_param::Key::DerivedKey(
                     "01073f22079380d2180300c518f6b510d4761fd83ce738271460c9e745b9055dabb28f93ff3a8fd54e0c71c005b5e799f8d52bcce1a81e08b5f15f9604531574".to_string(),
                 )),
@@ -386,6 +404,7 @@ pub fn test_migrate_keystores_identified_chain_types() {
     {
         let param: MigrateKeystoreParam = MigrateKeystoreParam {
                 id: "60573d8d-8e83-45c3-85a5-34fbb2aad5e1".to_string(),
+                network: "TESTNET".to_string(),
                 key: Some(migrate_keystore_param::Key::DerivedKey(
                     "8f2316895af6d58b5b75d424977cdaeae2a619c6b941ca5f77dcfed592cd3b23b698040caf397df6153db6f2d5b2815bf8f8cd32f99998ca46534242df82d1ca".to_string(),
                 )),
@@ -415,6 +434,7 @@ pub fn test_migrate_keystores_identified_chain_types() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "792a0051-16d7-44a7-921a-9b4a0c893b8f".to_string(),
+            network: "TESTNET".to_string(),
             key: Some(migrate_keystore_param::Key::DerivedKey(
                 "0xebe2739dd04525823b967b914a74a5dedd0086622d0da3449c1354199518673dd33fca8f6bd64870d6e6dc28b0f6e9de169243679b1668750f23cfe9523c03b3".to_string(),
             )),
@@ -431,6 +451,7 @@ pub fn test_migrate_keystores_identified_chain_types() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
             id: "f3615a56-cb03-4aa4-a893-89944e49920d".to_string(),
+            network: "TESTNET".to_string(),
             key: Some(migrate_keystore_param::Key::DerivedKey(
                 "0x79c74b67fc73a255bc66afc1e7c25867a19e6d2afa5b8e3107a472de13201f1924fed05e811e7f5a4c3e72a8a6e047a80393c215412bde239ec7ded520896630".to_string(),
             )),
@@ -462,6 +483,7 @@ pub fn test_migrate_keystores_identified_chain_types() {
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb".to_string(),
+        network: "TESTNET".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
@@ -513,6 +535,7 @@ fn test_migrate_duplicate_then_delete_keystore() {
     setup_test("../test-data/migrate-duplication-fixtures");
     let param = MigrateKeystoreParam {
         id: "300b42bc-0948-4734-82cb-4293dfeeefd2".to_string(),
+        network: "TESTNET".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
@@ -533,6 +556,7 @@ fn test_migrate_duplicate_then_delete_keystore() {
     // 9b696367-69c1-4cfe-8325-e5530399fc3f
     let param = MigrateKeystoreParam {
         id: "9b696367-69c1-4cfe-8325-e5530399fc3f".to_string(),
+        network: "TESTNET".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),

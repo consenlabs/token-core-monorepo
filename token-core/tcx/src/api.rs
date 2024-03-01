@@ -632,7 +632,9 @@ pub struct MnemonicToPublicKeyResult {
 pub struct MigrateKeystoreParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    #[prost(oneof = "migrate_keystore_param::Key", tags = "2, 3")]
+    #[prost(string, tag = "2")]
+    pub network: ::prost::alloc::string::String,
+    #[prost(oneof = "migrate_keystore_param::Key", tags = "3, 4")]
     pub key: ::core::option::Option<migrate_keystore_param::Key>,
 }
 /// Nested message and enum types in `MigrateKeystoreParam`.
@@ -640,9 +642,9 @@ pub mod migrate_keystore_param {
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Key {
-        #[prost(string, tag = "2")]
-        Password(::prost::alloc::string::String),
         #[prost(string, tag = "3")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "4")]
         DerivedKey(::prost::alloc::string::String),
     }
 }

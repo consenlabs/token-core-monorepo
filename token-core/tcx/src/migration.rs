@@ -115,14 +115,15 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let keystore;
 
     if let Some(version) = json["version"].as_i64() {
+        let network = IdentityNetwork::from_str(&param.network.to_uppercase())?;
         match version {
             11000 | 11001 => {
                 let keystore_upgrade = KeystoreUpgrade::new(json);
-                keystore = keystore_upgrade.upgrade(&key, &IdentityNetwork::Testnet)?;
+                keystore = keystore_upgrade.upgrade(&key, &network)?;
             }
             _ => {
                 let legacy_keystore = LegacyKeystore::from_json_str(&json_str)?;
-                keystore = legacy_keystore.migrate(&key, &IdentityNetwork::Testnet)?;
+                keystore = legacy_keystore.migrate(&key, &network)?;
             }
         }
         let id = param.id.clone();
