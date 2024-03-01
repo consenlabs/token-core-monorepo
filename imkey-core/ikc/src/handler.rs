@@ -1,12 +1,14 @@
 use crate::api::{
     AccountResponse, DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam,
-    DeriveSubAccountsResult,
+    DeriveSubAccountsResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult,
+    GetPublicKeysParam, GetPublicKeysResult,
 };
 use crate::message_handler::encode_message;
 use crate::Result;
 use anyhow::anyhow;
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::util::bip32::ExtendedPubKey;
+use bitcoin::Network;
 use coin_bch::address::BchAddress;
 use coin_bitcoin::address::BtcAddress;
 use coin_btc_fork::address::BtcForkAddress;
@@ -22,7 +24,7 @@ use ikc_common::curve::CurveType;
 use ikc_common::path::get_account_path;
 use ikc_common::utility::{
     encrypt_xpub, extended_pub_key_derive, from_ss58check_with_version, get_xpub_prefix,
-    network_convert, to_ss58check_with_version, uncompress_pubkey_2_compress,
+    hex_to_bytes, network_convert, to_ss58check_with_version, uncompress_pubkey_2_compress,
 };
 use prost::Message;
 use std::str::FromStr;
@@ -168,6 +170,7 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
         let ext_pub_key = extended_pub_key_derive(&xpub.0, &relative_path)?;
         let pub_key_uncompressed = ext_pub_key.public_key.serialize_uncompressed().to_vec();
         account.public_key = format!("0x{}", ext_pub_key.public_key.serialize().to_hex());
+        account.path = relative_path;
         let address = match param.chain_type.as_str() {
             "ETHEREUM" => EthAddress::from_pub_key(pub_key_uncompressed)?,
             "BITCOIN" | "LITECOIN" => {
@@ -193,6 +196,51 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(DeriveSubAccountsResult {
         accounts: account_responses,
     })
+}
+
+pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
+    let param: GetExtendedPublicKeysParam = GetExtendedPublicKeysParam::decode(data)?;
+    let mut extended_public_keys = vec![];
+    for public_key_derivation in param.derivations.iter() {
+        // if "".eq(&public_key_derivation.path) || &public_key_derivation.path.split("/") {  }
+        let extended_public_key = match public_key_derivation.curve.as_str() {
+            "secp256k1" => {
+                BtcAddress::get_xpub(Network::Bitcoin, public_key_derivation.path.as_str())?
+            }
+            _ => return Err(anyhow!("unsupported_curve_type")),
+        };
+        extended_public_keys.push(extended_public_key);
+    }
+    encode_message(GetExtendedPublicKeysResult {
+        extended_public_keys,
+    })
+}
+
+pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
+    let param: GetPublicKeysParam = GetPublicKeysParam::decode(data)?;
+    let mut public_keys = vec![];
+    for public_key_derivation in param.derivations.iter() {
+        let mut public_key = match public_key_derivation.curve.as_str() {
+            "secp256k1" => uncompress_pubkey_2_compress(&BtcAddress::get_pub_key(
+                public_key_derivation.path.as_str(),
+            )?),
+            "ed25519" => SubstrateAddress::get_public_key(
+                public_key_derivation.path.as_str(),
+                &AddressType::Polkadot,
+            )?,
+            _ => return Err(anyhow!("unsupported_curve_type")),
+        };
+        if !public_key.starts_with("0x") {
+            public_key = format!("0x{}", public_key);
+        };
+        let public_key = match public_key_derivation.chain_type.as_str() {
+            "EOS" => EosPubkey::from_pub_key(hex_to_bytes(&public_key)?.as_slice())?,
+            _ => public_key,
+        };
+        public_keys.push(public_key);
+    }
+
+    encode_message(GetPublicKeysResult { public_keys })
 }
 
 #[cfg(test)]

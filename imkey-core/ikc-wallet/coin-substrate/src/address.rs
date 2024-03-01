@@ -67,7 +67,7 @@ impl SubstrateAddress {
             return Err(CoinError::ImkeySignatureVerifyFail.into());
         }
 
-        Ok(pubkey.to_string())
+        Ok(pubkey.to_lowercase())
     }
 
     pub fn get_address(path: &str, address_type: &AddressType) -> Result<String> {

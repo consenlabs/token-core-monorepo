@@ -235,3 +235,37 @@ pub struct DeriveSubAccountsResult {
     #[prost(message, repeated, tag = "1")]
     pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetExtendedPublicKeysParam {
+    #[prost(message, repeated, tag = "1")]
+    pub derivations: ::prost::alloc::vec::Vec<PublicKeyDerivation>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetExtendedPublicKeysResult {
+    #[prost(string, repeated, tag = "1")]
+    pub extended_public_keys: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PublicKeyDerivation {
+    #[prost(string, tag = "1")]
+    pub chain_type: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub path: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub curve: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetPublicKeysParam {
+    #[prost(message, repeated, tag = "1")]
+    pub derivations: ::prost::alloc::vec::Vec<PublicKeyDerivation>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct GetPublicKeysResult {
+    #[prost(string, repeated, tag = "1")]
+    pub public_keys: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+}

@@ -142,3 +142,25 @@ message DeriveSubAccountsParam {
 message DeriveSubAccountsResult {
     repeated AccountResponse accounts = 1;
 }
+
+message GetExtendedPublicKeysParam {
+    repeated PublicKeyDerivation derivations = 1;
+}
+
+message GetExtendedPublicKeysResult {
+    repeated string extendedPublicKeys = 1;
+}
+
+message PublicKeyDerivation {
+    string chainType = 1;
+    string path = 2;
+    string curve = 3;
+}
+
+message GetPublicKeysParam {
+    repeated PublicKeyDerivation derivations = 1;
+}
+
+message GetPublicKeysResult {
+    repeated string publicKeys = 1;
+}

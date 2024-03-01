@@ -32,14 +32,3 @@ message BtcTxOutput {
     string txHash = 2;
     string wtxHash = 3;
 }
-
-message BtcXpubReq {
-    string network = 1;
-    string path = 2;
-}
-
-message BtcXpubRes {
-    string xpub = 1;
-}
-
-
