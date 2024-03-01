@@ -240,9 +240,10 @@ message MnemonicToPublicKeyResult {
 
 message MigrateKeystoreParam {
     string id = 1;
+    string network = 2;
     oneof key {
-      string password = 2;
-      string derivedKey = 3;
+      string password = 3;
+      string derivedKey = 4;
     }
 }
   
