@@ -56,17 +56,3 @@ pub struct BtcTxOutput {
     #[prost(string, tag = "3")]
     pub wtx_hash: ::prost::alloc::string::String,
 }
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BtcXpubReq {
-    #[prost(string, tag = "1")]
-    pub network: ::prost::alloc::string::String,
-    #[prost(string, tag = "2")]
-    pub path: ::prost::alloc::string::String,
-}
-#[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct BtcXpubRes {
-    #[prost(string, tag = "1")]
-    pub xpub: ::prost::alloc::string::String,
-}

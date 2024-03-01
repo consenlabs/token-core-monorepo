@@ -5,18 +5,8 @@ use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use bitcoin::network::constants::Network;
 use coin_bitcoin::address::BtcAddress;
-use coin_bitcoin::btcapi::{BtcXpubReq, BtcXpubRes};
 use ikc_common::utility::network_convert;
 use prost::Message;
-
-pub fn get_btc_xpub(data: &[u8]) -> Result<Vec<u8>> {
-    let input: BtcXpubReq = BtcXpubReq::decode(data).expect("imkey_illegal_param");
-    let network = network_convert(input.network.as_ref());
-    let xpub = BtcAddress::get_xpub(network, input.path.as_ref())?;
-
-    let address_message = BtcXpubRes { xpub };
-    encode_message(address_message)
-}
 
 pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
     let network = network_convert(param.network.as_ref());

@@ -156,3 +156,11 @@ message PublicKeyDerivation {
     string path = 2;
     string curve = 3;
 }
+
+message GetPublicKeysParam {
+    repeated PublicKeyDerivation derivations = 1;
+}
+
+message GetPublicKeysResult {
+    repeated string publicKeys = 1;
+}
