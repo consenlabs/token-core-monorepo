@@ -77,6 +77,54 @@ pub fn test_migrate_keystores_existed() {
 
 #[test]
 #[serial]
+pub fn test_migrate_keystores_existed_mainnet() {
+    let _ = fs::remove_dir_all("../test-data/walletsV2");
+    init_token_core_x("../test-data");
+
+    let param: MigrateKeystoreParam = MigrateKeystoreParam {
+        id: "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string(),
+        network: "MAINNET".to_string(),
+        key: Some(migrate_keystore_param::Key::Password(
+            TEST_PASSWORD.to_string(),
+        )),
+    };
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    let keystore = result.keystore.unwrap();
+    assert_eq!(keystore.id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
+    assert_eq!(
+        keystore.identifier,
+        "im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf"
+    );
+    assert_eq!(
+        keystore.ipfs_id,
+        "QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"
+    );
+    assert_eq!(keystore.created_at, 1703213098);
+    assert_eq!(keystore.source, "MNEMONIC");
+    assert_eq!(keystore.name, "tcx-wallet");
+    assert_eq!(
+        keystore.source_fingerprint,
+        "0x1468dba9c246fe22183c056540ab4d8b04553217"
+    );
+
+    let param: MigrateKeystoreParam = MigrateKeystoreParam {
+        id: "00fc0804-7cea-46d8-9e95-ed1efac65358".to_string(),
+        network: "MAINNET".to_string(),
+        key: Some(migrate_keystore_param::Key::DerivedKey(
+            "2d7380db28736ae5b0693340a5731e137759d32bbcc1f7988574bc5a1ffd97f3411b4edc14ea648fa17d511129e81a84d2b8a00d45bc37f4784e49b641d5c3be".to_string(),
+        )),
+    };
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    assert!(result.is_existed);
+    assert_eq!(result.existed_id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
+
+    fs::remove_dir_all("../test-data/walletsV2").unwrap();
+}
+
+#[test]
+#[serial]
 pub fn test_migrate_keystores_source() {
     let _ = fs::remove_dir_all("../test-data/walletsV2");
     init_token_core_x("../test-data");
@@ -329,6 +377,42 @@ pub fn test_migrate_keystores_flush() {
 
 #[test]
 #[serial]
+pub fn test_migrate_keystores_flush_mainnet() {
+    let _ = fs::remove_dir_all("../test-data/walletsV2");
+    init_token_core_x("../test-data");
+
+    let param: MigrateKeystoreParam = MigrateKeystoreParam {
+        id: "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca".to_string(),
+        network: "MAINNET".to_string(),
+        key: Some(migrate_keystore_param::Key::DerivedKey(
+            "1a60471067b6c6a3202e0014de2ce9b2d45fd73e2289b3cc3d8e5b58fe99ff242fd61e9fe63e75abbdc0ed87a50756cc10c57daf1d6297b99ec9a3b174eee017".to_string(),
+        )),
+    };
+    let _ = call_api("migrate_keystore", param).unwrap();
+    // let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    let json = fs::read_to_string(format!(
+        "../test-data/walletsV2/4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca.json"
+    ))
+    .unwrap();
+    let mut keystore = Keystore::from_json(&json).unwrap();
+    assert_eq!(
+        keystore.fingerprint(),
+        "0x8b650646c72d8ec3f2a6da9f76dfe624a862c578"
+    );
+
+    keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+    assert_eq!(
+        keystore.export().unwrap(),
+        "685634d212eabe016a1cb09d9f1ea1ea757ebe590b9a097d7b1c9379ad280171"
+    );
+
+    assert_eq!(keystore.get_curve().unwrap(), CurveType::SECP256k1);
+    assert_eq!(keystore.id(), "4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca");
+    fs::remove_dir_all("../test-data/walletsV2").unwrap();
+}
+
+#[test]
+#[serial]
 pub fn test_identified_network_flush() {
     let _ = fs::remove_dir_all("../test-data/walletsV2");
     init_token_core_x("../test-data");
@@ -501,6 +585,94 @@ pub fn test_migrate_keystores_identified_chain_types() {
     // assert!(keystore.store().enc_original.is_none());
 
     // fs::remove_dir_all("../test-data/walletsV2").unwrap();
+}
+
+#[test]
+#[serial]
+pub fn test_migrate_keystores_identified_chain_types_mainnet() {
+    let _ = fs::remove_dir_all("../test-data/walletsV2");
+    init_token_core_x("../test-data");
+
+    // original = wif, identified_chain_types = BITCOIN
+    {
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "d9e3bb9c-87fd-4836-b146-10a3e249eb75".to_string(),
+            network: "MAINNET".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "01073f22079380d2180300c518f6b510d4761fd83ce738271460c9e745b9055dabb28f93ff3a8fd54e0c71c005b5e799f8d52bcce1a81e08b5f15f9604531574".to_string(),
+            )),
+        };
+        call_api("migrate_keystore", param).unwrap();
+        let json = fs::read_to_string(format!(
+            "../test-data/walletsV2/d9e3bb9c-87fd-4836-b146-10a3e249eb75.json"
+        ))
+        .unwrap();
+        let keystore = Keystore::from_json(&json).unwrap();
+        let unlocker = keystore
+            .store()
+            .crypto
+            .use_key(&tcx_crypto::Key::DerivedKey("01073f22079380d2180300c518f6b510d4761fd83ce738271460c9e745b9055dabb28f93ff3a8fd54e0c71c005b5e799f8d52bcce1a81e08b5f15f9604531574".to_string()))
+            .unwrap();
+        let wif_bytes = unlocker
+            .decrypt_enc_pair(&keystore.store().enc_original)
+            .unwrap();
+        let wif = String::from_utf8_lossy(&wif_bytes);
+        assert_eq!("L1xDTJYPqhofU8DQCiwjStEBr1X6dhiNfweUhxhoRSgYyMJPcZ6B", wif);
+    }
+
+    // original = hex, identified_chain_types = ETEHREUM
+    {
+        let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "60573d8d-8e83-45c3-85a5-34fbb2aad5e1".to_string(),
+            network: "MAINNET".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "8f2316895af6d58b5b75d424977cdaeae2a619c6b941ca5f77dcfed592cd3b23b698040caf397df6153db6f2d5b2815bf8f8cd32f99998ca46534242df82d1ca".to_string(),
+            )),
+        };
+        call_api("migrate_keystore", param).unwrap();
+        let json = fs::read_to_string(format!(
+            "../test-data/walletsV2/60573d8d-8e83-45c3-85a5-34fbb2aad5e1.json"
+        ))
+        .unwrap();
+        let keystore = Keystore::from_json(&json).unwrap();
+        let unlocker = keystore
+            .store()
+            .crypto
+            .use_key(&tcx_crypto::Key::DerivedKey("8f2316895af6d58b5b75d424977cdaeae2a619c6b941ca5f77dcfed592cd3b23b698040caf397df6153db6f2d5b2815bf8f8cd32f99998ca46534242df82d1ca".to_string()))
+            .unwrap();
+        let decrypted = unlocker
+            .decrypt_enc_pair(&keystore.store().enc_original)
+            .unwrap();
+        let json = String::from_utf8_lossy(&decrypted);
+        assert!(json.contains("9b62a4c07c96ca9b0b82b5b5eae4e7c9b2b7db531a6d2991198eb6809a8c35ac"));
+    }
+
+    let param: MigrateKeystoreParam = MigrateKeystoreParam {
+        id: "f3615a56-cb03-4aa4-a893-89944e49920d".to_string(),
+        network: "MAINNET".to_string(),
+        key: Some(migrate_keystore_param::Key::DerivedKey(
+            "0x79c74b67fc73a255bc66afc1e7c25867a19e6d2afa5b8e3107a472de13201f1924fed05e811e7f5a4c3e72a8a6e047a80393c215412bde239ec7ded520896630".to_string(),
+        )),
+    };
+    call_api("migrate_keystore", param).unwrap();
+    let json = fs::read_to_string(format!(
+        "../test-data/walletsV2/f3615a56-cb03-4aa4-a893-89944e49920d.json"
+    ))
+    .unwrap();
+    let keystore = Keystore::from_json(&json).unwrap();
+    let unlocker = keystore
+        .store()
+        .crypto
+        .use_key(&tcx_crypto::Key::DerivedKey("0x79c74b67fc73a255bc66afc1e7c25867a19e6d2afa5b8e3107a472de13201f1924fed05e811e7f5a4c3e72a8a6e047a80393c215412bde239ec7ded520896630".to_string()))
+        .unwrap();
+    let decrypted = unlocker
+        .decrypt_enc_pair(&keystore.store().enc_original)
+        .unwrap();
+    let hex = String::from_utf8_lossy(&decrypted);
+    assert_eq!(
+        "4b8e7a47497d810cd11f209b8ce9d3b0eec34e85dc8bad5d12cb602425dd3d6b",
+        hex
+    );
 }
 
 fn copy_dir(src: &Path, dst: &Path) -> Result<()> {
