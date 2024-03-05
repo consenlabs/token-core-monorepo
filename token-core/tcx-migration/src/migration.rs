@@ -110,7 +110,12 @@ impl LegacyKeystore {
         let sec_key = Secp256k1PrivateKey::from_slice(private_key)?;
         let pub_key = TypedPublicKey::Secp256k1(sec_key.public_key());
         let coin_info = coin_info_from_param("ETHEREUM", "", "", CurveType::SECP256k1.as_str())?;
-        let address = EthAddress::from_public_key(&pub_key, &coin_info)?.to_string();
+        let checksumed_address = EthAddress::from_public_key(&pub_key, &coin_info)?.to_string();
+        let address = checksumed_address
+            .to_lowercase()
+            .strip_prefix("0x")
+            .unwrap()
+            .to_string();
         let id = uuid::Uuid::new_v4().to_string();
         Ok(LegacyKeystore {
             version: 3,
@@ -491,10 +496,7 @@ mod tests {
         let json: Value = serde_json::from_str(&keystore_json).expect("json");
 
         assert_eq!(json["version"], 3);
-        assert_eq!(
-            json["address"],
-            "0x6031564e7b2F5cc33737807b2E58DaFF870B590b"
-        );
+        assert_eq!(json["address"], "6031564e7b2f5cc33737807b2e58daff870b590b");
     }
 
     #[test]
@@ -502,7 +504,7 @@ mod tests {
         let private_key_bytes = Vec::from_hex_auto(TEST_PRIVATE_KEY).unwrap();
         let mut v3_keystore =
             LegacyKeystore::new_v3(&private_key_bytes, TEST_PASSWORD).expect("v3 keystore");
-        v3_keystore.address = Some("0x6031564e7b2F5cc33737807b2E58DaFF870B5900".to_string()); //wrong address
+        v3_keystore.address = Some("6031564e7b2f5cc33737807b2e58daff870b5900".to_string()); //wrong address
         let validate_result = v3_keystore.validate_v3(TEST_PASSWORD);
         assert_eq!(
             validate_result.err().unwrap().to_string(),

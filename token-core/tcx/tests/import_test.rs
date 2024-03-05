@@ -1148,7 +1148,7 @@ pub fn test_import_hex_private_key() {
         assert_eq!(export_result.id, import_result.id);
         assert!(export_result
             .json
-            .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
+            .contains("6031564e7b2f5cc33737807b2e58daff870b590b"));
     })
 }
 
@@ -1271,6 +1271,6 @@ pub fn test_import_v3_keystore_json() {
         assert!(export_result
             .json
             .to_string()
-            .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
+            .contains("6031564e7b2f5cc33737807b2e58daff870b590b"));
     })
 }
