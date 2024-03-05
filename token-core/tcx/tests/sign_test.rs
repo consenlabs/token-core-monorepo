@@ -1130,6 +1130,7 @@ fn test_eth_batch_personal_sign_by_private_key() {
                 "Hello imToken".to_string(),
                 "0xef678007d18427e6022059dbc264f27507cd1ffc".to_string(),
             ],
+            path: "".to_string(),
         };
         let sign_result = call_api("eth_batch_personal_sign", param).unwrap();
         let ret: EthBatchPersonalSignResult =
@@ -1153,11 +1154,32 @@ fn test_eth_batch_personal_sign_by_hd() {
                 "Hello imToken".to_string(),
                 "0xef678007d18427e6022059dbc264f27507cd1ffc".to_string(),
             ],
+            path: "".to_string(),
         };
         let sign_result = call_api("eth_batch_personal_sign", param).unwrap();
         let ret: EthBatchPersonalSignResult =
             EthBatchPersonalSignResult::decode(sign_result.as_slice()).unwrap();
         assert_eq!(ret.signatures[0], "0xb270b1e5ee1345c693b7b4fd7f5287f6b6372059c89590dfcadc4edf94ec9293296d3e205495f1468953a4f893cd6798b66301a51571fe2a419e75d5755b5bc91c".to_string());
         assert_eq!(ret.signatures[1], "0x19671e4c92847629fa5bbba59e70402f54366e61db0555984a83cc512413fc462d6be1508f1accdee6ad0040ed7401ac2db33d17e1aa4e66bedcb9f75c250cfa1b".to_string());
+
+        let param = EthBatchPersonalSignParam {
+            id: wallet.id.to_string(),
+            key: Some(api::eth_batch_personal_sign_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+            data: vec![
+                "Please sign this message with your Ethereum account: 0x0d3Dfa13F3C0eD29A68012352C71E5695Ef3f9fc
+
+I confirm that I want to unstake and exit this validator: 0xb9a451e8e71d1b62d00355103768c4a2eeedb5e95b127f7145c284adcd0a9c1b1b5224ac73d6555c3962b03f9840942a
+
+Chain ID: 5
+Issued At: 2024-02-27T06:45:12.725Z".to_string(),
+            ],
+            path: "m/44'/60'/0'/0/0".to_string(),
+        };
+        let sign_result = call_api("eth_batch_personal_sign", param).unwrap();
+        let ret: EthBatchPersonalSignResult =
+            EthBatchPersonalSignResult::decode(sign_result.as_slice()).unwrap();
+        assert_eq!(ret.signatures[0], "0xa30a252dd84370a22035b1bdd43e594bb54c3e874f3cee2b4c12e16392feb3c13d4589d3f2b006fcad20426a4cb2b16c3523cc82705d1e447a9926cb1e2398481c".to_string());
     });
 }

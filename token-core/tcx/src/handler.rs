@@ -1240,7 +1240,7 @@ pub(crate) fn eth_batch_personal_sign(data: &[u8]) -> Result<Vec<u8>> {
 
     let mut keystore = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
 
-    let signatures = batch_personal_sign(keystore.keystore_mut(), param.data)?;
+    let signatures = batch_personal_sign(keystore.keystore_mut(), param.data, &param.path)?;
 
     encode_message(EthBatchPersonalSignResult { signatures })
 }

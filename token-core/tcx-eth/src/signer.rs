@@ -126,11 +126,15 @@ impl EthRecoverAddressInput {
     }
 }
 
-pub fn batch_personal_sign(keystore: &mut Keystore, data: Vec<String>) -> Result<Vec<String>> {
+pub fn batch_personal_sign(
+    keystore: &mut Keystore,
+    data: Vec<String>,
+    path: &str,
+) -> Result<Vec<String>> {
     let mut signatures = vec![];
     for val in data.iter() {
         let message = hash_message(utf8_or_hex_to_bytes(&val)?);
-        let mut signature = keystore.secp256k1_ecdsa_sign_recoverable(&message, "")?;
+        let mut signature = keystore.secp256k1_ecdsa_sign_recoverable(&message, path)?;
         signature[64] = signature[64] + 27;
         signatures.push(signature.to_0x_hex());
     }

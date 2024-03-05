@@ -138,6 +138,7 @@ message EthBatchPersonalSignParam {
         string derivedKey = 3;
     }
     repeated string data = 4;
+    string path = 5;
 }
 
 message EthBatchPersonalSignResult {

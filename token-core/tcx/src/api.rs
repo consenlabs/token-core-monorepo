@@ -236,6 +236,8 @@ pub struct EthBatchPersonalSignParam {
     pub id: ::prost::alloc::string::String,
     #[prost(string, repeated, tag = "4")]
     pub data: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, tag = "5")]
+    pub path: ::prost::alloc::string::String,
     #[prost(oneof = "eth_batch_personal_sign_param::Key", tags = "2, 3")]
     pub key: ::core::option::Option<eth_batch_personal_sign_param::Key>,
 }
