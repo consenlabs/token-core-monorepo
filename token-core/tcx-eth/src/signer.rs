@@ -696,7 +696,7 @@ mod test {
             "0xef678007d18427e6022059dbc264f27507cd1ffc".to_string(),
         ];
 
-        let result = batch_personal_sign(&mut keystore, test_data).unwrap();
+        let result = batch_personal_sign(&mut keystore, test_data, "").unwrap();
         assert_eq!(result[0], "0x1be38ff0ab0e6d97cba73cf61421f0641628be8ee91dcb2f73315e7fdf4d0e2770b0cb3cc7350426798d43f0fb05602664a28bb2c9fcf46a07fa1c8c4e322ec01b".to_string());
         assert_eq!(result[1], "0xb12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b".to_string());
     }
