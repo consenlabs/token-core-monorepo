@@ -16,3 +16,4 @@
 !testnet-identity/*
 !migrate-duplication-fixtures
 !migrate-duplication-fixtures/wallets/**
+wallets/_migrated.json
