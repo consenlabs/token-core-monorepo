@@ -1221,7 +1221,7 @@ pub fn test_import_v3_keystore_json() {
                   },
                   "mac": "2adc6da2f5f183e528a063b36ebeddaf0d3a90269ef797b99dc143d58ba3bb58"
                 },
-                "address": "0x6031564e7b2F5cc33737807b2E58DaFF870B590b"
+                "address": "6031564e7b2f5cc33737807b2e58daff870b590b"
               }
               "#;
         let param: ExistsJsonParam = ExistsJsonParam {
