@@ -19,10 +19,13 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
         hex::decode(&input.data).unwrap()
     };
 
-    let mut to = input.to;
-    if to.starts_with("0x") {
-        to = to[2..].to_string();
-    }
+    let to = if input.to.is_empty() || input.to == "0x" {
+        "0000000000000000000000000000000000000000"
+    } else if input.to.starts_with("0x") {
+        &input.to[2..]
+    } else {
+        &input.to
+    };
 
     let eth_tx = if input.r#type.to_lowercase() == "0x02"
         || input.r#type.to_lowercase() == "0x2"

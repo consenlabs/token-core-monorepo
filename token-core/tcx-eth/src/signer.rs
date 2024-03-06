@@ -65,8 +65,13 @@ impl TryFrom<&EthTxInput> for Transaction {
     type Error = anyhow::Error;
 
     fn try_from(tx: &EthTxInput) -> std::result::Result<Self, Self::Error> {
+        let to_addr = if tx.to.is_empty() || tx.to == "0x" {
+            "0x0000000000000000000000000000000000000000"
+        } else {
+            &tx.to
+        };
         Ok(Transaction {
-            to: Address::from_slice(&Vec::from_0x_hex(&tx.to)?),
+            to: Address::from_slice(&Vec::from_hex_auto(to_addr)?),
             nonce: parse_u64(&tx.nonce)?,
             gas: parse_u256(&tx.gas_limit)?,
             gas_price: parse_u256(&tx.gas_price)?,
@@ -197,6 +202,40 @@ mod test {
             "0x17fd692605405e051ac738ddf3d9b58185eaac14e434839d1453e653c5c23a1a"
         );
         assert_eq!(tx_output.signature, "f86d8283ca85012a05f20082c350946031564e7b2f5cc33737807b2e58daff870b590b870228108d99bd318078a09d56ef5b7ba4d6e2c4b9367ab263beb6bc2926bb9170ff2f42f0e25cbdec9aa7a062b6e1b702b1a34e887d6a3f693bdc8fbcd92e2963c12dfcffd255022d892fbe");
+    }
+
+    #[test]
+    fn test_create_contract() {
+        let tx = EthTxInput {
+            nonce: "33738".to_string(),
+            gas_price: "5000000000".to_string(),
+            gas_limit: "50000".to_string(),
+            to: "".to_string(),
+            value: "607001513671985".to_string(),
+            data: "0x11111111".to_string(),
+            chain_id: "42".to_string(),
+            tx_type: "00".to_string(),
+            max_fee_per_gas: "".to_string(),
+            max_priority_fee_per_gas: "".to_string(),
+            access_list: vec![],
+        };
+        let mut keystore =
+            private_key_store("cce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2");
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        let tx_output = keystore.sign_transaction(&params, &tx).unwrap();
+
+        assert_eq!(
+            tx_output.tx_hash,
+            "0x5830b35ec8b19b8a55b39d18d8533a97a7dfb8dba1b99e79e055099fc349602f"
+        );
+        assert_eq!(tx_output.signature, "f8718283ca85012a05f20082c350940000000000000000000000000000000000000000870228108d99bd31841111111178a0d1e3efb80e9338cf63a05b6c5209ffa3417cbbc7bdfd0eddc1ded150ad5db96ca008d395b3de0484f9ee64546b8f3de2b545b0897e9e5e63b951d56cb68accf970");
     }
 
     #[test]
