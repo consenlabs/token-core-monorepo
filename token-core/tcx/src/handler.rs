@@ -8,6 +8,7 @@ use std::str::FromStr;
 use tcx_eos::encode_eos_wif;
 use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_keystore::keystore::IdentityNetwork;
+use tcx_migration::legacy_ipfs;
 
 use tcx_common::{FromHex, ToHex};
 use tcx_primitive::{
@@ -17,12 +18,12 @@ use tcx_primitive::{
 
 use tcx_btc_kin::WIFDisplay;
 use tcx_keystore::{
-    fingerprint_from_mnemonic, fingerprint_from_private_key, Keystore, KeystoreGuard,
+    fingerprint_from_mnemonic, fingerprint_from_private_key, identity, Keystore, KeystoreGuard,
     SignatureParameters, Signer,
 };
 use tcx_keystore::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
 
-use anyhow::anyhow;
+use anyhow::{anyhow, ensure};
 use tcx_crypto::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
 use tcx_filecoin::KeyInfo;
 
@@ -1098,11 +1099,20 @@ pub(crate) fn encrypt_data_to_ipfs(data: &[u8]) -> Result<Vec<u8>> {
     let param = EncryptDataToIpfsParam::decode(data).expect("EncryptDataToIpfsParam");
 
     let map = KEYSTORE_MAP.read();
-    let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
-        return Err(anyhow::anyhow!("identity_not_found"));
+    let cipher_text = if let Some(identity_ks) = map
+        .values()
+        .find(|ks| ks.identity().identifier == param.identifier)
+    {
+        identity_ks.identity().encrypt_ipfs(&param.content)?
+    } else {
+        let legacy_identify_path = &format!("{}/identity.json", LEGACY_WALLET_FILE_DIR.read());
+        let legacy_ipfs_info = legacy_ipfs::read_legacy_ipfs_info(&legacy_identify_path)?;
+        ensure!(
+            legacy_ipfs_info.identifier == param.identifier,
+            "wallet_not_found"
+        );
+        identity::encrypt_ipfs_with_enc_key(&legacy_ipfs_info.enc_key, &param.content)?
     };
-
-    let cipher_text = identity_ks.identity().encrypt_ipfs(&param.content)?;
 
     let output = EncryptDataToIpfsResult {
         identifier: param.identifier.to_string(),
@@ -1116,11 +1126,20 @@ pub(crate) fn decrypt_data_from_ipfs(data: &[u8]) -> Result<Vec<u8>> {
     let param = DecryptDataFromIpfsParam::decode(data).expect("DecryptDataFromIpfsParam");
 
     let map = KEYSTORE_MAP.read();
-    let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
-        return Err(anyhow::anyhow!("identity_not_found"));
+    let content = if let Some(identity_ks) = map
+        .values()
+        .find(|ks| ks.identity().identifier == param.identifier)
+    {
+        identity_ks.identity().decrypt_ipfs(&param.encrypted)?
+    } else {
+        let legacy_identify_path = &format!("{}/identity.json", LEGACY_WALLET_FILE_DIR.read());
+        let legacy_ipfs_data = legacy_ipfs::read_legacy_ipfs_info(&legacy_identify_path)?;
+        identity::decrypt_ipfs_with_enc_key(
+            &param.encrypted,
+            &legacy_ipfs_data.ipfs_id,
+            &legacy_ipfs_data.enc_key,
+        )?
     };
-
-    let content = identity_ks.identity().decrypt_ipfs(&param.encrypted)?;
 
     let output = DecryptDataFromIpfsResult {
         identifier: param.identifier.to_string(),

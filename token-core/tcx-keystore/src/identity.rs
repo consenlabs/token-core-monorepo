@@ -113,92 +113,11 @@ impl Identity {
     }
 
     pub fn encrypt_ipfs(&self, plaintext: &str) -> Result<String> {
-        let iv: [u8; 16] = random_u8_16();
-        self.encrypt_ipfs_wth_timestamp_iv(plaintext, unix_timestamp(), &iv)
-    }
-    fn encrypt_ipfs_wth_timestamp_iv(
-        &self,
-        plaintext: &str,
-        timestamp: u64,
-        iv: &[u8; 16],
-    ) -> Result<String> {
-        let mut header = Vec::new();
-
-        header.write_u8(0x03)?;
-        header.write_all(&timestamp.to_le_bytes()[..4])?;
-        header.write_all(iv)?;
-
-        let enc_key = Vec::from_hex(&self.enc_key)?;
-
-        let ciphertext = encrypt_pkcs7(plaintext.as_bytes(), &enc_key[0..16], iv)?;
-        let hash = keccak256(&[header.clone(), merkle_hash(&ciphertext).to_vec()].concat());
-        let mut signature = Secp256k1PrivateKey::from_slice(&enc_key)?.sign_recoverable(&hash)?;
-        //ETH-compatible ec_recover, in chain_id = 1 case, v = 27 + rec_id
-        signature[64] += 27;
-
-        let var_len = VarInt(ciphertext.len() as u64);
-
-        let mut payload = vec![];
-        payload.write_all(&header)?;
-        var_len.consensus_encode(&mut payload)?;
-        payload.write_all(&ciphertext)?;
-        payload.write_all(&signature)?;
-
-        Ok(payload.to_hex())
+        encrypt_ipfs_with_enc_key(&self.enc_key, plaintext)
     }
 
     pub fn decrypt_ipfs(&self, ciphertext: &str) -> Result<String> {
-        let ciphertext = Vec::<u8>::from_hex(ciphertext)?;
-        if ciphertext.len() <= 21 {
-            return Err(Error::InvalidEncryptionData.into());
-        }
-
-        let mut rdr = Cursor::new(&ciphertext);
-        let mut header = vec![];
-
-        let version = rdr.read_u8()?;
-        if version != 0x03 {
-            return Err(Error::UnsupportEncryptionDataVersion.into());
-        }
-        header.write_u8(version)?;
-        header.write_u32::<LittleEndian>(rdr.read_u32::<LittleEndian>()?)?;
-
-        let mut iv = [0u8; 16];
-        rdr.read_exact(&mut iv)?;
-        header.write_all(&iv)?;
-
-        let var_len = VarInt::consensus_decode(&mut rdr)?;
-        if var_len.0 as usize != ciphertext.len() - 21 - 65 - var_len.len() {
-            return Err(Error::InvalidEncryptionData.into());
-        }
-
-        let mut enc_data = vec![0u8; var_len.0 as usize];
-        rdr.read_exact(&mut enc_data)?;
-
-        let mut signature = [0u8; 64];
-        rdr.read_exact(&mut signature)?;
-
-        let recover_id = RecoveryId::from_i32(rdr.read_u8()? as i32 - 27)?;
-
-        let hash = keccak256(
-            [header, merkle_hash(&enc_data).to_vec()]
-                .concat()
-                .as_slice(),
-        );
-
-        let message = Message::from_slice(&hash)?;
-        let sig = RecoverableSignature::from_compact(&signature, recover_id)?;
-        let pub_key = Secp256k1::new().recover_ecdsa(&message, &sig)?;
-        let ipfs_id = Self::calculate_ipfs_id(&pub_key);
-
-        if self.ipfs_id != ipfs_id {
-            return Err(Error::InvalidEncryptionDataSignature.into());
-        }
-
-        let enc_key = Vec::from_hex(&self.enc_key)?;
-        let plaintext = decrypt_pkcs7(&enc_data, &enc_key[..16], &iv)?;
-
-        Ok(String::from_utf8(plaintext)?)
+        decrypt_ipfs_with_enc_key(ciphertext, &self.ipfs_id, &self.enc_key)
     }
 
     pub fn sign_authentication_message(
@@ -216,6 +135,96 @@ impl Identity {
     }
 }
 
+pub fn decrypt_ipfs_with_enc_key(ciphertext: &str, ipfs_id: &str, enc_key: &str) -> Result<String> {
+    let ciphertext = Vec::<u8>::from_hex(ciphertext)?;
+    if ciphertext.len() <= 21 {
+        return Err(Error::InvalidEncryptionData.into());
+    }
+
+    let mut rdr = Cursor::new(&ciphertext);
+    let mut header = vec![];
+
+    let version = rdr.read_u8()?;
+    if version != 0x03 {
+        return Err(Error::UnsupportEncryptionDataVersion.into());
+    }
+    header.write_u8(version)?;
+    header.write_u32::<LittleEndian>(rdr.read_u32::<LittleEndian>()?)?;
+
+    let mut iv = [0u8; 16];
+    rdr.read_exact(&mut iv)?;
+    header.write_all(&iv)?;
+
+    let var_len = VarInt::consensus_decode(&mut rdr)?;
+    if var_len.0 as usize != ciphertext.len() - 21 - 65 - var_len.len() {
+        return Err(Error::InvalidEncryptionData.into());
+    }
+
+    let mut enc_data = vec![0u8; var_len.0 as usize];
+    rdr.read_exact(&mut enc_data)?;
+
+    let mut signature = [0u8; 64];
+    rdr.read_exact(&mut signature)?;
+
+    let recover_id = RecoveryId::from_i32(rdr.read_u8()? as i32 - 27)?;
+
+    let hash = keccak256(
+        [header, merkle_hash(&enc_data).to_vec()]
+            .concat()
+            .as_slice(),
+    );
+
+    let message = Message::from_slice(&hash)?;
+    let sig = RecoverableSignature::from_compact(&signature, recover_id)?;
+    let pub_key = Secp256k1::new().recover_ecdsa(&message, &sig)?;
+    let calculated_ipfs_id = Identity::calculate_ipfs_id(&pub_key);
+
+    if ipfs_id != calculated_ipfs_id {
+        return Err(Error::InvalidEncryptionDataSignature.into());
+    }
+
+    let enc_key = Vec::from_hex(&enc_key)?;
+    let plaintext = decrypt_pkcs7(&enc_data, &enc_key[..16], &iv)?;
+
+    Ok(String::from_utf8(plaintext)?)
+}
+
+pub fn encrypt_ipfs_with_enc_key(enc_key: &str, plaintext: &str) -> Result<String> {
+    let iv: [u8; 16] = random_u8_16();
+    encrypt_ipfs_wth_timestamp_iv(&enc_key, plaintext, unix_timestamp(), &iv)
+}
+
+fn encrypt_ipfs_wth_timestamp_iv(
+    enc_key: &str,
+    plaintext: &str,
+    timestamp: u64,
+    iv: &[u8; 16],
+) -> Result<String> {
+    let mut header = Vec::new();
+
+    header.write_u8(0x03)?;
+    header.write_all(&timestamp.to_le_bytes()[..4])?;
+    header.write_all(iv)?;
+
+    let enc_key = Vec::from_hex_auto(&enc_key)?;
+
+    let ciphertext = encrypt_pkcs7(plaintext.as_bytes(), &enc_key[0..16], iv)?;
+    let hash = keccak256(&[header.clone(), merkle_hash(&ciphertext).to_vec()].concat());
+    let mut signature = Secp256k1PrivateKey::from_slice(&enc_key)?.sign_recoverable(&hash)?;
+    //ETH-compatible ec_recover, in chain_id = 1 case, v = 27 + rec_id
+    signature[64] += 27;
+
+    let var_len = VarInt(ciphertext.len() as u64);
+
+    let mut payload = vec![];
+    payload.write_all(&header)?;
+    var_len.consensus_encode(&mut payload)?;
+    payload.write_all(&ciphertext)?;
+    payload.write_all(&signature)?;
+
+    Ok(payload.to_hex())
+}
+
 #[cfg(test)]
 mod test {
 
@@ -224,6 +233,7 @@ mod test {
     use tcx_constants::CurveType;
     use tcx_crypto::Key;
 
+    use crate::identity::encrypt_ipfs_wth_timestamp_iv;
     use crate::{keystore::IdentityNetwork, Error, HdKeystore, Metadata, PrivateKeystore};
 
     #[test]
@@ -313,9 +323,7 @@ mod test {
         for t in test_cases {
             let iv: [u8; 16] = Vec::from_hex(t.1).unwrap().try_into().unwrap();
             assert_eq!(
-                identity
-                    .encrypt_ipfs_wth_timestamp_iv(t.0, unix_timestamp, &iv)
-                    .unwrap(),
+                encrypt_ipfs_wth_timestamp_iv(&identity.enc_key, t.0, unix_timestamp, &iv).unwrap(),
                 t.2
             );
             assert_eq!(identity.decrypt_ipfs(t.2).unwrap(), t.0);

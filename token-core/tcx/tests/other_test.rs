@@ -1,3 +1,5 @@
+use std::fs;
+
 use common::run_test;
 use serial_test::serial;
 
@@ -234,6 +236,35 @@ pub fn test_ipfs_encrypt_and_decrypt() {
         assert!(!resp.encrypted.is_empty());
         let param = DecryptDataFromIpfsParam {
             identifier: wallet.identifier,
+            encrypted: resp.encrypted,
+        };
+        let ret = call_api("decrypt_data_from_ipfs", param).unwrap();
+        let resp: DecryptDataFromIpfsResult =
+            DecryptDataFromIpfsResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(content, resp.content);
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_ipfs_encrypt_and_decrypt_before_migrate() {
+    run_test(|| {
+        fs::copy(
+            "../test-data/wallets/identity.json",
+            "/tmp/imtoken/wallets/identity.json",
+        )
+        .unwrap();
+        let content = "imToken".to_string();
+        let param = EncryptDataToIpfsParam {
+            identifier: "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg".to_string(),
+            content: content.clone(),
+        };
+        let ret = call_api("encrypt_data_to_ipfs", param).unwrap();
+        let resp: EncryptDataToIpfsResult =
+            EncryptDataToIpfsResult::decode(ret.as_slice()).unwrap();
+        assert!(!resp.encrypted.is_empty());
+        let param = DecryptDataFromIpfsParam {
+            identifier: "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg".to_string(),
             encrypted: resp.encrypted,
         };
         let ret = call_api("decrypt_data_from_ipfs", param).unwrap();
