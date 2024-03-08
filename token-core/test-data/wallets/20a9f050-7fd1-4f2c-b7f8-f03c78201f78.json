@@ -1,0 +1,39 @@
+{
+  "crypto": {
+    "cipher": "aes-128-ctr",
+    "cipherparams": { "iv": "271d0f7c2ed23dcd277bf45f39ae1efe" },
+    "ciphertext": "72a6f74eb61dfac8b2601146b95409e46903205e6e524593c1af4b665bed6a224a612129512357a4bce8bb19089e7f207bc3a8cfd927745d2956103b62954bb0331ed00d1d92abe69eaf8ec671ee794deacd8393307b0f91a604b6ec02470df8f9d120eeed1b838daa8764882de72c1f48fdc70460cc1508b4592296ef8cfcc1",
+    "kdf": "pbkdf2",
+    "kdfparams": {
+      "c": 10240,
+      "dklen": 32,
+      "prf": "hmac-sha256",
+      "salt": "bc21558b9645d3766b45c2bb154fdffb038cf85e444f0dcaf4d58c912831d1c9"
+    },
+    "mac": "6b909623c3b857880b694a38c5ef2dbcef03d7db13c4fc038fc682afc5feb16b"
+  },
+  "id": "20a9f050-7fd1-4f2c-b7f8-f03c78201f78",
+  "version": 10001,
+  "address": "imtoken2test",
+  "keyPathPrivates": [
+    {
+      "derivedMode": "IMPORTED",
+      "encPrivate": {
+        "encStr": "bf7045ee3694daf87e7bd6ecbf0fbf37d2d3c126a7ae305f6804b905c235ff0b",
+        "nonce": "cb797d96bd75d65fb547e29b1fa9df3e"
+      },
+      "publicKey": "EOS6r37Sr3oDQNqcKDuSC5kzfu8bKs2jVidWDzA2MjBwhFuFfKkrz"
+    }
+  ],
+  "imTokenMeta": {
+    "backup": [],
+    "chainType": "EOS",
+    "mode": "NORMAL",
+    "name": "Imported 1",
+    "network": "MAINNET",
+    "passwordHint": "",
+    "source": "WIF",
+    "timestamp": 1709866517,
+    "walletType": "RANDOM"
+  }
+}

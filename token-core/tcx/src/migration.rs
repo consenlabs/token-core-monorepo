@@ -292,7 +292,7 @@ fn parse_legacy_kesytore(contents: String) -> Result<LegacyKeystoreResult> {
     let public_key = if let Some(key_paths) = legacy_keystore.key_path_privates {
         key_paths
             .iter()
-            .find(|x| x.derived_mode == "PATH_DIRECTLY")
+            .find(|x| x.derived_mode == Some("PATH_DIRECTLY".to_string()))
             .map(|x| x.public_key.clone())
             .unwrap_or_default()
     } else {
