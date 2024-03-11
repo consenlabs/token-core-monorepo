@@ -4,6 +4,7 @@ use std::str::FromStr;
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::{coin_info_from_param, CurveType};
 use tcx_crypto::{Crypto, EncPair, Key};
+use tcx_eos::encode_eos_wif;
 use tcx_eth::address::EthAddress;
 use tcx_keystore::identity::Identity;
 use tcx_keystore::keystore::{IdentityNetwork, Keystore, Metadata, Store};
@@ -80,9 +81,11 @@ impl OldMetadata {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EOSKeyPath {
-    pub derived_mode: String,
-    pub path: String,
+    pub derived_mode: Option<String>,
+    pub path: Option<String>,
     pub public_key: String,
+    pub enc_private: Option<EncPair>,
+    pub private_key: Option<EncPair>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -229,7 +232,23 @@ impl LegacyKeystore {
         let curve = CurveType::SECP256k1;
         let is_wif = decrypted.len() != 32;
 
-        let (private_key, original) = if is_wif {
+        // EOS Wif Keystore store the private key in key paths
+        let (private_key, original) = if let Some(key_paths) = &self.key_path_privates {
+            let enc_pair_decrypted = if let Some(enc_private) = &key_paths[0].enc_private {
+                unlocker.decrypt_enc_pair(enc_private)?
+            } else {
+                unlocker.decrypt_enc_pair(
+                    &key_paths[0]
+                        .private_key
+                        .as_ref()
+                        .expect("ios eos keystore should have private key"),
+                )?
+            };
+            (
+                Secp256k1PrivateKey::from_slice(&enc_pair_decrypted)?.to_bytes(),
+                encode_eos_wif(&enc_pair_decrypted)?.as_bytes().to_vec(),
+            )
+        } else if is_wif {
             (
                 Secp256k1PrivateKey::from_wif(&String::from_utf8_lossy(&decrypted))?.to_bytes(),
                 decrypted,

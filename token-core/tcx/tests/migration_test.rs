@@ -10,8 +10,9 @@ use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
 
 use prost::Message;
 use tcx::api::{
-    export_mnemonic_param, migrate_keystore_param, wallet_key_param, ExportMnemonicParam,
-    ExportMnemonicResult, MigrateKeystoreParam, MigrateKeystoreResult, SignParam, WalletKeyParam,
+    export_mnemonic_param, migrate_keystore_param, wallet_key_param, BackupResult,
+    ExportMnemonicParam, ExportMnemonicResult, MigrateKeystoreParam, MigrateKeystoreResult,
+    SignParam, WalletKeyParam,
 };
 
 use tcx::handler::encode_message;
@@ -787,5 +788,53 @@ fn test_migrate_duplicate_then_delete_keystore() {
     assert_eq!(
         Path::new("/tmp/token-core-x/wallets/_migrated").exists(),
         false
+    );
+}
+
+#[test]
+#[serial]
+fn test_migrate_android_old_eos_private_keystore() {
+    setup_test("../test-data");
+    let param = MigrateKeystoreParam {
+        id: "0d49aae6-cf73-4ebb-998d-b6312d18361f".to_string(),
+        network: "TESTNET".to_string(),
+        key: Some(migrate_keystore_param::Key::Password(
+            "11111111".to_string(),
+        )),
+    };
+    call_api("migrate_keystore", param).unwrap();
+    let param = WalletKeyParam {
+        id: "0d49aae6-cf73-4ebb-998d-b6312d18361f".to_string(),
+        key: Some(wallet_key_param::Key::Password("11111111".to_string())),
+    };
+    let ret = call_api("backup", param).unwrap();
+    let exported = BackupResult::decode(ret.as_slice()).unwrap().original;
+    assert_eq!(
+        "5KhJeeS5eVDv5DHsFnorDLiJkTeGtMKwmRgyHiVJYzYVd2d1BoP",
+        exported
+    );
+}
+
+#[test]
+#[serial]
+fn test_migrate_ios_old_eos_private_keystore() {
+    setup_test("../test-data");
+    let param = MigrateKeystoreParam {
+        id: "20a9f050-7fd1-4f2c-b7f8-f03c78201f78".to_string(),
+        network: "TESTNET".to_string(),
+        key: Some(migrate_keystore_param::Key::Password(
+            "11111111".to_string(),
+        )),
+    };
+    call_api("migrate_keystore", param).unwrap();
+    let param = WalletKeyParam {
+        id: "20a9f050-7fd1-4f2c-b7f8-f03c78201f78".to_string(),
+        key: Some(wallet_key_param::Key::Password("11111111".to_string())),
+    };
+    let ret = call_api("backup", param).unwrap();
+    let exported = BackupResult::decode(ret.as_slice()).unwrap().original;
+    assert_eq!(
+        "5KhJeeS5eVDv5DHsFnorDLiJkTeGtMKwmRgyHiVJYzYVd2d1BoP",
+        exported
     );
 }
