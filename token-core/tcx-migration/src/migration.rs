@@ -154,7 +154,8 @@ impl LegacyKeystore {
     }
 
     fn has_mnemonic(&self) -> bool {
-        self.enc_mnemonic.is_some()
+        // EOS wallet in iOS will contains an empty encMnemonic object, check the 20a9f050-7fd1-4f2c-b7f8-f03c78201f78 fixture kesytore
+        self.enc_mnemonic.is_some() && self.enc_mnemonic.as_ref().unwrap().enc_str != ""
     }
 
     pub fn from_json_str(keystore_str: &str) -> Result<LegacyKeystore> {
