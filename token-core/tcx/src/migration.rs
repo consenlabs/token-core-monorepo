@@ -3,7 +3,7 @@ use crate::api::{
     MigrateKeystoreParam, MigrateKeystoreResult, ScanLegacyKeystoresResult,
 };
 use crate::error_handling::Result;
-use crate::filemanager::{cache_keystore, KEYSTORE_MAP};
+use crate::filemanager::{cache_keystore, KEYSTORE_MAP, WALLET_FILE_DIR};
 use crate::filemanager::{flush_keystore, LEGACY_WALLET_FILE_DIR};
 use crate::handler::{encode_message, encrypt_xpub};
 use anyhow::anyhow;
@@ -138,7 +138,11 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
                 .collect();
             if existed_ks.len() > 0 {
                 is_existed = true;
-                existed_id = existed_ks[0].id().to_string();
+                existed_id = existed_ks
+                    .iter()
+                    .find(|ks| existed_keystore_file(&ks.id()))
+                    .expect("At least one keystore file should be existed")
+                    .id();
                 // Note: Temporary retention of the old ID,
                 // so that users can continue to use the old ID for subsequent operations.
                 keystore_map.insert(param.id, keystore.clone());
@@ -180,6 +184,12 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
     } else {
         Err(anyhow!("unknown_version_when_upgrade_keystore"))
     }
+}
+
+pub fn existed_keystore_file(id: &str) -> bool {
+    let file_path = format!("{}/{}.json", WALLET_FILE_DIR.read(), id);
+    let path = Path::new(&file_path);
+    path.exists()
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

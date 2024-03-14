@@ -78,6 +78,69 @@ pub fn test_migrate_keystores_existed() {
 
 #[test]
 #[serial]
+pub fn test_migrate_keystores_multi_times() {
+    let _ = fs::remove_dir_all("../test-data/walletsV2");
+    init_token_core_x("../test-data");
+
+    let param: MigrateKeystoreParam = MigrateKeystoreParam {
+        id: "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string(),
+        network: "TESTNET".to_string(),
+        key: Some(migrate_keystore_param::Key::Password(
+            TEST_PASSWORD.to_string(),
+        )),
+    };
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    let keystore = result.keystore.unwrap();
+    assert_eq!(keystore.id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
+    assert_eq!(
+        keystore.identifier,
+        "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg"
+    );
+    assert_eq!(
+        keystore.ipfs_id,
+        "QmSTTidyfa4np9ak9BZP38atuzkCHy4K59oif23f4dNAGU"
+    );
+    assert_eq!(keystore.created_at, 1703213098);
+    assert_eq!(keystore.source, "MNEMONIC");
+    assert_eq!(keystore.name, "tcx-wallet");
+    assert_eq!(
+        keystore.source_fingerprint,
+        "0x1468dba9c246fe22183c056540ab4d8b04553217"
+    );
+
+    let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "00fc0804-7cea-46d8-9e95-ed1efac65358".to_string(),
+            network: "TESTNET".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "2d7380db28736ae5b0693340a5731e137759d32bbcc1f7988574bc5a1ffd97f3411b4edc14ea648fa17d511129e81a84d2b8a00d45bc37f4784e49b641d5c3be".to_string(),
+            )),
+        };
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    assert!(result.is_existed);
+    assert_eq!(result.existed_id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
+
+    let param: MigrateKeystoreParam = MigrateKeystoreParam {
+        id: "1bfddca9-84dc-4561-bbe9-844a9ff2b281".to_string(),
+        network: "TESTNET".to_string(),
+        key: Some(migrate_keystore_param::Key::DerivedKey(
+            "2d7380db28736ae5b0693340a5731e137759d32bbcc1f7988574bc5a1ffd97f3411b4edc14ea648fa17d511129e81a84d2b8a00d45bc37f4784e49b641d5c3be".to_string(),
+        )),
+    };
+
+    for _ in 1..100 {
+        let ret = call_api("migrate_keystore", param.clone()).unwrap();
+        let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+        assert!(result.is_existed);
+        assert_eq!(result.existed_id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
+    }
+
+    fs::remove_dir_all("../test-data/walletsV2").unwrap();
+}
+
+#[test]
+#[serial]
 pub fn test_migrate_keystores_existed_mainnet() {
     let _ = fs::remove_dir_all("../test-data/walletsV2");
     init_token_core_x("../test-data");
