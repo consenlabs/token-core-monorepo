@@ -112,7 +112,11 @@ impl EthMessageInput {
         if self.signature_type == SignatureType::PersonalSign as i32 {
             Ok(hash_message(&message))
         } else {
-            Ok(keccak256(&message))
+            // Note: ec sign is signing arbitrary data
+            // ref: https://support.metamask.io/hc/en-us/articles/14764161421467-What-is-eth-sign-and-why-is-it-a-risk
+            let mut buffer: [u8; 32] = [0; 32];
+            buffer.copy_from_slice(&message);
+            Ok(buffer)
         }
     }
 }
@@ -666,7 +670,8 @@ mod test {
     #[test]
     fn test_ec_sign() {
         let message = EthMessageInput {
-            message: "Hello imToken".to_string(),
+            message: "0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0"
+                .to_string(),
             signature_type: SignatureType::EcSign as i32,
         };
         let mut keystore =
@@ -681,36 +686,7 @@ mod test {
         let sign_output = keystore.sign_message(&params, &message).unwrap();
         assert_eq!(
             sign_output.signature,
-            "0x648081bc111e6116769bdb4396eebe17f58d3eddc0aeb04a868990deac9dfa2f322514a380fa66e0e864faaac6ef936092cdc022f5fd7d61cb501193ede537b31b"
-        );
-        let message = EthMessageInput {
-            message: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_string(),
-            signature_type: SignatureType::EcSign as i32,
-        };
-        let sign_output = keystore.sign_message(&params, &message).unwrap();
-        assert_eq!(
-            sign_output.signature,
-            "0x65e4952899a8dcadf3a65a11bdac0f0cfdf93e0bae5c67674c78a72631de524d3cafe27ea71c86aa3fd838c6a50a0b09d6ece85a6dcf3ce85c30fdc51380ebdf1b"
-        );
-
-        let message = EthMessageInput {
-            message: "0000000000000000".to_string(),
-            signature_type: SignatureType::EcSign as i32,
-        };
-        let sign_output = keystore.sign_message(&params, &message).unwrap();
-        assert_eq!(
-            sign_output.signature,
-            "0xf85b21d47d4a828b0829bd3d0b7dbd19cb7fb8d75c24d03f424beddb38d6eb2456f3f438b18453826ce9eaf4b887a2e899e63e73c265dcd8ae0bc507184590a51c"
-        );
-
-        let message = EthMessageInput {
-            message: "0x0000000000000000".to_string(),
-            signature_type: SignatureType::EcSign as i32,
-        };
-        let sign_output = keystore.sign_message(&params, &message).unwrap();
-        assert_eq!(
-            sign_output.signature,
-            "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
+            "0xe391521758b55824691588821ca425900c7dd3ad1219179637d8df6db5353dcb04fc518a62a83b7293738d7cf9d37f2cc57009324d95e52df0aaeeda2c3092761b"
         );
     }
 
