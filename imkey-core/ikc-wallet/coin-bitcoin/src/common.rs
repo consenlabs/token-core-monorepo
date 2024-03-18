@@ -80,7 +80,10 @@ get xpub
 pub fn get_xpub_data(path: &str, verify_flag: bool) -> Result<String> {
     let select_response = send_apdu(BtcApdu::select_applet())?;
     ApduCheck::check_response(&select_response)?;
-    let xpub_data = send_apdu(BtcApdu::get_xpub(path, verify_flag))?;
+    let get_xpub_apdu = BtcApdu::get_xpub(path, verify_flag);
+    debug!("ikc: send xpub apdu {}", get_xpub_apdu.to_string());
+    let xpub_data = send_apdu(get_xpub_apdu)?;
+    debug!("ikc: xpub apdu response: {}", &xpub_data);
     ApduCheck::check_response(&xpub_data)?;
     Ok(xpub_data)
 }

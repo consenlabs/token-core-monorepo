@@ -25,7 +25,9 @@ use ikc_transport::message;
 use serde::{Deserialize, Serialize};
 
 pub mod cos_check_update;
-
+#[macro_use]
+extern crate log;
+extern crate android_logger;
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ServiceResponse<T> {

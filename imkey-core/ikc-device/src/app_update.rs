@@ -2,6 +2,7 @@ use crate::ServiceResponse;
 use crate::{Result, TsmService};
 use ikc_common::constants;
 use ikc_common::https;
+use log::debug;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -35,6 +36,7 @@ impl TsmService for AppUpdateRequest {
         loop {
             let req_data = serde_json::to_vec_pretty(&self).unwrap();
             let response_data = https::post(constants::TSM_ACTION_APP_UPDATE, req_data)?;
+            debug!("ikc send_message response: {:?}", &response_data);
             let return_bean: ServiceResponse<AppUpdateResponse> =
                 serde_json::from_str(response_data.as_str())?;
             if return_bean.return_code == constants::TSM_RETURN_CODE_SUCCESS {

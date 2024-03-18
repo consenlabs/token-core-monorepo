@@ -7,11 +7,11 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ikc-common = {path = "../../ikc-common"}
-ikc-device = {path = "../../ikc-device"}
-ikc-transport = {path = "../../ikc-transport"}
+ikc-common = { path = "../../ikc-common" }
+ikc-device = { path = "../../ikc-device" }
+ikc-transport = { path = "../../ikc-transport" }
 rlp = "=0.5.2"
-secp256k1 = {version ="=0.24.3", features = ["rand", "recovery"] }
+secp256k1 = { version = "=0.24.3", features = ["rand", "recovery"] }
 ethereum-types = "=0.14.0"
 keccak-hash = "=0.10.0"
 lazy_static = "=1.4.0"
@@ -33,3 +33,6 @@ bytes = "=1.4.0"
 prost = "=0.11.2"
 prost-types = "=0.11.2"
 base64 = "=0.13.1"
+
+android_logger = "0.13.3"
+log = { version = "=0.4.17", features = ["std"] }

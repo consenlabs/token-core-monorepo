@@ -75,6 +75,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e999941b234f3131b00bc13c22d06e8c5ff726d1b6318ac7eb276997bbb4fef0"
 
 [[package]]
+name = "android_log-sys"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5ecc8056bf6ab9892dcd53216c83d1597487d7dacac16c8df6b877d127df9937"
+
+[[package]]
+name = "android_logger"
+version = "0.13.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c494134f746c14dc653a35a4ea5aca24ac368529da5370ecf41fe0341c35772f"
+dependencies = [
+ "android_log-sys",
+ "env_logger",
+ "log",
+ "once_cell",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -559,6 +577,7 @@ dependencies = [
 name = "coin-bitcoin"
 version = "0.1.0"
 dependencies = [
+ "android_logger",
  "anyhow",
  "bitcoin",
  "bitcoin_hashes",
@@ -567,6 +586,7 @@ dependencies = [
  "ikc-common",
  "ikc-device",
  "ikc-transport",
+ "log",
  "num-bigint 0.4.3",
  "prost",
  "prost-types",
@@ -577,6 +597,7 @@ dependencies = [
 name = "coin-btc-fork"
 version = "0.1.0"
 dependencies = [
+ "android_logger",
  "anyhow",
  "base64 0.13.1",
  "bech32 0.9.1",
@@ -588,6 +609,7 @@ dependencies = [
  "ikc-device",
  "ikc-transport",
  "lazy_static",
+ "log",
  "num-bigint 0.4.3",
  "parking_lot",
  "prost",
@@ -664,6 +686,7 @@ dependencies = [
 name = "coin-ethereum"
 version = "0.1.0"
 dependencies = [
+ "android_logger",
  "anyhow",
  "base64 0.13.1",
  "bitcoin",
@@ -677,6 +700,7 @@ dependencies = [
  "jsonrpc-core",
  "keccak-hash",
  "lazy_static",
+ "log",
  "num-bigint 0.4.3",
  "num-integer",
  "num-traits",
@@ -1239,6 +1263,16 @@ name = "either"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
+
+[[package]]
+name = "env_logger"
+version = "0.10.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4cd405aab171cb85d6735e5c8d9db038c17d3ca007a4d2c25f337935c3d90580"
+dependencies = [
+ "log",
+ "regex",
+]
 
 [[package]]
 name = "environmental"
@@ -1945,6 +1979,7 @@ checksum = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 name = "ikc"
 version = "0.1.0"
 dependencies = [
+ "android_logger",
  "anyhow",
  "base64 0.13.1",
  "bitcoin",
@@ -2010,6 +2045,7 @@ dependencies = [
 name = "ikc-device"
 version = "0.1.0"
 dependencies = [
+ "android_logger",
  "anyhow",
  "base64 0.13.1",
  "bytes",

@@ -1,5 +1,11 @@
-use crate::api::{AddressParam, ErrorResponse, ExternalAddressParam, ImkeyAction, PubKeyParam};
+use crate::api::{
+    AddressParam, DeriveAccountsResult, ErrorResponse, ExternalAddressParam, ImkeyAction,
+    PubKeyParam,
+};
+use crate::btc_address::register_btc_address;
 use anyhow::{anyhow, Error};
+use api::derive_accounts_param::Derivation;
+use api::DeriveAccountsParam;
 use handler::derive_sub_accounts;
 use ikc_common::SignParam;
 use prost::Message;
@@ -36,6 +42,12 @@ use parking_lot::Mutex;
 mod handler;
 pub mod tezos_address;
 pub mod tezos_signer;
+#[macro_use]
+extern crate log;
+extern crate android_logger;
+
+use android_logger::Config;
+use log::LevelFilter;
 
 #[macro_use]
 extern crate lazy_static;
@@ -79,6 +91,8 @@ pub extern "C" fn set_apdu_return(apdu_return: *const c_char) {
 pub extern "C" fn set_callback(
     callback: extern "C" fn(apdu: *const c_char, timeout: i32) -> *const c_char,
 ) {
+    android_logger::init_once(Config::default().with_max_level(LevelFilter::Trace));
+
     message::set_callback(callback);
 }
 
@@ -97,8 +111,11 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
     let hex_c_str = CStr::from_ptr(hex_str);
     let hex_str = hex_c_str.to_str().expect("parse_arguments to_str");
 
+    debug!("ikc: call_imkey_api hex_str: {}", hex_str);
     let data = hex::decode(hex_str).expect("imkey_illegal_prarm");
     let action: ImkeyAction = ImkeyAction::decode(data.as_slice()).expect("decode imkey api");
+    debug!("ikc: call_imkey_api action: {:?}", &action);
+
     let reply: Result<Vec<u8>> = match action.method.to_lowercase().as_str() {
         "init_imkey_core_x" => {
             landingpad(|| device_manager::init_imkey_core(&action.param.unwrap().value))
@@ -137,6 +154,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
         "get_address" => landingpad(|| {
             let param: AddressParam = AddressParam::decode(action.param.unwrap().value.as_slice())
                 .expect("imkey_illegal_param");
+            debug!("ikc: get_address param: {:?}", &param);
             match param.chain_type.as_str() {
                 "BITCOIN" => btc_address::get_address(&param),
                 "ETHEREUM" => ethereum_address::get_address(&param),
@@ -182,6 +200,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
         }),
 
         "sign_tx" => landingpad(|| {
+            // test_derive_accounts();
             let param: SignParam = SignParam::decode(action.param.unwrap().value.as_slice())
                 .expect("sign_tx unpack error");
             match param.chain_type.as_str() {
@@ -272,6 +291,196 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
         }
         _ => CString::new("").unwrap().into_raw(),
     }
+}
+
+pub fn test_derive_accounts() {
+    let derivations = vec![
+        Derivation {
+            chain_type: "LITECOIN".to_string(),
+            path: "m/44'/2'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "LITECOIN".to_string(),
+            path: "m/49'/2'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "P2WPKH".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "LITECOIN".to_string(),
+            path: "m/49'/1'/0'/0/0".to_string(),
+            network: "TESTNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "TRON".to_string(),
+            path: "m/44'/195'/0'/0/0".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "NERVOS".to_string(),
+            path: "m/44'/309'/0'/0/0".to_string(),
+            network: "TESTNET".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "FILECOIN".to_string(),
+            path: "m/44'/461'/0'/0/0".to_string(),
+            network: "TESTNET".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "COSMOS".to_string(),
+            path: "m/44'/118'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "EOS".to_string(),
+            path: "m/44'/194'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "ETHEREUM".to_string(),
+            path: "m/44'/60'/0'/0/0".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "BITCOIN".to_string(),
+            path: "m/44'/0'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "BITCOIN".to_string(),
+            path: "m/49'/0'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "P2WPKH".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "KUSAMA".to_string(),
+            path: "m/44'/434'/0'/0'/0'".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "".to_string(),
+            curve: "ed25519".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "POLKADOT".to_string(),
+            path: "m/44'/354'/0'/0'/0'".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "".to_string(),
+            curve: "ed25519".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "BITCOINCASH".to_string(),
+            path: "m/44'/145'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "NERVOS".to_string(),
+            path: "m/44'/309'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "FILECOIN".to_string(),
+            path: "m/44'/461'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "BITCOIN".to_string(),
+            path: "m/44'/0'/0'/0/0".to_string(),
+            network: "TESTNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "BITCOIN".to_string(),
+            path: "m/49'/0'/0'/0/0".to_string(),
+            network: "TESTNET".to_string(),
+            seg_wit: "P2WPKH".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "COSMOS".to_string(),
+            path: "m/44'/118'/0'/0/0".to_string(),
+            network: "TESTNET".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+        Derivation {
+            chain_type: "EOS".to_string(),
+            path: "m/44'/194'/0'/0/0".to_string(),
+            network: "TESTNET".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            bech32_prefix: "".to_string(),
+        },
+    ];
+    let param = DeriveAccountsParam { derivations };
+    let ret_bytes = derive_accounts(&encode_message(param).unwrap()).unwrap();
+    let derived_accounts: DeriveAccountsResult =
+        DeriveAccountsResult::decode(ret_bytes.as_slice()).unwrap();
+    debug!("ikc derive_accounts result: {:?}", derived_accounts);
 }
 
 #[no_mangle]

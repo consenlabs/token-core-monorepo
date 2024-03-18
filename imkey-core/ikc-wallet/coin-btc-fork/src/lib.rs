@@ -11,3 +11,6 @@ extern crate anyhow;
 
 #[macro_use]
 extern crate lazy_static;
+#[macro_use]
+extern crate log;
+extern crate android_logger;

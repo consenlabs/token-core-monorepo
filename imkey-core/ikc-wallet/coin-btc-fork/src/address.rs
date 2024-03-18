@@ -108,11 +108,13 @@ impl BtcForkAddress {
     pub fn p2pkh(network: &BtcForkNetwork, path: &str) -> Result<String> {
         //path check
         check_path_validity(path)?;
+        debug!("ikc: p2pkh");
 
         //get xpub
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
 
+        debug!("ikc: p2pkh get_xpub_data success");
         let mut pub_key_obj = PublicKey::from_str(pub_key)?;
         pub_key_obj.compressed = true;
         //let s = Address::p2pkh(&pub_key_obj, Network::Bitcoin);
@@ -128,10 +130,12 @@ impl BtcForkAddress {
     pub fn p2shwpkh(network: &BtcForkNetwork, path: &str) -> Result<String> {
         //path check
         check_path_validity(path)?;
+        debug!("ikc: p2shwpkh ");
 
         //get xpub
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
+        debug!("ikc: p2shwpkh get_xpub_data success");
 
         let mut pub_key_obj = PublicKey::from_str(pub_key)?;
         pub_key_obj.compressed = true;

@@ -76,13 +76,29 @@ impl EthAddress {
     pub fn get_pub_key(path: &str) -> Result<String> {
         check_path_validity(path)?;
 
+        // let select_apdu = EthApdu::select_applet();
+        // let select_response = send_apdu(select_apdu)?;
+        // ApduCheck::check_response(&select_response)?;
+
+        // //get public
+        // // 80530000106d2f3434272f3630272f30272f302f3100
+        // // verify_flag false: 80530000106d2f3434272f3630272f30272f302f3000
+        // // 80530100106d2f3434272f3630272f30272f302f3000
+        // let register_apdu =
+        //     EthApdu::register_address("0x785902b88aEfbf34F688A5DA31F6b5B8134FDfe1".as_bytes());
+        // let res_register = send_apdu(register_apdu)?;
+        // debug!("ikc eth res_register: {:?}", &res_register);
+        // ApduCheck::check_response(&res_register)?;
+
         let select_apdu = EthApdu::select_applet();
         let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
-        //get public
-        let msg_pubkey = EthApdu::get_xpub(&path, false);
+        // 805300000c6d2f3434272f3630272f302700
+        let msg_pubkey = EthApdu::get_xpub(&"m/44'/60'/0'", false);
+        debug!("ikc eth msg_pubkey: {:?}", &msg_pubkey);
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
+        debug!("ikc eth res_msg_pubkey: {:?}", &res_msg_pubkey);
         ApduCheck::check_response(&res_msg_pubkey)?;
 
         Ok(res_msg_pubkey[..194].to_string())

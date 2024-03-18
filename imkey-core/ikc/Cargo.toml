@@ -36,7 +36,7 @@ linked-hash-map = { version = "=0.5.6", features = ["serde_impl"] }
 serde_json = { version = "=1.0.89", default-features = false, features = ["alloc"] }
 base64 = "=0.13.1"
 parking_lot = "=0.12.1"
-
+android_logger = "0.13.3"
 [lib]
 name="connector"
 crate-type=["staticlib","cdylib"]

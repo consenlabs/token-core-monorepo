@@ -7,21 +7,22 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ikc-common = {path = "../ikc-common"}
-ikc-transport = {path = "../ikc-transport"}
+ikc-common = { path = "../ikc-common" }
+ikc-transport = { path = "../ikc-transport" }
 serde = { version = "=1.0.147", features = ["derive"] }
 serde_derive = "=1.0.147"
 serde_json = "=1.0.89"
 base64 = "=0.13.1"
 hex = "=0.4.3"
-secp256k1 = {version ="=0.24.3", features = ["rand", "recovery", "rand-std"] }
+secp256k1 = { version = "=0.24.3", features = ["rand", "recovery", "rand-std"] }
 rand = "=0.8.5"
 sha1 = "=0.6.1"
 rsa = "=0.7.2"
 lazy_static = "=1.4.0"
 regex = "=1.9.3"
 anyhow = "=1.0.79"
-log = {version = "=0.4.17", features = ["std"]}
+android_logger = "0.13.3"
+log = { version = "=0.4.17", features = ["std"] }
 prost = "=0.11.2"
 prost-types = "=0.11.2"
 bytes = "=1.4.0"

@@ -1,8 +1,9 @@
 use crate::api::{
-    AccountResponse, DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam,
-    DeriveSubAccountsResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult,
-    GetPublicKeysParam, GetPublicKeysResult,
+    AccountResponse, AddressParam, DeriveAccountsParam, DeriveAccountsResult,
+    DeriveSubAccountsParam, DeriveSubAccountsResult, GetExtendedPublicKeysParam,
+    GetExtendedPublicKeysResult, GetPublicKeysParam, GetPublicKeysResult,
 };
+use crate::btc_address::register_btc_address;
 use crate::message_handler::encode_message;
 use crate::Result;
 use anyhow::anyhow;
@@ -30,8 +31,62 @@ use prost::Message;
 use std::str::FromStr;
 
 pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
+    // for i in 0..40 {
+    //     let param = AddressParam {
+    //         chain_type: "BITCOIN".to_string(),
+    //         path: "m/44'/1'/0'".to_string(),
+    //         network: "TESTNET".to_string(),
+    //         is_seg_wit: true,
+    //     };
+    //     register_btc_address(&param).unwrap();
+
+    //     debug!("ikc register address success");
+    //     let param = AddressParam {
+    //         chain_type: "BITCOIN".to_string(),
+    //         path: "m/49'/1'/0'/0/0".to_string(),
+    //         network: "TESTNET".to_string(),
+    //         is_seg_wit: true,
+    //     };
+    //     register_btc_address(&param).unwrap();
+
+    //     let param = AddressParam {
+    //         chain_type: "BITCOIN".to_string(),
+    //         path: "m/44'/0'/0'".to_string(),
+    //         network: "TESTNET".to_string(),
+    //         is_seg_wit: true,
+    //     };
+    //     register_btc_address(&param).unwrap();
+
+    //     debug!("ikc register address success");
+    //     let param = AddressParam {
+    //         chain_type: "BITCOIN".to_string(),
+    //         path: "m/49'/0'/0'/0/0".to_string(),
+    //         network: "TESTNET".to_string(),
+    //         is_seg_wit: true,
+    //     };
+    //     register_btc_address(&param).unwrap();
+
+    //     let param = AddressParam {
+    //         chain_type: "BITCOIN".to_string(),
+    //         path: "m/49'/0'/0'".to_string(),
+    //         network: "TESTNET".to_string(),
+    //         is_seg_wit: true,
+    //     };
+    //     register_btc_address(&param).unwrap();
+
+    //     debug!("ikc register address success");
+    //     let param = AddressParam {
+    //         chain_type: "BITCOIN".to_string(),
+    //         path: "m/44'/0'/0'/0/0".to_string(),
+    //         network: "TESTNET".to_string(),
+    //         is_seg_wit: true,
+    //     };
+    //     register_btc_address(&param).unwrap();
+    // }
+
     let param: DeriveAccountsParam =
         DeriveAccountsParam::decode(data).expect("derive_accounts param");
+    debug!("ikc derive_accounts param: {:?}", &param);
     let mut account_responses = vec![];
     for derivation in param.derivations {
         let account_path = if "secp256k1".eq(&derivation.curve.to_lowercase()) {
@@ -39,6 +94,8 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
         } else {
             "".to_string()
         };
+
+        debug!("ikc: derive_account current : {:?}", &derivation);
 
         let mut account_rsp = AccountResponse {
             chain_type: derivation.chain_type.to_owned(),
@@ -52,6 +109,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
             "BITCOIN" | "LITECOIN" => {
                 let network = network_convert(derivation.network.as_str());
                 let public_key = BtcAddress::get_pub_key(&derivation.path)?;
+                debug!("ikc: get_pub_key: {}", public_key);
                 let public_key = uncompress_pubkey_2_compress(&public_key);
                 account_rsp.public_key = format!("0x{}", public_key);
                 let btc_fork_network = network_from_param(
@@ -65,7 +123,9 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                     _ => BtcForkAddress::p2pkh(&btc_fork_network, &derivation.path)?,
                 };
                 account_rsp.address = address;
-                BtcAddress::get_xpub(network, &account_path)?
+                let xpub = BtcAddress::get_xpub(network, &account_path)?;
+                debug!("get xpub: {}", &xpub);
+                xpub
             }
             "ETHEREUM" => {
                 let public_key = EthAddress::get_pub_key(&derivation.path)?;

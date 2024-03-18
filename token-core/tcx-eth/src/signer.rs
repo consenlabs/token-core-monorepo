@@ -112,7 +112,9 @@ impl EthMessageInput {
         if self.signature_type == SignatureType::PersonalSign as i32 {
             Ok(hash_message(&message))
         } else {
-            Ok(keccak256(&message))
+            let mut buffer: [u8; 32] = [0; 32];
+            buffer.copy_from_slice(&message);
+            Ok(buffer)
         }
     }
 }
