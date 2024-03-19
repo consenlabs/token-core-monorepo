@@ -84,8 +84,7 @@ pub fn register_btc_address(param: &AddressParam) -> Result<Vec<u8>> {
 
 pub fn display_btc_legacy_address(param: &AddressParam) -> Result<Vec<u8>> {
     let network = network_convert(param.network.as_ref());
-    let path = format!("{}/0/0", param.path);
-    let address = BtcAddress::display_address(network, &path)?;
+    let address = BtcAddress::display_address(network, &param.path)?;
 
     let address_message = AddressResult {
         address,
@@ -97,8 +96,7 @@ pub fn display_btc_legacy_address(param: &AddressParam) -> Result<Vec<u8>> {
 
 pub fn display_segwit_address(param: &AddressParam) -> Result<Vec<u8>> {
     let network = network_convert(param.network.as_ref());
-    let path = format!("{}/0/0", param.path);
-    let address = BtcAddress::display_segwit_address(network, &path)?;
+    let address = BtcAddress::display_segwit_address(network, &param.path)?;
 
     let address_message = AddressResult {
         path: param.path.to_string(),
