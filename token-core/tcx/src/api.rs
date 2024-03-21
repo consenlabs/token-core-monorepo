@@ -677,8 +677,8 @@ pub struct LegacyKeystoreResult {
     pub name: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub source: ::prost::alloc::string::String,
-    #[prost(int64, tag = "4")]
-    pub created_at: i64,
+    #[prost(string, tag = "4")]
+    pub created_at: ::prost::alloc::string::String,
     #[prost(message, repeated, tag = "5")]
     pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
 }

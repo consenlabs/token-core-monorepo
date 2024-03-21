@@ -326,7 +326,7 @@ fn parse_legacy_kesytore(contents: String) -> Result<LegacyKeystoreResult> {
         id: legacy_keystore.id.to_string(),
         name: meta.name.to_string(),
         source: meta.source.as_ref().unwrap_or(&"".to_string()).to_string(),
-        created_at,
+        created_at: created_at.to_string(),
         accounts: vec![account],
     };
     Ok(keystore_result)
@@ -379,7 +379,7 @@ fn parse_tcx_keystore(v: &Value) -> Result<LegacyKeystoreResult> {
         id,
         name: meta.name.to_string(),
         source: meta.source.to_string(),
-        created_at: meta.timestamp,
+        created_at: meta.timestamp.to_string(),
         accounts: account_responses,
     };
     Ok(keystore_result)
