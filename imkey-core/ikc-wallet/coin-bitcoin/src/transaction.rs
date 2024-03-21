@@ -1,8 +1,5 @@
 use crate::address::BtcAddress;
-use crate::common::{
-    address_verify, get_address_version, get_xpub_data, secp256k1_sign_verify, TransTypeFlg,
-    TxSignResult,
-};
+use crate::common::{address_verify, get_address_version, TransTypeFlg, TxSignResult};
 use crate::Result;
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};

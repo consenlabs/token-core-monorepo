@@ -8,7 +8,7 @@ use bitcoin::util::bip32::{ChainCode, ChildNumber, ExtendedPubKey};
 use bitcoin::{Address, PublicKey};
 use ikc_common::apdu::{ApduCheck, BtcForkApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
-use ikc_common::utility::sha256_hash;
+use ikc_common::utility::{hex_to_bytes, sha256_hash};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
 use secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
@@ -26,41 +26,45 @@ pub fn address_verify(
 ) -> Result<Vec<String>> {
     let mut utxo_pub_key_vec: Vec<String> = vec![];
     for utxo in utxos {
-        //get utxo public key
-        let secp256k1_pubkey = Secp256k1PublicKey::from_str(public_key)?;
-        let public_key_obj = PublicKey {
-            compressed: true,
-            inner: secp256k1_pubkey,
-        };
-        //gen chain code obj
-        let chain_code_obj = ChainCode::try_from(chain_code)?;
-        //build extended public key
-        let mut extend_public_key = ExtendedPubKey {
-            network: network,
-            depth: 0,
-            parent_fingerprint: Default::default(),
-            child_number: ChildNumber::from_normal_idx(0)?,
-            public_key: secp256k1_pubkey,
-            chain_code: chain_code_obj,
-        };
-
-        let bitcoin_secp = BitcoinSecp256k1::new();
-
-        let se_gen_address_str = if utxo.derive_path.is_empty() {
-            Address::p2pkh(&public_key_obj, network).to_string()
-        } else {
-            let index_number_vec: Vec<&str> = utxo.derive_path.as_str().split('/').collect();
-
-            for index_number in index_number_vec {
-                let test_chain_number =
-                    ChildNumber::from_normal_idx(index_number.parse().unwrap())?;
-                extend_public_key = extend_public_key.ckd_pub(&bitcoin_secp, test_chain_number)?;
-            }
-            Address::p2pkh(
-                &PublicKey::from_str(extend_public_key.public_key.to_string().as_str())?,
-                network,
+        let (se_gen_address_str, extend_public_key) = if utxo.derive_path.is_empty() {
+            let secp256k1_pubkey = Secp256k1PublicKey::from_str(public_key)?;
+            let public_key_obj = PublicKey {
+                compressed: true,
+                inner: secp256k1_pubkey,
+            };
+            let chain_code_obj = ChainCode::try_from(chain_code)?;
+            (
+                Address::p2pkh(&public_key_obj, network).to_string(),
+                ExtendedPubKey {
+                    network,
+                    depth: 0,
+                    parent_fingerprint: Default::default(),
+                    child_number: ChildNumber::from_normal_idx(0)?,
+                    public_key: secp256k1_pubkey,
+                    chain_code: chain_code_obj,
+                },
             )
-            .to_string()
+        } else {
+            let xpub_data = get_xpub_data(&utxo.derive_path, false)?;
+            let public_key = &xpub_data[..130];
+            let chain_code = &xpub_data[130..194];
+            let extend_public_key = ExtendedPubKey {
+                network,
+                depth: 0,
+                parent_fingerprint: Default::default(),
+                child_number: ChildNumber::from_normal_idx(0)?,
+                public_key: Secp256k1PublicKey::from_str(public_key)?,
+                chain_code: ChainCode::from(hex_to_bytes(chain_code)?.as_slice()),
+            };
+
+            (
+                Address::p2pkh(
+                    &PublicKey::from_str(extend_public_key.public_key.to_string().as_str())?,
+                    network,
+                )
+                .to_string(),
+                extend_public_key,
+            )
         };
 
         let utxo_address = utxo.address.clone();

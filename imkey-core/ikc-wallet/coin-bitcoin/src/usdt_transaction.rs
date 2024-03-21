@@ -47,13 +47,7 @@ impl BtcTransaction {
         }
 
         //utxo address verify
-        let utxo_pub_key_vec = address_verify(
-            &self.unspents,
-            // pub_key,
-            // hex::decode(chain_code).unwrap().as_slice(),
-            network,
-            TransTypeFlg::BTC,
-        )?;
+        let utxo_pub_key_vec = address_verify(&self.unspents, network, TransTypeFlg::BTC)?;
 
         //add change output
         let mut txouts: Vec<TxOut> = Vec::new();
