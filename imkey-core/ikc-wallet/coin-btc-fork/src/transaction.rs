@@ -195,16 +195,23 @@ impl BtcForkTransaction {
                 if y >= utxo_pub_key_vec.len() {
                     break;
                 }
+                let sign_path = if self
+                    .tx_input
+                    .unspents
+                    .get(y)
+                    .unwrap()
+                    .derived_path
+                    .is_empty()
+                {
+                    path_str.as_str()
+                } else {
+                    self.tx_input.unspents.get(y).unwrap().derived_path.as_str()
+                };
                 let btc_sign_apdu = BtcForkApdu::btc_fork_sign(
                     0x4A,
                     y as u8,
                     EcdsaSighashType::All.to_u32() as u8,
-                    format!(
-                        "{}{}",
-                        path_str,
-                        self.tx_input.unspents.get(y).unwrap().derived_path
-                    )
-                    .as_str(),
+                    sign_path,
                 );
                 //sign data
                 let btc_sign_apdu_return = send_apdu(btc_sign_apdu)?;
@@ -416,9 +423,13 @@ impl BtcForkTransaction {
             data.insert(0, data.len() as u8);
             //address
             let mut address_data: Vec<u8> = vec![];
-            let sign_path = format!("{}{}", path_str, unspent.derived_path);
-            address_data.push(sign_path.as_bytes().len() as u8);
-            address_data.extend_from_slice(sign_path.as_bytes());
+            if unspent.derived_path.is_empty() {
+                address_data.push(path_str.as_bytes().len() as u8);
+                address_data.extend_from_slice(path_str.as_bytes());
+            } else {
+                address_data.push(unspent.derived_path.as_bytes().len() as u8);
+                address_data.extend_from_slice(unspent.derived_path.as_bytes());
+            }
 
             data.extend(address_data.iter());
             if index == self.tx_input.unspents.len() - 1 {
@@ -595,7 +606,7 @@ mod tests {
             amount: 1000000,
             address: "myxdgXjCRgAskD2g1b6WJttJbuv67hq6sQ".to_string(),
             script_pub_key: "76a914ca4d8acded69ce4f05d0925946d261f86c675fd888ac".to_string(),
-            derived_path: "0/0".to_string(),
+            derived_path: "m/44'/2'/0'/0/0".to_string(),
             sequence: 0,
         };
         let mut unspents = Vec::new();
@@ -640,7 +651,7 @@ mod tests {
             amount: 1000000,
             address: "myxdgXjCRgAskD2g1b6WJttJbuv67hq6sQ".to_string(),
             script_pub_key: "76a914ca4d8acded69ce4f05d0925946d261f86c675fd888ac".to_string(),
-            derived_path: "0/0".to_string(),
+            derived_path: "m/44'/2'/0'/0/0".to_string(),
             sequence: 0,
         };
         let mut unspents = Vec::new();
@@ -684,7 +695,7 @@ mod tests {
             amount: 19850000,
             address: "M7xo1Mi1gULZSwgvu7VVEvrwMRqngmFkVd".to_string(),
             script_pub_key: "76a914ca4d8acded69ce4f05d0925946d261f86c675fd888ac".to_string(),
-            derived_path: "0/0".to_string(),
+            derived_path: "m/44'/2'/0'/0/0".to_string(),
             sequence: 0,
         }];
         let tx_input = BtcForkTxInput {
