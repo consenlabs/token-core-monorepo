@@ -40,7 +40,7 @@ fn read_migrated_map() -> (String, HashMap<String, Vec<String>>) {
     (migrated_file, map)
 }
 
-pub fn remove_old_keystore_by_id(id: &str) {
+pub fn remove_old_keystore_by_id(id: &str) -> Option<Vec<String>> {
     let legacy_file_dir = {
         let dir = LEGACY_WALLET_FILE_DIR.read();
         dir.to_string()
@@ -51,6 +51,7 @@ pub fn remove_old_keystore_by_id(id: &str) {
     let migrated_file = result.0;
     let mut map = result.1;
 
+    let marked_files = map.get(id).and_then(|x| Some(x.to_vec())).clone();
     if let Some(files) = map.get(id) {
         for file_id in files.iter() {
             let mut file_path = format!("{}/{}.json", legacy_file_dir, file_id);
@@ -72,6 +73,7 @@ pub fn remove_old_keystore_by_id(id: &str) {
     } else {
         fs::remove_file(&migrated_file);
     }
+    marked_files
 }
 
 fn mark_keystore_as_migrated(legacy_file_id: &str, migrated_file_id: &str) {

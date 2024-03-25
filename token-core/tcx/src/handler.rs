@@ -727,7 +727,11 @@ pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
         delete_keystore_file(&param.id)?;
         map.remove(&param.id);
 
-        remove_old_keystore_by_id(&param.id.clone());
+        if let Some(file_ids) = remove_old_keystore_by_id(&param.id.clone()) {
+            for file_id in file_ids {
+                map.remove(&file_id);
+            }
+        }
 
         let rsp = GeneralResult {
             is_success: true,

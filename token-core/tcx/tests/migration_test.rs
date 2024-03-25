@@ -856,6 +856,96 @@ fn test_migrate_duplicate_then_delete_keystore() {
 
 #[test]
 #[serial]
+fn test_migrate_duplicate_delete_all_keystore_migrate_again() {
+    setup_test("../test-data/migrate-duplication-fixtures");
+    let param = MigrateKeystoreParam {
+        id: "300b42bc-0948-4734-82cb-4293dfeeefd2".to_string(),
+        network: "TESTNET".to_string(),
+        key: Some(migrate_keystore_param::Key::Password(
+            TEST_PASSWORD.to_string(),
+        )),
+    };
+    call_api("migrate_keystore", param).unwrap();
+    let param = ExportMnemonicParam {
+        id: "300b42bc-0948-4734-82cb-4293dfeeefd2".to_string(),
+        key: Some(export_mnemonic_param::Key::Password(
+            TEST_PASSWORD.to_string(),
+        )),
+    };
+    let ret = call_api("export_mnemonic", param).unwrap();
+    let exported = ExportMnemonicResult::decode(ret.as_slice())
+        .unwrap()
+        .mnemonic;
+    assert_eq!(OTHER_MNEMONIC, exported);
+    // CKB imported 300b42bc-0948-4734-82cb-4293dfeeefd2
+    // 9b696367-69c1-4cfe-8325-e5530399fc3f
+    let param = MigrateKeystoreParam {
+        id: "9b696367-69c1-4cfe-8325-e5530399fc3f".to_string(),
+        network: "TESTNET".to_string(),
+        key: Some(migrate_keystore_param::Key::Password(
+            TEST_PASSWORD.to_string(),
+        )),
+    };
+    call_api("migrate_keystore", param).unwrap();
+    let param = ExportMnemonicParam {
+        id: "9b696367-69c1-4cfe-8325-e5530399fc3f".to_string(),
+        key: Some(export_mnemonic_param::Key::Password(
+            TEST_PASSWORD.to_string(),
+        )),
+    };
+    let ret = call_api("export_mnemonic", param).unwrap();
+    let exported = ExportMnemonicResult::decode(ret.as_slice())
+        .unwrap()
+        .mnemonic;
+    assert_eq!(OTHER_MNEMONIC, exported);
+
+    let param = WalletKeyParam {
+        id: "300b42bc-0948-4734-82cb-4293dfeeefd2".to_string(),
+        key: Some(wallet_key_param::Key::Password(TEST_PASSWORD.to_string())),
+    };
+    let ret = call_api("delete_keystore", param).unwrap();
+
+    let param = MigrateKeystoreParam {
+        id: "792a0051-16d7-44a7-921a-9b4a0c893b8f".to_string(),
+        network: "TESTNET".to_string(),
+        key: Some(migrate_keystore_param::Key::Password(
+            TEST_PASSWORD.to_string(),
+        )),
+    };
+    call_api("migrate_keystore", param).unwrap();
+    let param = ExportMnemonicParam {
+        id: "792a0051-16d7-44a7-921a-9b4a0c893b8f".to_string(),
+        key: Some(export_mnemonic_param::Key::Password(
+            TEST_PASSWORD.to_string(),
+        )),
+    };
+    let ret = call_api("export_mnemonic", param).unwrap();
+    let exported = ExportMnemonicResult::decode(ret.as_slice())
+        .unwrap()
+        .mnemonic;
+    assert_eq!(OTHER_MNEMONIC, exported);
+
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/300b42bc-0948-4734-82cb-4293dfeeefd2.json").exists(),
+        false
+    );
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/9b696367-69c1-4cfe-8325-e5530399fc3f").exists(),
+        false
+    );
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/_migrated").exists(),
+        false
+    );
+
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/792a0051-16d7-44a7-921a-9b4a0c893b8f").exists(),
+        true
+    );
+}
+
+#[test]
+#[serial]
 fn test_migrate_android_old_eos_private_keystore() {
     setup_test("../test-data");
     let param = MigrateKeystoreParam {
