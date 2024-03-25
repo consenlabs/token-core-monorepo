@@ -9,11 +9,7 @@ use tcx::*;
 use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
 
 use prost::Message;
-use tcx::api::{
-    export_mnemonic_param, migrate_keystore_param, wallet_key_param, BackupResult,
-    ExportMnemonicParam, ExportMnemonicResult, MigrateKeystoreParam, MigrateKeystoreResult,
-    SignParam, WalletKeyParam,
-};
+use tcx::api::{export_mnemonic_param, migrate_keystore_param, wallet_key_param, BackupResult, ExportMnemonicParam, ExportMnemonicResult, MigrateKeystoreParam, MigrateKeystoreResult, SignParam, WalletKeyParam, GeneralResult};
 
 use tcx::handler::encode_message;
 use tcx_constants::CurveType;
@@ -990,4 +986,43 @@ fn test_migrate_ios_old_eos_private_keystore() {
         "5KhJeeS5eVDv5DHsFnorDLiJkTeGtMKwmRgyHiVJYzYVd2d1BoP",
         exported
     );
+}
+
+#[test]
+#[serial]
+pub fn test_migrate_identity_then_delete() {
+    let _ = fs::remove_dir_all("../test-data/walletsV2");
+    let _ = fs::remove_file("../test-data/wallets/_migrated.json");
+    init_token_core_x("../test-data");
+
+    let param: MigrateKeystoreParam = MigrateKeystoreParam {
+        id: "0597526e-105f-425b-bb44-086fc9dc9568".to_string(),
+        network: "TESTNET".to_string(),
+        key: Some(migrate_keystore_param::Key::Password(
+            TEST_PASSWORD.to_string(),
+        )),
+    };
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    println!("{}", result.keystore.unwrap().source);
+
+    let param: MigrateKeystoreParam = MigrateKeystoreParam {
+        id: "00fc0804-7cea-46d8-9e95-ed1efac65358".to_string(),
+        network: "TESTNET".to_string(),
+        key: Some(migrate_keystore_param::Key::Password(
+            TEST_PASSWORD.to_string(),
+        )),
+    };
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    assert!(result.is_existed);
+
+    let param = WalletKeyParam {
+        id: "0597526e-105f-425b-bb44-086fc9dc9568".to_string(),
+        key: Some(wallet_key_param::Key::Password(TEST_PASSWORD.to_string())),
+    };
+    let ret = call_api("delete_keystore", param).unwrap();
+    let result: GeneralResult = GeneralResult::decode(ret.as_slice()).unwrap();
+    assert!(result.is_success);
+
 }

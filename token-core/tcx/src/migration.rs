@@ -50,7 +50,7 @@ pub fn remove_old_keystore_by_id(id: &str) -> Option<Vec<String>> {
 
     let migrated_file = result.0;
     let mut map = result.1;
-
+    let mut is_identity_keystore = false;
     let marked_files = map.get(id).and_then(|x| Some(x.to_vec())).clone();
     if let Some(files) = map.get(id) {
         for file_id in files.iter() {
@@ -59,10 +59,42 @@ pub fn remove_old_keystore_by_id(id: &str) -> Option<Vec<String>> {
                 file_path = format!("{}/{}", legacy_file_dir, file_id);
             }
 
+            if !is_identity_keystore {
+                let json = serde_json::from_str::<Value>(&fs::read_to_string(&file_path).unwrap()).unwrap();
+                let source = json["imTokenMeta"]["source"].as_str().unwrap_or("").to_string();
+                if source.ends_with("_IDENTITY") {
+                    is_identity_keystore = true;
+                }
+            }
+
             if Path::new(&file_path).exists() {
                 fs::remove_file(&file_path);
             }
         }
+        if is_identity_keystore {
+            let p = Path::new(legacy_file_dir.as_str());
+            let walk_dir = std::fs::read_dir(p).expect("read dir");
+            for entry in walk_dir {
+                let entry = entry.expect("DirEntry");
+                let fp = entry.path();
+                let mut f = fs::File::open(&fp).expect("open file");
+                let mut contents = String::new();
+                let read_ret = f.read_to_string(&mut contents);
+                if read_ret.is_err() {
+                    continue;
+                }
+
+                let v_result = serde_json::from_str::<Value>(&contents);
+                let Ok(v) = v_result  else {
+                    continue;
+                };
+                let source = v["imTokenMeta"]["source"].as_str().unwrap_or("").to_string();
+                if source.ends_with("_IDENTITY") {
+                    fs::remove_file(fp);
+                }
+            }
+        }
+
     }
 
     map.remove(id);
