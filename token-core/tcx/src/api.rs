@@ -712,6 +712,12 @@ pub struct MarkIdentityWalletsParam {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ReadKeystoreMnemonicPathResult {
+    #[prost(string, tag = "1")]
+    pub path: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct VerifyDerivedKeyParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,

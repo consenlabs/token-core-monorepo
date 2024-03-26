@@ -1,3 +1,4 @@
+use libc::id_t;
 use serial_test::serial;
 
 mod common;
@@ -12,7 +13,8 @@ use prost::Message;
 use tcx::api::{
     export_mnemonic_param, migrate_keystore_param, wallet_key_param, BackupResult,
     ExportMnemonicParam, ExportMnemonicResult, GeneralResult, MarkIdentityWalletsParam,
-    MigrateKeystoreParam, MigrateKeystoreResult, SignParam, WalletKeyParam,
+    MigrateKeystoreParam, MigrateKeystoreResult, ReadKeystoreMnemonicPathResult, SignParam,
+    WalletId, WalletKeyParam,
 };
 
 use tcx::handler::encode_message;
@@ -1054,4 +1056,28 @@ fn test_delete_all_identity_wallets() {
         Path::new("/tmp/token-core-x/wallets/identity.json").exists(),
         false
     );
+}
+
+#[test]
+#[serial]
+fn test_read_keystore_mnemonic_path() {
+    setup_test("../test-data/identity-keystore-delete");
+
+    let wallet_ids = vec![
+        ("0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string(), ""),
+        (
+            "00fc0804-7cea-46d8-9e95-ed1efac65358".to_string(),
+            "m/49'/1'/0'",
+        ),
+        (
+            "6c3eae60-ad03-48db-a5e5-61a6f72aef8d".to_string(),
+            "m/44'/194'/0'/0/0",
+        ),
+    ];
+    for (id, path) in wallet_ids {
+        let param = WalletId { id };
+        let ret = call_api("read_keystore_mnemonic_path", param).unwrap();
+        let mnemonic_path = ReadKeystoreMnemonicPathResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(mnemonic_path.path, path);
+    }
 }

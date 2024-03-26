@@ -1,7 +1,7 @@
 use crate::api::{
     migrate_keystore_param, AccountResponse, GeneralResult, KeystoreResult, LegacyKeystoreResult,
     MarkIdentityWalletsParam, MigrateKeystoreParam, MigrateKeystoreResult,
-    ScanLegacyKeystoresResult,
+    ReadKeystoreMnemonicPathResult, ScanLegacyKeystoresResult, WalletId,
 };
 use crate::error_handling::Result;
 use crate::filemanager::{cache_keystore, KEYSTORE_MAP, WALLET_FILE_DIR};
@@ -224,6 +224,35 @@ pub(crate) fn mark_identity_wallets(data: &[u8]) -> Result<Vec<u8>> {
     return encode_message(ret);
 }
 
+pub(crate) fn read_legacy_keystore_mnemonic_path(data: &[u8]) -> Result<Vec<u8>> {
+    let param: WalletId = WalletId::decode(data).expect("param: WalletId");
+
+    let legacy_file_dir = {
+        let dir = LEGACY_WALLET_FILE_DIR.read();
+        dir.to_string()
+    };
+
+    let mut file_path = format!("{}/{}", legacy_file_dir, param.id);
+    if !Path::new(&file_path).exists() {
+        file_path = format!("{}/{}.json", legacy_file_dir, param.id);
+    }
+    let path = Path::new(&file_path);
+    if path.exists() {
+        let json_str = fs::read_to_string(path)?;
+        let json: Value = serde_json::from_str(&json_str)?;
+
+        if let Some(path) = json["mnemonicPath"].as_str() {
+            return encode_message(ReadKeystoreMnemonicPathResult {
+                path: path.to_string(),
+            });
+        }
+    }
+
+    return encode_message(ReadKeystoreMnemonicPathResult {
+        path: "".to_string(),
+    });
+}
+
 pub fn read_all_identity_wallet_ids() -> Option<AllIdentityWallets> {
     let file_path_str = format!(
         "{}/{}",
@@ -391,7 +420,7 @@ fn parse_legacy_kesytore(contents: String) -> Result<LegacyKeystoreResult> {
     };
     let account = AccountResponse {
         chain_type,
-        address: legacy_keystore.address.expect("legacy address"),
+        address: legacy_keystore.address.unwrap_or("".to_string()),
         path,
         curve: "secp256k1".to_string(),
         public_key,

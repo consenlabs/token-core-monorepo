@@ -283,3 +283,7 @@ message MigrateKeystoreParam {
     repeated string ids = 1;
     string source = 2;
   }
+
+message ReadKeystoreMnemonicPathResult {
+    string path = 1;
+  }
