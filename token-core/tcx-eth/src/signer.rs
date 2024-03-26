@@ -712,6 +712,18 @@ mod test {
             sign_output.signature,
             "0xb35fe7d2e45098ef21264bc08d0c252a4a7b29f8a24ff25252e0f0c5b38e0ef0776bd12c9595353bdd4a118f8117182d543fa8f25d64a121c03c71f3a4e81b651b"
         );
+
+        let message = EthMessageInput {
+            message:
+                "0x81f26727a6b5478D25bb4524AdeAeE11eC36633ce09d21e3-533d-447c-a185-8b148fb5b568"
+                    .to_string(),
+            signature_type: SignatureType::EcSign as i32,
+        };
+        let sign_output = keystore.sign_message(&params, &message).unwrap();
+        assert_eq!(
+            sign_output.signature,
+            "0x19a39d2da6c7c8abc8babd6dbb9063f30273e3babf819e786f4ae14509cc7a017d08e7ae63b50925ba71dbdaaf9e9db417b97eab2199e3b91fae86493a51229b1c"
+        );
     }
 
     #[test]

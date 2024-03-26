@@ -3,7 +3,12 @@ use crate::Result;
 
 pub fn utf8_or_hex_to_bytes(value: &str) -> Result<Vec<u8>> {
     if value.to_lowercase().starts_with("0x") {
-        FromHex::from_0x_hex(value)
+        let ret = FromHex::from_0x_hex(value);
+        if ret.is_err() {
+            Ok(value.as_bytes().to_vec())
+        } else {
+            ret
+        }
     } else {
         Ok(value.as_bytes().to_vec())
     }
