@@ -70,7 +70,9 @@ use tcx_primitive::TypedDeterministicPublicKey;
 use tcx_tezos::{encode_tezos_private_key, parse_tezos_private_key};
 
 use crate::macros::{impl_to_key, use_chains};
-use crate::migration::remove_old_keystore_by_id;
+use crate::migration::{
+    read_all_identity_wallet_ids, remove_all_identity_wallets, remove_old_keystore_by_id,
+};
 
 use_chains!(
     tcx_btc_kin::bitcoin,
@@ -727,9 +729,21 @@ pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
         delete_keystore_file(&param.id)?;
         map.remove(&param.id);
 
+        // Used to delete all duplicated mnemonic keystore
         if let Some(file_ids) = remove_old_keystore_by_id(&param.id.clone()) {
             for file_id in file_ids {
                 map.remove(&file_id);
+            }
+        }
+
+        // Used to delete all identity keystore if is deleting identity wallet
+        if let Some(all_identity_wallets) = read_all_identity_wallet_ids() {
+            if all_identity_wallets.wallet_ids.contains(&param.id) {
+                if let Some(file_ids) = remove_all_identity_wallets() {
+                    for file_id in file_ids {
+                        map.remove(&file_id);
+                    }
+                }
             }
         }
 

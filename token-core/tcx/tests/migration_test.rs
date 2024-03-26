@@ -11,8 +11,8 @@ use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
 use prost::Message;
 use tcx::api::{
     export_mnemonic_param, migrate_keystore_param, wallet_key_param, BackupResult,
-    ExportMnemonicParam, ExportMnemonicResult, GeneralResult, MigrateKeystoreParam,
-    MigrateKeystoreResult, SignParam, WalletKeyParam,
+    ExportMnemonicParam, ExportMnemonicResult, GeneralResult, MarkIdentityWalletsParam,
+    MigrateKeystoreParam, MigrateKeystoreResult, SignParam, WalletKeyParam,
 };
 
 use tcx::handler::encode_message;
@@ -994,57 +994,64 @@ fn test_migrate_ios_old_eos_private_keystore() {
 
 #[test]
 #[serial]
-pub fn test_migrate_identity_keystore_then_delete() {
-    let base_dir = "../test-data/identity-keystore-delete";
-    let wallets_dir = "../test-data/identity-keystore-delete/wallets";
-    let _ = fs::remove_dir_all(base_dir);
-    let _ = fs::create_dir_all(wallets_dir);
+fn test_delete_all_identity_wallets() {
+    setup_test("../test-data/identity-keystore-delete");
+    let param = MarkIdentityWalletsParam {
+        ids: vec![
+            "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string(),
+            "00fc0804-7cea-46d8-9e95-ed1efac65358".to_string(),
+            "6c3eae60-ad03-48db-a5e5-61a6f72aef8d".to_string(),
+        ],
+        source: "RECOVERED_IDENTITY".to_string(),
+    };
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/0a2756cd-ff70-437b-9bdb-ad46b8bb0819.json").exists(),
+        true
+    );
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/00fc0804-7cea-46d8-9e95-ed1efac65358").exists(),
+        true
+    );
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/6c3eae60-ad03-48db-a5e5-61a6f72aef8d").exists(),
+        true
+    );
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/identity.json").exists(),
+        true
+    );
+    call_api("mark_identity_wallets", param).unwrap();
 
-    let copy_keystore_list = [
-        "identity.json",
-        "00fc0804-7cea-46d8-9e95-ed1efac65358",
-        "0597526e-105f-425b-bb44-086fc9dc9568",
-        "1bfddca9-84dc-4561-bbe9-844a9ff2b281",
-        "6c3eae60-ad03-48db-a5e5-61a6f72aef8d",
-        "ac59ccc1-285b-47a7-92f5-a6c432cee21a",
-    ];
-    for file in &copy_keystore_list {
-        let mut source_file = fs::File::open(format!("../test-data/wallets/{}", file)).unwrap();
-        let mut destination_file = fs::File::create(format!("{}/{}", wallets_dir, file)).unwrap();
-        io::copy(&mut source_file, &mut destination_file).unwrap();
-    }
-
-    init_token_core_x(base_dir);
-
-    let param: MigrateKeystoreParam = MigrateKeystoreParam {
-        id: "0597526e-105f-425b-bb44-086fc9dc9568".to_string(),
+    let param = MigrateKeystoreParam {
+        id: "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string(),
         network: "TESTNET".to_string(),
         key: Some(migrate_keystore_param::Key::Password(
             TEST_PASSWORD.to_string(),
         )),
     };
     let ret = call_api("migrate_keystore", param).unwrap();
-    let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
-    assert!(!result.is_existed);
-
-    let param: MigrateKeystoreParam = MigrateKeystoreParam {
-        id: "00fc0804-7cea-46d8-9e95-ed1efac65358".to_string(),
-        network: "TESTNET".to_string(),
-        key: Some(migrate_keystore_param::Key::Password(
-            TEST_PASSWORD.to_string(),
-        )),
-    };
-    let ret = call_api("migrate_keystore", param).unwrap();
-    let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
-    assert!(result.is_existed);
+    let migrated_ks = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
 
     let param = WalletKeyParam {
-        id: "0597526e-105f-425b-bb44-086fc9dc9568".to_string(),
+        id: "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string(),
         key: Some(wallet_key_param::Key::Password(TEST_PASSWORD.to_string())),
     };
     let ret = call_api("delete_keystore", param).unwrap();
-    let result: GeneralResult = GeneralResult::decode(ret.as_slice()).unwrap();
-    assert!(result.is_success);
-    let file_count = fs::read_dir(wallets_dir).unwrap().count();
-    assert_eq!(file_count, 0);
+
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/0a2756cd-ff70-437b-9bdb-ad46b8bb0819.json").exists(),
+        false
+    );
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/00fc0804-7cea-46d8-9e95-ed1efac65358").exists(),
+        false
+    );
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/6c3eae60-ad03-48db-a5e5-61a6f72aef8d").exists(),
+        false
+    );
+    assert_eq!(
+        Path::new("/tmp/token-core-x/wallets/identity.json").exists(),
+        false
+    );
 }

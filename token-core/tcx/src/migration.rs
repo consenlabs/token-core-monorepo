@@ -1,6 +1,7 @@
 use crate::api::{
-    migrate_keystore_param, AccountResponse, KeystoreResult, LegacyKeystoreResult,
-    MigrateKeystoreParam, MigrateKeystoreResult, ScanLegacyKeystoresResult,
+    migrate_keystore_param, AccountResponse, GeneralResult, KeystoreResult, LegacyKeystoreResult,
+    MarkIdentityWalletsParam, MigrateKeystoreParam, MigrateKeystoreResult,
+    ScanLegacyKeystoresResult,
 };
 use crate::error_handling::Result;
 use crate::filemanager::{cache_keystore, KEYSTORE_MAP, WALLET_FILE_DIR};
@@ -9,7 +10,7 @@ use crate::handler::{encode_message, encrypt_xpub};
 use anyhow::anyhow;
 use prost::Message;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Read;
@@ -18,11 +19,20 @@ use std::str::FromStr;
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::coin_info::get_xpub_prefix;
 use tcx_keystore::keystore::IdentityNetwork;
-use tcx_keystore::Keystore;
 use tcx_keystore::Metadata;
+use tcx_keystore::{Keystore, Source};
 use tcx_migration::keystore_upgrade::{mapping_curve_name, KeystoreUpgrade};
 use tcx_migration::migration::{LegacyKeystore, NumberOrNumberStr};
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
+
+const IDENTITY_WALLET_IDS_FILE: &str = "identity-wallet-ids.json";
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct AllIdentityWallets {
+    pub wallet_ids: Vec<String>,
+    pub source: String,
+}
 
 fn read_migrated_map() -> (String, HashMap<String, Vec<String>>) {
     let legacy_file_dir = {
@@ -40,66 +50,31 @@ fn read_migrated_map() -> (String, HashMap<String, Vec<String>>) {
     (migrated_file, map)
 }
 
-pub fn remove_old_keystore_by_id(id: &str) -> Option<Vec<String>> {
+fn remove_old_keystore_file(id: &str) {
     let legacy_file_dir = {
         let dir = LEGACY_WALLET_FILE_DIR.read();
         dir.to_string()
     };
 
+    let mut file_path = format!("{}/{}.json", legacy_file_dir, id);
+    if !Path::new(&file_path).exists() {
+        file_path = format!("{}/{}", legacy_file_dir, id);
+    }
+
+    if Path::new(&file_path).exists() {
+        fs::remove_file(&file_path);
+    }
+}
+
+pub fn remove_old_keystore_by_id(id: &str) -> Option<Vec<String>> {
     let result = read_migrated_map();
 
     let migrated_file = result.0;
     let mut map = result.1;
-    let mut is_identity_keystore = false;
     let marked_files = map.get(id).and_then(|x| Some(x.to_vec())).clone();
     if let Some(files) = map.get(id) {
         for file_id in files.iter() {
-            let mut file_path = format!("{}/{}.json", legacy_file_dir, file_id);
-            if !Path::new(&file_path).exists() {
-                file_path = format!("{}/{}", legacy_file_dir, file_id);
-            }
-
-            if !is_identity_keystore {
-                let json = serde_json::from_str::<Value>(&fs::read_to_string(&file_path).unwrap())
-                    .unwrap();
-                let source = json["imTokenMeta"]["source"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string();
-                if source.ends_with("_IDENTITY") {
-                    is_identity_keystore = true;
-                }
-            }
-
-            if Path::new(&file_path).exists() {
-                fs::remove_file(&file_path);
-            }
-        }
-        if is_identity_keystore {
-            let p = Path::new(legacy_file_dir.as_str());
-            let walk_dir = std::fs::read_dir(p).expect("read dir");
-            for entry in walk_dir {
-                let entry = entry.expect("DirEntry");
-                let fp = entry.path();
-                let mut f = fs::File::open(&fp).expect("open file");
-                let mut contents = String::new();
-                let read_ret = f.read_to_string(&mut contents);
-                if read_ret.is_err() {
-                    continue;
-                }
-
-                let v_result = serde_json::from_str::<Value>(&contents);
-                let Ok(v) = v_result  else {
-                    continue;
-                };
-                let source = v["imTokenMeta"]["source"]
-                    .as_str()
-                    .unwrap_or("")
-                    .to_string();
-                if source.ends_with("_IDENTITY") {
-                    fs::remove_file(fp);
-                }
-            }
+            remove_old_keystore_file(&file_id);
         }
     }
 
@@ -166,6 +141,7 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
                 keystore = legacy_keystore.migrate(&key, &network)?;
             }
         }
+
         let id = param.id.clone();
         let mut is_existed = false;
         let mut existed_id = "".to_string();
@@ -226,6 +202,66 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
+pub(crate) fn mark_identity_wallets(data: &[u8]) -> Result<Vec<u8>> {
+    let param: MarkIdentityWalletsParam =
+        MarkIdentityWalletsParam::decode(data).expect("param: MarkIdentityWalletsParam");
+    let json = AllIdentityWallets {
+        wallet_ids: param.ids,
+        source: param.source,
+    };
+
+    let legacy_file_dir = {
+        let dir = LEGACY_WALLET_FILE_DIR.read();
+        dir.to_string()
+    };
+
+    let file_path = format!("{}/{}", legacy_file_dir, IDENTITY_WALLET_IDS_FILE);
+    fs::write(file_path, serde_json::to_string(&json)?)?;
+    let ret = GeneralResult {
+        is_success: true,
+        error: "".to_string(),
+    };
+    return encode_message(ret);
+}
+
+pub fn read_all_identity_wallet_ids() -> Option<AllIdentityWallets> {
+    let file_path_str = format!(
+        "{}/{}",
+        LEGACY_WALLET_FILE_DIR.read(),
+        IDENTITY_WALLET_IDS_FILE
+    );
+    let file_path = Path::new(&file_path_str);
+    if Path::exists(&file_path) {
+        let json_str = fs::read_to_string(file_path).expect("read identity-wallet-ids");
+        let all_identity_wallets =
+            serde_json::from_str::<AllIdentityWallets>(&json_str).expect("AllIdentityWallets");
+        return Some(all_identity_wallets);
+    } else {
+        None
+    }
+}
+
+pub fn remove_all_identity_wallets() -> Option<Vec<String>> {
+    if let Some(all_identity_wallets) = read_all_identity_wallet_ids() {
+        for id in &all_identity_wallets.wallet_ids {
+            remove_old_keystore_file(&id);
+        }
+        let legacy_file_dir = {
+            let dir = LEGACY_WALLET_FILE_DIR.read();
+            dir.to_string()
+        };
+
+        let file_path = format!("{}/identity.json", legacy_file_dir);
+        let _ = fs::remove_file(file_path);
+        let file_path = format!("{}/{}", legacy_file_dir, IDENTITY_WALLET_IDS_FILE);
+        let _ = fs::remove_file(file_path);
+
+        Some(all_identity_wallets.wallet_ids)
+    } else {
+        None
+    }
+}
+
 pub fn existed_keystore_file(id: &str) -> bool {
     let file_path = format!("{}/{}.json", WALLET_FILE_DIR.read(), id);
     let path = Path::new(&file_path);
@@ -272,11 +308,16 @@ pub(crate) fn scan_legacy_keystores() -> Result<ScanLegacyKeystoresResult> {
             continue;
         };
 
-        let version = v["version"].as_i64().expect("version");
+        let Some(version) = v["version"].as_i64() else {
+            continue;
+        };
 
         if version == 11000 || version == 11001 {
             // let keystore = Keystore::from_json(&contents)?;
-            let keystore_result = parse_tcx_keystore(&v)?;
+            let mut keystore_result = parse_tcx_keystore(&v)?;
+            dbg!(&keystore_result);
+            keystore_result.source =
+                merge_migrate_source(&keystore_result.id, &keystore_result.source);
             keystores.push(keystore_result);
         } else if version == 44 || version == 3 || version == 10001 {
             let keystore_result = parse_legacy_kesytore(contents)?;
@@ -425,34 +466,81 @@ fn parse_tcx_keystore(v: &Value) -> Result<LegacyKeystoreResult> {
     Ok(keystore_result)
 }
 
-fn read_identity_network() -> Result<IdentityNetwork> {
-    let dir = LEGACY_WALLET_FILE_DIR.read();
-    let identify_path = format!("{}/identity.json", dir);
-    let mut identify_file = fs::File::open(&identify_path)?;
-
-    let mut json_str = String::new();
-    identify_file.read_to_string(&mut json_str)?;
-    let json: Value = serde_json::from_str(&json_str)?;
-    let network = json["imTokenMeta"]["network"]
-        .as_str()
-        .expect("network")
-        .to_string();
-    IdentityNetwork::from_str(&network)
+fn merge_migrate_source(id: &str, ori_source: &str) -> String {
+    // Note: tcx keystore treat _identity source as mnemonic, below code fix that
+    if let Some(all_identity_wallets) = read_all_identity_wallet_ids() {
+        if all_identity_wallets.wallet_ids.contains(&id.to_string()) {
+            all_identity_wallets.source.to_string()
+        } else {
+            ori_source.to_string()
+        }
+    } else {
+        ori_source.to_string()
+    }
 }
-
 #[cfg(test)]
 mod tests {
-    use crate::{filemanager::LEGACY_WALLET_FILE_DIR, migration::scan_legacy_keystores};
+    use std::fs;
+
+    use crate::{
+        api::MarkIdentityWalletsParam,
+        filemanager::LEGACY_WALLET_FILE_DIR,
+        handler::encode_message,
+        migration::{mark_identity_wallets, scan_legacy_keystores},
+    };
     use serial_test::serial;
     use tcx_keystore::keystore::IdentityNetwork;
 
-    use super::read_identity_network;
+    #[test]
+    #[serial]
+
+    fn test_scan_tcx_legacy_keystores_return_right_source() {
+        *LEGACY_WALLET_FILE_DIR.write() = "../test-data/wallets-ios-2_14_1/".to_string();
+        let param = MarkIdentityWalletsParam {
+            ids: vec!["0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string()],
+            source: "RECOVERED_IDENTITY".to_string(),
+        };
+        mark_identity_wallets(&encode_message(param).unwrap());
+
+        let result = scan_legacy_keystores().unwrap();
+
+        let keystore = result
+            .keystores
+            .iter()
+            .find(|x| x.id.eq("0a2756cd-ff70-437b-9bdb-ad46b8bb0819"))
+            .clone()
+            .unwrap();
+        assert_eq!(keystore.source, "RECOVERED_IDENTITY");
+
+        let param = MarkIdentityWalletsParam {
+            ids: vec!["0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string()],
+            source: "NEW_IDENTITY".to_string(),
+        };
+        mark_identity_wallets(&encode_message(param).unwrap());
+
+        let result = scan_legacy_keystores().unwrap();
+
+        let keystore = result
+            .keystores
+            .iter()
+            .find(|x| x.id.eq("0a2756cd-ff70-437b-9bdb-ad46b8bb0819"))
+            .clone()
+            .unwrap();
+        assert_eq!(keystore.source, "NEW_IDENTITY");
+        fs::remove_file("../test-data/wallets-ios-2_14_1/identity-wallet-ids.json").unwrap();
+    }
 
     #[test]
     #[serial]
 
     fn test_scan_tcx_legacy_keystores() {
         *LEGACY_WALLET_FILE_DIR.write() = "../test-data/wallets-ios-2_14_1/".to_string();
+        let param = MarkIdentityWalletsParam {
+            ids: vec!["0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string()],
+            source: "RECOVERED_IDENTITY".to_string(),
+        };
+        let _ = mark_identity_wallets(&encode_message(param).unwrap());
+
         let result = scan_legacy_keystores().unwrap();
 
         assert_eq!(result.identifier, "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg");
@@ -480,6 +568,7 @@ mod tests {
         );
         assert_eq!(account.extended_public_key, "tpubDCxD6k9PreNhSacpfSZ3iErESZnncY1n7qU7e3stZXLPh84xVVt5ERMAqKeefUU8jswx2GpCkQpeYow4xH3PGx2iim6ftPa32GNvTKAtknz");
         assert_eq!(account.encrypted_extended_public_key, "b78BOM632Fph4a2xIzWH7Y2fUbHbkYVr2OgJ4WuNxubppAue5npoXgG1kjB7ATxYxpjxYqu/0TgRM1Dz8QO3cT1GPVASzzt4U+f2qeiQcUSj3pnYneGRDcTnY9JsXZmshVbmX7s1He9a0j8x7UeUCS61JM3S9nATdx6YVU/+ViD2tDdRHk6v8IwGnh1uoKb2a/CCsYQbPs5taZoLfwS3BA==");
+        assert_eq!(keystore.source, "RECOVERED_IDENTITY");
 
         let account = keystore
             .accounts
@@ -534,6 +623,8 @@ mod tests {
         assert_eq!(account.path, "");
         assert_eq!(account.extended_public_key, "");
         assert_eq!(account.encrypted_extended_public_key, "");
+
+        fs::remove_file("../test-data/wallets-ios-2_14_1/identity-wallet-ids.json").unwrap();
     }
 
     #[test]
@@ -622,19 +713,5 @@ mod tests {
         assert_eq!(account.curve, "secp256k1");
         assert_eq!(account.path, "m/44'/60'/0'/0/1");
         assert_eq!(keystore.source, "MNEMONIC");
-    }
-
-    #[test]
-    #[serial]
-    fn test_read_mainnet_identity() {
-        *LEGACY_WALLET_FILE_DIR.write() = "../test-data/mainnet-identity/".to_string();
-        assert_eq!(read_identity_network().unwrap(), IdentityNetwork::Mainnet);
-    }
-
-    #[test]
-    #[serial]
-    fn test_read_testnet_identity() {
-        *LEGACY_WALLET_FILE_DIR.write() = "../test-data/testnet-identity/".to_string();
-        assert_eq!(read_identity_network().unwrap(), IdentityNetwork::Testnet);
     }
 }
