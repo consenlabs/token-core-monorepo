@@ -60,8 +60,12 @@ pub fn remove_old_keystore_by_id(id: &str) -> Option<Vec<String>> {
             }
 
             if !is_identity_keystore {
-                let json = serde_json::from_str::<Value>(&fs::read_to_string(&file_path).unwrap()).unwrap();
-                let source = json["imTokenMeta"]["source"].as_str().unwrap_or("").to_string();
+                let json = serde_json::from_str::<Value>(&fs::read_to_string(&file_path).unwrap())
+                    .unwrap();
+                let source = json["imTokenMeta"]["source"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
                 if source.ends_with("_IDENTITY") {
                     is_identity_keystore = true;
                 }
@@ -88,13 +92,15 @@ pub fn remove_old_keystore_by_id(id: &str) -> Option<Vec<String>> {
                 let Ok(v) = v_result  else {
                     continue;
                 };
-                let source = v["imTokenMeta"]["source"].as_str().unwrap_or("").to_string();
+                let source = v["imTokenMeta"]["source"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string();
                 if source.ends_with("_IDENTITY") {
                     fs::remove_file(fp);
                 }
             }
         }
-
     }
 
     map.remove(id);

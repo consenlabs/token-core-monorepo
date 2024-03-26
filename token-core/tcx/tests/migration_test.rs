@@ -9,7 +9,11 @@ use tcx::*;
 use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
 
 use prost::Message;
-use tcx::api::{export_mnemonic_param, migrate_keystore_param, wallet_key_param, BackupResult, ExportMnemonicParam, ExportMnemonicResult, MigrateKeystoreParam, MigrateKeystoreResult, SignParam, WalletKeyParam, GeneralResult};
+use tcx::api::{
+    export_mnemonic_param, migrate_keystore_param, wallet_key_param, BackupResult,
+    ExportMnemonicParam, ExportMnemonicResult, GeneralResult, MigrateKeystoreParam,
+    MigrateKeystoreResult, SignParam, WalletKeyParam,
+};
 
 use tcx::handler::encode_message;
 use tcx_constants::CurveType;
@@ -17,8 +21,8 @@ use tcx_constants::{OTHER_MNEMONIC, TEST_PASSWORD};
 use tcx_keystore::Keystore;
 
 use anyhow::{anyhow, format_err};
-use std::fs;
 use std::path::Path;
+use std::{fs, io};
 
 use sp_core::ByteArray;
 
@@ -990,10 +994,27 @@ fn test_migrate_ios_old_eos_private_keystore() {
 
 #[test]
 #[serial]
-pub fn test_migrate_identity_then_delete() {
-    let _ = fs::remove_dir_all("../test-data/walletsV2");
-    let _ = fs::remove_file("../test-data/wallets/_migrated.json");
-    init_token_core_x("../test-data");
+pub fn test_migrate_identity_keystore_then_delete() {
+    let base_dir = "../test-data/identity-keystore-delete";
+    let wallets_dir = "../test-data/identity-keystore-delete/wallets";
+    let _ = fs::remove_dir_all(base_dir);
+    let _ = fs::create_dir_all(wallets_dir);
+
+    let copy_keystore_list = [
+        "identity.json",
+        "00fc0804-7cea-46d8-9e95-ed1efac65358",
+        "0597526e-105f-425b-bb44-086fc9dc9568",
+        "1bfddca9-84dc-4561-bbe9-844a9ff2b281",
+        "6c3eae60-ad03-48db-a5e5-61a6f72aef8d",
+        "ac59ccc1-285b-47a7-92f5-a6c432cee21a",
+    ];
+    for file in &copy_keystore_list {
+        let mut source_file = fs::File::open(format!("../test-data/wallets/{}", file)).unwrap();
+        let mut destination_file = fs::File::create(format!("{}/{}", wallets_dir, file)).unwrap();
+        io::copy(&mut source_file, &mut destination_file).unwrap();
+    }
+
+    init_token_core_x(base_dir);
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "0597526e-105f-425b-bb44-086fc9dc9568".to_string(),
@@ -1004,7 +1025,7 @@ pub fn test_migrate_identity_then_delete() {
     };
     let ret = call_api("migrate_keystore", param).unwrap();
     let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
-    println!("{}", result.keystore.unwrap().source);
+    assert!(!result.is_existed);
 
     let param: MigrateKeystoreParam = MigrateKeystoreParam {
         id: "00fc0804-7cea-46d8-9e95-ed1efac65358".to_string(),
@@ -1024,5 +1045,6 @@ pub fn test_migrate_identity_then_delete() {
     let ret = call_api("delete_keystore", param).unwrap();
     let result: GeneralResult = GeneralResult::decode(ret.as_slice()).unwrap();
     assert!(result.is_success);
-
+    let file_count = fs::read_dir(wallets_dir).unwrap().count();
+    assert_eq!(file_count, 0);
 }
