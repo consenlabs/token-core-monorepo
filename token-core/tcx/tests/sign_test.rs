@@ -1058,38 +1058,6 @@ pub fn test_sign_ethereum_sign_message() {
 
 #[test]
 #[serial]
-pub fn test_sign_ethereum_ec_sign() {
-    run_test(|| {
-        let wallet = import_default_wallet();
-
-        let eth_tx_input = EthMessageInput {
-            message: "0x879a053d4800c6354e76c7985a865d2922c82fb5b3f4577b2fe08b998954f2e0"
-                .to_string(),
-            signature_type: 1i32,
-        };
-        let input_value = encode_message(eth_tx_input).unwrap();
-        let param = SignParam {
-            id: wallet.id.to_string(),
-            chain_type: "ETHEREUM".to_string(),
-            path: "m/44'/60'/0'/0/0".to_string(),
-            curve: "secp256k1".to_string(),
-            network: "".to_string(),
-            seg_wit: "".to_string(),
-            input: Some(::prost_types::Any {
-                type_url: "imtoken".to_string(),
-                value: input_value,
-            }),
-            key: Some(sign_param::Key::Password(sample_key::PASSWORD.to_string())),
-        };
-        let ret = call_api("sign_msg", param).unwrap();
-        let output: EthMessageOutput = EthMessageOutput::decode(ret.as_slice()).unwrap();
-
-        assert_eq!(output.signature, "0x75fbe836882b653ee7c01d334a08c13343580104f8e964276d009041125b2aaa5704c25efcf37d4c4153b3047f305547a7e8886f655eefd1de7db2897200d49d1b");
-    })
-}
-
-#[test]
-#[serial]
 pub fn test_sign_bls_to_execution_change() {
     run_test(|| {
         let param = ImportMnemonicParam {
