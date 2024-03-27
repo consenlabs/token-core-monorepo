@@ -59,7 +59,7 @@ impl OldMetadata {
             self.source
                 .clone()
                 .map_or((Source::Mnemonic, None), |source| match source.as_str() {
-                    "RECOVER_IDENTITY" => (Source::Mnemonic, None),
+                    "RECOVERED_IDENTITY" => (Source::Mnemonic, None),
                     "NEW_IDENTITY" => (Source::NewMnemonic, None),
                     "KEYSTORE" => (Source::KeystoreV3, Some(vec!["ETHEREUM".to_string()])),
                     "PRIVATE" => (Source::Private, Some(vec!["ETHEREUM".to_string()])),

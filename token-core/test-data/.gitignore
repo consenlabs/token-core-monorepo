@@ -8,6 +8,7 @@
 !wallets/imkey/*
 !wallets-ios-2_14_1
 !wallets-ios-2_14_1/*
+wallets-ios-2_14_1/identity-wallet-ids.json
 !scan-keystores-fixtures
 !scan-keystores-fixtures/*
 !mainnet-identity
@@ -17,3 +18,5 @@
 !migrate-duplication-fixtures
 !migrate-duplication-fixtures/wallets/**
 wallets/_migrated.json
+!identity-keystore-delete
+!identity-keystore-delete/wallets/*

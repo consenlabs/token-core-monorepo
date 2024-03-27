@@ -7,6 +7,7 @@ use std::os::raw::c_char;
 
 use anyhow::anyhow;
 use handler::{backup, sign_bls_to_execution_change};
+use migration::{mark_identity_wallets, read_legacy_keystore_mnemonic_path};
 use prost::Message;
 
 pub mod api;
@@ -78,6 +79,9 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
             let ret = scan_legacy_keystores()?;
             encode_message(ret)
         }),
+        "read_keystore_mnemonic_path" => {
+            landingpad(|| read_legacy_keystore_mnemonic_path(&action.param.unwrap().value))
+        }
         "create_keystore" => landingpad(|| create_keystore(&action.param.unwrap().value)),
         "import_mnemonic" => landingpad(|| import_mnemonic(&action.param.unwrap().value)),
         "export_mnemonic" => landingpad(|| export_mnemonic(&action.param.unwrap().value)),
@@ -121,6 +125,9 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         }
         "eth_batch_personal_sign" => {
             landingpad(|| eth_batch_personal_sign(&action.param.unwrap().value))
+        }
+        "mark_identity_wallets" => {
+            landingpad(|| mark_identity_wallets(&action.param.unwrap().value))
         }
         _ => landingpad(|| Err(anyhow!("unsupported_method"))),
     };

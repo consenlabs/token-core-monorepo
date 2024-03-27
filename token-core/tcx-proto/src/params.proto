@@ -278,3 +278,12 @@ message MigrateKeystoreParam {
   message BackupResult {
     string original = 1;
   }
+
+  message MarkIdentityWalletsParam {
+    repeated string ids = 1;
+    string source = 2;
+  }
+
+message ReadKeystoreMnemonicPathResult {
+    string path = 1;
+  }
