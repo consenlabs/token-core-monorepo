@@ -1419,6 +1419,36 @@ mod tests {
                 path: "m/44'/145'/0'".to_string(),
                 curve: "secp256k1".to_string(),
             },
+            PublicKeyDerivation {
+                chain_type: "ETHEREUM".to_string(),
+                path: "m/44'/60'/0'".to_string(),
+                curve: "secp256k1".to_string(),
+            },
+            PublicKeyDerivation {
+                chain_type: "COSMOS".to_string(),
+                path: "m/44'/118'/0'".to_string(),
+                curve: "secp256k1".to_string(),
+            },
+            PublicKeyDerivation {
+                chain_type: "FILECOIN".to_string(),
+                path: "m/44'/461'/0'".to_string(),
+                curve: "secp256k1".to_string(),
+            },
+            PublicKeyDerivation {
+                chain_type: "TRON".to_string(),
+                path: "m/44'/195'/0'".to_string(),
+                curve: "secp256k1".to_string(),
+            },
+            PublicKeyDerivation {
+                chain_type: "EOS".to_string(),
+                path: "m/44'/194'/0'".to_string(),
+                curve: "secp256k1".to_string(),
+            },
+            PublicKeyDerivation {
+                chain_type: "NERVOS".to_string(),
+                path: "m/44'/309'/0'".to_string(),
+                curve: "secp256k1".to_string(),
+            },
         ];
         let param = GetExtendedPublicKeysParam { derivations };
         let action: ImkeyAction = ImkeyAction {
@@ -1437,6 +1467,12 @@ mod tests {
         assert_eq!(extended_public_key.extended_public_keys[1], "xpub6FmdMKZ36pLzf1iF7DLCzKtZms33cZ6mVjvBSy2dCPugFCH23cS3jgHfQ9PKmxs989ZyiyALuADMtLokCzpw7Fi35ap4uybfQAY5WVakan7");
         assert_eq!(extended_public_key.extended_public_keys[2], "xpub6AQmexrYd5utZNmD9Gnf4CjrzJ4kuvaxacLyuSD5sA34g4oKuzBpX5rhAZrCZoxkcqWLVyWSz1rEh5ECs4PDRN16PLfNKFftxm48y6zsWX3");
         assert_eq!(extended_public_key.extended_public_keys[3], "xpub6Bmkv3mmRZZWoFSBdj9vDMqR2PCPSP6DEj8u3bBuv44g3Ncnro6cPVqZAw6wTEcxHQuodkuJG4EmAinqrrRXGsN3HHnRRMtAvzfYTiBATV1");
+        assert_eq!(extended_public_key.extended_public_keys[4], "xpub6CZG7sArTpFs5n47cUxtbcVXuq4QfUTykGWL8t8RJdPXvnSnF2VrDwgqjuS7JvJ7DK8B4pnbMxCNtPsbHdPjuFBCcBo81cfMRWcPUXWND3e");
+        assert_eq!(extended_public_key.extended_public_keys[5], "xpub6CrWRZY39gj49G1ipdmcVunEnb5RoTGf9o6QnJQp8c4b84V2piN1Rdy1xWVJ4P7VXNx5Ckg6rZcvSNvJtvWz8zs3RkPayHn9vMMuK9ERrFr");
+        assert_eq!(extended_public_key.extended_public_keys[6], "xpub6DCc3LkXWVzLHfCFSvmxmXytMfVnxeQQ3LDiLmHwTojg3p3U6qFmNLqzPijosTwRqeC4j2TqJamUjM44GBVRcdPukxEN94Rac8WndUhfYEK");
+        assert_eq!(extended_public_key.extended_public_keys[7], "xpub6CaaaWKi9NRFAnRyDFZxWKWs7Sh8d9WiaCspHVpkDcaVwqQFRH2z5ygLbHZs8yWtwyR3QhJLDJzbrdSTZRC9PWaRfAMNCruoSJnWhKFFCWV");
+        assert_eq!(extended_public_key.extended_public_keys[8], "xpub6CUtvjXi3yjmhjaC2GxjiWE9FbQs1TrtqAgRDhB2gmDBsPzTfwqZ7MvGGYScKiVx8PBNFSmHm4mCnFDCaX23c1nJS4p8ynR2wnGne4qEEX9");
+        assert_eq!(extended_public_key.extended_public_keys[9], "xpub6CyvXfYwHJjJ9syYjG7qZMva1yMx93SUmqUcKHvoReUadCzqJA8mMXrrXQjRvzveuahgdQmCsdsuiCkMRsLec63DW83Wwu5UqKJQmsonKpo");
     }
 
     #[test]
@@ -1715,5 +1751,12 @@ mod tests {
             let bind_result: BindCheckRes = BindCheckRes::decode(ret_bytes.as_slice()).unwrap();
             assert_eq!("success", bind_result.bind_status);
         }
+    }
+
+    #[test]
+    fn test1(){
+        let req_hex = "1218696d6b65795f636f6d6d616e645f646174615f6572726f72";
+        let res = ErrorResponse::decode(hex::decode(req_hex).unwrap().as_slice()).unwrap();
+        println!("{:?}",res);
     }
 }
