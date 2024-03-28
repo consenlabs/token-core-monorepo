@@ -2,29 +2,30 @@ use crate::SubstrateAddress;
 use rand::Rng;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::convert::TryInto;
-use tcx_chain::Address;
+use tcx_keystore::{tcx_ensure, Address};
 
+use anyhow::anyhow;
 use byteorder::LittleEndian;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use regex::Regex;
+use schnorrkel::SECRET_KEY_LENGTH;
 use serde::__private::{fmt, PhantomData};
 use std::io::Cursor;
 use std::time::{SystemTime, UNIX_EPOCH};
+use tcx_common::{random_u8_32, FromHex};
 use tcx_constants::{CoinInfo, Result};
-use tcx_crypto::numberic_util::random_iv;
-use tcx_primitive::{
-    DeterministicPrivateKey, PrivateKey, PublicKey, Sr25519PrivateKey, TypedPublicKey,
-};
+use tcx_primitive::{PrivateKey, PublicKey, Sr25519PrivateKey, TypedPublicKey};
+use thiserror::Error;
 use xsalsa20poly1305::aead::{generic_array::GenericArray, Aead};
 use xsalsa20poly1305::{KeyInit, XSalsa20Poly1305};
 
-#[derive(Fail, Debug, PartialOrd, PartialEq)]
+#[derive(Error, Debug, PartialOrd, PartialEq)]
 pub enum Error {
-    #[fail(display = "invalid_keystore# {}", _0)]
+    #[error("invalid_keystore# {0}")]
     InvalidKeystore(String),
-    #[fail(display = "keystore_public_key_unmatch")]
+    #[error("keystore_public_key_unmatch")]
     KeystorePublicKeyUnmatch,
-    #[fail(display = "password_incorrect")]
+    #[error("password_incorrect")]
     PasswordIncorrect,
 }
 
@@ -133,7 +134,7 @@ fn scrypt_param_from_encoded(encoded: &[u8]) -> Result<(scrypt::Params, Vec<u8>)
 
     let inner_params = scrypt::Params::new(log_n as u8, r, p).expect("init scrypt params");
     if n != PJS_SCRYPT_N || p != PJS_SCRYPT_P || r != PJS_SCRYPT_R {
-        Err(format_err!("Pjs keystore invalid params"))
+        Err(anyhow!("pjs_scrypt_param_wrong"))
     } else {
         Ok((inner_params, salt.to_vec()))
     }
@@ -142,8 +143,8 @@ fn scrypt_param_from_encoded(encoded: &[u8]) -> Result<(scrypt::Params, Vec<u8>)
 fn default_scrypt_param() -> (scrypt::Params, Vec<u8>) {
     let log_n = ((1 << 15) as f64).log2().round();
     let param = scrypt::Params::new(log_n as u8, 8, 1).expect("init scrypt params");
-    let salt = random_iv(32);
-    (param, salt)
+    let salt = random_u8_32();
+    (param, salt.to_vec())
 }
 
 impl SubstrateKeystore {
@@ -153,11 +154,11 @@ impl SubstrateKeystore {
         pub_key: &[u8],
         addr: &str,
     ) -> Result<SubstrateKeystore> {
-        let encoding = SubstrateKeystore::encrypt(password, prv_key, pub_key)?;
+        let encoded = SubstrateKeystore::encrypt(password, prv_key, pub_key)?;
 
         Ok(SubstrateKeystore {
             address: addr.to_string(),
-            encoded: encoding.to_string(),
+            encoded,
             encoding: SubstrateKeystoreEncoding {
                 content: vec!["pkcs8".to_string(), "sr25519".to_string()],
                 encoding_type: vec!["scrypt".to_string(), "xsalsa20-poly1305".to_string()],
@@ -199,24 +200,19 @@ impl SubstrateKeystore {
 
     fn decode_cipher_text(&self) -> Result<Vec<u8>> {
         let hex_re = Regex::new(r"^(?:0[xX])?[0-9a-fA-F]+$").unwrap();
-        if self.encoding.version == "3" {
-            if !hex_re.is_match(&self.encoded) {
-                return base64::decode(&self.encoded)
-                    .map_err(|_| format_err!("decode_cipher_text"));
-            }
+        if self.encoding.version == "3" && !hex_re.is_match(&self.encoded) {
+            return base64::decode(&self.encoded).map_err(|_| anyhow!("decode_cipher_text"));
         }
 
         if self.encoded.starts_with("0x") {
-            return hex::decode(&self.encoded[2..])
-                .map_err(|_| format_err!("decode_cipher_text decode hex"));
+            Vec::from_hex(&self.encoded[2..]).map_err(|_| anyhow!("decode_cipher_text decode hex"))
         } else {
-            return hex::decode(&self.encoded)
-                .map_err(|_| format_err!("decode_cipher_text decode hex"));
+            Vec::from_hex(&self.encoded).map_err(|_| anyhow!("decode_cipher_text decode hex"))
         }
     }
 
     pub fn decrypt(&self, password: &str) -> Result<(Vec<u8>, Vec<u8>)> {
-        let _ = self.validate()?;
+        self.validate()?;
         let mut encoded = self.decode_cipher_text()?;
 
         let password_bytes = if self.encoding.version == "3"
@@ -286,8 +282,8 @@ fn encrypt_content(password: &str, plaintext: &[u8]) -> Result<String> {
     let cipher = XSalsa20Poly1305::new(key);
     let nonce = GenericArray::from_slice(&nonce_bytes);
     let encoded = cipher
-        .encrypt(&nonce, plaintext)
-        .map_err(|_e| format_err!("{}", "encrypt error"))?;
+        .encrypt(nonce, plaintext)
+        .map_err(|_e| anyhow!("{}", "encrypt error"))?;
 
     let scrypt_params_encoded = [
         salt,
@@ -297,16 +293,16 @@ fn encrypt_content(password: &str, plaintext: &[u8]) -> Result<String> {
     ]
     .concat();
     let complete_encoded: Vec<u8> = [scrypt_params_encoded, nonce_bytes.to_vec(), encoded].concat();
-    Ok(base64::encode(&complete_encoded))
+    Ok(base64::encode(complete_encoded))
 }
 
 fn gen_nonce() -> [u8; 24] {
     let mut rng = rand::thread_rng();
     let mut nonce = [0u8; 24];
 
-    for idx in 0..24 {
-        nonce[idx] = rng.gen::<u8>()
-    }
+    (0..nonce.len()).for_each(|idx| {
+        nonce[idx] = rng.gen::<u8>();
+    });
     nonce
 }
 
@@ -314,23 +310,24 @@ fn password_to_key(password_bytes: &[u8]) -> [u8; 32] {
     let mut key = [0u8; 32];
     let pwd_len = password_bytes.len();
     let iter_len = if pwd_len > 32 { 32 } else { pwd_len };
-    for idx in 0..iter_len {
-        key[idx] = password_bytes[idx]
-    }
+    key[..iter_len].copy_from_slice(&password_bytes[..iter_len]);
     key
 }
 
 pub fn decode_substrate_keystore(keystore: &SubstrateKeystore, password: &str) -> Result<Vec<u8>> {
-    let (secret_key, pub_key) = keystore.decrypt(password)?;
-    let priv_key = if secret_key.len() == 32 {
-        Sr25519PrivateKey::from_seed(&secret_key)
-    } else {
-        Sr25519PrivateKey::from_slice(&secret_key)
-    }?;
+    let (secret_key_bytes, pub_key) = keystore.decrypt(password)?;
+    tcx_ensure!(
+        secret_key_bytes.len() == SECRET_KEY_LENGTH,
+        anyhow!("secret from substrate keystore must be 64 bytes")
+    );
+
+    let priv_key = Sr25519PrivateKey::from_slice(&secret_key_bytes)?;
+
     if priv_key.public_key().to_bytes() != pub_key {
         return Err(Error::KeystorePublicKeyUnmatch.into());
     }
-    Ok(secret_key)
+
+    Ok(priv_key.to_bytes())
 }
 
 pub fn encode_substrate_keystore(
@@ -338,23 +335,24 @@ pub fn encode_substrate_keystore(
     prv_key: &[u8],
     coin: &CoinInfo,
 ) -> Result<SubstrateKeystore> {
-    let pk = Sr25519PrivateKey::from_slice(prv_key)?;
-    let pub_key = pk.public_key();
-    let addr = SubstrateAddress::from_public_key(&TypedPublicKey::Sr25519(pub_key.clone()), &coin)?;
-    SubstrateKeystore::new(password, prv_key, &pub_key.to_bytes(), &addr)
+    let sr25519_prv_key = Sr25519PrivateKey::from_slice(prv_key)?;
+    let pub_key = sr25519_prv_key.public_key();
+    let addr = SubstrateAddress::from_public_key(&TypedPublicKey::SR25519(pub_key.clone()), coin)?;
+    SubstrateKeystore::new(password, prv_key, &pub_key.to_bytes(), &addr.to_string())
 }
 
 #[cfg(test)]
 mod test_super {
     use super::*;
+    use tcx_common::{FromHex, ToHex};
     use tcx_constants::{coin_info_from_param, TEST_PASSWORD};
 
     #[test]
     fn test_decrypt_encoded() {
         let encoded = "d80bcaf72c744d5a9a6c4229280e360d98d408afbe67232c3418a2a591b3f2bf468a319b7e5c1717bb8285619a76584a7961eac2183f94cfa56ad975cb78ae87b4dc18e7c20036bd448aa52c5ee7a45c4cdf41923c8133d6bfc29c737b65dcfb357884b55fb36d4762446fb26bfd8fce49142cf0e7d3642e2095ea6e425a8e923629306875c36b72a82d517478a19c8786b1be611e77286ba6448bf93c";
-        let encoded_bytes = hex::decode(encoded).expect("encoded_bytes");
+        let encoded_bytes = Vec::from_hex(encoded).expect("encoded_bytes");
         let decrypted = decrypt_content("testing".as_bytes(), &encoded_bytes).unwrap();
-        assert_eq!(hex::encode(decrypted), "3053020101300506032b657004220420416c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4fa123032100d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f");
+        assert_eq!(decrypted.to_hex(), "3053020101300506032b657004220420416c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4fa123032100d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f");
     }
 
     const KEYSTORE_STR: &str = r#"{
@@ -380,7 +378,7 @@ mod test_super {
     fn test_decrypt_from_keystore_v2() {
         let ks: SubstrateKeystore = serde_json::from_str(KEYSTORE_STR).unwrap();
         let decrypted = decode_substrate_keystore(&ks, TEST_PASSWORD).unwrap();
-        assert_eq!(hex::encode(decrypted), "00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd");
+        assert_eq!(decrypted.to_hex(), "00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd");
         let decrypted = decode_substrate_keystore(&ks, "wrong_password");
         assert_eq!(
             format!("{}", decrypted.err().unwrap()),
@@ -416,7 +414,7 @@ mod test_super {
         assert_eq!(ks.encoding.encoding_type.len(), 2);
         assert_eq!(ks.encoding.encoding_type[0], "scrypt");
         let decrypted = decode_substrate_keystore(&ks, &TEST_PASSWORD).unwrap();
-        assert_eq!(hex::encode(decrypted), "00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd");
+        assert_eq!(decrypted.to_hex(), "00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd");
         let decrypted = decode_substrate_keystore(&ks, "wrong_password");
         assert_eq!(
             format!("{}", decrypted.err().unwrap()),
@@ -449,7 +447,7 @@ mod test_super {
                                         }"#;
         let ks: SubstrateKeystore = serde_json::from_str(keystore_str_v3_hex).unwrap();
         let decrypted = decode_substrate_keystore(&ks, "version3").unwrap();
-        assert_eq!(hex::encode(decrypted), "50f027d401a8572ff06381cf9dc633d08bd46af0d8bd6ded4ffdb4c706afdd669c80475085d55140552e00ff1fabb70be0d67c0db540c23549922b4edb4e4add");
+        assert_eq!(decrypted.to_hex(), "50f027d401a8572ff06381cf9dc633d08bd46af0d8bd6ded4ffdb4c706afdd669c80475085d55140552e00ff1fabb70be0d67c0db540c23549922b4edb4e4add");
         let decrypted = decode_substrate_keystore(&ks, "wrong_password");
         assert_eq!(
             format!("{}", decrypted.err().unwrap()),
@@ -459,7 +457,7 @@ mod test_super {
 
     #[test]
     fn test_export_from_secret_key() {
-        let prv_key = hex::decode("00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd").unwrap();
+        let prv_key = Vec::from_hex("00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd").unwrap();
         let coin_info = coin_info_from_param("KUSAMA", "", "", "").unwrap();
         let keystore = encode_substrate_keystore(&TEST_PASSWORD, &prv_key, &coin_info).unwrap();
         assert_eq!(
@@ -476,8 +474,80 @@ mod test_super {
     }
 
     #[test]
-    fn is_valid_keystore() {
-        let keystore: SubstrateKeystore = serde_json::from_str(KEYSTORE_STR).unwrap();
-        assert!(keystore.validate().is_ok())
+    fn test_is_valid_keystore() {
+        let mut keystore: SubstrateKeystore = serde_json::from_str(KEYSTORE_STR).unwrap();
+        assert!(keystore.validate().is_ok());
+
+        let address = keystore.address.clone();
+        let encoded = keystore.encoded.clone();
+        let content_pkcs8 = keystore.encoding.content[0].clone();
+        let content_sr25519 = keystore.encoding.content[1].clone();
+        keystore.address = "".to_string();
+        let result = keystore.validate();
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "invalid_keystore# address is empty".to_string()
+        );
+        keystore.address = address;
+
+        keystore.encoded = "".to_string();
+        let result = keystore.validate();
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "invalid_keystore# encoded is empty"
+        );
+        keystore.encoded = encoded;
+
+        keystore.encoding.content[0] = "wrong_content".to_string();
+        let result = keystore.validate();
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "invalid_keystore# need pkcs8 padding"
+        );
+        keystore.encoding.content[0] = content_pkcs8;
+
+        keystore.encoding.content[1] = "wrong_content".to_string();
+        let result = keystore.validate();
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "invalid_keystore# only support sr25519"
+        );
+        keystore.encoding.content[1] = content_sr25519;
+
+        keystore.encoding.version = "0".to_string();
+        let result = keystore.validate();
+        assert_eq!(
+            result.err().unwrap().to_string(),
+            "invalid_keystore# only support version 2 or 3"
+        );
+    }
+
+    #[test]
+    fn test_decode_cipher_text() {
+        let keystore_str = r#"{
+            "address": "FLiSDPCcJ6auZUGXALLj6jpahcP6adVFDBUQznPXUQ7yoqH",
+            "encoded": "cd238963070cc4d6806053ee1ac500c7add9c28732bb5d434a332f84a91d9be0008000000100000008000000cf630a1113941b350ddd06697e50399183162e5e9a0e893eafc7f5f4893a223dca5055706b9925b56fdb4304192143843da718e11717daf89cf4f4781f94fb443f61432f782d54280af9eec90bd3069c3cc2d957a42b7c18dc2e9497f623735518e0e49b58f8e4db2c09da3a45dbb935659d015fc94b946cba75b606a6ff7f4e823f6b049e2e6892026b49de02d6dbbd64646fe0933f537d9ea53a70be",
+            "encoding": {
+              "content": [
+                "pkcs8",
+                "sr25519"
+              ],
+              "type": [
+                "scrypt",
+                "xsalsa20-poly1305"
+              ],
+              "version": "3"
+            },
+            "meta": {
+              "genesisHash": "0xb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe",
+              "name": "version3",
+              "tags": [],
+              "whenCreated": 1595277797639
+            }
+          }"#;
+        let ks: SubstrateKeystore = serde_json::from_str(keystore_str).unwrap();
+        let decode_result = ks.decode_cipher_text().unwrap();
+        let result_hex = decode_result.to_hex();
+        assert_eq!(result_hex, "cd238963070cc4d6806053ee1ac500c7add9c28732bb5d434a332f84a91d9be0008000000100000008000000cf630a1113941b350ddd06697e50399183162e5e9a0e893eafc7f5f4893a223dca5055706b9925b56fdb4304192143843da718e11717daf89cf4f4781f94fb443f61432f782d54280af9eec90bd3069c3cc2d957a42b7c18dc2e9497f623735518e0e49b58f8e4db2c09da3a45dbb935659d015fc94b946cba75b606a6ff7f4e823f6b049e2e6892026b49de02d6dbbd64646fe0933f537d9ea53a70be");
     }
 }

@@ -33,20 +33,18 @@ impl TsmService for AppUpdateRequest {
 
     fn send_message(&mut self) -> Result<ServiceResponse<AppUpdateResponse>> {
         loop {
-            // println!("send message：{:#?}", self);
             let req_data = serde_json::to_vec_pretty(&self).unwrap();
             let response_data = https::post(constants::TSM_ACTION_APP_UPDATE, req_data)?;
             let return_bean: ServiceResponse<AppUpdateResponse> =
                 serde_json::from_str(response_data.as_str())?;
-            // println!("return message：{:#?}", return_bean);
-            if return_bean._ReturnCode == constants::TSM_RETURN_CODE_SUCCESS {
+            if return_bean.return_code == constants::TSM_RETURN_CODE_SUCCESS {
                 //check if end
-                let next_step_key = return_bean.clone()._ReturnData.next_step_key.unwrap();
+                let next_step_key = return_bean.clone().return_data.next_step_key.unwrap();
                 if constants::TSM_END_FLAG.eq(next_step_key.as_str()) {
                     return Ok(return_bean);
                 }
 
-                match return_bean._ReturnData.apdu_list {
+                match return_bean.return_data.apdu_list {
                     Some(apdu_list) => {
                         let handle_result =
                             ServiceResponse::<AppUpdateResponse>::apdu_handle(apdu_list)?;
@@ -71,10 +69,10 @@ impl AppUpdateRequest {
         sdk_version: Option<String>,
     ) -> Self {
         AppUpdateRequest {
-            seid: seid,
-            instance_aid: instance_aid,
-            device_cert: device_cert,
-            sdk_version: sdk_version,
+            seid,
+            instance_aid,
+            device_cert,
+            sdk_version,
             step_key: String::from("01"),
             status_word: None,
             command_id: String::from(constants::TSM_ACTION_APP_UPDATE),

@@ -16,10 +16,9 @@ pub mod key_manager;
 extern crate lazy_static;
 extern crate ikc_transport;
 pub mod error;
-#[macro_use]
-extern crate failure;
+extern crate anyhow;
 use core::result;
-pub type Result<T> = result::Result<T, failure::Error>;
+pub type Result<T> = result::Result<T, anyhow::Error>;
 use crate::error::ImkeyError;
 use ikc_common::constants;
 use ikc_transport::message;
@@ -30,9 +29,12 @@ pub mod cos_check_update;
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ServiceResponse<T> {
-    pub _ReturnCode: String,
-    pub _ReturnMsg: String,
-    pub _ReturnData: T,
+    #[serde(rename = "_ReturnCode")]
+    pub return_code: String,
+    #[serde(rename = "_ReturnMsg")]
+    pub return_msg: String,
+    #[serde(rename = "_ReturnData")]
+    pub return_data: T,
 }
 
 pub trait TsmService {
@@ -42,7 +44,7 @@ pub trait TsmService {
 
 impl<T> ServiceResponse<T> {
     pub fn service_res_check(&self) -> Result<()> {
-        match self._ReturnCode.as_str() {
+        match self.return_code.as_str() {
             constants::TSM_RETURN_CODE_SUCCESS => Ok(()),
             constants::TSM_RETURNCODE_APP_DELETE_FAIL => {
                 Err(ImkeyError::ImkeyTsmAppDeleteFail.into())
@@ -97,10 +99,10 @@ impl<T> ServiceResponse<T> {
                 Err(ImkeyError::ImkeyTsmDeviceUpdateCheckFail.into())
             }
             constants::TSM_RETURNCODE_COS_VERSION_UNSUPPORT_APPLET => {
-                Err(ImkeyError::ImkeyTsmCosVersionUnsupport_applet.into())
+                Err(ImkeyError::ImkeyTsmCosVersionUnsupportApplet.into())
             }
             constants::TSM_RETURNCODE_DEVICE_UNSUPPORT_APPLET => {
-                Err(ImkeyError::ImkeyTsmDeviceUnsupport_applet.into())
+                Err(ImkeyError::ImkeyTsmDeviceUnsupportApplet.into())
             }
             _ => Err(ImkeyError::ImkeyTsmServerError.into()),
         }

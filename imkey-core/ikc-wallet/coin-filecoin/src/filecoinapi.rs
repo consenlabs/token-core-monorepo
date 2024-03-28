@@ -1,37 +1,40 @@
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FilecoinTxInput {
     #[prost(string, tag = "1")]
-    pub to: std::string::String,
+    pub to: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
-    pub from: std::string::String,
+    pub from: ::prost::alloc::string::String,
     #[prost(uint64, tag = "3")]
     pub nonce: u64,
     #[prost(string, tag = "4")]
-    pub value: std::string::String,
+    pub value: ::prost::alloc::string::String,
     #[prost(int64, tag = "5")]
     pub gas_limit: i64,
     #[prost(string, tag = "6")]
-    pub gas_fee_cap: std::string::String,
+    pub gas_fee_cap: ::prost::alloc::string::String,
     #[prost(string, tag = "7")]
-    pub gas_premium: std::string::String,
+    pub gas_premium: ::prost::alloc::string::String,
     #[prost(uint64, tag = "8")]
     pub method: u64,
     #[prost(string, tag = "9")]
-    pub params: std::string::String,
+    pub params: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FilecoinTxOutput {
     #[prost(string, tag = "1")]
-    pub cid: std::string::String,
+    pub cid: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "2")]
-    pub message: ::std::option::Option<FilecoinTxInput>,
+    pub message: ::core::option::Option<FilecoinTxInput>,
     #[prost(message, optional, tag = "3")]
-    pub signature: ::std::option::Option<Signature>,
+    pub signature: ::core::option::Option<Signature>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Signature {
     #[prost(uint32, tag = "1")]
     pub r#type: u32,
     #[prost(string, tag = "2")]
-    pub data: std::string::String,
+    pub data: ::prost::alloc::string::String,
 }

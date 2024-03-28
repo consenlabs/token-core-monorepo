@@ -16,10 +16,9 @@ use ikc_common::error::{CoinError, CommonError};
 use ikc_common::path::check_path_validity;
 
 use bech32::{u5, ToBase32, Variant};
+use ikc_common::utility::uncompress_pubkey_2_compress;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
-// use bitcoin::hashes::Hash;
-use ikc_common::utility::hex_to_bytes;
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BtcForkAddress {
@@ -174,10 +173,45 @@ impl BtcForkAddress {
             addr.network.network == coin.network
         }
     }
+
+    pub fn get_pub_key(path: &str) -> Result<String> {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data(path, true)?;
+        let pub_key = uncompress_pubkey_2_compress(&xpub_data[..130]);
+
+        if pub_key.starts_with("0x") {
+            Ok(pub_key)
+        } else {
+            Ok(format!("0x{}", pub_key))
+        }
+    }
+
+    pub fn from_pub_key(pub_key: Vec<u8>, btc_fork_network: BtcForkNetwork) -> Result<String> {
+        let mut public_key = PublicKey::from_slice(&pub_key)?;
+        public_key.compressed = true;
+        let address = match btc_fork_network.seg_wit.to_uppercase().as_str() {
+            "P2WPKH" => {
+                let addr = Address::p2shwpkh(&public_key, Network::Bitcoin).unwrap();
+                BtcForkAddress {
+                    payload: addr.payload,
+                    network: btc_fork_network,
+                }
+            }
+            _ => {
+                let addr = Address::p2pkh(&public_key, Network::Bitcoin);
+                BtcForkAddress {
+                    payload: addr.payload,
+                    network: btc_fork_network,
+                }
+            }
+        };
+        Ok(address.to_string())
+    }
 }
 
 impl FromStr for BtcForkAddress {
-    type Err = failure::Error;
+    type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<BtcForkAddress> {
         // try bech32
@@ -272,7 +306,7 @@ impl FromStr for BtcForkAddress {
                     Payload::ScriptHash(ScriptHash::from_slice(&data[1..]).unwrap()),
                 )
             }
-            x => {
+            _ => {
                 return Err(CoinError::InvalidVersion.into());
             }
         };
@@ -306,14 +340,13 @@ impl Display for BtcForkAddress {
                     &mut bech32_writer,
                     u5::try_from_u8(ver.to_num()).unwrap(),
                 )?;
-                bech32::ToBase32::write_base32(&prog, &mut bech32_writer)
+                ToBase32::write_base32(&prog, &mut bech32_writer)
             }
         }
     }
 }
 
 /// Extract the bech32 prefix.
-/// Returns the same slice when no prefix is found.
 fn bech32_network(bech32: &str) -> Option<BtcForkNetwork> {
     let bech32_prefix = match bech32.rfind('1') {
         None => None,

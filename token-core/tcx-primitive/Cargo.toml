@@ -2,33 +2,37 @@
 name = "tcx-primitive"
 version = "0.1.0"
 authors = ["tyrone <2125081@qq.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 tcx-constants = { path = "../tcx-constants"}
-bitcoin = "0.29.2"
-byteorder = "1.4.3"
-secp256k1 = {version ="0.24.1", features = ["rand", "recovery"] }
-bitcoin_hashes = "0.11.0"
-hex-literal = "0.3.4"
-hex = "0.4.3"
-lazy_static = "1.4.0"
-failure = "0.1.8"
-serde = { version = "1.0.147", features = ["derive"] }
-serde_json = "1.0.88"
-tiny-bip39 = "0.7.3"
-ed25519-bip32 = "0.3.2"
-blake2b_simd = "1.0.0"
-iop-keyvault = "0.0.5"
-blst = "0.3.3"
-num-bigint = "0.4"
-num-traits = "0.2"
-sha2 = "0.10.6"
-digest = "0.10.6"
-hkdf = "0.12.3"
+tcx-common = { path = "../tcx-common"}
+ed25519-dalek-bip32 = { path = "../tcx-libs/ed25519-dalek-bip32" }
 
-sp-core = "7.0.0"
-regex = { version = "1.7.0"}
-schnorrkel = "0.9.1"
+bitcoin = "=0.29.2"
+byteorder = "=1.4.3"
+secp256k1 = {version ="=0.24.3", features = ["rand", "recovery"] }
+bitcoin_hashes = "=0.11.0"
+hex-literal = "=0.3.4"
+hex = "=0.4.3"
+lazy_static = "=1.4.0"
+anyhow = { version = "=1.0.79", features = [] }
+serde = { version = "=1.0.147", features = ["derive"] }
+serde_json = "=1.0.89"
+tiny-bip39 = "=1.0.0"
+ed25519-bip32 = "=0.3.2"
+ed25519-dalek = "=2.1.0"
+blake2b_simd = "=1.0.1"
+blst = "=0.3.3"
+num-bigint = "=0.4.3"
+num-traits = "=0.2.15"
+sha2 = "=0.10.6"
+digest = "=0.10.6"
+hkdf = "=0.12.3"
+
+sp-core = "=7.0.0"
+regex = { version = "=1.9.3"}
+schnorrkel = "=0.9.1"
+thiserror = "=1.0.56"

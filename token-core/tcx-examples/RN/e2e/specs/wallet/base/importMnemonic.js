@@ -47,7 +47,7 @@ export default async function (params) {
   await waitFor(id('expected-mnemonic')).toExist().withTimeout(2000)
   await toHaveText('expected-mnemonic', mnemonic)
 
-  // keystore
+  // fixtures
   await id('keystoreCommonVerify').tap()
   await waitFor(id('verifySuccess')).toExist().withTimeout(2000)
 

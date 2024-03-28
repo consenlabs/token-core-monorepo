@@ -101,6 +101,17 @@ impl BtcAddress {
         Ok(Address::p2shwpkh(&pub_key_obj, network)?.to_string())
     }
 
+    pub fn get_pub_key(path: &str) -> Result<String> {
+        //path check
+        check_path_validity(path)?;
+
+        //get xpub
+        let xpub_data = get_xpub_data(path, true)?;
+        let pub_key = &xpub_data[..130];
+
+        Ok(pub_key.to_string())
+    }
+
     /**
     get parent public key path
     */

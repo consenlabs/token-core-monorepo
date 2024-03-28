@@ -1,0 +1,38 @@
+{
+  "address": "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992",
+  "imTokenMeta": {
+    "network": "MAINNET",
+    "timestamp": "1703213078.483429",
+    "passwordHint": "",
+    "mode": "normal",
+    "name": "COSMOS",
+    "chain": "COSMOS",
+    "segWit": "NONE",
+    "backup": [],
+    "version": "iOS-2.14.1.1742",
+    "source": "RECOVERED_IDENTITY"
+  },
+  "encMnemonic": {
+    "encStr": "c8e9fd75dc1a95c7130e30bfbde8a384fe0fc91693cec3aff2529b93a7696cf3b22745f8de96cabbfc63ec31c33cd2de8ce2ec96870dd383d7e13f131272e7a3c358eeb46a36538b0720",
+    "nonce": "15da4b89ec152eb85702e0f596058f52"
+  },
+  "id": "ac59ccc1-285b-47a7-92f5-a6c432cee21a",
+  "crypto": {
+    "kdfparams": {
+      "p": 1,
+      "dklen": 32,
+      "n": 262144,
+      "r": 8,
+      "salt": "14599065a6ad64c42670524f136f4ceacdf72bb7e1b253e2ed56cb4f96e991be"
+    },
+    "cipher": "aes-128-ctr",
+    "cipherparams": {
+      "iv": "c029f75712fd6555cd0b30bfa2644454"
+    },
+    "kdf": "scrypt",
+    "ciphertext": "d8bfd56edf4b7270a98ab71c48e0f6ae7f9897859740cfcd57fe4e2415629e62",
+    "mac": "4faea2527d04bfc9edc302875923deadf61113e849b36dfad8ad18d34eb38c63"
+  },
+  "mnemonicPath": "m/44'/118'/0'/0/0",
+  "version": 3
+}

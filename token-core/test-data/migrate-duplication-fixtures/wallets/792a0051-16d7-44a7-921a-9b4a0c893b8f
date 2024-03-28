@@ -1,0 +1,38 @@
+{
+  "id": "792a0051-16d7-44a7-921a-9b4a0c893b8f",
+  "mnemonicPath": "m/44'/60'/0'/0/1",
+  "encMnemonic": {
+    "nonce": "27d0fbb70bd03ce0e96824c0f88bb6ad",
+    "encStr": "b8e34c4ff5ee92f80cd893244c89be1ad75614550b4fde40eb81a214c4676623ec5f92076f495dc3204ab06533cccabbb218b01fbaa47255b56d7c17543aa3462d2f246169fb3377e422"
+  },
+  "imTokenMeta": {
+    "source": "MNEMONIC",
+    "passwordHint": "",
+    "backup": [],
+    "chain": "ETHEREUM",
+    "mode": "normal",
+    "network": "TESTNET",
+    "segWit": "NONE",
+    "version": "iOS-2.14.1.1742",
+    "timestamp": "1703217176.7788029",
+    "name": "Imported 12"
+  },
+  "crypto": {
+    "cipher": "aes-128-ctr",
+    "kdf": "scrypt",
+    "ciphertext": "a3f81f417cf96399c178fd18c058cf0cdc1023116e293c3c6fe5aa8a58f972f9",
+    "mac": "42f62a4647194f4efe78a07e8517ef9f4974b4bfb71524ed8dc8282f36780ce5",
+    "kdfparams": {
+      "salt": "59663950940345f9e69183f11f74319db35646ae7cd5be2f9f9bc478c07b4f1e",
+      "n": 262144,
+      "dklen": 32,
+      "r": 8,
+      "p": 1
+    },
+    "cipherparams": {
+      "iv": "4f64c9458e04b387dad5c7d0eaab8c91"
+    }
+  },
+  "address": "7152bcad819b084d57179e293d2765ffa0109e04",
+  "version": 3
+}

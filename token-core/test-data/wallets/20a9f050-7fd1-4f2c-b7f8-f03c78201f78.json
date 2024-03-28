@@ -1,0 +1,44 @@
+{
+  "version": 10001,
+  "id": "20a9f050-7fd1-4f2c-b7f8-f03c78201f78",
+  "encMnemonic": { "encStr": "", "nonce": "" },
+  "address": "imtoken2test",
+  "keyPathPrivates": [
+    {
+      "path": "",
+      "derivedMode": "IMPORTED",
+      "privateKey": {
+        "encStr": "13670678526669a12be40e9068a9c6565a0a8e92899f04790aff4b9cd12f4c76",
+        "nonce": "e870f1a76b63415f0d41264e6355148f"
+      },
+      "publicKey": "EOS6r37Sr3oDQNqcKDuSC5kzfu8bKs2jVidWDzA2MjBwhFuFfKkrz"
+    }
+  ],
+  "imTokenMeta": {
+    "source": "WIF",
+    "backup": [],
+    "mode": "normal",
+    "chain": "EOS",
+    "timestamp": "1710142425.79249",
+    "passwordHint": "",
+    "version": "iOS-2.14.1.1742",
+    "network": "TESTNET",
+    "segWit": "NONE",
+    "name": "Imported 1"
+  },
+  "mnemonicPath": "",
+  "crypto": {
+    "kdfparams": {
+      "n": 262144,
+      "salt": "aa3be513f461fb24392618ef1ff2011b200c9766130fe872ea2b3816aef0eda8",
+      "p": 1,
+      "r": 8,
+      "dklen": 32
+    },
+    "mac": "bc3573343cd1a64e9e5f73c972c2d4772b63c838b871f406835984c737f91740",
+    "ciphertext": "12ea4c0653df8fe9e1bff6f6abd1cefb0df14ae50483c35a18f7ea6309edaaca303d7e8fd392baf4019ec0fcbd361c8f563c612dc067195043b9a7d78c1b3ff0083f72adc0556cbee8edf9afc13ba510af1b45a7a0f4cc813380e25cb98e699d22d79e603b92ab587badda5d1edb6aa7c58efa23726f071e22a4319f6d303370",
+    "kdf": "scrypt",
+    "cipherparams": { "iv": "3081c9838a2bf0f47ffab13e511f8988" },
+    "cipher": "aes-128-ctr"
+  }
+}

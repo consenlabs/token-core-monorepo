@@ -1,5 +1,5 @@
 use ethereum_types::Address;
-use rlp::{self, DecoderError, Rlp, RlpStream};
+use rlp::{self, RlpStream};
 
 /// Transaction action type.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -23,8 +23,6 @@ pub struct TronMessageInput {
     #[prost(string, tag = "1")]
     pub value: ::prost::alloc::string::String,
     #[prost(bool, tag = "2")]
-    pub is_hex: bool,
-    #[prost(bool, tag = "3")]
     pub is_tron_header: bool,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

@@ -1,14 +1,16 @@
 use crate::transaction::{TezosRawTxIn, TezosTxOut};
 use bitcoin::util::base58;
 use blake2b_simd::Params;
-use tcx_chain::{ChainSigner, Keystore, TransactionSigner as TraitTransactionSigner};
+use tcx_common::{FromHex, ToHex};
 use tcx_constants::Result;
+use tcx_keystore::{
+    Keystore, SignatureParameters, Signer, TransactionSigner as TraitTransactionSigner,
+};
 
 impl TraitTransactionSigner<TezosRawTxIn, TezosTxOut> for Keystore {
     fn sign_transaction(
         &mut self,
-        symbol: &str,
-        address: &str,
+        params: &SignatureParameters,
         tx: &TezosRawTxIn,
     ) -> Result<TezosTxOut> {
         let raw_data_bytes = if tx.raw_data.starts_with("0x") {
@@ -18,14 +20,19 @@ impl TraitTransactionSigner<TezosRawTxIn, TezosTxOut> for Keystore {
         };
 
         //Blake2b hash
-        let mut params = Params::new();
-        params.hash_length(32);
+        let mut blake2b_params = Params::new();
+        blake2b_params.hash_length(32);
         //add watermark https://gitlab.com/tezos/tezos/-/issues/199
+        // https://tezos.gitlab.io/user/key-management.html#signer-requests
         let mut hash_message: Vec<u8> = vec![0x03];
-        hash_message.extend(hex::decode(&raw_data_bytes)?.as_slice());
-        let hash_result = params.hash(hash_message.as_slice());
-        let sign_result =
-            self.sign_recoverable_hash(hash_result.as_bytes(), symbol, address, None)?;
+        hash_message.extend(Vec::from_hex(raw_data_bytes)?.as_slice());
+        let hash_result = blake2b_params.hash(hash_message.as_slice());
+        let sign_result = self.sign_hash(
+            hash_result.as_bytes(),
+            &params.derivation_path,
+            "ed25519",
+            "",
+        )?;
 
         //tezos ed25519 signature prefix
         let edsig_prefix: [u8; 5] = [9, 245, 205, 134, 18];
@@ -33,7 +40,7 @@ impl TraitTransactionSigner<TezosRawTxIn, TezosTxOut> for Keystore {
         edsig_source_data.extend(&edsig_prefix);
         edsig_source_data.extend(sign_result.as_slice());
 
-        let sign_result_hex = hex::encode(sign_result);
+        let sign_result_hex = sign_result.to_hex();
         let tx_out = TezosTxOut {
             signature: sign_result_hex.clone(),
             edsig: base58::check_encode_slice(edsig_source_data.as_slice()),

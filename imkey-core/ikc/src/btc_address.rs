@@ -5,31 +5,11 @@ use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use bitcoin::network::constants::Network;
 use coin_bitcoin::address::BtcAddress;
-use coin_bitcoin::btcapi::{BtcXpubReq, BtcXpubRes};
+use ikc_common::utility::network_convert;
 use prost::Message;
 
-pub fn get_btc_xpub(data: &[u8]) -> Result<Vec<u8>> {
-    let input: BtcXpubReq = BtcXpubReq::decode(data).expect("imkey_illegal_param");
-
-    let network = match input.network.as_ref() {
-        "MAINNET" => Network::Bitcoin,
-        "TESTNET" => Network::Testnet,
-        _ => Network::Testnet,
-    };
-
-    let xpub = BtcAddress::get_xpub(network, input.path.as_ref())?;
-
-    let address_message = BtcXpubRes { xpub };
-    encode_message(address_message)
-}
-
 pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
-    let network = match param.network.as_ref() {
-        "MAINNET" => Network::Bitcoin,
-        "TESTNET" => Network::Testnet,
-        _ => Network::Testnet,
-    };
-
+    let network = network_convert(param.network.as_ref());
     let account_path = param.path.to_string();
     let main_address: String;
     let receive_address: String;
@@ -64,12 +44,7 @@ pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
 }
 
 pub fn calc_external_address(param: &ExternalAddressParam) -> Result<Vec<u8>> {
-    let network = match param.network.as_ref() {
-        "MAINNET" => Network::Bitcoin,
-        "TESTNET" => Network::Testnet,
-        _ => Network::Testnet,
-    };
-
+    let network = network_convert(param.network.as_ref());
     let account_path = param.path.to_string();
     let external_path = format!("{}/0/{}", account_path, param.external_idx);
     let receive_address: String;
@@ -108,14 +83,8 @@ pub fn register_btc_address(param: &AddressParam) -> Result<Vec<u8>> {
 }
 
 pub fn display_btc_legacy_address(param: &AddressParam) -> Result<Vec<u8>> {
-    let network = match param.network.as_ref() {
-        "MAINNET" => Network::Bitcoin,
-        "TESTNET" => Network::Testnet,
-        _ => Network::Testnet,
-    };
-
-    let path = format!("{}/0/0", param.path);
-    let address = BtcAddress::display_address(network, &path)?;
+    let network = network_convert(param.network.as_ref());
+    let address = BtcAddress::display_address(network, &param.path)?;
 
     let address_message = AddressResult {
         address,
@@ -126,12 +95,19 @@ pub fn display_btc_legacy_address(param: &AddressParam) -> Result<Vec<u8>> {
 }
 
 pub fn display_segwit_address(param: &AddressParam) -> Result<Vec<u8>> {
-    let network = match param.network.as_ref() {
-        "MAINNET" => Network::Bitcoin,
-        "TESTNET" => Network::Testnet,
-        _ => Network::Testnet,
-    };
+    let network = network_convert(param.network.as_ref());
+    let address = BtcAddress::display_segwit_address(network, &param.path)?;
 
+    let address_message = AddressResult {
+        path: param.path.to_string(),
+        chain_type: param.chain_type.to_string(),
+        address,
+    };
+    encode_message(address_message)
+}
+
+pub fn derive_account(param: &AddressParam) -> Result<Vec<u8>> {
+    let network = network_convert(param.network.as_ref());
     let path = format!("{}/0/0", param.path);
     let address = BtcAddress::display_segwit_address(network, &path)?;
 

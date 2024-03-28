@@ -1,0 +1,40 @@
+{
+  "id": "efcfffb2-9b63-418b-a9d0-ec3600012284",
+  "version": 12001,
+  "sourceFingerprint": "0x6bd7cc4e20a7de71296b81758d29447dfde9a388",
+  "crypto": {
+    "cipher": "aes-128-ctr",
+    "cipherparams": { "iv": "722a2420e64186dbb08eefa728c912a4" },
+    "ciphertext": "e3b0c0c4274970ee8ef071e4f2735853396cbaadc13d5b60e8155eb95e3eb5bb",
+    "kdf": "pbkdf2",
+    "kdfparams": {
+      "c": 1,
+      "prf": "hmac-sha256",
+      "dklen": 32,
+      "salt": "7dd675ede69d86a129eb52fbc370ead9fdfd2ef1316e019ab7736e18e8f5ab53"
+    },
+    "mac": "df47301ab9bb92628ebe29c8a8192a3331a8906aa57a634a9c4877d26cd65dc7"
+  },
+  "identity": {
+    "encAuthKey": {
+      "encStr": "6f7a00b69ac83aa1416a2dec37926ce25df81d9d8835a55bf1e8197141e59761",
+      "nonce": "efc01a5c065494921ac7d5f602736046"
+    },
+    "encKey": "823dc41660514b6c6cc0dea8e58d572893f81c8870d73becfd20e648c6c3d525",
+    "identifier": "im14x5AU2zU5oRyNdGgNbemdP39ATmu16eVgPFQ",
+    "ipfsId": "Qmb8K5w1fzdTbjTiATvSecNgZYvbMJ6gJB9JPG254aEY8F"
+  },
+  "curve": "ed25519",
+  "encOriginal": {
+    "encStr": "c4e466e5bd9dbd7d5120889445da8a42bf207f1fbac154a5430bf31ce4073636a62dcf3266ffbc27fedc97aa01661081908f9af9dc6659355d44d44b41c8181197996bb852ac8d292f2b663287a89546161ac823604b618a7a75fba845092f3becb2",
+    "nonce": "46c782c39c9494d45687f933a7b97d0b"
+  },
+  "imTokenMeta": {
+    "name": "test_tezos_import_private_key_export",
+    "passwordHint": "",
+    "timestamp": 1705041022,
+    "source": "PRIVATE",
+    "network": "MAINNET",
+    "identifiedChainTypes": ["TEZOS"]
+  }
+}

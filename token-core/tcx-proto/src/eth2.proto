@@ -2,12 +2,16 @@ syntax = "proto3";
 package transaction;
 message SignBLSToExecutionChangeParam {
   string id = 1;
-  string password = 2;
-  string genesisForkVersion = 3;
-  string genesisValidatorsRoot = 4;
-  repeated uint32 validatorIndex = 5;
-  string fromBlsPubKey = 6;
-  string eth1WithdrawalAddress = 7;
+  oneof key {
+    string password = 2;
+    string derivedKey = 3;
+  }
+
+  string genesisForkVersion = 4;
+  string genesisValidatorsRoot = 5;
+  repeated uint32 validatorIndex = 6;
+  string fromBlsPubKey = 7;
+  string eth1WithdrawalAddress = 8;
 }
 
 message SignBLSToExecutionChangeResult {

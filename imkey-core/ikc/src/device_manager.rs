@@ -42,10 +42,10 @@ pub fn app_download(data: &[u8]) -> Result<Vec<u8>> {
     let request: AppDownloadReq = AppDownloadReq::decode(data).expect("imkey_illegal_param");
     let response = device_manager::app_download(request.app_name.as_ref())?;
 
-    let app_download_res = match response._ReturnData.address_register_list.is_some() {
+    let app_download_res = match response.return_data.address_register_list.is_some() {
         true => {
             let mut app_name_list = vec![];
-            for instance_aid in response._ReturnData.address_register_list.unwrap() {
+            for instance_aid in response.return_data.address_register_list.unwrap() {
                 app_name_list.push(
                     applet::get_appname_by_instid(instance_aid.as_str())
                         .expect("imKey_app_id_noe_exist")
@@ -67,10 +67,10 @@ pub fn app_download(data: &[u8]) -> Result<Vec<u8>> {
 pub fn app_update(data: &[u8]) -> Result<Vec<u8>> {
     let request: AppUpdateReq = AppUpdateReq::decode(data).expect("imkey_illegal_prarm");
     let response = device_manager::app_update(request.app_name.as_ref())?;
-    let app_update_res = match response._ReturnData.address_register_list.is_some() {
+    let app_update_res = match response.return_data.address_register_list.is_some() {
         true => {
             let mut app_name_list = vec![];
-            for instance_aid in response._ReturnData.address_register_list.unwrap() {
+            for instance_aid in response.return_data.address_register_list.unwrap() {
                 app_name_list.push(
                     applet::get_appname_by_instid(instance_aid.as_str())
                         .expect("imKey_app_id_noe_exist")
@@ -108,7 +108,7 @@ pub fn check_update() -> Result<Vec<u8>> {
     let response = device_manager::check_update()?;
 
     let mut available_bean_list: Vec<AvailableAppBean> = Vec::new();
-    for value in response._ReturnData.available_app_bean_list.unwrap() {
+    for value in response.return_data.available_app_bean_list.unwrap() {
         let version = match value.installed_version.as_ref() {
             Some(version) => version,
             None => "none",
@@ -128,17 +128,17 @@ pub fn check_update() -> Result<Vec<u8>> {
         });
     }
 
-    let return_code = response._ReturnCode;
+    let return_code = response.return_code;
     let mut status = constants::IMKEY_DEV_STATUS_LATEST;
     if return_code == constants::TSM_RETURNCODE_DEV_INACTIVATED.to_string() {
         status = constants::IMKEY_DEV_STATUS_INACTIVATED;
     }
 
     let response_msg = CheckUpdateRes {
-        se_id: response._ReturnData.seid.unwrap(),
-        sn: response._ReturnData.sn.unwrap(),
+        se_id: response.return_data.seid.unwrap(),
+        sn: response.return_data.sn.unwrap(),
         status: status.to_string(),
-        sdk_mode: response._ReturnData.sdk_mode.unwrap(),
+        sdk_mode: response.return_data.sdk_mode.unwrap(),
         available_app_list: available_bean_list,
     };
     encode_message(response_msg)
@@ -279,15 +279,15 @@ pub fn cos_check_update() -> Result<Vec<u8>> {
     let cos_check_update = device_manager::cos_check_update()?;
 
     encode_message(CosCheckUpdateRes {
-        seid: cos_check_update._ReturnData.seid,
-        is_latest: cos_check_update._ReturnData.is_latest,
+        seid: cos_check_update.return_data.seid,
+        is_latest: cos_check_update.return_data.is_latest,
         latest_cos_version: cos_check_update
-            ._ReturnData
+            .return_data
             .latest_cos_version
             .unwrap_or_default(),
-        update_type: cos_check_update._ReturnData.update_type.unwrap_or_default(),
-        description: cos_check_update._ReturnData.description.unwrap_or_default(),
-        is_update_success: cos_check_update._ReturnData.is_update_success,
+        update_type: cos_check_update.return_data.update_type.unwrap_or_default(),
+        description: cos_check_update.return_data.description.unwrap_or_default(),
+        is_update_success: cos_check_update.return_data.is_update_success,
     })
 }
 

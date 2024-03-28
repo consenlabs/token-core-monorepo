@@ -1,5 +1,5 @@
-use tcx_chain::{Address, Result};
 use tcx_constants::CoinInfo;
+use tcx_keystore::{Address, Result};
 use tcx_primitive::{PublicKey, TypedPublicKey};
 
 use forest_address::Address as ForestAddress;
@@ -9,16 +9,17 @@ use crate::utils::{digest, HashSize};
 use base32::Alphabet;
 use std::str::FromStr;
 
-const MAINNET_PREFIX: &'static str = "f";
-const TESTNET_PREFIX: &'static str = "t";
+const MAINNET_PREFIX: &str = "f";
+const TESTNET_PREFIX: &str = "t";
 
 #[derive(Clone, Copy)]
 pub enum Protocol {
     Secp256k1 = 1,
-    BLS = 3,
+    Bls = 3,
 }
 
-pub struct FilecoinAddress();
+#[derive(PartialEq, Eq, Clone)]
+pub struct FilecoinAddress(String);
 
 impl FilecoinAddress {
     fn checksum(ingest: &[u8]) -> Vec<u8> {
@@ -31,43 +32,43 @@ impl FilecoinAddress {
 }
 
 impl Address for FilecoinAddress {
-    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<String> {
-        let ntwk = match coin.network.as_str() {
+    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
+        let network_prefix = match coin.network.as_str() {
             "TESTNET" => TESTNET_PREFIX,
             _ => MAINNET_PREFIX,
         };
         let protocol;
         let payload;
-        let cksm;
+        let checksum;
 
         match public_key {
             TypedPublicKey::Secp256k1(pk) => {
                 protocol = Protocol::Secp256k1;
                 payload = Self::address_hash(&pk.to_uncompressed());
 
-                cksm = Self::checksum(&[vec![protocol as u8], payload.clone().to_vec()].concat());
+                checksum = Self::checksum(&[vec![protocol as u8], payload.to_vec()].concat());
             }
             TypedPublicKey::BLS(pk) => {
-                protocol = Protocol::BLS;
+                protocol = Protocol::Bls;
                 payload = pk.to_bytes();
 
-                cksm = Self::checksum(&[vec![protocol as u8], payload.clone().to_vec()].concat());
+                checksum = Self::checksum(&[vec![protocol as u8], payload.to_vec()].concat());
             }
             _ => {
                 return Err(Error::InvalidCurveType.into());
             }
         };
 
-        Ok(format!(
+        Ok(FilecoinAddress(format!(
             "{}{}{}",
-            ntwk,
+            network_prefix,
             protocol as i8,
             base32::encode(
                 Alphabet::RFC4648 { padding: false },
-                &[payload, cksm].concat()
+                &[payload, checksum].concat()
             )
             .to_lowercase()
-        ))
+        )))
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {
@@ -84,11 +85,29 @@ impl Address for FilecoinAddress {
     }
 }
 
+impl FromStr for FilecoinAddress {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        Ok(FilecoinAddress(s.to_string()))
+    }
+}
+
+impl ToString for FilecoinAddress {
+    fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use crate::address::FilecoinAddress;
-    use tcx_chain::{Address, Keystore, Metadata};
+    use crate::Error;
+    use tcx_common::FromHex;
     use tcx_constants::{coin_info_from_param, CoinInfo, CurveType};
+    use tcx_keystore::{Address, Keystore, Metadata};
     use tcx_primitive::TypedPublicKey;
 
     #[test]
@@ -152,13 +171,13 @@ mod tests {
         for (input, expected) in test_cases {
             let pk = TypedPublicKey::from_slice(CurveType::BLS, &input).unwrap();
             let address = FilecoinAddress::from_public_key(&pk, &coin_info).unwrap();
-            assert_eq!(address, expected);
+            assert_eq!(address.to_string(), expected);
         }
     }
 
     #[test]
     fn test_bip44_secp256k1() {
-        let mut coin_info = coin_info_from_param("FILECOIN", "MAINNET", "", "SECP256k1")
+        let mut coin_info = coin_info_from_param("FILECOIN", "MAINNET", "", "secp256k1")
             .unwrap()
             .clone();
 
@@ -247,7 +266,30 @@ mod tests {
         for (input, expected) in test_cases {
             let pk = TypedPublicKey::from_slice(CurveType::SECP256k1, &input).unwrap();
             let address = FilecoinAddress::from_public_key(&pk, &coin_info).unwrap();
-            assert_eq!(address, expected);
+            assert_eq!(address.to_string(), expected);
         }
+    }
+
+    #[test]
+    fn test_invalid_curve_type() {
+        let input =
+            Vec::from_hex("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc")
+                .unwrap();
+        let pk = TypedPublicKey::from_slice(CurveType::ED25519, &input).unwrap();
+        let actual = FilecoinAddress::from_public_key(&pk, &CoinInfo::default());
+        assert_eq!(
+            actual.err().unwrap().to_string(),
+            Error::InvalidCurveType.to_string()
+        );
+    }
+
+    #[test]
+    fn test_from_str() {
+        let address =
+            FilecoinAddress::from_str("t1xtwapqc6nh4si2hcwpr3656iotzmlwumogqbuaa").unwrap();
+        assert_eq!(
+            address.to_string(),
+            "t1xtwapqc6nh4si2hcwpr3656iotzmlwumogqbuaa"
+        );
     }
 }

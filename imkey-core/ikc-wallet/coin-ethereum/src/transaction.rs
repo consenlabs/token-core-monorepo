@@ -12,9 +12,8 @@ use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use keccak_hash::keccak;
 use lazy_static::lazy_static;
-use rlp::{self, DecoderError, Encodable, Rlp, RlpStream};
-use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
-use secp256k1::{self, Message as SecpMessage, Signature as SecpSignature};
+use rlp::{self, Encodable, RlpStream};
+use secp256k1::{self, ecdsa::Signature as SecpSignature};
 use tiny_keccak::Hasher;
 
 lazy_static! {
@@ -127,8 +126,7 @@ impl Transaction {
 
         let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
 
-        let address_main = EthAddress::address_from_pubkey(pubkey_raw.clone()).unwrap();
-        let address_checksummed = EthAddress::address_checksummed(&address_main);
+        let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone()).unwrap();
         //compare address
         if address_checksummed != *sender {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());
@@ -316,8 +314,7 @@ impl Transaction {
         let msg_pubkey = EthApdu::get_xpub(&sign_param.path, false);
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
-        let address_main = EthAddress::address_from_pubkey(pubkey_raw.clone()).unwrap();
-        let address_checksummed = EthAddress::address_checksummed(&address_main);
+        let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone()).unwrap();
 
         if &address_checksummed != &sign_param.sender {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());
@@ -1084,7 +1081,7 @@ mod tests {
         let sender = "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string();
         let fee = "0.0032 ether".to_string();
 
-        let tx_result = tx
+        let _tx_result = tx
             .sign(Some(28), &path, &payment, &receiver, &sender, &fee)
             .unwrap();
 
@@ -1113,7 +1110,7 @@ mod tests {
         let sender = "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string();
         let fee = "0.002499941511088808 ether".to_string();
 
-        let tx_result = tx
+        let _tx_result = tx
             .sign(Some(28), &path, &payment, &receiver, &sender, &fee)
             .unwrap();
 
@@ -1142,7 +1139,7 @@ mod tests {
         let sender = "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string();
         let fee = "0.002654792885876068 ether".to_string();
 
-        let tx_result = tx
+        let _tx_result = tx
             .sign(Some(28), &path, &payment, &receiver, &sender, &fee)
             .unwrap();
 
@@ -1196,7 +1193,7 @@ mod tests {
         let sender = "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string();
         let fee = "0.0033 ether".to_string();
 
-        let tx_result = tx
+        let _tx_result = tx
             .sign(Some(63), &path, &payment, &receiver, &sender, &fee)
             .unwrap();
 
@@ -1225,7 +1222,7 @@ mod tests {
         let sender = "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string();
         let fee = "0.11 ether".to_string();
 
-        let tx_result = tx
+        let _tx_result = tx
             .sign(Some(28), &path, &payment, &receiver, &sender, &fee)
             .unwrap();
     }

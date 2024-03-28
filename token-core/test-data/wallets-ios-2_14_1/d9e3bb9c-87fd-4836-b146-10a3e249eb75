@@ -1,0 +1,33 @@
+{
+  "version": 3,
+  "imTokenMeta": {
+    "network": "MAINNET",
+    "name": "Imported 14",
+    "version": "iOS-2.14.1.1742",
+    "source": "WIF",
+    "passwordHint": "",
+    "timestamp": "1703226797.333446",
+    "backup": [],
+    "chain": "BITCOIN",
+    "segWit": "NONE",
+    "mode": "normal"
+  },
+  "id": "d9e3bb9c-87fd-4836-b146-10a3e249eb75",
+  "address": "1962gsZ8PoPUYHneFakkCTrukdFMVQ4i4T",
+  "crypto": {
+    "cipherparams": {
+      "iv": "15f5b149172c5f96fc4eb4c2c618b9fe"
+    },
+    "ciphertext": "4a916ea2fbf9156f1f179ac94dc5f99ba2ed7b9d7841fb9e4271af38fdac9d349368e89c929604ce6987077a7d12e451842513dd",
+    "kdf": "scrypt",
+    "cipher": "aes-128-ctr",
+    "mac": "2061aad7f9165828873e04c7db581d5d60c36eba328940b18cc589a6df6095a2",
+    "kdfparams": {
+      "n": 262144,
+      "r": 8,
+      "dklen": 32,
+      "p": 1,
+      "salt": "4db39bbbfed6027055eaaa0b92ea4c97b2476f368f70ec8f93a6be3a5cfb2747"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "version": 3,
+  "imTokenMeta": {
+    "name": "Imported 1",
+    "backup": [],
+    "passwordHint": "",
+    "source": "PRIVATE",
+    "timestamp": "1703213241.0374532",
+    "version": "iOS-2.14.1.1742",
+    "mode": "normal",
+    "network": "TESTNET",
+    "segWit": "NONE",
+    "chain": "ETHEREUM"
+  },
+  "id": "f3615a56-cb03-4aa4-a893-89944e49920d",
+  "crypto": {
+    "kdf": "scrypt",
+    "ciphertext": "bd9ed0988742c678f6b1a6a05233c08a00f438b2c62ff2f024abe32527886e3b",
+    "mac": "a606524699adc9419400e18440e1b13e3b727263f13548846ba1a0d6025c2124",
+    "cipher": "aes-128-ctr",
+    "cipherparams": {
+      "iv": "e173367006b5bf571351d0f1b2aad303"
+    },
+    "kdfparams": {
+      "dklen": 32,
+      "n": 262144,
+      "r": 8,
+      "p": 1,
+      "salt": "152db1481a9478809729a18236cd85068bbaa32a02da5495500993fd0d871ea2"
+    }
+  },
+  "address": "80427ae1f55bcf60ee4cd2db7549b8bc69a74303"
+}

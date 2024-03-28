@@ -1,0 +1,39 @@
+{
+  "xpub": "tpubDC8AkaytytTPrkUaPZpwL1NiRqr93MvGYHP75uQPMtyV9GXyB4hfJ4T7YU3RqXogUCHgvRn7EgePAogxhrPtser2KX3bN1YJBFRZVxhtGNV",
+  "mnemonicPath": "m/49'/1'/0'",
+  "imTokenMeta": {
+    "timestamp": "1703214806.924619",
+    "name": "Imported 7",
+    "segWit": "P2WPKH",
+    "backup": [],
+    "version": "iOS-2.14.1.1742",
+    "chain": "BITCOIN",
+    "source": "MNEMONIC",
+    "network": "TESTNET",
+    "passwordHint": "",
+    "mode": "normal"
+  },
+  "address": "2ND3WGu69ULLWJ3XcmtLyGswSUdbycFjngN",
+  "crypto": {
+    "ciphertext": "a86f985a707d2871d6802027f5cf943e1b66f99ebbb007032c95f721af4e531ed365fb705e15263bcce6aaec68bafc4a46c2f4bc8e83ab24946e6c645425f0743747f47792f55e0c1df573987c0a9d791bf5b95c5265e6bd99c353804c81f3658518bf7d034c1a15aa77435b8a6c95",
+    "kdfparams": {
+      "n": 262144,
+      "r": 8,
+      "dklen": 32,
+      "salt": "6c528887c1a3a856c40bb3f87c7ca0091bcfbe01635ab69137554e0c54dcad42",
+      "p": 1
+    },
+    "mac": "a3f9c6f3cf0588dd335d0db6d5e00d8ca0a1942ceb1d31af2c1b94db7b05c28e",
+    "kdf": "scrypt",
+    "cipher": "aes-128-ctr",
+    "cipherparams": {
+      "iv": "20f16d3a33fbe4abdcb1bcb0f839fcb4"
+    }
+  },
+  "encMnemonic": {
+    "nonce": "1ec1cbae4075893940fdad972870bd24",
+    "encStr": "dc53ccd9eadce8fac95f9f8551d5563609d5318687f3c24cf17eafa46976d18759f40044780d6f3e51126d13475b60b7868bb97183f73cb2fe97e9182aee6a7163540aa520ea8f0debec"
+  },
+  "version": 44,
+  "id": "6c20aab6-1596-456d-9749-212e6139c5ed"
+}

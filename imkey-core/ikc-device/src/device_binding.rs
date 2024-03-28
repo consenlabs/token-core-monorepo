@@ -1,26 +1,22 @@
-extern crate aes_soft as aes;
-
 use super::key_manager::KeyManager;
 use crate::auth_code_storage::AuthCodeStorageRequest;
 use crate::device_cert_check::DeviceCertCheckRequest;
 use crate::error::{BindError, ImkeyError};
 use crate::Result;
 use crate::{device_manager, TsmService};
-use aes::Aes128;
-use block_modes::block_padding::Pkcs7;
-use block_modes::{BlockMode, Cbc};
+use ikc_common::aes::cbc::encrypt_pkcs7;
 use ikc_common::apdu::{Apdu, ApduCheck, ImkApdu};
 use ikc_common::constants::{
     BIND_RESULT_ERROR, BIND_RESULT_SUCCESS, BIND_STATUS_BOUND_OTHER, BIND_STATUS_BOUND_THIS,
     BIND_STATUS_UNBOUND, IMK_AID,
 };
+use ikc_common::utility::sha256_hash;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use ikc_transport::hid_api::hid_connect;
 use ikc_transport::message::send_apdu;
 use parking_lot::Mutex;
 use rand::rngs::OsRng;
 use regex::Regex;
-use ring::digest;
 use rsa::{BigUint, PaddingScheme, PublicKey as RSAPublic, RsaPublicKey};
 use secp256k1::{ecdh, PublicKey, SecretKey};
 use sha1::Sha1;
@@ -125,16 +121,14 @@ impl DeviceManage {
         data.extend(binding_code_bytes);
         data.extend(&key_manager_obj.pub_key);
         data.extend(&key_manager_obj.se_pub_key);
-        let data_hash = digest::digest(&digest::SHA256, data.as_slice());
+        let data_hash = sha256_hash(data.as_slice());
 
         //encryption hash value by session key
-        type Aes128Cbc = Cbc<Aes128, Pkcs7>;
-        let cipher = Aes128Cbc::new_var(
+        let ciphertext = encrypt_pkcs7(
+            &data_hash.as_ref(),
             &key_manager_obj.session_key,
-            &gen_iv(&temp_binding_code).as_ref(),
+            &gen_iv(&temp_binding_code),
         )?;
-
-        let ciphertext = cipher.encrypt_vec(data_hash.as_ref());
         //gen identityVerify command
         let mut apdu_data = vec![];
         apdu_data.extend(&key_manager_obj.pub_key);
@@ -168,11 +162,11 @@ fn select_imk_applet() -> Result<()> {
 generator iv
 */
 fn gen_iv(auth_code: &String) -> [u8; 16] {
-    let salt_bytes = digest::digest(&digest::SHA256, "bindingCode".as_bytes());
-    let auth_code_hash = digest::digest(&digest::SHA256, auth_code.as_bytes());
+    let salt_bytes = sha256_hash("bindingCode".as_bytes());
+    let auth_code_hash = sha256_hash(auth_code.as_bytes());
     let mut result = [0u8; 32];
-    for (index, value) in auth_code_hash.as_ref().iter().enumerate() {
-        result[index] = value ^ salt_bytes.as_ref().get(index).unwrap();
+    for (index, value) in auth_code_hash.iter().enumerate() {
+        result[index] = value ^ salt_bytes.get(index).unwrap();
     }
     let mut return_data = [0u8; 16];
     return_data.copy_from_slice(&result[..16]);
@@ -243,7 +237,7 @@ pub fn bind_test() {
 // pub const TEST_KEY_PATH: &str = "/tmp/";
 // pub const TEST_BIND_CODE: &str = "MCYNK5AH";
 pub const TEST_KEY_PATH: &str = "/tmp/";
-pub const TEST_BIND_CODE: &str = "DJKP4NUR";
+pub const TEST_BIND_CODE: &str = "7FVRAJJ7";
 
 #[cfg(test)]
 mod test {

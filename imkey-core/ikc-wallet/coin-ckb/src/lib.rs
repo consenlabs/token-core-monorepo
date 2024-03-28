@@ -4,46 +4,46 @@ pub mod nervosapi;
 pub mod serializer;
 pub mod signer;
 pub mod transaction_helper;
-extern crate failure;
+extern crate anyhow;
 use core::result;
-pub type Result<T> = result::Result<T, failure::Error>;
-use failure::Fail;
+pub type Result<T> = result::Result<T, anyhow::Error>;
 pub use nervosapi::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
 pub use serializer::Serializer;
+use thiserror::Error;
 
-#[derive(Fail, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq)]
 pub enum Error {
-    #[fail(display = "invalid_output_point")]
+    #[error("invalid_output_point")]
     InvalidOutputPoint,
 
-    #[fail(display = "invalid_outputs_data_length")]
+    #[error("invalid_outputs_data_length")]
     InvalidOutputsDataLength,
 
-    #[fail(display = "required_witness")]
+    #[error("required_witness")]
     RequiredWitness,
 
-    #[fail(display = "invalid_input_cells")]
+    #[error("invalid_input_cells")]
     InvalidInputCells,
 
-    #[fail(display = "required_output_data")]
+    #[error("required_output_data")]
     RequiredOutputsData,
 
-    #[fail(display = "witness_group_empty")]
+    #[error("witness_group_empty")]
     WitnessGroupEmpty,
 
-    #[fail(display = "witness_empty")]
+    #[error("witness_empty")]
     WitnessEmpty,
 
-    #[fail(display = "invalid_tx_hash")]
+    #[error("invalid_tx_hash")]
     InvalidTxHash,
 
-    #[fail(display = "invalid_hash_type")]
+    #[error("invalid_hash_type")]
     InvalidHashType,
 
-    #[fail(display = "cell_input_not_cached")]
+    #[error("cell_input_not_cached")]
     CellInputNotCached,
 
-    #[fail(display = "invalid_hex_value")]
+    #[error("invalid_hex_value")]
     InvalidHexValue,
 }
 

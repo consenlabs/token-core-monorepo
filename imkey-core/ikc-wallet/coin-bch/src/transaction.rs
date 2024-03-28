@@ -19,7 +19,7 @@ use ikc_common::path::check_path_validity;
 use ikc_common::utility::{bigint_to_byte_vec, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
-use secp256k1::Signature;
+use secp256k1::ecdsa::Signature;
 use std::str::FromStr;
 
 #[derive(Clone)]
@@ -189,7 +189,7 @@ impl BchTransaction {
             //lock script
             let pub_key_bytes = hex::decode(utxo_pub_key_vec.get(index).unwrap())?;
             let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).into_inner();
-            let script_hex = format!("76a914{}88ac", hex::encode(pub_key_hash));
+            let script_hex: String = format!("76a914{}88ac", hex::encode(pub_key_hash));
             // let script = Script::from(hex::decode(script_hex)?);
             let script = Script::from_hex(script_hex.as_str())?;
             let script_data = serialize(&script);
@@ -208,10 +208,13 @@ impl BchTransaction {
             data.insert(0, data.len() as u8);
             //address
             let mut address_data: Vec<u8> = vec![];
-            let sign_path = format!("{}{}", path_str, unspent.derive_path);
-            address_data.push(sign_path.as_bytes().len() as u8);
-            address_data.extend_from_slice(sign_path.as_bytes());
-
+            if unspent.derive_path.is_empty() {
+                address_data.push(path_str.as_bytes().len() as u8);
+                address_data.extend_from_slice(path_str.as_bytes());
+            } else {
+                address_data.push(unspent.derive_path.as_bytes().len() as u8);
+                address_data.extend_from_slice(unspent.derive_path.as_bytes());
+            }
             data.extend(address_data.iter());
             if index == self.unspents.len() - 1 {
                 sign_apdu_vec.push(BtcForkApdu::btc_fork_segwit_sign(0x48, true, 0x01, data));
@@ -362,7 +365,7 @@ mod tests {
             amount: 100000,
             address: "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r".to_string(),
             script_pubkey: "76a91488d9931ea73d60eaf7e5671efc0552b912911f2a88ac".to_string(),
-            derive_path: "0/0".to_string(),
+            derive_path: "m/44'/145'/0'/0/0".to_string(),
             sequence: 0,
         };
         let mut utxos = Vec::new();
@@ -398,7 +401,7 @@ mod tests {
             amount: 100000,
             address: "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r".to_string(),
             script_pubkey: "76a91488d9931ea73d60eaf7e5671efc0552b912911f2a88ac".to_string(),
-            derive_path: "0/0".to_string(),
+            derive_path: "m/44'/145'/0'/0/0".to_string(),
             sequence: 0,
         };
         let utxo2 = Utxo {
@@ -407,7 +410,7 @@ mod tests {
             amount: 500000,
             address: "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r".to_string(),
             script_pubkey: "76a91488d9931ea73d60eaf7e5671efc0552b912911f2a88ac".to_string(),
-            derive_path: "0/0".to_string(),
+            derive_path: "m/44'/145'/0'/0/0".to_string(),
             sequence: 0,
         };
         let mut utxos = Vec::new();
@@ -444,7 +447,7 @@ mod tests {
             amount: 100000,
             address: "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r".to_string(),
             script_pubkey: "76a91488d9931ea73d60eaf7e5671efc0552b912911f2a88ac".to_string(),
-            derive_path: "0/0".to_string(),
+            derive_path: "m/44'/145'/0'/0/0".to_string(),
             sequence: 0,
         };
         let utxo2 = Utxo {
@@ -453,7 +456,7 @@ mod tests {
             amount: 500000,
             address: "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r".to_string(),
             script_pubkey: "76a91488d9931ea73d60eaf7e5671efc0552b912911f2a88ac".to_string(),
-            derive_path: "0/0".to_string(),
+            derive_path: "m/44'/145'/0'/0/0".to_string(),
             sequence: 0,
         };
         let mut utxos = Vec::new();
@@ -490,7 +493,7 @@ mod tests {
             amount: 100000,
             address: "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r".to_string(),
             script_pubkey: "76a91488d9931ea73d60eaf7e5671efc0552b912911f2a88ac".to_string(),
-            derive_path: "0/0".to_string(),
+            derive_path: "m/44'/145'/0'/0/0".to_string(),
             sequence: 0,
         };
         let utxo2 = Utxo {
@@ -499,7 +502,7 @@ mod tests {
             amount: 500000,
             address: "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r".to_string(),
             script_pubkey: "76a91488d9931ea73d60eaf7e5671efc0552b912911f2a88ac".to_string(),
-            derive_path: "0/0".to_string(),
+            derive_path: "m/44'/145'/0'/0/0".to_string(),
             sequence: 0,
         };
         let mut utxos = Vec::new();

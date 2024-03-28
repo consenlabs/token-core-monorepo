@@ -1,15 +1,17 @@
+use anyhow::anyhow;
 use sp_core::crypto::Ss58AddressFormat;
 use sp_core::crypto::Ss58Codec;
 use sp_core::sr25519::Public;
-use tcx_chain::Address;
+use std::str::FromStr;
 use tcx_constants::{CoinInfo, Result};
+use tcx_keystore::Address;
 use tcx_primitive::{PublicKey, Sr25519PublicKey, TypedPublicKey};
 
-pub struct SubstrateAddress();
+#[derive(PartialEq, Eq, Clone)]
+pub struct SubstrateAddress(String);
 
 impl Address for SubstrateAddress {
-    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<String> {
-        // todo: TypedPublicKey to public key
+    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
         let sr_pk = Sr25519PublicKey::from_slice(&public_key.to_bytes())?;
         let address = match coin.coin.as_str() {
             "KUSAMA" => sr_pk
@@ -18,10 +20,10 @@ impl Address for SubstrateAddress {
             "POLKADOT" => sr_pk
                 .0
                 .to_ss58check_with_version(Ss58AddressFormat::custom(0)),
-            _ => "".to_owned(),
+            _ => return Err(anyhow!("wrong_coin_type")),
         };
 
-        Ok(address)
+        Ok(SubstrateAddress(address))
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {
@@ -36,11 +38,26 @@ impl Address for SubstrateAddress {
     }
 }
 
+impl FromStr for SubstrateAddress {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> core::result::Result<Self, Self::Err> {
+        Ok(SubstrateAddress(s.to_string()))
+    }
+}
+
+impl ToString for SubstrateAddress {
+    fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
 #[cfg(test)]
 mod test_super {
     use super::*;
+    use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
-    use tcx_primitive::FromHex;
+    use tcx_primitive::{PrivateKey, Sr25519PrivateKey};
 
     #[test]
     fn test_address_from_public() {
@@ -48,7 +65,7 @@ mod test_super {
             "50780547322a1ceba67ea8c552c9bc6c686f8698ac9a8cafab7cd15a1db19859",
         )
         .unwrap();
-        let typed_key: TypedPublicKey = TypedPublicKey::Sr25519(pub_key);
+        let typed_key: TypedPublicKey = TypedPublicKey::SR25519(pub_key);
 
         let coin_infos = vec![
             (
@@ -56,7 +73,7 @@ mod test_super {
                 CoinInfo {
                     coin: "POLKADOT".to_string(),
                     derivation_path: "//imToken//polakdot/0".to_string(),
-                    curve: CurveType::SubSr25519,
+                    curve: CurveType::SR25519,
                     network: "".to_string(),
                     seg_wit: "".to_string(),
                 },
@@ -66,7 +83,7 @@ mod test_super {
                 CoinInfo {
                     coin: "KUSAMA".to_string(),
                     derivation_path: "//imToken//kusama/0".to_string(),
-                    curve: CurveType::SubSr25519,
+                    curve: CurveType::SR25519,
                     network: "".to_string(),
                     seg_wit: "".to_string(),
                 },
@@ -74,16 +91,37 @@ mod test_super {
         ];
         for addr_and_coin in coin_infos {
             let addr = SubstrateAddress::from_public_key(&typed_key, &addr_and_coin.1).unwrap();
-            assert_eq!(addr_and_coin.0, addr);
+            assert_eq!(addr.to_string(), addr_and_coin.0);
         }
+
+        let sec_key_data = &Vec::<u8>::from_hex_auto("00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd").unwrap();
+        let sec_key = Sr25519PrivateKey::from_slice(&sec_key_data).unwrap();
+        let pub_key = sec_key.public_key();
+        let typed_key = TypedPublicKey::SR25519(pub_key);
+        let mut kusama_coin_info = CoinInfo {
+            coin: "KUSAMA".to_string(),
+            derivation_path: "//imToken//kusama/0".to_string(),
+            curve: CurveType::SR25519,
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        };
+        let addr = SubstrateAddress::from_public_key(&typed_key, &kusama_coin_info).unwrap();
+        assert_eq!(
+            addr.to_string(),
+            "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS"
+        );
+
+        kusama_coin_info.coin = "ERROR_TYPE".to_string();
+        let addr = SubstrateAddress::from_public_key(&typed_key, &kusama_coin_info);
+        assert_eq!(addr.err().unwrap().to_string(), "wrong_coin_type");
     }
 
     #[test]
     fn test_address_is_valid() {
-        let coin_info = CoinInfo {
+        let mut coin_info = CoinInfo {
             coin: "KUSAMA".to_string(),
             derivation_path: "//imToken//kusama/0".to_string(),
-            curve: CurveType::SubSr25519,
+            curve: CurveType::SR25519,
             network: "".to_string(),
             seg_wit: "".to_string(),
         };
@@ -95,6 +133,14 @@ mod test_super {
         for addr in addresses {
             assert!(SubstrateAddress::is_valid(addr, &coin_info));
         }
+
+        coin_info.coin = "POLKADOT".to_string();
+        coin_info.derivation_path = "//imToken//polkadot/0".to_string();
+        let addresse = "16NhUkUTkYsYRjMD22Sop2DF8MAXUsjPcYtgHF3t1ccmohx1";
+        assert!(SubstrateAddress::is_valid(addresse, &coin_info));
+
+        coin_info.coin = "ERROR_COIN_TYPE".to_string();
+        assert!(!SubstrateAddress::is_valid(addresse, &coin_info));
     }
 
     #[test]
@@ -102,7 +148,7 @@ mod test_super {
         let coin_info = CoinInfo {
             coin: "KUSAMA".to_string(),
             derivation_path: "//imToken//kusama/0".to_string(),
-            curve: CurveType::SubSr25519,
+            curve: CurveType::SR25519,
             network: "".to_string(),
             seg_wit: "".to_string(),
         };

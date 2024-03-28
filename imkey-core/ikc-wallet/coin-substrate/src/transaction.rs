@@ -1,4 +1,3 @@
-use crate::address::AddressType;
 use crate::substrateapi::{SubstrateRawTxIn, SubstrateTxOut};
 use crate::{Result, PAYLOAD_HASH_THRESHOLD, SIGNATURE_TYPE_ED25519};
 use ikc_common::apdu::{Apdu, ApduCheck, Ed25519Apdu};
@@ -15,6 +14,7 @@ use sp_core::blake2_256;
 pub struct Transaction {}
 
 impl Transaction {
+    // Ref: https://github.com/paritytech/txwrapper-core/blob/8c7c9e16ab877f0247e547ee6368e22e5579b492/packages/txwrapper-core/src/core/construct/createSigningPayload.ts#L37-L42
     pub fn hash_unsigned_payload(payload: &[u8]) -> Result<Vec<u8>> {
         if payload.len() > PAYLOAD_HASH_THRESHOLD {
             Ok(blake2_256(&payload).to_vec())
@@ -113,10 +113,8 @@ mod test {
     use ikc_common::constants::{KUSAMA_PATH, POLKADOT_PATH};
     use ikc_common::SignParam;
     use ikc_device::device_binding::bind_test;
-    use sp_core::crypto::Ss58Codec;
     use sp_core::ed25519::Pair;
-    use sp_core::{ByteArray, Pair as TraitPair, Public};
-    use sp_runtime::traits::Verify;
+    use sp_core::{ByteArray, Pair as TraitPair};
 
     #[test]
     fn test_sign_transaction() {

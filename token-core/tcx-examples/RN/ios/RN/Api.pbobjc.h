@@ -100,7 +100,7 @@ typedef GPB_ENUM(InitTokenCoreXParam_FieldNumber) {
 /**
  * FUNCTION: init_token_core_x(InitTokenCoreXParam)
  *
- * initialize tcx by passing keystore folder and xpub encryption params
+ * initialize tcx by passing fixtures folder and xpub encryption params
  **/
 GPB_FINAL @interface InitTokenCoreXParam : GPBMessage
 
@@ -129,7 +129,7 @@ typedef GPB_ENUM(ExportPrivateKeyParam_FieldNumber) {
  *
  * // FUNCTION: export_private_key(ExportPrivateKeyParam): KeystoreCommonExportResult
  * //
- * // export the private key from a private key keystore or a hd keystore
+ * // export the private key from a private key fixtures or a hd fixtures
  **/
 GPB_FINAL @interface ExportPrivateKeyParam : GPBMessage
 
@@ -160,7 +160,7 @@ typedef GPB_ENUM(WalletKeyParam_FieldNumber) {
  *
  * // FUNCTION: keystore_common_verify(WalletKeyParam) -> Response
  * //
- * // verify the password of the keystore
+ * // verify the password of the fixtures
  **/
 GPB_FINAL @interface WalletKeyParam : GPBMessage
 
