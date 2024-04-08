@@ -209,25 +209,15 @@ pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
         let extended_public_key = match public_key_derivation.chain_type.as_str() {
             "BITCOIN" | "LITCOIN" | "BITCOINCASH" => {
                 BtcAddress::get_xpub(Network::Bitcoin, public_key_derivation.path.as_str())?
-            },
-            "ETHEREUM" => {
-                EthAddress::get_xpub(public_key_derivation.path.as_str())?
-            },
-            "COSMOS" => {
-                CosmosAddress::get_xpub(public_key_derivation.path.as_str())?
-            },
+            }
+            "ETHEREUM" => EthAddress::get_xpub(public_key_derivation.path.as_str())?,
+            "COSMOS" => CosmosAddress::get_xpub(public_key_derivation.path.as_str())?,
             "FILECOIN" => {
                 FilecoinAddress::get_xpub("MAINNET", public_key_derivation.path.as_str())?
-            },
-            "TRON" => {
-                TronAddress::get_xpub(public_key_derivation.path.as_str())?
-            },
-            "EOS" => {
-                EosPubkey::get_xpub(public_key_derivation.path.as_str())?
-            },
-            "NERVOS" => {
-                CkbAddress::get_xpub("MAINNET", public_key_derivation.path.as_str())?
-            },
+            }
+            "TRON" => TronAddress::get_xpub(public_key_derivation.path.as_str())?,
+            "EOS" => EosPubkey::get_xpub(public_key_derivation.path.as_str())?,
+            "NERVOS" => CkbAddress::get_xpub("MAINNET", public_key_derivation.path.as_str())?,
             _ => return Err(anyhow!("unsupported_chain_type")),
         };
         extended_public_keys.push(extended_public_key);
