@@ -4303,6 +4303,7 @@ dependencies = [
  "base58",
  "base64 0.13.1",
  "bytes",
+ "ethereum-types",
  "hex",
  "lazy_static",
  "libc",

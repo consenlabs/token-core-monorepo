@@ -8,6 +8,7 @@ use crate::filemanager::{cache_keystore, KEYSTORE_MAP, WALLET_FILE_DIR};
 use crate::filemanager::{flush_keystore, LEGACY_WALLET_FILE_DIR};
 use crate::handler::{encode_message, encrypt_xpub};
 use anyhow::anyhow;
+use ethereum_types::H160;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -18,6 +19,7 @@ use std::path::Path;
 use std::str::FromStr;
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::coin_info::get_xpub_prefix;
+use tcx_eth::address::to_checksum;
 use tcx_keystore::keystore::IdentityNetwork;
 use tcx_keystore::Metadata;
 use tcx_keystore::{Keystore, Source};
@@ -418,9 +420,15 @@ fn parse_legacy_kesytore(contents: String) -> Result<LegacyKeystoreResult> {
     } else {
         "".to_string()
     };
+
+    let mut address = legacy_keystore.address.unwrap_or("".to_string());
+    if chain_type.eq("ETHEREUM") && !address.eq("") {
+        address = to_checksum(&H160::from_slice(&hex::decode(&address)?), None);
+    }
+
     let account = AccountResponse {
         chain_type,
-        address: legacy_keystore.address.unwrap_or("".to_string()),
+        address,
         path,
         curve: "secp256k1".to_string(),
         public_key,
@@ -472,9 +480,14 @@ fn parse_tcx_keystore(v: &Value) -> Result<LegacyKeystoreResult> {
             ("".to_string(), "".to_string())
         };
 
+        let mut address = legacy_account.address.to_string();
+        if legacy_account.coin.eq("ETHEREUM") {
+            address = to_checksum(&H160::from_slice(&hex::decode(&address)?), None);
+        }
+
         account_responses.push(AccountResponse {
             chain_type: legacy_account.coin.to_string(),
-            address: legacy_account.address.to_string(),
+            address,
             path: legacy_account.derivation_path.to_string(),
             curve: mapping_curve_name(legacy_account.curve.as_str()).to_string(),
             public_key,
@@ -723,7 +736,10 @@ mod tests {
             .unwrap();
         assert_eq!(keystore.id, "60573d8d-8e83-45c3-85a5-34fbb2aad5e1");
         let account = keystore.accounts.first().unwrap();
-        assert_eq!(account.address, "02c98f4ed8c8aab1aaba46539e45070a02e416c0");
+        assert_eq!(
+            account.address,
+            "0x02c98F4ED8c8aAb1aABA46539e45070a02e416C0"
+        );
         assert_eq!(account.chain_type, "ETHEREUM");
         assert_eq!(account.curve, "secp256k1");
         assert_eq!(account.path, "");
@@ -737,7 +753,10 @@ mod tests {
             .unwrap();
         assert_eq!(keystore.id, "792a0051-16d7-44a7-921a-9b4a0c893b8f");
         let account = keystore.accounts.first().unwrap();
-        assert_eq!(account.address, "7152bcad819b084d57179e293d2765ffa0109e04");
+        assert_eq!(
+            account.address,
+            "0x7152bcad819b084d57179e293D2765fFa0109E04"
+        );
         assert_eq!(account.chain_type, "ETHEREUM");
         assert_eq!(account.curve, "secp256k1");
         assert_eq!(account.path, "m/44'/60'/0'/0/1");

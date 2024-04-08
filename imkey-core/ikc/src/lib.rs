@@ -1752,11 +1752,4 @@ mod tests {
             assert_eq!("success", bind_result.bind_status);
         }
     }
-
-    #[test]
-    fn test1(){
-        let req_hex = "1218696d6b65795f636f6d6d616e645f646174615f6572726f72";
-        let res = ErrorResponse::decode(hex::decode(req_hex).unwrap().as_slice()).unwrap();
-        println!("{:?}",res);
-    }
 }
