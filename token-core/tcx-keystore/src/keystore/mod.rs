@@ -179,7 +179,8 @@ impl fmt::Display for IdentityNetwork {
 #[serde(rename_all = "camelCase")]
 pub struct Metadata {
     pub name: String,
-    pub password_hint: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub password_hint: Option<String>,
     #[serde(default = "metadata_default_time")]
     pub timestamp: i64,
     #[serde(default = "metadata_default_source")]
@@ -208,7 +209,7 @@ impl Default for Metadata {
     fn default() -> Self {
         Metadata {
             name: String::from("Unknown"),
-            password_hint: String::new(),
+            password_hint: None,
             timestamp: metadata_default_time(),
             source: Source::Mnemonic,
             network: IdentityNetwork::Mainnet,
@@ -845,7 +846,7 @@ pub(crate) mod tests {
 
         let meta = Metadata {
             name: "test_create".to_string(),
-            password_hint: TEST_PASSWORD.to_string(),
+            password_hint: Some(TEST_PASSWORD.to_string()),
             source: Source::Private,
             ..Metadata::default()
         };

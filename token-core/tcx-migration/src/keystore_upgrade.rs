@@ -522,6 +522,30 @@ mod tests {
         )
     }
 
+    fn pk_json_without_password_hint(version: i64, source: &str, name: &str) -> Value {
+        json!(
+            {
+             "id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b",
+             "version":version,
+             "keyHash":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee",
+             "crypto": {
+                "cipher": "aes-128-ctr",
+                "cipherparams": { "iv": "31deaa1033b2a55cc39916b347453649" },
+                "ciphertext": "c52bbc9842da2e9afdf8b905585db5ea4b86920f54f76e5ce686586604a29c3cc152ba9f309d2a1995cddb0ecafbe4d1f43ad033d1e0f5a02e68eda7c2f71687",
+                "kdf": "pbkdf2",
+                "kdfparams": {
+                  "c": 1,
+                  "prf": "hmac-sha256",
+                  "dklen": 32,
+                  "salt": "87436212538c3d747df0988246078a308bed9245388badf88dbeb21806e6dd49"
+                },
+                "mac": "53af7ee52b69782e775a46def178d0b629c94b04e70fbddc5adafa437b6144e6"
+              },
+                "activeAccounts": [{"address": "", "curve": "SubSr25519", "coin": "POLKADOT"}],
+            "imTokenMeta":{"name":name.to_string(),"timestamp":1576733295,"source":source.to_string()}}
+        )
+    }
+
     #[test]
     fn test_migration_curve() {
         let key = Key::Password("imtoken1".to_owned());
@@ -544,6 +568,17 @@ mod tests {
 
         let upgrade_keystore =
             super::KeystoreUpgrade::new(pk_json_with_subsr25519(11001, "PRIVATE", "vvvvvv"));
+
+        let upgraded = upgrade_keystore
+            .upgrade(
+                &Key::Password(TEST_PASSWORD.to_string()),
+                &IdentityNetwork::Testnet,
+            )
+            .unwrap();
+        assert_eq!(upgraded.store().curve, Some(CurveType::SR25519));
+
+        let upgrade_keystore =
+            super::KeystoreUpgrade::new(pk_json_without_password_hint(11001, "PRIVATE", "vvvvvv"));
 
         let upgraded = upgrade_keystore
             .upgrade(

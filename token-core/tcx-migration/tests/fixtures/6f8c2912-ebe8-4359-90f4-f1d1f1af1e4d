@@ -1,5 +1,5 @@
 {
-  "id": "5991857a-2488-4546-b730-463a5f84ea6a",
+  "id": "6f8c2912-ebe8-4359-90f4-f1d1f1af1e4d",
   "crypto": {
     "cipher": "aes-128-ctr",
     "cipherparams": {
@@ -26,7 +26,6 @@
     "mode": "normal",
     "chain": "ETHEREUM",
     "segWit": "NONE",
-    "passwordHint": "ios_password_hint",
     "backup": [],
     "source": "RECOVERED_IDENTITY",
     "version": "iOS-2.14.0.1742",

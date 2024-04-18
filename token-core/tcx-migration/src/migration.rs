@@ -28,7 +28,7 @@ pub struct OldMetadata {
     pub chain_type: Option<String>,
     pub chain: Option<String>,
     pub network: Option<String>,
-    pub password_hint: String,
+    pub password_hint: Option<String>,
     pub timestamp: NumberOrNumberStr,
     pub source: Option<String>,
     pub seg_wit: Option<String>,
@@ -357,6 +357,13 @@ mod tests {
         )
     }
 
+    fn metadata_missing_password_hint() -> (&'static str, &'static str) {
+        (
+        include_str!("../tests/fixtures/6f8c2912-ebe8-4359-90f4-f1d1f1af1e4d"),
+        "3223cd3abf2422d0ad3503f73aaa6e7e36a555385c6825b383908c1e8acf5e9d9a4c751809473c75599a632fe5b1437f51a3a848e054d9c170f8c3b5c5701b8b",
+        )
+    }
+
     #[test]
     fn test_eos_private_key() {
         let (keystore_str, derived_key) = v3_eos_private_key();
@@ -493,6 +500,33 @@ mod tests {
 
         assert_eq!(keystore.derivable(), true);
         assert_eq!(keystore.id(), "5991857a-2488-4546-b730-463a5f84ea6a");
+        let coin_info = CoinInfo {
+            coin: "ETHEREUM".to_string(),
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        keystore.unlock(&key).unwrap();
+        let acc = keystore.derive_coin::<EthAddress>(&coin_info).unwrap();
+        assert_eq!("0x6031564e7b2F5cc33737807b2E58DaFF870B590b", acc.address);
+        assert_eq!(
+            keystore.meta().password_hint,
+            Some("ios_password_hint".to_string())
+        );
+    }
+
+    #[test]
+    fn test_metadata_missing_password_hint() {
+        let (keystore_str, derived_key) = metadata_missing_password_hint();
+        let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
+        //password imtoken1
+        let key = Key::DerivedKey(derived_key.to_owned());
+        let mut keystore = ks.migrate(&key, &IdentityNetwork::Testnet).unwrap();
+
+        assert_eq!(keystore.derivable(), true);
+        assert_eq!(keystore.id(), "6f8c2912-ebe8-4359-90f4-f1d1f1af1e4d");
         let coin_info = CoinInfo {
             coin: "ETHEREUM".to_string(),
             derivation_path: "m/44'/60'/0'/0/0".to_string(),

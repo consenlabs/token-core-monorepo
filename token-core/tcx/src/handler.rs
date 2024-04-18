@@ -186,7 +186,7 @@ fn import_private_key_internal(
 
     let meta = Metadata {
         name: param.name.to_string(),
-        password_hint: param.password_hint.to_string(),
+        password_hint: Some(param.password_hint.to_string()),
         source: meta_source,
         identified_chain_types: Some(decoded_ret.chain_types.clone()),
         ..Metadata::default()
@@ -480,7 +480,7 @@ pub fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
 
     let meta = Metadata {
         name: param.name,
-        password_hint: param.password_hint,
+        password_hint: Some(param.password_hint),
         source: Source::NewMnemonic,
         network: IdentityNetwork::from_str(&param.network)?,
         ..Metadata::default()
@@ -531,7 +531,7 @@ pub fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
 
     let meta = Metadata {
         name: param.name,
-        password_hint: param.password_hint,
+        password_hint: Some(param.password_hint),
         source: Source::Mnemonic,
         ..Metadata::default()
     };
