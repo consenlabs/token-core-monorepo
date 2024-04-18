@@ -69,7 +69,7 @@ impl OldMetadata {
 
         Metadata {
             name: self.name.clone(),
-            password_hint: self.password_hint.clone().unwrap_or_default(),
+            password_hint: self.password_hint.clone(),
             timestamp,
             source,
             network,
@@ -511,7 +511,10 @@ mod tests {
         keystore.unlock(&key).unwrap();
         let acc = keystore.derive_coin::<EthAddress>(&coin_info).unwrap();
         assert_eq!("0x6031564e7b2F5cc33737807b2E58DaFF870B590b", acc.address);
-        assert_eq!(keystore.meta().password_hint, "ios_password_hint");
+        assert_eq!(
+            keystore.meta().password_hint,
+            Some("ios_password_hint".to_string())
+        );
     }
 
     #[test]

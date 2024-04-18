@@ -34,7 +34,7 @@ pub fn test_create_keystore() {
     run_test(|| {
         let param = CreateKeystoreParam {
             password: TEST_PASSWORD.to_string(),
-            password_hint: "".to_string(),
+            password_hint: "hint".to_string(),
             name: "aaa".to_string(),
             network: IdentityNetwork::Mainnet.to_string(),
         };

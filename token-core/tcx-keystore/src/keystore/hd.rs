@@ -282,7 +282,7 @@ mod tests {
         let meta = Metadata::default();
         let expected = Metadata {
             name: String::from("Unknown"),
-            password_hint: String::new(),
+            password_hint: None,
             timestamp: metadata_default_time(),
             source: Source::Mnemonic,
             network: IdentityNetwork::Mainnet,
