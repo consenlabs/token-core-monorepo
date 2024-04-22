@@ -15,6 +15,7 @@ use coin_btc_fork::address::BtcForkAddress;
 use coin_btc_fork::btc_fork_network::network_from_param;
 use coin_ckb::address::CkbAddress;
 use coin_cosmos::address::CosmosAddress;
+use coin_eos::pubkey;
 use coin_eos::pubkey::EosPubkey;
 use coin_ethereum::address::EthAddress;
 use coin_filecoin::address::FilecoinAddress;
@@ -207,7 +208,7 @@ pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
             return Err(anyhow!("unsupported_curve_type"));
         }
         let extended_public_key = match public_key_derivation.chain_type.as_str() {
-            "BITCOIN" | "LITCOIN" | "BITCOINCASH" => {
+            "BITCOIN" | "LITECOIN" | "BITCOINCASH" => {
                 BtcAddress::get_xpub(Network::Bitcoin, public_key_derivation.path.as_str())?
             }
             "ETHEREUM" => EthAddress::get_xpub(public_key_derivation.path.as_str())?,
@@ -231,22 +232,53 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     let param: GetPublicKeysParam = GetPublicKeysParam::decode(data)?;
     let mut public_keys = vec![];
     for public_key_derivation in param.derivations.iter() {
-        let mut public_key = match public_key_derivation.curve.as_str() {
-            "secp256k1" => uncompress_pubkey_2_compress(&BtcAddress::get_pub_key(
-                public_key_derivation.path.as_str(),
-            )?),
-            "ed25519" => SubstrateAddress::get_public_key(
-                public_key_derivation.path.as_str(),
-                &AddressType::Polkadot,
-            )?,
+        let public_key = match public_key_derivation.curve.as_str() {
+            "secp256k1" => {
+                let mut public_key = match public_key_derivation.chain_type.as_str() {
+                    "BITCOIN" | "LITECOIN" | "BITCOINCASH" => {
+                        BtcAddress::get_pub_key(&public_key_derivation.path)?
+                    }
+
+                    "ETHEREUM" => {
+                        EthAddress::get_pub_key(&public_key_derivation.path)?[..130].to_string()
+                    }
+                    "COSMOS" => {
+                        CosmosAddress::get_pub_key(&public_key_derivation.path)?[..130].to_string()
+                    }
+                    "FILECOIN" => FilecoinAddress::get_pub_key(&public_key_derivation.path)?[..130]
+                        .to_string(),
+                    "TRON" => hex::encode(TronAddress::get_pub_key(&public_key_derivation.path)?)
+                        [..130]
+                        .to_string(),
+                    "EOS" => EosPubkey::get_pubkey(&public_key_derivation.path)?,
+                    "NERVOS" => CkbAddress::get_public_key(&public_key_derivation.path)?,
+                    _ => return Err(anyhow!("unsupported_chain_type")),
+                };
+
+                if !"EOS".eq(&public_key_derivation.chain_type) {
+                    public_key = uncompress_pubkey_2_compress(&public_key);
+                }
+
+                if !public_key.starts_with("0x") && !"EOS".eq(&public_key_derivation.chain_type) {
+                    public_key = format!("0x{}", public_key);
+                };
+                public_key
+            }
+            "ed25519" => {
+                let mut public_key = match public_key_derivation.chain_type.as_str() {
+                    "POLKADOT" | "KUSAMA" => SubstrateAddress::get_public_key(
+                        &public_key_derivation.path,
+                        &AddressType::from_str(&public_key_derivation.chain_type)?,
+                    )?,
+                    _ => return Err(anyhow!("unsupported_chain_type")),
+                };
+
+                if !public_key.starts_with("0x") {
+                    public_key = format!("0x{}", public_key);
+                };
+                public_key
+            }
             _ => return Err(anyhow!("unsupported_curve_type")),
-        };
-        if !public_key.starts_with("0x") {
-            public_key = format!("0x{}", public_key);
-        };
-        let public_key = match public_key_derivation.chain_type.as_str() {
-            "EOS" => EosPubkey::from_pub_key(hex_to_bytes(&public_key)?.as_slice())?,
-            _ => public_key,
         };
         public_keys.push(public_key);
     }
