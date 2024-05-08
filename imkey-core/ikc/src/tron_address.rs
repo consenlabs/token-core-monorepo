@@ -2,7 +2,6 @@ use crate::api::{AddressParam, AddressResult};
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use coin_tron::address::TronAddress;
-use prost::Message;
 
 pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
     let address = TronAddress::get_address(param.path.as_ref())?;

@@ -1,14 +1,13 @@
 use crate::transaction::Utxo;
 use crate::Result;
-use bitcoin::secp256k1::Secp256k1 as BitcoinSecp256k1;
 use bitcoin::util::base58;
 use bitcoin::util::bip32::{ChainCode, ChildNumber, ExtendedPubKey};
 use bitcoin::{Address, Network, PublicKey};
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
-use ikc_common::utility::sha256_hash;
+use ikc_common::utility::{hex_to_bytes, sha256_hash};
 use ikc_transport::message::send_apdu;
-use secp256k1::{Message, PublicKey as Secp256k1PublicKey, Secp256k1, Signature};
+use secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use std::str::FromStr;
 
 /**
@@ -16,33 +15,25 @@ utxo address verify
 */
 pub fn address_verify(
     utxos: &Vec<Utxo>,
-    public_key: &str,
-    chain_code: &[u8],
     network: Network,
     trans_type_flg: TransTypeFlg,
 ) -> Result<Vec<String>> {
     let mut utxo_pub_key_vec: Vec<String> = vec![];
     for utxo in utxos {
-        //get utxo public key
-        let public_key_obj = Secp256k1PublicKey::from_str(public_key)?;
-        //gen chain code obj
-        let chain_code_obj = ChainCode::from(chain_code);
-        //build extended public key
+        //get xpub and sign data
+        let xpub_data = get_xpub_data(&utxo.derive_path, false)?;
+        //parsing xpub data
+        let public_key = &xpub_data[..130];
+        let chain_code = &xpub_data[130..194];
         let mut extend_public_key = ExtendedPubKey {
-            network: network,
+            network,
             depth: 0,
             parent_fingerprint: Default::default(),
             child_number: ChildNumber::from_normal_idx(0)?,
-            public_key: public_key_obj,
-            chain_code: chain_code_obj,
+            public_key: Secp256k1PublicKey::from_str(public_key)?,
+            chain_code: ChainCode::from(hex_to_bytes(chain_code)?.as_slice()),
         };
 
-        let bitcoin_secp = BitcoinSecp256k1::new();
-        let index_number_vec: Vec<&str> = utxo.derive_path.as_str().split('/').collect();
-        for index_number in index_number_vec {
-            let test_chain_number = ChildNumber::from_normal_idx(index_number.parse().unwrap())?;
-            extend_public_key = extend_public_key.ckd_pub(&bitcoin_secp, test_chain_number)?;
-        }
         //verify address
         let se_gen_address: Result<String> = match trans_type_flg {
             TransTypeFlg::BTC => Ok(Address::p2pkh(
@@ -99,7 +90,9 @@ pub fn secp256k1_sign_verify(public: &[u8], signed: &[u8], message: &[u8]) -> Re
     let mut sig_obj = Signature::from_der(signed)?;
     sig_obj.normalize_s();
     //verify
-    Ok(secp.verify(&message_obj, &sig_obj, &public_obj).is_ok())
+    Ok(secp
+        .verify_ecdsa(&message_obj, &sig_obj, &public_obj)
+        .is_ok())
 }
 
 /**
@@ -135,7 +128,6 @@ pub struct TxSignResult {
 #[cfg(test)]
 mod test {
     use crate::common::get_address_version;
-    use crate::transaction::Utxo;
     use bitcoin::Network;
 
     #[test]

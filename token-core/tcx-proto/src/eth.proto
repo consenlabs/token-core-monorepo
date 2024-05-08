@@ -1,0 +1,49 @@
+syntax = "proto3";
+package transaction;
+
+message EthTxInput {
+  string nonce = 1;
+  string gasPrice = 2;
+  string gasLimit = 3;
+  string to = 4;
+  string value = 5;
+  string data = 6;
+  string chainId = 7;
+  string txType = 8;
+  string maxFeePerGas = 9;
+  string maxPriorityFeePerGas = 10;
+  repeated AccessList accessList = 11;
+}
+
+message AccessList {
+  string address = 1;
+  repeated string storageKeys = 2;
+}
+
+message EthTxOutput {
+  string signature = 1;
+  string txHash = 2;
+}
+
+message EthMessageInput {
+  string message = 1;
+  SignatureType signatureType = 2;
+}
+
+enum SignatureType {
+  PersonalSign = 0;
+  EcSign = 1;
+}
+
+message EthMessageOutput {
+  string signature = 1;
+}
+
+message EthRecoverAddressInput {
+  string message = 1;
+  string signature = 2;
+}
+
+message EthRecoverAddressOutput {
+  string address = 1;
+}

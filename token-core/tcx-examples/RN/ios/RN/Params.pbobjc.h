@@ -82,7 +82,7 @@ typedef GPB_ENUM(HdStoreCreateParam_FieldNumber) {
 /**
  * FUNCTION: hd_store_create(HdStoreCreateParam): WalletResult
  *
- * create a new hd keystore
+ * create a new hd fixtures
  **/
 GPB_FINAL @interface HdStoreCreateParam : GPBMessage
 
@@ -134,7 +134,7 @@ typedef GPB_ENUM(HdStoreImportParam_FieldNumber) {
 /**
  * FUNCTION: hd_store_import(HdStoreImportParam): WalletResult
  *
- * create a new hd keystore by mnemonic
+ * create a new hd fixtures by mnemonic
  **/
 GPB_FINAL @interface HdStoreImportParam : GPBMessage
 
@@ -163,7 +163,7 @@ typedef GPB_ENUM(KeystoreCommonDeriveParam_FieldNumber) {
 /**
  * FUNCTION: hd_store_derive(HdStoreDeriveParam): AccountsResponse
  *
- * derive new accounts from a hd keystore
+ * derive new accounts from a hd fixtures
  **/
 GPB_FINAL @interface KeystoreCommonDeriveParam : GPBMessage
 
@@ -247,7 +247,7 @@ typedef GPB_ENUM(KeystoreCommonExportResult_FieldNumber) {
 /**
  * FUNCTION: hd_store_export(KeystoreCommonExportResult): KeystoreCommonExistsResult
  *
- * export the mnemonic from a hd keystore
+ * export the mnemonic from a hd fixtures
  **/
 GPB_FINAL @interface KeystoreCommonExportResult : GPBMessage
 
@@ -282,7 +282,7 @@ typedef GPB_ENUM(PrivateKeyStoreImportParam_FieldNumber) {
 /**
  * FUNCTION: private_key_store_import(PrivateKeyStoreImportParam): WalletResult
  *
- * create a new private key keystore by a private key
+ * create a new private key fixtures by a private key
  **/
 GPB_FINAL @interface PrivateKeyStoreImportParam : GPBMessage
 
@@ -306,7 +306,7 @@ typedef GPB_ENUM(PrivateKeyStoreExportParam_FieldNumber) {
 /**
  * FUNCTION: private_key_store_export(PrivateKeyStoreExportParam): KeystoreCommonExportResult
  *
- * export the private key from a private key keystore
+ * export the private key from a private key fixtures
  **/
 GPB_FINAL @interface PrivateKeyStoreExportParam : GPBMessage
 
@@ -330,7 +330,7 @@ typedef GPB_ENUM(KeystoreCommonExistsParam_FieldNumber) {
 /**
  * FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): KeystoreCommonExistsResult
  *
- * Check is there a keystore was generate by the special privateKey or mnemonic
+ * Check is there a fixtures was generate by the special privateKey or mnemonic
  **/
 GPB_FINAL @interface KeystoreCommonExistsParam : GPBMessage
 
@@ -376,7 +376,7 @@ typedef GPB_ENUM(KeystoreCommonAccountsParam_FieldNumber) {
 /**
  * FUNCTION: keystore_common_accounts(KeystoreCommonAccountsParam): AccountsResponse
  *
- * List all accounts from the keystore
+ * List all accounts from the fixtures
  **/
 GPB_FINAL @interface KeystoreCommonAccountsParam : GPBMessage
 

@@ -32,7 +32,7 @@ impl TezosAddress {
         Ok(address)
     }
 
-    fn get_pub_key(path: &str) -> Result<String> {
+    pub fn get_pub_key(path: &str) -> Result<String> {
         //path check
         check_path_validity(path)?;
 

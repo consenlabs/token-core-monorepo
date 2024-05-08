@@ -1,0 +1,54 @@
+{
+  "imTokenMeta": {
+    "network": "TESTNET",
+    "name": "identity_name",
+    "version": "iOS-2.14.1.1742",
+    "source": "RECOVERED_IDENTITY",
+    "passwordHint": "",
+    "timestamp": "1703213073.8432422",
+    "backup": [],
+    "segWit": "P2WPKH",
+    "mode": "normal"
+  },
+  "version": 10000,
+  "walletIds": [
+    "0597526e-105f-425b-bb44-086fc9dc9568",
+    "00fc0804-7cea-46d8-9e95-ed1efac65358",
+    "ac59ccc1-285b-47a7-92f5-a6c432cee21a",
+    "6c3eae60-ad03-48db-a5e5-61a6f72aef8d",
+    "f3615a56-cb03-4aa4-a893-89944e49920d",
+    "60573d8d-8e83-45c3-85a5-34fbb2aad5e1",
+    "9e3e1a17-ccad-4d93-98ab-cfe1e3f82ed3",
+    "9b696367-69c1-4cfe-8325-e5530399fc3f",
+    "6c20aab6-1596-456d-9749-212e6139c5ed",
+    "792a0051-16d7-44a7-921a-9b4a0c893b8f",
+    "9f4acb4a-7431-4c7d-bd25-a19656a86ea0",
+    "d9e3bb9c-87fd-4836-b146-10a3e249eb75"
+  ],
+  "crypto": {
+    "cipherparams": { "iv": "b947b2ece06b648a75187dcddee67cc1" },
+    "ciphertext": "5f1cbaef883def74b4b27a64586188da00f020f9611d1efc84dffba5ae31a173962e2196589aa66a065e5e0f929b26eac27ca04c8eecc0727f5f91e0038cf6aaba9d827c76c6f225ceaa9d937c3a3f1a958e5fe74585565175d301ead8a67f401250abcd0e832f76a4ed37628170b6",
+    "kdf": "scrypt",
+    "cipher": "aes-128-ctr",
+    "mac": "deeabc0d49e9b2ec0eb97d55cff25e2c14ff74e257c96145fb8e47bc31d8df26",
+    "kdfparams": {
+      "n": 262144,
+      "r": 8,
+      "dklen": 32,
+      "p": 1,
+      "salt": "b0fdfcb67bdfc6461d907f6b55c364ce98e21057b74df586953e2bc6e293c248"
+    }
+  },
+  "encMnemonic": {
+    "encStr": "74c4b82c2af67c35b8ff31c3547a705d94f9a66397f1aa4118eb6450ec140f055117ec2a87a4402069a3837db7d1b20d16e4e1b9b93c6b615c739b833bd9cb20148c6c37efd777fb6b30",
+    "nonce": "a293778a4eec6fdd6f7c7ac0edcd869f"
+  },
+  "encAuthKey": {
+    "encStr": "628e9f0926f12abed0c201bc605af2a378a72cbc397c182c270888ca7dad4d1f",
+    "nonce": "93e5aff1a87c6f3be9b5bef506478dae"
+  },
+  "id": "d5017486-f9b2-4aeb-8f7b-c57da9b77668",
+  "identifier": "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg",
+  "ipfsId": "QmSTTidyfa4np9ak9BZP38atuzkCHy4K59oif23f4dNAGU",
+  "encKey": "9513617c9b398edebfb46080a8f0cf6cab6763866bb06daa63503722bea78907"
+}

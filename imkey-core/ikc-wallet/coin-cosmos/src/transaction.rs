@@ -1,4 +1,3 @@
-use crate::address::CosmosAddress;
 use crate::cosmosapi::CosmosTxOutput;
 use crate::Result;
 use bitcoin_hashes::hex::ToHex;
@@ -7,9 +6,8 @@ use ikc_common::constants;
 use ikc_common::utility::{hex_to_bytes, secp256k1_sign, sha256_hash};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
-use secp256k1::{self, Signature as SecpSignature};
-use serde::{Deserialize, Serialize};
-use serde_json::{Map, Value};
+use secp256k1::{self, ecdsa::Signature as SecpSignature};
+use ikc_common::path::check_path_validity;
 
 #[derive(Debug)]
 pub struct CosmosTransaction {
@@ -22,6 +20,7 @@ pub struct CosmosTransaction {
 
 impl CosmosTransaction {
     pub fn sign(self) -> Result<CosmosTxOutput> {
+        check_path_validity(&self.path).unwrap();
         let sign_hash = sha256_hash(hex_to_bytes(&self.sign_data)?.as_slice());
         let mut sign_pack = "0120".to_string();
         sign_pack.push_str(&sign_hash.to_hex());
@@ -59,7 +58,7 @@ impl CosmosTransaction {
             ApduCheck::check_response(&response)?;
         }
 
-        let sign_apdu = CosmosApdu::sign_digest(constants::COSMOS_PATH);
+        let sign_apdu = CosmosApdu::sign_digest(&self.path);
 
         let sign_result = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_result)?;
@@ -77,12 +76,10 @@ impl CosmosTransaction {
 
 #[cfg(test)]
 mod tests {
-    // use crate::transaction::{Coin, CosmosTransaction, SignData, StdFee};
     use crate::transaction::CosmosTransaction;
     use ikc_common::constants;
     use ikc_common::utility::{hex_to_bytes, secp256k1_sign};
     use ikc_device::device_binding::bind_test;
-    use serde_json::json;
 
     #[test]
     fn test_ecsign() {

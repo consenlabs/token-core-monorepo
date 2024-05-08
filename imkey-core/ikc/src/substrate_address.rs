@@ -2,7 +2,6 @@ use crate::api::{AddressParam, AddressResult};
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use coin_substrate::address::{AddressType, SubstrateAddress};
-use prost::Message;
 
 pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
     let address_type = match param.chain_type.as_str() {

@@ -14,7 +14,7 @@ message TcxAction {
 }
 
 // A common response when error occurred.
-message Response {
+message GeneralResult {
     bool isSuccess = 1;
     string error = 2;
 }
@@ -31,50 +31,117 @@ message InitTokenCoreXParam {
     bool isDebug = 4;
 }
 
+message SignHashesParam {
+    string id = 1;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
+    message DataToSign {
+        string hash = 1;
+        string path = 2;
+        string curve = 3;
+        string sigAlg = 4;
+    }
+    repeated DataToSign dataToSign = 4;
+}
+
+message SignHashesResult {
+    repeated string signatures = 1;
+}
+
+message PublicKeyDerivation {
+    string chainType = 1;
+    string path = 2;
+    string curve = 3;
+}
+
+message GetPublicKeysParam {
+    string id = 1;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
+    repeated PublicKeyDerivation derivations = 4;
+}
+
+message GetPublicKeysResult {
+   repeated string publicKeys = 1;
+}
+
+message GetExtendedPublicKeysParam {
+    string id = 1;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
+    repeated PublicKeyDerivation derivations = 4;
+}
+
+message GetExtendedPublicKeysResult {
+    repeated string extendedPublicKeys = 1;
+}
+
+
 //
-//// FUNCTION: export_private_key(ExportPrivateKeyParam): KeystoreCommonExportResult
+//// FUNCTION: export_private_key(ExportPrivateKeyParam): ExportResult
 ////
 //// export the private key from a private key keystore or a hd keystore
 message ExportPrivateKeyParam {
     string id = 1;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
+    string chainType = 4;
+    string network = 5;
+    string curve = 6;
+    string path = 7;
+}
+
+//
+//// FUNCTION: export_private_key(ExportPrivateKeyParam): ExportResult
+////
+//// export the private key from a private key keystore or a hd keystore
+message ExportJsonParam {
+    string id = 1;
     string password = 2;
-    string chainType = 3;
-    string network = 4;
-    string mainAddress = 5;
-    string path = 6;
+    string chainType = 4;
+    string path = 5;
 }
 //
 ///// Keystore Common
 //
-//// FUNCTION: keystore_common_verify(WalletKeyParam) -> Response
+//// FUNCTION: verify_password(WalletKeyParam) -> Response
 ////
 //// verify the password of the keystore
 message WalletKeyParam {
     string id = 1;
-    string password = 2;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
 }
 
-message ZksyncPrivateKeyFromSeedParam {
-    string seed = 1;
+message ExportMnemonicParam {
+    string id = 1;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
 }
 
-message ZksyncPrivateKeyFromSeedResult {
-    string privKey = 1;
+message EthBatchPersonalSignParam {
+    string id = 1;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
+    repeated string data = 4;
+    string path = 5;
 }
 
-message ZksyncSignMusigParam{
-    string privKey = 1;
-    string bytes = 2;
+message EthBatchPersonalSignResult {
+    repeated string signatures = 1;
 }
 
-message ZksyncSignMusigResult{
-    string signature = 1;
-}
-
-message ZksyncPrivateKeyToPubkeyHashParam{
-    string privKey = 1;
-}
-
-message ZksyncPrivateKeyToPubkeyHashResult{
-    string pubKeyHash = 1;
-}

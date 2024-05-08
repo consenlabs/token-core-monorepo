@@ -9,7 +9,7 @@ message TcxAction {
 }
 
 
-message Response {
+message GeneralResult {
     bool isSuccess = 1;
     string error = 2;
 }

@@ -5,41 +5,64 @@ import "google/protobuf/any.proto";
 
 /// Hd Store
 
-// FUNCTION: hd_store_create(HdStoreCreateParam): WalletResult
+// FUNCTION: create_keystore(CreateKeystoreParam): KeystoreResult
 //
 // create a new hd keystore
-message HdStoreCreateParam {
+message CreateKeystoreParam {
     string password = 1;
     string passwordHint = 2;
     string name = 3;
+    string network = 4;
 }
 
-message WalletResult {
+message IdentityResult {
+    string identifier = 1;
+    string ipfsId = 2;
+}
+
+message KeystoreResult {
     string id = 1;
     string name = 2;
-    string source = 3;
-    repeated AccountResponse accounts = 4;
-    int64 createdAt = 5;
+    string identifier = 3;
+    string ipfsId = 4;
+    string source = 5;
+    int64 createdAt = 6;
+    string sourceFingerprint = 7;
 }
 
-// FUNCTION: hd_store_import(HdStoreImportParam): WalletResult
+// FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
 //
 // create a new hd keystore by mnemonic
-message HdStoreImportParam {
+message ImportMnemonicParam {
     string mnemonic = 1;
     string password = 2;
-    string source = 3;
+    string network = 3;
     string name = 4;
     string passwordHint = 5;
     bool overwrite = 6;
 }
 
-// FUNCTION: hd_store_derive(HdStoreDeriveParam): AccountsResponse
+message ImportPrivateKeyResult {
+    string id = 1;
+    string name = 2;
+    string identifier = 3;
+    string ipfsId = 4;
+    string source = 5;
+    int64 createdAt = 6;
+    repeated string identifiedChainTypes = 7;
+    string identifiedNetwork = 8;
+    string identifiedCurve = 9;
+    string sourceFingerprint = 10;
+}
+
 //
 // derive new accounts from a hd keystore
-message KeystoreCommonDeriveParam {
+message DeriveAccountsParam {
     string id = 1;
-    string password = 2;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
     message Derivation {
         string chainType = 1;
         string path = 2;
@@ -47,85 +70,93 @@ message KeystoreCommonDeriveParam {
         string segWit = 4;
         string chainId = 5;
         string curve = 6;
+        string bech32Prefix = 7;
     }
-    repeated Derivation derivations= 3;
+    repeated Derivation derivations= 4;
 }
 
 message AccountResponse {
     string chainType = 1;
     string address = 2;
     string path = 3;
-    string extendedXpubKey = 4;
+    string curve = 4;
+    string publicKey = 5;
+    string extendedPublicKey = 6;
+    string encryptedExtendedPublicKey = 7;
+    string segWit = 8;
 }
 
-message AccountsResponse {
+message DeriveAccountsResult {
     repeated AccountResponse accounts = 1;
 }
 
-// FUNCTION: hd_store_export(KeystoreCommonExportResult): KeystoreCommonExistsResult
-//
 // export the mnemonic from a hd keystore
-message KeystoreCommonExportResult {
+message ExportMnemonicResult {
     string id = 1;
-    KeyType type = 2;
-    string value = 3;
+    string mnemonic = 2;
 }
 
-// only support two types
-enum KeyType {
-    MNEMONIC = 0;
-    PRIVATE_KEY = 1;
+message ExportPrivateKeyResult {
+    string id = 1;
+    string privateKey = 2;
 }
+
+message ExportJsonResult {
+    string id = 1;
+    string json = 2;
+}
+
+// // only support two types
+// enum KeyType {
+//     MNEMONIC = 0;
+//     PRIVATE_KEY = 1;
+// }
 
 /// Private Key Store
 
-// FUNCTION: private_key_store_import(PrivateKeyStoreImportParam): WalletResult
+// FUNCTION: import_private_key(ImportPrivateKeyParam): KeystoreResult
 //
 // create a new private key keystore by a private key
-message PrivateKeyStoreImportParam {
+message ImportPrivateKeyParam {
     string privateKey = 1;
     string password = 2;
     string name = 3;
     string passwordHint = 4;
-    bool overwrite = 5;
-    string encoding = 6;
+    string network = 5;
+    bool overwrite = 6;
 }
 
-// FUNCTION: private_key_store_export(PrivateKeyStoreExportParam): KeystoreCommonExportResult
-//
-// export the private key from a private key keystore
-message PrivateKeyStoreExportParam {
-    string id = 1;
-    string password = 2;
-    string chainType = 3;
-    string network = 4;
-}
-
-/// Keystore Common
-
-// FUNCTION: keystore_common_delete(WalletKeyParam) -> Response
-//
-// delete the keystore
-
-// FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): KeystoreCommonExistsResult
+// FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): ExistsKeystoreResult
 //
 // Check is there a keystore was generate by the special privateKey or mnemonic
-message KeystoreCommonExistsParam {
-    KeyType type = 1;
-    string value = 2;
-    string encoding = 3;
+// message KeystoreCommonExistsParam {
+//     KeyType type = 1;
+//     string value = 2;
+//     string encoding = 3;
+// }
+
+message ExistsMnemonicParam {
+    string mnemonic = 1;
 }
 
-message KeystoreCommonExistsResult {
+message ExistsPrivateKeyParam {
+    string private_key = 1;
+}
+
+message ExistsJsonParam {
+    string json = 1;
+    string password = 2;
+}
+
+message ExistsKeystoreResult {
     bool isExists = 1;
     string id = 2;
 }
 
-// FUNCTION: keystore_common_accounts(KeystoreCommonAccountsParam): AccountsResponse
-//
-// List all accounts from the keystore
-message KeystoreCommonAccountsParam{
-    string id = 1;
+message ImportJsonParam {
+    string json = 1;
+    string password = 2;
+    bool overwrite = 3;
 }
 
 /// Sign Transaction
@@ -141,61 +172,118 @@ message SignParam {
         string derivedKey = 3;
     }
     string chainType = 4;
-    string address = 5;
-    google.protobuf.Any input = 6;
+    string path = 5;
+    string curve = 6;
+    string network = 7;
+    string segWit = 8;
+    google.protobuf.Any input = 9;
 }
 
-/// Other
-// TODO: annotate following message usage
-
-// btc-fork
-message ExternalAddressParam {
-    string id = 1;
-    string chainType = 2;
-    uint32 externalIdx = 3;
+message DeriveSubAccountsParam {
+    string chainType = 1;
+    string curve = 2;
+    string network = 3;
+    string segWit = 4;
+    repeated string relativePaths = 5;
+    string extendedPublicKey = 6;
 }
 
-message ExternalAddressResult {
-    string address = 1;
-    string derivedPath = 2;
-    string type = 3;
+message DeriveSubAccountsResult {
+    repeated AccountResponse accounts = 1;
 }
 
-message ExternalAddressExtra {
-    string encXpub = 1;
-    message ExternalAddress {
-        string address = 1;
-        string derivedPath = 2;
-        string type = 3;
+message EncryptDataToIpfsParam {
+    string identifier = 1;
+    string content = 2;
+}
+
+message EncryptDataToIpfsResult {
+    string identifier = 1;
+    string encrypted = 2;
+}
+
+message DecryptDataFromIpfsParam {
+    string identifier = 1;
+    string encrypted = 2;
+}
+
+message DecryptDataFromIpfsResult {
+    string identifier = 1;
+    string content = 2;
+}
+
+message SignAuthenticationMessageParam {
+    uint64 accessTime = 1;
+    string identifier = 2 ;
+    string deviceToken = 3;
+    oneof key {
+        string password = 4;
+        string derivedKey = 5;
     }
-    ExternalAddress externalAddress = 2;
 }
 
-message BtcForkDeriveExtraParam {
-    string network = 1;
-    string segWit = 2;
+message SignAuthenticationMessageResult {
+    uint64 accessTime = 1;
+    string signature = 2;
 }
 
-message HdStoreExtendedPublicKeyParam {
+message MnemonicToPublicKeyParam {
+    string mnemonic = 1;
+    string path = 2;
+    string curve = 3;
+    string encoding = 4;
+}
+
+message MnemonicToPublicKeyResult {
+    string publicKey = 1;
+}
+
+message MigrateKeystoreParam {
     string id = 1;
-    string password = 2;
-    string chainType = 3;
-    string address = 4;
+    string network = 2;
+    oneof key {
+      string password = 3;
+      string derivedKey = 4;
+    }
+}
+  
+  message MigrateKeystoreResult {
+    bool isExisted = 1;
+    string existedId = 2;
+    KeystoreResult keystore = 3;
+  }
+
+  message ScanKeystoresResult {
+    repeated KeystoreResult hdKeystores = 1;
+    repeated ImportPrivateKeyResult privateKeyKeystores = 2;
 }
 
-message HdStoreExtendedPublicKeyResponse {
-    string extendedPublicKey = 1;
-}
-
-message PublicKeyParam {
+  message LegacyKeystoreResult {
     string id = 1;
-    string chainType = 2;
-    string address = 3;
+    string name = 2;
+    string source = 3;
+    string createdAt = 4;
+    repeated AccountResponse accounts = 5;
 }
 
-message PublicKeyResult {
-    string id = 1;
-    string chainType = 2;
-    string address = 3;
-    string publicKey = 4;
-}
+  message ScanLegacyKeystoresResult {
+    string identifier = 1;
+    string ipfsId = 2;
+    string network = 3;
+    string source = 4;
+    repeated LegacyKeystoreResult keystores = 5;
+  }
+
+
+  message BackupResult {
+    string original = 1;
+  }
+
+  message MarkIdentityWalletsParam {
+    repeated string ids = 1;
+    string source = 2;
+  }
+
+message ReadKeystoreMnemonicPathResult {
+    string path = 1;
+  }

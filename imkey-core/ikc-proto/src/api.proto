@@ -1,0 +1,166 @@
+syntax = "proto3";
+package api;
+
+import "google/protobuf/any.proto";
+
+// Action Wrapper
+// There is a `call_imkey_api` method in tcx which act as a endpoint like RPC. It accepts a `ImkeyAction` param which method field is
+// the real action and param field is the real param of that method.
+// When an error occurred, the `call_imkey_api` will return a `Response` which isSuccess field be false and error field is the reason
+// which cause the error.
+message ImkeyAction {
+    string method = 1;
+    google.protobuf.Any param = 2;
+}
+
+// A common response when error occurred.
+message ErrorResponse {
+    bool isSuccess = 1;
+    string error = 2;
+}
+
+//A commonresponse when successfully ended.
+message CommonResponse{
+    string result = 1;
+}
+
+message AddressParam {
+    string chainType = 1;
+    string path = 2;
+    string network = 3;
+    bool isSegWit = 4;
+}
+
+message AddressResult {
+    string path = 1;
+    string chainType = 2;
+    string address = 3;
+}
+
+message PubKeyParam {
+    string chainType = 1;
+    string path = 2;
+    string network = 3;
+    string isSegWit = 4;
+}
+
+message PubKeyResult {
+    string path = 1;
+    string chainType = 2;
+    string pubKey = 3;
+    string derivedMode = 4;
+}
+
+message ExternalAddress {
+    string address = 1;
+    string derivedPath = 2;
+    string type = 3;
+}
+
+
+message BitcoinWallet {
+    string path = 1;
+    string chainType = 2;
+    string address = 3;
+    string encXPub = 4;
+    ExternalAddress externalAddress = 5;
+}
+
+
+message EosWallet {
+    string chainType = 1;
+    string address = 2;
+    message PubKeyInfo {
+        string path = 1;
+        string derivedMode = 2;
+        string publicKey = 3;
+    }
+    repeated PubKeyInfo publicKeys = 3;
+}
+
+
+message ExternalAddressParam {
+    string path = 1;
+    string chainType = 2;
+    string network = 3;
+    string segWit = 4;
+    int32 externalIdx = 5;
+}
+
+message InitImKeyCoreXParam {
+    string fileDir = 1;
+    string xpubCommonKey = 2;
+    string xpubCommonIv = 3;
+    bool isDebug = 4;
+    string system = 5;
+}
+
+message BtcForkWallet {
+    string path = 1;
+    string chainType = 2;
+    string address = 3;
+    string encXPub = 4;
+}
+
+message DeriveAccountsParam {
+    message Derivation {
+        string chainType = 1;
+        string path = 2;
+        string network = 3;
+        string segWit = 4;
+        string chainId = 5;
+        string curve = 6;
+        string bech32Prefix = 7;
+    }
+    repeated Derivation derivations= 1;
+}
+
+message AccountResponse {
+    string chainType = 1;
+    string address = 2;
+    string path = 3;
+    string curve = 4;
+    string publicKey = 5;
+    string extendedPublicKey = 6;
+    string encryptedExtendedPublicKey = 7;
+    string segWit = 8;
+}
+
+message DeriveAccountsResult {
+    repeated AccountResponse accounts = 1;
+}
+
+message DeriveSubAccountsParam {
+    string chainType = 1;
+    string curve = 2;
+    string network = 3;
+    string segWit = 4;
+    repeated string relativePaths = 5;
+    string extendedPublicKey = 6;
+}
+
+message DeriveSubAccountsResult {
+    repeated AccountResponse accounts = 1;
+}
+
+message GetExtendedPublicKeysParam {
+    repeated PublicKeyDerivation derivations = 1;
+}
+
+message GetExtendedPublicKeysResult {
+    repeated string extendedPublicKeys = 1;
+}
+
+message PublicKeyDerivation {
+    string chainType = 1;
+    string path = 2;
+    string curve = 3;
+}
+
+message GetPublicKeysParam {
+    repeated PublicKeyDerivation derivations = 1;
+}
+
+message GetPublicKeysResult {
+    repeated string publicKeys = 1;
+}

@@ -1,8 +1,8 @@
 /**
  * menmonic cover privateKey flow test
  *
- * 1.import privateKey -> import mnemonic -> verify keystore -> detele
- * 2.import mnemonic -> import privateKey -> verify keystore -> detele
+ * 1.import privateKey -> import mnemonic -> verify fixtures -> detele
+ * 2.import mnemonic -> import privateKey -> verify fixtures -> detele
  */
 
 import mnemonicPrivateKey from './base/mnemonicPrivateKey'

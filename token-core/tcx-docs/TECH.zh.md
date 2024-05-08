@@ -240,7 +240,7 @@ fn _import_wallet_from_mnemonic(v: &Value) -> Result<String> {
 ```rust
 fn _sign_transaction(json_str: &str) -> Result<String> {
     let v: Value = serde_json::from_str(json_str).unwrap();
-    // parse arguments and get keystore
+    // parse arguments and get fixtures
     match chain_type {
         "BITCOINCASH" | "LITECOIN" | "LITECOIN-TESTNET" => _sign_btc_fork_transaction(json_str, keystore, password),
         _ => Err(format_err!("{}", "chain_type_not_support")),
@@ -291,8 +291,8 @@ fn _sign_btc_fork_transaction(json: &str, keystore: &HdKeystore, password: &str)
 ## 新链接入（简略版）
 1. 添加一个新的package，命名为`tcx-blockchain`其中的blockchain用链的名称替换，将如下代码写入该package里面   
 2. 定义CoinInfo, CoinInfo可以指定你要添加的链的名称，所在的曲线以及助记词的派生路径。    
-3. 可选）如果你所添加的链包含有特殊的需要保存的信息，你需要实现你自己的`tcx_chain::Extra`。该接口用于根据`CoinInfo`和`Seed`生成特定信息，最终该信息会被序列化成JSON数据存储在account中的extra字段内。     
-4. 实现tcx_chain::Address，添加你所在的链的地址推导方法，分别添加判断地址是否有效，根据pub_key生成地址    
-5. 实现tcx_chain::Transaction，添加你签名是需要输入的字段， 实现tcx_chain::SignedTransaction，添加你签名结束后的输出内容。如果的的签名结果比较简单，你可以使用tcx默认提供的TxSignResult结构。   
-6. 实现tcx_chain::TransactionSigner，添加你所在的链特定的签名算法    
+3. 可选）如果你所添加的链包含有特殊的需要保存的信息，你需要实现你自己的`tcx_keystore::Extra`。该接口用于根据`CoinInfo`和`Seed`生成特定信息，最终该信息会被序列化成JSON数据存储在account中的extra字段内。     
+4. 实现tcx_keystore::Address，添加你所在的链的地址推导方法，分别添加判断地址是否有效，根据pub_key生成地址    
+5. 实现tcx_keystore::Transaction，添加你签名是需要输入的字段， 实现tcx_keystore::SignedTransaction，添加你签名结束后的输出内容。如果的的签名结果比较简单，你可以使用tcx默认提供的TxSignResult结构。   
+6. 实现tcx_keystore::TransactionSigner，添加你所在的链特定的签名算法    
 7. 在tcx层添加match pattern 指向正确的处理逻辑    

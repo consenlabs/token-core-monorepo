@@ -4,7 +4,7 @@ extern crate prost_build;
 fn main() {
     // tcx-api
     env::set_var("OUT_DIR", "../ikc/src");
-    prost_build::compile_protos(&["src/ikc.proto"], &["src/"]).unwrap();
+    prost_build::compile_protos(&["src/api.proto"], &["src/"]).unwrap();
 
     // common
     env::set_var("OUT_DIR", "../ikc-common/src");

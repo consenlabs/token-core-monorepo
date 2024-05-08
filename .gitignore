@@ -92,5 +92,8 @@ imkey-core/ikc-tools/android-debug.sh
 imkey-core/ikc-tools/build-android-linux.sh
 imkey-core/ios-release/**
 imkey-core/mobile-sdk/imKeyCoreX/Products/
+imkey-core/mobile-sdk/imKeyCoreX/imKeyCoreX/libconnector.a
 
 script/*-local.sh
+
+ios-*.zip

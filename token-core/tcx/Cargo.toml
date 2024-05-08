@@ -2,47 +2,53 @@
 name = "tcx"
 version = "0.1.0"
 authors = ["Neal Xu <imxuneal@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 tcx-proto = { path = "../tcx-proto" }
 tcx-crypto = { path = "../tcx-crypto", features = ["cache_dk"] }
-tcx-chain = { path = "../tcx-chain", features = ["cache_dk"] }
-tcx-btc-fork = {path = "../tcx-btc-fork"}
-tcx-bch = {path = "../tcx-bch"}
-tcx-tron = {path = "../tcx-tron"}
-tcx-ckb = {path = "../tcx-ckb"}
-tcx-filecoin = {path = "../tcx-filecoin"}
-tcx-substrate = {path = "../tcx-substrate"}
+tcx-keystore = { path = "../tcx-keystore", features = ["cache_dk"] }
+tcx-btc-kin = { path = "../tcx-btc-kin" }
+tcx-tron = { path = "../tcx-tron" }
+tcx-ckb = { path = "../tcx-ckb" }
+tcx-filecoin = { path = "../tcx-filecoin" }
+tcx-substrate = { path = "../tcx-substrate" }
+tcx-atom = { path = "../tcx-atom" }
+tcx-eos = { path = "../tcx-eos" }
 tcx-primitive = { path = "../tcx-primitive" }
-tcx-constants = { path = "../tcx-constants"}
-tcx-tezos = {path = "../tcx-tezos"}
-tcx-eth2 = {path = "../tcx-eth2"}
-zksync-crypto = {path = "../zksync-crypto"}
+tcx-constants = { path = "../tcx-constants" }
+tcx-tezos = { path = "../tcx-tezos" }
+tcx-eth2 = { path = "../tcx-eth2" }
+tcx-eth = { path = "../tcx-eth" }
+tcx-common = { path = "../tcx-common" }
+tcx-migration = { path = "../tcx-migration" }
 #zksync-crypto = { git="https://github.com/consenlabs/zksync", branch="hotfix/compatible_with_tcx" }
 
-prost = "0.11.2"
-bytes = "1.3.0"
-prost-types = "0.11.2"
+prost = "=0.11.2"
+bytes = "=1.4.0"
+prost-types = "=0.11.2"
 
-libc = "0.2.138"
-log = "0.4.17"
-serde_json = "1.0.88"
-serde = { version = "1.0.147", features = ["derive"] }
-failure = "0.1.8"
-lazy_static = "1.4.0"
-hex = "0.4.3"
-base64 = "0.13.1"
-base58 = "0.2.0"
-parking_lot = "0.12.1"
+libc = "=0.2.140"
+log = "=0.4.17"
+serde_json = "=1.0.89"
+serde = { version = "=1.0.147", features = ["derive"] }
+anyhow = { version = "=1.0.79", features = [] }
+lazy_static = "=1.4.0"
+hex = "=0.4.3"
+base64 = "=0.13.1"
+base58 = "=0.2.0"
+parking_lot = "=0.12.1"
+ethereum-types = "=0.14.0"
+strum = { version = "=0.25.0", features = ["derive"] }
 
 [lib]
 name = "tcx"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-prost-build = "0.11.3"
+prost-build = "=0.11.4"
 
 [dev-dependencies]
-sp-core = "7.0.0"
-sp-runtime = "7.0.0"
+serial_test = "=2.0.0"
+sp-core = "=7.0.0"
+sp-runtime = "=7.0.0"

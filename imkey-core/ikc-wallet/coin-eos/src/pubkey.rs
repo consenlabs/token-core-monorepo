@@ -1,10 +1,16 @@
 use crate::Result;
+use anyhow::anyhow;
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::util::base58;
+use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bitcoin::Network;
 use bitcoin_hashes::{ripemd160, Hash};
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EosApdu};
+use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::{path, utility};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct EosPubkey {}
@@ -34,7 +40,7 @@ impl EosPubkey {
             hex::decode(sign_source_val).unwrap().as_slice(),
         )?;
         if !sign_verify_result {
-            return Err(format_err!("imkey_signature_verify_fail"));
+            return Err(anyhow!("imkey_signature_verify_fail"));
         }
 
         //compressed key
@@ -52,6 +58,83 @@ impl EosPubkey {
         let eos_pk = "EOS".to_owned() + base58::encode_slice(&comprs_pubkey_slice).as_ref();
 
         Ok(eos_pk)
+    }
+
+    pub fn get_sub_pubkey(path: &str) -> Result<String> {
+        path::check_path_validity(path)?;
+
+        let select_apdu = EosApdu::select_applet();
+        let select_response = message::send_apdu(select_apdu)?;
+        ApduCheck::check_response(&select_response)?;
+
+        //get public key
+        let msg_pubkey = EosApdu::get_xpub(&path, true);
+        let res_msg_pubkey = message::send_apdu(msg_pubkey)?;
+        ApduCheck::check_response(&res_msg_pubkey)?;
+
+        let sign_source_val = &res_msg_pubkey[..194];
+        let sign_result = &res_msg_pubkey[194..res_msg_pubkey.len() - 4];
+
+        let key_manager_obj = KEY_MANAGER.lock();
+
+        //use se public key verify sign
+        let sign_verify_result = utility::secp256k1_sign_verify(
+            &key_manager_obj.se_pub_key,
+            hex::decode(sign_result).unwrap().as_slice(),
+            hex::decode(sign_source_val).unwrap().as_slice(),
+        )?;
+        if !sign_verify_result {
+            return Err(anyhow!("imkey_signature_verify_fail"));
+        }
+
+        Ok(sign_source_val.to_string())
+    }
+
+    pub fn get_xpub(path: &str) -> Result<String> {
+        //path check
+        check_path_validity(path)?;
+
+        //get xpub data
+        let xpub_data = Self::get_sub_pubkey(path)?;
+
+        //get public key and chain code
+        let pub_key = &xpub_data[..130];
+        let sub_chain_code = &xpub_data[130..];
+        let pub_key_obj = PublicKey::from_str(pub_key)?;
+
+        //build parent public key obj
+        let parent_xpub_data = Self::get_sub_pubkey(get_parent_path(path)?)?;
+        let parent_xpub_data = &parent_xpub_data[..194];
+        let parent_pub_key = &parent_xpub_data[..130];
+        let parent_chain_code = &parent_xpub_data[130..];
+        let parent_pub_key_obj = PublicKey::from_str(parent_pub_key)?;
+
+        //get parent public key fingerprint
+        let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
+        let parent_ext_pub_key = ExtendedPubKey {
+            network: Network::Bitcoin,
+            depth: 0 as u8,
+            parent_fingerprint: Fingerprint::default(),
+            child_number: ChildNumber::from_normal_idx(0).unwrap(),
+            public_key: parent_pub_key_obj,
+            chain_code: parent_chain_code,
+        };
+        let fingerprint_obj = parent_ext_pub_key.fingerprint();
+
+        //build extend public key obj
+        let sub_chain_code_obj = ChainCode::from(hex::decode(sub_chain_code)?.as_slice());
+
+        let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
+        let extend_public_key = ExtendedPubKey {
+            network: Network::Bitcoin,
+            depth: chain_number_vec.len() as u8,
+            parent_fingerprint: fingerprint_obj,
+            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            public_key: pub_key_obj,
+            chain_code: sub_chain_code_obj,
+        };
+        //get and return xpub
+        Ok(extend_public_key.to_string())
     }
 
     pub fn pubkey_from_response(response: &str) -> Result<String> {
@@ -74,6 +157,16 @@ impl EosPubkey {
         let res_reg = message::send_apdu(reg_apdu)?;
         ApduCheck::check_response(&res_reg)?;
         Ok(pubkey)
+    }
+
+    pub fn from_pub_key(pub_key: &[u8]) -> Result<String> {
+        let mut compressed_pub_key = PublicKey::from_slice(pub_key)?.serialize().to_vec();
+        //checksum base58
+        let pub_key_hash = ripemd160::Hash::hash(&compressed_pub_key);
+        let check_sum = &pub_key_hash[0..4];
+        compressed_pub_key.extend(check_sum);
+        let eos_pk = "EOS".to_owned() + base58::encode_slice(&compressed_pub_key).as_ref();
+        Ok(eos_pk)
     }
 }
 

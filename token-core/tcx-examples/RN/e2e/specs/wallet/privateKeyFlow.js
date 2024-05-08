@@ -1,7 +1,7 @@
 /**
  * privateKey flow test
  *
- * import -> export -> repeat import -> verify keystore -> delete
+ * import -> export -> repeat import -> verify fixtures -> delete
  */
 
 import importPrivateKey from './base/importPrivateKey'

@@ -1,20 +1,15 @@
 use crate::address::BtcAddress;
-use crate::common::{
-    address_verify, get_address_version, get_xpub_data, secp256k1_sign_verify, TransTypeFlg,
-    TxSignResult,
-};
+use crate::common::{address_verify, get_address_version, TransTypeFlg, TxSignResult};
 use crate::Result;
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};
 use bitcoin::hashes::hex::FromHex;
-use bitcoin::util::psbt::serialize::Serialize;
 use bitcoin::{
-    Address, EcdsaSighashType, Network, OutPoint, PackedLockTime, Script, Sequence, SigHashType,
-    Transaction, TxIn, TxOut, Witness,
+    Address, EcdsaSighashType, Network, OutPoint, PackedLockTime, Script, Sequence, Transaction,
+    TxIn, TxOut, Witness,
 };
 use bitcoin_hashes::hash160;
 use bitcoin_hashes::hex::ToHex;
-use bitcoin_hashes::sha256d::Hash as Hash256;
 use bitcoin_hashes::Hash;
 use ikc_common::apdu::{ApduCheck, BtcApdu};
 use ikc_common::constants::{
@@ -25,7 +20,7 @@ use ikc_common::path::check_path_validity;
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
-use secp256k1::Signature;
+use secp256k1::ecdsa::Signature;
 use std::str::FromStr;
 
 #[derive(Clone)]
@@ -65,35 +60,8 @@ impl BtcTransaction {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
 
-        //get xpub and sign data
-        let xpub_data = get_xpub_data(path_str.as_str(), true)?;
-        let xpub_data = &xpub_data[..xpub_data.len() - 4].to_string();
-
-        //parsing xpub data
-        let sign_source_val = &xpub_data[..194];
-        let sign_result = &xpub_data[194..];
-        let pub_key = &sign_source_val[..130];
-        let chain_code = &sign_source_val[130..];
-
-        //use se public key verify sign
-        let key_manager_obj = KEY_MANAGER.lock();
-        let sign_verify_result = secp256k1_sign_verify(
-            &key_manager_obj.se_pub_key.as_slice(),
-            hex::decode(sign_result).unwrap().as_slice(),
-            hex::decode(sign_source_val).unwrap().as_slice(),
-        );
-        if sign_verify_result.is_err() || !sign_verify_result.ok().unwrap() {
-            return Err(CoinError::ImkeySignatureVerifyFail.into());
-        }
-
         //utxo address verify
-        let utxo_pub_key_vec = address_verify(
-            &self.unspents,
-            pub_key,
-            hex::decode(chain_code).unwrap().as_slice(),
-            network,
-            TransTypeFlg::BTC,
-        )?;
+        let utxo_pub_key_vec = address_verify(&self.unspents, network, TransTypeFlg::BTC)?;
 
         //calc utxo total amount
         if self.get_total_amount() < self.amount {
@@ -159,6 +127,7 @@ impl BtcTransaction {
         output_serialize_data.insert(0, 0x01);
 
         //use local private key sign data
+        let key_manager_obj = KEY_MANAGER.lock();
         let mut output_pareper_data =
             secp256k1_sign(&key_manager_obj.pri_key, &output_serialize_data)?;
         output_pareper_data.insert(0, output_pareper_data.len() as u8);
@@ -202,7 +171,7 @@ impl BtcTransaction {
                 let btc_sign_apdu = BtcApdu::btc_sign(
                     y as u8,
                     EcdsaSighashType::All.to_u32() as u8,
-                    format!("{}{}", path_str, self.unspents.get(y).unwrap().derive_path).as_str(),
+                    self.unspents.get(y).unwrap().derive_path.as_str(),
                 );
                 //sign data
                 let btc_sign_apdu_return = send_apdu(btc_sign_apdu)?;
@@ -258,31 +227,11 @@ impl BtcTransaction {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
 
-        //get xpub and sign data
-        let xpub_data = get_xpub_data(path_str.as_str(), true)?;
-        let xpub_data = &xpub_data[..xpub_data.len() - 4].to_string();
-
-        //parsing xpub data
-        let sign_source_val = &xpub_data[..194];
-        let sign_result = &xpub_data[194..];
-        let pub_key = &sign_source_val[..130];
-        let chain_code = &sign_source_val[130..];
-
-        //use se public key verify sign
-        let key_manager_obj = KEY_MANAGER.lock();
-        let sign_verify_result = secp256k1_sign_verify(
-            &key_manager_obj.se_pub_key.as_slice(),
-            hex::decode(sign_result).unwrap().as_slice(),
-            hex::decode(sign_source_val).unwrap().as_slice(),
-        );
-        if sign_verify_result.is_err() || !sign_verify_result.ok().unwrap() {
-            return Err(CoinError::ImkeySignatureVerifyFail.into());
-        }
         //utxo address verify
         let utxo_pub_key_vec = address_verify(
             &self.unspents,
-            pub_key,
-            hex::decode(chain_code).unwrap().as_slice(),
+            // pub_key,
+            // hex::decode(chain_code).unwrap().as_slice(),
             network,
             TransTypeFlg::SEGWIT,
         )?;
@@ -351,6 +300,7 @@ impl BtcTransaction {
         output_serialize_data.insert(0, 0x01);
 
         //use local private key sign data
+        let key_manager_obj = KEY_MANAGER.lock();
         let mut output_pareper_data =
             secp256k1_sign(&key_manager_obj.pri_key, &output_serialize_data)?;
         output_pareper_data.insert(0, output_pareper_data.len() as u8);
@@ -407,9 +357,10 @@ impl BtcTransaction {
             data.insert(0, data.len() as u8);
             //address
             let mut address_data: Vec<u8> = vec![];
-            let sign_path = format!("{}{}", path_str, unspent.derive_path);
-            address_data.push(sign_path.as_bytes().len() as u8);
-            address_data.extend_from_slice(sign_path.as_bytes());
+            // let sign_path = format!("{}{}", path_str, unspent.derive_path);
+            let sign_path = unspent.derive_path.as_bytes();
+            address_data.push(sign_path.len() as u8);
+            address_data.extend_from_slice(sign_path);
 
             data.extend(address_data.iter());
             if index == self.unspents.len() - 1 {
@@ -535,12 +486,8 @@ mod tests {
     use crate::transaction::{BtcTransaction, Utxo};
     use bitcoin::{Address, Network};
     use hex::FromHex;
-    use std::str::FromStr;
-
-    use ikc_common::error::CoinError;
     use ikc_device::device_binding::bind_test;
-    use ikc_device::device_binding::DeviceManage;
-    use ikc_transport::hid_api::hid_connect;
+    use std::str::FromStr;
 
     #[test]
     fn test_sign_transaction() {
@@ -554,7 +501,7 @@ mod tests {
             amount: 200000000,
             address: Address::from_str("mh7jj2ELSQUvRQELbn9qyA4q5nADhmJmUC").unwrap(),
             script_pubkey: "76a914118c3123196e030a8a607c22bafc1577af61497d88ac".to_string(),
-            derive_path: "0/22".to_string(),
+            derive_path: "m/44'/1'/0'/0/22".to_string(),
             sequence: 4294967295,
         };
         let utxo2 = Utxo {
@@ -563,7 +510,7 @@ mod tests {
             amount: 200000000,
             address: Address::from_str("mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN").unwrap(),
             script_pubkey: "76a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688ac".to_string(),
-            derive_path: "0/0".to_string(),
+            derive_path: "m/44'/1'/0'/0/0".to_string(),
             sequence: 4294967295,
         };
         let utxo3 = Utxo {
@@ -572,7 +519,7 @@ mod tests {
             amount: 200000000,
             address: Address::from_str("mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN").unwrap(),
             script_pubkey: "76a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688ac".to_string(),
-            derive_path: "0/0".to_string(),
+            derive_path: "m/44'/1'/0'/0/0".to_string(),
             sequence: 4294967295,
         };
         let utxo4 = Utxo {
@@ -581,7 +528,7 @@ mod tests {
             amount: 200000000,
             address: Address::from_str("mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN").unwrap(),
             script_pubkey: "76a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688ac".to_string(),
-            derive_path: "0/0".to_string(),
+            derive_path: "m/44'/1'/0'/0/0".to_string(),
             sequence: 4294967295,
         };
         let mut utxos = Vec::new();
@@ -625,7 +572,7 @@ mod tests {
             amount: 50000,
             address: Address::from_str("2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB").unwrap(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
-            derive_path: "0/0".to_string(),
+            derive_path: "m/49'/1'/0'/0/0".to_string(),
             sequence: 0,
         };
         let utxo2 = Utxo {
@@ -634,7 +581,7 @@ mod tests {
             amount: 50000,
             address: Address::from_str("2N54wJxopnWTvBfqgAPVWqXVEdaqoH7Suvf").unwrap(),
             script_pubkey: "a91481af6d803fdc6dca1f3a1d03f5ffe8124cd1b44787".to_string(),
-            derive_path: "0/1".to_string(),
+            derive_path: "m/49'/1'/0'/0/1".to_string(),
             sequence: 0,
         };
         let mut utxos = Vec::new();
@@ -674,7 +621,7 @@ mod tests {
             amount: 10000112345678,
             address: Address::from_str("1Fj93kpLwM1KgTN6C75Z5Bokhays4MmJae").unwrap(),
             script_pubkey: "76a914a189f2f7836812aa7a0e36e28a20a10e64010bf688ac".to_string(),
-            derive_path: "0/22".to_string(),
+            derive_path: "m/44'/0'/0'/0/22".to_string(),
             sequence: 0,
         };
         let mut utxos = Vec::new();
@@ -714,7 +661,7 @@ mod tests {
             amount: 10000112345678,
             address: Address::from_str("1Fj93kpLwM1KgTN6C75Z5Bokhays4MmJae").unwrap(),
             script_pubkey: "76a914a189f2f7836812aa7a0e36e28a20a10e64010bf688ac".to_string(),
-            derive_path: "0/22".to_string(),
+            derive_path: "m/44'/0'/0'/0/22".to_string(),
             sequence: 0,
         };
         let mut utxos = Vec::new();
@@ -746,7 +693,7 @@ mod tests {
             amount: 10000000,
             address: Address::from_str("37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e").unwrap(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
-            derive_path: "0/22".to_string(),
+            derive_path: "m/49'/0'/0'/0/22".to_string(),
             sequence: 0,
         };
         let mut utxos = Vec::new();
@@ -783,7 +730,7 @@ mod tests {
             amount: 10000112345678,
             address: Address::from_str("1Fj93kpLwM1KgTN6C75Z5Bokhays4MmJae").unwrap(),
             script_pubkey: "76a914a189f2f7836812aa7a0e36e28a20a10e64010bf688ac".to_string(),
-            derive_path: "0/22".to_string(),
+            derive_path: "m/44'/0'/0'/0/22".to_string(),
             sequence: 0,
         };
         let mut utxos = Vec::new();
@@ -813,7 +760,7 @@ mod tests {
             amount: 500000,
             address: Address::from_str("2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB").unwrap(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
-            derive_path: "0/0".to_string(),
+            derive_path: "m/49'/1'/0'/0/0".to_string(),
             sequence: 0,
         };
 
@@ -851,7 +798,7 @@ mod tests {
             amount: 1012345678,
             address: Address::from_str("37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e").unwrap(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
-            derive_path: "0/22".to_string(),
+            derive_path: "m/49'/0'/0'/0/22".to_string(),
             sequence: 0,
         };
         let mut utxos = Vec::new();
@@ -889,7 +836,7 @@ mod tests {
             amount: 1012345678,
             address: Address::from_str("37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e").unwrap(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
-            derive_path: "0/0".to_string(),
+            derive_path: "m/49'/0'/0'/0/0".to_string(),
             sequence: 0,
         };
         let mut utxos = Vec::new();

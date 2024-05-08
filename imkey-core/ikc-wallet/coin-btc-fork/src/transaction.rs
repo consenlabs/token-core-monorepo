@@ -1,19 +1,13 @@
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};
 use bitcoin::hashes::hex::FromHex;
-use bitcoin::util::psbt::serialize::Serialize;
 use bitcoin::{
-    Address, EcdsaSighashType, LockTime, Network, OutPoint, PackedLockTime, Script, Sequence,
-    SigHashType, Transaction, TxIn, TxOut, Witness,
+    EcdsaSighashType, Network, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn,
+    TxOut, Witness,
 };
 use bitcoin_hashes::hash160;
 use bitcoin_hashes::hex::ToHex;
-use bitcoin_hashes::sha256d::Hash as Hash256;
 use bitcoin_hashes::Hash;
-use secp256k1::Signature;
-use std::str::FromStr;
-// use serde::Serialize;
-
 use ikc_common::apdu::{ApduCheck, BtcForkApdu};
 use ikc_common::coin_info::CoinInfo;
 use ikc_common::constants::{
@@ -24,6 +18,8 @@ use ikc_common::path::check_path_validity;
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
+use secp256k1::ecdsa::Signature;
+use std::str::FromStr;
 
 use crate::address::BtcForkAddress;
 use crate::btc_fork_network::network_from_param;
@@ -48,7 +44,6 @@ impl BtcForkTransaction {
     ) -> Result<TxSignResult> {
         //path check
         check_path_validity(path)?;
-        let mut path_str = path.to_string();
         let bip44_segments: Vec<&str> = path.split("/").collect();
         let is_full_path = bip44_segments.len() == 6;
         let mut path_str: String = path.to_string();
@@ -200,16 +195,23 @@ impl BtcForkTransaction {
                 if y >= utxo_pub_key_vec.len() {
                     break;
                 }
+                let sign_path = if self
+                    .tx_input
+                    .unspents
+                    .get(y)
+                    .unwrap()
+                    .derived_path
+                    .is_empty()
+                {
+                    path_str.as_str()
+                } else {
+                    self.tx_input.unspents.get(y).unwrap().derived_path.as_str()
+                };
                 let btc_sign_apdu = BtcForkApdu::btc_fork_sign(
                     0x4A,
                     y as u8,
                     EcdsaSighashType::All.to_u32() as u8,
-                    format!(
-                        "{}{}",
-                        path_str,
-                        self.tx_input.unspents.get(y).unwrap().derived_path
-                    )
-                    .as_str(),
+                    sign_path,
                 );
                 //sign data
                 let btc_sign_apdu_return = send_apdu(btc_sign_apdu)?;
@@ -255,7 +257,6 @@ impl BtcForkTransaction {
     ) -> Result<TxSignResult> {
         //path check
         check_path_validity(path)?;
-        let mut path_str = path.to_string();
         let bip44_segments: Vec<&str> = path.split("/").collect();
         let is_full_path = bip44_segments.len() == 6;
         let mut path_str: String = path.to_string();
@@ -422,9 +423,13 @@ impl BtcForkTransaction {
             data.insert(0, data.len() as u8);
             //address
             let mut address_data: Vec<u8> = vec![];
-            let sign_path = format!("{}{}", path_str, unspent.derived_path);
-            address_data.push(sign_path.as_bytes().len() as u8);
-            address_data.extend_from_slice(sign_path.as_bytes());
+            if unspent.derived_path.is_empty() {
+                address_data.push(path_str.as_bytes().len() as u8);
+                address_data.extend_from_slice(path_str.as_bytes());
+            } else {
+                address_data.push(unspent.derived_path.as_bytes().len() as u8);
+                address_data.extend_from_slice(unspent.derived_path.as_bytes());
+            }
 
             data.extend(address_data.iter());
             if index == self.tx_input.unspents.len() - 1 {
@@ -582,19 +587,12 @@ impl BtcForkTransaction {
 
 #[cfg(test)]
 mod tests {
-    use bitcoin::{Address, Network};
-    use hex::FromHex;
-
-    use ikc_common::coin_info::coin_info_from_param;
-    use ikc_common::error::CoinError;
-    use ikc_device::device_binding::bind_test;
-    use ikc_device::device_binding::DeviceManage;
-    use ikc_transport::hid_api::hid_connect;
-    use std::str::FromStr;
-
     use crate::btcforkapi::BtcForkTxInput;
     use crate::btcforkapi::Utxo;
     use crate::transaction::BtcForkTransaction;
+    use bitcoin::Network;
+    use ikc_common::coin_info::coin_info_from_param;
+    use ikc_device::device_binding::bind_test;
 
     #[test]
     fn test_sign_simple_ltc() {
@@ -608,7 +606,7 @@ mod tests {
             amount: 1000000,
             address: "myxdgXjCRgAskD2g1b6WJttJbuv67hq6sQ".to_string(),
             script_pub_key: "76a914ca4d8acded69ce4f05d0925946d261f86c675fd888ac".to_string(),
-            derived_path: "0/0".to_string(),
+            derived_path: "m/44'/2'/0'/0/0".to_string(),
             sequence: 0,
         };
         let mut unspents = Vec::new();
@@ -653,7 +651,7 @@ mod tests {
             amount: 1000000,
             address: "myxdgXjCRgAskD2g1b6WJttJbuv67hq6sQ".to_string(),
             script_pub_key: "76a914ca4d8acded69ce4f05d0925946d261f86c675fd888ac".to_string(),
-            derived_path: "0/0".to_string(),
+            derived_path: "m/44'/2'/0'/0/0".to_string(),
             sequence: 0,
         };
         let mut unspents = Vec::new();
@@ -697,7 +695,7 @@ mod tests {
             amount: 19850000,
             address: "M7xo1Mi1gULZSwgvu7VVEvrwMRqngmFkVd".to_string(),
             script_pub_key: "76a914ca4d8acded69ce4f05d0925946d261f86c675fd888ac".to_string(),
-            derived_path: "0/0".to_string(),
+            derived_path: "m/44'/2'/0'/0/0".to_string(),
             sequence: 0,
         }];
         let tx_input = BtcForkTxInput {

@@ -1,0 +1,35 @@
+{
+  "id": "b05a0ff9-885a-4a31-9d82-6477d34d1e37",
+  "version": 12000,
+  "fingerprint": "512115eca3ae86646aeb06861d551e403b543509",
+  "crypto": {
+    "cipher": "aes-128-ctr",
+    "cipherparams": {
+      "iv": "080d1850e994e9a8efab603c3b8e6258"
+    },
+    "ciphertext": "518f80dfd42d8cd90842d0849d3198d44d4e49cc1f7543a6e73a23c576ba4e3833b946676d97e574bf5a0201f15742740b287db4a7b0a9afb6678d966797249ace94c2c0d46187ae9657",
+    "kdf": "pbkdf2",
+    "kdfparams": {
+      "c": 262144,
+      "prf": "hmac-sha256",
+      "dklen": 32,
+      "salt": "08c8c9ab072b92b2081db806d3f6309dc336a4a632b8a80a7e993ceca5aeaf34"
+    },
+    "mac": "200a54358c0eb0032396906b9280c5331280cafce4e826d9d66b0dd86e5dcb66"
+  },
+  "identity": {
+    "encAuthKey": {
+      "encStr": "00a4c73e5196d143842a0a26916e3c1fc1190e44580bfe62fcd85ee1eaf9a4e9",
+      "nonce": "afecf1dde1f383d81b03f149f67e0057"
+    },
+    "encKey": "ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3",
+    "identifier": "im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf",
+    "ipfsId": "QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"
+  },
+  "imTokenMeta": {
+    "name": "Unknown",
+    "passwordHint": "",
+    "timestamp": 1695733663,
+    "source": "MNEMONIC"
+  }
+}

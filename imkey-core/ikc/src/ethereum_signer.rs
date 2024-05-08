@@ -1,9 +1,10 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
+use anyhow::anyhow;
 use coin_ethereum::ethapi::{EthMessageInput, EthTxInput};
 use coin_ethereum::transaction::{AccessListItem, Transaction};
 use coin_ethereum::types::Action;
-use ethereum_types::{Address, H256, U256, U64};
+use ethereum_types::{Address, H256, U256};
 use hex;
 use ikc_common::constants::ETH_TRANSACTION_TYPE_EIP1559;
 use ikc_common::SignParam;
@@ -18,10 +19,13 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
         hex::decode(&input.data).unwrap()
     };
 
-    let mut to = input.to;
-    if to.starts_with("0x") {
-        to = to[2..].to_string();
-    }
+    let to = if input.to.is_empty() || input.to == "0x" {
+        "0000000000000000000000000000000000000000"
+    } else if input.to.starts_with("0x") {
+        &input.to[2..]
+    } else {
+        &input.to
+    };
 
     let eth_tx = if input.r#type.to_lowercase() == "0x02"
         || input.r#type.to_lowercase() == "0x2"
@@ -40,7 +44,7 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
             access_list: {
                 let mut access_list: Vec<AccessListItem> = Vec::new();
                 for access in input.access_list {
-                    let mut item = AccessListItem {
+                    let item = AccessListItem {
                         address: Address::from_str(remove_0x(&access.address)).unwrap(),
                         storage_keys: {
                             let mut storage_keys: Vec<H256> = Vec::new();
@@ -74,7 +78,7 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
     let chain_id_parsed = input.chain_id.parse::<u64>();
     let chain_id = match chain_id_parsed {
         Ok(id) => id,
-        Err(error) => {
+        Err(_error) => {
             if input.chain_id.to_lowercase().starts_with("0x") {
                 let without_prefix = &input.chain_id.trim_start_matches("0x");
                 u64::from_str_radix(without_prefix, 16).unwrap()
@@ -97,10 +101,9 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
 
 fn parse_eth_argument(str: &str) -> Result<U256> {
     if str.to_lowercase().starts_with("0x") {
-        U256::from_str(&str[2..].to_string())
-            .map_err(|_err| format_err!("unpack eth argument error"))
+        U256::from_str(&str[2..].to_string()).map_err(|_err| anyhow!("unpack eth argument error"))
     } else {
-        U256::from_dec_str(str).map_err(|_err| format_err!("unpack eth argument dec error"))
+        U256::from_dec_str(str).map_err(|_err| anyhow!("unpack eth argument dec error"))
     }
 }
 
@@ -123,11 +126,11 @@ mod tests {
     use super::*;
     use crate::ethereum_signer::sign_eth_transaction;
     use coin_ethereum::ethapi::{AccessList, EthTxInput, EthTxOutput};
-    use ethereum_types::{Address, U256};
+    use ethereum_types::U256;
     use hex;
     use ikc_common::constants;
-    use ikc_device::device_binding::{bind_test, DeviceManage};
-    use ikc_transport::hid_api::hid_connect;
+    use ikc_device::device_binding::bind_test;
+
     use std::str::FromStr;
 
     #[test]
@@ -151,7 +154,7 @@ mod tests {
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.001316 ETH".to_string(),
         };
-        let x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
+        let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
         println!("sign");
     }
 
@@ -170,7 +173,7 @@ mod tests {
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.001316 ETH".to_string(),
         };
-        let x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
+        let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
         println!("sign");
     }
 
@@ -189,7 +192,7 @@ mod tests {
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.001316 ETH".to_string(),
         };
-        let x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
+        let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
         println!("sign");
     }
 
@@ -208,7 +211,7 @@ mod tests {
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.001316 ETH".to_string(),
         };
-        let x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
+        let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
         println!("sign");
     }
 

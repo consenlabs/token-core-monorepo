@@ -9,14 +9,14 @@ use ikc_common::utility::{hex_to_bytes, secp256k1_sign};
 use ikc_common::{constants, path, utility, SignParam};
 use ikc_device::device_binding::KEY_MANAGER;
 
+use anyhow::anyhow;
 use forest_address::Address;
 use forest_cid::Cid;
 use forest_encoding::Cbor;
 use forest_message::UnsignedMessage as ForestUnsignedMessage;
-use forest_vm::Serialized;
+use forest_vm::{Serialized, TokenAmount};
 use ikc_transport::message::send_apdu_timeout;
-use num_bigint_chainsafe::BigInt;
-use secp256k1::{self, Signature as SecpSignature};
+use secp256k1::ecdsa::Signature as SecpSignature;
 use std::str::FromStr;
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
@@ -26,12 +26,12 @@ impl Transaction {
     fn convert_message(message: &FilecoinTxInput) -> Result<ForestUnsignedMessage> {
         let to = Address::from_str(&message.to).map_err(|_| CoinError::InvalidAddress)?;
         let from = Address::from_str(&message.from).map_err(|_| CoinError::InvalidAddress)?;
-        let value = BigInt::from_str(&message.value).map_err(|_| CoinError::InvalidNumber)?;
+        let value = TokenAmount::from_str(&message.value).map_err(|_| CoinError::InvalidNumber)?;
         let gas_limit = message.gas_limit;
         let gas_fee_cap =
-            BigInt::from_str(&message.gas_fee_cap).map_err(|_| CoinError::InvalidNumber)?;
+            TokenAmount::from_str(&message.gas_fee_cap).map_err(|_| CoinError::InvalidNumber)?;
         let gas_premium =
-            BigInt::from_str(&message.gas_premium).map_err(|_| CoinError::InvalidNumber)?;
+            TokenAmount::from_str(&message.gas_premium).map_err(|_| CoinError::InvalidNumber)?;
 
         let message_params_bytes =
             base64::decode(&message.params).map_err(|_| CoinError::InvalidParam)?;
@@ -144,7 +144,7 @@ impl Transaction {
         };
         cid = forest_signed_msg
             .cid()
-            .map_err(|_e| format_err!("{}", "forest_message cid error"))?;
+            .map_err(|_e| anyhow!("{}", "forest_message cid error"))?;
 
         let signature_type = 1;
 

@@ -1,0 +1,36 @@
+{
+  "id": "fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb",
+  "version": 11001,
+  "keyHash": "e0d650a880f2cbbd8302483a06939cd3431592d8",
+  "crypto": {
+    "cipher": "aes-128-ctr",
+    "cipherparams": { "iv": "6d9df1458a23ac4408aae9fa5b643210" },
+    "ciphertext": "4ad73446865c2e3d192378c2eabac647a48843ec4f553357b5533933752c06e8",
+    "kdf": "pbkdf2",
+    "kdfparams": {
+      "c": 1024,
+      "prf": "hmac-sha256",
+      "dklen": 32,
+      "salt": "cacea0da408ce9d6f70a909602c23c87eb970490ccc4e06d7d80b4cf5ad67287"
+    },
+    "mac": "0dac456a4572a859e2dacc378435c401e2f1dddaa3191154b8f5f775f498a709"
+  },
+  "activeAccounts": [
+    {
+      "address": "t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa",
+      "derivationPath": "",
+      "curve": "BLS",
+      "coin": "FILECOIN",
+      "network": "TESTNET",
+      "segWit": "",
+      "extPubKey": "",
+      "publicKey": "80f0d9dfb26b6c66254fd6663f4cbe39c4ca46e54f779c2e30c618fb57350e5b7f55b51c16e04c9d2550f3b731551ed7"
+    }
+  ],
+  "imTokenMeta": {
+    "name": "",
+    "passwordHint": "",
+    "timestamp": 1703215416,
+    "source": "PRIVATE"
+  }
+}

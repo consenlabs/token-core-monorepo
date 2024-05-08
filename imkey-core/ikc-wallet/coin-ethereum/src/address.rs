@@ -1,23 +1,28 @@
 use crate::Result;
+use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bitcoin::Network;
 use hex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EthApdu};
-use ikc_common::path::check_path_validity;
+use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::utility::hex_to_bytes;
 use ikc_transport::message::send_apdu;
 use keccak_hash::keccak;
 use regex::Regex;
+use secp256k1::PublicKey;
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct EthAddress {}
 
 impl EthAddress {
-    pub fn address_from_pubkey(pubkey: Vec<u8>) -> Result<String> {
-        let pubkey_hash = keccak(pubkey[1..].as_ref());
-        let addr_bytes = &pubkey_hash[12..];
-        Ok(hex::encode(addr_bytes))
+    pub fn from_pub_key(pub_key: Vec<u8>) -> Result<String> {
+        let pub_key_hash = keccak(pub_key[1..].as_ref());
+        let addr_bytes = &pub_key_hash[12..];
+        let address = EthAddress::address_checksum(&hex::encode(addr_bytes));
+        Ok(address)
     }
 
-    pub fn address_checksummed(address: &str) -> String {
+    pub fn address_checksum(address: &str) -> String {
         let re = Regex::new(r"^0x").expect("address_checksummed");
         let address = address.to_lowercase();
         let address = re.replace_all(&address, "").to_string();
@@ -56,8 +61,7 @@ impl EthAddress {
 
         let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
 
-        let address_main = EthAddress::address_from_pubkey(pubkey_raw.clone())?;
-        let address_checksum = EthAddress::address_checksummed(&address_main);
+        let address_checksum = EthAddress::from_pub_key(pubkey_raw.clone())?;
         Ok(address_checksum)
     }
 
@@ -67,6 +71,69 @@ impl EthAddress {
         let res_reg = send_apdu(reg_apdu)?;
         ApduCheck::check_response(&res_reg)?;
         Ok(address)
+    }
+
+    pub fn get_pub_key(path: &str) -> Result<String> {
+        check_path_validity(path)?;
+
+        let select_apdu = EthApdu::select_applet();
+        let select_response = send_apdu(select_apdu)?;
+        ApduCheck::check_response(&select_response)?;
+
+        //get public
+        let msg_pubkey = EthApdu::get_xpub(&path, false);
+        let res_msg_pubkey = send_apdu(msg_pubkey)?;
+        ApduCheck::check_response(&res_msg_pubkey)?;
+
+        Ok(res_msg_pubkey[..194].to_string())
+    }
+
+    pub fn get_xpub(path: &str) -> Result<String> {
+        //path check
+        check_path_validity(path)?;
+
+        //get xpub data
+        let xpub_data = Self::get_pub_key(path)?;
+        let xpub_data = &xpub_data[..194];
+
+        //get public key and chain code
+        let pub_key = &xpub_data[..130];
+        let sub_chain_code = &xpub_data[130..];
+        let pub_key_obj = PublicKey::from_str(pub_key)?;
+
+        //build parent public key obj
+        let parent_xpub_data = Self::get_pub_key(get_parent_path(path)?)?;
+        let parent_xpub_data = &parent_xpub_data[..194];
+        let parent_pub_key = &parent_xpub_data[..130];
+        let parent_chain_code = &parent_xpub_data[130..];
+        let parent_pub_key_obj = PublicKey::from_str(parent_pub_key)?;
+
+        //get parent public key fingerprint
+        let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
+        let parent_ext_pub_key = ExtendedPubKey {
+            network: Network::Bitcoin,
+            depth: 0 as u8,
+            parent_fingerprint: Fingerprint::default(),
+            child_number: ChildNumber::from_normal_idx(0).unwrap(),
+            public_key: parent_pub_key_obj,
+            chain_code: parent_chain_code,
+        };
+        let fingerprint_obj = parent_ext_pub_key.fingerprint();
+
+        //build extend public key obj
+        let sub_chain_code_obj = ChainCode::from(hex::decode(sub_chain_code)?.as_slice());
+
+        let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
+        let extend_public_key = ExtendedPubKey {
+            network: Network::Bitcoin,
+            depth: chain_number_vec.len() as u8,
+            parent_fingerprint: fingerprint_obj,
+            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            public_key: pub_key_obj,
+            chain_code: sub_chain_code_obj,
+        };
+        //get and return xpub
+        Ok(extend_public_key.to_string())
     }
 }
 
@@ -81,21 +148,20 @@ mod test {
         let pubkey_string = "04efb99d9860f4dec4cb548a5722c27e9ef58e37fbab9719c5b33d55c216db49311221a01f638ce5f255875b194e0acaa58b19a89d2e56a864427298f826a7f887";
 
         let address_derived =
-            EthAddress::address_from_pubkey(hex::decode(pubkey_string).unwrap()).unwrap();
-        println!("address is {}", address_derived);
+            EthAddress::from_pub_key(hex::decode(pubkey_string).unwrap()).unwrap();
         assert_eq!(
             address_derived,
-            "c2d7cf95645d33006175b78989035c7c9061d3f9".to_string()
+            "0xC2D7CF95645D33006175B78989035C7c9061d3F9".to_string()
         );
     }
 
     #[test]
     fn test_checksummed_address() {
         let address_orignial = "0xfb6916095ca1df60bb79ce92ce3ea74c37c5d359";
-        let address_checksummed = EthAddress::address_checksummed(address_orignial);
-        println!("checksummed address is {}", address_checksummed);
+        let address_checksum = EthAddress::address_checksum(address_orignial);
+        println!("checksummed address is {}", address_checksum);
         assert_eq!(
-            address_checksummed,
+            address_checksum,
             "0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359".to_string()
         );
     }

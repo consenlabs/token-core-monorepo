@@ -1,0 +1,36 @@
+{
+  "id": "46e8e653-dd05-4217-b225-faafc8451a2c",
+  "version": 11001,
+  "keyHash": "e74f1ec2f7d09b494c6679b24dc0379d0942084f",
+  "crypto": {
+    "cipher": "aes-128-ctr",
+    "cipherparams": { "iv": "04e1ebd84e6f814197c98390321ebcd7" },
+    "ciphertext": "e8a4e34c0d8295d8df53edaf786ed46327aafa8cb12454f69ffe12e3a749e904",
+    "kdf": "pbkdf2",
+    "kdfparams": {
+      "c": 1024,
+      "prf": "hmac-sha256",
+      "dklen": 32,
+      "salt": "0d091a3c11a9e65a641b7e9eb5d19b6dcf814a4baea8219f1c57ac7a3283ea0c"
+    },
+    "mac": "64c31149419ae08e3c3bcb0e0b8195c19398af21017a4bde285b5a3f115c203b"
+  },
+  "activeAccounts": [
+    {
+      "address": "LavE5eHDvw9VDiNifbraR7GyY8MRvcQSLQ",
+      "derivationPath": "",
+      "curve": "SECP256k1",
+      "coin": "LITECOIN",
+      "network": "MAINNET",
+      "segWit": "NONE",
+      "extPubKey": "",
+      "publicKey": "03d90fc13842832d95b599fde757c716982815d828f24ab7a76a9a15913ab9d8ec"
+    }
+  ],
+  "imTokenMeta": {
+    "name": "",
+    "passwordHint": "",
+    "timestamp": 1703226999,
+    "source": "PRIVATE"
+  }
+}

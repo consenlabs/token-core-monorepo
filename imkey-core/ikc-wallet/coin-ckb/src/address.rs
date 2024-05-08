@@ -2,17 +2,15 @@ use crate::hash::blake2b_160;
 use crate::Result;
 use bech32::{ToBase32, Variant};
 use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
-use bitcoin::{Network, PublicKey};
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
-use ikc_common::constants;
 use ikc_common::constants::NERVOS_AID;
 use ikc_common::error::{CoinError, CommonError};
 use ikc_common::path::check_path_validity;
-use ikc_common::utility::{secp256k1_sign, secp256k1_sign_verify, uncompress_pubkey_2_compress};
+use ikc_common::utility::{network_convert, secp256k1_sign, secp256k1_sign_verify};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
-use secp256k1::PublicKey as Secp256k1PublicKey;
-use std::convert::TryFrom;
+use secp256k1::hashes::hex::FromHex;
+use secp256k1::{PublicKey as Secp256k1PublicKey, PublicKey};
 use std::str::FromStr;
 
 pub struct CkbAddress {}
@@ -23,8 +21,7 @@ impl CkbAddress {
             "TESTNET" => "ckt",
             _ => "ckb",
         };
-
-        let pub_key_hash = blake2b_160(pubkey);
+        let pub_key_hash = blake2b_160(PublicKey::from_slice(pubkey)?.serialize());
 
         let mut buf = vec![];
         buf.extend(vec![0x1, 0x00]); // append short version for locks with popular codehash and default code hash index
@@ -34,7 +31,7 @@ impl CkbAddress {
     }
 
     pub fn get_public_key(path: &str) -> Result<String> {
-        check_path_validity(path).expect("check path error");
+        check_path_validity(path)?;
 
         let select_apdu = Apdu::select_applet(NERVOS_AID);
         let select_response = send_apdu(select_apdu)?;
@@ -75,9 +72,7 @@ impl CkbAddress {
 
     pub fn get_address(network: &str, path: &str) -> Result<String> {
         let pub_key = CkbAddress::get_public_key(path)?;
-        let comprs_pubkey = uncompress_pubkey_2_compress(&pub_key);
-        let comprs_pubkey_bytes = hex::decode(&comprs_pubkey).expect("decode ckb pubkey error");
-        let address = CkbAddress::from_public_key(network, &comprs_pubkey_bytes)?;
+        let address = CkbAddress::from_public_key(network, &Vec::from_hex(&pub_key)?)?;
         Ok(address)
     }
 
@@ -90,7 +85,7 @@ impl CkbAddress {
         Ok(address)
     }
 
-    pub fn get_enc_xpub(network: Network, path: &str) -> Result<String> {
+    pub fn get_enc_xpub(network: &str, path: &str) -> Result<String> {
         let xpub = Self::get_xpub(network, path)?;
         let key = ikc_common::XPUB_COMMON_KEY_128.read();
         let iv = ikc_common::XPUB_COMMON_IV.read();
@@ -101,7 +96,7 @@ impl CkbAddress {
         Ok(base64::encode(&encrypted))
     }
 
-    pub fn get_xpub(network: Network, path: &str) -> Result<String> {
+    pub fn get_xpub(network: &str, path: &str) -> Result<String> {
         //path check
         check_path_validity(path)?;
 
@@ -123,9 +118,10 @@ impl CkbAddress {
 
         //get parent public key fingerprint
         let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
+        let network = network_convert(network);
         let parent_ext_pub_key = ExtendedPubKey {
-            network: network,
-            depth: 0 as u8,
+            network,
+            depth: 0u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
             public_key: parent_pub_key_obj,
@@ -187,7 +183,6 @@ impl CkbAddress {
 #[cfg(test)]
 mod tests {
     use crate::address::CkbAddress;
-    use bitcoin::Network;
     use ikc_common::constants;
     use ikc_common::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
     use ikc_device::device_binding::bind_test;
@@ -217,7 +212,7 @@ mod tests {
     fn test_get_public_key() {
         bind_test();
 
-        let network = "TESTNET";
+        let _network = "TESTNET";
         let pk = CkbAddress::get_public_key(constants::NERVOS_PATH).expect("get pubkey fail");
         assert_eq!(&pk, "04554851980004FF256888612BF0D64D9B1002BF82331450FD5A7405D1B23CC5BD2F4DDA9D71F6502CD761AFB29B1A89AECEBC832851CD361D3351216F08635BBF");
     }
@@ -249,17 +244,15 @@ mod tests {
         *XPUB_COMMON_KEY_128.write() = "4A2B655485ABBAB54BD30298BB0A5B55".to_string();
         *XPUB_COMMON_IV.write() = "73518399CB98DCD114D873E06EBF4BCC".to_string();
 
-        let version: Network = Network::Bitcoin;
         let path: &str = "m/44'/309'/0'";
-        let get_xpub_result = CkbAddress::get_xpub(version, path);
+        let get_xpub_result = CkbAddress::get_xpub("MAINNET", path);
         assert!(get_xpub_result.is_ok());
         let xpub = get_xpub_result.ok().unwrap();
-        assert_eq!("xpub6CuQc3kkPk2oPKAXnCpEJNkmwzMkXmv1BBG5a2aUbhGBR49zqmSUpJDG3veFgfiMDcjusGVoHP574ecgsyo48Hvmgq33oP8NRoC9kHqZYuN", xpub);
+        assert_eq!("xpub6CyvXfYwHJjJ9syYjG7qZMva1yMx93SUmqUcKHvoReUadCzqJA8mMXrrXQjRvzveuahgdQmCsdsuiCkMRsLec63DW83Wwu5UqKJQmsonKpo", xpub);
 
-        let version: Network = Network::Bitcoin;
         let path: &str = "m/44'/309'/0'";
-        let get_enc_xpub_result = CkbAddress::get_enc_xpub(version, path);
+        let get_enc_xpub_result = CkbAddress::get_enc_xpub("MAINNET", path);
         let enc_xpub = get_enc_xpub_result.ok().unwrap();
-        assert_eq!("iWHbNJrWJIb0Kj8GRWzQX9Z1wUNP4HQecGNaAI+KUqsMFCKaP1rDz0KCwlSVvwcONB3S80hdbZOoW56VGB1hcqPyS45qxPcqi+xTtDNYasP2mmnNd4rO1HEJIQOaejDEdGEg2psFu/dzrRHKoZ6gRQ==", enc_xpub);
+        assert_eq!("xkpmspgDJhDx7nBk/se+P0CRS/fbPKYivQiqocPEdXFIsNLCHy5lZEc59LGLbsFFamWX7j8TUs5ugKynEign+y0hDQIhm3y1PypmU+frhoWckc7vgkdzbd9xGdMTVv7J+JW4Zlenksb8a9UNkRfrJg==", enc_xpub);
     }
 }
