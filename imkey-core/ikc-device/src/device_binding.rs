@@ -136,7 +136,7 @@ impl DeviceManage {
         let identity_verify_apdu = ImkApdu::identity_verify(&apdu_data);
         std::mem::drop(key_manager_obj);
         //send command to device
-        let bind_result = send_apdu_timeout(identity_verify_apdu, TIMEOUT_LONG)?;
+        let bind_result = send_apdu_timeout(identity_verify_apdu, TIMEOUT_LONG * 2)?;
         ApduCheck::check_response(&bind_result)?;
         let result_code = &bind_result[..bind_result.len() - 4];
 
