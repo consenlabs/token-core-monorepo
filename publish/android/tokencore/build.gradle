@@ -5,6 +5,7 @@ plugins {
 android {
     compileSdk 30
 
+    namespace "im.token.libs.tokencore"
     defaultConfig {
         minSdk 19
         targetSdk 30

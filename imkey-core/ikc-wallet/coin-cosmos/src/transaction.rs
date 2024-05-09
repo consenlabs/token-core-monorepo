@@ -3,11 +3,11 @@ use crate::Result;
 use bitcoin_hashes::hex::ToHex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu};
 use ikc_common::constants;
+use ikc_common::path::check_path_validity;
 use ikc_common::utility::{hex_to_bytes, secp256k1_sign, sha256_hash};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::{self, ecdsa::Signature as SecpSignature};
-use ikc_common::path::check_path_validity;
 
 #[derive(Debug)]
 pub struct CosmosTransaction {
