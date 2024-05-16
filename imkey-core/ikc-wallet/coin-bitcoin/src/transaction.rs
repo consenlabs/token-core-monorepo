@@ -1,5 +1,5 @@
 use crate::address::BtcAddress;
-use crate::common::{address_verify, get_address_version, TransTypeFlg, TxSignResult};
+use crate::common::{address_verify, get_address_version, TxSignResult};
 use crate::Result;
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};
@@ -26,8 +26,8 @@ use std::str::FromStr;
 #[derive(Clone)]
 pub struct Utxo {
     pub txhash: String,
-    pub vout: i32,
-    pub amount: i64,
+    pub vout: u32,
+    pub amount: u64,
     pub address: Address,
     pub script_pubkey: String,
     pub derive_path: String,
@@ -36,9 +36,9 @@ pub struct Utxo {
 
 pub struct BtcTransaction {
     pub to: Address,
-    pub amount: i64,
+    pub amount: u64,
     pub unspents: Vec<Utxo>,
-    pub fee: i64,
+    pub fee: u64,
 }
 
 impl BtcTransaction {
@@ -61,7 +61,7 @@ impl BtcTransaction {
         }
 
         //utxo address verify
-        let utxo_pub_key_vec = address_verify(&self.unspents, network, TransTypeFlg::BTC)?;
+        let utxo_pub_key_vec = address_verify(&self.unspents, network)?;
 
         //calc utxo total amount
         if self.get_total_amount() < self.amount {
@@ -75,7 +75,7 @@ impl BtcTransaction {
         //add change output
         if self.get_change_amount() > DUST_THRESHOLD {
             let path_temp = format!("{}{}{}", path_str, "1/", change_idx);
-            let address_str = BtcAddress::get_address(network, path_temp.as_str())?;
+            let address_str = BtcAddress::p2pkh(network, path_temp.as_str())?;
             let address_obj = Address::from_str(address_str.as_str())?;
             txouts.push(TxOut {
                 value: self.get_change_amount() as u64,
@@ -228,13 +228,7 @@ impl BtcTransaction {
         }
 
         //utxo address verify
-        let utxo_pub_key_vec = address_verify(
-            &self.unspents,
-            // pub_key,
-            // hex::decode(chain_code).unwrap().as_slice(),
-            network,
-            TransTypeFlg::SEGWIT,
-        )?;
+        let utxo_pub_key_vec = address_verify(&self.unspents, network)?;
 
         //calc utxo total amount
         if self.get_total_amount() < self.amount {
@@ -248,7 +242,7 @@ impl BtcTransaction {
         //add change output
         if self.get_change_amount() > DUST_THRESHOLD {
             let path_temp = format!("{}{}{}", path_str, "1/", change_idx);
-            let address_str = BtcAddress::get_segwit_address(network, path_temp.as_str())?;
+            let address_str = BtcAddress::p2shwpkh(network, path_temp.as_str())?;
             let address_obj = Address::from_str(address_str.as_str())?;
             txouts.push(TxOut {
                 value: self.get_change_amount() as u64,
@@ -434,15 +428,15 @@ impl BtcTransaction {
         })
     }
 
-    pub fn get_total_amount(&self) -> i64 {
-        let mut total_amount: i64 = 0;
+    pub fn get_total_amount(&self) -> u64 {
+        let mut total_amount = 0;
         for unspent in &self.unspents {
             total_amount += unspent.amount;
         }
         total_amount
     }
 
-    pub fn get_change_amount(&self) -> i64 {
+    pub fn get_change_amount(&self) -> u64 {
         let total_amount = self.get_total_amount();
         let change_amout = total_amount - self.amount - self.fee;
         change_amout
@@ -478,6 +472,108 @@ impl BtcTransaction {
             .push_slice(&signed_vec)
             .push_slice(Vec::from_hex(utxo_public_key)?.as_slice())
             .into_script())
+    }
+
+    pub fn sign(
+        &self,
+        network: Network,
+        path: &str,
+        change_idx: i32,
+        extra_data: &Vec<u8>,
+    ) -> Result<TxSignResult> {
+        //path check
+        check_path_validity(path)?;
+        let mut path_str = path.to_string();
+        if !path.ends_with("/") {
+            path_str = format!("{}{}", path_str, "/");
+        }
+
+        //check uxto number
+        if &self.unspents.len() > &MAX_UTXO_NUMBER {
+            return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
+        }
+
+        //utxo address verify
+        let utxo_pub_key_vec = address_verify(&self.unspents, network)?;
+
+        Ok(TxSignResult {
+            signature: "".to_string(),
+            tx_hash: "".to_string(),
+            wtx_id: "".to_string(),
+        })
+    }
+
+    pub fn prepare_tx(&self, path: &str, network: Network) -> Result<(i32, Vec<TxOut>, Vec<TxIn>)> {
+        let mut prevouts = vec![];
+        let mut tx_inputs: Vec<TxIn> = vec![];
+
+        if self.unspents.is_empty() {
+            return Err(CoinError::InvalidUtxo.into());
+        }
+
+        // let coin_info = CoinInfo {
+        //     coin: params.chain_type.clone(),
+        //     derivation_path: params.derivation_path.clone(),
+        //     curve: params.curve,
+        //     network: params.network.clone(),
+        //     seg_wit: params.seg_wit.clone(),
+        // };
+        //
+        // let change_script = if let Some(change_address_index) = self.change_address_index && keystore.derivable() {
+        //     let account_path = get_account_path(&params.derivation_path)?;
+        //     let dpk = keystore.get_deterministic_public_key(params.curve, &account_path)?;
+        //     let pub_key = dpk
+        //         .derive(format!("1/{}", change_address_index).as_str())?
+        //         .public_key();
+        //
+        //     T::from_public_key(&pub_key, &coin_info)?.script_pubkey()
+        // } else {
+        //     T::from_str(&self.inputs[0].address)?.script_pubkey()
+        // };
+
+        let mut version = 1;
+
+        for x in self.unspents.iter() {
+            // let script_pubkey = Address::from_str(&x.address)?.script_pubkey();
+            let script_pubkey = x.address.script_pubkey();
+
+            if !script_pubkey.is_p2pkh() {
+                version = 2
+            }
+
+            prevouts.push(TxOut {
+                value: x.amount,
+                script_pubkey: script_pubkey.clone(),
+            });
+
+            tx_inputs.push(TxIn {
+                previous_output: OutPoint {
+                    txid: bitcoin::hash_types::Txid::from_hex(&x.txhash)?,
+                    vout: x.vout,
+                },
+                script_sig: Script::new(),
+                sequence: Sequence::MAX,
+                witness: Witness::default(),
+            });
+
+            // if !x.derived_path.is_empty() && keystore.derivable() {
+            //     sks.push(
+            //         keystore
+            //             .get_private_key(CurveType::SECP256k1, &x.derived_path)?
+            //             .as_secp256k1()?
+            //             .clone(),
+            //     );
+            // } else {
+            //     sks.push(
+            //         keystore
+            //             .get_private_key(CurveType::SECP256k1, "")?
+            //             .as_secp256k1()?
+            //             .clone(),
+            //     );
+            // }
+        }
+
+        Ok((version, prevouts, tx_inputs))
     }
 }
 

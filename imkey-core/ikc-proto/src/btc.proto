@@ -3,8 +3,8 @@ package btcapi;
 
 message Utxo {
     string tx_hash = 1;
-    int32 vout = 2;
-    int64 amount = 3;
+    uint32 vout = 2;
+    uint64 amount = 3;
     string address = 4;
     string script_pubKey = 5;
     string derived_path = 6;
@@ -18,8 +18,8 @@ message BtcTxExtra {
 }
 message BtcTxInput {
     string to = 1;
-    int64 amount = 2;
-    int64 fee = 3;
+    uint64 amount = 2;
+    uint64 fee = 3;
     uint32 change_address_index = 4;
     repeated Utxo unspents = 5;
     string segWit = 6;

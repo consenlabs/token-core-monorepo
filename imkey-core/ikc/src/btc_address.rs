@@ -15,14 +15,11 @@ pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
     let receive_address: String;
 
     if param.is_seg_wit {
-        main_address =
-            BtcAddress::get_segwit_address(network, format!("{}/0/0", account_path).as_str())?;
-        receive_address =
-            BtcAddress::get_segwit_address(network, format!("{}/0/1", account_path).as_str())?;
+        main_address = BtcAddress::p2shwpkh(network, format!("{}/0/0", account_path).as_str())?;
+        receive_address = BtcAddress::p2shwpkh(network, format!("{}/0/1", account_path).as_str())?;
     } else {
-        main_address = BtcAddress::get_address(network, format!("{}/0/0", account_path).as_str())?;
-        receive_address =
-            BtcAddress::get_address(network, format!("{}/0/1", account_path).as_str())?;
+        main_address = BtcAddress::p2pkh(network, format!("{}/0/0", account_path).as_str())?;
+        receive_address = BtcAddress::p2pkh(network, format!("{}/0/1", account_path).as_str())?;
     }
 
     let enc_xpub = get_enc_xpub(network, param.path.as_ref())?;
@@ -50,9 +47,9 @@ pub fn calc_external_address(param: &ExternalAddressParam) -> Result<Vec<u8>> {
     let receive_address: String;
 
     if param.seg_wit.to_uppercase() == "P2WPKH" {
-        receive_address = BtcAddress::get_segwit_address(network, external_path.as_str())?;
+        receive_address = BtcAddress::p2shwpkh(network, external_path.as_str())?;
     } else {
-        receive_address = BtcAddress::get_address(network, external_path.as_str())?;
+        receive_address = BtcAddress::p2pkh(network, external_path.as_str())?;
     }
 
     let external_address = ExternalAddress {
