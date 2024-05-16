@@ -505,15 +505,15 @@ impl BtcForkTransaction {
         })
     }
 
-    pub fn get_total_amount(&self) -> i64 {
-        let mut total_amount: i64 = 0;
+    pub fn get_total_amount(&self) -> u64 {
+        let mut total_amount = 0;
         for unspent in &self.tx_input.unspents {
             total_amount += unspent.amount;
         }
         total_amount
     }
 
-    pub fn get_change_amount(&self) -> i64 {
+    pub fn get_change_amount(&self) -> u64 {
         let total_amount = self.get_total_amount();
         let change_amout = total_amount - self.tx_input.amount - self.tx_input.fee;
         change_amout

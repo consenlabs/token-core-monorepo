@@ -88,4 +88,6 @@ pub enum CoinError {
     InvalidVersion,
     #[error("invalid addr length")]
     InvalidAddrLength,
+    #[error("invalid_utxo")]
+    InvalidUtxo,
 }

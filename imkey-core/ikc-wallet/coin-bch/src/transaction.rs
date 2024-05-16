@@ -25,8 +25,8 @@ use std::str::FromStr;
 #[derive(Clone)]
 pub struct Utxo {
     pub txhash: String,
-    pub vout: i32,
-    pub amount: i64,
+    pub vout: u32,
+    pub amount: u64,
     pub address: String,
     pub script_pubkey: String,
     pub derive_path: String,
@@ -35,9 +35,9 @@ pub struct Utxo {
 
 pub struct BchTransaction {
     pub to: String,
-    pub amount: i64,
+    pub amount: u64,
     pub unspents: Vec<Utxo>,
-    pub fee: i64,
+    pub fee: u64,
 }
 
 impl BchTransaction {
@@ -278,15 +278,15 @@ impl BchTransaction {
         })
     }
 
-    pub fn get_total_amount(&self) -> i64 {
-        let mut total_amount: i64 = 0;
+    pub fn get_total_amount(&self) -> u64 {
+        let mut total_amount = 0;
         for unspent in &self.unspents {
             total_amount += unspent.amount;
         }
         total_amount
     }
 
-    pub fn get_change_amount(&self) -> i64 {
+    pub fn get_change_amount(&self) -> u64 {
         let total_amount = self.get_total_amount();
         let change_amout = total_amount - self.amount - self.fee;
         change_amout
