@@ -153,7 +153,7 @@ impl BtcTransaction {
                 let sign_result_str =
                     btc_sign_apdu_return[2..btc_sign_apdu_return.len() - 6].to_string();
 
-                lock_script_ver.push(self.build_lock_script(
+                lock_script_ver.push(self.build_unlock_script(
                     sign_result_str.as_str(),
                     utxo_pub_key_vec.get(y).unwrap(),
                 )?);

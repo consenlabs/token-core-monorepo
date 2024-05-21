@@ -164,6 +164,25 @@ impl BtcAddress {
         ApduCheck::check_response(apdu_res.as_str())?;
         Ok(address_str)
     }
+
+    pub fn from_public_key(public_key: &str, network: Network, seg_wit: &str) -> Result<String> {
+        let mut pub_key_obj = PublicKey::from_str(public_key)?;
+        pub_key_obj.compressed = true;
+        let address = match seg_wit {
+            "P2WPKH" => Address::p2shwpkh(&pub_key_obj, network)?.to_string(),
+            "VERSION_0" => Address::p2wpkh(&pub_key_obj, network)?.to_string(),
+            "VERSION_1" => {
+                let untweak_pub_key = UntweakedPublicKey::from(secp256k1::PublicKey::from_slice(
+                    &hex_to_bytes(&public_key)?,
+                )?);
+                let secp256k1 = Secp256k1::new();
+                Address::p2tr(&secp256k1, untweak_pub_key, None, network).to_string()
+            }
+            _ => Address::p2pkh(&pub_key_obj, network).to_string(),
+        };
+
+        Ok(address)
+    }
 }
 
 #[cfg(test)]
