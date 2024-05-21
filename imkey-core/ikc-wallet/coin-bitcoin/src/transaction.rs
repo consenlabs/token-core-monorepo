@@ -534,7 +534,7 @@ impl BtcTransaction {
 
         //output data serialize
         let mut tx_to_sign = Transaction {
-            version: 1i32, // TODO legacy为1
+            version: 2i32, // TODO legacy为1
             lock_time: PackedLockTime::ZERO,
             input: vec![],
             output: txouts,
@@ -1223,7 +1223,7 @@ mod tests {
         let utxo = Utxo {
             txhash: "c2ceb5088cf39b677705526065667a3992c68cc18593a9af12607e057672717f".to_string(),
             vout: 0,
-            amount: 100000,
+            amount: 50000,
             address: Address::from_str("2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB").unwrap(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
             derive_path: "m/49'/1'/0'/0/0".to_string(),
@@ -1240,7 +1240,7 @@ mod tests {
         };
         let mut utxos = Vec::new();
         utxos.push(utxo);
-        // utxos.push(utxo2);
+        utxos.push(utxo2);
         let transaction_req_data = BtcTransaction {
             to: Address::from_str("2N9wBy6f1KTUF5h2UUeqRdKnBT6oSMh4Whp").unwrap(),
             amount: 88000,
@@ -1254,10 +1254,10 @@ mod tests {
             &extra_data,
             "P2WPKH",
         );
-        // assert_eq!(
-        //     "3b2178aa4d52377226dd394776680a91a05781fe93ce42666e307dc16aeaae99",
-        //     sign_result.as_ref().unwrap().tx_hash
-        // );
+        assert_eq!(
+            "3b2178aa4d52377226dd394776680a91a05781fe93ce42666e307dc16aeaae99",
+            sign_result.as_ref().unwrap().tx_hash
+        );
         assert_eq!(
             "92fa20346dc6a97d852db332beffb7d60d57d82207b63c6484d886541a924041",
             sign_result.as_ref().unwrap().wtx_id
