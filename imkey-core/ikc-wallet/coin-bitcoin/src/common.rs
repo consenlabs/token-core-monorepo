@@ -90,24 +90,32 @@ pub fn secp256k1_sign_verify(public: &[u8], signed: &[u8], message: &[u8]) -> Re
 get address version
 */
 pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
-    match network {
+    let version = match network {
         Network::Bitcoin => {
-            if !address.starts_with('1') && !address.starts_with('3') {
+            if address.starts_with('1') || address.starts_with('3') {
+                let address_bytes = base58::from(address)?;
+                address_bytes.as_slice()[0]
+            } else if address.starts_with("bc1") {
+                'b' as u8
+            } else {
                 return Err(CoinError::AddressTypeMismatch.into());
             }
         }
         Network::Testnet => {
-            if !address.starts_with('m') && !address.starts_with('n') && !address.starts_with('2') {
+            if address.starts_with('m') || address.starts_with('n') || address.starts_with('2') {
+                let address_bytes = base58::from(address)?;
+                address_bytes.as_slice()[0]
+            } else if address.starts_with("tb1") {
+                't' as u8
+            } else {
                 return Err(CoinError::AddressTypeMismatch.into());
             }
         }
         _ => {
             return Err(CoinError::ImkeySdkIllegalArgument.into());
         }
-    }
-    //get address version
-    let address_bytes = base58::from(address)?;
-    Ok(address_bytes.as_slice()[0])
+    };
+    Ok(version)
 }
 
 pub struct TxSignResult {
