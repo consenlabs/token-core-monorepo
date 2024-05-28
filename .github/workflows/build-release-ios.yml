@@ -53,6 +53,7 @@ jobs:
         rustup target add aarch64-apple-ios x86_64-apple-ios
         rustup show
         cargo install cargo-lipo
+        cargo install cbindgen
         brew install protobuf
 
     - name: Read VERSION file
@@ -74,12 +75,12 @@ jobs:
       id: build
       run: | 
         pushd ./imkey-core/ikc
-        cargo lipo --release --targets aarch64-apple-ios x86_64-apple-ios
+        cargo lipo --release --targets aarch64-apple-ios
         cbindgen ./src/lib.rs -l c > ${{github.workspace}}/target/connector.h
         popd
         
         pushd ./token-core/tcx
-        cargo lipo --release --targets aarch64-apple-ios x86_64-apple-ios
+        cargo lipo --release --targets aarch64-apple-ios
         cbindgen ./src/lib.rs -l c > ${{github.workspace}}/target/tcx.h
         popd
         

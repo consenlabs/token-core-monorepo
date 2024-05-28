@@ -8,12 +8,12 @@ use ikc_common::aes::cbc::encrypt_pkcs7;
 use ikc_common::apdu::{Apdu, ApduCheck, ImkApdu};
 use ikc_common::constants::{
     BIND_RESULT_ERROR, BIND_RESULT_SUCCESS, BIND_STATUS_BOUND_OTHER, BIND_STATUS_BOUND_THIS,
-    BIND_STATUS_UNBOUND, IMK_AID,
+    BIND_STATUS_UNBOUND, IMK_AID, TIMEOUT_LONG,
 };
 use ikc_common::utility::sha256_hash;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use ikc_transport::hid_api::hid_connect;
-use ikc_transport::message::send_apdu;
+use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use parking_lot::Mutex;
 use rand::rngs::OsRng;
 use regex::Regex;
@@ -136,7 +136,7 @@ impl DeviceManage {
         let identity_verify_apdu = ImkApdu::identity_verify(&apdu_data);
         std::mem::drop(key_manager_obj);
         //send command to device
-        let bind_result = send_apdu(identity_verify_apdu)?;
+        let bind_result = send_apdu_timeout(identity_verify_apdu, TIMEOUT_LONG * 2)?;
         ApduCheck::check_response(&bind_result)?;
         let result_code = &bind_result[..bind_result.len() - 4];
 
