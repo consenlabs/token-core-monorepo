@@ -6,136 +6,137 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  ORG_GRADLE_PROJECT_sonatypeUsername : ${{ secrets.OSSRH_USERNAME }}
-  ORG_GRADLE_PROJECT_sonatypePassword : ${{ secrets.OSSRH_PASSWORD }}
-  ORG_GRADLE_PROJECT_signingKey : ${{ secrets.SIGNING_KEY }}
-  ORG_GRADLE_PROJECT_signingPassword : ${{ secrets.SIGNING_SECRET }}
-  
+  ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.OSSRH_USERNAME }}
+  ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.OSSRH_PASSWORD }}
+  ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
+  ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_SECRET }}
+
 jobs:
   build:
     name: Build Android Release
     if: github.event.review.state == 'approved'
-    runs-on: macos-latest
+    runs-on: macos-12
     steps:
-    - name: Get the latest commit SHA
-      id: sha
-      uses: actions/github-script@v6
-      with:
-        result-encoding: string
-        script: |
-          const { owner, repo, number } = context.issue
-          const pr = await github.rest.pulls.get({
-            owner,
-            repo,
-            pull_number: number,
-          })
-          return pr.data.head.sha
+      - name: Get the latest commit SHA
+        id: sha
+        uses: actions/github-script@v6
+        with:
+          result-encoding: string
+          script: |
+            const { owner, repo, number } = context.issue
+            const pr = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: number,
+            })
+            return pr.data.head.sha
 
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        ref: ${{ steps.sha.outputs.result }}
-        fetch-depth: 5
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.sha.outputs.result }}
+          fetch-depth: 5
 
-    - name: Cache
-      uses: actions/cache@v2
-      with:
-        path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          ~/.rustup
-          target
-        key: ${{ runner.os }}-nightly
-          
-    - name: Install Rust
-      run: |
-        rustup toolchain install nightly-2022-10-31
-        rustup default nightly-2022-10-31-x86_64-apple-darwin
-        rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
-        rustup show
-        
-    # - name: Install dependent
-    #   run: | 
-    #    sudo apt-get install -y libusb-dev libusb-1.0-0-dev libftdi1-dev libudev-dev
-    #    sudo apt-get install -y protobuf-compiler libprotobuf-dev
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.rustup
+            target
+          key: ${{ runner.os }}-nightly
 
-    - name: Install dependency
-      run: |
-        brew install protobuf
+      - name: Install Rust
+        run: |
+          rustup toolchain install nightly-2022-10-31
+          rustup default nightly-2022-10-31-x86_64-apple-darwin
+          rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+          rustup show
 
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v2
+      # - name: Install dependent
+      #   run: |
+      #    sudo apt-get install -y libusb-dev libusb-1.0-0-dev libftdi1-dev libudev-dev
+      #    sudo apt-get install -y protobuf-compiler libprotobuf-dev
 
-    - name: Install Android Tools
-      run: sdkmanager "build-tools;29.0.3" "platforms;android-31" "ndk;25.2.9519653" 
-        
-    - name: Configure Rust Config File
-      run: |
-        echo '[target.armv7-linux-androideabi]' >> ~/.cargo/config
-        echo 'ar = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"' >> ~/.cargo/config
-        echo 'linker = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/armv7a-linux-androideabi22-clang"' >> ~/.cargo/config
-        echo '[target.aarch64-linux-android]' >> ~/.cargo/config
-        echo 'ar = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"' >> ~/.cargo/config
-        echo 'linker = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android29-clang"' >> ~/.cargo/config
-        echo '[target.i686-linux-android]' >> ~/.cargo/config
-        echo 'ar = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"' >> ~/.cargo/config
-        echo 'linker = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/i686-linux-android29-clang"' >> ~/.cargo/config
-        echo '[target.x86_64-linux-android]' >> ~/.cargo/config
-        echo 'ar = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"' >> ~/.cargo/config
-        echo 'linker = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/x86_64-linux-android29-clang"' >> ~/.cargo/config
-        cat ~/.cargo/config
+      - name: Install dependency
+        run: |
+          brew install protobuf
 
-    - name: Build TCX And IKC
-      run: | 
-       pushd ${{github.workspace}}/script
-       ./build-android.sh
-       popd
-    
-    - name: Setup Gradle
-      uses: gradle/gradle-build-action@v3
-      with:
-       gradle-version: 7.0.1
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v2
 
-    - name: Read VERSION file
-      id: getversion
-      run: echo "version=$(cat VERSION)+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+      - name: Install Android Tools
+        run: sdkmanager "build-tools;29.0.3" "platforms;android-31" "ndk;25.2.9519653"
 
-    - name: Get commits
-      id: getcommits
-      shell: bash
-      run: |
-        OUTPUT="$(git log -n 5 --pretty=format:"%s")"
-        echo ::set-output name=commits::"${OUTPUT}"
+      - name: Configure Rust Config File
+        run: |
+          echo '[target.armv7-linux-androideabi]' >> ~/.cargo/config
+          echo 'ar = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+          echo 'linker = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/armv7a-linux-androideabi22-clang"' >> ~/.cargo/config
+          echo '[target.aarch64-linux-android]' >> ~/.cargo/config
+          echo 'ar = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+          echo 'linker = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android29-clang"' >> ~/.cargo/config
+          echo '[target.i686-linux-android]' >> ~/.cargo/config
+          echo 'ar = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+          echo 'linker = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/i686-linux-android29-clang"' >> ~/.cargo/config
+          echo '[target.x86_64-linux-android]' >> ~/.cargo/config
+          echo 'ar = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"' >> ~/.cargo/config
+          echo 'linker = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/x86_64-linux-android29-clang"' >> ~/.cargo/config
+          cat ~/.cargo/config
 
-    - name: Publish
-      id: publish
-      run: |
-        pushd ${{github.workspace}}/publish/android
-        ./gradlew assemble
-        echo "tokencore_sha256=$(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')" >> $GITHUB_OUTPUT
-        echo "tokencore-release.aar sha256: $(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')"
-        VERSION=${{steps.getversion.outputs.version}} ./gradlew publishToSonatype closeSonatypeStagingRepository
-        popd 
-        
-          
-    - name: Send custom JSON data to Slack workflow
-      id: slack
-      uses: slackapi/slack-github-action@v1.23.0
-      with:
-        # For posting a rich message using Block Kit
-        payload: |
-          {
-            "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.publish.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}",
-            "blocks": [
-              {
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.publish.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}"
+      - name: Build TCX And IKC
+        run: |
+          pushd ${{github.workspace}}/script
+          ./build-android.sh
+          popd
+
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          gradle-version: 7.0.1
+
+      - name: Read VERSION file
+        id: getversion
+        run: echo "version=$(cat VERSION)+$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Get commits
+        id: getcommits
+        shell: bash
+        run: |
+          OUTPUT="$(git log -n 5 --pretty=format:"%s")"
+          echo ::set-output name=commits::"${OUTPUT}"
+
+      - name: Publish
+        id: publish
+        run: |
+          export JAVA_HOME=$JAVA_HOME_17_X64
+          export PATH="$JAVA_HOME:$PATH" 
+          pushd ${{github.workspace}}/publish/android
+          ./gradlew assemble
+          echo "tokencore_sha256=$(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')" >> $GITHUB_OUTPUT
+          echo "tokencore-release.aar sha256: $(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')"
+          VERSION=${{steps.getversion.outputs.version}} ./gradlew publishToSonatype closeSonatypeStagingRepository
+          popd
+
+      - name: Send custom JSON data to Slack workflow
+        id: slack
+        uses: slackapi/slack-github-action@v1.23.0
+        with:
+          # For posting a rich message using Block Kit
+          payload: |
+            {
+              "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.publish.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.publish.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}"
+                  }
                 }
-              }
-            ]
-          }
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
-        SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
