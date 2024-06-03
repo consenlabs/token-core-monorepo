@@ -39,7 +39,7 @@ message ImportMnemonicParam {
     string network = 3;
     string name = 4;
     string passwordHint = 5;
-    bool overwrite = 6;
+    string overwriteId = 6;
 }
 
 message ImportPrivateKeyResult {
@@ -123,7 +123,7 @@ message ImportPrivateKeyParam {
     string name = 3;
     string passwordHint = 4;
     string network = 5;
-    bool overwrite = 6;
+    string overwriteId = 6;
 }
 
 // FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): ExistsKeystoreResult

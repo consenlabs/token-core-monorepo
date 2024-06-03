@@ -315,8 +315,8 @@ pub struct ImportMnemonicParam {
     pub name: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
     pub password_hint: ::prost::alloc::string::String,
-    #[prost(bool, tag = "6")]
-    pub overwrite: bool,
+    #[prost(string, tag = "6")]
+    pub overwrite_id: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -450,8 +450,8 @@ pub struct ImportPrivateKeyParam {
     pub password_hint: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
     pub network: ::prost::alloc::string::String,
-    #[prost(bool, tag = "6")]
-    pub overwrite: bool,
+    #[prost(string, tag = "6")]
+    pub overwrite_id: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

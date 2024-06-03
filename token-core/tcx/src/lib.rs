@@ -17,6 +17,7 @@ use crate::api::{GeneralResult, TcxAction};
 pub mod error_handling;
 pub mod handler;
 pub mod migration;
+pub mod reset_password;
 use anyhow::Error;
 use std::result;
 

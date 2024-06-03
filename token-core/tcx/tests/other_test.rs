@@ -67,7 +67,7 @@ pub fn test_delete_keystore_by_password() {
             name: "test_delete_keystore".to_string(),
             password_hint: "".to_string(),
             network: "".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
         };
 
         let ret_bytes = import_private_key(&encode_message(param).unwrap()).unwrap();
@@ -115,7 +115,7 @@ pub fn test_delete_keystore_by_derived_key() {
             name: "test_delete_keystore".to_string(),
             password_hint: "".to_string(),
             network: "".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
         };
 
         let ret_bytes = import_private_key(&encode_message(param).unwrap()).unwrap();

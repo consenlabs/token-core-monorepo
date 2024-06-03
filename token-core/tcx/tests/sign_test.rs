@@ -818,7 +818,7 @@ pub fn test_sign_hashes() {
             password: TEST_PASSWORD.to_string(),
             name: "test-wallet".to_string(),
             password_hint: "imtoken".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
             network: "MAINNET".to_string(),
         };
         let ret = call_api("import_mnemonic", param).unwrap();
@@ -1065,7 +1065,7 @@ pub fn test_sign_bls_to_execution_change() {
                 password: TEST_PASSWORD.to_string(),
                 name: "test-wallet".to_string(),
                 password_hint: "imtoken".to_string(),
-                overwrite: true,
+                 overwrite_id: "".to_string(),
                 network: "MAINNET".to_string(),
             };
         let ret = call_api("import_mnemonic", param).unwrap();

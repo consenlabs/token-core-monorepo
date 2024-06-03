@@ -1,5 +1,7 @@
 use common::run_test;
 use serial_test::serial;
+use std::fs;
+use std::path::Path;
 
 mod common;
 
@@ -13,15 +15,17 @@ use prost::Message;
 use tcx::api::{
     export_private_key_param, CreateKeystoreParam, DeriveAccountsParam, DeriveAccountsResult,
     ExistsJsonParam, ExistsKeystoreResult, ExistsPrivateKeyParam, ExportJsonParam,
-    ExportJsonResult, ExportPrivateKeyParam, ExportPrivateKeyResult, ImportJsonParam,
-    ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult, KeystoreResult,
+    ExportJsonResult, ExportMnemonicParam, ExportMnemonicResult, ExportPrivateKeyParam,
+    ExportPrivateKeyResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
+    ImportPrivateKeyResult, KeystoreResult, WalletKeyParam,
 };
 
 use tcx::handler::{encode_message, import_private_key};
-use tcx_constants::TEST_PASSWORD;
 use tcx_constants::{CurveType, TEST_PRIVATE_KEY, TEST_WIF};
+use tcx_constants::{OTHER_MNEMONIC, TEST_MNEMONIC, TEST_PASSWORD};
 
 use sp_core::ByteArray;
+use tcx::api::export_mnemonic_param::Key;
 
 use tcx_substrate::SubstrateKeystore;
 
@@ -97,13 +101,13 @@ pub fn test_import_mnemonic() {
             "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r"
         );
         assert_eq!(
-                account.extended_public_key,
-                "xpub6Bmkv3mmRZZWoFSBdj9vDMqR2PCPSP6DEj8u3bBuv44g3Ncnro6cPVqZAw6wTEcxHQuodkuJG4EmAinqrrRXGsN3HHnRRMtAvzfYTiBATV1"
-            );
+            account.extended_public_key,
+            "xpub6Bmkv3mmRZZWoFSBdj9vDMqR2PCPSP6DEj8u3bBuv44g3Ncnro6cPVqZAw6wTEcxHQuodkuJG4EmAinqrrRXGsN3HHnRRMtAvzfYTiBATV1"
+        );
         assert_eq!(
-                account.encrypted_extended_public_key,
-                "wAKUeR6fOGFL+vi50V+MdVSH58gLy8Jx7zSxywz0tN++l2E0UNG7zv+R1FVgnrqU6d0wl699Q/I7O618UxS7gnpFxkGuK0sID4fi7pGf9aivFxuKy/7AJJ6kOmXH1Rz6FCS6b8W7NKlzgbcZpJmDsQ=="
-            );
+            account.encrypted_extended_public_key,
+            "wAKUeR6fOGFL+vi50V+MdVSH58gLy8Jx7zSxywz0tN++l2E0UNG7zv+R1FVgnrqU6d0wl699Q/I7O618UxS7gnpFxkGuK0sID4fi7pGf9aivFxuKy/7AJJ6kOmXH1Rz6FCS6b8W7NKlzgbcZpJmDsQ=="
+        );
 
         remove_created_wallet(&import_result.id);
     })
@@ -125,7 +129,7 @@ pub fn test_import_mnemonic_invalid_params() {
                 network: "TESTNET".to_string(),
                 name: "test-wallet".to_string(),
                 password_hint: "imtoken".to_string(),
-                overwrite: true,
+                overwrite_id: "".to_string(),
             };
 
             let ret = call_api("import_mnemonic", param);
@@ -422,14 +426,14 @@ pub fn test_import_private_key() {
 pub fn test_filecoin_private_key_secp256k1_import() {
     run_test(|| {
         let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
-                private_key: "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226f354a6754767776725a774c5061513758326d4b4c6a386e4478634e685a6b537667315564434a317866593d227d"
-                    .to_string(),
-                password: TEST_PASSWORD.to_string(),
-                name: "test_filecoin_import_private_key".to_string(),
-                password_hint: "".to_string(),
-                network: "".to_string(),
-                overwrite: true,
-            };
+            private_key: "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226f354a6754767776725a774c5061513758326d4b4c6a386e4478634e685a6b537667315564434a317866593d227d"
+                .to_string(),
+            password: TEST_PASSWORD.to_string(),
+            name: "test_filecoin_import_private_key".to_string(),
+            password_hint: "".to_string(),
+            network: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
 
         let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
         let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
@@ -476,9 +480,9 @@ pub fn test_filecoin_private_key_secp256k1_import() {
         let export_pk: ExportPrivateKeyResult =
             ExportPrivateKeyResult::decode(export_pk_bytes.as_slice()).unwrap();
         assert_eq!(
-                export_pk.private_key,
-                "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226f354a6754767776725a774c5061513758326d4b4c6a386e4478634e685a6b537667315564434a317866593d227d"
-            );
+            export_pk.private_key,
+            "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226f354a6754767776725a774c5061513758326d4b4c6a386e4478634e685a6b537667315564434a317866593d227d"
+        );
 
         remove_created_wallet(&import_result.id);
     });
@@ -489,14 +493,14 @@ pub fn test_filecoin_private_key_secp256k1_import() {
 pub fn test_filecoin_private_key_bls_import() {
     run_test(|| {
         let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
-                private_key: "7b2254797065223a22626c73222c22507269766174654b6579223a2269376b4f2b7a78633651532b7637597967636d555968374d55595352657336616e6967694c684b463830383d227d"
-                    .to_string(),
-                password: TEST_PASSWORD.to_string(),
-                name: "test_filecoin_import_private_key".to_string(),
-                password_hint: "".to_string(),
-                network: "".to_string(),
-                overwrite: true,
-            };
+            private_key: "7b2254797065223a22626c73222c22507269766174654b6579223a2269376b4f2b7a78633651532b7637597967636d555968374d55595352657336616e6967694c684b463830383d227d"
+                .to_string(),
+            password: TEST_PASSWORD.to_string(),
+            name: "test_filecoin_import_private_key".to_string(),
+            password_hint: "".to_string(),
+            network: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
 
         let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
         let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
@@ -523,9 +527,9 @@ pub fn test_filecoin_private_key_bls_import() {
         assert_eq!(1, derived_accounts.accounts.len());
 
         assert_eq!(
-                "t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa",
-                derived_accounts.accounts[0].address
-            );
+            "t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa",
+            derived_accounts.accounts[0].address
+        );
 
         let export_param = ExportPrivateKeyParam {
             id: import_result.id.to_string(),
@@ -542,9 +546,9 @@ pub fn test_filecoin_private_key_bls_import() {
         let export_pk: ExportPrivateKeyResult =
             ExportPrivateKeyResult::decode(export_pk_bytes.as_slice()).unwrap();
         assert_eq!(
-                export_pk.private_key,
-                "7b2254797065223a22626c73222c22507269766174654b6579223a2269376b4f2b7a78633651532b7637597967636d555968374d55595352657336616e6967694c684b463830383d227d"
-            );
+            export_pk.private_key,
+            "7b2254797065223a22626c73222c22507269766174654b6579223a2269376b4f2b7a78633651532b7637597967636d555968374d55595352657336616e6967694c684b463830383d227d"
+        );
 
         remove_created_wallet(&import_result.id);
     });
@@ -609,7 +613,7 @@ pub fn test_fil_bls_tezos_reimport() {
                 name: "reimport".to_string(),
                 password_hint: "".to_string(),
                 network: "".to_string(),
-                overwrite: true,
+                overwrite_id: "".to_string(),
             };
 
             let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
@@ -647,14 +651,14 @@ pub fn test_fil_bls_tezos_reimport() {
 pub fn test_import_sr25519_private_key() {
     run_test(|| {
         let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
-                private_key: "0x416c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f"
-                    .to_string(),
-                password: TEST_PASSWORD.to_string(),
-                name: "test_64bytes_import_private_key".to_string(),
-                password_hint: "".to_string(),
-                network: "".to_string(),
-                overwrite: true,
-            };
+            private_key: "0x416c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f"
+                .to_string(),
+            password: TEST_PASSWORD.to_string(),
+            name: "test_64bytes_import_private_key".to_string(),
+            password_hint: "".to_string(),
+            network: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
 
         let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
         let import_result: ImportPrivateKeyResult =
@@ -705,9 +709,9 @@ pub fn test_import_sr25519_private_key() {
         let export_pk: ExportPrivateKeyResult =
             ExportPrivateKeyResult::decode(export_pk_bytes.as_slice()).unwrap();
         assert_eq!(
-                export_pk.private_key,
-                "0x406c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f"
-            );
+            export_pk.private_key,
+            "0x406c696365202020202020202020202020202020202020202020202020202020d172a74cda4c865912c32ba0a80a57ae69abae410e5ccb59dee84e2f4432db4f"
+        );
 
         let export_param = ExportJsonParam {
             id: import_result.id.to_string(),
@@ -736,7 +740,7 @@ pub fn test_import_to_pk_which_from_hd() {
             name: "test_import_to_pk_which_from_hd".to_string(),
             password_hint: "".to_string(),
             network: "".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
         };
 
         let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
@@ -1091,7 +1095,7 @@ pub fn test_import_hex_private_key() {
             name: "import_private_key_wallet".to_string(),
             password_hint: "".to_string(),
             network: "".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
         };
         let ret = call_api("import_private_key", param).unwrap();
         let import_result: ImportPrivateKeyResult =
@@ -1162,7 +1166,7 @@ pub fn test_import_wif_network_mismatch() {
             name: "import_private_key_wallet".to_string(),
             password_hint: "".to_string(),
             network: "".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
         };
         let ret = call_api("import_private_key", param);
         assert_eq!(
@@ -1176,7 +1180,7 @@ pub fn test_import_wif_network_mismatch() {
             name: "import_private_key_wallet".to_string(),
             password_hint: "".to_string(),
             network: "MAINNET".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
         };
         let ret = call_api("import_private_key", param);
         // let import_result: ImportPrivateKeyResult =
@@ -1192,7 +1196,7 @@ pub fn test_import_wif_network_mismatch() {
             name: "import_private_key_wallet".to_string(),
             password_hint: "".to_string(),
             network: "TESTNET".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
         };
         let ret = call_api("import_private_key", param).unwrap();
         let import_result: ImportPrivateKeyResult =
@@ -1273,4 +1277,279 @@ pub fn test_import_v3_keystore_json() {
             .to_string()
             .contains("6031564e7b2f5cc33737807b2e58daff870b590b"));
     })
+}
+
+#[test]
+#[serial]
+pub fn test_reset_password_mnemonic_tcx_ks() {
+    run_test(|| {
+        let import_param = ImportMnemonicParam {
+            mnemonic: TEST_MNEMONIC.to_string(),
+            password: TEST_PASSWORD.to_string(),
+            network: "MAINNET".to_string(),
+            name: "reset_password".to_string(),
+            password_hint: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
+        let ret = call_api("import_mnemonic", import_param).unwrap();
+        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+
+        let import_param = ImportMnemonicParam {
+            mnemonic: TEST_MNEMONIC.to_string(),
+            password: "new_password".to_string(),
+            network: "MAINNET".to_string(),
+            name: "reset_password".to_string(),
+            password_hint: "".to_string(),
+            overwrite_id: import_result.id,
+        };
+
+        let ret = call_api("import_mnemonic", import_param).unwrap();
+        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+
+        let export_param = ExportMnemonicParam {
+            id: import_result.id.to_string(),
+            key: Some(Key::Password("new_password".to_string())),
+        };
+
+        let ret = call_api("export_mnemonic", export_param).unwrap();
+        let export_result = ExportMnemonicResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(TEST_MNEMONIC.to_string(), export_result.mnemonic);
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_reset_password_mnemonic_old_tcx_ks() {
+    run_test(|| {
+        let filenames = vec![
+            (
+                "0a2756cd-ff70-437b-9bdb-ad46b8bb0819.json",
+                TEST_MNEMONIC.to_string(),
+            ),
+            (
+                "00fc0804-7cea-46d8-9e95-ed1efac65358",
+                TEST_MNEMONIC.to_string(),
+            ),
+            (
+                "6c3eae60-ad03-48db-a5e5-61a6f72aef8d",
+                TEST_MNEMONIC.to_string(),
+            ),
+            (
+                "6c20aab6-1596-456d-9749-212e6139c5ed",
+                OTHER_MNEMONIC.to_string(),
+            ),
+            (
+                "9b696367-69c1-4cfe-8325-e5530399fc3f",
+                OTHER_MNEMONIC.to_string(),
+            ),
+            (
+                "9e3e1a17-ccad-4d93-98ab-cfe1e3f82ed3",
+                OTHER_MNEMONIC.to_string(),
+            ),
+            (
+                "300b42bc-0948-4734-82cb-4293dfeeefd2.json",
+                OTHER_MNEMONIC.to_string(),
+            ),
+            (
+                "792a0051-16d7-44a7-921a-9b4a0c893b8f",
+                OTHER_MNEMONIC.to_string(),
+            ),
+            (
+                "0597526e-105f-425b-bb44-086fc9dc9568",
+                TEST_MNEMONIC.to_string(),
+            ),
+            (
+                "ac59ccc1-285b-47a7-92f5-a6c432cee21a",
+                TEST_MNEMONIC.to_string(),
+            ),
+        ];
+        for (name, mnemonic) in filenames {
+            let target_file_path = format!("/tmp/imtoken/wallets/{}", name);
+            let keystore_id = if name.ends_with(".json") {
+                name.replace(".json", "")
+            } else {
+                name.to_string()
+            };
+
+            fs::copy(
+                format!("../test-data/wallets-ios-2_14_1/{}", name),
+                &target_file_path,
+            )
+            .unwrap();
+            let overwrite_id = if name.ends_with(".json") {
+                name.replace(".json", "")
+            } else {
+                name.to_string()
+            };
+            let import_param = ImportMnemonicParam {
+                mnemonic: mnemonic.to_string(),
+                password: "new_password".to_string(),
+                network: "MAINNET".to_string(),
+                name: "reset_password".to_string(),
+                password_hint: "".to_string(),
+                overwrite_id: overwrite_id.to_string(),
+            };
+            let ret = call_api("import_mnemonic", import_param).unwrap();
+            let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+
+            let export_param = ExportMnemonicParam {
+                id: import_result.id.to_string(),
+                key: Some(Key::Password("new_password".to_string())),
+            };
+
+            let ret = call_api("export_mnemonic", export_param).unwrap();
+            let export_result = ExportMnemonicResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(mnemonic.to_string(), export_result.mnemonic);
+            let param = WalletKeyParam {
+                id: overwrite_id.to_string(),
+                key: Some(tcx::api::wallet_key_param::Key::Password(
+                    "new_password".to_string(),
+                )),
+            };
+            call_api("delete_keystore", param).unwrap();
+            delete_dir_contents("/tmp/imtoken/walletsV2");
+            delete_dir_contents("/tmp/imtoken/wallets");
+        }
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_reset_password_private_tcx_ks() {
+    run_test(|| {
+        let filenames = vec![
+            ("4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca.json", "ETHEREUM", "secp256k1", "685634d212eabe016a1cb09d9f1ea1ea757ebe590b9a097d7b1c9379ad280171".to_string()),
+            ("4d5cbfcf-aee1-4908-9991-9d060eb68a0e.json", "TEZOS", "ed25519", "edskS3E5CLrkwHRYAbDvw5xC913C9GGseMcyNGeGbeaD57Yvvi2jqizpAAZyzUtRK626UvkKYdJwCYE9oKMcqFCtJeBpDYcrVH".to_string()),
+            ("9f4acb4a-7431-4c7d-bd25-a19656a86ea0", "BITCOIN", "secp256k1", "L1xDTJYPqhofU8DQCiwjStEBr1X6dhiNfweUhxhoRSgYyMJPcZ6B".to_string()),
+            ("46e8e653-dd05-4217-b225-faafc8451a2c.json", "LITECOIN", "secp256k1", "TBRMznXcDf2HK2jBKJsqjBpsEdaiaZUBGKN8aKdwTMrPnMNB5UQM".to_string()),
+            ("483cb13e-5e59-4428-a219-018de4ce60f6.json", "BITCOINCASH", "secp256k1", "L1xDTJYPqhofU8DQCiwjStEBr1X6dhiNfweUhxhoRSgYyMJPcZ6B".to_string()),
+            ("a7294912-b24f-44ba-86c1-48d76117808a.json", "FILECOIN", "secp256k1", "7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226f354a6754767776725a774c5061513758326d4b4c6a386e4478634e685a6b537667315564434a317866593d227d".to_string()),
+            ("d9e3bb9c-87fd-4836-b146-10a3e249eb75", "BITCOIN", "secp256k1", "L1xDTJYPqhofU8DQCiwjStEBr1X6dhiNfweUhxhoRSgYyMJPcZ6B".to_string()),
+            ("fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb.json", "FILECOIN", "bls12-381", "7b2254797065223a22626c73222c22507269766174654b6579223a2269376b4f2b7a78633651532b7637597967636d555968374d55595352657336616e6967694c684b463830383d227d".to_string())];
+        for (name, chain, curve, private_key) in filenames {
+            let target_file_path = format!("/tmp/imtoken/wallets/{}", name);
+
+            fs::copy(
+                format!("../test-data/wallets-ios-2_14_1/{}", name),
+                &target_file_path,
+            )
+            .unwrap();
+            let overwrite_id = if name.ends_with(".json") {
+                name.replace(".json", "")
+            } else {
+                name.to_string()
+            };
+
+            let import_param = ImportPrivateKeyParam {
+                private_key: private_key.to_string(),
+                password: "new_password".to_string(),
+                network: "MAINNET".to_string(),
+                name: "reset_password".to_string(),
+                password_hint: "".to_string(),
+                overwrite_id: overwrite_id.to_string(),
+            };
+
+            let ret = call_api("import_private_key", import_param).unwrap();
+            let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+
+            let export_param = ExportPrivateKeyParam {
+                id: import_result.id.to_string(),
+                chain_type: chain.to_string(),
+                network: "MAINNET".to_string(),
+                curve: curve.to_string(),
+                path: "".to_string(),
+                key: Some(tcx::api::export_private_key_param::Key::Password(
+                    "new_password".to_string(),
+                )),
+            };
+
+            let ret = call_api("export_private_key", export_param).unwrap();
+            let export_result = ExportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(private_key.to_string(), export_result.private_key);
+            let param = WalletKeyParam {
+                id: overwrite_id.to_string(),
+                key: Some(tcx::api::wallet_key_param::Key::Password(
+                    "new_password".to_string(),
+                )),
+            };
+            call_api("delete_keystore", param).unwrap();
+            delete_dir_contents("/tmp/imtoken/walletsV2");
+            delete_dir_contents("/tmp/imtoken/wallets");
+        }
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_reset_password_private_seed_aready_exist() {
+    run_test(|| {
+        let import_param = ImportPrivateKeyParam {
+            private_key: TEST_WIF.to_string(),
+            password: "new_password".to_string(),
+            network: "TESTNET".to_string(),
+            name: "reset_password".to_string(),
+            password_hint: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
+
+        let ret = call_api("import_private_key", import_param).unwrap();
+        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+        let import_param = ImportPrivateKeyParam {
+            private_key: TEST_WIF.to_string(),
+            password: "new_password".to_string(),
+            network: "MAINNET".to_string(),
+            name: "reset_password".to_string(),
+            password_hint: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
+
+        let ret = call_api("import_private_key", import_param);
+        assert_eq!(format!("{}", ret.err().unwrap()), "seed_already_exist");
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_reset_password_private_not_overwrite() {
+    run_test(|| {
+        let import_param = ImportPrivateKeyParam {
+            private_key: TEST_WIF.to_string(),
+            password: "new_password".to_string(),
+            network: "TESTNET".to_string(),
+            name: "reset_password".to_string(),
+            password_hint: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
+
+        let ret = call_api("import_private_key", import_param).unwrap();
+        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+        let import_param = ImportPrivateKeyParam {
+            private_key: TEST_PRIVATE_KEY.to_string(),
+            password: "new_password".to_string(),
+            network: "MAINNET".to_string(),
+            name: "reset_password".to_string(),
+            password_hint: "".to_string(),
+            overwrite_id: import_result.id,
+        };
+
+        let ret = call_api("import_private_key", import_param);
+        assert_eq!(format!("{}", ret.err().unwrap()), "seed_not_equals");
+    })
+}
+
+fn delete_dir_contents(path: &str) {
+    let read_dir_res = fs::read_dir(path);
+    if let Ok(dir) = read_dir_res {
+        for entry in dir {
+            if let Ok(entry) = entry {
+                let path = entry.path();
+
+                if path.is_dir() {
+                    fs::remove_dir_all(path).expect("Failed to remove a dir");
+                } else {
+                    fs::remove_file(path).expect("Failed to remove a file");
+                }
+            };
+        }
+    };
 }

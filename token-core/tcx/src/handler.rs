@@ -73,6 +73,7 @@ use crate::macros::{impl_to_key, use_chains};
 use crate::migration::{
     read_all_identity_wallet_ids, remove_all_identity_wallets, remove_old_keystore_by_id,
 };
+use crate::reset_password::assert_seed_equals;
 
 use_chains!(
     tcx_btc_kin::bitcoin,
@@ -129,7 +130,7 @@ fn key_data_from_any_format_pk(pk: &str) -> Result<Vec<u8>> {
     }
 }
 
-fn fingerprint_from_any_format_pk(pk: &str) -> Result<String> {
+pub(crate) fn fingerprint_from_any_format_pk(pk: &str) -> Result<String> {
     let key_data = if pk.starts_with("edsk") {
         parse_tezos_private_key(pk)?
     } else {
@@ -143,6 +144,7 @@ fn import_private_key_internal(
     source: Option<Source>,
     original: Option<String>,
 ) -> Result<ImportPrivateKeyResult> {
+    let overwrite_id = param.overwrite_id.to_string();
     let mut founded_id: Option<String> = None;
     {
         let fingerprint = fingerprint_from_any_format_pk(&param.private_key)?;
@@ -155,8 +157,13 @@ fn import_private_key_internal(
         }
     }
 
-    if founded_id.is_some() && !param.overwrite {
-        return Err(anyhow!("{}", "address_already_exist"));
+    if founded_id.is_some() && Some(overwrite_id.to_string()) != founded_id {
+        return Err(anyhow!("{}", "seed_already_exist"));
+    }
+
+    if !overwrite_id.is_empty() {
+        assert_seed_equals(&overwrite_id, &param.private_key, false)?;
+        founded_id = Some(overwrite_id);
     }
 
     let decoded_ret = decode_private_key(&param.private_key)?;
@@ -225,15 +232,15 @@ fn import_private_key_internal(
     Ok(wallet)
 }
 
-struct DecodedPrivateKey {
-    bytes: Vec<u8>,
+pub(crate) struct DecodedPrivateKey {
+    pub bytes: Vec<u8>,
     network: String,
     curve: CurveType,
     chain_types: Vec<String>,
     source: Source,
 }
 
-fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
+pub(crate) fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey> {
     let private_key_bytes: Vec<u8>;
     let mut network = "".to_string();
     let mut chain_types: Vec<String> = vec![];
@@ -525,8 +532,13 @@ pub fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
         }
     }
 
-    if founded_id.is_some() && !param.overwrite {
-        return Err(anyhow!("{}", "address_already_exist"));
+    if founded_id.is_some() && Some(param.overwrite_id.to_string()) != founded_id {
+        return Err(anyhow!("{}", "seed_already_exist"));
+    }
+
+    if !param.overwrite_id.is_empty() {
+        assert_seed_equals(param.overwrite_id.as_str(), &param.mnemonic, true)?;
+        founded_id = Some(param.overwrite_id);
     }
 
     let meta = Metadata {
@@ -947,7 +959,7 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
             name,
             password_hint: "".to_string(),
             network: "".to_string(),
-            overwrite: param.overwrite,
+            overwrite_id: "".to_string(),
         };
         let mut ret = import_private_key_internal(
             &pk_import_param,
@@ -968,7 +980,7 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
             name,
             password_hint: "".to_string(),
             network: "".to_string(),
-            overwrite: param.overwrite,
+            overwrite_id: "".to_string(),
         };
         let mut ret = import_private_key_internal(
             &pk_import_param,
@@ -1280,6 +1292,13 @@ pub(crate) fn eth_batch_personal_sign(data: &[u8]) -> Result<Vec<u8>> {
     let signatures = batch_personal_sign(keystore.keystore_mut(), param.data, &param.path)?;
 
     encode_message(EthBatchPersonalSignResult { signatures })
+}
+
+pub(crate) fn private_key_to_account_dynamic(
+    coin_info: &CoinInfo,
+    sec_key: &[u8],
+) -> Result<Account> {
+    private_key_to_account_internal(coin_info, sec_key)
 }
 
 #[cfg(test)]
