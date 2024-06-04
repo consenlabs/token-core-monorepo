@@ -35,7 +35,7 @@ pub fn test_derive_accounts() {
             network: "TESTNET".to_string(),
             name: "test-wallet".to_string(),
             password_hint: "imtoken".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
         };
         let ret = call_api("import_mnemonic", param).unwrap();
         let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
@@ -408,7 +408,7 @@ pub fn test_get_pubkey_keys() {
             password: TEST_PASSWORD.to_string(),
             name: "test-wallet".to_string(),
             password_hint: "imtoken".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
             network: "TESTNET".to_string(),
         };
         let ret = call_api("import_mnemonic", param).unwrap();
@@ -620,7 +620,7 @@ fn polkadotjs_cross_test() {
             network: "TESTNET".to_string(),
             name: "test-wallet".to_string(),
             password_hint: "imtoken".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
         };
         let ret = import_mnemonic(&encode_message(param).unwrap()).unwrap();
         let wallet = KeystoreResult::decode(ret.as_slice()).unwrap();
@@ -736,7 +736,7 @@ fn test_derive_other_curve_on_pk_keystore() {
             name: "hex pk".to_string(),
             password_hint: "".to_string(),
             network: "".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
         };
         let ret = call_api("import_private_key", param).unwrap();
         let imported = ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();

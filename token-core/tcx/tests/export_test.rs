@@ -72,7 +72,7 @@ pub fn test_tezos_import_private_key_export() {
                 name: "test_tezos_import_private_key_export".to_string(),
                 password_hint: "".to_string(),
                 network: "".to_string(),
-                overwrite: true,
+                 overwrite_id: "".to_string(),
             };
 
         let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
@@ -664,7 +664,7 @@ pub fn test_backup_private_key() {
             name: "".to_string(),
             password_hint: "".to_string(),
             network: "TESTNET".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
         };
         let ret = call_api("import_private_key", param).unwrap();
         let import_result: ImportPrivateKeyResult =
@@ -726,7 +726,7 @@ pub fn test_backup_mnemonic() {
             password_hint: "".to_string(),
             name: "".to_string(),
             network: "MAINNET".to_string(),
-            overwrite: true,
+            overwrite_id: "".to_string(),
         };
         let ret = call_api("import_mnemonic", param).unwrap();
         let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();

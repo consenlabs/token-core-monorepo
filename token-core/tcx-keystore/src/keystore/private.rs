@@ -28,6 +28,24 @@ pub fn fingerprint_from_private_key(data: &[u8]) -> Result<String> {
     Ok(hashed.to_0x_hex())
 }
 
+pub fn private_key_to_account<A: Address>(coin: &CoinInfo, private_key: &[u8]) -> Result<Account> {
+    let tsk = TypedPrivateKey::from_slice(coin.curve, private_key)?;
+    let pub_key = tsk.public_key();
+    let address = A::from_public_key(&pub_key, coin)?;
+
+    let acc = Account {
+        address: address.to_string(),
+        derivation_path: "".to_string(),
+        curve: coin.curve,
+        coin: coin.coin.to_owned(),
+        network: coin.network.to_string(),
+        seg_wit: coin.seg_wit.to_string(),
+        ext_pub_key: "".to_string(),
+        public_key: pub_key,
+    };
+
+    Ok(acc)
+}
 #[derive(Clone)]
 pub struct PrivateKeystore {
     store: Store,
@@ -83,7 +101,7 @@ impl PrivateKeystore {
             "private_key_curve_not_match"
         );
 
-        let account = Self::private_key_to_account::<A>(coin_info, sk)?;
+        let account = private_key_to_account::<A>(coin_info, sk)?;
 
         Ok(account)
     }
@@ -137,28 +155,6 @@ impl PrivateKeystore {
             store,
             private_key: None,
         })
-    }
-
-    pub(crate) fn private_key_to_account<A: Address>(
-        coin: &CoinInfo,
-        private_key: &[u8],
-    ) -> Result<Account> {
-        let tsk = TypedPrivateKey::from_slice(coin.curve, private_key)?;
-        let pub_key = tsk.public_key();
-        let address = A::from_public_key(&pub_key, coin)?;
-
-        let acc = Account {
-            address: address.to_string(),
-            derivation_path: "".to_string(),
-            curve: coin.curve,
-            coin: coin.coin.to_owned(),
-            network: coin.network.to_string(),
-            seg_wit: coin.seg_wit.to_string(),
-            ext_pub_key: "".to_string(),
-            public_key: pub_key,
-        };
-
-        Ok(acc)
     }
 
     fn decrypt_private_key(&self, key: &Key) -> Result<Vec<u8>> {

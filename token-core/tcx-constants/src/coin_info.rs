@@ -13,7 +13,7 @@ pub fn get_xpub_prefix(network: &str) -> Vec<u8> {
     }
 }
 /// Blockchain basic config
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct CoinInfo {
     pub coin: String,
     pub derivation_path: String,

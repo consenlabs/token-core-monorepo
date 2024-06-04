@@ -15,7 +15,7 @@ use tcx_constants::{CoinInfo, CurveType};
 pub use self::{
     guard::KeystoreGuard, hd::fingerprint_from_mnemonic, hd::fingerprint_from_seed,
     hd::mnemonic_to_seed, hd::HdKeystore, private::fingerprint_from_private_key,
-    private::PrivateKeystore,
+    private::private_key_to_account, private::PrivateKeystore,
 };
 
 use crate::identity::Identity;

@@ -19,6 +19,7 @@ use std::path::Path;
 use std::str::FromStr;
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::coin_info::get_xpub_prefix;
+use tcx_constants::CoinInfo;
 use tcx_eth::address::to_checksum;
 use tcx_keystore::keystore::IdentityNetwork;
 use tcx_keystore::Metadata;
@@ -346,7 +347,6 @@ pub(crate) fn scan_legacy_keystores() -> Result<ScanLegacyKeystoresResult> {
         if version == 11000 || version == 11001 {
             // let keystore = Keystore::from_json(&contents)?;
             let mut keystore_result = parse_tcx_keystore(&v)?;
-            dbg!(&keystore_result);
             keystore_result.source =
                 merge_migrate_source(&keystore_result.id, &keystore_result.source);
             keystores.push(keystore_result);
@@ -520,6 +520,7 @@ fn merge_migrate_source(id: &str, ori_source: &str) -> String {
         ori_source.to_string()
     }
 }
+
 #[cfg(test)]
 mod tests {
     use std::fs;

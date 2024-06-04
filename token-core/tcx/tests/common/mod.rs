@@ -67,7 +67,7 @@ pub fn import_default_wallet() -> KeystoreResult {
         network: "TESTNET".to_string(),
         name: "test-wallet".to_string(),
         password_hint: "imtoken".to_string(),
-        overwrite: true,
+        overwrite_id: "".to_string(),
     };
     let ret = import_mnemonic(&encode_message(param).unwrap()).unwrap();
     KeystoreResult::decode(ret.as_slice()).unwrap()
@@ -80,7 +80,7 @@ pub fn import_default_pk_store() -> ImportPrivateKeyResult {
         name: "import_default_pk_store".to_string(),
         password_hint: "".to_string(),
         network: "".to_string(),
-        overwrite: true,
+        overwrite_id: "".to_string(),
     };
 
     let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
@@ -94,7 +94,7 @@ pub fn import_filecoin_pk_store() -> KeystoreResult {
         name: "import_filecoin_pk_store".to_string(),
         password_hint: "".to_string(),
         network: "".to_string(),
-        overwrite: true,
+        overwrite_id: "".to_string(),
     };
 
     let ret = import_private_key(&encode_message(param).unwrap()).unwrap();

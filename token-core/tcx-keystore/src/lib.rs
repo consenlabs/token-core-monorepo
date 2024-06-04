@@ -24,8 +24,8 @@ mod signer;
 
 pub use keystore::{
     fingerprint_from_mnemonic, fingerprint_from_private_key, fingerprint_from_seed,
-    mnemonic_to_seed, Account, Address, HdKeystore, Keystore, KeystoreGuard, Metadata,
-    PrivateKeystore, PublicKeyEncoder, Source,
+    mnemonic_to_seed, private_key_to_account, Account, Address, HdKeystore, Keystore,
+    KeystoreGuard, Metadata, PrivateKeystore, PublicKeyEncoder, Source,
 };
 
 pub use signer::{MessageSigner, SignatureParameters, Signer, TransactionSigner};
