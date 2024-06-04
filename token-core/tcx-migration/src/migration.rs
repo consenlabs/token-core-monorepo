@@ -1,5 +1,8 @@
 use anyhow::anyhow;
-use serde::{Deserialize, Serialize};
+use serde::de::DeserializeOwned;
+use serde::{de, Deserialize, Deserializer, Serialize};
+use serde_json::Value;
+use std::collections::BTreeMap as Map;
 use std::str::FromStr;
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::{coin_info_from_param, CurveType};
@@ -93,6 +96,7 @@ pub struct EOSKeyPath {
 pub struct LegacyKeystore {
     pub version: i32,
     pub id: String,
+    #[serde(alias = "Crypto", alias = "crypto")]
     pub crypto: Crypto,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub enc_mnemonic: Option<EncPair>,
@@ -105,6 +109,19 @@ pub struct LegacyKeystore {
     pub im_token_meta: Option<OldMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key_path_privates: Option<Vec<EOSKeyPath>>,
+}
+
+fn case_insensitive<'de, T, D>(deserializer: D) -> std::result::Result<T, D::Error>
+where
+    T: DeserializeOwned,
+    D: Deserializer<'de>,
+{
+    let map = Map::<String, Value>::deserialize(deserializer)?;
+    let lower = map
+        .into_iter()
+        .map(|(k, v)| (k.to_lowercase(), v))
+        .collect();
+    T::deserialize(Value::Object(lower)).map_err(de::Error::custom)
 }
 
 impl LegacyKeystore {
@@ -318,7 +335,7 @@ mod tests {
 
     fn v44_bitcoin_mnemonic_1() -> (&'static str, &'static str) {
         (
-        include_str!("../tests/fixtures/02a55ab6-554a-4e78-bc26-6a7acced7e5e.json"),
+            include_str!("../tests/fixtures/02a55ab6-554a-4e78-bc26-6a7acced7e5e.json"),
             "7f3ebdfe19a22e6a64be6834f61f9c79e9502a60e6b22f89654b1daae19ad2bf0c7556398713452d8bbecaae9cec1dbf116cfea89a15d4b1c23570fb95a34443",
         )
     }
@@ -329,7 +346,7 @@ mod tests {
 
     fn v3_eos_private_key() -> (&'static str, &'static str) {
         (include_str!("../tests/fixtures/42c275c6-957a-49e8-9eb3-43c21cbf583f.json"),
-            "6ecb361252e42b4f4e2dcd2e0c3331e8a58cb1522aee0dfad6d950b681d48fc78f11a3b12c05a56899339eef24109ea0c7c0287a1427232f04be9004fbf8f7b4")
+         "6ecb361252e42b4f4e2dcd2e0c3331e8a58cb1522aee0dfad6d950b681d48fc78f11a3b12c05a56899339eef24109ea0c7c0287a1427232f04be9004fbf8f7b4")
     }
 
     fn v3_eth_private_key() -> (&'static str, &'static str) {
@@ -339,10 +356,17 @@ mod tests {
         )
     }
 
+    fn v3_eth_keystore_capital_crypto_field() -> (&'static str, &'static str) {
+        (
+            include_str!("../tests/fixtures/045861fe-0e9b-4069-92aa-0ac03cad55e1.json"),
+            "d71eb325f9c20b9d84cbf44bb9a952d9a27f92672ea04de44843ca6dca3214de81ed31e0d784cd8389231057f99f9bb7caecefb578b349a355c320cd47fbb6f2",
+        )
+    }
+
     fn v3_eth_mnemonic() -> (&'static str, &'static str) {
         (
-        include_str!("../tests/fixtures/175169f7-5a35-4df7-93c1-1ff612168e71.json"),
-           "3223cd3abf2422d0ad3503f73aaa6e7e36a555385c6825b383908c1e8acf5e9d9a4c751809473c75599a632fe5b1437f51a3a848e054d9c170f8c3b5c5701b8b",
+            include_str!("../tests/fixtures/175169f7-5a35-4df7-93c1-1ff612168e71.json"),
+            "3223cd3abf2422d0ad3503f73aaa6e7e36a555385c6825b383908c1e8acf5e9d9a4c751809473c75599a632fe5b1437f51a3a848e054d9c170f8c3b5c5701b8b",
         )
     }
 
@@ -352,15 +376,15 @@ mod tests {
 
     fn ios_metadata() -> (&'static str, &'static str) {
         (
-        include_str!("../tests/fixtures/5991857a-2488-4546-b730-463a5f84ea6a"),
-        "3223cd3abf2422d0ad3503f73aaa6e7e36a555385c6825b383908c1e8acf5e9d9a4c751809473c75599a632fe5b1437f51a3a848e054d9c170f8c3b5c5701b8b",
+            include_str!("../tests/fixtures/5991857a-2488-4546-b730-463a5f84ea6a"),
+            "3223cd3abf2422d0ad3503f73aaa6e7e36a555385c6825b383908c1e8acf5e9d9a4c751809473c75599a632fe5b1437f51a3a848e054d9c170f8c3b5c5701b8b",
         )
     }
 
     fn metadata_missing_password_hint() -> (&'static str, &'static str) {
         (
-        include_str!("../tests/fixtures/6f8c2912-ebe8-4359-90f4-f1d1f1af1e4d"),
-        "3223cd3abf2422d0ad3503f73aaa6e7e36a555385c6825b383908c1e8acf5e9d9a4c751809473c75599a632fe5b1437f51a3a848e054d9c170f8c3b5c5701b8b",
+            include_str!("../tests/fixtures/6f8c2912-ebe8-4359-90f4-f1d1f1af1e4d"),
+            "3223cd3abf2422d0ad3503f73aaa6e7e36a555385c6825b383908c1e8acf5e9d9a4c751809473c75599a632fe5b1437f51a3a848e054d9c170f8c3b5c5701b8b",
         )
     }
 
@@ -453,6 +477,31 @@ mod tests {
 
         assert_eq!(keystore.derivable(), false);
         assert_eq!(keystore.id(), "045861fe-0e9b-4069-92aa-0ac03cad55e0");
+
+        let coin_info = CoinInfo {
+            coin: "ETHEREUM".to_string(),
+            derivation_path: "".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        keystore.unlock(&key).unwrap();
+        let acc = keystore.derive_coin::<EthAddress>(&coin_info).unwrap();
+        assert_eq!("0x41983f2e3Af196C1Df429A3fF5cDECC45c82c600", acc.address);
+    }
+
+    #[test]
+    fn test_v3_ethereum_keystore_capital_crypto_field() {
+        let (keystore_str, derived_key) = v3_eth_keystore_capital_crypto_field();
+        let ks = LegacyKeystore::from_json_str(keystore_str).unwrap();
+
+        //password Insecure Pa55w0rd
+        let key = Key::DerivedKey(derived_key.to_owned());
+        let mut keystore = ks.migrate(&key, &IdentityNetwork::Testnet).unwrap();
+
+        assert_eq!(keystore.derivable(), false);
+        assert_eq!(keystore.id(), "045861fe-0e9b-4069-92aa-0ac03cad55e1");
 
         let coin_info = CoinInfo {
             coin: "ETHEREUM".to_string(),

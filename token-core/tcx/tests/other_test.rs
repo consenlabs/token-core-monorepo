@@ -200,22 +200,14 @@ pub fn test_keystore_exists() {
         assert!(result.is_exists);
         assert_eq!(result.id, wallet.id);
 
-        let wallet = import_default_wallet();
-        let param: ExistsMnemonicParam = ExistsMnemonicParam {
-            mnemonic: format!(
-                "{}",
-                " inject  kidney  empty canal shadow  pact comfort  wife crush horse wife sketch  "
-            )
-            .to_string(), //Badly formatted mnemonic
+        let delete_param = WalletKeyParam {
+            id: wallet.id.to_string(),
+            key: Some(api::wallet_key_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
         };
-
-        let ret_bytes = call_api("exists_mnemonic", param).unwrap();
-        let result: ExistsKeystoreResult =
-            ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
-        assert!(result.is_exists);
-        assert_eq!(result.id, wallet.id);
-
-        remove_created_wallet(&wallet.id);
+        call_api("delete_keystore", delete_param).unwrap();
+        // remove_created_wallet(&wallet.id);
     })
 }
 

@@ -404,7 +404,14 @@ pub fn test_export_private_key() {
 
             // test export as mainnet
             assert_eq!(pks[idx], export_result.private_key);
-            remove_created_wallet(&import_result.id);
+            let delete_param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_string(),
+                )),
+            };
+            call_api("delete_keystore", delete_param).unwrap();
+            // remove_created_wallet(&import_result.id);
         }
     })
 }
