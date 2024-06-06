@@ -3,7 +3,7 @@ use crate::Result;
 use bitcoin::schnorr::UntweakedPublicKey;
 use bitcoin::util::base58;
 use bitcoin::util::bip32::{ChainCode, ChildNumber, ExtendedPubKey};
-use bitcoin::{Address, Network, PublicKey};
+use bitcoin::{Address, AddressType, Network, PublicKey};
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
 use ikc_common::utility::{hex_to_bytes, sha256_hash};
@@ -98,7 +98,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
             } else if address.starts_with("bc1") {
                 'b' as u8
             } else {
-                return Err(CoinError::AddressTypeMismatch.into());
+                return Err(CoinError::InvalidAddress.into());
             }
         }
         Network::Testnet => {
@@ -108,7 +108,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
             } else if address.starts_with("tb1") {
                 't' as u8
             } else {
-                return Err(CoinError::AddressTypeMismatch.into());
+                return Err(CoinError::InvalidAddress.into());
             }
         }
         _ => {

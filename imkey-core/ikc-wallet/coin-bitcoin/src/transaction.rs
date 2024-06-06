@@ -4,9 +4,12 @@ use crate::Result;
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};
 use bitcoin::hashes::hex::FromHex;
+use bitcoin::psbt::Prevouts;
+use bitcoin::util::sighash::Annex;
+use bitcoin::util::taproot::TapLeafHash;
 use bitcoin::{
-    Address, EcdsaSighashType, Network, OutPoint, PackedLockTime, Script, Sequence, Transaction,
-    TxIn, TxOut, WPubkeyHash, Witness,
+    Address, EcdsaSighashType, Network, OutPoint, PackedLockTime, SchnorrSighashType, Script,
+    Sequence, Transaction, TxIn, TxOut, WPubkeyHash, Witness,
 };
 use bitcoin_hashes::hash160;
 use bitcoin_hashes::hex::ToHex;
@@ -21,6 +24,7 @@ use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::ecdsa::Signature;
+use std::borrow::Borrow;
 use std::str::FromStr;
 
 #[derive(Clone)]
@@ -576,7 +580,7 @@ impl BtcTransaction {
         output_pareper_data.extend(output_serialize_data.iter());
 
         // let btc_prepare_apdu_vec = BtcApdu::btc_prepare(0x41, 0x00, &output_pareper_data);//TODO legacy 是41 segwit是31
-        let btc_prepare_apdu_vec = BtcApdu::btc_prepare(0x31, 0x00, &output_pareper_data);
+        let btc_prepare_apdu_vec = BtcApdu::btc_prepare(0x41, 0x00, &output_pareper_data);
         for temp_str in btc_prepare_apdu_vec {
             ApduCheck::check_response(&send_apdu_timeout(temp_str, TIMEOUT_LONG)?)?;
         }
@@ -613,9 +617,10 @@ impl BtcTransaction {
         pub_key: &str,
         transaction: &mut Transaction,
     ) -> Result<()> {
+        let mut input_data_vec = vec![];
         for (x, temp_utxo) in self.unspents.iter().enumerate() {
-            let mut input_data_vec = vec![];
-            input_data_vec.push(x as u8);
+            // let mut input_data_vec = vec![];
+            // input_data_vec.push(0 as u8);
 
             let mut temp_serialize_txin = TxIn {
                 previous_output: OutPoint {
@@ -630,15 +635,25 @@ impl BtcTransaction {
                 temp_serialize_txin.script_sig =
                     Script::from(Vec::from_hex(temp_utxo.script_pubkey.as_str())?);
             }
+
             input_data_vec.extend_from_slice(serialize(&temp_serialize_txin).as_slice());
-            let btc_perpare_apdu = BtcApdu::btc_perpare_input(0x80, &input_data_vec);
-            ApduCheck::check_response(&send_apdu(btc_perpare_apdu)?)?;
+            // let btc_perpare_apdu = BtcApdu::btc_perpare_input(0x80, &input_data_vec);
+            // ApduCheck::check_response(&send_apdu(btc_perpare_apdu)?)?;
         }
-        let btc_sign_apdu = BtcApdu::btc_sign(
+        println!("序列化结果-->{}", hex::encode(&input_data_vec));
+        let btc_perpare_apdu_list = BtcApdu::btc_single_utxo_sign_prepare(0x46, &input_data_vec);
+        for apdu in btc_perpare_apdu_list {
+            // println!("0000000000>{}", apdu.clone());
+            ApduCheck::check_response(&send_apdu(apdu)?)?;
+        }
+
+
+        let btc_sign_apdu = BtcApdu::btc_single_utxo_sign(
             idx as u8,
             EcdsaSighashType::All.to_u32() as u8,
             self.unspents.get(idx).unwrap().derive_path.as_str(),
         );
+        println!("btc_sign_apdu-->{}", btc_sign_apdu);
         //sign data
         let btc_sign_apdu_return = send_apdu(btc_sign_apdu)?;
         ApduCheck::check_response(&btc_sign_apdu_return)?;
@@ -742,6 +757,7 @@ impl BtcTransaction {
         signature_obj.normalize_s();
         //generator der sign data
         let mut sign_result_vec = signature_obj.serialize_der().to_vec();
+        println!("sign result-->{}", hex::encode(&sign_result_vec));
         //add hash type
         sign_result_vec.push(EcdsaSighashType::All.to_u32() as u8);
 
@@ -857,8 +873,107 @@ impl BtcTransaction {
         Ok(())
     }
 
-    fn sign_p2tr_input(&self, idx: usize, pub_key: &str) -> Result<Script> {
-        Ok(Script::new())
+    fn sign_p2tr_input<T: Borrow<TxOut>>(
+        &self,
+        idx: usize,
+        pub_key: &str,
+        transaction: &mut Transaction,
+        prevouts: &Prevouts<T>,
+        annex: Option<Annex>,
+        leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
+        sighash_type: SchnorrSighashType,
+    ) -> Result<()> {
+        let mut txinputs: Vec<TxIn> = vec![];
+        let mut txhash_vout_vec = vec![];
+        let mut sequence_vec: Vec<u8> = vec![];
+        let mut sign_apdu_vec: Vec<String> = vec![];
+        for (index, unspent) in self.unspents.iter().enumerate() {
+            let txin = TxIn {
+                previous_output: OutPoint {
+                    txid: bitcoin::hash_types::Txid::from_hex(&unspent.txhash)?,
+                    vout: unspent.vout,
+                },
+                script_sig: Script::new(),
+                sequence: Sequence::MAX,
+                witness: Witness::default(),
+            };
+
+            txhash_vout_vec.extend(serialize(&txin.previous_output).iter());
+            sequence_vec.extend(serialize(&txin.sequence).iter());
+
+            let mut data: Vec<u8> = vec![];
+            data.push(0u8);//epoch
+            data.push(sighash_type as u8);//hash_type
+            data.push(transaction.version as u8);//nVersion (4)
+            data.extend(serialize(&transaction.lock_time));//nLockTime (4)
+            //txhash and vout
+            let txhash_data = serialize(&txin.previous_output);
+            data.extend(txhash_data.iter());
+
+            //lock script
+            let script = unspent
+                .address
+                .script_pubkey()
+                .p2wpkh_script_code()
+                .expect("must be v0_p2wpkh");
+            data.extend(serialize(&script).iter());
+
+            //amount
+            let mut utxo_amount = num_bigint::BigInt::from(unspent.amount).to_signed_bytes_le();
+            while utxo_amount.len() < 8 {
+                utxo_amount.push(0x00);
+            }
+            data.extend(utxo_amount.iter());
+
+            //set sequence
+            data.extend(hex::decode("FFFFFFFF").unwrap());
+            //set length
+            data.insert(0, data.len() as u8);
+            //address
+            let mut address_data: Vec<u8> = vec![];
+            let sign_path = unspent.derive_path.as_bytes();
+            address_data.push(sign_path.len() as u8);
+            address_data.extend_from_slice(sign_path);
+            data.extend(address_data.iter());
+            if index == self.unspents.len() - 1 {
+                sign_apdu_vec.push(BtcApdu::btc_segwit_sign(true, 0x01, data));
+            } else {
+                sign_apdu_vec.push(BtcApdu::btc_segwit_sign(false, 0x01, data));
+            }
+
+            txinputs.push(txin.clone());
+        }
+
+        let mut txhash_vout_prepare_apdu_vec = BtcApdu::btc_prepare(0x31, 0x40, &txhash_vout_vec);
+        let mut sequence_prepare_apdu_vec = BtcApdu::btc_prepare(0x31, 0x80, &sequence_vec);
+        txhash_vout_prepare_apdu_vec.append(&mut sequence_prepare_apdu_vec);
+        for apdu in txhash_vout_prepare_apdu_vec {
+            ApduCheck::check_response(&send_apdu(apdu)?)?;
+        }
+
+        let sign_apdu_return_data = send_apdu(sign_apdu_vec[idx].to_string())?;
+        ApduCheck::check_response(&sign_apdu_return_data)?;
+        //build signature obj
+        let sign_result_vec =
+            Vec::from_hex(&sign_apdu_return_data[2..sign_apdu_return_data.len() - 6]).unwrap();
+        let mut signature_obj = Signature::from_compact(sign_result_vec.as_slice())?;
+        signature_obj.normalize_s();
+        //generator der sign data
+        let mut sign_result_vec = signature_obj.serialize_der().to_vec();
+        //add hash type
+        sign_result_vec.push(EcdsaSighashType::All.to_u32() as u8);
+
+        // let hash = hash160::Hash::hash(hex_to_bytes(pub_key).unwrap().as_slice()).into_inner();
+        // let hex = format!("160014{}", hex::encode(&hash));
+        // let script_sig = Script::from(hex::decode(hex).unwrap());
+
+        let witness = Witness::from_vec(vec![sign_result_vec, hex::decode(pub_key)?]);
+
+        transaction.input.push(TxIn {
+            witness,
+            ..txinputs[idx].clone()
+        });
+        Ok(())
     }
 }
 
@@ -1246,7 +1361,6 @@ mod tests {
 
     #[test]
     fn test_sign_p2pkh() {
-        //binding device
         bind_test();
 
         let extra_data = Vec::from_hex("0200000080a10bc28928f4c17a287318125115c3f098ed20a8237d1e8e4125bc25d1be99752adad0a7b9ceca853768aebb6965eca126a62965f698a0c1bc43d83db632ad7f717276057e6012afa99385").unwrap();
@@ -1288,16 +1402,14 @@ mod tests {
         };
         let mut utxos = Vec::new();
         utxos.push(utxo);
-        // utxos.push(utxo2);
-        // utxos.push(utxo3);
-        // utxos.push(utxo4);
+        utxos.push(utxo2);
+        utxos.push(utxo3);
+        utxos.push(utxo4);
         let transaction_req_data = BtcTransaction {
             to: Address::from_str("moLK3tBG86ifpDDTqAQzs4a9cUoNjVLRE3").unwrap(),
-            //            change_idx: 53,
-            amount: 100000000,
+            amount: 799988000,
             unspents: utxos,
             fee: 10000,
-            //            extra_data: extra_data,
         };
         let sign_result = transaction_req_data.sign(
             Network::Testnet,
@@ -1307,11 +1419,11 @@ mod tests {
             "DEFAULT",
         );
         assert_eq!(
-            "833409ca9c3f35d4ceafbe1c93515d3da3c5ff95b2bd1f76aac87761cdf40c24",
+            "d40ceeecbb1ad07e7a19d4c807808ad7b5c78854cfebd7f25e2f79fcc43055f4",
             sign_result.as_ref().unwrap().tx_hash
         );
         assert_eq!(
-            "833409ca9c3f35d4ceafbe1c93515d3da3c5ff95b2bd1f76aac87761cdf40c24",
+            "d40ceeecbb1ad07e7a19d4c807808ad7b5c78854cfebd7f25e2f79fcc43055f4",
             sign_result.as_ref().unwrap().wtx_id
         );
     }
@@ -1719,7 +1831,7 @@ mod tests {
             &"m/49'/1'/0'/".to_string(),
             Some(53),
             &extra_data,
-            "VERSION_0",
+            "P2WPKH",
         );
         assert_eq!(
             "020000000001023c8225a97ec8d51d25ecebcf44f9ee6c222043e191e91d2c076f4628865e6d35010000006b483045022100e3f1bffc773f0bd984f4d0cb727b4beb5c9833a701e2af3b26479a93eb764bc6022017b3269ade37bb70f84ed9576ac9bc96f262ac249b781bd5592069aceb01f4e80121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff0eaebea0d14ecf8d818c1251d3f7e62cf1ef0dbb7f01418b7cfd612559a33cb60100000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffff01f40517000000000017a9148bbb53570df9656926ea0ef029cd2ee84dbc7d0f87000247304402206b159cc6edc019125ea87b4df39a566520e092371ddb030071f150476a1bbd8d022074c43c41557ab6be848d48ccc611225b3a36ea3b4163f0cfc970fc945dfa7acf0121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc00000000",
@@ -1734,23 +1846,5 @@ mod tests {
             "069df21caebcc86674aa874a37276a5981a623a5c63452cfc8139d1451e74686",
             sign_result.as_ref().unwrap().wtx_id
         );
-    }
-
-    #[test]
-    fn test_a() {
-        //pub_Key-->031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc
-        // pub_Key-->03a241c8d13dd5c92475652c43bf56580fbf9f1e8bc0aa0132ddc8443c03062bb9
-        let hash = hash160::Hash::hash(
-            hex_to_bytes("031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc")
-                .unwrap()
-                .as_slice(),
-        )
-        .into_inner();
-        let script = Script::new_v0_p2wpkh(&WPubkeyHash::from_str(&hex::encode(&hash)).unwrap());
-        println!("{}", script.to_hex());
-
-        let script =
-            Script::from(hex::decode("160014654fbb08267f3d50d715a8f1abb55979b160dd5b").unwrap());
-        println!("{}", script.to_hex());
     }
 }
