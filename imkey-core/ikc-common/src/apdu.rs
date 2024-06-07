@@ -111,6 +111,58 @@ impl BtcApdu {
         data.extend(name);
         Apdu::register_address(0x37, &data)
     }
+
+    pub fn btc_single_utxo_sign_prepare(ins: u8, data: &Vec<u8>) -> Vec<String> {
+        let mut apdu_vec = Vec::new();
+        let apdu_number = (data.len() - 1) / LC_MAX as usize + 1;
+        for index in 0..apdu_number {
+            if index == 0 && index == apdu_number - 1 {
+                let length = if data.len() % LC_MAX as usize == 0 {
+                    LC_MAX
+                } else {
+                    (data.len() % LC_MAX as usize) as u32
+                };
+                let mut temp_apdu_vec =
+                    ApduHeader::new(0x80, ins, 0x00, 0x80, length as u8).to_array();
+                temp_apdu_vec.extend_from_slice(&data[index * LC_MAX as usize..]);
+                apdu_vec.push(hex::encode_upper(temp_apdu_vec));
+            } else if index == 0 && index != apdu_number - 1 {
+                let mut temp_apdu_vec =
+                    ApduHeader::new(0x80, ins, 0x00, 0x00, LC_MAX as u8).to_array();
+                temp_apdu_vec.extend_from_slice(
+                    &data[index * LC_MAX as usize..((index + 1) * LC_MAX as usize) as usize],
+                );
+                apdu_vec.push(hex::encode_upper(temp_apdu_vec));
+            } else if index != 0 && index != apdu_number - 1 {
+                let mut temp_apdu_vec =
+                    ApduHeader::new(0x80, ins, 0x80, 0x00, LC_MAX as u8).to_array();
+                temp_apdu_vec.extend_from_slice(
+                    &data[index * LC_MAX as usize..((index + 1) * LC_MAX as usize) as usize],
+                );
+                apdu_vec.push(hex::encode_upper(temp_apdu_vec));
+            } else if index != 0 && index == apdu_number - 1 {
+                let length = if data.len() % LC_MAX as usize == 0 {
+                    LC_MAX
+                } else {
+                    (data.len() % LC_MAX as usize) as u32
+                };
+                let mut temp_apdu_vec =
+                    ApduHeader::new(0x80, ins, 0x80, 0x80, length as u8).to_array();
+                temp_apdu_vec.extend_from_slice(&data[index * LC_MAX as usize..]);
+                apdu_vec.push(hex::encode_upper(temp_apdu_vec));
+            }
+        }
+        return apdu_vec;
+    }
+
+    pub fn btc_single_utxo_sign(index: u8, hash_type: u8, path: &str) -> String {
+        let path_bytes = path.as_bytes();
+        let mut apdu =
+            ApduHeader::new(0x80, 0x45, index, hash_type, path_bytes.len() as u8).to_array();
+        apdu.extend(path_bytes.iter());
+        apdu.push(0x00);
+        apdu.to_hex().to_uppercase()
+    }
 }
 
 pub struct EthApdu();
