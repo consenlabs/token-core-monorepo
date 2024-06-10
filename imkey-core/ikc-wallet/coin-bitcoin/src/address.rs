@@ -143,27 +143,30 @@ impl BtcAddress {
         Ok(&path[..end_flg])
     }
 
-    pub fn display_address(network: Network, path: &str) -> Result<String> {
-        //path check
+    pub fn display_address(network: Network, path: &str, seg_wit: &str) -> Result<String> {
         check_path_validity(path)?;
-        let address_str = Self::p2pkh(network, path)?;
-        //        let apdu_res = send_apdu(BtcApdu::btc_coin_reg(address_str.clone().into_bytes()))?;
-        let apdu_res = send_apdu(BtcApdu::register_address(
-            &address_str.clone().into_bytes().to_vec(),
-        ))?;
+
+        let address = match seg_wit {
+            "P2WPKH" => Self::p2shwpkh(network, path)?,
+            "VERSION_0" => Self::p2wpkh(network, path)?,
+            "VERSION_1" => Self::p2tr(network, path)?,
+            _ => Self::p2pkh(network, path)?,
+        };
+
+        let apdu_res = send_apdu(BtcApdu::register_address(&address.as_bytes()))?;
         ApduCheck::check_response(apdu_res.as_str())?;
-        Ok(address_str)
+        Ok(address)
     }
 
-    pub fn display_segwit_address(network: Network, path: &str) -> Result<String> {
-        check_path_validity(path)?;
-        let address_str = Self::p2shwpkh(network, path)?;
-        let apdu_res = send_apdu(BtcApdu::register_address(
-            &address_str.clone().into_bytes().to_vec(),
-        ))?;
-        ApduCheck::check_response(apdu_res.as_str())?;
-        Ok(address_str)
-    }
+    // pub fn display_segwit_address(network: Network, path: &str) -> Result<String> {
+    //     check_path_validity(path)?;
+    //     let address_str = Self::p2shwpkh(network, path)?;
+    //     let apdu_res = send_apdu(BtcApdu::register_address(
+    //         &address_str.clone().into_bytes().to_vec(),
+    //     ))?;
+    //     ApduCheck::check_response(apdu_res.as_str())?;
+    //     Ok(address_str)
+    // }
 
     pub fn from_public_key(public_key: &str, network: Network, seg_wit: &str) -> Result<String> {
         let mut pub_key_obj = PublicKey::from_str(public_key)?;
@@ -302,7 +305,7 @@ mod test {
         bind_test();
         let version: Network = Network::Bitcoin;
         let path: &str = "m/44'/0'/0'/0/0";
-        let result = BtcAddress::display_address(version, path);
+        let result = BtcAddress::display_address(version, path, "NONE");
 
         assert!(result.is_ok());
         let btc_address = result.ok().unwrap();
@@ -314,7 +317,7 @@ mod test {
         bind_test();
         let network: Network = Network::Bitcoin;
         let path: &str = "m/49'/0'/0'/0/22";
-        let result = BtcAddress::display_segwit_address(network, path);
+        let result = BtcAddress::display_address(network, path, "P2WPKH");
 
         assert!(result.is_ok());
         let segwit_address = result.ok().unwrap();
