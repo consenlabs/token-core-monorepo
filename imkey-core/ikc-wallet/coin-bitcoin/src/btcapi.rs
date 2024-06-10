@@ -35,8 +35,8 @@ pub struct BtcTxInput {
     pub amount: u64,
     #[prost(uint64, tag = "3")]
     pub fee: u64,
-    #[prost(uint32, tag = "4")]
-    pub change_address_index: u32,
+    #[prost(uint32, optional, tag = "4")]
+    pub change_address_index: ::core::option::Option<u32>,
     #[prost(message, repeated, tag = "5")]
     pub unspents: ::prost::alloc::vec::Vec<Utxo>,
     #[prost(string, tag = "6")]

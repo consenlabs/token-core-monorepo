@@ -28,7 +28,7 @@ message AddressParam {
     string chainType = 1;
     string path = 2;
     string network = 3;
-    bool isSegWit = 4;
+    string segWit = 4;
 }
 
 message AddressResult {
