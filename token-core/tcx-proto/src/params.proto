@@ -9,101 +9,106 @@ import "google/protobuf/any.proto";
 //
 // create a new hd keystore
 message CreateKeystoreParam {
-    string password = 1;
-    string passwordHint = 2;
-    string name = 3;
-    string network = 4;
+  string password = 1;
+  string passwordHint = 2;
+  string name = 3;
+  string network = 4;
 }
 
 message IdentityResult {
-    string identifier = 1;
-    string ipfsId = 2;
+  string identifier = 1;
+  string ipfsId = 2;
 }
 
 message KeystoreResult {
-    string id = 1;
-    string name = 2;
-    string identifier = 3;
-    string ipfsId = 4;
-    string source = 5;
-    int64 createdAt = 6;
-    string sourceFingerprint = 7;
+  string id = 1;
+  string name = 2;
+  string identifier = 3;
+  string ipfsId = 4;
+  string source = 5;
+  int64 createdAt = 6;
+  string sourceFingerprint = 7;
+  // ture if mnemonic already existed when call import_mnemonic
+  bool isExisted = 8;
+  string existedId = 9;
 }
 
 // FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
 //
 // create a new hd keystore by mnemonic
 message ImportMnemonicParam {
-    string mnemonic = 1;
-    string password = 2;
-    string network = 3;
-    string name = 4;
-    string passwordHint = 5;
-    string overwriteId = 6;
+  string mnemonic = 1;
+  string password = 2;
+  string network = 3;
+  string name = 4;
+  string passwordHint = 5;
+  string overwriteId = 6;
 }
 
 message ImportPrivateKeyResult {
-    string id = 1;
-    string name = 2;
-    string identifier = 3;
-    string ipfsId = 4;
-    string source = 5;
-    int64 createdAt = 6;
-    repeated string identifiedChainTypes = 7;
-    string identifiedNetwork = 8;
-    string identifiedCurve = 9;
-    string sourceFingerprint = 10;
+  string id = 1;
+  string name = 2;
+  string identifier = 3;
+  string ipfsId = 4;
+  string source = 5;
+  int64 createdAt = 6;
+  repeated string identifiedChainTypes = 7;
+  string identifiedNetwork = 8;
+  string identifiedCurve = 9;
+  string sourceFingerprint = 10;
+  bool isExisted = 11;
+  string existedId = 12;
 }
 
 //
 // derive new accounts from a hd keystore
 message DeriveAccountsParam {
-    string id = 1;
-    oneof key {
-        string password = 2;
-        string derivedKey = 3;
-    }
-    message Derivation {
-        string chainType = 1;
-        string path = 2;
-        string network = 3;
-        string segWit = 4;
-        string chainId = 5;
-        string curve = 6;
-        string bech32Prefix = 7;
-    }
-    repeated Derivation derivations= 4;
+  string id = 1;
+  oneof key {
+    string password = 2;
+    string derivedKey = 3;
+  }
+  message Derivation {
+    string chainType = 1;
+    string path = 2;
+    string network = 3;
+    string segWit = 4;
+    string chainId = 5;
+    string curve = 6;
+    string bech32Prefix = 7;
+  }
+  repeated Derivation derivations = 4;
 }
 
 message AccountResponse {
-    string chainType = 1;
-    string address = 2;
-    string path = 3;
-    string curve = 4;
-    string publicKey = 5;
-    string extendedPublicKey = 6;
-    string encryptedExtendedPublicKey = 7;
-    string segWit = 8;
+  string chainType = 1;
+  string address = 2;
+  string path = 3;
+  string curve = 4;
+  string publicKey = 5;
+  string extendedPublicKey = 6;
+  string encryptedExtendedPublicKey = 7;
+  string segWit = 8;
 }
 
 message DeriveAccountsResult {
-    repeated AccountResponse accounts = 1;
+  repeated AccountResponse accounts = 1;
 }
 
 // export the mnemonic from a hd keystore
 message ExportMnemonicResult {
-    string id = 1;
-    string mnemonic = 2;
+  string id = 1;
+  string mnemonic = 2;
 }
 
 message ExportPrivateKeyResult {
-    string id = 1;
-    string privateKey = 2;
+  string id = 1;
+  string privateKey = 2;
 }
 
 message ExportJsonResult {
-    string id = 1;
-    string json = 2;
+  string id = 1;
+  string json = 2;
 }
 
 // // only support two types
@@ -118,12 +123,12 @@ message ExportJsonResult {
 //
 // create a new private key keystore by a private key
 message ImportPrivateKeyParam {
-    string privateKey = 1;
-    string password = 2;
-    string name = 3;
-    string passwordHint = 4;
-    string network = 5;
-    string overwriteId = 6;
+  string privateKey = 1;
+  string password = 2;
+  string name = 3;
+  string passwordHint = 4;
+  string network = 5;
+  string overwriteId = 6;
 }
 
 // FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): ExistsKeystoreResult
@@ -136,27 +141,27 @@ message ImportPrivateKeyParam {
 // }
 
 message ExistsMnemonicParam {
-    string mnemonic = 1;
+  string mnemonic = 1;
 }
 
 message ExistsPrivateKeyParam {
-    string private_key = 1;
+  string private_key = 1;
 }
 
 message ExistsJsonParam {
-    string json = 1;
-    string password = 2;
+  string json = 1;
+  string password = 2;
 }
 
 message ExistsKeystoreResult {
-    bool isExists = 1;
-    string id = 2;
+  bool isExists = 1;
+  string id = 2;
 }
 
 message ImportJsonParam {
-    string json = 1;
-    string password = 2;
-    bool overwrite = 3;
+  string json = 1;
+  string password = 2;
+  bool overwrite = 3;
 }
 
 /// Sign Transaction
@@ -166,124 +171,124 @@ message ImportJsonParam {
 // Sign transaction. This api is used for sign any chain_type, you should build the right TxInput instance and
 // put it in the `input` field
 message SignParam {
-    string id = 1;
-    oneof key {
-        string password = 2;
-        string derivedKey = 3;
-    }
-    string chainType = 4;
-    string path = 5;
-    string curve = 6;
-    string network = 7;
-    string segWit = 8;
-    google.protobuf.Any input = 9;
+  string id = 1;
+  oneof key {
+    string password = 2;
+    string derivedKey = 3;
+  }
+  string chainType = 4;
+  string path = 5;
+  string curve = 6;
+  string network = 7;
+  string segWit = 8;
+  google.protobuf.Any input = 9;
 }
 
 message DeriveSubAccountsParam {
-    string chainType = 1;
-    string curve = 2;
-    string network = 3;
-    string segWit = 4;
-    repeated string relativePaths = 5;
-    string extendedPublicKey = 6;
+  string chainType = 1;
+  string curve = 2;
+  string network = 3;
+  string segWit = 4;
+  repeated string relativePaths = 5;
+  string extendedPublicKey = 6;
 }
 
 message DeriveSubAccountsResult {
-    repeated AccountResponse accounts = 1;
+  repeated AccountResponse accounts = 1;
 }
 
 message EncryptDataToIpfsParam {
-    string identifier = 1;
-    string content = 2;
+  string identifier = 1;
+  string content = 2;
 }
 
 message EncryptDataToIpfsResult {
-    string identifier = 1;
-    string encrypted = 2;
+  string identifier = 1;
+  string encrypted = 2;
 }
 
 message DecryptDataFromIpfsParam {
-    string identifier = 1;
-    string encrypted = 2;
+  string identifier = 1;
+  string encrypted = 2;
 }
 
 message DecryptDataFromIpfsResult {
-    string identifier = 1;
-    string content = 2;
+  string identifier = 1;
+  string content = 2;
 }
 
 message SignAuthenticationMessageParam {
-    uint64 accessTime = 1;
-    string identifier = 2 ;
-    string deviceToken = 3;
-    oneof key {
-        string password = 4;
-        string derivedKey = 5;
-    }
+  uint64 accessTime = 1;
+  string identifier = 2 ;
+  string deviceToken = 3;
+  oneof key {
+    string password = 4;
+    string derivedKey = 5;
+  }
 }
 
 message SignAuthenticationMessageResult {
-    uint64 accessTime = 1;
-    string signature = 2;
+  uint64 accessTime = 1;
+  string signature = 2;
 }
 
 message MnemonicToPublicKeyParam {
-    string mnemonic = 1;
-    string path = 2;
-    string curve = 3;
-    string encoding = 4;
+  string mnemonic = 1;
+  string path = 2;
+  string curve = 3;
+  string encoding = 4;
 }
 
 message MnemonicToPublicKeyResult {
-    string publicKey = 1;
+  string publicKey = 1;
 }
 
 message MigrateKeystoreParam {
-    string id = 1;
-    string network = 2;
-    oneof key {
-      string password = 3;
-      string derivedKey = 4;
-    }
-}
-  
-  message MigrateKeystoreResult {
-    bool isExisted = 1;
-    string existedId = 2;
-    KeystoreResult keystore = 3;
+  string id = 1;
+  string network = 2;
+  oneof key {
+    string password = 3;
+    string derivedKey = 4;
   }
-
-  message ScanKeystoresResult {
-    repeated KeystoreResult hdKeystores = 1;
-    repeated ImportPrivateKeyResult privateKeyKeystores = 2;
 }
 
-  message LegacyKeystoreResult {
-    string id = 1;
-    string name = 2;
-    string source = 3;
-    string createdAt = 4;
-    repeated AccountResponse accounts = 5;
+message MigrateKeystoreResult {
+  bool isExisted = 1;
+  string existedId = 2;
+  KeystoreResult keystore = 3;
 }
 
-  message ScanLegacyKeystoresResult {
-    string identifier = 1;
-    string ipfsId = 2;
-    string network = 3;
-    string source = 4;
-    repeated LegacyKeystoreResult keystores = 5;
-  }
+message ScanKeystoresResult {
+  repeated KeystoreResult hdKeystores = 1;
+  repeated ImportPrivateKeyResult privateKeyKeystores = 2;
+}
+
+message LegacyKeystoreResult {
+  string id = 1;
+  string name = 2;
+  string source = 3;
+  string createdAt = 4;
+  repeated AccountResponse accounts = 5;
+}
+
+message ScanLegacyKeystoresResult {
+  string identifier = 1;
+  string ipfsId = 2;
+  string network = 3;
+  string source = 4;
+  repeated LegacyKeystoreResult keystores = 5;
+}
 
 
-  message BackupResult {
-    string original = 1;
-  }
+message BackupResult {
+  string original = 1;
+}
 
-  message MarkIdentityWalletsParam {
-    repeated string ids = 1;
-    string source = 2;
-  }
+message MarkIdentityWalletsParam {
+  repeated string ids = 1;
+  string source = 2;
+}
 
 message ReadKeystoreMnemonicPathResult {
-    string path = 1;
-  }
+  string path = 1;
+}

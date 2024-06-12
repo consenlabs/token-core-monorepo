@@ -298,6 +298,11 @@ pub struct KeystoreResult {
     pub created_at: i64,
     #[prost(string, tag = "7")]
     pub source_fingerprint: ::prost::alloc::string::String,
+    /// ture if mnemonic already existed when call import_mnemonic
+    #[prost(bool, tag = "8")]
+    pub is_existed: bool,
+    #[prost(string, tag = "9")]
+    pub existed_id: ::prost::alloc::string::String,
 }
 /// FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
 ///
@@ -341,6 +346,10 @@ pub struct ImportPrivateKeyResult {
     pub identified_curve: ::prost::alloc::string::String,
     #[prost(string, tag = "10")]
     pub source_fingerprint: ::prost::alloc::string::String,
+    #[prost(bool, tag = "11")]
+    pub is_existed: bool,
+    #[prost(string, tag = "12")]
+    pub existed_id: ::prost::alloc::string::String,
 }
 ///
 /// derive new accounts from a hd keystore
