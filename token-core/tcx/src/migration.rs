@@ -189,6 +189,8 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
                 identifier: identity.identifier.to_string(),
                 ipfs_id: identity.ipfs_id.to_string(),
                 source_fingerprint: keystore.fingerprint().to_string(),
+                is_existed,
+                existed_id,
             };
 
             let ret = encode_message(MigrateKeystoreResult {
