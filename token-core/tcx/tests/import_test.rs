@@ -1515,6 +1515,48 @@ pub fn test_reset_password_private_seed_already_exist() {
 
 #[test]
 #[serial]
+pub fn test_reset_password_private_seed_valid_first() {
+    run_test(|| {
+        let import_param = ImportPrivateKeyParam {
+            private_key: TEST_WIF.to_string(),
+            password: "new_password".to_string(),
+            network: "TESTNET".to_string(),
+            name: "reset_password".to_string(),
+            password_hint: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
+
+        let ret = call_api("import_private_key", import_param).unwrap();
+        let import_wallet_a_result: ImportPrivateKeyResult =
+            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+        let import_param = ImportPrivateKeyParam {
+            private_key: TEST_PRIVATE_KEY.to_string(),
+            password: "new_password".to_string(),
+            network: "MAINNET".to_string(),
+            name: "reset_password".to_string(),
+            password_hint: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
+
+        let ret = call_api("import_private_key", import_param).unwrap();
+        let import_private_key_b_result = ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+
+        let import_param = ImportPrivateKeyParam {
+            private_key: TEST_WIF.to_string(),
+            password: "new_password".to_string(),
+            network: "MAINNET".to_string(),
+            name: "reset_password".to_string(),
+            password_hint: "".to_string(),
+            overwrite_id: import_private_key_b_result.id.to_string(),
+        };
+
+        let ret = call_api("import_private_key", import_param);
+        assert_eq!(format!("{}", ret.err().unwrap()), "seed_not_equals");
+    })
+}
+
+#[test]
+#[serial]
 pub fn test_reset_password_hd_seed_already_exist() {
     run_test(|| {
         let import_param = ImportMnemonicParam {
@@ -1543,6 +1585,50 @@ pub fn test_reset_password_hd_seed_already_exist() {
         let import_mnemonic_result = KeystoreResult::decode(ret.as_slice()).unwrap();
         assert_eq!(import_mnemonic_result.existed_id, import_result.id);
         assert!(import_mnemonic_result.is_existed);
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_reset_password_hd_valid_overwrite_wallet_first() {
+    run_test(|| {
+        let import_param = ImportMnemonicParam {
+            mnemonic: TEST_MNEMONIC.to_string(),
+            password: "new_password".to_string(),
+            network: "TESTNET".to_string(),
+            name: "reset_password".to_string(),
+            password_hint: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
+
+        let ret = call_api("import_mnemonic", import_param).unwrap();
+        let import_wallet_a_result: KeystoreResult =
+            KeystoreResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(import_wallet_a_result.is_existed, false);
+        assert_eq!(import_wallet_a_result.existed_id, "".to_string());
+        let import_param = ImportMnemonicParam {
+            mnemonic: OTHER_MNEMONIC.to_string(),
+            password: "new_password".to_string(),
+            network: "MAINNET".to_string(),
+            name: "reset_password".to_string(),
+            password_hint: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
+
+        let ret = call_api("import_mnemonic", import_param).unwrap();
+        let import_wallet_b_result = KeystoreResult::decode(ret.as_slice()).unwrap();
+
+        let import_param = ImportMnemonicParam {
+            mnemonic: TEST_MNEMONIC.to_string(),
+            password: "new_password".to_string(),
+            network: "MAINNET".to_string(),
+            name: "reset_password".to_string(),
+            password_hint: "".to_string(),
+            overwrite_id: import_wallet_b_result.id.to_string(),
+        };
+
+        let ret = call_api("import_mnemonic", import_param);
+        assert_eq!(format!("{}", ret.err().unwrap()), "seed_not_equals");
     })
 }
 

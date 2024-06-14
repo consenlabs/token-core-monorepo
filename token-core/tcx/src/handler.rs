@@ -145,29 +145,28 @@ fn import_private_key_internal(
     original: Option<String>,
 ) -> Result<ImportPrivateKeyResult> {
     let overwrite_id = param.overwrite_id.to_string();
-    let mut founded_id: Option<String> = None;
+    assert_seed_equals(&overwrite_id, &param.private_key, false)?;
+    let mut target_id: Option<String> = None;
     {
         let fingerprint = fingerprint_from_any_format_pk(&param.private_key)?;
         let map = KEYSTORE_MAP.read();
-        if let Some(founded) = map
-            .values()
-            .find(|keystore| keystore.fingerprint() == fingerprint)
-        {
-            founded_id = Some(founded.id());
+        if let Some(founded) = map.values().find(|keystore| {
+            keystore.fingerprint() == fingerprint && keystore.id() != overwrite_id.to_string()
+        }) {
+            target_id = Some(founded.id());
         }
     }
 
-    if founded_id.is_some() && Some(overwrite_id.to_string()) != founded_id {
+    if target_id.is_some() {
         return Ok(crate::api::ImportPrivateKeyResult {
             is_existed: true,
-            existed_id: founded_id.unwrap().to_string(),
+            existed_id: target_id.unwrap().to_string(),
             ..Default::default()
         });
     }
 
     if !overwrite_id.is_empty() {
-        assert_seed_equals(&overwrite_id, &param.private_key, false)?;
-        founded_id = Some(overwrite_id);
+        target_id = Some(overwrite_id);
     }
 
     let decoded_ret = decode_private_key(&param.private_key)?;
@@ -212,7 +211,7 @@ fn import_private_key_internal(
 
     let mut keystore = Keystore::PrivateKey(pk_store);
 
-    if let Some(exist_kid) = founded_id {
+    if let Some(exist_kid) = target_id {
         keystore.set_id(&exist_kid)
     }
 
@@ -527,23 +526,22 @@ pub fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
 pub fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
     let param: ImportMnemonicParam =
         ImportMnemonicParam::decode(data).expect("import_mnemonic param");
-
-    let mut founded_id: Option<String> = None;
+    assert_seed_equals(param.overwrite_id.as_str(), &param.mnemonic, true)?;
+    let mut target_id: Option<String> = None;
     {
         let fingerprint = fingerprint_from_mnemonic(&param.mnemonic)?;
         let map = KEYSTORE_MAP.read();
-        if let Some(founded) = map
-            .values()
-            .find(|keystore| keystore.fingerprint() == fingerprint)
-        {
-            founded_id = Some(founded.id());
+        if let Some(founded) = map.values().find(|keystore| {
+            keystore.fingerprint() == fingerprint && keystore.id() != param.overwrite_id.to_string()
+        }) {
+            target_id = Some(founded.id());
         }
     }
 
-    if founded_id.is_some() && Some(param.overwrite_id.to_string()) != founded_id {
+    if target_id.is_some() {
         let result = KeystoreResult {
             is_existed: true,
-            existed_id: founded_id.unwrap().to_string(),
+            existed_id: target_id.unwrap().to_string(),
             ..Default::default()
         };
         let ret = encode_message(result)?;
@@ -551,8 +549,7 @@ pub fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
     }
 
     if !param.overwrite_id.is_empty() {
-        assert_seed_equals(param.overwrite_id.as_str(), &param.mnemonic, true)?;
-        founded_id = Some(param.overwrite_id);
+        target_id = Some(param.overwrite_id);
     }
 
     let meta = Metadata {
@@ -566,7 +563,7 @@ pub fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
 
     let mut keystore = Keystore::Hd(ks);
 
-    if let Some(id) = founded_id {
+    if let Some(id) = target_id {
         keystore.set_id(&id);
     }
 
