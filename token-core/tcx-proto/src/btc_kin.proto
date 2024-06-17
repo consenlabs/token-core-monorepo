@@ -40,7 +40,6 @@ message OmniTxInput {
 
 message PsbtInput {
     string data = 1;
-    bool autoFinalize = 2;
 }
 
 message PsbtOutput {
