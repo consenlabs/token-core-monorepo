@@ -94,6 +94,8 @@ impl BtcTransaction {
                 self.sign_p2sh_nested_p2wpkh_input(idx, &utxo_pub_key_vec[idx], &mut tx_to_sign)?;
             } else if script.is_v0_p2wpkh() {
                 self.sign_p2wpkh_input(idx, &utxo_pub_key_vec[idx], &mut tx_to_sign)?;
+            } else if script.is_v1_p2tr() {
+                self.sign_p2tr_input(idx, &utxo_pub_key_vec[idx], &mut tx_to_sign, SchnorrSighashType::Default)?;
             } else {
                 return Err(CoinError::InvalidUtxo.into());
             };
@@ -310,106 +312,64 @@ impl BtcTransaction {
         Ok(())
     }
 
-    fn sign_p2tr_input<T: Borrow<TxOut>>(
+    fn sign_p2tr_input(
         &self,
         idx: usize,
         pub_key: &str,
         transaction: &mut Transaction,
-        prevouts: &Prevouts<T>,
-        annex: Option<Annex>,
-        leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
+        // prevouts: &Prevouts<T>,
+        // annex: Option<Annex>,
+        // leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
         sighash_type: SchnorrSighashType,
     ) -> Result<()> {
-        let mut txinputs: Vec<TxIn> = vec![];
-        let mut txhash_vout_vec = vec![];
-        let mut sequence_vec: Vec<u8> = vec![];
-        let mut sign_apdu_vec: Vec<String> = vec![];
-        for (index, unspent) in self.unspents.iter().enumerate() {
-            let txin = TxIn {
-                previous_output: OutPoint {
-                    txid: bitcoin::hash_types::Txid::from_hex(&unspent.txhash)?,
-                    vout: unspent.vout,
-                },
-                script_sig: Script::new(),
-                sequence: Sequence::MAX,
-                witness: Witness::default(),
-            };
 
-            txhash_vout_vec.extend(serialize(&txin.previous_output).iter());
-            sequence_vec.extend(serialize(&txin.sequence).iter());
+        let unspent = self.unspents.get(idx).expect("get_utxo_fail");
+        let txin = TxIn {
+            previous_output: OutPoint {
+                txid: bitcoin::hash_types::Txid::from_hex(&unspent.txhash)?,
+                vout: unspent.vout,
+            },
+            script_sig: Script::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::default(),
+        };
 
-            let mut data: Vec<u8> = vec![];
-            data.push(0u8); //epoch
-            data.push(sighash_type as u8); //hash_type
-            data.push(transaction.version as u8); //nVersion (4)
-            data.extend(serialize(&transaction.lock_time)); //nLockTime (4)
-                                                            //txhash and vout
-            let txhash_data = serialize(&txin.previous_output);
-            data.extend(txhash_data.iter());
+        let mut data: Vec<u8> = vec![];
+        // hash_type (1).
+        data.push(sighash_type as u8);
+        // //nVersion (4):
+        // data.extend(serialize(&transaction.version));
+        //nLockTime (4)
+        data.extend(serialize(&transaction.lock_time));
+        //prevouts_hash + amounts_hash + script_pubkeys_hash + sequences_hash
+        //spend_type (1)
+        data.push(0u8);
+        //input_index
+        data.push(idx as u8);
 
-            //lock script
-            let script = unspent
-                .address
-                .script_pubkey()
-                .p2wpkh_script_code()
-                .expect("must be v0_p2wpkh");
-            data.extend(serialize(&script).iter());
+        let mut path_data: Vec<u8> = vec![];
+        let sign_path = unspent.derive_path.as_bytes();
+        path_data.push(sign_path.len() as u8);
+        path_data.extend_from_slice(sign_path);
+        data.extend(path_data.iter());
 
-            //amount
-            let mut utxo_amount = num_bigint::BigInt::from(unspent.amount).to_signed_bytes_le();
-            while utxo_amount.len() < 8 {
-                utxo_amount.push(0x00);
-            }
-            data.extend(utxo_amount.iter());
-
-            //set sequence
-            data.extend(hex::decode("FFFFFFFF").unwrap());
-            //set length
-            data.insert(0, data.len() as u8);
-            //address
-            let mut address_data: Vec<u8> = vec![];
-            let sign_path = unspent.derive_path.as_bytes();
-            address_data.push(sign_path.len() as u8);
-            address_data.extend_from_slice(sign_path);
-            data.extend(address_data.iter());
-            if index == self.unspents.len() - 1 {
-                sign_apdu_vec.push(BtcApdu::btc_segwit_sign(true, 0x01, data));
-            } else {
-                sign_apdu_vec.push(BtcApdu::btc_segwit_sign(false, 0x01, data));
-            }
-
-            txinputs.push(txin.clone());
-        }
-
-        let mut txhash_vout_prepare_apdu_vec = BtcApdu::btc_prepare(0x31, 0x40, &txhash_vout_vec);
-        let mut sequence_prepare_apdu_vec = BtcApdu::btc_prepare(0x31, 0x80, &sequence_vec);
-        txhash_vout_prepare_apdu_vec.append(&mut sequence_prepare_apdu_vec);
-        for apdu in txhash_vout_prepare_apdu_vec {
-            ApduCheck::check_response(&send_apdu(apdu)?)?;
-        }
-
-        let sign_apdu_return_data = send_apdu(sign_apdu_vec[idx].to_string())?;
+        let sign_apdu = if idx == (self.unspents.len() - 1) {
+            BtcApdu::btc_taproot_sign(true, data)
+        } else {
+            BtcApdu::btc_taproot_sign(false, data)
+        };
+        let sign_apdu_return_data = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_apdu_return_data)?;
-        //build signature obj
-        let sign_result_vec =
-            Vec::from_hex(&sign_apdu_return_data[2..sign_apdu_return_data.len() - 6]).unwrap();
-        let mut signature_obj = Signature::from_compact(sign_result_vec.as_slice())?;
-        signature_obj.normalize_s();
-        //generator der sign data
-        let mut sign_result_vec = signature_obj.serialize_der().to_vec();
-        //add hash type
-        sign_result_vec.push(EcdsaSighashType::All.to_u32() as u8);
 
-        // let hash = hash160::Hash::hash(hex_to_bytes(pub_key).unwrap().as_slice()).into_inner();
-        // let hex = format!("160014{}", hex::encode(&hash));
-        // let script_sig = Script::from(hex::decode(hex).unwrap());
 
-        let witness = Witness::from_vec(vec![sign_result_vec, hex::decode(pub_key)?]);
 
-        transaction.input.push(TxIn {
-            witness,
-            ..txinputs[idx].clone()
-        });
+
+
+
+
+
+
+
         Ok(())
     }
 
@@ -500,7 +460,9 @@ impl BtcTransaction {
 
     pub fn calc_Prevouts_Sequence_hash(&self, transaction: &mut Transaction) -> Result<()> {
         let mut txhash_vout_vec = vec![];
-        let mut sequence_vec: Vec<u8> = vec![];
+        let mut sequence_vec = vec![];
+        let mut amount_vec = vec![];
+        let mut script_pubkeys_vec = vec![];
         for unspent in self.unspents.iter() {
             if !unspent.address.script_pubkey().is_p2pkh() {
                 transaction.version = 2i32;
@@ -516,15 +478,22 @@ impl BtcTransaction {
                 witness: Witness::default(),
             };
 
-            txhash_vout_vec.extend(serialize(&tx_in.previous_output).iter());
-            sequence_vec.extend(serialize(&tx_in.sequence).iter());
+            txhash_vout_vec.extend(serialize(&tx_in.previous_output));
+            sequence_vec.extend(serialize(&tx_in.sequence));
+            amount_vec.extend(serialize(&unspent.amount));
+            script_pubkeys_vec.extend(hex_to_bytes(&unspent.script_pubkey)?);
         }
         if transaction.version == 2 {
-            let mut txhash_vout_prepare_apdu_vec =
-                BtcApdu::btc_prepare(0x31, 0x40, &txhash_vout_vec);
-            let mut sequence_prepare_apdu_vec = BtcApdu::btc_prepare(0x31, 0x80, &sequence_vec);
-            txhash_vout_prepare_apdu_vec.append(&mut sequence_prepare_apdu_vec);
-            for apdu in txhash_vout_prepare_apdu_vec {
+            // let mut txhash_vout_prepare_apdu_vec =
+            //     BtcApdu::btc_prepare(0x31, 0x40, &txhash_vout_vec);
+            // let mut sequence_prepare_apdu_vec = BtcApdu::btc_prepare(0x31, 0x80, &sequence_vec);
+            // txhash_vout_prepare_apdu_vec.append(&mut sequence_prepare_apdu_vec);
+            let mut calc_hash_apdu = vec![];
+            calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x40, &txhash_vout_vec));
+            calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x80, &sequence_vec));
+            calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x20, &amount_vec));
+            calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x21, &script_pubkeys_vec));
+            for apdu in calc_hash_apdu {
                 ApduCheck::check_response(&send_apdu(apdu)?)?;
             }
         }
@@ -584,6 +553,7 @@ mod tests {
     use hex::FromHex;
     use ikc_device::device_binding::bind_test;
     use std::str::FromStr;
+    use bitcoin_hashes::hex::ToHex;
 
     // #[test]
     // fn test_sign_transaction() {
@@ -1913,5 +1883,51 @@ mod tests {
             "020000000001027f717276057e6012afa99385c18cc692397a666560520577679bf38c08b5cec20000000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffff74cdd54bc48333e1d2f108460284d137c39b6c417d9ff55a572a9550d428d69a00000000171600149d66aa6399de69d5c5ae19f9098047760251a854ffffffff02c05701000000000017a914b710f6e5049eaf0404c2f02f091dd5bb79fa135e870000000000000000046a021234024730440220527c098c320c54ac56445b757a76833f7a47229fa0fe2b179f55bd718822695e022060f48b05c46f8335266eade0fe503448ff4222efc7e84ef86a25abffbe02ead20121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc024730440220551ab42b94841b43e6118a6adb39a561f138ae9ee8d2c00ffa3886839afe66d2022046686666245b94b7272d7cbd17a6f20639532ddefafe0572ecc28dcb246d33f8012103a241c8d13dd5c92475652c43bf56580fbf9f1e8bc0aa0132ddc8443c03062bb900000000",
             sign_result.as_ref().unwrap().signature
         );
+    }
+
+    #[test]
+    fn test_sign_with_taproot_on_testnet() {
+        bind_test();
+
+        let utxos = vec![
+            Utxo {
+                txhash: "2bdcfa88d5f48954e98018da33aaf11a4951b4167ba8121bc787880890dee5f0"
+                    .to_string(),
+                vout: 1,
+                amount: 523000,
+                address: Address::from_str("tb1pjvp6z9shfhfpafrnwen9j452cf8tdwpgc0hfnzvz62aqwr4qv92sg7qj9r").unwrap(),
+                script_pubkey: "51208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233".to_string(),
+                derive_path: "m/86'/1'/0'/1/53".to_string(),
+                sequence: 0,
+            },
+        ];
+
+        let transaction = BtcTransaction {
+            to: Address::from_str("tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4").unwrap(),
+            amount: 40000,
+            unspents: utxos.clone(),
+            fee: 1000,
+        };
+        let sign_result = transaction.sign_Transaction(
+            Network::Testnet,
+            "m/86'/1'/0'/0/0",
+            Some(53),
+            None,
+            "VERSION_1",
+        );
+        assert_eq!(
+            "0fb223cd2cd90830827ab235b752de841153d69a75649d8f92ffa2198d645852",
+            sign_result.as_ref().unwrap().tx_hash
+        );
+        assert_eq!(
+            "020000000001027f717276057e6012afa99385c18cc692397a666560520577679bf38c08b5cec20000000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffff74cdd54bc48333e1d2f108460284d137c39b6c417d9ff55a572a9550d428d69a00000000171600149d66aa6399de69d5c5ae19f9098047760251a854ffffffff02c05701000000000017a914b710f6e5049eaf0404c2f02f091dd5bb79fa135e870000000000000000046a021234024730440220527c098c320c54ac56445b757a76833f7a47229fa0fe2b179f55bd718822695e022060f48b05c46f8335266eade0fe503448ff4222efc7e84ef86a25abffbe02ead20121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc024730440220551ab42b94841b43e6118a6adb39a561f138ae9ee8d2c00ffa3886839afe66d2022046686666245b94b7272d7cbd17a6f20639532ddefafe0572ecc28dcb246d33f8012103a241c8d13dd5c92475652c43bf56580fbf9f1e8bc0aa0132ddc8443c03062bb900000000",
+            sign_result.as_ref().unwrap().signature
+        );
+    }
+
+    #[test]
+    fn testa(){
+        let address = Address::from_str("tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4").unwrap();
+        println!("{}", address.script_pubkey().to_hex())
     }
 }
