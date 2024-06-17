@@ -9,6 +9,8 @@ pub mod network;
 pub mod signer;
 pub mod transaction;
 
+mod psbt;
+
 use core::result;
 use thiserror::Error;
 
