@@ -214,9 +214,12 @@ impl<'a> PsbtSigner<'a> {
     }
 }
 
-pub fn sign_psbt(psbt_input: PsbtInput) -> Result<PsbtOutput> {
+pub fn sign_psbt(keystore: &mut Keystore, psbt_input: PsbtInput) -> Result<PsbtOutput> {
     let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_input.data)?);
     let mut psbt = Psbt::consensus_decode(&mut reader)?;
+
+    let mut signer = PsbtSigner::new(&mut psbt, keystore, &psbt_input.chain_type);
+    signer.sign()?;
 
     // FINALIZER
     psbt.inputs.iter_mut().for_each(|input| {
@@ -246,15 +249,19 @@ pub fn sign_psbt(psbt_input: PsbtInput) -> Result<PsbtOutput> {
 
 #[cfg(test)]
 mod tests {
+    use crate::tests::sample_hd_keystore;
     use crate::transaction::PsbtInput;
 
     #[test]
     fn test_sign_psbt() {
+        let mut hd = sample_hd_keystore();
+
         let psbt_input = PsbtInput {
             data: "70736274ff0100db02000000017e4e5ccaa5a84f4e2761816d948db0530283d2ddab9e2b0bf14432247177b67c0000000000fdffffff0350c30000000000002251202f03f11af54df4be96db1c8d6ee9ab2a29558479ff93ad019d182deed8f8c33d0000000000000000496a4762627434001fa696928d908ffd29c2ab9ebf8ad48946bf9d57b64c2e4f588988c830bd2571f4940b238dcd00535fde9730345bab6ff4ea6d413cc3602c4033c10f251c7e81fa0057620000000000002251206649a3708d5510aeb8140ffb6ed5866db64b817ea62902628ad7d04730484aab080803000001012bf4260100000000002251206649a3708d5510aeb8140ffb6ed5866db64b817ea62902628ad7d04730484aab0117201fa696928d908ffd29c2ab9ebf8ad48946bf9d57b64c2e4f588988c830bd257100000000".to_string(),
+            chain_type: "BITCOIN".to_string(),
         };
 
-        let result = super::sign_psbt(psbt_input).unwrap();
+        let result = super::sign_psbt(&mut hd, psbt_input).unwrap();
         assert_eq!(result.data, "70736274ff0100db02000000017e4e5ccaa5a84f4e2761816d948db0530283d2ddab9e2b0bf14432247177b67c0000000000fdffffff0350c30000000000002251202f03f11af54df4be96db1c8d6ee9ab2a29558479ff93ad019d182deed8f8c33d0000000000000000496a4762627434001fa696928d908ffd29c2ab9ebf8ad48946bf9d57b64c2e4f588988c830bd2571f4940b238dcd00535fde9730345bab6ff4ea6d413cc3602c4033c10f251c7e81fa0057620000000000002251206649a3708d5510aeb8140ffb6ed5866db64b817ea62902628ad7d04730484aab080803000001012bf4260100000000002251206649a3708d5510aeb8140ffb6ed5866db64b817ea62902628ad7d04730484aab0117201fa696928d908ffd29c2ab9ebf8ad48946bf9d57b64c2e4f588988c830bd257100000000");
     }
 }

@@ -469,19 +469,8 @@ mod tests {
         hex_keystore(&hex)
     }
 
-    fn hd_keystore(mnemonic: &str) -> Keystore {
-        let mut keystore =
-            Keystore::from_mnemonic(mnemonic, TEST_PASSWORD, Metadata::default()).unwrap();
-        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
-        keystore
-    }
-
     fn sample_private_key_keystore() -> Keystore {
         wif_keystore(TEST_WIF)
-    }
-
-    fn sample_hd_keystore() -> Keystore {
-        hd_keystore(TEST_MNEMONIC)
     }
 
     mod kin {
@@ -528,6 +517,7 @@ mod tests {
 
     mod omni {
         use super::*;
+        use crate::tests::sample_hd_keystore;
         use crate::OMNI;
 
         #[test]
@@ -646,6 +636,7 @@ mod tests {
 
     mod btc {
         use super::*;
+        use crate::tests::sample_hd_keystore;
         use bitcoin::psbt::serialize::Deserialize;
         use secp256k1::schnorr::Signature;
         use secp256k1::XOnlyPublicKey;
@@ -1154,6 +1145,7 @@ mod tests {
 
     mod ltc {
         use super::*;
+        use crate::tests::sample_hd_keystore;
 
         #[test]
         fn test_sign_with_hd_on_testnet() {

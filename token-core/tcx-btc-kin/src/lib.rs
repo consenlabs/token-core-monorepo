@@ -89,3 +89,20 @@ pub mod omni {
 
     pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
 }
+
+#[cfg(test)]
+mod tests {
+    use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_keystore::{Keystore, Metadata};
+
+    pub fn hd_keystore(mnemonic: &str) -> Keystore {
+        let mut keystore =
+            Keystore::from_mnemonic(mnemonic, TEST_PASSWORD, Metadata::default()).unwrap();
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        keystore
+    }
+
+    pub fn sample_hd_keystore() -> Keystore {
+        hd_keystore(TEST_MNEMONIC)
+    }
+}
