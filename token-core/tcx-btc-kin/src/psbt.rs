@@ -28,6 +28,51 @@ pub struct PsbtSigner<'a> {
     sighash_cache: Box<dyn TxSignatureHasher>,
 }
 
+pub trait PsbtInputExtra {
+    fn is_taproot(&self) -> bool;
+
+    fn clear_finalized_input(&mut self);
+
+    fn finalize(&mut self);
+}
+
+impl PsbtInputExtra for bitcoin::psbt::Input {
+    fn is_taproot(&self) -> bool {
+        return self.tap_internal_key.is_some()
+            || !self.tap_key_origins.is_empty()
+            || self.tap_merkle_root.is_some()
+            || self.tap_key_sig.is_some()
+            || !self.tap_script_sigs.is_empty();
+    }
+
+    fn clear_finalized_input(&mut self) {
+        self.tap_key_sig = None;
+        self.tap_scripts = BTreeMap::new();
+        self.tap_internal_key = None;
+        self.tap_merkle_root = None;
+        self.tap_script_sigs = BTreeMap::new();
+
+        self.partial_sigs = BTreeMap::new();
+        self.sighash_type = None;
+        self.redeem_script = None;
+        self.witness_script = None;
+        self.bip32_derivation = BTreeMap::new();
+        self.unknown = BTreeMap::new();
+    }
+
+    fn finalize(&mut self) {
+        if self.is_taproot() {
+            if self.tap_key_sig.is_some() {
+                let mut witness = Witness::new();
+                witness.push(self.tap_key_sig.unwrap().to_vec());
+                self.final_script_witness = Some(witness);
+            }
+        }
+
+        self.clear_finalized_input();
+    }
+}
+
 impl<'a> PsbtSigner<'a> {
     pub fn new(psbt: &'a mut Psbt, keystore: &'a mut Keystore, chain_type: &str) -> Self {
         let unsigned_tx = &psbt.unsigned_tx;
@@ -222,21 +267,11 @@ pub fn sign_psbt(keystore: &mut Keystore, psbt_input: PsbtInput) -> Result<PsbtO
     signer.sign()?;
 
     // FINALIZER
-    psbt.inputs.iter_mut().for_each(|input| {
-        let mut script_witness: Witness = Witness::new();
-
-        if input.tap_key_sig.is_some() {
-            script_witness.push(input.tap_key_sig.unwrap().to_vec());
-            input.final_script_witness = Some(script_witness);
-
-            // Clear all the data fields as per the spec.
-            input.partial_sigs = BTreeMap::new();
-            input.sighash_type = None;
-            input.redeem_script = None;
-            input.witness_script = None;
-            input.bip32_derivation = BTreeMap::new();
-        }
-    });
+    if psbt_input.auto_finalize {
+        psbt.inputs.iter_mut().for_each(|input| {
+            input.finalize();
+        })
+    }
 
     println!("psbt: {:?}", psbt.inputs);
 
@@ -259,6 +294,7 @@ mod tests {
         let psbt_input = PsbtInput {
             data: "70736274ff0100db02000000017e4e5ccaa5a84f4e2761816d948db0530283d2ddab9e2b0bf14432247177b67c0000000000fdffffff0350c30000000000002251202f03f11af54df4be96db1c8d6ee9ab2a29558479ff93ad019d182deed8f8c33d0000000000000000496a4762627434001fa696928d908ffd29c2ab9ebf8ad48946bf9d57b64c2e4f588988c830bd2571f4940b238dcd00535fde9730345bab6ff4ea6d413cc3602c4033c10f251c7e81fa0057620000000000002251206649a3708d5510aeb8140ffb6ed5866db64b817ea62902628ad7d04730484aab080803000001012bf4260100000000002251206649a3708d5510aeb8140ffb6ed5866db64b817ea62902628ad7d04730484aab0117201fa696928d908ffd29c2ab9ebf8ad48946bf9d57b64c2e4f588988c830bd257100000000".to_string(),
             chain_type: "BITCOIN".to_string(),
+            auto_finalize: true
         };
 
         let result = super::sign_psbt(&mut hd, psbt_input).unwrap();

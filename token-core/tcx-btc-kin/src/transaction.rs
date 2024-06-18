@@ -60,6 +60,8 @@ pub struct PsbtInput {
     pub data: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub chain_type: ::prost::alloc::string::String,
+    #[prost(bool, tag = "3")]
+    pub auto_finalize: bool,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
