@@ -23,6 +23,7 @@ use tcx_primitive::{PrivateKey, Secp256k1PrivateKey, SECP256K1_ENGINE};
 pub struct PsbtSigner<'a> {
     psbt: &'a mut Psbt,
     keystore: &'a mut Keystore,
+    derivation_path: String,
 
     prevouts: Vec<TxOut>,
     sighash_cache: Box<dyn TxSignatureHasher>,
@@ -74,18 +75,25 @@ impl PsbtInputExtra for bitcoin::psbt::Input {
 }
 
 impl<'a> PsbtSigner<'a> {
-    pub fn new(psbt: &'a mut Psbt, keystore: &'a mut Keystore, chain_type: &str) -> Self {
-        let unsigned_tx = &psbt.unsigned_tx;
+    pub fn new(
+        psbt: &'a mut Psbt,
+        keystore: &'a mut Keystore,
+        chain_type: &str,
+        derivation_path: &str,
+    ) -> Self {
+        let unsigned_tx = psbt.unsigned_tx.clone();
 
         let sighash_cache: Box<dyn TxSignatureHasher> = if chain_type == BITCOINCASH {
-            Box::new(BitcoinCashSighash::new(unsigned_tx.clone(), 0x40))
+            Box::new(BitcoinCashSighash::new(unsigned_tx, 0x40))
         } else {
-            Box::new(SighashCache::new(Box::new(unsigned_tx.clone())))
+            Box::new(SighashCache::new(Box::new(unsigned_tx)))
         };
 
         PsbtSigner {
             psbt,
             keystore,
+            derivation_path: derivation_path.to_string(),
+
             sighash_cache,
             prevouts: Vec::new(),
         }
@@ -121,32 +129,22 @@ impl<'a> PsbtSigner<'a> {
         Ok(utxos)
     }
 
-    fn get_private_key(&mut self, index: usize) -> Result<Secp256k1PrivateKey> {
-        let key_sources: Vec<&KeySource> =
-            self.psbt.inputs[index].bip32_derivation.values().collect();
-        let path = if key_sources.len() > 0 {
-            key_sources[0].1.to_string()
+    fn get_private_key(&mut self) -> Result<Secp256k1PrivateKey> {
+        let path = if !self.derivation_path.is_empty() {
+            self.derivation_path.clone() + "/0/0"
         } else {
             "".to_string()
         };
 
-        if self.keystore.derivable() {
-            Ok(self
-                .keystore
-                .get_private_key(CurveType::SECP256k1, &path)?
-                .as_secp256k1()?
-                .clone())
-        } else {
-            Ok(self
-                .keystore
-                .get_private_key(CurveType::SECP256k1, &path)?
-                .as_secp256k1()?
-                .clone())
-        }
+        Ok(self
+            .keystore
+            .get_private_key(CurveType::SECP256k1, &path)?
+            .as_secp256k1()?
+            .clone())
     }
 
     fn sign_p2pkh(&mut self, index: usize) -> Result<()> {
-        let key = self.get_private_key(index)?;
+        let key = self.get_private_key()?;
 
         let prevout = &self.prevouts[index];
 
@@ -167,7 +165,7 @@ impl<'a> PsbtSigner<'a> {
 
     fn sign_p2sh_nested_p2wpkh(&mut self, index: usize) -> Result<()> {
         let prevout = &self.prevouts[index].clone();
-        let key = self.get_private_key(index)?;
+        let key = self.get_private_key()?;
         let pub_key = key.public_key();
 
         let script = Script::new_v0_p2wpkh(&WPubkeyHash::from_hash(
@@ -190,7 +188,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn sign_p2wpkh(&mut self, index: usize) -> Result<()> {
-        let key = self.get_private_key(index)?;
+        let key = self.get_private_key()?;
         let prevout = &self.prevouts[index];
 
         let hash = self.sighash_cache.segwit_hash(
@@ -203,6 +201,7 @@ impl<'a> PsbtSigner<'a> {
             EcdsaSighashType::All,
         )?;
         let sig = Self::sign_ecdsa(&hash, &key)?;
+
         self.psbt.inputs[index]
             .partial_sigs
             .insert(key.public_key().0, EcdsaSig::sighash_all(sig));
@@ -211,7 +210,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn sign_p2tr(&mut self, index: usize) -> Result<()> {
-        let key = self.get_private_key(index)?;
+        let key = self.get_private_key()?;
 
         let key_pair = bitcoin::schnorr::UntweakedKeyPair::from_seckey_slice(
             &SECP256K1_ENGINE,
@@ -221,7 +220,7 @@ impl<'a> PsbtSigner<'a> {
 
         let hash = self.sighash_cache.taproot_hash(
             index,
-            &Prevouts::All(&self.prevouts.clone()),
+            &Prevouts::All(self.prevouts.as_slice()),
             None,
             None,
             SchnorrSighashType::Default,
@@ -263,7 +262,12 @@ pub fn sign_psbt(keystore: &mut Keystore, psbt_input: PsbtInput) -> Result<PsbtO
     let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_input.data)?);
     let mut psbt = Psbt::consensus_decode(&mut reader)?;
 
-    let mut signer = PsbtSigner::new(&mut psbt, keystore, &psbt_input.chain_type);
+    let mut signer = PsbtSigner::new(
+        &mut psbt,
+        keystore,
+        &psbt_input.chain_type,
+        &psbt_input.derivation_path,
+    );
     signer.sign()?;
 
     // FINALIZER
@@ -284,16 +288,30 @@ pub fn sign_psbt(keystore: &mut Keystore, psbt_input: PsbtInput) -> Result<PsbtO
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::sample_hd_keystore;
+    use crate::tests::{hd_keystore, sample_hd_keystore};
     use crate::transaction::PsbtInput;
+    use crate::BtcKinAddress;
+    use tcx_constants::{CoinInfo, CurveType};
 
     #[test]
     fn test_sign_psbt() {
-        let mut hd = sample_hd_keystore();
+        let mut hd =
+            hd_keystore("bar razor crime recipe useful control duty age abuse slot enhance state");
+        let coin_info = CoinInfo {
+            coin: "BITCOIN".to_string(),
+            derivation_path: "m/86'/1'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "TESTNET".to_string(),
+            seg_wit: "VERSION_1".to_string(),
+        };
+
+        let account = hd.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
+        println!("{:?}", account);
 
         let psbt_input = PsbtInput {
-            data: "70736274ff0100db02000000017e4e5ccaa5a84f4e2761816d948db0530283d2ddab9e2b0bf14432247177b67c0000000000fdffffff0350c30000000000002251202f03f11af54df4be96db1c8d6ee9ab2a29558479ff93ad019d182deed8f8c33d0000000000000000496a4762627434001fa696928d908ffd29c2ab9ebf8ad48946bf9d57b64c2e4f588988c830bd2571f4940b238dcd00535fde9730345bab6ff4ea6d413cc3602c4033c10f251c7e81fa0057620000000000002251206649a3708d5510aeb8140ffb6ed5866db64b817ea62902628ad7d04730484aab080803000001012bf4260100000000002251206649a3708d5510aeb8140ffb6ed5866db64b817ea62902628ad7d04730484aab0117201fa696928d908ffd29c2ab9ebf8ad48946bf9d57b64c2e4f588988c830bd257100000000".to_string(),
+            data: "70736274ff0100db02000000012af69a72ee07e65a20a3a0aa89aff4f1d5601bfcca0a4f8752daf1eda2bff4390200000000fdffffff0350c30000000000002251206b4b71543b6d3e1eadb123d4e1362674312c813fd20ba5a25bfe11a29d750a2d0000000000000000496a476262743400aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29b143a1961c97682d59b5f48d5b469ac74ac45273245947865e3c4ad575e4fa646fa0037e0b90000000000225120ea20ffb077323528b8345c7fa517a2ebee1b52649ee2559a6d5ea87160b50b2e080803000001012b08aaba0000000000225120ea20ffb077323528b8345c7fa517a2ebee1b52649ee2559a6d5ea87160b50b2e011720aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29b00000000".to_string(),
             chain_type: "BITCOIN".to_string(),
+            derivation_path: "m/86'/1'/0'".to_string(),
             auto_finalize: true
         };
 

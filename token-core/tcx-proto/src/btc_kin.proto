@@ -40,7 +40,7 @@ message OmniTxInput {
 
 message PsbtInput {
     string data = 1;
-    string chain_type = 2;
+    string derivation_path = 2;
     bool auto_finalize = 3;
 }
 
