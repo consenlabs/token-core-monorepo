@@ -53,3 +53,17 @@ pub struct OmniTxInput {
     #[prost(uint32, tag = "5")]
     pub property_id: u32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PsbtInput {
+    #[prost(string, tag = "1")]
+    pub data: ::prost::alloc::string::String,
+    #[prost(bool, tag = "3")]
+    pub auto_finalize: bool,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PsbtOutput {
+    #[prost(string, tag = "1")]
+    pub data: ::prost::alloc::string::String,
+}

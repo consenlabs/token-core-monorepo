@@ -37,3 +37,12 @@ message OmniTxInput {
     uint64 fee = 4;
     uint32 propertyId = 5;
 }
+
+message PsbtInput {
+    string data = 1;
+    bool auto_finalize = 3;
+}
+
+message PsbtOutput {
+    string data = 1;
+}
