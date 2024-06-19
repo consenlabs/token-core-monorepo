@@ -53,6 +53,7 @@ use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 use crate::IS_DEBUG;
 
 use base58::FromBase58;
+use tcx_btc_kin::transaction::PsbtInput;
 use tcx_keystore::tcx_ensure;
 
 use tcx_constants::coin_info::coin_info_from_param;
@@ -922,6 +923,35 @@ pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
     let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
 
     sign_message_internal(&param, guard.keystore_mut())
+}
+
+pub(crate) fn sign_psbt(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignParam = SignParam::decode(data).expect("sign_psbt param");
+
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
+    }?;
+
+    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+    let psbt_input = PsbtInput::decode(
+        param
+            .input
+            .as_ref()
+            .expect("psbt_input")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("psbt_input decode");
+
+    encode_message(tcx_btc_kin::sign_psbt(
+        &param.chain_type,
+        &param.path,
+        guard.keystore_mut(),
+        psbt_input,
+    )?)
 }
 
 pub fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {

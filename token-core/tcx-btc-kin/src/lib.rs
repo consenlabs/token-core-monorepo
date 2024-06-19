@@ -27,6 +27,7 @@ pub type Result<T> = result::Result<T, anyhow::Error>;
 pub use address::{BtcKinAddress, WIFDisplay};
 pub use bch_address::BchAddress;
 pub use network::BtcKinNetwork;
+pub use psbt::sign_psbt;
 pub use transaction::{BtcKinTxInput, BtcKinTxOutput, OmniTxInput, Utxo};
 
 pub const BITCOIN: &str = "BITCOIN";

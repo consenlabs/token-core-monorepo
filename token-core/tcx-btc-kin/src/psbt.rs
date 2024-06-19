@@ -5,7 +5,6 @@ use crate::{Error, Result, BITCOINCASH};
 use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::psbt::{Prevouts, Psbt};
 use bitcoin::schnorr::TapTweak;
-use bitcoin::util::bip32::KeySource;
 use bitcoin::util::sighash::SighashCache;
 use bitcoin::{
     EcdsaSig, EcdsaSighashType, SchnorrSig, SchnorrSighashType, Script, TxOut, WPubkeyHash, Witness,
@@ -258,16 +257,16 @@ impl<'a> PsbtSigner<'a> {
     }
 }
 
-pub fn sign_psbt(keystore: &mut Keystore, psbt_input: PsbtInput) -> Result<PsbtOutput> {
+pub fn sign_psbt(
+    chain_type: &str,
+    derivation_path: &str,
+    keystore: &mut Keystore,
+    psbt_input: PsbtInput,
+) -> Result<PsbtOutput> {
     let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_input.data)?);
     let mut psbt = Psbt::consensus_decode(&mut reader)?;
 
-    let mut signer = PsbtSigner::new(
-        &mut psbt,
-        keystore,
-        &psbt_input.chain_type,
-        &psbt_input.derivation_path,
-    );
+    let mut signer = PsbtSigner::new(&mut psbt, keystore, chain_type, derivation_path);
     signer.sign()?;
 
     // FINALIZER
@@ -295,8 +294,7 @@ mod tests {
 
     #[test]
     fn test_sign_psbt() {
-        let mut hd =
-            hd_keystore("bar razor crime recipe useful control duty age abuse slot enhance state");
+        let mut hd = sample_hd_keystore();
         let coin_info = CoinInfo {
             coin: "BITCOIN".to_string(),
             derivation_path: "m/86'/1'/0'/0/0".to_string(),
@@ -309,13 +307,11 @@ mod tests {
         println!("{:?}", account);
 
         let psbt_input = PsbtInput {
-            data: "70736274ff0100db02000000012af69a72ee07e65a20a3a0aa89aff4f1d5601bfcca0a4f8752daf1eda2bff4390200000000fdffffff0350c30000000000002251206b4b71543b6d3e1eadb123d4e1362674312c813fd20ba5a25bfe11a29d750a2d0000000000000000496a476262743400aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29b143a1961c97682d59b5f48d5b469ac74ac45273245947865e3c4ad575e4fa646fa0037e0b90000000000225120ea20ffb077323528b8345c7fa517a2ebee1b52649ee2559a6d5ea87160b50b2e080803000001012b08aaba0000000000225120ea20ffb077323528b8345c7fa517a2ebee1b52649ee2559a6d5ea87160b50b2e011720aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29b00000000".to_string(),
-            chain_type: "BITCOIN".to_string(),
-            derivation_path: "m/86'/1'/0'".to_string(),
+            data: "70736274ff0100db0200000001fa4c8d58b9b6c56ed0b03f78115246c99eb70f99b837d7b4162911d1016cda340200000000fdffffff0350c30000000000002251202114eda66db694d87ff15ddd5d3c4e77306b6e6dd5720cbd90cd96e81016c2b30000000000000000496a47626274340066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229ec20acf33c17e5a6c92cced9f1d530cccab7aa3e53400456202f02fac95e9c481fa00d47b1700000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233d80f03000001012be3bf1d00000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c23301172066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e00000000".to_string(),
             auto_finalize: true
         };
 
-        let result = super::sign_psbt(&mut hd, psbt_input).unwrap();
+        let result = super::sign_psbt("BITCOIN", "m/86'/1'/0'", &mut hd, psbt_input).unwrap();
         assert_eq!(result.data, "70736274ff0100db02000000017e4e5ccaa5a84f4e2761816d948db0530283d2ddab9e2b0bf14432247177b67c0000000000fdffffff0350c30000000000002251202f03f11af54df4be96db1c8d6ee9ab2a29558479ff93ad019d182deed8f8c33d0000000000000000496a4762627434001fa696928d908ffd29c2ab9ebf8ad48946bf9d57b64c2e4f588988c830bd2571f4940b238dcd00535fde9730345bab6ff4ea6d413cc3602c4033c10f251c7e81fa0057620000000000002251206649a3708d5510aeb8140ffb6ed5866db64b817ea62902628ad7d04730484aab080803000001012bf4260100000000002251206649a3708d5510aeb8140ffb6ed5866db64b817ea62902628ad7d04730484aab0117201fa696928d908ffd29c2ab9ebf8ad48946bf9d57b64c2e4f588988c830bd257100000000");
     }
 }
