@@ -276,11 +276,11 @@ pub fn sign_psbt(
     signer.sign()?;
 
     // FINALIZER
-    if psbt_input.auto_finalize {
-        psbt.inputs.iter_mut().for_each(|input| {
-            input.finalize();
-        })
-    }
+    //    if psbt_input.auto_finalize {
+    psbt.inputs.iter_mut().for_each(|input| {
+        input.finalize();
+    });
+    //   }
 
     let mut vec = Vec::<u8>::new();
     let mut writer = Cursor::new(&mut vec);
@@ -291,7 +291,7 @@ pub fn sign_psbt(
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::{hd_keystore, sample_hd_keystore};
+    use crate::tests::sample_hd_keystore;
     use crate::transaction::PsbtInput;
     use bitcoin::consensus::Decodable;
     use bitcoin::psbt::Psbt;
@@ -299,8 +299,7 @@ mod tests {
     use bitcoin::schnorr::TapTweak;
     use secp256k1::{Message, XOnlyPublicKey};
     use std::io::Cursor;
-    use tcx_common::{FromHex, ToHex};
-    use tcx_constants::CurveType;
+    use tcx_common::FromHex;
     use tcx_primitive::{PublicKey, SECP256K1_ENGINE};
 
     #[test]
