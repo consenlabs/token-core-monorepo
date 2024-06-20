@@ -58,7 +58,7 @@ pub struct OmniTxInput {
 pub struct PsbtInput {
     #[prost(string, tag = "1")]
     pub data: ::prost::alloc::string::String,
-    #[prost(bool, tag = "3")]
+    #[prost(bool, tag = "2")]
     pub auto_finalize: bool,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
