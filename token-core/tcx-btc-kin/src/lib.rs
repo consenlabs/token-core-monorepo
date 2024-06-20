@@ -92,12 +92,28 @@ pub mod omni {
 
 #[cfg(test)]
 mod tests {
-    use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_common::ToHex;
+    use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::{Keystore, Metadata};
+    use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
 
     pub fn hd_keystore(mnemonic: &str) -> Keystore {
         let mut keystore =
             Keystore::from_mnemonic(mnemonic, TEST_PASSWORD, Metadata::default()).unwrap();
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        keystore
+    }
+
+    pub fn private_keystore(wif: &str) -> Keystore {
+        let sec_key = Secp256k1PrivateKey::from_wif(wif).unwrap();
+        let mut keystore = Keystore::from_private_key(
+            &sec_key.to_bytes().to_hex(),
+            TEST_PASSWORD,
+            CurveType::SECP256k1,
+            Metadata::default(),
+            None,
+        )
+        .unwrap();
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
         keystore
     }
