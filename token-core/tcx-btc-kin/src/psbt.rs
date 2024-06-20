@@ -3,22 +3,18 @@ use crate::sighash::TxSignatureHasher;
 use crate::transaction::{PsbtInput, PsbtOutput};
 use crate::{Error, Result, BITCOINCASH};
 use bitcoin::consensus::{Decodable, Encodable};
-use bitcoin::psbt::serialize::Serialize;
 use bitcoin::psbt::{Prevouts, Psbt};
 use bitcoin::schnorr::TapTweak;
-use bitcoin::util::bip32::KeySource;
 use bitcoin::util::sighash::SighashCache;
-use bitcoin::util::taproot::{LeafVersion, TapLeafHash};
 use bitcoin::{
     EcdsaSig, EcdsaSighashType, SchnorrSig, SchnorrSighashType, Script, TxOut, WPubkeyHash, Witness,
 };
-use bitcoin_hashes::hex::ToHex;
 use bitcoin_hashes::{hash160, Hash};
 use secp256k1::ecdsa::Signature;
 use secp256k1::Message;
 use std::collections::BTreeMap;
 use std::io::Cursor;
-use tcx_common::{FromHex, ToHex as OtherToHex};
+use tcx_common::{FromHex, ToHex};
 use tcx_constants::CurveType;
 use tcx_keystore::Keystore;
 use tcx_primitive::{PrivateKey, Secp256k1PrivateKey, SECP256K1_ENGINE};
@@ -69,14 +65,6 @@ impl PsbtInputExtra for bitcoin::psbt::Input {
             if self.tap_key_sig.is_some() {
                 let mut witness = Witness::new();
                 witness.push(self.tap_key_sig.unwrap().to_vec());
-
-                if !self.tap_scripts.is_empty() {
-                    let (control_block, script_leaf) = self.tap_scripts.first_key_value().unwrap();
-
-                    let (script, _) = script_leaf;
-                    witness.push(script.as_bytes().to_vec());
-                    witness.push(control_block.serialize())
-                }
                 self.final_script_witness = Some(witness);
             }
         }
@@ -212,6 +200,7 @@ impl<'a> PsbtSigner<'a> {
             EcdsaSighashType::All,
         )?;
         let sig = Self::sign_ecdsa(&hash, &key)?;
+
         self.psbt.inputs[index]
             .partial_sigs
             .insert(key.public_key().0, EcdsaSig::sighash_all(sig));
@@ -247,39 +236,6 @@ impl<'a> PsbtSigner<'a> {
         Ok(())
     }
 
-    fn sign_p2tr_script(&mut self, index: usize) -> Result<()> {
-        let key = self.get_private_key()?;
-
-        let key_pair = bitcoin::schnorr::UntweakedKeyPair::from_seckey_slice(
-            &SECP256K1_ENGINE,
-            &key.to_bytes(),
-        )?
-        .tap_tweak(&SECP256K1_ENGINE, None);
-
-        let input = self.psbt.inputs[index].clone();
-        // if !input.tap_scripts.is_empty() {
-        let (control_block, script_leaf) = input.tap_scripts.first_key_value().unwrap();
-
-        let (script, leaf) = script_leaf;
-        let hash = self.sighash_cache.taproot_script_spend_signature_hash(
-            index,
-            &Prevouts::All(&self.prevouts.clone()),
-            TapLeafHash::from_script(script, LeafVersion::TapScript),
-            SchnorrSighashType::Default,
-        )?;
-
-        let msg = Message::from_slice(&hash[..])?;
-        let sig = SECP256K1_ENGINE.sign_schnorr(&msg, &key_pair.to_inner());
-        // self.sighash_cache
-        println!("sig: {:?}", sig.to_hex());
-        self.psbt.inputs[index].tap_key_sig = Some(SchnorrSig {
-            hash_ty: SchnorrSighashType::Default,
-            sig,
-        });
-
-        Ok(())
-    }
-
     fn sign(&mut self) -> Result<()> {
         self.prevouts = self.prevouts()?;
 
@@ -292,8 +248,6 @@ impl<'a> PsbtSigner<'a> {
                 self.sign_p2sh_nested_p2wpkh(idx)?;
             } else if prevout.script_pubkey.is_v0_p2wpkh() {
                 self.sign_p2wpkh(idx)?;
-            } else if !self.psbt.inputs.first().unwrap().tap_scripts.is_empty() {
-                self.sign_p2tr_script(idx)?
             } else if prevout.script_pubkey.is_v1_p2tr() {
                 self.sign_p2tr(idx)?;
             }
@@ -333,10 +287,18 @@ pub fn sign_psbt(
 
 #[cfg(test)]
 mod tests {
-    use crate::tests::{private_keystore, sample_hd_keystore};
+    use crate::tests::sample_hd_keystore;
     use crate::transaction::PsbtInput;
     use crate::BtcKinAddress;
+    use bitcoin::consensus::Decodable;
+    use bitcoin::psbt::Psbt;
+    use bitcoin::schnorr;
+    use bitcoin::schnorr::TapTweak;
+    use secp256k1::{Message, XOnlyPublicKey};
+    use std::io::Cursor;
+    use tcx_common::FromHex;
     use tcx_constants::{CoinInfo, CurveType};
+    use tcx_primitive::{PublicKey, SECP256K1_ENGINE};
 
     #[test]
     fn test_sign_psbt() {
@@ -354,10 +316,27 @@ mod tests {
 
         let psbt_input = PsbtInput {
             data: "70736274ff0100db0200000001fa4c8d58b9b6c56ed0b03f78115246c99eb70f99b837d7b4162911d1016cda340200000000fdffffff0350c30000000000002251202114eda66db694d87ff15ddd5d3c4e77306b6e6dd5720cbd90cd96e81016c2b30000000000000000496a47626274340066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229ec20acf33c17e5a6c92cced9f1d530cccab7aa3e53400456202f02fac95e9c481fa00d47b1700000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233d80f03000001012be3bf1d00000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c23301172066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e00000000".to_string(),
-            auto_finalize: true,
+            auto_finalize: true
         };
 
-        let result = super::sign_psbt("BITCOIN", "m/86'/1'/0'", &mut hd, psbt_input).unwrap();
-        assert_eq!(result.data, "70736274ff0100db02000000017e4e5ccaa5a84f4e2761816d948db0530283d2ddab9e2b0bf14432247177b67c0000000000fdffffff0350c30000000000002251202f03f11af54df4be96db1c8d6ee9ab2a29558479ff93ad019d182deed8f8c33d0000000000000000496a4762627434001fa696928d908ffd29c2ab9ebf8ad48946bf9d57b64c2e4f588988c830bd2571f4940b238dcd00535fde9730345bab6ff4ea6d413cc3602c4033c10f251c7e81fa0057620000000000002251206649a3708d5510aeb8140ffb6ed5866db64b817ea62902628ad7d04730484aab080803000001012bf4260100000000002251206649a3708d5510aeb8140ffb6ed5866db64b817ea62902628ad7d04730484aab0117201fa696928d908ffd29c2ab9ebf8ad48946bf9d57b64c2e4f588988c830bd257100000000");
+        let psbt_output = super::sign_psbt("BITCOIN", "m/86'/1'/0'", &mut hd, psbt_input).unwrap();
+        let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_output.data).unwrap());
+        let psbt = Psbt::consensus_decode(&mut reader).unwrap();
+        let tx = psbt.extract_tx();
+        let sig = schnorr::SchnorrSig::from_slice(&tx.input[0].witness.to_vec()[0]).unwrap();
+
+        let data =
+            Vec::<u8>::from_hex("3a66cf6ec1a87b10b86fa358baf64484bba8c61c9828e5cbe2eb8a3d4bbf190c")
+                .unwrap();
+        let msg = Message::from_slice(&data).unwrap();
+        let x_pub_key = XOnlyPublicKey::from_slice(
+            Vec::<u8>::from_hex("66f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e")
+                .unwrap()
+                .as_slice(),
+        )
+        .unwrap();
+        let tweak_pub_key = x_pub_key.tap_tweak(&SECP256K1_ENGINE, None);
+
+        assert!(sig.sig.verify(&msg, &tweak_pub_key.0.to_inner()).is_ok());
     }
 }
