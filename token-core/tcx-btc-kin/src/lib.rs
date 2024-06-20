@@ -20,6 +20,7 @@ extern crate num_traits;
 
 #[macro_use]
 extern crate tcx_keystore;
+extern crate core;
 
 pub type Result<T> = result::Result<T, anyhow::Error>;
 
