@@ -5,6 +5,7 @@ use crate::{Error, Result, BITCOINCASH};
 use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::psbt::{Prevouts, Psbt};
 use bitcoin::schnorr::TapTweak;
+use bitcoin::util::bip32::KeySource;
 use bitcoin::util::sighash::SighashCache;
 use bitcoin::{
     EcdsaSig, EcdsaSighashType, SchnorrSig, SchnorrSighashType, Script, TxOut, WPubkeyHash, Witness,
@@ -128,8 +129,13 @@ impl<'a> PsbtSigner<'a> {
         Ok(utxos)
     }
 
-    fn get_private_key(&mut self) -> Result<Secp256k1PrivateKey> {
-        let path = if !self.derivation_path.is_empty() {
+    fn get_private_key(&mut self, index: usize) -> Result<Secp256k1PrivateKey> {
+        let input = &self.psbt.inputs[index];
+        let bip32_derivations: Vec<&KeySource> = input.bip32_derivation.values().collect();
+
+        let path = if !bip32_derivations.is_empty() {
+            bip32_derivations[0].1.to_string()
+        } else if !self.derivation_path.is_empty() {
             self.derivation_path.clone() + "/0/0"
         } else {
             "".to_string()
@@ -143,7 +149,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn sign_p2pkh(&mut self, index: usize) -> Result<()> {
-        let key = self.get_private_key()?;
+        let key = self.get_private_key(index)?;
 
         let prevout = &self.prevouts[index];
 
@@ -164,7 +170,7 @@ impl<'a> PsbtSigner<'a> {
 
     fn sign_p2sh_nested_p2wpkh(&mut self, index: usize) -> Result<()> {
         let prevout = &self.prevouts[index].clone();
-        let key = self.get_private_key()?;
+        let key = self.get_private_key(index)?;
         let pub_key = key.public_key();
 
         let script = Script::new_v0_p2wpkh(&WPubkeyHash::from_hash(
@@ -187,7 +193,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn sign_p2wpkh(&mut self, index: usize) -> Result<()> {
-        let key = self.get_private_key()?;
+        let key = self.get_private_key(index)?;
         let prevout = &self.prevouts[index];
 
         let hash = self.sighash_cache.segwit_hash(
@@ -209,7 +215,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn sign_p2tr(&mut self, index: usize) -> Result<()> {
-        let key = self.get_private_key()?;
+        let key = self.get_private_key(index)?;
 
         let key_pair = bitcoin::schnorr::UntweakedKeyPair::from_seckey_slice(
             &SECP256K1_ENGINE,
@@ -275,8 +281,6 @@ pub fn sign_psbt(
             input.finalize();
         })
     }
-
-    println!("psbt: {:?}", psbt.inputs);
 
     let mut vec = Vec::<u8>::new();
     let mut writer = Cursor::new(&mut vec);
