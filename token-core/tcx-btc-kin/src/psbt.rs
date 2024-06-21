@@ -6,6 +6,7 @@ use bitcoin::consensus::{Decodable, Encodable};
 use bitcoin::psbt::{Prevouts, Psbt};
 use bitcoin::schnorr::TapTweak;
 use bitcoin::util::sighash::SighashCache;
+use bitcoin::util::taproot::TapLeafHash;
 use bitcoin::{
     EcdsaSig, EcdsaSighashType, SchnorrSig, SchnorrSighashType, Script, TxOut, WPubkeyHash, Witness,
 };
@@ -65,6 +66,14 @@ impl PsbtInputExtra for bitcoin::psbt::Input {
             if self.tap_key_sig.is_some() {
                 let mut witness = Witness::new();
                 witness.push(self.tap_key_sig.unwrap().to_vec());
+
+                if !self.tap_scripts.is_empty() {
+                    let (control_block, script_leaf) = self.tap_scripts.first_key_value().unwrap();
+
+                    let (script, _) = script_leaf;
+                    witness.push(script.as_bytes().to_vec());
+                    witness.push(control_block.serialize())
+                }
                 self.final_script_witness = Some(witness);
             }
         }
@@ -236,6 +245,36 @@ impl<'a> PsbtSigner<'a> {
         Ok(())
     }
 
+    fn sign_p2tr_script(&mut self, index: usize) -> Result<()> {
+        let key = self.get_private_key()?;
+
+        let key_pair = bitcoin::schnorr::UntweakedKeyPair::from_seckey_slice(
+            &SECP256K1_ENGINE,
+            &key.to_bytes(),
+        )?;
+
+        let input = self.psbt.inputs[index].clone();
+        let (_, script_leaf) = input.tap_scripts.first_key_value().unwrap();
+
+        let (script, leaf_version) = script_leaf;
+        let hash = self.sighash_cache.taproot_script_spend_signature_hash(
+            index,
+            &Prevouts::All(&self.prevouts.clone()),
+            TapLeafHash::from_script(script, leaf_version.clone()),
+            SchnorrSighashType::Default,
+        )?;
+        println!("hash: {:?}", hash.to_hex());
+
+        let msg = Message::from_slice(&hash[..])?;
+        let sig = SECP256K1_ENGINE.sign_schnorr(&msg, &key_pair);
+        self.psbt.inputs[index].tap_key_sig = Some(SchnorrSig {
+            hash_ty: SchnorrSighashType::Default,
+            sig,
+        });
+
+        Ok(())
+    }
+
     fn sign(&mut self) -> Result<()> {
         self.prevouts = self.prevouts()?;
 
@@ -248,6 +287,8 @@ impl<'a> PsbtSigner<'a> {
                 self.sign_p2sh_nested_p2wpkh(idx)?;
             } else if prevout.script_pubkey.is_v0_p2wpkh() {
                 self.sign_p2wpkh(idx)?;
+            } else if !self.psbt.inputs.first().unwrap().tap_scripts.is_empty() {
+                self.sign_p2tr_script(idx)?
             } else if prevout.script_pubkey.is_v1_p2tr() {
                 self.sign_p2tr(idx)?;
             }
@@ -276,8 +317,6 @@ pub fn sign_psbt(
         })
     }
 
-    println!("psbt: {:?}", psbt.inputs);
-
     let mut vec = Vec::<u8>::new();
     let mut writer = Cursor::new(&mut vec);
     psbt.consensus_encode(&mut writer)?;
@@ -294,6 +333,7 @@ mod tests {
     use bitcoin::psbt::Psbt;
     use bitcoin::schnorr;
     use bitcoin::schnorr::TapTweak;
+    use bitcoin_hashes::hex::ToHex;
     use secp256k1::{Message, XOnlyPublicKey};
     use std::io::Cursor;
     use tcx_common::FromHex;
@@ -312,11 +352,10 @@ mod tests {
         };
 
         let account = hd.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
-        println!("{:?}", account);
 
         let psbt_input = PsbtInput {
             data: "70736274ff0100db0200000001fa4c8d58b9b6c56ed0b03f78115246c99eb70f99b837d7b4162911d1016cda340200000000fdffffff0350c30000000000002251202114eda66db694d87ff15ddd5d3c4e77306b6e6dd5720cbd90cd96e81016c2b30000000000000000496a47626274340066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229ec20acf33c17e5a6c92cced9f1d530cccab7aa3e53400456202f02fac95e9c481fa00d47b1700000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233d80f03000001012be3bf1d00000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c23301172066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e00000000".to_string(),
-            auto_finalize: true
+            auto_finalize: true,
         };
 
         let psbt_output = super::sign_psbt("BITCOIN", "m/86'/1'/0'", &mut hd, psbt_input).unwrap();
@@ -338,5 +377,49 @@ mod tests {
         let tweak_pub_key = x_pub_key.tap_tweak(&SECP256K1_ENGINE, None);
 
         assert!(sig.sig.verify(&msg, &tweak_pub_key.0.to_inner()).is_ok());
+    }
+
+    #[test]
+    fn test_sign_psbt_script() {
+        let mut hd = sample_hd_keystore();
+        let coin_info = CoinInfo {
+            coin: "BITCOIN".to_string(),
+            derivation_path: "m/86'/1'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "TESTNET".to_string(),
+            seg_wit: "VERSION_1".to_string(),
+        };
+
+        let account = hd.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
+
+        let psbt_input = PsbtInput {
+            data: "70736274ff01005e02000000012bd2f6479f3eeaffe95c03b5fdd76a873d346459114dec99c59192a0cb6409e90000000000ffffffff01409c000000000000225120677cc88dc36a75707b370e27efff3e454d446ad55004dac1685c1725ee1a89ea000000000001012b50c3000000000000225120a9a3350206de400f09a73379ec1bcfa161fc11ac095e5f3d7354126f0ec8e87f6215c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0d2956573f010fa1a3c135279c5eb465ec2250205dcdfe2122637677f639b1021356c963cd9c458508d6afb09f3fa2f9b48faec88e75698339a4bbb11d3fc9b0efd570120aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29bad200aee0509b16db71c999238a4827db945526859b13c95487ab46725357c9a9f25ac20113c3a32a9d320b72190a04a020a0db3976ef36972673258e9a38a364f3dc3b0ba2017921cf156ccb4e73d428f996ed11b245313e37e27c978ac4d2cc21eca4672e4ba203bb93dfc8b61887d771f3630e9a63e97cbafcfcc78556a474df83a31a0ef899cba2040afaf47c4ffa56de86410d8e47baa2bb6f04b604f4ea24323737ddc3fe092dfba2079a71ffd71c503ef2e2f91bccfc8fcda7946f4653cef0d9f3dde20795ef3b9f0ba20d21faf78c6751a0d38e6bd8028b907ff07e9a869a43fc837d6b3f8dff6119a36ba20f5199efae3f28bb82476163a7e458c7ad445d9bffb0682d10d3bdb2cb41f8e8eba20fa9d882d45f4060bdb8042183828cd87544f1ea997380e586cab77d5fd698737ba569cc001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00000".to_string(),
+            auto_finalize: true,
+        };
+
+        let psbt_output = super::sign_psbt("BITCOIN", "m/86'/1'/0'", &mut hd, psbt_input).unwrap();
+        let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_output.data).unwrap());
+        let psbt = Psbt::consensus_decode(&mut reader).unwrap();
+        let tx = psbt.extract_tx();
+        let witness = tx.input[0].witness.to_vec();
+        let sig = schnorr::SchnorrSig::from_slice(&witness[0]).unwrap();
+
+        let data =
+            Vec::<u8>::from_hex("56b6c5fd09753fbbbeb8f530308e4f7d2f404e02da767f033e926d27fcc2f37e")
+                .unwrap();
+        let msg = Message::from_slice(&data).unwrap();
+        let x_pub_key = XOnlyPublicKey::from_slice(
+            Vec::<u8>::from_hex("66f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e")
+                .unwrap()
+                .as_slice(),
+        )
+        .unwrap();
+
+        let script = witness[1].to_hex();
+        let control_block = witness[2].to_hex();
+        assert_eq!(script, "20aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29bad200aee0509b16db71c999238a4827db945526859b13c95487ab46725357c9a9f25ac20113c3a32a9d320b72190a04a020a0db3976ef36972673258e9a38a364f3dc3b0ba2017921cf156ccb4e73d428f996ed11b245313e37e27c978ac4d2cc21eca4672e4ba203bb93dfc8b61887d771f3630e9a63e97cbafcfcc78556a474df83a31a0ef899cba2040afaf47c4ffa56de86410d8e47baa2bb6f04b604f4ea24323737ddc3fe092dfba2079a71ffd71c503ef2e2f91bccfc8fcda7946f4653cef0d9f3dde20795ef3b9f0ba20d21faf78c6751a0d38e6bd8028b907ff07e9a869a43fc837d6b3f8dff6119a36ba20f5199efae3f28bb82476163a7e458c7ad445d9bffb0682d10d3bdb2cb41f8e8eba20fa9d882d45f4060bdb8042183828cd87544f1ea997380e586cab77d5fd698737ba569c");
+        assert_eq!(control_block, "c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0d2956573f010fa1a3c135279c5eb465ec2250205dcdfe2122637677f639b1021356c963cd9c458508d6afb09f3fa2f9b48faec88e75698339a4bbb11d3fc9b0e");
+
+        assert!(sig.sig.verify(&msg, &x_pub_key).is_ok());
     }
 }
