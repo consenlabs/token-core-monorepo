@@ -263,7 +263,6 @@ impl<'a> PsbtSigner<'a> {
             TapLeafHash::from_script(script, leaf_version.clone()),
             SchnorrSighashType::Default,
         )?;
-        println!("hash: {:?}", hash.to_hex());
 
         let msg = Message::from_slice(&hash[..])?;
         let sig = SECP256K1_ENGINE.sign_schnorr(&msg, &key_pair);
