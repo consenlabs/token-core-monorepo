@@ -84,6 +84,10 @@ pub mod bitcoincash {
     pub type TransactionInput = crate::transaction::BtcKinTxInput;
 
     pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
+
+    pub type MessageInput = crate::transaction::BtcMessageInput;
+
+    pub type MessageOutput = crate::transaction::BtcMessageOutput;
 }
 
 pub mod omni {
