@@ -17,7 +17,7 @@ use tcx::api::{
     ExistsJsonParam, ExistsKeystoreResult, ExistsPrivateKeyParam, ExportJsonParam,
     ExportJsonResult, ExportMnemonicParam, ExportMnemonicResult, ExportPrivateKeyParam,
     ExportPrivateKeyResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
-    ImportPrivateKeyResult, KeystoreResult, WalletKeyParam,
+    ImportPrivateKeyResult, KeystoreResult, MigrateKeystoreParam, WalletKeyParam,
 };
 
 use tcx::handler::{encode_message, import_private_key};
@@ -1586,6 +1586,50 @@ pub fn test_reset_password_hd_seed_already_exist() {
         assert_eq!(import_mnemonic_result.existed_id, import_result.id);
         assert!(import_mnemonic_result.is_existed);
     })
+}
+
+#[test]
+#[serial]
+pub fn test_reset_password_multi_hd_wallet() {
+    setup_test("../test-data/reset-password-wallets");
+    let import_param = ImportMnemonicParam {
+        mnemonic: TEST_MNEMONIC.to_string(),
+        password: "imToken@1".to_string(),
+        network: "MAINNET".to_string(),
+        name: "reset_password".to_string(),
+        password_hint: "".to_string(),
+        overwrite_id: "a7c5ed76-5249-4e23-adcc-a36c519383a5".to_string(),
+    };
+
+    let ret = call_api("import_mnemonic", import_param).unwrap();
+    let import_mnemonic_result = KeystoreResult::decode(ret.as_slice()).unwrap();
+    assert!(!import_mnemonic_result.is_existed);
+
+    let migration_param = MigrateKeystoreParam {
+        id: "0551d81c-d923-4b8f-ac83-07b575eebcd4".to_string(),
+        network: "MAINNET".to_string(),
+        key: Some(api::migrate_keystore_param::Key::Password(
+            "imToken@1".to_string(),
+        )),
+    };
+
+    call_api("migrate_keystore", migration_param).unwrap();
+
+    let import_param = ImportMnemonicParam {
+        mnemonic: TEST_MNEMONIC.to_string(),
+        password: "imToken@1".to_string(),
+        network: "MAINNET".to_string(),
+        name: "reset_password".to_string(),
+        password_hint: "".to_string(),
+        overwrite_id: "b7e27e86-6214-4e31-9f8f-ec493754e0fc".to_string(),
+    };
+
+    let ret = call_api("import_mnemonic", import_param).unwrap();
+    let import_mnemonic_result = KeystoreResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(
+        import_mnemonic_result.existed_id,
+        "a7c5ed76-5249-4e23-adcc-a36c519383a5"
+    )
 }
 
 #[test]
