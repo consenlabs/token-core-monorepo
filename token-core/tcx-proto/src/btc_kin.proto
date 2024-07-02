@@ -46,3 +46,11 @@ message PsbtInput {
 message PsbtOutput {
     string data = 1;
 }
+
+message BtcMessageInput {
+    string message = 1;
+}
+
+message BtcMessageOutput {
+    string signature = 1;
+}

@@ -181,4 +181,14 @@ impl TxSignatureHasher for BitcoinCashSighash {
     ) -> Result<TapSighashHash> {
         Err(Error::UnsupportedTaproot.into())
     }
+
+    fn taproot_script_spend_signature_hash(
+        &mut self,
+        input_index: usize,
+        prevouts: &Prevouts<TxOut>,
+        tap_leaf_hash: TapLeafHash,
+        sighash_type: SchnorrSighashType,
+    ) -> Result<TapSighashHash> {
+        Err(Error::UnsupportedTaproot.into())
+    }
 }

@@ -27,7 +27,7 @@ use tcx::api::{
 
 use tcx::handler::encode_message;
 use tcx::handler::get_derived_key;
-use tcx_btc_kin::transaction::BtcKinTxInput;
+use tcx_btc_kin::transaction::{BtcKinTxInput, BtcMessageInput, BtcMessageOutput};
 use tcx_btc_kin::Utxo;
 use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
 use tcx_constants::{sample_key, CurveType};
@@ -537,6 +537,46 @@ fn test_tron_sign_message() {
 
             let sign_result = call_api("sign_msg", tx).unwrap();
             let ret: TronMessageOutput = TronMessageOutput::decode(sign_result.as_slice()).unwrap();
+            assert_eq!(expected, ret.signature);
+        }
+    });
+}
+
+#[test]
+#[serial]
+fn test_bitcoin_sign_message() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let input_expects = vec![
+            (BtcMessageInput{
+                message: "hello world".to_string(),
+            }, "02473044022062775640116afb7f17d23c222b0a6904fdaf2aea0d76e550d75c8fd362b80dcb022067c299fde774aaab689f8a53ebd0956395ff45b7ff6b7e99569d0abec85110c80121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc"),
+            (BtcMessageInput{
+                message: "test1".to_string(),
+            }, "02483045022100b805ccd16f1a664ae394bf292962ea6d76e0ddd5beb0b050cca4a1aa9ababc9a02201503132e39dc600957ec8f33663b10ab0cff0c4e37cab2811619152be8d919300121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc"),
+            (BtcMessageInput{
+                message: "test2".to_string(),
+            }, "02483045022100e96bfdb41b3562a1ff5a4c816da2620e82bcc8d702843ae1cec506666d4569c302206477d7d93c082cb42d462200a136e6aef7edde053722008a206ab8b9b356f0380121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc"),
+        ];
+
+        for (input, expected) in input_expects {
+            let tx = SignParam {
+                id: wallet.id.to_string(),
+                key: Some(Key::Password(TEST_PASSWORD.to_string())),
+                chain_type: "BITCOIN".to_string(),
+                path: "m/49'/1'/0'".to_string(),
+                curve: "secp256k1".to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "VERSION_0".to_string(),
+                input: Some(::prost_types::Any {
+                    type_url: "imtoken".to_string(),
+                    value: encode_message(input).unwrap(),
+                }),
+            };
+
+            let sign_result = call_api("sign_msg", tx).unwrap();
+            let ret: BtcMessageOutput = BtcMessageOutput::decode(sign_result.as_slice()).unwrap();
             assert_eq!(expected, ret.signature);
         }
     });

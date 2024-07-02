@@ -447,38 +447,13 @@ mod tests {
 
     use super::*;
 
-    fn hex_keystore(hex: &str) -> Keystore {
-        let mut keystore = Keystore::from_private_key(
-            hex,
-            TEST_PASSWORD,
-            CurveType::SECP256k1,
-            Metadata::default(),
-            None,
-        )
-        .unwrap();
-        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
-        keystore
-    }
-
-    fn wif_keystore(_wif: &str) -> Keystore {
-        let hex = Secp256k1PrivateKey::from_wif(TEST_WIF)
-            .unwrap()
-            .to_bytes()
-            .to_hex();
-
-        hex_keystore(&hex)
-    }
-
-    fn sample_private_key_keystore() -> Keystore {
-        wif_keystore(TEST_WIF)
-    }
-
     mod kin {
         use super::*;
+        use crate::tests::sample_wif_keystore;
 
         #[test]
         fn test_sign_less_than_dust() {
-            let mut ks = sample_private_key_keystore();
+            let mut ks = sample_wif_keystore();
 
             let inputs = vec![Utxo {
                 tx_hash: "e112b1215813c8888b31a80d215169809f7901359c0f4bf7e7374174ab2a64f4"
@@ -636,7 +611,7 @@ mod tests {
 
     mod btc {
         use super::*;
-        use crate::tests::sample_hd_keystore;
+        use crate::tests::{sample_hd_keystore, sample_wif_keystore};
         use bitcoin::psbt::serialize::Deserialize;
         use secp256k1::schnorr::Signature;
         use secp256k1::XOnlyPublicKey;
@@ -840,7 +815,7 @@ mod tests {
 
         #[test]
         fn test_sign_with_private_key_on_testnet() {
-            let mut ks = sample_private_key_keystore();
+            let mut ks = sample_wif_keystore();
 
             let inputs = vec![Utxo {
                 tx_hash: "e112b1215813c8888b31a80d215169809f7901359c0f4bf7e7374174ab2a64f4"
@@ -1145,7 +1120,7 @@ mod tests {
 
     mod ltc {
         use super::*;
-        use crate::tests::sample_hd_keystore;
+        use crate::tests::{hex_keystore, sample_hd_keystore, wif_keystore};
 
         #[test]
         fn test_sign_with_hd_on_testnet() {
