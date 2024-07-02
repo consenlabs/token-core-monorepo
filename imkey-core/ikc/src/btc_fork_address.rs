@@ -7,27 +7,26 @@ use ikc_common::path::get_account_path;
 use ikc_common::utility::network_convert;
 
 pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
-    let address: String;
-
-    if param.is_seg_wit {
-        let set_wit = "P2WPKH";
-        let network = network_from_param(&param.chain_type, &param.network, &set_wit).unwrap();
-        address = BtcForkAddress::p2shwpkh(&network, &param.path)?;
-    } else {
-        let set_wit = "NONE";
-        let network = network_from_param(&param.chain_type, &param.network, &set_wit).unwrap();
-        address = BtcForkAddress::p2pkh(&network, &param.path)?;
-    }
+    let address = match param.seg_wit.as_str() {
+        "P2WPKH" => {
+            let network = network_from_param(&param.chain_type, &param.network, "P2WPKH").unwrap();
+            BtcForkAddress::p2shwpkh(&network, &param.path)?
+        }
+        _ => {
+            let network = network_from_param(&param.chain_type, &param.network, "NONE").unwrap();
+            BtcForkAddress::p2pkh(&network, &param.path)?
+        }
+    };
 
     let network = network_convert(param.network.as_ref());
     let account_path = get_account_path(&param.path)?;
-    let enc_xpub = BtcForkAddress::get_enc_xpub(network, &account_path)?;
+    let enc_x_pub = BtcForkAddress::get_enc_xpub(network, &account_path)?;
 
     let address_message = BtcForkWallet {
         path: param.path.to_owned(),
         chain_type: param.chain_type.to_string(),
         address,
-        enc_x_pub: enc_xpub,
+        enc_x_pub,
     };
 
     encode_message(address_message)
@@ -46,7 +45,7 @@ mod tests {
             chain_type: "LITECOIN".to_string(),
             path: "m/44'/2'/0'/0/0".to_string(),
             network: "MAINNET".to_string(),
-            is_seg_wit: false,
+            seg_wit: "NONE".to_string(),
         };
         let message = get_address(&param);
         assert_eq!("0a0f6d2f3434272f32272f30272f302f3012084c495445434f494e1a224c64666465677833684a796744754644554137526b7a6a6a783867664668503944502298014d77444d465856574445755776426f67655731762f4d4f4d46446e476e6e666c6d324a4150764a614a5a4f3448587038664373574554413775384d7a4f57334b61506b73676c7055484c4e33786b44723251574d45517130546577465a6f5a334b736a6d4c57304b474d524e3758514b716f2f6f6d6b5345735066616c566e70395a786d326c7078566d49616371766c65726e5653673d3d", hex::encode(message.unwrap()));
@@ -55,7 +54,7 @@ mod tests {
             chain_type: "LITECOIN".to_string(),
             path: "m/44'/2'/0'/0/0".to_string(),
             network: "MAINNET".to_string(),
-            is_seg_wit: true,
+            seg_wit: "P2WPKH".to_string(),
         };
         let message = get_address(&param);
         assert_eq!("0a0f6d2f3434272f32272f30272f302f3012084c495445434f494e1a224d37786f314d693167554c5a5377677675375656457672774d52716e676d466b56642298014d77444d465856574445755776426f67655731762f4d4f4d46446e476e6e666c6d324a4150764a614a5a4f3448587038664373574554413775384d7a4f57334b61506b73676c7055484c4e33786b44723251574d45517130546577465a6f5a334b736a6d4c57304b474d524e3758514b716f2f6f6d6b5345735066616c566e70395a786d326c7078566d49616371766c65726e5653673d3d", hex::encode(message.unwrap()));

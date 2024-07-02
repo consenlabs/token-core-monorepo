@@ -3,10 +3,10 @@
 pub struct Utxo {
     #[prost(string, tag = "1")]
     pub tx_hash: ::prost::alloc::string::String,
-    #[prost(int32, tag = "2")]
-    pub vout: i32,
-    #[prost(int64, tag = "3")]
-    pub amount: i64,
+    #[prost(uint32, tag = "2")]
+    pub vout: u32,
+    #[prost(uint64, tag = "3")]
+    pub amount: u64,
     #[prost(string, tag = "4")]
     pub address: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
@@ -21,12 +21,12 @@ pub struct Utxo {
 pub struct BtcForkTxInput {
     #[prost(string, tag = "1")]
     pub to: ::prost::alloc::string::String,
-    #[prost(int64, tag = "2")]
-    pub amount: i64,
+    #[prost(uint64, tag = "2")]
+    pub amount: u64,
     #[prost(message, repeated, tag = "3")]
     pub unspents: ::prost::alloc::vec::Vec<Utxo>,
-    #[prost(int64, tag = "4")]
-    pub fee: i64,
+    #[prost(uint64, tag = "4")]
+    pub fee: u64,
     #[prost(uint32, tag = "5")]
     pub change_address_index: u32,
     #[prost(string, tag = "6")]

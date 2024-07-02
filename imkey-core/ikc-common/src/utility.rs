@@ -65,7 +65,7 @@ pub fn secp256k1_sign_verify(public: &[u8], signed: &[u8], message: &[u8]) -> Re
         .is_ok())
 }
 
-pub fn bigint_to_byte_vec(val: i64) -> Vec<u8> {
+pub fn bigint_to_byte_vec(val: u64) -> Vec<u8> {
     let mut return_data = BigInt::from(val).to_signed_bytes_be();
     while return_data.len() < 8 {
         return_data.insert(0, 0x00);
