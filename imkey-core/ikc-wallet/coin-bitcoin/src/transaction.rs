@@ -92,7 +92,6 @@ impl BtcTransaction {
             } else if script.is_v1_p2tr() {
                 self.sign_p2tr_input(
                     idx,
-                    &utxo_pub_key_vec[idx],
                     &mut tx_to_sign,
                     SchnorrSighashType::Default,
                 )?;
@@ -315,7 +314,6 @@ impl BtcTransaction {
     fn sign_p2tr_input(
         &self,
         idx: usize,
-        pub_key: &str,
         transaction: &mut Transaction,
         sighash_type: SchnorrSighashType,
     ) -> Result<()> {
@@ -475,9 +473,7 @@ impl BtcTransaction {
             txhash_vout_vec.extend(serialize(&tx_in.previous_output));
             sequence_vec.extend(serialize(&tx_in.sequence));
             amount_vec.extend(serialize(&unspent.amount));
-            let mut script_pubkey_temp = unspent.address.script_pubkey().serialize();
-            script_pubkey_temp.insert(0, script_pubkey_temp.len() as u8);
-            script_pubkeys_vec.extend(script_pubkey_temp);
+            script_pubkeys_vec.extend(serialize(&unspent.address.script_pubkey()));
         }
         if transaction.version == 2 {
             let mut calc_hash_apdu = vec![];
