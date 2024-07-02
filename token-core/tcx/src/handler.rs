@@ -45,8 +45,8 @@ use crate::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult};
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
 use crate::filemanager::{
-    cache_keystore, clean_keystore, flush_keystore, KEYSTORE_BASE_DIR, LEGACY_WALLET_FILE_DIR,
-    WALLET_FILE_DIR, WALLET_V1_DIR, WALLET_V2_DIR,
+    cache_keystore, clean_keystore, exist_migrated_file, flush_keystore, KEYSTORE_BASE_DIR,
+    LEGACY_WALLET_FILE_DIR, WALLET_FILE_DIR, WALLET_V1_DIR, WALLET_V2_DIR,
 };
 use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
@@ -152,7 +152,9 @@ fn import_private_key_internal(
         let fingerprint = fingerprint_from_any_format_pk(&param.private_key)?;
         let map = KEYSTORE_MAP.read();
         if let Some(founded) = map.values().find(|keystore| {
-            keystore.fingerprint() == fingerprint && keystore.id() != overwrite_id.to_string()
+            keystore.fingerprint() == fingerprint
+                && keystore.id() != overwrite_id.to_string()
+                && exist_migrated_file(&keystore.id())
         }) {
             target_id = Some(founded.id());
         }
@@ -533,7 +535,9 @@ pub fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
         let fingerprint = fingerprint_from_mnemonic(&param.mnemonic)?;
         let map = KEYSTORE_MAP.read();
         if let Some(founded) = map.values().find(|keystore| {
-            keystore.fingerprint() == fingerprint && keystore.id() != param.overwrite_id.to_string()
+            keystore.fingerprint() == fingerprint
+                && keystore.id() != param.overwrite_id.to_string()
+                && exist_migrated_file(&keystore.id())
         }) {
             target_id = Some(founded.id());
         }
