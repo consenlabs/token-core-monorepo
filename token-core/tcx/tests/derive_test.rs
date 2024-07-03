@@ -16,8 +16,8 @@ use tcx::api::{
 };
 use tcx::handler::encode_message;
 use tcx::handler::import_mnemonic;
-use tcx_constants::TEST_PRIVATE_KEY;
 use tcx_constants::{OTHER_MNEMONIC, TEST_MNEMONIC, TEST_PASSWORD};
+use tcx_constants::{TEST_PRIVATE_KEY, TEST_WIF};
 
 use sp_core::ByteArray;
 
@@ -818,6 +818,45 @@ fn test_derive_other_curve_on_pk_keystore() {
         assert_eq!(
             format!("{}", ret.err().unwrap()),
             "private_key_curve_not_match"
+        );
+    })
+}
+
+#[test]
+#[serial]
+fn test_derive_mainnet_account_on_test_wif() {
+    run_test(|| {
+        let param = ImportPrivateKeyParam {
+            password: TEST_PASSWORD.to_string(),
+            private_key: TEST_WIF.to_string(),
+            name: "wif".to_string(),
+            password_hint: "".to_string(),
+            network: "MAINNET".to_string(),
+            overwrite_id: "".to_string(),
+        };
+        let ret = call_api("import_private_key", param).unwrap();
+        let imported = ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+
+        let derive_param = DeriveAccountsParam {
+            id: imported.id.to_string(),
+            derivations: vec![Derivation {
+                chain_type: "BITCOIN".to_string(),
+                chain_id: "".to_string(),
+                path: "".to_string(),
+                network: "TESTNET".to_string(),
+                curve: "secp256k1".to_string(),
+                seg_wit: "VERSION_1".to_string(),
+                bech32_prefix: "".to_string(),
+            }],
+            key: Some(api::derive_accounts_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let ret = call_api("derive_accounts", derive_param).unwrap();
+        let accounts = DeriveAccountsResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(
+            accounts.accounts[0].address,
+            "tb1pqpae4d6594jj3yueluku5tlu7r6nqwm24xc8thk5g396s9e5anvqdwrut7"
         );
     })
 }
