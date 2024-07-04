@@ -5,7 +5,8 @@ use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};
 use bitcoin::hashes::hex::FromHex;
 use bitcoin::psbt::serialize::Serialize;
-use bitcoin::schnorr::TapTweak;
+use bitcoin::schnorr::{TapTweak, UntweakedPublicKey};
+use bitcoin::util::taproot::TapTweakHash;
 use bitcoin::{
     Address, EcdsaSighashType, Network, OutPoint, PackedLockTime, SchnorrSighashType, Script,
     Sequence, Transaction, TxIn, TxOut, WPubkeyHash, Witness,
@@ -92,6 +93,7 @@ impl BtcTransaction {
             } else if script.is_v1_p2tr() {
                 self.sign_p2tr_input(
                     idx,
+                    &utxo_pub_key_vec[idx],
                     &mut tx_to_sign,
                     SchnorrSighashType::Default,
                 )?;
@@ -314,6 +316,7 @@ impl BtcTransaction {
     fn sign_p2tr_input(
         &self,
         idx: usize,
+        pub_key: &str,
         transaction: &mut Transaction,
         sighash_type: SchnorrSighashType,
     ) -> Result<()> {
@@ -337,6 +340,13 @@ impl BtcTransaction {
         path_data.push(sign_path.len() as u8);
         path_data.extend_from_slice(sign_path);
         data.extend(path_data.iter());
+
+        let mut tweaked_pub_key_data: Vec<u8> = vec![];
+        let untweaked_public_key = UntweakedPublicKey::from_str(&pub_key[2..66])?;
+        let tweaked_pub_key = TapTweakHash::from_key_and_tweak(untweaked_public_key, None).to_vec();
+        tweaked_pub_key_data.push(tweaked_pub_key.len() as u8);
+        tweaked_pub_key_data.extend_from_slice(&tweaked_pub_key);
+        data.extend(tweaked_pub_key_data.iter());
 
         let sign_apdu = if idx == (self.unspents.len() - 1) {
             BtcApdu::btc_taproot_sign(true, data)
@@ -1784,11 +1794,5 @@ mod tests {
             "3aa6ed94e29c01b96fe3a20c30825d161f421d5e2358eb1ceade43de533e1977",
             sign_result.as_ref().unwrap().tx_hash
         );
-    }
-
-    #[test]
-    fn testa() {
-        let address = Address::from_str("mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN").unwrap();
-        println!("{}", address.script_pubkey().to_hex())
     }
 }
