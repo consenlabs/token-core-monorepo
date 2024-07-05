@@ -308,14 +308,14 @@ mod tests {
         GetPublicKeysResult, PublicKeyDerivation,
     };
 
+    use bitcoin::Address;
+    use coin_bitcoin::btcapi::{BtcTxExtra, BtcTxInput, BtcTxOutput, Utxo};
     use ikc_device::deviceapi::{BindAcquireReq, BindCheckRes};
     use ikc_transport::hid_api::hid_connect;
     use prost::Message;
     use std::ffi::{CStr, CString};
     use std::os::raw::c_char;
     use std::str::FromStr;
-    use bitcoin::Address;
-    use coin_bitcoin::btcapi::{BtcTxExtra, BtcTxInput, BtcTxOutput, Utxo};
 
     fn _to_c_char(str: &str) -> *const c_char {
         CString::new(str).unwrap().into_raw()
@@ -1759,18 +1759,16 @@ mod tests {
     #[test]
     fn test_bitcoin_sign_no_opreturn() {
         connect_and_bind();
-        let unspents = vec![
-            Utxo {
-                tx_hash: "64381306678c6a868e8778adee1ee9d1746e5e8dd3535fcbaa1a25baab49f015".to_string(),
-                vout: 1,
-                amount: 100000,
-                address: "tb1qv48mkzpx0u74p4c44rc6hd2e0xckph2muvy76k".to_string(),
-                script_pub_key: "0014654fbb08267f3d50d715a8f1abb55979b160dd5b".to_string(),
-                derived_path: "m/49'/1'/0'/0/0".to_string(),
-                sequence: 0,
-            }
-        ];
-        let tx_input = BtcTxInput{
+        let unspents = vec![Utxo {
+            tx_hash: "64381306678c6a868e8778adee1ee9d1746e5e8dd3535fcbaa1a25baab49f015".to_string(),
+            vout: 1,
+            amount: 100000,
+            address: "tb1qv48mkzpx0u74p4c44rc6hd2e0xckph2muvy76k".to_string(),
+            script_pub_key: "0014654fbb08267f3d50d715a8f1abb55979b160dd5b".to_string(),
+            derived_path: "m/49'/1'/0'/0/0".to_string(),
+            sequence: 0,
+        }];
+        let tx_input = BtcTxInput {
             to: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
             amount: 30000,
             fee: 8000,
@@ -1781,7 +1779,7 @@ mod tests {
             extra: None,
         };
         let input_value = encode_message(tx_input).unwrap();
-        let param = SignParam{
+        let param = SignParam {
             chain_type: "BITCOIN".to_string(),
             path: "m/49'/1'/0'".to_string(),
             network: "TESTNET".to_string(),
@@ -1844,12 +1842,12 @@ mod tests {
                 sequence: 0,
             },
         ];
-        let extra = BtcTxExtra{
+        let extra = BtcTxExtra {
             op_return: "1234".to_string(),
             property_id: 0,
             fee_mode: "".to_string(),
         };
-        let tx_input = BtcTxInput{
+        let tx_input = BtcTxInput {
             to: "2N9wBy6f1KTUF5h2UUeqRdKnBT6oSMh4Whp".to_string(),
             amount: 88000,
             fee: 10000,
@@ -1860,7 +1858,7 @@ mod tests {
             extra: Some(extra),
         };
         let input_value = encode_message(tx_input).unwrap();
-        let param = SignParam{
+        let param = SignParam {
             chain_type: "BITCOIN".to_string(),
             path: "m/49'/1'/0'".to_string(),
             network: "TESTNET".to_string(),
