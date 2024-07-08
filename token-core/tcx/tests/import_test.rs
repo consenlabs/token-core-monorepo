@@ -13,11 +13,12 @@ use tcx_keystore::keystore::IdentityNetwork;
 
 use prost::Message;
 use tcx::api::{
-    export_private_key_param, CreateKeystoreParam, DeriveAccountsParam, DeriveAccountsResult,
-    ExistsJsonParam, ExistsKeystoreResult, ExistsPrivateKeyParam, ExportJsonParam,
-    ExportJsonResult, ExportMnemonicParam, ExportMnemonicResult, ExportPrivateKeyParam,
-    ExportPrivateKeyResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
-    ImportPrivateKeyResult, KeystoreResult, MigrateKeystoreParam, WalletKeyParam,
+    export_private_key_param, wallet_key_param, BackupResult, CreateKeystoreParam,
+    DeriveAccountsParam, DeriveAccountsResult, ExistsJsonParam, ExistsKeystoreResult,
+    ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicParam,
+    ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, ImportJsonParam,
+    ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult, KeystoreResult,
+    MigrateKeystoreParam, WalletKeyParam,
 };
 
 use tcx::handler::{encode_message, import_private_key};
@@ -1166,43 +1167,20 @@ pub fn test_import_wif_network_mismatch() {
             password: TEST_PASSWORD.to_string(),
             name: "import_private_key_wallet".to_string(),
             password_hint: "".to_string(),
-            network: "".to_string(),
-            overwrite_id: "".to_string(),
-        };
-        let ret = call_api("import_private_key", param);
-        assert_eq!(
-            format!("{}", ret.unwrap_err()),
-            "private_key_network_mismatch"
-        );
-
-        let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
-            private_key: TEST_WIF.to_string(),
-            password: TEST_PASSWORD.to_string(),
-            name: "import_private_key_wallet".to_string(),
-            password_hint: "".to_string(),
             network: "MAINNET".to_string(),
             overwrite_id: "".to_string(),
         };
-        let ret = call_api("import_private_key", param);
-        // let import_result: ImportPrivateKeyResult =
-        //     ImportPrivateKeyResult::decode(ret.as_slice());
-        assert_eq!(
-            format!("{}", ret.unwrap_err()),
-            "private_key_network_mismatch"
-        );
-
-        let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
-            private_key: TEST_WIF.to_string(),
-            password: TEST_PASSWORD.to_string(),
-            name: "import_private_key_wallet".to_string(),
-            password_hint: "".to_string(),
-            network: "TESTNET".to_string(),
-            overwrite_id: "".to_string(),
+        let ret = call_api("import_private_key", param).expect("import_private_key_test");
+        let import_private_key_ret = ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+        assert_eq!("TESTNET", import_private_key_ret.identified_network);
+        let backup_param = WalletKeyParam {
+            id: import_private_key_ret.id.to_string(),
+            key: Some(wallet_key_param::Key::Password(TEST_PASSWORD.to_string())),
         };
-        let ret = call_api("import_private_key", param).unwrap();
-        let import_result: ImportPrivateKeyResult =
-            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
-        assert_eq!(import_result.identified_network, "TESTNET");
+
+        let ret = call_api("backup", backup_param).unwrap();
+        let backup_result = BackupResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(backup_result.original, TEST_WIF);
     })
 }
 

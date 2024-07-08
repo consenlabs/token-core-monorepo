@@ -173,16 +173,6 @@ fn import_private_key_internal(
     }
 
     let decoded_ret = decode_private_key(&param.private_key)?;
-    if !decoded_ret.network.is_empty() {
-        let expected_network = if param.network.is_empty() {
-            "MAINNET"
-        } else {
-            param.network.as_str()
-        };
-        if decoded_ret.network != expected_network {
-            return Err(anyhow!("{}", "private_key_network_mismatch"));
-        }
-    }
 
     let private_key = decoded_ret.bytes.to_hex();
     let meta_source = if let Some(source) = source {
