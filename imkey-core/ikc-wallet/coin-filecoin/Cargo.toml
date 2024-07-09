@@ -16,9 +16,9 @@ bitcoin_hashes = "=0.11.0"
 hex = "=0.4.3"
 secp256k1 = {version ="=0.24.3", features = ["rand", "recovery"] }
 bech32 = "=0.9.1"
-num-bigint = "=0.4.3"
-num-traits = "=0.2.15"
-num-integer = "=0.1.45"
+num-bigint = "=0.4.6"
+num-traits = "=0.2.19"
+num-integer = "=0.1.46"
 base64 = "=0.13.1"
 anyhow = "=1.0.79"
 bytes = "=1.4.0"
@@ -28,7 +28,7 @@ linked-hash-map = { version = "=0.5.6", features = ["serde_impl"] }
 
 base32 = "=0.4.0"
 blake2b-rs = "=0.2.0"
-serde = { version = "=1.0.147", features = ["derive"] }
+serde = { version = "=1.0.165", features = ["derive"] }
 serde_json = "=1.0.89"
 
 forest_vm = "=0.3.2"
