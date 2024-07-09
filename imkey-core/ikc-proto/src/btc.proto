@@ -32,3 +32,12 @@ message BtcTxOutput {
     string txHash = 2;
     string wtxHash = 3;
 }
+
+message PsbtInput {
+    string data = 1;
+    bool autoFinalize = 2;
+}
+
+message PsbtOutput {
+    string data = 1;
+}
