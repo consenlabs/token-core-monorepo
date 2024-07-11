@@ -1,16 +1,105 @@
 use crate::transaction::{Signature, SignedMessage, UnsignedMessage};
 use crate::utils::{digest, HashSize};
 use crate::Error;
-use anyhow::anyhow;
-use forest_address::Address;
-use forest_cid::Cid;
-use forest_encoding::Cbor;
-use forest_message::UnsignedMessage as ForestUnsignedMessage;
-use forest_vm::{Serialized, TokenAmount};
+use fvm_shared::address::Address;
+use std::borrow::Cow;
+
+use crate::utils::CidCborExt;
+use cid::{Cid, CidGeneric};
+use fvm_ipld_encoding::RawBytes;
+use fvm_ipld_encoding::{
+    de,
+    repr::{Deserialize_repr, Serialize_repr},
+    ser, strict_bytes,
+};
+use fvm_shared::econ::TokenAmount;
+use fvm_shared::message::Message as ForestUnsignedMessage;
+use serde_tuple::{self, Deserialize_tuple, Serialize_tuple};
 use std::convert::TryFrom;
 use std::str::FromStr;
 use tcx_constants::CurveType;
 use tcx_keystore::{tcx_ensure, Keystore, Result, SignatureParameters, Signer, TransactionSigner};
+
+use num::FromPrimitive;
+use num_derive::FromPrimitive;
+use strum::*;
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    FromPrimitive,
+    Copy,
+    Eq,
+    Serialize_repr,
+    Deserialize_repr,
+    Hash,
+    strum::Display,
+    strum::EnumString,
+)]
+#[repr(u8)]
+#[strum(serialize_all = "lowercase")]
+pub enum SignatureType {
+    Secp256k1 = 1,
+    Bls = 2,
+    Delegated = 3,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ForestSignature {
+    pub sig_type: SignatureType,
+    pub bytes: Vec<u8>,
+}
+
+impl ser::Serialize for ForestSignature {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        let mut bytes = Vec::with_capacity(self.bytes.len() + 1);
+        // Insert signature type byte
+        bytes.push(self.sig_type as u8);
+        bytes.extend_from_slice(&self.bytes);
+
+        strict_bytes::Serialize::serialize(&bytes, serializer)
+    }
+}
+
+impl<'de> de::Deserialize<'de> for ForestSignature {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: de::Deserializer<'de>,
+    {
+        let bytes: Cow<'de, [u8]> = strict_bytes::Deserialize::deserialize(deserializer)?;
+        match bytes.split_first() {
+            None => Err(de::Error::custom("Cannot deserialize empty bytes")),
+            Some((&sig_byte, rest)) => {
+                // Remove signature type byte
+                let sig_type = SignatureType::from_u8(sig_byte).ok_or_else(|| {
+                    de::Error::custom(format!(
+                        "Invalid signature type byte (must be 1, 2 or 3), was {}",
+                        sig_byte
+                    ))
+                })?;
+
+                Ok(ForestSignature {
+                    bytes: rest.to_vec(),
+                    sig_type,
+                })
+            }
+        }
+    }
+}
+
+#[derive(PartialEq, Clone, Debug, Serialize_tuple, Deserialize_tuple, Hash, Eq)]
+pub struct ForestSignedMessage {
+    pub message: ForestUnsignedMessage,
+    pub signature: ForestSignature,
+}
+
+fn str_to_token_amount(str: &str) -> TokenAmount {
+    TokenAmount::from_atto(u64::from_str(str).unwrap())
+}
 
 impl TryFrom<&UnsignedMessage> for ForestUnsignedMessage {
     type Error = crate::Error;
@@ -20,30 +109,28 @@ impl TryFrom<&UnsignedMessage> for ForestUnsignedMessage {
     ) -> core::result::Result<ForestUnsignedMessage, Self::Error> {
         let to = Address::from_str(&message.to).map_err(|_| Error::InvalidAddress)?;
         let from = Address::from_str(&message.from).map_err(|_| Error::InvalidAddress)?;
-        let value = TokenAmount::from_str(&message.value).map_err(|_| Error::InvalidNumber)?;
+        let value = str_to_token_amount(&message.value);
         let gas_limit = message.gas_limit;
-        let gas_fee_cap =
-            TokenAmount::from_str(&message.gas_fee_cap).map_err(|_| Error::InvalidNumber)?;
-        let gas_premium =
-            TokenAmount::from_str(&message.gas_premium).map_err(|_| Error::InvalidNumber)?;
+        let gas_fee_cap = str_to_token_amount(&message.gas_fee_cap);
+        let gas_premium = str_to_token_amount(&message.gas_premium);
 
         let message_params_bytes =
             base64::decode(&message.params).map_err(|_| Error::InvalidParam)?;
-        let params = Serialized::new(message_params_bytes);
+        let params = RawBytes::from(message_params_bytes);
         tcx_ensure!(message.method == 0, Error::InvalidMethodId);
 
-        let tmp = ForestUnsignedMessage::builder()
-            .to(to)
-            .from(from)
-            .sequence(message.nonce)
-            .value(value)
-            .method_num(message.method)
-            .params(params)
-            .gas_limit(gas_limit)
-            .gas_premium(gas_premium)
-            .gas_fee_cap(gas_fee_cap)
-            .build()
-            .map_err(|_| Error::InvalidFormat)?;
+        let tmp = Self {
+            version: 0,
+            from,
+            to,
+            sequence: message.nonce,
+            value,
+            method_num: message.method,
+            params,
+            gas_limit: gas_limit as u64,
+            gas_fee_cap,
+            gas_premium,
+        };
 
         Ok(tmp)
     }
@@ -55,12 +142,12 @@ impl TransactionSigner<UnsignedMessage, SignedMessage> for Keystore {
         sign_context: &SignatureParameters,
         tx: &UnsignedMessage,
     ) -> Result<SignedMessage> {
-        let unsigned_message = forest_message::UnsignedMessage::try_from(tx)?;
+        let unsigned_message = ForestUnsignedMessage::try_from(tx)?;
 
         let signature_type;
 
         let signature;
-        let mut cid: Cid = unsigned_message.cid()?;
+        let mut cid: Cid = <CidGeneric<64> as CidCborExt>::from_cbor_blake2b256(&unsigned_message)?;
         match sign_context.curve {
             CurveType::SECP256k1 => {
                 signature_type = 1;
@@ -69,24 +156,24 @@ impl TransactionSigner<UnsignedMessage, SignedMessage> for Keystore {
                     &sign_context.derivation_path,
                 )?;
 
-                let forest_sig = forest_crypto::Signature::new_secp256k1(signature.clone());
-                let forest_signed_msg = forest_message::SignedMessage {
+                let forest_signed_msg = ForestSignedMessage {
                     message: unsigned_message,
-                    signature: forest_sig,
+                    signature: ForestSignature {
+                        sig_type: SignatureType::Secp256k1,
+                        bytes: signature.clone(),
+                    },
                 };
-                cid = forest_signed_msg
-                    .cid()
-                    .map_err(|_e| anyhow!("{}", "forest_message cid error"))?;
+                cid = <CidGeneric<64> as CidCborExt>::from_cbor_blake2b256(&forest_signed_msg)?;
             }
             CurveType::BLS => {
                 signature_type = 2;
+                cid = <CidGeneric<64> as CidCborExt>::from_cbor_blake2b256(&unsigned_message)?;
                 signature = self.bls_sign(
                     &cid.to_bytes(),
                     &sign_context.derivation_path,
                     "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_",
                 )?;
                 // use unsigned_message https://github.com/filecoin-project/lotus/issues/101
-                cid = unsigned_message.cid()?;
             }
             _ => return Err(Error::InvalidCurveType.into()),
         }
@@ -208,7 +295,7 @@ mod tests {
             gas_fee_cap: "151367".to_string(),
             gas_premium: "150313".to_string(),
             method: 0,
-            params: "".to_string()
+            params: "".to_string(),
         };
 
         let key_info =
@@ -255,7 +342,7 @@ mod tests {
             gas_fee_cap: "151367".to_string(),
             gas_premium: "150313".to_string(),
             method: 0,
-            params: "".to_string()
+            params: "".to_string(),
         };
 
         let key_info =
