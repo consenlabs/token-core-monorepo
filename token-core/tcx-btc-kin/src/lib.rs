@@ -9,6 +9,7 @@ pub mod network;
 pub mod signer;
 pub mod transaction;
 
+mod message;
 mod psbt;
 
 use core::result;
@@ -56,6 +57,9 @@ pub enum Error {
     ConstructBchAddressFailed(String),
     #[error("unsupported_taproot")]
     UnsupportedTaproot,
+
+    #[error("missing_signature")]
+    MissingSignature,
 }
 
 pub mod bitcoin {
@@ -64,6 +68,10 @@ pub mod bitcoin {
     pub type Address = crate::BtcKinAddress;
     pub type TransactionInput = crate::transaction::BtcKinTxInput;
     pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
+
+    pub type MessageInput = crate::transaction::BtcMessageInput;
+
+    pub type MessageOutput = crate::transaction::BtcMessageOutput;
 }
 
 pub mod bitcoincash {
@@ -76,6 +84,10 @@ pub mod bitcoincash {
     pub type TransactionInput = crate::transaction::BtcKinTxInput;
 
     pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
+
+    pub type MessageInput = crate::transaction::BtcMessageInput;
+
+    pub type MessageOutput = crate::transaction::BtcMessageOutput;
 }
 
 pub mod omni {
@@ -92,8 +104,10 @@ pub mod omni {
 
 #[cfg(test)]
 mod tests {
-    use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_common::ToHex;
+    use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD, TEST_WIF};
     use tcx_keystore::{Keystore, Metadata};
+    use tcx_primitive::{PrivateKey, Secp256k1PrivateKey};
 
     pub fn hd_keystore(mnemonic: &str) -> Keystore {
         let mut keystore =
@@ -102,7 +116,47 @@ mod tests {
         keystore
     }
 
+    pub fn private_keystore(wif: &str) -> Keystore {
+        let sec_key = Secp256k1PrivateKey::from_wif(wif).unwrap();
+        let mut keystore = Keystore::from_private_key(
+            &sec_key.to_bytes().to_hex(),
+            TEST_PASSWORD,
+            CurveType::SECP256k1,
+            Metadata::default(),
+            None,
+        )
+        .unwrap();
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        keystore
+    }
+
     pub fn sample_hd_keystore() -> Keystore {
         hd_keystore(TEST_MNEMONIC)
+    }
+
+    pub fn hex_keystore(hex: &str) -> Keystore {
+        let mut keystore = Keystore::from_private_key(
+            hex,
+            TEST_PASSWORD,
+            CurveType::SECP256k1,
+            Metadata::default(),
+            None,
+        )
+        .unwrap();
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        keystore
+    }
+
+    pub fn wif_keystore(wif: &str) -> Keystore {
+        let hex = Secp256k1PrivateKey::from_wif(wif)
+            .unwrap()
+            .to_bytes()
+            .to_hex();
+
+        hex_keystore(&hex)
+    }
+
+    pub fn sample_wif_keystore() -> Keystore {
+        wif_keystore(TEST_WIF)
     }
 }

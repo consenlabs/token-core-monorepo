@@ -30,6 +30,14 @@ pub trait TxSignatureHasher {
         leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
         sighash_type: SchnorrSighashType,
     ) -> Result<TapSighashHash>;
+
+    fn taproot_script_spend_signature_hash(
+        &mut self,
+        input_index: usize,
+        prevouts: &Prevouts<TxOut>,
+        tap_leaf_hash: TapLeafHash,
+        sighash_type: SchnorrSighashType,
+    ) -> Result<TapSighashHash>;
 }
 
 impl TxSignatureHasher for SighashCache<Box<Transaction>> {
@@ -70,6 +78,21 @@ impl TxSignatureHasher for SighashCache<Box<Transaction>> {
             prevouts,
             annex,
             leaf_hash_code_separator,
+            sighash_type,
+        )?)
+    }
+
+    fn taproot_script_spend_signature_hash(
+        &mut self,
+        input_index: usize,
+        prevouts: &Prevouts<TxOut>,
+        tap_leaf_hash: TapLeafHash,
+        sighash_type: SchnorrSighashType,
+    ) -> Result<TapSighashHash> {
+        Ok(self.taproot_script_spend_signature_hash(
+            input_index,
+            &prevouts,
+            tap_leaf_hash,
             sighash_type,
         )?)
     }
