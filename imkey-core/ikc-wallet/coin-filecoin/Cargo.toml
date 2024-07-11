@@ -39,7 +39,6 @@ fvm_ipld_encoding = "0.4.0"
 serde_tuple = "0.5.0"
 strum_macros = "0.26.3"
 strum = { version = "0.26.3", features = ["derive"] }
-num_bigint_chainsafe = { package = "forest_bigint", version = "=0.1.4"}
 bitcoin = "=0.29.2"
 num-derive = "0.4.2"
 
