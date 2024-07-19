@@ -16,10 +16,10 @@ secp256k1 = {version ="=0.24.3", features = ["rand", "recovery"] }
 tiny-bip39 = "=1.0.0"
 anyhow = "=1.0.79"
 hex = "=0.4.3"
-serde = { version = "=1.0.147", features = ["derive"] }
+serde = { version = "=1.0.165", features = ["derive"] }
 serde_json = "=1.0.89"
 bitcoin_hashes = "=0.11.0"
-num-bigint = "=0.4.3"
+num-bigint = "=0.4.6"
 bytes = "=1.4.0"
 prost = "=0.11.2"
 prost-types = "=0.11.2"

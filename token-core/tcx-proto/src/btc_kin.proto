@@ -63,3 +63,4 @@ message BtcMessageInput {
 message BtcMessageOutput {
     string signature = 1;
 }
+

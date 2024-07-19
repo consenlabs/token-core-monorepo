@@ -13,11 +13,12 @@ use tcx_keystore::keystore::IdentityNetwork;
 
 use prost::Message;
 use tcx::api::{
-    export_private_key_param, CreateKeystoreParam, DeriveAccountsParam, DeriveAccountsResult,
-    ExistsJsonParam, ExistsKeystoreResult, ExistsPrivateKeyParam, ExportJsonParam,
-    ExportJsonResult, ExportMnemonicParam, ExportMnemonicResult, ExportPrivateKeyParam,
-    ExportPrivateKeyResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
-    ImportPrivateKeyResult, KeystoreResult, WalletKeyParam,
+    export_private_key_param, wallet_key_param, BackupResult, CreateKeystoreParam,
+    DeriveAccountsParam, DeriveAccountsResult, ExistsJsonParam, ExistsKeystoreResult,
+    ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicParam,
+    ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, ImportJsonParam,
+    ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult, KeystoreResult,
+    MigrateKeystoreParam, WalletKeyParam,
 };
 
 use tcx::handler::{encode_message, import_private_key};
@@ -1166,43 +1167,20 @@ pub fn test_import_wif_network_mismatch() {
             password: TEST_PASSWORD.to_string(),
             name: "import_private_key_wallet".to_string(),
             password_hint: "".to_string(),
-            network: "".to_string(),
-            overwrite_id: "".to_string(),
-        };
-        let ret = call_api("import_private_key", param);
-        assert_eq!(
-            format!("{}", ret.unwrap_err()),
-            "private_key_network_mismatch"
-        );
-
-        let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
-            private_key: TEST_WIF.to_string(),
-            password: TEST_PASSWORD.to_string(),
-            name: "import_private_key_wallet".to_string(),
-            password_hint: "".to_string(),
             network: "MAINNET".to_string(),
             overwrite_id: "".to_string(),
         };
-        let ret = call_api("import_private_key", param);
-        // let import_result: ImportPrivateKeyResult =
-        //     ImportPrivateKeyResult::decode(ret.as_slice());
-        assert_eq!(
-            format!("{}", ret.unwrap_err()),
-            "private_key_network_mismatch"
-        );
-
-        let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
-            private_key: TEST_WIF.to_string(),
-            password: TEST_PASSWORD.to_string(),
-            name: "import_private_key_wallet".to_string(),
-            password_hint: "".to_string(),
-            network: "TESTNET".to_string(),
-            overwrite_id: "".to_string(),
+        let ret = call_api("import_private_key", param).expect("import_private_key_test");
+        let import_private_key_ret = ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+        assert_eq!("TESTNET", import_private_key_ret.identified_network);
+        let backup_param = WalletKeyParam {
+            id: import_private_key_ret.id.to_string(),
+            key: Some(wallet_key_param::Key::Password(TEST_PASSWORD.to_string())),
         };
-        let ret = call_api("import_private_key", param).unwrap();
-        let import_result: ImportPrivateKeyResult =
-            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
-        assert_eq!(import_result.identified_network, "TESTNET");
+
+        let ret = call_api("backup", backup_param).unwrap();
+        let backup_result = BackupResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(backup_result.original, TEST_WIF);
     })
 }
 
@@ -1586,6 +1564,50 @@ pub fn test_reset_password_hd_seed_already_exist() {
         assert_eq!(import_mnemonic_result.existed_id, import_result.id);
         assert!(import_mnemonic_result.is_existed);
     })
+}
+
+#[test]
+#[serial]
+pub fn test_reset_password_multi_hd_wallet() {
+    setup_test("../test-data/reset-password-wallets");
+    let import_param = ImportMnemonicParam {
+        mnemonic: TEST_MNEMONIC.to_string(),
+        password: "imToken@1".to_string(),
+        network: "MAINNET".to_string(),
+        name: "reset_password".to_string(),
+        password_hint: "".to_string(),
+        overwrite_id: "a7c5ed76-5249-4e23-adcc-a36c519383a5".to_string(),
+    };
+
+    let ret = call_api("import_mnemonic", import_param).unwrap();
+    let import_mnemonic_result = KeystoreResult::decode(ret.as_slice()).unwrap();
+    assert!(!import_mnemonic_result.is_existed);
+
+    let migration_param = MigrateKeystoreParam {
+        id: "0551d81c-d923-4b8f-ac83-07b575eebcd4".to_string(),
+        network: "MAINNET".to_string(),
+        key: Some(api::migrate_keystore_param::Key::Password(
+            "imToken@1".to_string(),
+        )),
+    };
+
+    call_api("migrate_keystore", migration_param).unwrap();
+
+    let import_param = ImportMnemonicParam {
+        mnemonic: TEST_MNEMONIC.to_string(),
+        password: "imToken@1".to_string(),
+        network: "MAINNET".to_string(),
+        name: "reset_password".to_string(),
+        password_hint: "".to_string(),
+        overwrite_id: "b7e27e86-6214-4e31-9f8f-ec493754e0fc".to_string(),
+    };
+
+    let ret = call_api("import_mnemonic", import_param).unwrap();
+    let import_mnemonic_result = KeystoreResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(
+        import_mnemonic_result.existed_id,
+        "a7c5ed76-5249-4e23-adcc-a36c519383a5"
+    )
 }
 
 #[test]

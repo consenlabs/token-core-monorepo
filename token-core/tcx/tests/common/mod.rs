@@ -175,3 +175,29 @@ pub fn remove_created_wallet(wid: &str) {
     let p = Path::new(&full_file_path);
     remove_file(p).expect("should remove file");
 }
+
+fn copy_dir(src: &Path, dst: &Path) -> tcx::Result<()> {
+    if src.is_dir() {
+        fs::create_dir_all(dst)?; // Create destination directory if it doesn't exist
+        for entry in src.read_dir()? {
+            let entry = entry?;
+            let path = entry.path();
+            let new_dest = dst.join(path.strip_prefix(src)?);
+            if path.is_dir() {
+                copy_dir(&path, &new_dest)?; // Recursively copy subdirectories
+            } else {
+                fs::copy(&path, &new_dest)?; // Copy files
+            }
+        }
+    } else {
+        return Err(anyhow!("source is not a directory"));
+    }
+    Ok(())
+}
+
+pub fn setup_test(old_wallet_dir: &str) {
+    let _ = fs::remove_dir_all("/tmp/token-core-x");
+    copy_dir(&Path::new(old_wallet_dir), &Path::new("/tmp/token-core-x")).unwrap();
+
+    init_token_core_x("/tmp/token-core-x");
+}

@@ -45,3 +45,10 @@ pub fn delete_keystore_file(wid: &str) -> Result<()> {
     fs::remove_file(path)?;
     Ok(())
 }
+
+pub fn exist_migrated_file(id: &str) -> bool {
+    let file_dir = WALLET_FILE_DIR.read();
+    let ks_path = format!("{}/{}.json", file_dir, id);
+    let path = Path::new(&ks_path);
+    path.exists()
+}
