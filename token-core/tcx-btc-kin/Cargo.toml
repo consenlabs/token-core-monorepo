@@ -19,13 +19,13 @@ secp256k1 = {version ="=0.24.3", features = ["rand", "recovery", "rand-std"] }
 tiny-bip39 = "=1.0.0"
 bitcoin_hashes = "=0.11.0"
 #bitcoinconsensus = { version = "0.19.0-2", optional = true }
-serde = { version = "=1.0.165", features = ["derive"] }
+serde = { version = "=1.0.147", features = ["derive"] }
 serde_json = "=1.0.89"
 uuid = { version = "=1.2.2", features = ["serde", "v4"] }
 anyhow = { version = "=1.0.79", features = [] }
-num-bigint = "=0.4.6"
-num-traits = "=0.2.19"
-num-integer = "=0.1.46"
+num-bigint = "=0.4.3"
+num-traits = "=0.2.15"
+num-integer = "=0.1.45"
 byteorder = "=1.4.3"
 bech32 = "=0.9.1"
 prost = "=0.11.2"
