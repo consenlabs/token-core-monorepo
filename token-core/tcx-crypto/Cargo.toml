@@ -9,7 +9,7 @@ tcx-constants = {path="../tcx-constants"}
 tcx-common = {path="../tcx-common"}
 
 serde_json = "=1.0.89"
-serde = { version = "=1.0.165", features = ["derive"] }
+serde = { version = "=1.0.147", features = ["derive"] }
 rand = "=0.8.5"
 tiny-keccak = { version = "=2.0.2", features = ["keccak"] }
 scrypt = { version = "=0.10.0", default-features = false }
