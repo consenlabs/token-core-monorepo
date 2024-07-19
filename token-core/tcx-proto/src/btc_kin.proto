@@ -39,12 +39,21 @@ message OmniTxInput {
 }
 
 message PsbtInput {
-    string data = 1;
+    string psbt = 1;
     bool autoFinalize = 2;
 }
 
 message PsbtOutput {
-    string data = 1;
+    string psbt = 1;
+}
+
+message PsbtsInput {
+    repeated string psbts = 1;
+    bool autoFinalize = 2;
+}
+
+message PsbtsOutput {
+    repeated string psbts = 1;
 }
 
 message BtcMessageInput {
