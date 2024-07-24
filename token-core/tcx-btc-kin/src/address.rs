@@ -503,7 +503,9 @@ mod tests {
             })
             .unwrap();
         assert_eq!(account.address, "DQ4tVEqdPWHc1aVBm4Sfwft8XyNRPMEchR");
+        assert_eq!(account.ext_pub_key, "xpub6CDSaXHQokkKmHHG2kNCFZeirJkcZgRZE97ZZUtViif3SFHSNVAvRpWC3CxeRt2VZetEGCcPTmWEFpKF4NDeeZrMNPQgfUaX5Hkw89kW8qE");
     }
+
 
     #[test]
     fn test_bip84_spec_vector() {
