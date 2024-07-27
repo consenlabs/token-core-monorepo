@@ -68,6 +68,15 @@ pub fn get_xpub_data(path: &str, verify_flag: bool) -> Result<String> {
 }
 
 /**
+select btc applet
+ */
+pub fn select_btc_applet() -> Result<()> {
+    let select_response = send_apdu(BtcApdu::select_applet())?;
+    ApduCheck::check_response(&select_response)?;
+    Ok(())
+}
+
+/**
 sign verify
 */
 pub fn secp256k1_sign_verify(public: &[u8], signed: &[u8], message: &[u8]) -> Result<bool> {
