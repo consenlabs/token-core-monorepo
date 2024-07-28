@@ -11,7 +11,9 @@ use std::io::Cursor;
 use std::str::FromStr;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::util::bip32::{ChainCode, ChildNumber, ExtendedPubKey};
-use bitcoin::util::taproot::TapTweakHash;
+use bitcoin::util::sighash::Annex;
+use bitcoin::util::taproot::{TapLeafHash, TapTweakHash};
+use bitcoin_hashes::hex::ToHex;
 use hex::FromHex;
 use ikc_common::apdu::{ApduCheck, BtcApdu};
 use ikc_common::constants::TIMEOUT_LONG;
@@ -67,7 +69,10 @@ impl<'a> PsbtSigner<'a> {
                     self.finalize_p2wpkh(idx);
                 }
             } else if !self.psbt.inputs.first().unwrap().tap_scripts.is_empty() {
-                // self.sign_p2tr_script(idx)?;
+                let input = self.psbt.inputs[idx].clone();
+                let (_, script_leaf) = input.tap_scripts.first_key_value().unwrap();
+                let (script, leaf_version) = script_leaf;
+                self.sign_p2tr_script(idx, &pub_keys[idx], Some((TapLeafHash::from_script(script, leaf_version.clone()).into(), 0xFFFFFFFF)))?;
 
                 if self.auto_finalize {
                     self.finalize_p2tr(idx);
@@ -307,8 +312,6 @@ impl<'a> PsbtSigner<'a> {
         &mut self,
         idx: usize,
         pub_key: &str,
-        // transaction: &mut Transaction,
-        // sighash_type: SchnorrSighashType,
     ) -> Result<()> {
         let mut data: Vec<u8> = vec![];
         // epoch (1).
@@ -343,6 +346,70 @@ impl<'a> PsbtSigner<'a> {
         } else {
             BtcApdu::btc_taproot_sign(false, data)
         };
+        let sign_result = send_apdu(sign_apdu)?;
+        ApduCheck::check_response(&sign_result)?;
+
+        let sign_bytes = hex_to_bytes(&sign_result[2..(sign_result.len() - 4)])?;
+        let sig = SchnorrSignature::from_slice(&sign_bytes)?;
+        self.psbt.inputs[idx].tap_key_sig = Some(SchnorrSig {
+            hash_ty: SchnorrSighashType::Default,
+            sig,
+        });
+
+        Ok(())
+    }
+
+    fn sign_p2tr_script(
+        &mut self,
+        idx: usize,
+        pub_key: &str,
+        leaf_hash_code_separator: Option<(TapLeafHash, u32)>
+    ) -> Result<()> {
+        let mut data: Vec<u8> = vec![];
+        // epoch (1).
+        data.push(0x00u8);
+        // hash_type (1).
+        data.push(SchnorrSighashType::Default as u8);
+        //nVersion (4):
+        //nLockTime (4)
+        // data.extend(serialize(&PackedLockTime::ZERO));
+        data.extend(serialize(&self.psbt.unsigned_tx.lock_time));
+        //prevouts_hash + amounts_hash + script_pubkeys_hash + sequences_hash + sha_outputs (32)
+        //spend_type (1)
+        let mut spend_type = 0u8;
+        if leaf_hash_code_separator.is_some() {
+            spend_type |= 2u8;
+        }
+        data.push(spend_type);
+        //input_index (4)
+        data.extend(serialize(&(idx as u32)));
+        //leaf hash code separator
+        if let Some((hash, code_separator_pos)) = leaf_hash_code_separator {
+            let mut temp_data = hash.into_inner().to_vec();
+            temp_data.push(0x00u8);//key_version_0
+            let code_separator_pos = code_separator_pos.to_be_bytes();
+            temp_data.extend(code_separator_pos);
+            data.push(temp_data.len() as u8);
+            data.extend(temp_data);
+        }
+        let mut path_data: Vec<u8> = vec![];
+        let sign_path = self.get_path(idx, true)?;
+        path_data.push(sign_path.as_bytes().len() as u8);
+        path_data.extend_from_slice(sign_path.as_bytes());
+        data.extend(path_data.iter());
+        let mut tweaked_pub_key_data: Vec<u8> = vec![];
+        let untweaked_public_key = UntweakedPublicKey::from_str(&pub_key[2..66])?;
+        let tweaked_pub_key = TapTweakHash::from_key_and_tweak(untweaked_public_key, None).to_vec();
+        tweaked_pub_key_data.push(tweaked_pub_key.len() as u8);
+        tweaked_pub_key_data.extend_from_slice(&tweaked_pub_key);
+        data.extend(tweaked_pub_key_data.iter());
+
+        let sign_apdu = if idx == (self.psbt.unsigned_tx.input.len() - 1) {
+            BtcApdu::btc_taproot_script_sign(true, data)
+        } else {
+            BtcApdu::btc_taproot_script_sign(false, data)
+        };
+
         let sign_result = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_result)?;
 
@@ -618,5 +685,39 @@ mod test{
         let tweak_pub_key = x_pub_key.tap_tweak(&SECP256K1_ENGINE, None);
 
         // assert!(sig.sig.verify(&msg, &tweak_pub_key.0.to_inner()).is_ok());
+    }
+
+    #[test]
+    fn test_sign_psbt_script() {
+        bind_test();
+
+        let psbt_input = PsbtInput {
+            data: "70736274ff01005e02000000012bd2f6479f3eeaffe95c03b5fdd76a873d346459114dec99c59192a0cb6409e90000000000ffffffff01409c000000000000225120677cc88dc36a75707b370e27efff3e454d446ad55004dac1685c1725ee1a89ea000000000001012b50c3000000000000225120a9a3350206de400f09a73379ec1bcfa161fc11ac095e5f3d7354126f0ec8e87f6215c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0d2956573f010fa1a3c135279c5eb465ec2250205dcdfe2122637677f639b1021356c963cd9c458508d6afb09f3fa2f9b48faec88e75698339a4bbb11d3fc9b0efd570120aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29bad200aee0509b16db71c999238a4827db945526859b13c95487ab46725357c9a9f25ac20113c3a32a9d320b72190a04a020a0db3976ef36972673258e9a38a364f3dc3b0ba2017921cf156ccb4e73d428f996ed11b245313e37e27c978ac4d2cc21eca4672e4ba203bb93dfc8b61887d771f3630e9a63e97cbafcfcc78556a474df83a31a0ef899cba2040afaf47c4ffa56de86410d8e47baa2bb6f04b604f4ea24323737ddc3fe092dfba2079a71ffd71c503ef2e2f91bccfc8fcda7946f4653cef0d9f3dde20795ef3b9f0ba20d21faf78c6751a0d38e6bd8028b907ff07e9a869a43fc837d6b3f8dff6119a36ba20f5199efae3f28bb82476163a7e458c7ad445d9bffb0682d10d3bdb2cb41f8e8eba20fa9d882d45f4060bdb8042183828cd87544f1ea997380e586cab77d5fd698737ba569cc001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00000".to_string(),
+            auto_finalize: true,
+        };
+
+        let psbt_output = super::sign_psbt("BITCOIN", "m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
+        let mut reader = Cursor::new(Vec::<u8>::from_hex(&psbt_output.data).unwrap());
+        let psbt = Psbt::consensus_decode(&mut reader).unwrap();
+        let tx = psbt.extract_tx();
+        let witness = tx.input[0].witness.to_vec();
+        let sig = schnorr::SchnorrSig::from_slice(&witness[0]).unwrap();
+        let data =
+            Vec::<u8>::from_hex("56b6c5fd09753fbbbeb8f530308e4f7d2f404e02da767f033e926d27fcc2f37e")
+                .unwrap();
+        let msg = Message::from_slice(&data).unwrap();
+        let x_pub_key = XOnlyPublicKey::from_slice(
+            Vec::<u8>::from_hex("66f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e")
+                .unwrap()
+                .as_slice(),
+        )
+            .unwrap();
+
+        let script = hex::encode(&witness[1]);
+        let control_block = hex::encode(&witness[2]);
+        assert_eq!(script, "20aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29bad200aee0509b16db71c999238a4827db945526859b13c95487ab46725357c9a9f25ac20113c3a32a9d320b72190a04a020a0db3976ef36972673258e9a38a364f3dc3b0ba2017921cf156ccb4e73d428f996ed11b245313e37e27c978ac4d2cc21eca4672e4ba203bb93dfc8b61887d771f3630e9a63e97cbafcfcc78556a474df83a31a0ef899cba2040afaf47c4ffa56de86410d8e47baa2bb6f04b604f4ea24323737ddc3fe092dfba2079a71ffd71c503ef2e2f91bccfc8fcda7946f4653cef0d9f3dde20795ef3b9f0ba20d21faf78c6751a0d38e6bd8028b907ff07e9a869a43fc837d6b3f8dff6119a36ba20f5199efae3f28bb82476163a7e458c7ad445d9bffb0682d10d3bdb2cb41f8e8eba20fa9d882d45f4060bdb8042183828cd87544f1ea997380e586cab77d5fd698737ba569c");
+        assert_eq!(control_block, "c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0d2956573f010fa1a3c135279c5eb465ec2250205dcdfe2122637677f639b1021356c963cd9c458508d6afb09f3fa2f9b48faec88e75698339a4bbb11d3fc9b0e");
+
+        // assert!(sig.sig.verify(&msg, &x_pub_key).is_ok());
     }
 }

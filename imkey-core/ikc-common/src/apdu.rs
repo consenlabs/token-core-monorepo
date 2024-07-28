@@ -108,6 +108,21 @@ impl BtcApdu {
         apdu.to_hex().to_uppercase()
     }
 
+    pub fn btc_taproot_script_sign(last_one: bool, data: Vec<u8>) -> String {
+        if data.len() as u32 > LC_MAX {
+            panic!("data to long");
+        }
+
+        let mut apdu = match last_one {
+            true => ApduHeader::new(0x80, 0x40, 0x80, 0x80, data.len() as u8).to_array(),
+            _ => ApduHeader::new(0x80, 0x40, 0x00, 0x80, data.len() as u8).to_array(),
+        };
+
+        apdu.extend(data.iter());
+        apdu.push(0x00);
+        apdu.to_hex().to_uppercase()
+    }
+
     pub fn omni_prepare_data(p1: u8, data: Vec<u8>) -> String {
         if data.len() as u32 > LC_MAX {
             panic!("data to long");
