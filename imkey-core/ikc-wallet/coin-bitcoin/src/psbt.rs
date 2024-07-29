@@ -10,8 +10,6 @@ use std::collections::BTreeMap;
 use std::io::Cursor;
 use std::str::FromStr;
 use bitcoin::blockdata::script::Builder;
-use bitcoin::util::bip32::{ChainCode, ChildNumber, ExtendedPubKey};
-use bitcoin::util::sighash::Annex;
 use bitcoin::util::taproot::{TapLeafHash, TapTweakHash};
 use bitcoin_hashes::hex::ToHex;
 use hex::FromHex;
@@ -168,7 +166,8 @@ impl<'a> PsbtSigner<'a> {
             }
             input_data_vec.extend_from_slice(serialize(&temp_serialize_txin).as_slice());
         }
-        let btc_perpare_apdu_list = BtcApdu::btc_single_utxo_sign_prepare(0x46, &input_data_vec);
+        input_data_vec.extend(serialize(&self.psbt.unsigned_tx.output));
+        let btc_perpare_apdu_list = BtcApdu::btc_single_utxo_sign_prepare(0x50, &input_data_vec);
         for apdu in btc_perpare_apdu_list {
             ApduCheck::check_response(&send_apdu(apdu)?)?;
         }
@@ -187,7 +186,6 @@ impl<'a> PsbtSigner<'a> {
 
         let mut signature_obj = Signature::from_compact(&hex::decode(&sign_result_str)?)?;
         signature_obj.normalize_s();
-        // let pub_key = &self.get_pub_key(idx, false)?;
         let pub_key = PublicKey::from_str(pub_key)?;
         self.psbt.inputs[idx]
             .partial_sigs
@@ -451,7 +449,8 @@ impl<'a> PsbtSigner<'a> {
     pub fn tx_preview(&self, network: Network) -> Result<()> {
         let mut preview_data= vec![];
         preview_data.extend(&serialize(&self.psbt.unsigned_tx.version));
-        preview_data.push(0x01);//input number
+        let input_number = self.psbt.unsigned_tx.input.len();
+        preview_data.push(input_number as u8);//input number
         preview_data.extend(&serialize(&self.psbt.unsigned_tx.lock_time));
         let mut sign_hash_type = Vec::new();
         let len = EcdsaSighashType::All
@@ -650,10 +649,16 @@ mod test{
     use bitcoin::psbt::serialize::{Deserialize, Serialize};
     use bitcoin::psbt::Psbt;
     use bitcoin::schnorr::TapTweak;
-    use bitcoin::{schnorr, Network};
+    use bitcoin::{schnorr, Network, Transaction, TxOut, Address};
     use secp256k1::{Message, XOnlyPublicKey};
     use std::io::Cursor;
+    use std::str::FromStr;
+    use bitcoin::util::bip32::DerivationPath;
+    use bitcoin_hashes::hex::ToHex;
     use hex::FromHex;
+    use secp256k1::schnorr::Signature;
+    use crate::common::select_btc_applet;
+    use crate::psbt::PsbtSigner;
 
     #[test]
     fn test_sign_psbt_no_script() {
@@ -719,5 +724,169 @@ mod test{
         assert_eq!(control_block, "c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0d2956573f010fa1a3c135279c5eb465ec2250205dcdfe2122637677f639b1021356c963cd9c458508d6afb09f3fa2f9b48faec88e75698339a4bbb11d3fc9b0e");
 
         // assert!(sig.sig.verify(&msg, &x_pub_key).is_ok());
+    }
+
+    #[test]
+    fn test_sign_psbt_multipayment() {
+        bind_test();
+
+        let raw_tx = "02000000054adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0000000000ffffffff4adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0100000000ffffffff12cc8049bf85b5e18cb2be8aa7aefc3afb8df4ec5c1f766750014cc95ca2dc130000000000ffffffff729e6570928cc65200f1d53def65a7934d2e9b543059d90598ed1d166af422010100000000ffffffffa126724475cd2f3252352b3543c8455c7999a8283883bd7a712a7d66609d92d80100000000ffffffff02409c00000000000022512036079c540758a51a86eeaf9e17668d4d8543d8b1b7e56fe2da0982c390c5655ef8fa0700000000002251209303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea0615500000000";
+        let tx = Transaction::deserialize(&Vec::from_hex(&raw_tx).unwrap()).unwrap();
+
+        let mut psbt = Psbt::from_unsigned_tx(tx).unwrap();
+        let fake_pub_key = secp256k1::PublicKey::from_slice(
+            &Vec::<u8>::from_hex(
+                "0266f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e",
+            )
+                .unwrap(),
+        )
+            .unwrap();
+        let fake_xonly_pub_key = XOnlyPublicKey::from_slice(
+            Vec::<u8>::from_hex("66f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e")
+                .unwrap()
+                .as_slice(),
+        )
+            .unwrap();
+
+        psbt.inputs[0].tap_key_origins.insert(
+            fake_xonly_pub_key,
+            (
+                Default::default(),
+                (
+                    Default::default(),
+                    DerivationPath::from_str("m/86'/1'/0'/0/0").unwrap(),
+                ),
+            ),
+        );
+        psbt.inputs[0].witness_utxo = Some(TxOut {
+            value: 20000,
+            script_pubkey: Address::from_str(
+                "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4",
+            )
+                .unwrap()
+                .script_pubkey(),
+        });
+
+        psbt.inputs[1].tap_key_origins.insert(
+            fake_xonly_pub_key,
+            (
+                Default::default(),
+                (
+                    Default::default(),
+                    DerivationPath::from_str("m/86'/1'/0'/1/53").unwrap(),
+                ),
+            ),
+        );
+        psbt.inputs[1].witness_utxo = Some(TxOut {
+            value: 283000,
+            script_pubkey: Address::from_str(
+                "tb1pjvp6z9shfhfpafrnwen9j452cf8tdwpgc0hfnzvz62aqwr4qv92sg7qj9r",
+            )
+                .unwrap()
+                .script_pubkey(),
+        });
+
+        psbt.inputs[2].bip32_derivation.insert(
+            fake_pub_key,
+            (
+                Default::default(),
+                DerivationPath::from_str("m/84'/1'/0'/0/0").unwrap(),
+            ),
+        );
+        psbt.inputs[2].witness_utxo = Some(TxOut {
+            value: 100000,
+            script_pubkey: Address::from_str("tb1qrfaf3g4elgykshfgahktyaqj2r593qkrae5v95")
+                .unwrap()
+                .script_pubkey(),
+        });
+
+        psbt.inputs[3].bip32_derivation.insert(
+            fake_pub_key,
+            (
+                Default::default(),
+                DerivationPath::from_str("m/49'/1'/0'/0/0").unwrap(),
+            ),
+        );
+        psbt.inputs[3].witness_utxo = Some(TxOut {
+            value: 100000,
+            script_pubkey: Address::from_str("2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB")
+                .unwrap()
+                .script_pubkey(),
+        });
+
+        psbt.inputs[4].bip32_derivation.insert(
+            fake_pub_key,
+            (
+                Default::default(),
+                DerivationPath::from_str("m/44'/1'/0'/0/0").unwrap(),
+            ),
+        );
+        psbt.inputs[4].witness_utxo = Some(TxOut {
+            value: 100000,
+            script_pubkey: Address::from_str("mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN")
+                .unwrap()
+                .script_pubkey(),
+        });
+
+        let mut signer = PsbtSigner::new(&mut psbt, "", true);
+
+        select_btc_applet().unwrap();
+
+        signer.prevouts().unwrap();
+
+        let pub_keys = signer.get_pub_key().unwrap();
+
+        signer.calc_tx_hash().unwrap();
+
+        signer.tx_preview(Network::Bitcoin).unwrap();//todo
+
+        signer.sign(&pub_keys).unwrap();
+
+
+        let tx = psbt.extract_tx();
+
+        let msg = Message::from_slice(
+            &Vec::from_hex("f01ba76b329132e48188ad10d00791647ee6d2f7fee5ef397f3481993c898de3")
+                .unwrap(),
+        )
+            .unwrap();
+        let sig = Signature::from_slice(&tx.input[0].witness.to_vec()[0]).unwrap();
+        // let a = sig.clone().to_vec().unwrap();
+        // println!("a->{}", hex::encode(a));
+        let pub_key = XOnlyPublicKey::from_slice(
+            &Vec::from_hex("8f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233")
+                .unwrap(),
+        )
+            .unwrap();
+        // assert!(sig.verify(&msg, &pub_key).is_ok());
+
+        let msg = Message::from_slice(
+            &Vec::from_hex("d0691b5ac1b338b9341790ea69417cb454cf346a718342fb4a846dbb8ae142e8")
+                .unwrap(),
+        )
+            .unwrap();
+        let sig = Signature::from_slice(&tx.input[1].witness.to_vec()[0]).unwrap();
+        // let a = sig.clone().to_vec();
+        // println!("a->{}", hex::encode(a));
+        let pub_key = XOnlyPublicKey::from_slice(
+            &Vec::from_hex("9303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea06155")
+                .unwrap(),
+        )
+            .unwrap();
+        // assert!(sig.verify(&msg, &pub_key).is_ok());
+
+        assert_eq!(tx.input[2].witness.to_vec()[0].to_hex(), "3044022022c2feaa4a225496fc6789c969fb776da7378f44c588ad812a7e1227ebe69b6302204fc7bf5107c6d02021fe4833629bc7ab71cefe354026ebd0d9c0da7d4f335f9401");
+        assert_eq!(
+            tx.input[2].witness.to_vec()[1].to_hex(),
+            "02e24f625a31c9a8bae42239f2bf945a306c01a450a03fd123316db0e837a660c0"
+        );
+
+        assert_eq!(tx.input[3].witness.to_vec()[0].to_hex(), "3045022100dec4d3fd189b532ef04f41f68319ff7dc6a7f2351a0a8f98cb7f1ec1f6d71c7a02205e507162669b642fdb480a6c496abbae5f798bce4fd42cc390aa58e3847a1b9101");
+        assert_eq!(
+            tx.input[3].witness.to_vec()[1].to_hex(),
+            "031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc"
+        );
+
+        assert_eq!(tx.input[4].script_sig.to_hex(), "483045022100ca32abc7b180c84cf76907e4e1e0c3f4c0d6e64de23b0708647ac6fee1c04c5b02206e7412a712424eb9406f18e00a42e0dffbfb5901932d1ef97843d9273865550e0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4e");
     }
 }
