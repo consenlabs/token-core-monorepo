@@ -8,32 +8,36 @@ use tcx_primitive::TypedPublicKey;
 
 // size of address
 pub const LENGTH: usize = 20;
+
 #[derive(PartialEq, Eq, Clone)]
 pub struct AtomAddress(String);
 
 impl Address for AtomAddress {
-    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
-        let prefix = "cosmos";
-
+    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
         let pub_key_bytes = public_key.to_bytes();
         let mut bytes = [0u8; LENGTH];
         let pub_key_hash = ripemd160(&sha256(&pub_key_bytes));
         bytes.copy_from_slice(&pub_key_hash[..LENGTH]);
+        let hrp = if (coin.hrp.is_empty()) {
+            "cosmos"
+        } else {
+            coin.hrp.as_str()
+        };
 
         Ok(AtomAddress(bech32::encode(
-            prefix,
+            hrp,
             bytes.to_base32(),
             Variant::Bech32,
         )?))
     }
 
-    fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
+    fn is_valid(address: &str, coin: &CoinInfo) -> bool {
         let ret = bech32::decode(address);
         if let Ok(val) = ret {
             let (hrp, data, _) = val;
             let data = Vec::from_base32(&data).unwrap();
 
-            if hrp.as_str() != "cosmos" {
+            if coin.hrp != hrp.as_str() {
                 return false;
             }
 
@@ -78,6 +82,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "".to_string(),
+            hrp: "cosmos".to_string(),
         }
     }
 
@@ -154,10 +159,52 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            hrp: "cosmos".to_string(),
         };
         let address = AtomAddress::from_public_key(&pub_key, &coin_info)
             .unwrap()
             .to_string();
         assert_eq!(address, "cosmos1hsk6jryyqjfhp5dhc55tc9jtckygx0eph6dd02");
+    }
+
+    #[test]
+    fn test_sub_net() {
+        let pub_key_hex = "0317f65e6736ad182b47e386af40af0f26fb524bdd94e172a6145a6603d65a44b2";
+        let pub_key =
+            TypedPublicKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(pub_key_hex).unwrap())
+                .unwrap();
+
+        let testcase = [
+            (
+                "dydx",
+                "m/44'/118'/0'/0/0",
+                "dydx1m566v5rcklnac8vc0dftfu4lnvznhlu7yg830z",
+            ),
+            (
+                "osmo",
+                "m/44'/118'/0'/0/0",
+                "osmo1m566v5rcklnac8vc0dftfu4lnvznhlu79269e8",
+            ),
+            (
+                "neutron",
+                "m/44'/118'/0'/0/0",
+                "neutron1m566v5rcklnac8vc0dftfu4lnvznhlu7fwqh4j",
+            ),
+        ];
+        for (hrp, path, expected_addr) in testcase {
+            let coin_info = CoinInfo {
+                coin: "COSMOS".to_string(),
+                derivation_path: path.to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                hrp: hrp.to_string(),
+            };
+
+            let address = AtomAddress::from_public_key(&pub_key, &coin_info)
+                .unwrap()
+                .to_string();
+            assert_eq!(address, expected_addr)
+        }
     }
 }
