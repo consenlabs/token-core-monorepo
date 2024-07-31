@@ -190,6 +190,11 @@ mod tests {
                 "m/44'/118'/0'/0/0",
                 "neutron1m566v5rcklnac8vc0dftfu4lnvznhlu7fwqh4j",
             ),
+            (
+                "stride",
+                "m/44'/118'/0'/0/0",
+                "stride1m566v5rcklnac8vc0dftfu4lnvznhlu7w6ffme",
+            ),
         ];
         for (hrp, path, expected_addr) in testcase {
             let coin_info = CoinInfo {
