@@ -11,7 +11,7 @@ pub struct BtcKinNetwork {
     pub xpub_prefix: [u8; 4],
     pub xprv_prefix: [u8; 4],
 }
-const BTC_KIN_NETWORKS: [BtcKinNetwork; 6] = [
+const BTC_KIN_NETWORKS: [BtcKinNetwork; 8] = [
     BtcKinNetwork {
         coin: "BITCOIN",
         network: "MAINNET",
@@ -71,6 +71,26 @@ const BTC_KIN_NETWORKS: [BtcKinNetwork; 6] = [
         private_prefix: 0xef,
         xpub_prefix: [0x04, 0x35, 0x87, 0xcf],
         xprv_prefix: [0x04, 0x35, 0x83, 0x94],
+    },
+    BtcKinNetwork {
+        coin: "DOGECOIN",
+        network: "TESTNET",
+        bech32_hrp: "",
+        p2pkh_prefix: 0x71,
+        p2sh_prefix: 0xc4,
+        private_prefix: 0xf1,
+        xpub_prefix: [0x04, 0x35, 0x87, 0xcf],
+        xprv_prefix: [0x04, 0x35, 0x83, 0x94],
+    },
+    BtcKinNetwork {
+        coin: "DOGECOIN",
+        network: "MAINNET",
+        bech32_hrp: "",
+        p2pkh_prefix: 0x1e,
+        p2sh_prefix: 0x16,
+        private_prefix: 0x9e,
+        xpub_prefix: [0x02, 0xfa, 0xca, 0xfd],
+        xprv_prefix: [0x02, 0xfa, 0xc3, 0x98],
     },
 ];
 

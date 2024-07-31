@@ -273,6 +273,7 @@ mod tests {
 
     use crate::address::BtcKinAddress;
     use crate::tcx_keystore::Address;
+    use crate::tests::sample_hd_keystore;
     use crate::BtcKinNetwork;
 
     #[test]
@@ -302,6 +303,18 @@ mod tests {
             .unwrap()
             .to_string();
         assert_eq!(addr, "bc1qum864wd9nwsc0u9ytkctz6wzrw6g7zdntm7f4e");
+
+        let network = BtcKinNetwork::find_by_coin("DOGECOIN", "MAINNET").unwrap();
+        let addr = BtcKinAddress::p2pkh(&pub_key, &network)
+            .unwrap()
+            .to_string();
+        assert_eq!(addr, "DSBWjKzZtz7fPzu4N6mBRwQFHCQ6KQSjue");
+
+        let network = BtcKinNetwork::find_by_coin("DOGECOIN", "TESTNET").unwrap();
+        let addr = BtcKinAddress::p2pkh(&pub_key, &network)
+            .unwrap()
+            .to_string();
+        assert_eq!(addr, "nqEaTLjUpxaPGyUFPvQdgLzYX4nPLCD1Py");
     }
 
     #[test]
@@ -476,6 +489,23 @@ mod tests {
             .to_string();
         assert_eq!(address, "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
     }
+
+    #[test]
+    fn test_dogecoin_address() {
+        let mut hd = sample_hd_keystore();
+        let account = hd
+            .derive_coin::<BtcKinAddress>(&CoinInfo {
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/3'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            })
+            .unwrap();
+        assert_eq!(account.address, "DQ4tVEqdPWHc1aVBm4Sfwft8XyNRPMEchR");
+        assert_eq!(account.ext_pub_key, "xpub6CDSaXHQokkKmHHG2kNCFZeirJkcZgRZE97ZZUtViif3SFHSNVAvRpWC3CxeRt2VZetEGCcPTmWEFpKF4NDeeZrMNPQgfUaX5Hkw89kW8qE");
+    }
+
 
     #[test]
     fn test_bip84_spec_vector() {
