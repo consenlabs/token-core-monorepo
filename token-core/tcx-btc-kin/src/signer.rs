@@ -253,6 +253,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
             curve: params.curve,
             network: params.network.clone(),
             seg_wit: params.seg_wit.clone(),
+            hrp: "".to_string(),
         };
 
         let change_script = if let Some(change_address_index) = self.change_address_index && keystore.derivable() {
@@ -1386,7 +1387,7 @@ mod tests {
                     op_return: None,
                 };
 
-                let mut ks = wif_keystore("mszYqVnqKoQx4jcTdJXxwKAissE3Jbrrc1");
+                let mut ks = wif_keystore(TEST_WIF);
 
                 let params = SignatureParameters {
                     curve: CurveType::SECP256k1,

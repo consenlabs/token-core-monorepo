@@ -50,6 +50,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
         let mut guard = KeystoreGuard::unlock_by_password(&mut keystore, TEST_PASSWORD).unwrap();
 

@@ -902,6 +902,7 @@ pub(crate) mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            hrp: "".to_string(),
         };
 
         let k1_pub_key = Secp256k1PublicKey::from_slice(
@@ -974,6 +975,7 @@ pub(crate) mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            hrp: "".to_string(),
         };
 
         let k1_pub_key = Secp256k1PublicKey::from_slice(
@@ -1018,6 +1020,7 @@ pub(crate) mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            hrp: "".to_string(),
         };
 
         let typed_pk = TypedDeterministicPublicKey::from_hex(CurveType::SECP256k1, "03a25f12b68000000044efc688fe25a1a677765526ed6737b4bfcfb0122589caab7ca4b223ffa9bb37029d23439ecb195eb06a0d44a608960d18702fd97e19c53451f0548f568207af77").unwrap();

@@ -261,6 +261,7 @@ impl Display for BtcKinAddress {
 
 #[cfg(test)]
 mod tests {
+    use bitcoin::SchnorrSighashType::Default;
     use std::str::FromStr;
     use tcx_common::{FromHex, ToHex};
 
@@ -354,6 +355,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            hrp: "".to_string(),
         };
         let ltc_xprv_str = BtcKinAddress::extended_private_key(&anprv, &coin_info).unwrap();
         assert_eq!("xprv9yrdwPSRnvomqFK4u1y5uW2SaXS2Vnr3pAYTjJjbyRZR8p9BwoadRsCxtgUFdAKeRPbwvGRcCSYMV69nNK4N2kadevJ6L5iQVy1SwGKDTHQ", ltc_xprv_str);
@@ -373,6 +375,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            hrp: "".to_string(),
         };
         let ltc_xprv_str = BtcKinAddress::extended_public_key(&anpub, &coin_info).unwrap();
         assert_eq!("xpub6JeaAjhtvtjCDnEo4Bjr7uEbGccaHnJtLY4aBnMaAYGjkBRB3fP9XvjcCbNjMiU1n5tt7dYKVgHPGzh3t3W6eLBxavxABTaoQ2jhbiQrfe4", ltc_xprv_str);
@@ -464,6 +467,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            hrp: "".to_string(),
         };
         let address = BtcKinAddress::from_public_key(&pub_key, &coin_info)
             .unwrap()
@@ -521,6 +525,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "VERSION_0".to_string(),
+            hrp: "".to_string(),
         };
         let address = BtcKinAddress::from_public_key(&pub_key, &coin_info)
             .unwrap()

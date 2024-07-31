@@ -304,6 +304,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
 
         let mut ks =
@@ -439,6 +440,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
 
         let _account = ks.derive_coin::<CkbAddress>(&coin_info).unwrap().clone();
@@ -521,6 +523,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
 
         let mut ks =
@@ -586,6 +589,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
 
         let mut ks =
@@ -655,6 +659,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
 
         let mut ks =
@@ -692,6 +697,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
 
         let mut ks =
@@ -738,6 +744,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
 
         let mut ks =
@@ -884,6 +891,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
 
         let mut ks =

@@ -196,6 +196,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
         let ret = BchAddress::from_public_key(&pk, &wrong_coin_info);
         assert_eq!(format!("{}", ret.err().unwrap()), "missing_network");
@@ -287,6 +288,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            hrp: "".to_string(),
         };
         let address = BchAddress::from_public_key(&pub_key, &coin_info)
             .unwrap()
