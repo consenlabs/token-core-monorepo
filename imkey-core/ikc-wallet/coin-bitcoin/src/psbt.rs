@@ -29,25 +29,34 @@ use std::collections::BTreeMap;
 use std::io::Cursor;
 use std::str::FromStr;
 use std::usize;
+use ikc_common::coin_info::coin_info_from_param;
+use ikc_common::path::{check_path_validity, get_account_path};
+use crate::address::BtcAddress;
 
 pub struct PsbtSigner<'a> {
     psbt: &'a mut Psbt,
     derivation_path: String,
     auto_finalize: bool,
     prevouts: Vec<TxOut>,
+    network: Network,
+    preview_output: Vec<TxOut>,
 }
 
 impl<'a> PsbtSigner<'a> {
-    pub fn new(psbt: &'a mut Psbt, derivation_path: &str, auto_finalize: bool) -> Self {
-        PsbtSigner {
+    pub fn new(psbt: &'a mut Psbt, derivation_path: &str, auto_finalize: bool, network: Network) -> Result<Self> {
+        let mut psbt_signer = PsbtSigner {
             psbt,
             derivation_path: derivation_path.to_string(),
-            prevouts: Vec::new(),
+            prevouts: vec![],
             auto_finalize,
-        }
+            network,
+            preview_output: vec![],
+        };
+        psbt_signer.get_preview_output()?;
+        Ok(psbt_signer)
     }
 
-    fn sign(&mut self, pub_keys: &Vec<String>) -> Result<()> {
+    pub fn sign(&mut self, pub_keys: &Vec<String>) -> Result<()> {
         for idx in 0..self.prevouts.len() {
             let prevout = &self.prevouts[idx];
 
@@ -101,7 +110,7 @@ impl<'a> PsbtSigner<'a> {
         Ok(())
     }
 
-    fn prevouts(&mut self) -> Result<()> {
+    pub fn prevouts(&mut self) -> Result<()> {
         let len = self.psbt.inputs.len();
         let mut utxos = Vec::with_capacity(len);
 
@@ -145,7 +154,7 @@ impl<'a> PsbtSigner<'a> {
         Ok(path)
     }
 
-    fn get_pub_key(&self) -> Result<Vec<String>> {
+    pub fn get_pub_key(&self) -> Result<Vec<String>> {
         let mut pub_key_vec = vec![];
         for (idx, tx_out) in self.prevouts.iter().enumerate() {
             let path = if tx_out.script_pubkey.is_v1_p2tr() {
@@ -477,8 +486,8 @@ impl<'a> PsbtSigner<'a> {
         }
         let hash = &sha256_hash(&output_serialize);
         preview_data.extend_from_slice(hash); //output hash
-        let outputs_number = outputs.len() as u16;
-        preview_data.extend(outputs_number.to_be_bytes());
+        let display_number = self.preview_output.len() as u16;
+        preview_data.extend(display_number.to_be_bytes());
 
         //set 01 tag and length
         preview_data.insert(0, preview_data.len() as u8);
@@ -498,7 +507,7 @@ impl<'a> PsbtSigner<'a> {
         let mut page_number = 0;
         loop {
             let mut outputs_data =
-                Self::serizalize_page_data(outputs.clone(), page_number, network)?;
+                self.serizalize_page_data(page_number, network)?;
             //set 01 tag and length
             outputs_data.insert(0, outputs_data.len() as u8);
             outputs_data.insert(0, 0x01);
@@ -607,25 +616,53 @@ impl<'a> PsbtSigner<'a> {
         Hash::hash(input)
     }
 
-    fn get_preview_info(&self) -> Result<(u64, u64, Vec<TxOut>)> {
-        let mut outputs = self.psbt.unsigned_tx.output.clone();
-        for prevout in &self.prevouts {
-            for (index, tx_out) in outputs.iter().enumerate() {
-                if prevout.script_pubkey.to_hex().eq(&tx_out.script_pubkey.to_hex()) {
-                    outputs.remove(index);
-                    break;
-                }
+    fn get_preview_output(&mut self) -> Result<()>{
+        let mut preview_output : Vec<TxOut> = vec![];
+
+        for tx_out in self.psbt.unsigned_tx.output.iter() {
+            //remove empty and op_return TxOut
+            if tx_out.script_pubkey.is_empty() || tx_out.script_pubkey.is_op_return() {
+                continue;
             }
+            //cale change index script
+            let tx_out_script = &tx_out.script_pubkey;
+            let address = if tx_out_script.is_p2pkh() {
+                let change_path = Self::get_change_index(self.network, "NONE")?;
+                let pub_key = BtcAddress::get_pub_key(&change_path)?;
+                BtcAddress::from_public_key(&pub_key, self.network, "NONE")?
+            }else if tx_out_script.is_v0_p2wpkh(){
+                let change_path = Self::get_change_index(self.network, "VERSION_0")?;
+                let pub_key = BtcAddress::get_pub_key(&change_path)?;
+                BtcAddress::from_public_key(&pub_key, self.network, "VERSION_0")?
+            }else if tx_out_script.is_p2sh() {
+                let change_path = Self::get_change_index(self.network, "P2WPKH")?;
+                let pub_key = BtcAddress::get_pub_key(&change_path)?;
+                BtcAddress::from_public_key(&pub_key, self.network, "P2WPKH")?
+            }else if tx_out_script.is_v1_p2tr(){
+                let change_path = Self::get_change_index(self.network, "VERSION_1")?;
+                let pub_key = BtcAddress::get_pub_key(&change_path)?;
+                BtcAddress::from_public_key(&pub_key, self.network, "VERSION_1")?
+            }else{
+                continue;
+            };
+            //remove change TxOut
+            let script_hex = Address::from_str(&address)?.script_pubkey().to_hex();
+            if script_hex.eq(&tx_out.script_pubkey.to_hex()) {
+                continue;
+            }
+            preview_output.push(tx_out.clone());
         }
-        let mut total_amount = 0;
-        for output in outputs.clone() {
-            total_amount = total_amount + output.value;
-        }
-        let inputs_total_amount: u64 = self.prevouts.iter().map(|tx_out| tx_out.value).sum();
-        let payment_total_amount: u64 = outputs.iter().map(|tx_out| tx_out.value).sum();
-        println!("{},{}", inputs_total_amount, payment_total_amount);
-        let fee = inputs_total_amount - payment_total_amount;
-        Ok((payment_total_amount, fee, outputs))
+        self.preview_output = preview_output;
+        Ok(())
+    }
+
+    pub fn get_preview_info(&self) -> Result<(u64, u64, Vec<TxOut>)> {
+        let mut outputs = &self.preview_output;
+        let payment_total_amount = outputs.iter().map(|tx_out| tx_out.value).sum();
+        let input_total_amount : u64 = self.prevouts.iter().map(|tx_out| tx_out.value).sum();
+        let output_total_amount : u64 = self.psbt.unsigned_tx.output.iter().map(|tx_out| tx_out.value).sum();
+        let fee = input_total_amount - output_total_amount;
+        Ok((payment_total_amount, fee, outputs.clone()))
     }
 
     fn get_page_indices(total_number: usize, page_number: usize) -> Result<(usize, usize)> {
@@ -650,15 +687,16 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn serizalize_page_data(
-        outputs: Vec<TxOut>,
+        &self,
         page_number: usize,
         network: Network,
     ) -> Result<Vec<u8>> {
-        let (start_index, end_index) = Self::get_page_indices(outputs.len(), page_number)?;
+        let preview_output = &self.preview_output;
+        let (start_index, end_index) = Self::get_page_indices(preview_output.len(), page_number)?;
         let mut data = vec![];
         data.extend((start_index as u16).to_be_bytes());
         data.extend((end_index as u16).to_be_bytes());
-        for (index, output) in outputs.iter().enumerate() {
+        for (index, output) in preview_output.iter().enumerate() {
             if start_index <= index && end_index >= index {
                 let i_u16 = index as u16;
                 data.extend(i_u16.to_be_bytes());
@@ -674,19 +712,30 @@ impl<'a> PsbtSigner<'a> {
 
         Ok(data)
     }
+
+    fn get_change_index(network: Network, segwit: &str) -> Result<String>{
+        let network = match network {
+            Network::Bitcoin => "MAINNET",
+            _ => "TESTNET",
+        };
+        let coin_info = coin_info_from_param("BITCOIN", network, segwit, "secp256k1")?;
+        let change_path = format!("{}/1/{}", get_account_path(&coin_info.derivation_path)?, 0);//todo change index
+        Ok(change_path)
+    }
 }
 
 pub fn sign_psbt(
-    chain_type: &str,
     derivation_path: &str,
     psbt_input: PsbtInput,
     network: Network,
 ) -> Result<PsbtOutput> {
-    let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_input.data)?);
-    let mut psbt = Psbt::consensus_decode(&mut reader)?;
-    let mut signer = PsbtSigner::new(&mut psbt, derivation_path, psbt_input.auto_finalize);
+    check_path_validity(derivation_path)?;
 
     select_btc_applet()?;
+
+    let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_input.psbt)?);
+    let mut psbt = Psbt::consensus_decode(&mut reader)?;
+    let mut signer = PsbtSigner::new(&mut psbt, derivation_path, psbt_input.auto_finalize, network)?;
 
     signer.prevouts()?;
 
@@ -705,7 +754,7 @@ pub fn sign_psbt(
     psbt.consensus_encode(&mut writer)?;
 
     return Ok(PsbtOutput {
-        data: hex::encode(vec),
+        psbt: hex::encode(vec),
     });
 }
 
@@ -733,13 +782,13 @@ mod test {
         bind_test();
 
         let psbt_input = PsbtInput {
-            data: "70736274ff0100db0200000001fa4c8d58b9b6c56ed0b03f78115246c99eb70f99b837d7b4162911d1016cda340200000000fdffffff0350c30000000000002251202114eda66db694d87ff15ddd5d3c4e77306b6e6dd5720cbd90cd96e81016c2b30000000000000000496a47626274340066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229ec20acf33c17e5a6c92cced9f1d530cccab7aa3e53400456202f02fac95e9c481fa00d47b1700000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233d80f03000001012be3bf1d00000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c23301172066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e00000000".to_string(),
+            psbt: "70736274ff0100db0200000001fa4c8d58b9b6c56ed0b03f78115246c99eb70f99b837d7b4162911d1016cda340200000000fdffffff0350c30000000000002251202114eda66db694d87ff15ddd5d3c4e77306b6e6dd5720cbd90cd96e81016c2b30000000000000000496a47626274340066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229ec20acf33c17e5a6c92cced9f1d530cccab7aa3e53400456202f02fac95e9c481fa00d47b1700000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233d80f03000001012be3bf1d00000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c23301172066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e00000000".to_string(),
             auto_finalize: true,
         };
 
         let psbt_output =
-            super::sign_psbt("BITCOIN", "m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
-        let mut reader = Cursor::new(Vec::<u8>::from_hex(&psbt_output.data).unwrap());
+            super::sign_psbt("m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
+        let mut reader = Cursor::new(Vec::<u8>::from_hex(&psbt_output.psbt).unwrap());
         let psbt = Psbt::consensus_decode(&mut reader).unwrap();
         let tx = psbt.extract_tx();
         let sig = schnorr::SchnorrSig::from_slice(&tx.input[0].witness.to_vec()[0]).unwrap();
@@ -766,17 +815,19 @@ mod test {
         bind_test();
 
         let psbt_input = PsbtInput {
-            data: "70736274ff01005e02000000012bd2f6479f3eeaffe95c03b5fdd76a873d346459114dec99c59192a0cb6409e90000000000ffffffff01409c000000000000225120677cc88dc36a75707b370e27efff3e454d446ad55004dac1685c1725ee1a89ea000000000001012b50c3000000000000225120a9a3350206de400f09a73379ec1bcfa161fc11ac095e5f3d7354126f0ec8e87f6215c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0d2956573f010fa1a3c135279c5eb465ec2250205dcdfe2122637677f639b1021356c963cd9c458508d6afb09f3fa2f9b48faec88e75698339a4bbb11d3fc9b0efd570120aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29bad200aee0509b16db71c999238a4827db945526859b13c95487ab46725357c9a9f25ac20113c3a32a9d320b72190a04a020a0db3976ef36972673258e9a38a364f3dc3b0ba2017921cf156ccb4e73d428f996ed11b245313e37e27c978ac4d2cc21eca4672e4ba203bb93dfc8b61887d771f3630e9a63e97cbafcfcc78556a474df83a31a0ef899cba2040afaf47c4ffa56de86410d8e47baa2bb6f04b604f4ea24323737ddc3fe092dfba2079a71ffd71c503ef2e2f91bccfc8fcda7946f4653cef0d9f3dde20795ef3b9f0ba20d21faf78c6751a0d38e6bd8028b907ff07e9a869a43fc837d6b3f8dff6119a36ba20f5199efae3f28bb82476163a7e458c7ad445d9bffb0682d10d3bdb2cb41f8e8eba20fa9d882d45f4060bdb8042183828cd87544f1ea997380e586cab77d5fd698737ba569cc001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00000".to_string(),
+            psbt: "70736274ff01005e02000000012bd2f6479f3eeaffe95c03b5fdd76a873d346459114dec99c59192a0cb6409e90000000000ffffffff01409c000000000000225120677cc88dc36a75707b370e27efff3e454d446ad55004dac1685c1725ee1a89ea000000000001012b50c3000000000000225120a9a3350206de400f09a73379ec1bcfa161fc11ac095e5f3d7354126f0ec8e87f6215c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0d2956573f010fa1a3c135279c5eb465ec2250205dcdfe2122637677f639b1021356c963cd9c458508d6afb09f3fa2f9b48faec88e75698339a4bbb11d3fc9b0efd570120aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29bad200aee0509b16db71c999238a4827db945526859b13c95487ab46725357c9a9f25ac20113c3a32a9d320b72190a04a020a0db3976ef36972673258e9a38a364f3dc3b0ba2017921cf156ccb4e73d428f996ed11b245313e37e27c978ac4d2cc21eca4672e4ba203bb93dfc8b61887d771f3630e9a63e97cbafcfcc78556a474df83a31a0ef899cba2040afaf47c4ffa56de86410d8e47baa2bb6f04b604f4ea24323737ddc3fe092dfba2079a71ffd71c503ef2e2f91bccfc8fcda7946f4653cef0d9f3dde20795ef3b9f0ba20d21faf78c6751a0d38e6bd8028b907ff07e9a869a43fc837d6b3f8dff6119a36ba20f5199efae3f28bb82476163a7e458c7ad445d9bffb0682d10d3bdb2cb41f8e8eba20fa9d882d45f4060bdb8042183828cd87544f1ea997380e586cab77d5fd698737ba569cc001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00000".to_string(),
             auto_finalize: true,
         };
 
         let psbt_output =
-            super::sign_psbt("BITCOIN", "m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
-        let mut reader = Cursor::new(Vec::<u8>::from_hex(&psbt_output.data).unwrap());
+            super::sign_psbt("m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
+        let mut reader = Cursor::new(Vec::<u8>::from_hex(&psbt_output.psbt).unwrap());
         let psbt = Psbt::consensus_decode(&mut reader).unwrap();
         let tx = psbt.extract_tx();
         let witness = tx.input[0].witness.to_vec();
         let sig = schnorr::SchnorrSig::from_slice(&witness[0]).unwrap();
+        let a = sig.clone().to_vec();
+        println!("a->{}", hex::encode(a));
         let data =
             Vec::<u8>::from_hex("56b6c5fd09753fbbbeb8f530308e4f7d2f404e02da767f033e926d27fcc2f37e")
                 .unwrap();
@@ -898,9 +949,9 @@ mod test {
                 .script_pubkey(),
         });
 
-        let mut signer = PsbtSigner::new(&mut psbt, "", true);
-
         select_btc_applet().unwrap();
+
+        let mut signer = PsbtSigner::new(&mut psbt, "", true, Network::Testnet).unwrap();
 
         signer.prevouts().unwrap();
 
