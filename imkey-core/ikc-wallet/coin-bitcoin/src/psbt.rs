@@ -1,26 +1,34 @@
-use crate::Result;
 use crate::btcapi::{PsbtInput, PsbtOutput};
-use bitcoin::consensus::{Decodable, Encodable, serialize};
+use crate::common::{get_address_version, get_xpub_data, select_btc_applet};
+use crate::Result;
+use anyhow::anyhow;
+use bitcoin::blockdata::script::Builder;
+use bitcoin::consensus::{serialize, Decodable, Encodable};
+use bitcoin::psbt::serialize::Serialize;
 use bitcoin::psbt::Psbt;
 use bitcoin::schnorr::{TapTweak, UntweakedPublicKey};
-use bitcoin::{EcdsaSig, EcdsaSighashType, SchnorrSig, SchnorrSighashType, Script, TxOut, WPubkeyHash, Witness, Transaction, PackedLockTime, Network, PublicKey, Address};
-use bitcoin_hashes::{hash160, Hash};
-use secp256k1::{ecdsa::Signature, PublicKey as Secp256k1PublicKey, schnorr::Signature as SchnorrSignature};
-use std::collections::BTreeMap;
-use std::io::Cursor;
-use std::str::FromStr;
-use bitcoin::blockdata::script::Builder;
 use bitcoin::util::taproot::{TapLeafHash, TapTweakHash};
+use bitcoin::{
+    Address, EcdsaSig, EcdsaSighashType, Network, PackedLockTime, PublicKey, SchnorrSig,
+    SchnorrSighashType, Script, Transaction, TxOut, WPubkeyHash, Witness,
+};
 use bitcoin_hashes::hex::ToHex;
+use bitcoin_hashes::{hash160, Hash};
 use hex::FromHex;
 use ikc_common::apdu::{ApduCheck, BtcApdu};
+use ikc_common::constants;
 use ikc_common::constants::TIMEOUT_LONG;
 use ikc_common::error::CoinError;
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign, sha256_hash};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
-use crate::common::{get_address_version, get_xpub_data, select_btc_applet};
-
+use secp256k1::{
+    ecdsa::Signature, schnorr::Signature as SchnorrSignature, PublicKey as Secp256k1PublicKey,
+};
+use std::collections::BTreeMap;
+use std::io::Cursor;
+use std::str::FromStr;
+use std::usize;
 
 pub struct PsbtSigner<'a> {
     psbt: &'a mut Psbt,
@@ -30,12 +38,7 @@ pub struct PsbtSigner<'a> {
 }
 
 impl<'a> PsbtSigner<'a> {
-    pub fn new(
-        psbt: &'a mut Psbt,
-        derivation_path: &str,
-        auto_finalize: bool,
-    ) -> Self {
-
+    pub fn new(psbt: &'a mut Psbt, derivation_path: &str, auto_finalize: bool) -> Self {
         PsbtSigner {
             psbt,
             derivation_path: derivation_path.to_string(),
@@ -70,7 +73,14 @@ impl<'a> PsbtSigner<'a> {
                 let input = self.psbt.inputs[idx].clone();
                 let (_, script_leaf) = input.tap_scripts.first_key_value().unwrap();
                 let (script, leaf_version) = script_leaf;
-                self.sign_p2tr_script(idx, &pub_keys[idx], Some((TapLeafHash::from_script(script, leaf_version.clone()).into(), 0xFFFFFFFF)))?;
+                self.sign_p2tr_script(
+                    idx,
+                    &pub_keys[idx],
+                    Some((
+                        TapLeafHash::from_script(script, leaf_version.clone()).into(),
+                        0xFFFFFFFF,
+                    )),
+                )?;
 
                 if self.auto_finalize {
                     self.finalize_p2tr(idx);
@@ -140,7 +150,7 @@ impl<'a> PsbtSigner<'a> {
         for (idx, tx_out) in self.prevouts.iter().enumerate() {
             let path = if tx_out.script_pubkey.is_v1_p2tr() {
                 self.get_path(idx, true)?
-            }else {
+            } else {
                 self.get_path(idx, false)?
             };
 
@@ -153,15 +163,17 @@ impl<'a> PsbtSigner<'a> {
         Ok(pub_key_vec)
     }
 
-    fn sign_p2pkh(
-        &mut self,
-        idx: usize,
-        pub_key: &str,
-    ) -> Result<()> {
+    fn sign_p2pkh(&mut self, idx: usize, pub_key: &str) -> Result<()> {
         let mut input_data_vec = vec![];
         for (x, prevout) in self.prevouts.iter().enumerate() {
-            let mut temp_serialize_txin = self.psbt.unsigned_tx.input.get(x).expect("get_input_error").clone();
-            if (x == idx) {
+            let mut temp_serialize_txin = self
+                .psbt
+                .unsigned_tx
+                .input
+                .get(x)
+                .expect("get_input_error")
+                .clone();
+            if x == idx {
                 temp_serialize_txin.script_sig = prevout.script_pubkey.clone();
             }
             input_data_vec.extend_from_slice(serialize(&temp_serialize_txin).as_slice());
@@ -172,11 +184,8 @@ impl<'a> PsbtSigner<'a> {
             ApduCheck::check_response(&send_apdu(apdu)?)?;
         }
         let path = self.get_path(idx, false)?;
-        let btc_sign_apdu = BtcApdu::btc_single_utxo_sign(
-            idx as u8,
-            EcdsaSighashType::All.to_u32() as u8,
-            &path,
-        );
+        let btc_sign_apdu =
+            BtcApdu::btc_single_utxo_sign(idx as u8, EcdsaSighashType::All.to_u32() as u8, &path);
 
         let btc_sign_apdu_return = send_apdu(btc_sign_apdu)?;
         ApduCheck::check_response(&btc_sign_apdu_return)?;
@@ -194,12 +203,14 @@ impl<'a> PsbtSigner<'a> {
         Ok(())
     }
 
-    fn sign_p2sh_nested_p2wpkh(
-        &mut self,
-        idx: usize,
-        pub_key: &str,
-    ) -> Result<()> {
-        let mut temp_serialize_txin = self.psbt.unsigned_tx.input.get(idx).expect("get_input_error").clone();
+    fn sign_p2sh_nested_p2wpkh(&mut self, idx: usize, pub_key: &str) -> Result<()> {
+        let mut temp_serialize_txin = self
+            .psbt
+            .unsigned_tx
+            .input
+            .get(idx)
+            .expect("get_input_error")
+            .clone();
         let prevout = &self.prevouts[idx];
         // let pub_key = &self.get_pub_key(idx, false)?;
         let mut data: Vec<u8> = vec![];
@@ -253,12 +264,14 @@ impl<'a> PsbtSigner<'a> {
         Ok(())
     }
 
-    fn sign_p2wpkh(
-        &mut self,
-        idx: usize,
-        pub_key: &str,
-    ) -> Result<()> {
-        let mut temp_serialize_txin = self.psbt.unsigned_tx.input.get(idx).expect("get_input_error").clone();
+    fn sign_p2wpkh(&mut self, idx: usize, pub_key: &str) -> Result<()> {
+        let mut temp_serialize_txin = self
+            .psbt
+            .unsigned_tx
+            .input
+            .get(idx)
+            .expect("get_input_error")
+            .clone();
         let prevout = &self.prevouts[idx];
         let mut data: Vec<u8> = vec![];
         //txhash and vout
@@ -306,11 +319,7 @@ impl<'a> PsbtSigner<'a> {
         Ok(())
     }
 
-    fn sign_p2tr(
-        &mut self,
-        idx: usize,
-        pub_key: &str,
-    ) -> Result<()> {
+    fn sign_p2tr(&mut self, idx: usize, pub_key: &str) -> Result<()> {
         let mut data: Vec<u8> = vec![];
         // epoch (1).
         data.push(0x00u8);
@@ -361,7 +370,7 @@ impl<'a> PsbtSigner<'a> {
         &mut self,
         idx: usize,
         pub_key: &str,
-        leaf_hash_code_separator: Option<(TapLeafHash, u32)>
+        leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
     ) -> Result<()> {
         let mut data: Vec<u8> = vec![];
         // epoch (1).
@@ -384,7 +393,7 @@ impl<'a> PsbtSigner<'a> {
         //leaf hash code separator
         if let Some((hash, code_separator_pos)) = leaf_hash_code_separator {
             let mut temp_data = hash.into_inner().to_vec();
-            temp_data.push(0x00u8);//key_version_0
+            temp_data.push(0x00u8); //key_version_0
             let code_separator_pos = code_separator_pos.to_be_bytes();
             temp_data.extend(code_separator_pos);
             data.push(temp_data.len() as u8);
@@ -447,63 +456,29 @@ impl<'a> PsbtSigner<'a> {
     }
 
     pub fn tx_preview(&self, network: Network) -> Result<()> {
-        let mut preview_data= vec![];
-        preview_data.extend(&serialize(&self.psbt.unsigned_tx.version));
+        let (total_amount, fee, outputs) = self.get_preview_info()?;
+        let mut preview_data = vec![];
+        preview_data.extend(&serialize(&self.psbt.unsigned_tx.version)); //version
         let input_number = self.psbt.unsigned_tx.input.len();
-        preview_data.push(input_number as u8);//input number
-        preview_data.extend(&serialize(&self.psbt.unsigned_tx.lock_time));
+        preview_data.push(input_number as u8); //input number
+        preview_data.extend(&serialize(&self.psbt.unsigned_tx.lock_time)); //lock time
         let mut sign_hash_type = Vec::new();
         let len = EcdsaSighashType::All
             .to_u32()
             .consensus_encode(&mut sign_hash_type)
             .unwrap();
         debug_assert_eq!(len, sign_hash_type.len());
-        preview_data.extend(&sign_hash_type);
-        let amount = serialize(&self.psbt.unsigned_tx.output[0].value);
-        // preview_data.extend(&hex_to_bytes("8017B42C00000000")?);
-        preview_data.extend(amount);
-        let script = serialize(&self.psbt.unsigned_tx.output[0].script_pubkey);
-        // preview_data.extend(&hex_to_bytes("1976A91455BDC1B42E3BED851959846DDF600E96125423E088AC")?);
-        preview_data.extend(script);
-        preview_data.extend(&hex_to_bytes("000000000007A972")?);
-        // preview_data.push(0x74);//address version
-        let address = Address::from_script(&self.psbt.unsigned_tx.output[0].script_pubkey, network)?;
-        println!("address->{}", address.to_string());
-        let address_version = get_address_version(network, &address.to_string())?;
-        preview_data.push(address_version);
-        let mut output = vec![];
+        preview_data.extend(&sign_hash_type); //hash type
+        preview_data.extend(bigint_to_byte_vec(total_amount)); //total payment amount
+        preview_data.extend(bigint_to_byte_vec(fee)); //fee
+        let mut output_serialize = vec![];
         for tx_out in self.psbt.unsigned_tx.output.iter() {
-            output.extend(serialize(tx_out));
+            output_serialize.extend(serialize(tx_out));
         }
-        // serialize(&self.psbt.unsigned_tx.output);
-        println!("output-->{}", hex::encode(output.clone()));
-        let hash = &sha256_hash(&output);
-        println!("output hash-->{}", hex::encode(hash.clone()));
-        preview_data.extend_from_slice(hash);
-
-
-
-        // output_serialize_data.remove(5);
-        // output_serialize_data.remove(5);
-        // //add sign type
-        // let mut encoder_hash = Vec::new();
-        // let len = EcdsaSighashType::All
-        //     .to_u32()
-        //     .consensus_encode(&mut encoder_hash)
-        //     .unwrap();
-        // debug_assert_eq!(len, encoder_hash.len());
-        // output_serialize_data.extend(encoder_hash);
-
-        //set input number
-        // output_serialize_data.remove(4);
-        // output_serialize_data.insert(4, self.unspents.len() as u8);
-
-        //add fee amount
-        // output_serialize_data.extend(bigint_to_byte_vec(self.fee));
-
-        //add address version
-        // let address_version = get_address_version(network, self.to.to_string().as_str())?;
-        // output_serialize_data.push(address_version);
+        let hash = &sha256_hash(&output_serialize);
+        preview_data.extend_from_slice(hash); //output hash
+        let outputs_number = outputs.len() as u16;
+        preview_data.extend(outputs_number.to_be_bytes());
 
         //set 01 tag and length
         preview_data.insert(0, preview_data.len() as u8);
@@ -511,15 +486,36 @@ impl<'a> PsbtSigner<'a> {
 
         //use local private key sign data
         let key_manager_obj = KEY_MANAGER.lock();
-        let mut output_pareper_data =
-            secp256k1_sign(&key_manager_obj.pri_key, &preview_data)?;
+        let mut output_pareper_data = secp256k1_sign(&key_manager_obj.pri_key, &preview_data)?;
         output_pareper_data.insert(0, output_pareper_data.len() as u8);
         output_pareper_data.insert(0, 0x00);
         output_pareper_data.extend(preview_data.iter());
-
         let btc_prepare_apdu_vec = BtcApdu::btc_prepare(0x4B, 0x00, &output_pareper_data);
         for temp_str in btc_prepare_apdu_vec {
-            ApduCheck::check_response(&send_apdu_timeout(temp_str, TIMEOUT_LONG)?)?;
+            ApduCheck::check_response(&send_apdu(temp_str)?)?;
+        }
+
+        let mut page_number = 0;
+        loop {
+            let mut outputs_data =
+                Self::serizalize_page_data(outputs.clone(), page_number, network)?;
+            //set 01 tag and length
+            outputs_data.insert(0, outputs_data.len() as u8);
+            outputs_data.insert(0, 0x01);
+            //use local private key sign data
+            let mut output_pareper_data = secp256k1_sign(&key_manager_obj.pri_key, &outputs_data)?;
+            output_pareper_data.insert(0, output_pareper_data.len() as u8);
+            output_pareper_data.insert(0, 0x00);
+            output_pareper_data.extend(outputs_data.iter());
+            let btc_psbt_trx_preview = BtcApdu::btc_psbt_preview(&output_pareper_data);
+            let response = &send_apdu_timeout(btc_psbt_trx_preview, TIMEOUT_LONG)?;
+            ApduCheck::check_response(response)?;
+            if response.len() > 4 {
+                let page_index = &response[..response.len() - 4];
+                page_number = u16::from_str_radix(page_index, 16)? as usize;
+            } else {
+                break;
+            }
         }
 
         Ok(())
@@ -610,6 +606,74 @@ impl<'a> PsbtSigner<'a> {
     fn hash160(input: &[u8]) -> hash160::Hash {
         Hash::hash(input)
     }
+
+    fn get_preview_info(&self) -> Result<(u64, u64, Vec<TxOut>)> {
+        let mut outputs = self.psbt.unsigned_tx.output.clone();
+        for prevout in &self.prevouts {
+            for (index, tx_out) in outputs.iter().enumerate() {
+                if prevout.script_pubkey.to_hex().eq(&tx_out.script_pubkey.to_hex()) {
+                    outputs.remove(index);
+                    break;
+                }
+            }
+        }
+        let mut total_amount = 0;
+        for output in outputs.clone() {
+            total_amount = total_amount + output.value;
+        }
+        let inputs_total_amount: u64 = self.prevouts.iter().map(|tx_out| tx_out.value).sum();
+        let payment_total_amount: u64 = outputs.iter().map(|tx_out| tx_out.value).sum();
+        println!("{},{}", inputs_total_amount, payment_total_amount);
+        let fee = inputs_total_amount - payment_total_amount;
+        Ok((payment_total_amount, fee, outputs))
+    }
+
+    fn get_page_indices(total_number: usize, page_number: usize) -> Result<(usize, usize)> {
+        let total_pages = (total_number + constants::BTC_PSBT_TRX_PER_PAGE_NUMBER - 1)
+            / constants::BTC_PSBT_TRX_PER_PAGE_NUMBER;
+        if page_number >= total_pages {
+            return Err(anyhow!("page_number_out_of_range"));
+        }
+        let start_index = page_number * constants::BTC_PSBT_TRX_PER_PAGE_NUMBER;
+        let end_index = usize::min(
+            total_number,
+            start_index + constants::BTC_PSBT_TRX_PER_PAGE_NUMBER,
+        ) - 1;
+
+        if start_index >= total_number {
+            Ok((total_number, total_number - 1))
+        } else if end_index >= total_number {
+            Ok((start_index, total_number - 1))
+        } else {
+            Ok((start_index, end_index))
+        }
+    }
+
+    fn serizalize_page_data(
+        outputs: Vec<TxOut>,
+        page_number: usize,
+        network: Network,
+    ) -> Result<Vec<u8>> {
+        let (start_index, end_index) = Self::get_page_indices(outputs.len(), page_number)?;
+        let mut data = vec![];
+        data.extend((start_index as u16).to_be_bytes());
+        data.extend((end_index as u16).to_be_bytes());
+        for (index, output) in outputs.iter().enumerate() {
+            if start_index <= index && end_index >= index {
+                let i_u16 = index as u16;
+                data.extend(i_u16.to_be_bytes());
+                data.extend(serialize(&output.value));
+                let address = Address::from_script(&output.script_pubkey, network)?;
+                let address_version = get_address_version(network, &address.to_string())?;
+                let script_bytes = serialize(&output.script_pubkey);
+                data.push((1 + script_bytes.len()) as u8);
+                data.push(address_version);
+                data.extend(script_bytes);
+            }
+        }
+
+        Ok(data)
+    }
 }
 
 pub fn sign_psbt(
@@ -630,6 +694,8 @@ pub fn sign_psbt(
 
     signer.calc_tx_hash()?;
 
+    signer.get_preview_info()?;
+
     signer.tx_preview(network)?;
 
     signer.sign(&pub_keys)?;
@@ -638,27 +704,29 @@ pub fn sign_psbt(
     let mut writer = Cursor::new(&mut vec);
     psbt.consensus_encode(&mut writer)?;
 
-    return Ok(PsbtOutput { data: hex::encode(vec) });
+    return Ok(PsbtOutput {
+        data: hex::encode(vec),
+    });
 }
 
 #[cfg(test)]
-mod test{
+mod test {
     use crate::btcapi::PsbtInput;
-    use ikc_device::device_binding::bind_test;
+    use crate::common::select_btc_applet;
+    use crate::psbt::PsbtSigner;
     use bitcoin::consensus::Decodable;
     use bitcoin::psbt::serialize::{Deserialize, Serialize};
     use bitcoin::psbt::Psbt;
     use bitcoin::schnorr::TapTweak;
-    use bitcoin::{schnorr, Network, Transaction, TxOut, Address};
+    use bitcoin::util::bip32::DerivationPath;
+    use bitcoin::{schnorr, Address, Network, Transaction, TxOut};
+    use bitcoin_hashes::hex::ToHex;
+    use hex::FromHex;
+    use ikc_device::device_binding::bind_test;
+    use secp256k1::schnorr::Signature;
     use secp256k1::{Message, XOnlyPublicKey};
     use std::io::Cursor;
     use std::str::FromStr;
-    use bitcoin::util::bip32::DerivationPath;
-    use bitcoin_hashes::hex::ToHex;
-    use hex::FromHex;
-    use secp256k1::schnorr::Signature;
-    use crate::common::select_btc_applet;
-    use crate::psbt::PsbtSigner;
 
     #[test]
     fn test_sign_psbt_no_script() {
@@ -669,7 +737,8 @@ mod test{
             auto_finalize: true,
         };
 
-        let psbt_output = super::sign_psbt("BITCOIN", "m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
+        let psbt_output =
+            super::sign_psbt("BITCOIN", "m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
         let mut reader = Cursor::new(Vec::<u8>::from_hex(&psbt_output.data).unwrap());
         let psbt = Psbt::consensus_decode(&mut reader).unwrap();
         let tx = psbt.extract_tx();
@@ -685,7 +754,7 @@ mod test{
                 .unwrap()
                 .as_slice(),
         )
-            .unwrap();
+        .unwrap();
         let SECP256K1_ENGINE: secp256k1::Secp256k1<secp256k1::All> = secp256k1::Secp256k1::new();
         let tweak_pub_key = x_pub_key.tap_tweak(&SECP256K1_ENGINE, None);
 
@@ -701,7 +770,8 @@ mod test{
             auto_finalize: true,
         };
 
-        let psbt_output = super::sign_psbt("BITCOIN", "m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
+        let psbt_output =
+            super::sign_psbt("BITCOIN", "m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
         let mut reader = Cursor::new(Vec::<u8>::from_hex(&psbt_output.data).unwrap());
         let psbt = Psbt::consensus_decode(&mut reader).unwrap();
         let tx = psbt.extract_tx();
@@ -716,7 +786,7 @@ mod test{
                 .unwrap()
                 .as_slice(),
         )
-            .unwrap();
+        .unwrap();
 
         let script = hex::encode(&witness[1]);
         let control_block = hex::encode(&witness[2]);
@@ -731,22 +801,22 @@ mod test{
         bind_test();
 
         let raw_tx = "02000000054adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0000000000ffffffff4adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0100000000ffffffff12cc8049bf85b5e18cb2be8aa7aefc3afb8df4ec5c1f766750014cc95ca2dc130000000000ffffffff729e6570928cc65200f1d53def65a7934d2e9b543059d90598ed1d166af422010100000000ffffffffa126724475cd2f3252352b3543c8455c7999a8283883bd7a712a7d66609d92d80100000000ffffffff02409c00000000000022512036079c540758a51a86eeaf9e17668d4d8543d8b1b7e56fe2da0982c390c5655ef8fa0700000000002251209303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea0615500000000";
-        let tx = Transaction::deserialize(&Vec::from_hex(&raw_tx).unwrap()).unwrap();
+        let mut tx = Transaction::deserialize(&Vec::from_hex(&raw_tx).unwrap()).unwrap();
 
         let mut psbt = Psbt::from_unsigned_tx(tx).unwrap();
         let fake_pub_key = secp256k1::PublicKey::from_slice(
             &Vec::<u8>::from_hex(
                 "0266f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e",
             )
-                .unwrap(),
+            .unwrap(),
         )
-            .unwrap();
+        .unwrap();
         let fake_xonly_pub_key = XOnlyPublicKey::from_slice(
             Vec::<u8>::from_hex("66f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e")
                 .unwrap()
                 .as_slice(),
         )
-            .unwrap();
+        .unwrap();
 
         psbt.inputs[0].tap_key_origins.insert(
             fake_xonly_pub_key,
@@ -763,8 +833,8 @@ mod test{
             script_pubkey: Address::from_str(
                 "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4",
             )
-                .unwrap()
-                .script_pubkey(),
+            .unwrap()
+            .script_pubkey(),
         });
 
         psbt.inputs[1].tap_key_origins.insert(
@@ -782,8 +852,8 @@ mod test{
             script_pubkey: Address::from_str(
                 "tb1pjvp6z9shfhfpafrnwen9j452cf8tdwpgc0hfnzvz62aqwr4qv92sg7qj9r",
             )
-                .unwrap()
-                .script_pubkey(),
+            .unwrap()
+            .script_pubkey(),
         });
 
         psbt.inputs[2].bip32_derivation.insert(
@@ -838,10 +908,11 @@ mod test{
 
         signer.calc_tx_hash().unwrap();
 
-        signer.tx_preview(Network::Bitcoin).unwrap();//todo
+        signer.get_preview_info().unwrap();
+
+        signer.tx_preview(Network::Bitcoin).unwrap();
 
         signer.sign(&pub_keys).unwrap();
-
 
         let tx = psbt.extract_tx();
 
@@ -849,7 +920,7 @@ mod test{
             &Vec::from_hex("f01ba76b329132e48188ad10d00791647ee6d2f7fee5ef397f3481993c898de3")
                 .unwrap(),
         )
-            .unwrap();
+        .unwrap();
         let sig = Signature::from_slice(&tx.input[0].witness.to_vec()[0]).unwrap();
         // let a = sig.clone().to_vec().unwrap();
         // println!("a->{}", hex::encode(a));
@@ -857,14 +928,14 @@ mod test{
             &Vec::from_hex("8f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233")
                 .unwrap(),
         )
-            .unwrap();
+        .unwrap();
         // assert!(sig.verify(&msg, &pub_key).is_ok());
 
         let msg = Message::from_slice(
             &Vec::from_hex("d0691b5ac1b338b9341790ea69417cb454cf346a718342fb4a846dbb8ae142e8")
                 .unwrap(),
         )
-            .unwrap();
+        .unwrap();
         let sig = Signature::from_slice(&tx.input[1].witness.to_vec()[0]).unwrap();
         // let a = sig.clone().to_vec();
         // println!("a->{}", hex::encode(a));
@@ -872,7 +943,7 @@ mod test{
             &Vec::from_hex("9303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea06155")
                 .unwrap(),
         )
-            .unwrap();
+        .unwrap();
         // assert!(sig.verify(&msg, &pub_key).is_ok());
 
         assert_eq!(tx.input[2].witness.to_vec()[0].to_hex(), "3044022022c2feaa4a225496fc6789c969fb776da7378f44c588ad812a7e1227ebe69b6302204fc7bf5107c6d02021fe4833629bc7ab71cefe354026ebd0d9c0da7d4f335f9401");

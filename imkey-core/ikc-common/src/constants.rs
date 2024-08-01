@@ -118,6 +118,8 @@ pub const ETH_TRANSACTION_TYPE_EIP1559: &str = "02";
 
 pub const ETH_MAX_SUPPORT_PAYMENT_LEN: usize = 255;
 
+pub const BTC_PSBT_TRX_PER_PAGE_NUMBER: usize = 3;
+
 lazy_static! {
     /// Lazily initialized secp256k1 engine
     pub static ref SECP256K1_ENGINE: secp256k1::Secp256k1<secp256k1::All> = secp256k1::Secp256k1::new();
