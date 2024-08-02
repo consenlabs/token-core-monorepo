@@ -69,11 +69,14 @@ impl BtcApdu {
         apdu.to_hex().to_uppercase()
     }
 
-    pub fn btc_psbt_preview(data: &Vec<u8>) -> String {
+    /**
+    *p2 00:sign psbt transaction  80: sign message
+    **/
+    pub fn btc_psbt_preview(data: &Vec<u8>, p2: u8) -> String {
         if data.len() as u32 > LC_MAX {
             panic!("data to long");
         }
-        let mut apdu = ApduHeader::new(0x80, 0x4C, 0x00, 0x00, data.len() as u8).to_array();
+        let mut apdu = ApduHeader::new(0x80, 0x4C, 0x00, p2, data.len() as u8).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
         apdu.to_hex().to_uppercase()

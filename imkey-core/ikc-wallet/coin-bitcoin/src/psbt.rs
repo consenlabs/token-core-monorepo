@@ -40,10 +40,11 @@ pub struct PsbtSigner<'a> {
     prevouts: Vec<TxOut>,
     network: Network,
     preview_output: Vec<TxOut>,
+    is_sign_message: bool,
 }
 
 impl<'a> PsbtSigner<'a> {
-    pub fn new(psbt: &'a mut Psbt, derivation_path: &str, auto_finalize: bool, network: Network) -> Result<Self> {
+    pub fn new(psbt: &'a mut Psbt, derivation_path: &str, auto_finalize: bool, network: Network, is_sign_message: bool) -> Result<Self> {
         let mut psbt_signer = PsbtSigner {
             psbt,
             derivation_path: derivation_path.to_string(),
@@ -51,6 +52,7 @@ impl<'a> PsbtSigner<'a> {
             auto_finalize,
             network,
             preview_output: vec![],
+            is_sign_message,
         };
         psbt_signer.get_preview_output()?;
         Ok(psbt_signer)
@@ -239,7 +241,8 @@ impl<'a> PsbtSigner<'a> {
         }
         data.extend(utxo_amount.iter());
         //set sequence
-        data.extend(hex::decode("FFFFFFFF").unwrap());
+        let sequence = serialize(&temp_serialize_txin.sequence).to_vec();
+        data.extend(sequence);
         //set length
         data.insert(0, data.len() as u8);
         //address
@@ -299,7 +302,8 @@ impl<'a> PsbtSigner<'a> {
         }
         data.extend(utxo_amount.iter());
         //set sequence
-        data.extend(hex::decode("FFFFFFFF").unwrap());
+        let sequence = serialize(&temp_serialize_txin.sequence).to_vec();
+        data.extend(sequence);
         //set length
         data.insert(0, data.len() as u8);
         //address
@@ -451,15 +455,13 @@ impl<'a> PsbtSigner<'a> {
             amount_vec.extend(serialize(&prevout.value));
             script_pubkeys_vec.extend(serialize(&prevout.script_pubkey));
         }
-        if self.psbt.unsigned_tx.version == 2 {
-            let mut calc_hash_apdu = vec![];
-            calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x40, &txhash_vout_vec));
-            calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x80, &sequence_vec));
-            calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x20, &amount_vec));
-            calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x21, &script_pubkeys_vec));
-            for apdu in calc_hash_apdu {
-                ApduCheck::check_response(&send_apdu(apdu)?)?;
-            }
+        let mut calc_hash_apdu = vec![];
+        calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x40, &txhash_vout_vec));
+        calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x80, &sequence_vec));
+        calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x20, &amount_vec));
+        calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x21, &script_pubkeys_vec));
+        for apdu in calc_hash_apdu {
+            ApduCheck::check_response(&send_apdu(apdu)?)?;
         }
         Ok(())
     }
@@ -506,8 +508,11 @@ impl<'a> PsbtSigner<'a> {
 
         let mut page_number = 0;
         loop {
-            let mut outputs_data =
-                self.serizalize_page_data(page_number, network)?;
+            let mut outputs_data = if self.is_sign_message {
+                vec![0xFF, 0xFF]
+            }else{
+                self.serizalize_page_data(page_number, network)?
+            };
             //set 01 tag and length
             outputs_data.insert(0, outputs_data.len() as u8);
             outputs_data.insert(0, 0x01);
@@ -516,8 +521,12 @@ impl<'a> PsbtSigner<'a> {
             output_pareper_data.insert(0, output_pareper_data.len() as u8);
             output_pareper_data.insert(0, 0x00);
             output_pareper_data.extend(outputs_data.iter());
-            let btc_psbt_trx_preview = BtcApdu::btc_psbt_preview(&output_pareper_data);
-            let response = &send_apdu_timeout(btc_psbt_trx_preview, TIMEOUT_LONG)?;
+            let sign_confirm = if self.is_sign_message {
+                BtcApdu::btc_psbt_preview(&output_pareper_data, 0x80)
+            }else{
+                BtcApdu::btc_psbt_preview(&output_pareper_data, 0x00)
+            };
+            let response = &send_apdu_timeout(sign_confirm, TIMEOUT_LONG)?;
             ApduCheck::check_response(response)?;
             if response.len() > 4 {
                 let page_index = &response[..response.len() - 4];
@@ -526,7 +535,6 @@ impl<'a> PsbtSigner<'a> {
                 break;
             }
         }
-
         Ok(())
     }
 
@@ -735,7 +743,7 @@ pub fn sign_psbt(
 
     let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_input.psbt)?);
     let mut psbt = Psbt::consensus_decode(&mut reader)?;
-    let mut signer = PsbtSigner::new(&mut psbt, derivation_path, psbt_input.auto_finalize, network)?;
+    let mut signer = PsbtSigner::new(&mut psbt, derivation_path, psbt_input.auto_finalize, network, false)?;
 
     signer.prevouts()?;
 
@@ -951,7 +959,7 @@ mod test {
 
         select_btc_applet().unwrap();
 
-        let mut signer = PsbtSigner::new(&mut psbt, "", true, Network::Testnet).unwrap();
+        let mut signer = PsbtSigner::new(&mut psbt, "", true, Network::Testnet, false).unwrap();
 
         signer.prevouts().unwrap();
 
