@@ -719,7 +719,7 @@ impl<'a> PsbtSigner<'a> {
             _ => "TESTNET",
         };
         let coin_info = coin_info_from_param("BITCOIN", network, segwit, "secp256k1")?;
-        let change_path = format!("{}/1/{}", get_account_path(&coin_info.derivation_path)?, 0);//todo change index
+        let change_path = get_account_path(&coin_info.derivation_path)?;
         Ok(change_path)
     }
 }
