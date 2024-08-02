@@ -593,7 +593,14 @@ pub fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
 
     let mut account_responses: Vec<AccountResponse> = vec![];
 
@@ -645,7 +652,14 @@ pub(crate) fn export_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+    let guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
 
     tcx_ensure!(
         guard.keystore().derivable(),
@@ -681,7 +695,14 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
 
     let curve = CurveType::from_str(&param.curve);
     let private_key_bytes = guard
@@ -724,7 +745,13 @@ pub(crate) fn verify_password(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    if keystore.verify_password(&param.key.clone().unwrap().into()) {
+    if keystore.verify_password(
+        &param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    ) {
         let rsp = GeneralResult {
             is_success: true,
             error: "".to_owned(),
@@ -744,7 +771,13 @@ pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    if keystore.verify_password(&param.key.clone().unwrap().into()) {
+    if keystore.verify_password(
+        &param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    ) {
         delete_keystore_file(&param.id)?;
         map.remove(&param.id);
 
@@ -804,7 +837,14 @@ pub(crate) fn sign_tx(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
 
     sign_transaction_internal(&param, guard.keystore_mut())
 }
@@ -819,7 +859,14 @@ pub(crate) fn sign_hashes(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
 
     let signatures = param
         .data_to_sign
@@ -850,7 +897,14 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
 
     let public_keys: Vec<TypedPublicKey> = param
         .derivations
@@ -896,7 +950,14 @@ pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
 
     let extended_public_keys = param
         .derivations
@@ -926,7 +987,14 @@ pub(crate) fn sign_message(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
 
     sign_message_internal(&param, guard.keystore_mut())
 }
@@ -940,7 +1008,15 @@ pub(crate) fn sign_psbt(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
+
     let psbt_input = PsbtInput::decode(
         param
             .input
@@ -969,7 +1045,14 @@ pub(crate) fn sign_psbts(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
     let psbt_inputs = PsbtsInput::decode(
         param
             .input
@@ -1161,7 +1244,13 @@ pub(crate) fn backup(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let original = keystore.backup(&param.key.clone().unwrap().into())?;
+    let original = keystore.backup(
+        &param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
     let fingerprint = match keystore.meta().source {
         Source::Mnemonic | Source::NewMnemonic => Some(fingerprint_from_mnemonic(&original)?),
         Source::Private | Source::Wif => Some(fingerprint_from_any_format_pk(&original)?),
@@ -1254,10 +1343,13 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
         return Err(anyhow::anyhow!("identity_not_found"));
     };
 
-    let unlocker = identity_ks
-        .store()
-        .crypto
-        .use_key(&param.key.clone().unwrap().into())?;
+    let unlocker = identity_ks.store().crypto.use_key(
+        &param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
 
     let signature = identity_ks.identity().sign_authentication_message(
         param.access_time,
@@ -1336,7 +1428,14 @@ pub(crate) fn sign_bls_to_execution_change(data: &[u8]) -> Result<Vec<u8>> {
         Some(keystore) => Ok(keystore),
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
-    let mut guard = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
     let result: SignBlsToExecutionChangeResult =
         param.sign_bls_to_execution_change(guard.keystore_mut())?;
     encode_message(result)
@@ -1352,7 +1451,14 @@ pub(crate) fn eth_batch_personal_sign(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let mut keystore = KeystoreGuard::unlock(keystore, param.key.clone().unwrap().into())?;
+    let mut keystore = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
 
     let signatures = batch_personal_sign(keystore.keystore_mut(), param.data, &param.path)?;
 
