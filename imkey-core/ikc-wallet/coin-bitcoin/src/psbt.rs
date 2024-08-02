@@ -627,21 +627,21 @@ impl<'a> PsbtSigner<'a> {
             //cale change index script
             let tx_out_script = &tx_out.script_pubkey;
             let address = if tx_out_script.is_p2pkh() {
-                let change_path = Self::get_change_index(self.network, "NONE")?;
+                let change_path = Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_LEGACY)?;
                 let pub_key = BtcAddress::get_pub_key(&change_path)?;
-                BtcAddress::from_public_key(&pub_key, self.network, "NONE")?
+                BtcAddress::from_public_key(&pub_key, self.network, constants::BTC_SEG_WIT_TYPE_LEGACY)?
             }else if tx_out_script.is_v0_p2wpkh(){
-                let change_path = Self::get_change_index(self.network, "VERSION_0")?;
+                let change_path = Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_VERSION_0)?;
                 let pub_key = BtcAddress::get_pub_key(&change_path)?;
-                BtcAddress::from_public_key(&pub_key, self.network, "VERSION_0")?
+                BtcAddress::from_public_key(&pub_key, self.network, constants::BTC_SEG_WIT_TYPE_VERSION_0)?
             }else if tx_out_script.is_p2sh() {
-                let change_path = Self::get_change_index(self.network, "P2WPKH")?;
+                let change_path = Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_P2WPKH)?;
                 let pub_key = BtcAddress::get_pub_key(&change_path)?;
-                BtcAddress::from_public_key(&pub_key, self.network, "P2WPKH")?
+                BtcAddress::from_public_key(&pub_key, self.network, constants::BTC_SEG_WIT_TYPE_P2WPKH)?
             }else if tx_out_script.is_v1_p2tr(){
-                let change_path = Self::get_change_index(self.network, "VERSION_1")?;
+                let change_path = Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_VERSION_1)?;
                 let pub_key = BtcAddress::get_pub_key(&change_path)?;
-                BtcAddress::from_public_key(&pub_key, self.network, "VERSION_1")?
+                BtcAddress::from_public_key(&pub_key, self.network, constants::BTC_SEG_WIT_TYPE_VERSION_1)?
             }else{
                 continue;
             };
