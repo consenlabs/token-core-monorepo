@@ -291,6 +291,10 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn sign_psbt(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignParam = SignParam::decode(data).expect("sign_psbt param");
 
+    if !"BITCOIN".eq(&param.chain_type) {
+        return Err(anyhow!("unsupported_chain_type"))
+    }
+
     let psbt_input = PsbtInput::decode(
         param
             .input
@@ -308,7 +312,6 @@ pub(crate) fn sign_psbt(data: &[u8]) -> Result<Vec<u8>> {
         Network::Bitcoin
     };
     encode_message(coin_bitcoin::psbt::sign_psbt(
-        &param.chain_type,
         &param.path,
         psbt_input,
         network,
