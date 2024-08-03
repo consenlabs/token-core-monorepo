@@ -4,6 +4,7 @@ pub mod common;
 pub mod psbt;
 pub mod transaction;
 pub mod usdt_transaction;
+mod message;
 
 extern crate anyhow;
 use core::result;

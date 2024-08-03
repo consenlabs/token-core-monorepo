@@ -34,10 +34,18 @@ message BtcTxOutput {
 }
 
 message PsbtInput {
-    string data = 1;
+    string psbt = 1;
     bool autoFinalize = 2;
 }
 
 message PsbtOutput {
-    string data = 1;
+    string psbt = 1;
+}
+
+message BtcMessageInput {
+    string message = 1;
+}
+
+message BtcMessageOutput {
+    string signature = 1;
 }

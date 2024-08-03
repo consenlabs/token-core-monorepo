@@ -16,6 +16,7 @@ use num_traits::{FromPrimitive, Num, Zero};
 use regex::Regex;
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId, Signature};
 use secp256k1::{Message, PublicKey as PublicKey2, Secp256k1, SecretKey};
+use crate::hex::FromHex;
 
 pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
     let ret_data;
@@ -203,6 +204,19 @@ pub fn network_convert(network: &str) -> Network {
         "MAINNET" => Network::Bitcoin,
         "TESTNET" => Network::Testnet,
         _ => Network::Testnet,
+    }
+}
+
+pub fn utf8_or_hex_to_bytes(value: &str) -> Result<Vec<u8>> {
+    if value.to_lowercase().starts_with("0x") {
+        let ret = FromHex::from_0x_hex(value);
+        if ret.is_err() {
+            Ok(value.as_bytes().to_vec())
+        } else {
+            ret
+        }
+    } else {
+        Ok(value.as_bytes().to_vec())
     }
 }
 

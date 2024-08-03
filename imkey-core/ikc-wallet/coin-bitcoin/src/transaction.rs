@@ -128,7 +128,7 @@ impl BtcTransaction {
                 sequence: Sequence::MAX,
                 witness: Witness::default(),
             };
-            if (x == idx) {
+            if x == idx {
                 temp_serialize_txin.script_sig =
                     Script::from(Vec::from_hex(temp_utxo.script_pubkey.as_str())?);
             }

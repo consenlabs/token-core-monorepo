@@ -60,7 +60,7 @@ pub struct BtcTxOutput {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PsbtInput {
     #[prost(string, tag = "1")]
-    pub data: ::prost::alloc::string::String,
+    pub psbt: ::prost::alloc::string::String,
     #[prost(bool, tag = "2")]
     pub auto_finalize: bool,
 }
@@ -68,5 +68,17 @@ pub struct PsbtInput {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PsbtOutput {
     #[prost(string, tag = "1")]
-    pub data: ::prost::alloc::string::String,
+    pub psbt: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BtcMessageInput {
+    #[prost(string, tag = "1")]
+    pub message: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BtcMessageOutput {
+    #[prost(string, tag = "1")]
+    pub signature: ::prost::alloc::string::String,
 }

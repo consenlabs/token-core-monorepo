@@ -9,6 +9,7 @@ pub mod error;
 pub mod https;
 pub mod path;
 pub mod utility;
+mod hex;
 
 use parking_lot::RwLock;
 
