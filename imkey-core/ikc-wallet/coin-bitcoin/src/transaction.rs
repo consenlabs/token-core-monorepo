@@ -66,7 +66,7 @@ impl BtcTransaction {
         }
 
         //utxo address verify
-        let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents, network)?;
+        let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents)?;
 
         let output = self.tx_output(change_idx, &path, network, seg_wit, extra_data)?;
 

@@ -44,7 +44,7 @@ impl BtcTransaction {
         }
 
         //utxo address verify
-        let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents, network)?;
+        let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents)?;
 
         //add change output
         let mut txouts: Vec<TxOut> = Vec::new();
@@ -205,7 +205,7 @@ impl BtcTransaction {
         }
 
         //utxo address verify
-        let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents, network)?;
+        let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents)?;
 
         //5.add change output
         let mut txouts: Vec<TxOut> = vec![];

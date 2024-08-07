@@ -14,7 +14,7 @@ use std::str::FromStr;
 /**
 get utxo public key
 */
-pub fn get_utxo_pub_key(utxos: &Vec<Utxo>, network: Network) -> Result<Vec<String>> {
+pub fn get_utxo_pub_key(utxos: &Vec<Utxo>) -> Result<Vec<String>> {
     let mut utxo_pub_key_vec: Vec<String> = vec![];
     for utxo in utxos {
         let xpub_data = get_xpub_data(&utxo.derive_path, false)?;
