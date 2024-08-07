@@ -800,8 +800,7 @@ mod test {
         let psbt = Psbt::consensus_decode(&mut reader).unwrap();
         let tx = psbt.extract_tx();
         let sig = schnorr::SchnorrSig::from_slice(&tx.input[0].witness.to_vec()[0]).unwrap();
-        let a = sig.clone().to_vec();
-        println!("a->{}", hex::encode(a));
+
         let data =
             Vec::<u8>::from_hex("3a66cf6ec1a87b10b86fa358baf64484bba8c61c9828e5cbe2eb8a3d4bbf190c")
                 .unwrap();
@@ -834,8 +833,7 @@ mod test {
         let tx = psbt.extract_tx();
         let witness = tx.input[0].witness.to_vec();
         let sig = schnorr::SchnorrSig::from_slice(&witness[0]).unwrap();
-        let a = sig.clone().to_vec();
-        println!("a->{}", hex::encode(a));
+
         let data =
             Vec::<u8>::from_hex("56b6c5fd09753fbbbeb8f530308e4f7d2f404e02da767f033e926d27fcc2f37e")
                 .unwrap();
@@ -981,8 +979,6 @@ mod test {
         )
         .unwrap();
         let sig = Signature::from_slice(&tx.input[0].witness.to_vec()[0]).unwrap();
-        // let a = sig.clone().to_vec().unwrap();
-        // println!("a->{}", hex::encode(a));
         let pub_key = XOnlyPublicKey::from_slice(
             &Vec::from_hex("8f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233")
                 .unwrap(),
@@ -996,8 +992,6 @@ mod test {
         )
         .unwrap();
         let sig = Signature::from_slice(&tx.input[1].witness.to_vec()[0]).unwrap();
-        // let a = sig.clone().to_vec();
-        // println!("a->{}", hex::encode(a));
         let pub_key = XOnlyPublicKey::from_slice(
             &Vec::from_hex("9303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea06155")
                 .unwrap(),

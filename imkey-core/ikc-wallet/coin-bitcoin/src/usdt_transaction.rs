@@ -1,4 +1,4 @@
-use crate::common::{address_verify, get_address_version, TxSignResult};
+use crate::common::{get_address_version, get_utxo_pub_key, TxSignResult};
 use crate::transaction::BtcTransaction;
 use crate::Result;
 use bitcoin::blockdata::{opcodes, script::Builder};
@@ -44,7 +44,7 @@ impl BtcTransaction {
         }
 
         //utxo address verify
-        let utxo_pub_key_vec = address_verify(&self.unspents, network)?;
+        let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents, network)?;
 
         //add change output
         let mut txouts: Vec<TxOut> = Vec::new();
@@ -205,7 +205,7 @@ impl BtcTransaction {
         }
 
         //utxo address verify
-        let utxo_pub_key_vec = address_verify(&self.unspents, network)?;
+        let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents, network)?;
 
         //5.add change output
         let mut txouts: Vec<TxOut> = vec![];

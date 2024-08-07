@@ -12,46 +12,19 @@ use secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp
 use std::str::FromStr;
 
 /**
-utxo address verify
+get utxo public key
 */
-pub fn address_verify(utxos: &Vec<Utxo>, network: Network) -> Result<Vec<String>> {
+pub fn get_utxo_pub_key(utxos: &Vec<Utxo>, network: Network) -> Result<Vec<String>> {
     let mut utxo_pub_key_vec: Vec<String> = vec![];
     for utxo in utxos {
         let xpub_data = get_xpub_data(&utxo.derive_path, false)?;
         //parsing xpub data
         let derive_pub_key = &xpub_data[..130];
-        let chain_code = &xpub_data[130..194];
-        let mut extend_public_key = ExtendedPubKey {
-            network,
-            depth: 0,
-            parent_fingerprint: Default::default(),
-            child_number: ChildNumber::from_normal_idx(0)?,
-            public_key: Secp256k1PublicKey::from_str(derive_pub_key)?,
-            chain_code: ChainCode::from(hex_to_bytes(chain_code)?.as_slice()),
-        };
 
-        let public_key = PublicKey::from_str(&extend_public_key.public_key.to_string())?;
-        let script_pubkey = utxo.address.script_pubkey();
-        let mut se_gen_address = "".to_string();
-        if script_pubkey.is_p2pkh() {
-            se_gen_address = Address::p2pkh(&public_key, network).to_string();
-        } else if script_pubkey.is_p2sh() {
-            se_gen_address = Address::p2shwpkh(&public_key, network)?.to_string();
-        } else if script_pubkey.is_v0_p2wpkh() {
-            se_gen_address = Address::p2wpkh(&public_key, network)?.to_string();
-        } else if script_pubkey.is_v1_p2tr() {
-            let untweak_pub_key = UntweakedPublicKey::from(secp256k1::PublicKey::from_slice(
-                &hex_to_bytes(&derive_pub_key)?,
-            )?);
-            let secp256k1 = Secp256k1::new();
-            se_gen_address = Address::p2tr(&secp256k1, untweak_pub_key, None, network).to_string();
-        } else {
-            return Err(CoinError::InvalidAddress.into());
-        };
-        if !se_gen_address.eq(&utxo.address.to_string()) {
-            return Err(CoinError::ImkeyAddressMismatchWithPath.into());
-        }
-        utxo_pub_key_vec.push(extend_public_key.public_key.to_string());
+        let mut public_key = PublicKey::from_str(derive_pub_key)?;
+        public_key.compressed = true;
+
+        utxo_pub_key_vec.push(public_key.to_string());
     }
     Ok(utxo_pub_key_vec)
 }
