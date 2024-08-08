@@ -1,4 +1,4 @@
-pub const VERSION: &str = "2.15.2";
+pub const VERSION: &str = "2.16.0";
 // pub const URL: &str = "https://imkey.online:1000/imkey";
 pub const URL: &str = "https://imkeyserver.com:10444/imkey";
 
@@ -117,6 +117,13 @@ pub const ETH_TRANSACTION_TYPE_EIP2718: &str = "01";
 pub const ETH_TRANSACTION_TYPE_EIP1559: &str = "02";
 
 pub const ETH_MAX_SUPPORT_PAYMENT_LEN: usize = 255;
+
+pub const BTC_PSBT_TRX_PER_PAGE_NUMBER: usize = 3;
+
+pub const BTC_SEG_WIT_TYPE_LEGACY: &str = "NONE";
+pub const BTC_SEG_WIT_TYPE_P2WPKH: &str = "P2WPKH";
+pub const BTC_SEG_WIT_TYPE_VERSION_0: &str = "VERSION_0";
+pub const BTC_SEG_WIT_TYPE_VERSION_1: &str = "VERSION_1";
 
 lazy_static! {
     /// Lazily initialized secp256k1 engine

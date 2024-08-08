@@ -97,6 +97,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let message = sign_bch_transaction(&tx_input, &sign_param);

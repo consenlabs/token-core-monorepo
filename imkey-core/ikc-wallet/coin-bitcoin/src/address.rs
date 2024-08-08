@@ -12,6 +12,7 @@ use ikc_common::utility::hex_to_bytes;
 use ikc_transport::message::send_apdu;
 use secp256k1::{PublicKey as Secp256k1PublicKey, Secp256k1};
 use std::str::FromStr;
+use ikc_common::constants;
 
 pub struct BtcAddress();
 
@@ -147,9 +148,9 @@ impl BtcAddress {
         check_path_validity(path)?;
 
         let address = match seg_wit {
-            "P2WPKH" => Self::p2shwpkh(network, path)?,
-            "VERSION_0" => Self::p2wpkh(network, path)?,
-            "VERSION_1" => Self::p2tr(network, path)?,
+            constants::BTC_SEG_WIT_TYPE_P2WPKH => Self::p2shwpkh(network, path)?,
+            constants::BTC_SEG_WIT_TYPE_VERSION_0 => Self::p2wpkh(network, path)?,
+            constants::BTC_SEG_WIT_TYPE_VERSION_1 => Self::p2tr(network, path)?,
             _ => Self::p2pkh(network, path)?,
         };
 
@@ -158,23 +159,13 @@ impl BtcAddress {
         Ok(address)
     }
 
-    // pub fn display_segwit_address(network: Network, path: &str) -> Result<String> {
-    //     check_path_validity(path)?;
-    //     let address_str = Self::p2shwpkh(network, path)?;
-    //     let apdu_res = send_apdu(BtcApdu::register_address(
-    //         &address_str.clone().into_bytes().to_vec(),
-    //     ))?;
-    //     ApduCheck::check_response(apdu_res.as_str())?;
-    //     Ok(address_str)
-    // }
-
     pub fn from_public_key(public_key: &str, network: Network, seg_wit: &str) -> Result<String> {
         let mut pub_key_obj = PublicKey::from_str(public_key)?;
         pub_key_obj.compressed = true;
         let address = match seg_wit {
-            "P2WPKH" => Address::p2shwpkh(&pub_key_obj, network)?.to_string(),
-            "VERSION_0" => Address::p2wpkh(&pub_key_obj, network)?.to_string(),
-            "VERSION_1" => {
+            constants::BTC_SEG_WIT_TYPE_P2WPKH => Address::p2shwpkh(&pub_key_obj, network)?.to_string(),
+            constants::BTC_SEG_WIT_TYPE_VERSION_0 => Address::p2wpkh(&pub_key_obj, network)?.to_string(),
+            constants::BTC_SEG_WIT_TYPE_VERSION_1 => {
                 let untweak_pub_key = UntweakedPublicKey::from(secp256k1::PublicKey::from_slice(
                     &hex_to_bytes(&public_key)?,
                 )?);

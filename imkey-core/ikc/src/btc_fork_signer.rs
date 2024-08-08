@@ -110,6 +110,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let message = sign_legacy_transaction(&tx_input, &sign_param);
@@ -147,6 +148,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let message = sign_segwit_transaction(&tx_input, &sign_param);

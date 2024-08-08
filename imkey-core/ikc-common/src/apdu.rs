@@ -69,6 +69,19 @@ impl BtcApdu {
         apdu.to_hex().to_uppercase()
     }
 
+    /**
+    *p2 00:sign psbt transaction  80: sign message
+    **/
+    pub fn btc_psbt_preview(data: &Vec<u8>, p2: u8) -> String {
+        if data.len() as u32 > LC_MAX {
+            panic!("data to long");
+        }
+        let mut apdu = ApduHeader::new(0x80, 0x4C, 0x00, p2, data.len() as u8).to_array();
+        apdu.extend(data.iter());
+        apdu.push(0x00);
+        apdu.to_hex().to_uppercase()
+    }
+
     pub fn btc_sign(index: u8, hash_type: u8, path: &str) -> String {
         let path_bytes = path.as_bytes();
         let mut apdu =
@@ -101,6 +114,21 @@ impl BtcApdu {
         let mut apdu = match last_one {
             true => ApduHeader::new(0x80, 0x40, 0x80, 0x00, data.len() as u8).to_array(),
             _ => ApduHeader::new(0x80, 0x40, 0x00, 0x00, data.len() as u8).to_array(),
+        };
+
+        apdu.extend(data.iter());
+        apdu.push(0x00);
+        apdu.to_hex().to_uppercase()
+    }
+
+    pub fn btc_taproot_script_sign(last_one: bool, data: Vec<u8>) -> String {
+        if data.len() as u32 > LC_MAX {
+            panic!("data to long");
+        }
+
+        let mut apdu = match last_one {
+            true => ApduHeader::new(0x80, 0x40, 0x80, 0x80, data.len() as u8).to_array(),
+            _ => ApduHeader::new(0x80, 0x40, 0x00, 0x80, data.len() as u8).to_array(),
         };
 
         apdu.extend(data.iter());

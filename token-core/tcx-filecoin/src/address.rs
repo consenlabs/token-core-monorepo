@@ -2,12 +2,11 @@ use tcx_constants::CoinInfo;
 use tcx_keystore::{Address, Result};
 use tcx_primitive::{PublicKey, TypedPublicKey};
 
-use fvm_shared::address::Network;
-use fvm_shared::address::{set_current_network, Address as ForestAddress};
+use forest_address::Address as ForestAddress;
 
 use super::Error;
 use crate::utils::{digest, HashSize};
-use fvm_shared::address::Network::{Mainnet, Testnet};
+use base32::Alphabet;
 use std::str::FromStr;
 
 const MAINNET_PREFIX: &str = "f";
@@ -34,35 +33,55 @@ impl FilecoinAddress {
 
 impl Address for FilecoinAddress {
     fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
-        match coin.network.as_str() {
-            "TESTNET" => set_current_network(Testnet),
-            _ => set_current_network(Mainnet),
+        let network_prefix = match coin.network.as_str() {
+            "TESTNET" => TESTNET_PREFIX,
+            _ => MAINNET_PREFIX,
         };
+        let protocol;
+        let payload;
+        let checksum;
 
-        let addr_str = match public_key {
+        match public_key {
             TypedPublicKey::Secp256k1(pk) => {
-                let addr = ForestAddress::new_secp256k1(&pk.to_uncompressed())?;
-                addr.to_string()
+                protocol = Protocol::Secp256k1;
+                payload = Self::address_hash(&pk.to_uncompressed());
+
+                checksum = Self::checksum(&[vec![protocol as u8], payload.to_vec()].concat());
             }
             TypedPublicKey::BLS(pk) => {
-                let addr = ForestAddress::new_bls(&pk.to_bytes())?;
-                addr.to_string()
+                protocol = Protocol::Bls;
+                payload = pk.to_bytes();
+
+                checksum = Self::checksum(&[vec![protocol as u8], payload.to_vec()].concat());
             }
             _ => {
                 return Err(Error::InvalidCurveType.into());
             }
         };
 
-        Ok(FilecoinAddress(addr_str))
+        Ok(FilecoinAddress(format!(
+            "{}{}{}",
+            network_prefix,
+            protocol as i8,
+            base32::encode(
+                Alphabet::RFC4648 { padding: false },
+                &[payload, checksum].concat()
+            )
+            .to_lowercase()
+        )))
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {
         let ntwk = match coin.network.as_str() {
-            "TESTNET" => Testnet,
-            _ => Mainnet,
+            "TESTNET" => TESTNET_PREFIX,
+            _ => MAINNET_PREFIX,
         };
 
-        ntwk.parse_address(address).is_ok()
+        if !address.starts_with(ntwk) {
+            return false;
+        }
+
+        ForestAddress::from_str(address).is_ok()
     }
 }
 
@@ -98,47 +117,47 @@ mod tests {
             FilecoinAddress::is_valid("t12i3bop43tprlnymx2c75u6uvlq7iur2rcd7qsey", &coin_info),
             true
         );
-        assert_eq!(FilecoinAddress::is_valid("t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa", &coin_info), true);
-        assert_eq!(FilecoinAddress::is_valid("t3rynpyphoo6pxfzb4ljy3zmf224vjihlok4oewbpjii3uq2mgl7jgrpxsiddaowsxccnnbi2p4ei4sdmsxfaq", &coin_info), true);
-        assert_eq!(FilecoinAddress::is_valid("t3rynpyphoo6pxfzb4ljy3zmf224vjihlok4oewbpjii3uq2mgl7jgrpxsiddaowsxccnnbi2p4ei4sdmsxfaqt", &coin_info), false);
+        assert_eq!(FilecoinAddress::is_valid("t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa",&coin_info), true);
+        assert_eq!(FilecoinAddress::is_valid("t3rynpyphoo6pxfzb4ljy3zmf224vjihlok4oewbpjii3uq2mgl7jgrpxsiddaowsxccnnbi2p4ei4sdmsxfaq",&coin_info), true);
+        assert_eq!(FilecoinAddress::is_valid("t3rynpyphoo6pxfzb4ljy3zmf224vjihlok4oewbpjii3uq2mgl7jgrpxsiddaowsxccnnbi2p4ei4sdmsxfaqt",&coin_info), false);
 
         let coin_info = coin_info_from_param("FILECOIN", "MAINNET", "", "").unwrap();
         assert_eq!(
             FilecoinAddress::is_valid("t12i3bop43tprlnymx2c75u6uvlq7iur2rcd7qsey", &coin_info),
             false
         );
-        assert_eq!(FilecoinAddress::is_valid("t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa", &coin_info), false);
-        assert_eq!(FilecoinAddress::is_valid("t3rynpyphoo6pxfzb4ljy3zmf224vjihlok4oewbpjii3uq2mgl7jgrpxsiddaowsxccnnbi2p4ei4sdmsxfaq", &coin_info), false);
+        assert_eq!(FilecoinAddress::is_valid("t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa",&coin_info), false);
+        assert_eq!(FilecoinAddress::is_valid("t3rynpyphoo6pxfzb4ljy3zmf224vjihlok4oewbpjii3uq2mgl7jgrpxsiddaowsxccnnbi2p4ei4sdmsxfaq",&coin_info), false);
     }
 
     #[test]
     fn test_bls_address() {
         let test_cases = vec![
             (vec![173, 88, 223, 105, 110, 45, 78, 145, 234, 134, 200, 129, 233, 56,
-                  186, 78, 168, 27, 57, 94, 18, 121, 123, 132, 185, 207, 49, 75, 149, 70,
-                  112, 94, 131, 156, 122, 153, 214, 6, 178, 71, 221, 180, 249, 172, 122,
-                  52, 20, 221],
-             "t3vvmn62lofvhjd2ugzca6sof2j2ubwok6cj4xxbfzz4yuxfkgobpihhd2thlanmsh3w2ptld2gqkn2jvlss4a"),
+                186, 78, 168, 27, 57, 94, 18, 121, 123, 132, 185, 207, 49, 75, 149, 70,
+                112, 94, 131, 156, 122, 153, 214, 6, 178, 71, 221, 180, 249, 172, 122,
+                52, 20, 221],
+                "t3vvmn62lofvhjd2ugzca6sof2j2ubwok6cj4xxbfzz4yuxfkgobpihhd2thlanmsh3w2ptld2gqkn2jvlss4a"),
             (vec![179, 41, 79, 10, 46, 41, 224, 198, 110, 188, 35, 93, 47, 237,
-                  202, 86, 151, 191, 120, 74, 246, 5, 199, 90, 246, 8, 230, 166, 61, 92,
-                  211, 142, 168, 92, 168, 152, 158, 14, 253, 233, 24, 139, 56, 47,
-                  147, 114, 70, 13],
-             "t3wmuu6crofhqmm3v4enos73okk2l366ck6yc4owxwbdtkmpk42ohkqxfitcpa57pjdcftql4tojda2poeruwa"),
+                202, 86, 151, 191, 120, 74, 246, 5, 199, 90, 246, 8, 230, 166, 61, 92,
+                211, 142, 168, 92, 168, 152, 158, 14, 253, 233, 24, 139, 56, 47,
+                147, 114, 70, 13],
+                "t3wmuu6crofhqmm3v4enos73okk2l366ck6yc4owxwbdtkmpk42ohkqxfitcpa57pjdcftql4tojda2poeruwa"),
             (vec![150, 161, 163, 228, 234, 122, 20, 212, 153, 133, 230, 97, 178,
-                  36, 1, 212, 79, 237, 64, 45, 29, 9, 37, 178, 67, 201, 35, 88, 156,
-                  15, 188, 126, 50, 205, 4, 226, 158, 215, 141, 21, 211, 125, 58, 170,
-                  63, 230, 218, 51],
-             "t3s2q2hzhkpiknjgmf4zq3ejab2rh62qbndueslmsdzervrhapxr7dftie4kpnpdiv2n6tvkr743ndhrsw6d3a"),
+                36, 1, 212, 79, 237, 64, 45, 29, 9, 37, 178, 67, 201, 35, 88, 156,
+                15, 188, 126, 50, 205, 4, 226, 158, 215, 141, 21, 211, 125, 58, 170,
+                63, 230, 218, 51],
+                "t3s2q2hzhkpiknjgmf4zq3ejab2rh62qbndueslmsdzervrhapxr7dftie4kpnpdiv2n6tvkr743ndhrsw6d3a"),
             (vec![134, 180, 84, 37, 140, 88, 148, 117, 247, 209, 111, 90, 172, 1,
-                  138, 121, 246, 193, 22, 157, 32, 252, 51, 146, 29, 216, 181, 206, 28,
-                  172, 108, 52, 143, 144, 163, 96, 54, 36, 246, 174, 185, 27, 100, 81,
-                  140, 46, 128, 149],
-             "t3q22fijmmlckhl56rn5nkyamkph3mcfu5ed6dheq53c244hfmnq2i7efdma3cj5voxenwiummf2ajlsbxc65a"),
+                138, 121, 246, 193, 22, 157, 32, 252, 51, 146, 29, 216, 181, 206, 28,
+                172, 108, 52, 143, 144, 163, 96, 54, 36, 246, 174, 185, 27, 100, 81,
+                140, 46, 128, 149],
+                "t3q22fijmmlckhl56rn5nkyamkph3mcfu5ed6dheq53c244hfmnq2i7efdma3cj5voxenwiummf2ajlsbxc65a"),
             (vec![167, 114, 107, 3, 128, 34, 247, 90, 56, 70, 23, 88, 83, 96, 206,
-                  230, 41, 7, 10, 45, 157, 40, 113, 41, 101, 229, 242, 110, 204, 64,
-                  133, 131, 130, 128, 55, 36, 237, 52, 242, 114, 3, 54, 240, 157, 182,
-                  49, 240, 116],
-             "t3u5zgwa4ael3vuocgc5mfgygo4yuqocrntuuhcklf4xzg5tcaqwbyfabxetwtj4tsam3pbhnwghyhijr5mixa"),
+                230, 41, 7, 10, 45, 157, 40, 113, 41, 101, 229, 242, 110, 204, 64,
+                133, 131, 130, 128, 55, 36, 237, 52, 242, 114, 3, 54, 240, 157, 182,
+                49, 240, 116],
+                "t3u5zgwa4ael3vuocgc5mfgygo4yuqocrntuuhcklf4xzg5tcaqwbyfabxetwtj4tsam3pbhnwghyhijr5mixa"),
         ];
 
         let coin_info = CoinInfo {

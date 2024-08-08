@@ -1,6 +1,6 @@
 use crate::bch_sighash::BitcoinCashSighash;
 use crate::sighash::TxSignatureHasher;
-use crate::transaction::{PsbtInput, PsbtOutput};
+use crate::transaction::{PsbtInput, PsbtOutput, PsbtsInput, PsbtsOutput};
 use crate::{Error, Result, BITCOINCASH};
 use bitcoin::blockdata::script::Builder;
 use bitcoin::consensus::{Decodable, Encodable};
@@ -118,7 +118,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn finalize_p2wpkh(&mut self, index: usize) {
-        let mut input = &mut self.psbt.inputs[index];
+        let input = &mut self.psbt.inputs[index];
 
         if !input.partial_sigs.is_empty() {
             let sig = input.partial_sigs.first_key_value().unwrap();
@@ -132,7 +132,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn finalize_p2pkh(&mut self, index: usize) {
-        let mut input = &mut self.psbt.inputs[index];
+        let input = &mut self.psbt.inputs[index];
 
         if !input.partial_sigs.is_empty() {
             let sig = input.partial_sigs.first_key_value().unwrap();
@@ -166,7 +166,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn finalize_p2tr(&mut self, index: usize) {
-        let mut input = &mut self.psbt.inputs[index];
+        let input = &mut self.psbt.inputs[index];
 
         if input.tap_key_sig.is_some() {
             let mut witness = Witness::new();
@@ -185,7 +185,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn clear_finalized_input(&mut self, index: usize) {
-        let mut input = &mut self.psbt.inputs[index];
+        let input = &mut self.psbt.inputs[index];
         input.tap_key_sig = None;
         input.tap_scripts = BTreeMap::new();
         input.tap_internal_key = None;
@@ -376,7 +376,7 @@ pub fn sign_psbt(
     keystore: &mut Keystore,
     psbt_input: PsbtInput,
 ) -> Result<PsbtOutput> {
-    let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_input.data)?);
+    let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_input.psbt)?);
     let mut psbt = Psbt::consensus_decode(&mut reader)?;
 
     let mut signer = PsbtSigner::new(
@@ -392,7 +392,28 @@ pub fn sign_psbt(
     let mut writer = Cursor::new(&mut vec);
     psbt.consensus_encode(&mut writer)?;
 
-    return Ok(PsbtOutput { data: vec.to_hex() });
+    return Ok(PsbtOutput { psbt: vec.to_hex() });
+}
+
+pub fn sign_psbts(
+    chain_type: &str,
+    derivation_path: &str,
+    keystore: &mut Keystore,
+    psbts_input: PsbtsInput,
+) -> Result<PsbtsOutput> {
+    let mut outputs = Vec::<String>::new();
+
+    for item in psbts_input.psbts {
+        let psbt_input = PsbtInput {
+            psbt: item,
+            auto_finalize: psbts_input.auto_finalize,
+        };
+
+        let output = sign_psbt(chain_type, derivation_path, keystore, psbt_input)?;
+        outputs.push(output.psbt);
+    }
+
+    Ok(PsbtsOutput { psbts: outputs })
 }
 
 #[cfg(test)]
@@ -429,12 +450,12 @@ mod tests {
         let account = hd.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
 
         let psbt_input = PsbtInput {
-            data: "70736274ff0100db0200000001fa4c8d58b9b6c56ed0b03f78115246c99eb70f99b837d7b4162911d1016cda340200000000fdffffff0350c30000000000002251202114eda66db694d87ff15ddd5d3c4e77306b6e6dd5720cbd90cd96e81016c2b30000000000000000496a47626274340066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229ec20acf33c17e5a6c92cced9f1d530cccab7aa3e53400456202f02fac95e9c481fa00d47b1700000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233d80f03000001012be3bf1d00000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c23301172066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e00000000".to_string(),
+            psbt: "70736274ff0100db0200000001fa4c8d58b9b6c56ed0b03f78115246c99eb70f99b837d7b4162911d1016cda340200000000fdffffff0350c30000000000002251202114eda66db694d87ff15ddd5d3c4e77306b6e6dd5720cbd90cd96e81016c2b30000000000000000496a47626274340066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229ec20acf33c17e5a6c92cced9f1d530cccab7aa3e53400456202f02fac95e9c481fa00d47b1700000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233d80f03000001012be3bf1d00000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c23301172066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e00000000".to_string(),
             auto_finalize: true,
         };
 
         let psbt_output = super::sign_psbt("BITCOIN", "m/86'/1'/0'", &mut hd, psbt_input).unwrap();
-        let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_output.data).unwrap());
+        let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_output.psbt).unwrap());
         let psbt = Psbt::consensus_decode(&mut reader).unwrap();
         let tx = psbt.extract_tx();
         let sig = schnorr::SchnorrSig::from_slice(&tx.input[0].witness.to_vec()[0]).unwrap();
@@ -468,12 +489,12 @@ mod tests {
         let account = hd.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
 
         let psbt_input = PsbtInput {
-            data: "70736274ff01005e02000000012bd2f6479f3eeaffe95c03b5fdd76a873d346459114dec99c59192a0cb6409e90000000000ffffffff01409c000000000000225120677cc88dc36a75707b370e27efff3e454d446ad55004dac1685c1725ee1a89ea000000000001012b50c3000000000000225120a9a3350206de400f09a73379ec1bcfa161fc11ac095e5f3d7354126f0ec8e87f6215c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0d2956573f010fa1a3c135279c5eb465ec2250205dcdfe2122637677f639b1021356c963cd9c458508d6afb09f3fa2f9b48faec88e75698339a4bbb11d3fc9b0efd570120aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29bad200aee0509b16db71c999238a4827db945526859b13c95487ab46725357c9a9f25ac20113c3a32a9d320b72190a04a020a0db3976ef36972673258e9a38a364f3dc3b0ba2017921cf156ccb4e73d428f996ed11b245313e37e27c978ac4d2cc21eca4672e4ba203bb93dfc8b61887d771f3630e9a63e97cbafcfcc78556a474df83a31a0ef899cba2040afaf47c4ffa56de86410d8e47baa2bb6f04b604f4ea24323737ddc3fe092dfba2079a71ffd71c503ef2e2f91bccfc8fcda7946f4653cef0d9f3dde20795ef3b9f0ba20d21faf78c6751a0d38e6bd8028b907ff07e9a869a43fc837d6b3f8dff6119a36ba20f5199efae3f28bb82476163a7e458c7ad445d9bffb0682d10d3bdb2cb41f8e8eba20fa9d882d45f4060bdb8042183828cd87544f1ea997380e586cab77d5fd698737ba569cc001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00000".to_string(),
+            psbt: "70736274ff01005e02000000012bd2f6479f3eeaffe95c03b5fdd76a873d346459114dec99c59192a0cb6409e90000000000ffffffff01409c000000000000225120677cc88dc36a75707b370e27efff3e454d446ad55004dac1685c1725ee1a89ea000000000001012b50c3000000000000225120a9a3350206de400f09a73379ec1bcfa161fc11ac095e5f3d7354126f0ec8e87f6215c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0d2956573f010fa1a3c135279c5eb465ec2250205dcdfe2122637677f639b1021356c963cd9c458508d6afb09f3fa2f9b48faec88e75698339a4bbb11d3fc9b0efd570120aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29bad200aee0509b16db71c999238a4827db945526859b13c95487ab46725357c9a9f25ac20113c3a32a9d320b72190a04a020a0db3976ef36972673258e9a38a364f3dc3b0ba2017921cf156ccb4e73d428f996ed11b245313e37e27c978ac4d2cc21eca4672e4ba203bb93dfc8b61887d771f3630e9a63e97cbafcfcc78556a474df83a31a0ef899cba2040afaf47c4ffa56de86410d8e47baa2bb6f04b604f4ea24323737ddc3fe092dfba2079a71ffd71c503ef2e2f91bccfc8fcda7946f4653cef0d9f3dde20795ef3b9f0ba20d21faf78c6751a0d38e6bd8028b907ff07e9a869a43fc837d6b3f8dff6119a36ba20f5199efae3f28bb82476163a7e458c7ad445d9bffb0682d10d3bdb2cb41f8e8eba20fa9d882d45f4060bdb8042183828cd87544f1ea997380e586cab77d5fd698737ba569cc001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00000".to_string(),
             auto_finalize: true,
         };
 
         let psbt_output = super::sign_psbt("BITCOIN", "m/86'/1'/0'", &mut hd, psbt_input).unwrap();
-        let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_output.data).unwrap());
+        let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_output.psbt).unwrap());
         let psbt = Psbt::consensus_decode(&mut reader).unwrap();
         let tx = psbt.extract_tx();
         let witness = tx.input[0].witness.to_vec();

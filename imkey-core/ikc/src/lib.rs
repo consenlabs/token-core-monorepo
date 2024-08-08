@@ -41,7 +41,7 @@ pub mod tezos_signer;
 extern crate lazy_static;
 extern crate anyhow;
 use crate::error_handling::{landingpad, LAST_ERROR};
-use crate::handler::{derive_accounts, get_extended_public_keys, get_public_keys};
+use crate::handler::{derive_accounts, get_extended_public_keys, get_public_keys, sign_psbt};
 use crate::message_handler::encode_message;
 use ikc_transport::message;
 
@@ -241,7 +241,11 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                     param.clone().input.unwrap().value.as_slice(),
                     &param,
                 ),
-                "TRON" => tron_signer::sign_message(&param.clone().input.unwrap().value, &param),
+                "TRON" => tron_signer::sign_message(
+                    &param.clone().input.unwrap().value,
+                    &param
+                ),
+                "BITCOIN" => btc_signer::btc_sign_message(&param.clone().input.unwrap().value, &param),
                 _ => Err(anyhow!(
                     "sign message is not supported the chain {}",
                     param.chain_type
@@ -263,6 +267,9 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
         "get_extended_public_keys" => {
             landingpad(|| get_extended_public_keys(&action.param.unwrap().value))
         }
+
+        "sign_psbt" => landingpad(|| sign_psbt(&action.param.unwrap().value)),
+
         _ => landingpad(|| Err(anyhow!("unsupported_method"))),
     };
     match reply {
@@ -309,7 +316,7 @@ mod tests {
     };
 
     use bitcoin::Address;
-    use coin_bitcoin::btcapi::{BtcTxExtra, BtcTxInput, BtcTxOutput, Utxo};
+    use coin_bitcoin::btcapi::{BtcMessageInput, BtcMessageOutput, BtcTxExtra, BtcTxInput, BtcTxOutput, PsbtInput, PsbtOutput, Utxo};
     use ikc_device::deviceapi::{BindAcquireReq, BindCheckRes};
     use ikc_transport::hid_api::hid_connect;
     use prost::Message;
@@ -1930,6 +1937,7 @@ mod tests {
             receiver: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
             sender: "".to_string(),
             fee: "8000".to_string(),
+            seg_wit: "".to_string(),
         };
         let action: ImkeyAction = ImkeyAction {
             method: "sign_tx".to_string(),
@@ -2009,6 +2017,7 @@ mod tests {
             receiver: "2N9wBy6f1KTUF5h2UUeqRdKnBT6oSMh4Whp".to_string(),
             sender: "".to_string(),
             fee: "10000".to_string(),
+            seg_wit: "".to_string(),
         };
         let action: ImkeyAction = ImkeyAction {
             method: "sign_tx".to_string(),
@@ -2033,5 +2042,77 @@ mod tests {
             "4eede542b9da11500d12f38b81c3728ae6cd094b866bc9629cbb2c6ab0810914",
             sign_result.wtx_hash
         );
+    }
+
+    #[test]
+    fn test_psbt_sign() {
+        connect_and_bind();
+        let psbt_input = PsbtInput{
+            psbt: "70736274ff01005e02000000012bd2f6479f3eeaffe95c03b5fdd76a873d346459114dec99c59192a0cb6409e90000000000ffffffff01409c000000000000225120677cc88dc36a75707b370e27efff3e454d446ad55004dac1685c1725ee1a89ea000000000001012b50c3000000000000225120a9a3350206de400f09a73379ec1bcfa161fc11ac095e5f3d7354126f0ec8e87f6215c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0d2956573f010fa1a3c135279c5eb465ec2250205dcdfe2122637677f639b1021356c963cd9c458508d6afb09f3fa2f9b48faec88e75698339a4bbb11d3fc9b0efd570120aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29bad200aee0509b16db71c999238a4827db945526859b13c95487ab46725357c9a9f25ac20113c3a32a9d320b72190a04a020a0db3976ef36972673258e9a38a364f3dc3b0ba2017921cf156ccb4e73d428f996ed11b245313e37e27c978ac4d2cc21eca4672e4ba203bb93dfc8b61887d771f3630e9a63e97cbafcfcc78556a474df83a31a0ef899cba2040afaf47c4ffa56de86410d8e47baa2bb6f04b604f4ea24323737ddc3fe092dfba2079a71ffd71c503ef2e2f91bccfc8fcda7946f4653cef0d9f3dde20795ef3b9f0ba20d21faf78c6751a0d38e6bd8028b907ff07e9a869a43fc837d6b3f8dff6119a36ba20f5199efae3f28bb82476163a7e458c7ad445d9bffb0682d10d3bdb2cb41f8e8eba20fa9d882d45f4060bdb8042183828cd87544f1ea997380e586cab77d5fd698737ba569cc001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00000".to_string(),
+            auto_finalize: true,
+        };
+        let input_value = encode_message(psbt_input).unwrap();
+        let param = SignParam {
+            chain_type: "BITCOIN".to_string(),
+            path: "m/86'/1'/0'".to_string(),
+            network: "MAINNET".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imkey".to_string(),
+                value: input_value.clone(),
+            }),
+            payment: "".to_string(),
+            receiver: "".to_string(),
+            sender: "".to_string(),
+            fee: "".to_string(),
+            seg_wit: "".to_string(),
+        };
+        let action: ImkeyAction = ImkeyAction {
+            method: "sign_psbt".to_string(),
+            param: Some(::prost_types::Any {
+                type_url: "deviceapi.sign_psbt".to_string(),
+                value: encode_message(param).unwrap(),
+            }),
+        };
+        let action = hex::encode(encode_message(action).unwrap());
+        let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
+        let ret_bytes = hex::decode(ret_hex).unwrap();
+        let sign_result = PsbtOutput::decode(ret_bytes.as_slice()).unwrap();
+
+        assert!(sign_result.psbt.len() > 0);
+    }
+
+    #[test]
+    fn test_btc_sign_message() {
+        connect_and_bind();
+        let input = BtcMessageInput{
+            message: "hello world".to_string(),
+        };
+        let input_value = encode_message(input).unwrap();
+        let param = SignParam {
+            chain_type: "BITCOIN".to_string(),
+            path: "m/44'/0'/0'".to_string(),
+            network: "MAINNET".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imkey".to_string(),
+                value: input_value.clone(),
+            }),
+            payment: "".to_string(),
+            receiver: "".to_string(),
+            sender: "".to_string(),
+            fee: "".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+        let action: ImkeyAction = ImkeyAction {
+            method: "sign_message".to_string(),
+            param: Some(::prost_types::Any {
+                type_url: "signapi.sign_message".to_string(),
+                value: encode_message(param).unwrap(),
+            }),
+        };
+        let action = hex::encode(encode_message(action).unwrap());
+        let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
+        let ret_bytes = hex::decode(ret_hex).unwrap();
+        let sign_result = BtcMessageOutput::decode(ret_bytes.as_slice()).unwrap();
+        assert_eq!(sign_result.signature, "02483045022100dbbdfedfb1902ca12c6cba14d4892a98f77c434daaa4f97fd35e618374c908f602206527ff2b1ce550c16c836c2ce3508bfae543fa6c11759d2f4966cc0d3552c4430121026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868");
     }
 }

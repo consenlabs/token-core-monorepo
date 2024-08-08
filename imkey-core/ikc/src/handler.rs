@@ -11,6 +11,7 @@ use bitcoin::util::bip32::ExtendedPubKey;
 use bitcoin::Network;
 use coin_bch::address::BchAddress;
 use coin_bitcoin::address::BtcAddress;
+use coin_bitcoin::btcapi::PsbtInput;
 use coin_btc_fork::address::BtcForkAddress;
 use coin_btc_fork::btc_fork_network::network_from_param;
 use coin_ckb::address::CkbAddress;
@@ -26,6 +27,7 @@ use ikc_common::utility::{
     encrypt_xpub, extended_pub_key_derive, from_ss58check_with_version, get_xpub_prefix,
     network_convert, to_ss58check_with_version, uncompress_pubkey_2_compress,
 };
+use ikc_common::SignParam;
 use prost::Message;
 use std::str::FromStr;
 
@@ -305,6 +307,36 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     }
 
     encode_message(GetPublicKeysResult { public_keys })
+}
+
+pub(crate) fn sign_psbt(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignParam = SignParam::decode(data).expect("sign_psbt param");
+
+    if !"BITCOIN".eq(&param.chain_type) {
+        return Err(anyhow!("unsupported_chain_type"))
+    }
+
+    let psbt_input = PsbtInput::decode(
+        param
+            .input
+            .as_ref()
+            .expect("psbt_input")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("psbt_input decode");
+
+    let network = if param.network == "TESTNET".to_string() {
+        Network::Testnet
+    } else {
+        Network::Bitcoin
+    };
+    encode_message(coin_bitcoin::psbt::sign_psbt(
+        &param.path,
+        psbt_input,
+        network,
+    )?)
 }
 
 #[cfg(test)]

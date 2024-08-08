@@ -27,8 +27,8 @@ use crate::handler::{
     encode_message, encrypt_data_to_ipfs, eth_batch_personal_sign, exists_json, exists_mnemonic,
     exists_private_key, export_json, export_mnemonic, export_private_key, get_derived_key,
     get_extended_public_keys, get_public_keys, import_json, import_mnemonic, import_private_key,
-    mnemonic_to_public, sign_authentication_message, sign_hashes, sign_message, sign_psbt, sign_tx,
-    unlock_then_crash, verify_password,
+    mnemonic_to_public, sign_authentication_message, sign_hashes, sign_message, sign_psbt,
+    sign_psbts, sign_tx, unlock_then_crash, verify_password,
 };
 use crate::migration::{migrate_keystore, scan_legacy_keystores};
 
@@ -131,6 +131,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
             landingpad(|| mark_identity_wallets(&action.param.unwrap().value))
         }
         "sign_psbt" => landingpad(|| sign_psbt(&action.param.unwrap().value)),
+        "sign_psbts" => landingpad(|| sign_psbts(&action.param.unwrap().value)),
         _ => landingpad(|| Err(anyhow!("unsupported_method"))),
     };
     match reply {

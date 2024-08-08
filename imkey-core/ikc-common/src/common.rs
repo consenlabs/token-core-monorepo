@@ -17,4 +17,6 @@ pub struct SignParam {
     pub sender: ::prost::alloc::string::String,
     #[prost(string, tag = "8")]
     pub fee: ::prost::alloc::string::String,
+    #[prost(string, tag = "9")]
+    pub seg_wit: ::prost::alloc::string::String,
 }

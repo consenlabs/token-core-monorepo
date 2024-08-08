@@ -1,5 +1,5 @@
 use crate::address::BtcAddress;
-use crate::common::{address_verify, get_address_version, TxSignResult};
+use crate::common::{get_address_version, get_utxo_pub_key, TxSignResult};
 use crate::Result;
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};
@@ -66,7 +66,7 @@ impl BtcTransaction {
         }
 
         //utxo address verify
-        let utxo_pub_key_vec = address_verify(&self.unspents, network)?;
+        let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents)?;
 
         let output = self.tx_output(change_idx, &path, network, seg_wit, extra_data)?;
 
@@ -128,7 +128,7 @@ impl BtcTransaction {
                 sequence: Sequence::MAX,
                 witness: Witness::default(),
             };
-            if (x == idx) {
+            if x == idx {
                 temp_serialize_txin.script_sig =
                     Script::from(Vec::from_hex(temp_utxo.script_pubkey.as_str())?);
             }

@@ -11,4 +11,5 @@ message SignParam {
   string receiver = 6;
   string sender = 7;
   string fee = 8;
+  string segWit = 9;
 }

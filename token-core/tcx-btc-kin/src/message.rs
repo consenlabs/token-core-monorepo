@@ -128,7 +128,13 @@ impl MessageSigner<BtcMessageInput, BtcMessageOutput> for Keystore {
                 signature: witness_to_vec(witness.to_vec()).to_hex(),
             })
         } else {
-            Err(Error::MissingSignature.into())
+            if let Some(script_sig) = &psbt.inputs[0].final_script_sig {
+                Ok(BtcMessageOutput {
+                    signature: format!("02{}", script_sig.to_hex()),
+                })
+            } else {
+                Err(Error::MissingSignature.into())
+            }
         }
     }
 }
@@ -164,7 +170,78 @@ mod tests {
     }
 
     #[test]
-    fn test_bip322_segwit() {
+    fn test_bip32_p2sh_p2wpkh() {
+        let message = "hello world";
+        let mut ks = sample_hd_keystore();
+        let coin_info = CoinInfo {
+            coin: "BITCOIN".to_string(),
+            derivation_path: "m/49'/0'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "P2WPKH".to_string(),
+        };
+
+        let account = ks.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
+        let address = BtcKinAddress::from_public_key(&account.public_key, &coin_info).unwrap();
+
+        let params = tcx_keystore::SignatureParameters {
+            curve: CurveType::SECP256k1,
+            chain_type: "BITCOIN".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "P2WPKH".to_string(),
+            derivation_path: "m/49'/0'/0'".to_string(),
+        };
+
+        let output = ks
+            .sign_message(
+                &params,
+                &super::BtcMessageInput {
+                    message: message.to_string(),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(output.signature, "02473044022000ae3c9439681a4ba05e74d0805210f71c31f92130bcec28934d29beaf5f4f890220327cbf8a189eee4cb35a2599f6fd97b0774bec2e4191d74b3460f746732f8a03012103036695c5f3de2e2792b170f59679d4db88a8516728012eaa42a22ce6f8bf593b");
+    }
+
+    #[test]
+    fn test_bip32_p2pkh() {
+        let message = "hello world";
+        let mut ks = sample_hd_keystore();
+        let coin_info = CoinInfo {
+            coin: "BITCOIN".to_string(),
+            derivation_path: "m/44'/0'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+
+        let account = ks.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
+        println!("{}", account.address);
+        let address = BtcKinAddress::from_public_key(&account.public_key, &coin_info).unwrap();
+
+        let params = tcx_keystore::SignatureParameters {
+            curve: CurveType::SECP256k1,
+            chain_type: "BITCOIN".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            derivation_path: "m/44'/0'/0'".to_string(),
+        };
+
+        let output = ks
+            .sign_message(
+                &params,
+                &super::BtcMessageInput {
+                    message: message.to_string(),
+                },
+            )
+            .unwrap();
+
+        assert_eq!(output.signature, "02483045022100dbbdfedfb1902ca12c6cba14d4892a98f77c434daaa4f97fd35e618374c908f602206527ff2b1ce550c16c836c2ce3508bfae543fa6c11759d2f4966cc0d3552c4430121026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868");
+    }
+
+    #[test]
+    fn test_bip322_p2wpkh() {
         let message = "hello world";
         let mut ks = sample_hd_keystore();
         let coin_info = CoinInfo {
@@ -199,7 +276,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bip322_taproot() {
+    fn test_bip322_p2tr() {
         let message = "Sign this message to log in to https://www.subber.xyz // 200323342";
         let mut ks = wif_keystore("L4F5BYm82Bck6VEY64EbqQkoBXqkegq9X9yc6iLTV3cyJoqUasnY");
         let coin_info = CoinInfo {

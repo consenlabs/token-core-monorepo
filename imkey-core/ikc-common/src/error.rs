@@ -90,4 +90,6 @@ pub enum CoinError {
     InvalidAddrLength,
     #[error("invalid_utxo")]
     InvalidUtxo,
+    #[error("missing_signature")]
+    MissingSignature,
 }
