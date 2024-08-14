@@ -2,11 +2,12 @@ use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use bitcoin::{Address, Network};
 use coin_bitcoin::btcapi::{BtcMessageInput, BtcTxInput, BtcTxOutput};
+use coin_bitcoin::message::MessageSinger;
 use coin_bitcoin::transaction::{BtcTransaction, Utxo};
+use ikc_common::path::get_account_path;
 use ikc_common::SignParam;
 use prost::Message;
 use std::str::FromStr;
-use coin_bitcoin::message::MessageSinger;
 
 pub fn sign_btc_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
     let input: BtcTxInput = BtcTxInput::decode(data).expect("BtcTxInput");
@@ -164,8 +165,9 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
 
 pub fn btc_sign_message(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
     let input: BtcMessageInput = BtcMessageInput::decode(data).expect("imkey_illegal_param");
-    let singer = MessageSinger{
-        derivation_path: sign_param.path.clone(),
+    let derivation_path = get_account_path(&sign_param.path)?;
+    let singer = MessageSinger {
+        derivation_path,
         chain_type: sign_param.chain_type.clone(),
         network: sign_param.network.clone(),
         seg_wit: sign_param.seg_wit.clone(),

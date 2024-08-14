@@ -1,6 +1,7 @@
 use crate::aes::cbc::encrypt_pkcs7;
 use crate::constants::SECP256K1_ENGINE;
 use crate::error::CommonError;
+use crate::hex::FromHex;
 use crate::Result;
 use bitcoin::hashes::{sha256, Hash};
 use bitcoin::util::base58;
@@ -16,7 +17,6 @@ use num_traits::{FromPrimitive, Num, Zero};
 use regex::Regex;
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId, Signature};
 use secp256k1::{Message, PublicKey as PublicKey2, Secp256k1, SecretKey};
-use crate::hex::FromHex;
 
 pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
     let ret_data;

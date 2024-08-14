@@ -72,12 +72,12 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 let public_key = uncompress_pubkey_2_compress(&public_key);
                 account_rsp.public_key = format!("0x{}", public_key);
 
-
                 let btc_fork_network = network_from_param(
                     &derivation.chain_type,
                     &derivation.network,
                     &derivation.seg_wit,
-                ).unwrap();
+                )
+                .unwrap();
                 let address = match derivation.seg_wit.as_str() {
                     "P2WPKH" => BtcForkAddress::p2shwpkh(&btc_fork_network, &derivation.path)?,
                     _ => BtcForkAddress::p2pkh(&btc_fork_network, &derivation.path)?,
@@ -194,7 +194,11 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
             "ETHEREUM" => EthAddress::from_pub_key(pub_key_uncompressed)?,
             "BITCOIN" => {
                 let network = network_convert(&param.network);
-                BtcAddress::from_public_key(&hex::encode(pub_key_uncompressed), network, &param.seg_wit)?
+                BtcAddress::from_public_key(
+                    &hex::encode(pub_key_uncompressed),
+                    network,
+                    &param.seg_wit,
+                )?
             }
             "LITECOIN" => {
                 let btc_fork_network =
@@ -203,7 +207,6 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
                     return Err(anyhow!("get_btc_fork_network_is_null"));
                 }
                 BtcForkAddress::from_pub_key(pub_key_uncompressed, btc_fork_network.unwrap())?
-
             }
             "COSMOS" => CosmosAddress::from_pub_key(pub_key_uncompressed)?,
             "FILECOIN" => FilecoinAddress::from_pub_key(pub_key_uncompressed, &param.network)?,
@@ -313,7 +316,7 @@ pub(crate) fn sign_psbt(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignParam = SignParam::decode(data).expect("sign_psbt param");
 
     if !"BITCOIN".eq(&param.chain_type) {
-        return Err(anyhow!("unsupported_chain_type"))
+        return Err(anyhow!("unsupported_chain_type"));
     }
 
     let psbt_input = PsbtInput::decode(

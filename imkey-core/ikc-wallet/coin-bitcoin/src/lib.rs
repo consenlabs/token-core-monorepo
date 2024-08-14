@@ -1,10 +1,10 @@
 pub mod address;
 pub mod btcapi;
 pub mod common;
+pub mod message;
 pub mod psbt;
 pub mod transaction;
 pub mod usdt_transaction;
-pub mod message;
 
 extern crate anyhow;
 use core::result;

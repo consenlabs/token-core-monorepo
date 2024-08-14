@@ -6,10 +6,10 @@ pub mod common;
 pub mod constants;
 pub mod curve;
 pub mod error;
+mod hex;
 pub mod https;
 pub mod path;
 pub mod utility;
-mod hex;
 
 use parking_lot::RwLock;
 

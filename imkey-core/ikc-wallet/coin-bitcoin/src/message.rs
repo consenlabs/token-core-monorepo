@@ -1,24 +1,26 @@
-use std::str::FromStr;
-use bitcoin::{Address, OutPoint, PackedLockTime, Script, Sequence, Transaction, Txid, TxIn, TxOut, Witness};
-use bitcoin::psbt::PartiallySignedTransaction;
-use bitcoin_hashes::hex::ToHex;
-use hex::FromHex;
-use ikc_common::error::CoinError;
-use crate::Result;
-use ikc_common::utility::{network_convert, sha256_hash, utf8_or_hex_to_bytes};
 use crate::address::BtcAddress;
 use crate::btcapi::{BtcMessageInput, BtcMessageOutput};
 use crate::common::select_btc_applet;
 use crate::psbt::PsbtSigner;
+use crate::Result;
+use bitcoin::psbt::PartiallySignedTransaction;
+use bitcoin::{
+    Address, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn, TxOut, Txid, Witness,
+};
+use bitcoin_hashes::hex::ToHex;
+use hex::FromHex;
+use ikc_common::error::CoinError;
+use ikc_common::utility::{network_convert, sha256_hash, utf8_or_hex_to_bytes};
+use std::str::FromStr;
 
-pub struct MessageSinger{
+pub struct MessageSinger {
     pub derivation_path: String,
     pub chain_type: String,
     pub network: String,
     pub seg_wit: String,
 }
 impl MessageSinger {
-    pub fn sign_message(&self, input: BtcMessageInput) ->Result<BtcMessageOutput>{
+    pub fn sign_message(&self, input: BtcMessageInput) -> Result<BtcMessageOutput> {
         let data = utf8_or_hex_to_bytes(&input.message)?;
 
         let path = format!("{}/0/0", self.derivation_path);
@@ -33,13 +35,8 @@ impl MessageSinger {
         select_btc_applet()?;
 
         let mut psbt = create_to_sign_empty(tx_id, script_pubkey)?;
-        let mut psbt_signer = PsbtSigner::new(
-            &mut psbt,
-            &self.derivation_path,
-            true,
-            network,
-            true,
-        )?;
+        let mut psbt_signer =
+            PsbtSigner::new(&mut psbt, &self.derivation_path, true, network, true)?;
 
         psbt_signer.prevouts()?;
 
@@ -67,13 +64,11 @@ impl MessageSinger {
             }
         }
     }
-    
 }
 
 const UTXO: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 const TAG: &str = "BIP0322-signed-message";
 fn get_spend_tx_id(data: &[u8], script_pub_key: Script) -> Result<Txid> {
-
     let tag_hash = sha256_hash(&TAG.as_bytes().to_vec());
     let mut to_sign = Vec::new();
     to_sign.extend(tag_hash.clone());
@@ -155,13 +150,13 @@ fn witness_to_vec(witness: Vec<Vec<u8>>) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-    use bitcoin::{Address, Network};
-    use ikc_common::SignParam;
-    use ikc_device::device_binding::bind_test;
     use crate::address::BtcAddress;
     use crate::btcapi::BtcMessageInput;
     use crate::message::MessageSinger;
+    use bitcoin::{Address, Network};
+    use ikc_common::SignParam;
+    use ikc_device::device_binding::bind_test;
+    use std::str::FromStr;
 
     #[test]
     fn test_to_spend_tx_id() {
@@ -187,50 +182,48 @@ mod tests {
     fn test_bip32_p2sh_p2wpkh() {
         bind_test();
 
-        let singer = MessageSinger{
+        let singer = MessageSinger {
             derivation_path: "m/49'/0'/0'".to_string(),
             chain_type: "BITCOIN".to_string(),
             network: "MAINNET".to_string(),
             seg_wit: "P2WPKH".to_string(),
         };
-        let input = BtcMessageInput{
+        let input = BtcMessageInput {
             message: "hello world".to_string(),
         };
 
         let output = singer.sign_message(input).unwrap();
         assert_eq!(output.signature, "02473044022000ae3c9439681a4ba05e74d0805210f71c31f92130bcec28934d29beaf5f4f890220327cbf8a189eee4cb35a2599f6fd97b0774bec2e4191d74b3460f746732f8a03012103036695c5f3de2e2792b170f59679d4db88a8516728012eaa42a22ce6f8bf593b");
-
     }
 
     #[test]
     fn test_bip32_p2pkh() {
         bind_test();
 
-        let singer = MessageSinger{
+        let singer = MessageSinger {
             derivation_path: "m/44'/0'/0'".to_string(),
             chain_type: "BITCOIN".to_string(),
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
         };
-        let input = BtcMessageInput{
+        let input = BtcMessageInput {
             message: "hello world".to_string(),
         };
         let output = singer.sign_message(input).unwrap();
         assert_eq!(output.signature, "02483045022100dbbdfedfb1902ca12c6cba14d4892a98f77c434daaa4f97fd35e618374c908f602206527ff2b1ce550c16c836c2ce3508bfae543fa6c11759d2f4966cc0d3552c4430121026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868");
-
     }
 
     #[test]
     fn test_bip322_p2wpkh() {
         bind_test();
 
-        let singer = MessageSinger{
+        let singer = MessageSinger {
             derivation_path: "m/44'/0'/0'".to_string(),
             chain_type: "BITCOIN".to_string(),
             network: "MAINNET".to_string(),
             seg_wit: "VERSION_0".to_string(),
         };
-        let input = BtcMessageInput{
+        let input = BtcMessageInput {
             message: "hello world".to_string(),
         };
         let output = singer.sign_message(input).unwrap();
@@ -241,17 +234,17 @@ mod tests {
     fn test_bip322_p2tr() {
         bind_test();
 
-        let singer = MessageSinger{
+        let singer = MessageSinger {
             derivation_path: "m/86'/0'/0'".to_string(),
             chain_type: "BITCOIN".to_string(),
             network: "MAINNET".to_string(),
             seg_wit: "VERSION_1".to_string(),
         };
-        let input = BtcMessageInput{
-            message: "Sign this message to log in to https://www.subber.xyz // 200323342".to_string(),
+        let input = BtcMessageInput {
+            message: "Sign this message to log in to https://www.subber.xyz // 200323342"
+                .to_string(),
         };
         let output = singer.sign_message(input).unwrap();
         // assert_eq!(output.signature, "0140a868e67a50f6dff3e25f6b015f595d89de54e330a6e1dfb4925269577730803e10a43562b25979a704f1d6c856e623681f292ce0ddf2281f42c033db013b4326");
     }
-
 }

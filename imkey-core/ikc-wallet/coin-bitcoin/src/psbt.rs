@@ -1,3 +1,4 @@
+use crate::address::BtcAddress;
 use crate::btcapi::{PsbtInput, PsbtOutput};
 use crate::common::{get_address_version, get_xpub_data, select_btc_applet};
 use crate::Result;
@@ -16,9 +17,11 @@ use bitcoin_hashes::hex::ToHex;
 use bitcoin_hashes::{hash160, Hash};
 use hex::FromHex;
 use ikc_common::apdu::{ApduCheck, BtcApdu};
+use ikc_common::coin_info::coin_info_from_param;
 use ikc_common::constants;
 use ikc_common::constants::TIMEOUT_LONG;
 use ikc_common::error::CoinError;
+use ikc_common::path::{check_path_validity, get_account_path};
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign, sha256_hash};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
@@ -29,9 +32,6 @@ use std::collections::BTreeMap;
 use std::io::Cursor;
 use std::str::FromStr;
 use std::usize;
-use ikc_common::coin_info::coin_info_from_param;
-use ikc_common::path::{check_path_validity, get_account_path};
-use crate::address::BtcAddress;
 
 pub struct PsbtSigner<'a> {
     psbt: &'a mut Psbt,
@@ -44,7 +44,13 @@ pub struct PsbtSigner<'a> {
 }
 
 impl<'a> PsbtSigner<'a> {
-    pub fn new(psbt: &'a mut Psbt, derivation_path: &str, auto_finalize: bool, network: Network, is_sign_message: bool) -> Result<Self> {
+    pub fn new(
+        psbt: &'a mut Psbt,
+        derivation_path: &str,
+        auto_finalize: bool,
+        network: Network,
+        is_sign_message: bool,
+    ) -> Result<Self> {
         let mut psbt_signer = PsbtSigner {
             psbt,
             derivation_path: derivation_path.to_string(),
@@ -510,7 +516,7 @@ impl<'a> PsbtSigner<'a> {
         loop {
             let mut outputs_data = if self.is_sign_message {
                 vec![0xFF, 0xFF]
-            }else{
+            } else {
                 self.serizalize_page_data(page_number, network)?
             };
             //set 01 tag and length
@@ -523,7 +529,7 @@ impl<'a> PsbtSigner<'a> {
             output_pareper_data.extend(outputs_data.iter());
             let sign_confirm = if self.is_sign_message {
                 BtcApdu::btc_psbt_preview(&output_pareper_data, 0x80)
-            }else{
+            } else {
                 BtcApdu::btc_psbt_preview(&output_pareper_data, 0x00)
             };
             let response = &send_apdu_timeout(sign_confirm, TIMEOUT_LONG)?;
@@ -624,8 +630,8 @@ impl<'a> PsbtSigner<'a> {
         Hash::hash(input)
     }
 
-    fn get_preview_output(&mut self) -> Result<()>{
-        let mut preview_output : Vec<TxOut> = vec![];
+    fn get_preview_output(&mut self) -> Result<()> {
+        let mut preview_output: Vec<TxOut> = vec![];
 
         for tx_out in self.psbt.unsigned_tx.output.iter() {
             //remove empty and op_return TxOut
@@ -635,22 +641,42 @@ impl<'a> PsbtSigner<'a> {
             //cale change index script
             let tx_out_script = &tx_out.script_pubkey;
             let address = if tx_out_script.is_p2pkh() {
-                let change_path = Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_LEGACY)?;
+                let change_path =
+                    Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_LEGACY)?;
                 let pub_key = BtcAddress::get_pub_key(&change_path)?;
-                BtcAddress::from_public_key(&pub_key, self.network, constants::BTC_SEG_WIT_TYPE_LEGACY)?
-            }else if tx_out_script.is_v0_p2wpkh(){
-                let change_path = Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_VERSION_0)?;
+                BtcAddress::from_public_key(
+                    &pub_key,
+                    self.network,
+                    constants::BTC_SEG_WIT_TYPE_LEGACY,
+                )?
+            } else if tx_out_script.is_v0_p2wpkh() {
+                let change_path =
+                    Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_VERSION_0)?;
                 let pub_key = BtcAddress::get_pub_key(&change_path)?;
-                BtcAddress::from_public_key(&pub_key, self.network, constants::BTC_SEG_WIT_TYPE_VERSION_0)?
-            }else if tx_out_script.is_p2sh() {
-                let change_path = Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_P2WPKH)?;
+                BtcAddress::from_public_key(
+                    &pub_key,
+                    self.network,
+                    constants::BTC_SEG_WIT_TYPE_VERSION_0,
+                )?
+            } else if tx_out_script.is_p2sh() {
+                let change_path =
+                    Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_P2WPKH)?;
                 let pub_key = BtcAddress::get_pub_key(&change_path)?;
-                BtcAddress::from_public_key(&pub_key, self.network, constants::BTC_SEG_WIT_TYPE_P2WPKH)?
-            }else if tx_out_script.is_v1_p2tr(){
-                let change_path = Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_VERSION_1)?;
+                BtcAddress::from_public_key(
+                    &pub_key,
+                    self.network,
+                    constants::BTC_SEG_WIT_TYPE_P2WPKH,
+                )?
+            } else if tx_out_script.is_v1_p2tr() {
+                let change_path =
+                    Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_VERSION_1)?;
                 let pub_key = BtcAddress::get_pub_key(&change_path)?;
-                BtcAddress::from_public_key(&pub_key, self.network, constants::BTC_SEG_WIT_TYPE_VERSION_1)?
-            }else{
+                BtcAddress::from_public_key(
+                    &pub_key,
+                    self.network,
+                    constants::BTC_SEG_WIT_TYPE_VERSION_1,
+                )?
+            } else {
                 continue;
             };
             //remove change TxOut
@@ -667,8 +693,14 @@ impl<'a> PsbtSigner<'a> {
     pub fn get_preview_info(&self) -> Result<(u64, u64, Vec<TxOut>)> {
         let mut outputs = &self.preview_output;
         let payment_total_amount = outputs.iter().map(|tx_out| tx_out.value).sum();
-        let input_total_amount : u64 = self.prevouts.iter().map(|tx_out| tx_out.value).sum();
-        let output_total_amount : u64 = self.psbt.unsigned_tx.output.iter().map(|tx_out| tx_out.value).sum();
+        let input_total_amount: u64 = self.prevouts.iter().map(|tx_out| tx_out.value).sum();
+        let output_total_amount: u64 = self
+            .psbt
+            .unsigned_tx
+            .output
+            .iter()
+            .map(|tx_out| tx_out.value)
+            .sum();
         let fee = input_total_amount - output_total_amount;
         Ok((payment_total_amount, fee, outputs.clone()))
     }
@@ -694,11 +726,7 @@ impl<'a> PsbtSigner<'a> {
         }
     }
 
-    fn serizalize_page_data(
-        &self,
-        page_number: usize,
-        network: Network,
-    ) -> Result<Vec<u8>> {
+    fn serizalize_page_data(&self, page_number: usize, network: Network) -> Result<Vec<u8>> {
         let preview_output = &self.preview_output;
         let (start_index, end_index) = Self::get_page_indices(preview_output.len(), page_number)?;
         let mut data = vec![];
@@ -721,7 +749,7 @@ impl<'a> PsbtSigner<'a> {
         Ok(data)
     }
 
-    fn get_change_index(network: Network, segwit: &str) -> Result<String>{
+    fn get_change_index(network: Network, segwit: &str) -> Result<String> {
         let network = match network {
             Network::Bitcoin => "MAINNET",
             _ => "TESTNET",
@@ -743,7 +771,13 @@ pub fn sign_psbt(
 
     let mut reader = Cursor::new(Vec::<u8>::from_hex(psbt_input.psbt)?);
     let mut psbt = Psbt::consensus_decode(&mut reader)?;
-    let mut signer = PsbtSigner::new(&mut psbt, derivation_path, psbt_input.auto_finalize, network, false)?;
+    let mut signer = PsbtSigner::new(
+        &mut psbt,
+        derivation_path,
+        psbt_input.auto_finalize,
+        network,
+        false,
+    )?;
 
     signer.prevouts()?;
 
@@ -794,8 +828,7 @@ mod test {
             auto_finalize: true,
         };
 
-        let psbt_output =
-            super::sign_psbt("m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
+        let psbt_output = super::sign_psbt("m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
         let mut reader = Cursor::new(Vec::<u8>::from_hex(&psbt_output.psbt).unwrap());
         let psbt = Psbt::consensus_decode(&mut reader).unwrap();
         let tx = psbt.extract_tx();
@@ -826,8 +859,7 @@ mod test {
             auto_finalize: true,
         };
 
-        let psbt_output =
-            super::sign_psbt("m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
+        let psbt_output = super::sign_psbt("m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
         let mut reader = Cursor::new(Vec::<u8>::from_hex(&psbt_output.psbt).unwrap());
         let psbt = Psbt::consensus_decode(&mut reader).unwrap();
         let tx = psbt.extract_tx();

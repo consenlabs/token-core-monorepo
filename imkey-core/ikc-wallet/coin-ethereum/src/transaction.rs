@@ -590,6 +590,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
         let input = EthMessageInput {
             message: "Hello imKey".to_string(),
@@ -610,6 +611,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
         let input = EthMessageInput {
             message: "0x8d61d40bb0761526fe24d84199321d5e9f6542e56c52018c401b963d64ef21678c18563a3eba889229ab078a8a1baed22226913f".to_string(),
@@ -636,6 +638,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
         let input = EthMessageInput {
             message: "Hello imKey".to_string(),
@@ -656,6 +659,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
         let input = EthMessageInput {
             message: "0x8d61d40bb0761526fe24d84199321d5e9f6542e56c52018c401b963d64ef21678c18563a3eba889229ab078a8a1baed22226913f".to_string(),
@@ -723,6 +727,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
         let input = EthMessageInput {
             message: "Hello imKey".to_string(),

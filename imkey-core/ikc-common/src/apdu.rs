@@ -70,8 +70,8 @@ impl BtcApdu {
     }
 
     /**
-    *p2 00:sign psbt transaction  80: sign message
-    **/
+     *p2 00:sign psbt transaction  80: sign message
+     **/
     pub fn btc_psbt_preview(data: &Vec<u8>, p2: u8) -> String {
         if data.len() as u32 > LC_MAX {
             panic!("data to long");
