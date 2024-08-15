@@ -76,6 +76,7 @@ mod test_super {
                     curve: CurveType::SR25519,
                     network: "".to_string(),
                     seg_wit: "".to_string(),
+                    hrp: "".to_string(),
                 },
             ),
             (
@@ -86,6 +87,7 @@ mod test_super {
                     curve: CurveType::SR25519,
                     network: "".to_string(),
                     seg_wit: "".to_string(),
+                    hrp: "".to_string(),
                 },
             ),
         ];
@@ -104,6 +106,7 @@ mod test_super {
             curve: CurveType::SR25519,
             network: "".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
         let addr = SubstrateAddress::from_public_key(&typed_key, &kusama_coin_info).unwrap();
         assert_eq!(
@@ -124,6 +127,7 @@ mod test_super {
             curve: CurveType::SR25519,
             network: "".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
         let addresses = vec![
             "FwMF8FdFKxPtt9enzZ2Zf7dJCxiu4HqK6GhRAsKCvbNkSqx",
@@ -151,6 +155,7 @@ mod test_super {
             curve: CurveType::SR25519,
             network: "".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
         let addresses = vec![
             "3BMEXohjFLZJGBLkCbF9zreee1eJjoM3ZB",

@@ -11,6 +11,7 @@ use tcx_keystore::{Address, Keystore, MessageSigner, SignatureParameters};
 
 const UTXO: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 const TAG: &str = "BIP0322-signed-message";
+
 fn get_spend_tx_id(data: &[u8], script_pub_key: Script) -> Result<Txid> {
     let tag_hash = sha256(&TAG.as_bytes().to_vec());
     let mut to_sign = Vec::new();
@@ -107,6 +108,7 @@ impl MessageSigner<BtcMessageInput, BtcMessageOutput> for Keystore {
             curve: CurveType::SECP256k1,
             network: params.network.to_string(),
             seg_wit: params.seg_wit.to_string(),
+            hrp: "".to_string(),
         };
 
         let address = BtcKinAddress::from_public_key(&public_key, &coin_info)?;
@@ -156,6 +158,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "VERSION_0".to_string(),
+            hrp: "".to_string(),
         };
 
         let account = ks.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
@@ -179,6 +182,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "P2WPKH".to_string(),
+            hrp: "".to_string(),
         };
 
         let account = ks.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
@@ -214,6 +218,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            hrp: "".to_string(),
         };
 
         let account = ks.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
@@ -250,6 +255,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "VERSION_0".to_string(),
+            hrp: "".to_string(),
         };
 
         let account = ks.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
@@ -285,6 +291,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "VERSION_1".to_string(),
+            hrp: "".to_string(),
         };
 
         let account = ks.derive_coin::<BtcKinAddress>(&coin_info).unwrap();

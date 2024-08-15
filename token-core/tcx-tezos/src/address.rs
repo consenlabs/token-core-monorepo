@@ -95,6 +95,7 @@ mod test {
             curve: CurveType::ED25519,
             network: "MAINNET".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
 
         let pub_key = TypedPublicKey::from_slice(
@@ -133,6 +134,7 @@ mod test {
             curve: CurveType::ED25519,
             network: "MAINNET".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
         let address = "tz1dLEU3WfzCrDq2bvoEz4cfLP5wg4S7xNo9"; //valid address
         let valid_result = TezosAddress::is_valid(address, &coin_info);
@@ -155,6 +157,7 @@ mod test {
             curve: CurveType::ED25519,
             network: "MAINNET".to_string(),
             seg_wit: "".to_string(),
+            hrp: "".to_string(),
         };
 
         let pub_key = TypedPublicKey::from_slice(

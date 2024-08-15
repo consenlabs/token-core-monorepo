@@ -261,6 +261,7 @@ impl Display for BtcKinAddress {
 
 #[cfg(test)]
 mod tests {
+    use bitcoin::SchnorrSighashType::Default;
     use std::str::FromStr;
     use tcx_common::{FromHex, ToHex};
 
@@ -273,6 +274,7 @@ mod tests {
 
     use crate::address::BtcKinAddress;
     use crate::tcx_keystore::Address;
+    use crate::tests::sample_hd_keystore;
     use crate::BtcKinNetwork;
 
     #[test]
@@ -302,6 +304,18 @@ mod tests {
             .unwrap()
             .to_string();
         assert_eq!(addr, "bc1qum864wd9nwsc0u9ytkctz6wzrw6g7zdntm7f4e");
+
+        let network = BtcKinNetwork::find_by_coin("DOGECOIN", "MAINNET").unwrap();
+        let addr = BtcKinAddress::p2pkh(&pub_key, &network)
+            .unwrap()
+            .to_string();
+        assert_eq!(addr, "DSBWjKzZtz7fPzu4N6mBRwQFHCQ6KQSjue");
+
+        let network = BtcKinNetwork::find_by_coin("DOGECOIN", "TESTNET").unwrap();
+        let addr = BtcKinAddress::p2pkh(&pub_key, &network)
+            .unwrap()
+            .to_string();
+        assert_eq!(addr, "nqEaTLjUpxaPGyUFPvQdgLzYX4nPLCD1Py");
     }
 
     #[test]
@@ -341,6 +355,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            hrp: "".to_string(),
         };
         let ltc_xprv_str = BtcKinAddress::extended_private_key(&anprv, &coin_info).unwrap();
         assert_eq!("xprv9yrdwPSRnvomqFK4u1y5uW2SaXS2Vnr3pAYTjJjbyRZR8p9BwoadRsCxtgUFdAKeRPbwvGRcCSYMV69nNK4N2kadevJ6L5iQVy1SwGKDTHQ", ltc_xprv_str);
@@ -360,6 +375,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            hrp: "".to_string(),
         };
         let ltc_xprv_str = BtcKinAddress::extended_public_key(&anpub, &coin_info).unwrap();
         assert_eq!("xpub6JeaAjhtvtjCDnEo4Bjr7uEbGccaHnJtLY4aBnMaAYGjkBRB3fP9XvjcCbNjMiU1n5tt7dYKVgHPGzh3t3W6eLBxavxABTaoQ2jhbiQrfe4", ltc_xprv_str);
@@ -451,6 +467,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            hrp: "".to_string(),
         };
         let address = BtcKinAddress::from_public_key(&pub_key, &coin_info)
             .unwrap()
@@ -478,6 +495,23 @@ mod tests {
     }
 
     #[test]
+    fn test_dogecoin_address() {
+        let mut hd = sample_hd_keystore();
+        let account = hd
+            .derive_coin::<BtcKinAddress>(&CoinInfo {
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/3'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            })
+            .unwrap();
+        assert_eq!(account.address, "DQ4tVEqdPWHc1aVBm4Sfwft8XyNRPMEchR");
+        assert_eq!(account.ext_pub_key, "xpub6CDSaXHQokkKmHHG2kNCFZeirJkcZgRZE97ZZUtViif3SFHSNVAvRpWC3CxeRt2VZetEGCcPTmWEFpKF4NDeeZrMNPQgfUaX5Hkw89kW8qE");
+    }
+
+
+    #[test]
     fn test_bip84_spec_vector() {
         let pub_key = TypedPublicKey::from_slice(
             CurveType::SECP256k1,
@@ -491,6 +525,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "VERSION_0".to_string(),
+            hrp: "".to_string(),
         };
         let address = BtcKinAddress::from_public_key(&pub_key, &coin_info)
             .unwrap()

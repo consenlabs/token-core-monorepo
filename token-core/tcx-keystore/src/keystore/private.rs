@@ -270,6 +270,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            hrp: "".to_string(),
         }];
 
         let excepts = ["0280c98b8ea7cab630defb0c09a4295c2193cdee016c1d5b9b0cb18572b9c370fe"];

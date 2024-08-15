@@ -1,3 +1,4 @@
+use std::ascii::AsciiExt;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
@@ -67,11 +68,16 @@ fn parse_coin_info_from_legacy_ks(value: Value) -> Result<(CoinInfo, String)> {
         };
 
         let coin_info = CoinInfo {
-            coin: chain_str,
+            coin: chain_str.to_string(),
             derivation_path,
             curve: CurveType::SECP256k1,
             network,
             seg_wit,
+            hrp: if chain_str.eq_ignore_ascii_case("cosmos") {
+                "cosmos".to_string()
+            } else {
+                "".to_string()
+            },
         };
         return Ok((coin_info, address));
     } else {
@@ -141,6 +147,7 @@ fn parse_coin_info_from_legacy_tcx_ks(legacy_tcx_ks: Value) -> Result<(CoinInfo,
             curve,
             network,
             seg_wit,
+            hrp: "".to_string(),
         };
         return Ok((coin_info, address));
     } else {

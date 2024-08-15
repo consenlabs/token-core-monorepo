@@ -321,7 +321,7 @@ pub fn test_sign_tron_tx_by_pk() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
-            bech32_prefix: "".to_string(),
+            hrp: "".to_string(),
         };
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -702,7 +702,7 @@ pub fn test_lock_after_sign() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
-            bech32_prefix: "".to_string(),
+            hrp: "".to_string(),
         };
 
         let (wallet, _acc_rsp) = import_and_derive(derivation);
@@ -912,7 +912,7 @@ pub fn test_sign_ethereum_legacy_tx() {
             seg_wit: "".to_string(),
             chain_id: "1".to_string(),
             curve: "secp256k1".to_string(),
-            bech32_prefix: "".to_string(),
+            hrp: "".to_string(),
         };
 
         let (wallet, acc_rsp) = import_and_derive(derivation);

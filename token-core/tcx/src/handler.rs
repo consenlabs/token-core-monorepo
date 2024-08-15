@@ -104,6 +104,7 @@ fn derive_account(keystore: &mut Keystore, derivation: &Derivation) -> Result<Ac
         &derivation.curve,
     )?;
     coin_info.derivation_path = derivation.path.to_owned();
+    coin_info.hrp = derivation.hrp.to_string();
 
     derive_account_internal(&coin_info, keystore)
 }
@@ -608,6 +609,7 @@ pub fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
         if !derivation.path.is_empty() {
             coin_info.derivation_path = derivation.path;
         }
+        coin_info.hrp = derivation.hrp;
 
         let enc_xpub = if account.ext_pub_key.is_empty() {
             Ok("".to_string())
