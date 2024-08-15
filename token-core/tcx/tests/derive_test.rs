@@ -194,6 +194,33 @@ pub fn test_derive_accounts() {
                 curve: "ed25519".to_string(),
                 hrp: "".to_string(),
             },
+            Derivation {
+                chain_type: "DOGECOIN".to_string(),
+                path: "m/44'/3'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                chain_id: "".to_string(),
+                curve: "secp256k1".to_string(),
+                bech32_prefix: "".to_string(),
+            },
+            Derivation {
+                chain_type: "DOGECOIN".to_string(),
+                path: "m/44'/1'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                chain_id: "".to_string(),
+                curve: "secp256k1".to_string(),
+                bech32_prefix: "".to_string(),
+            },
+            Derivation {
+                chain_type: "DOGECOIN".to_string(),
+                path: "m/44'/1'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "VERSION_1".to_string(),
+                chain_id: "".to_string(),
+                curve: "secp256k1".to_string(),
+                bech32_prefix: "".to_string(),
+            },
         ];
 
         let param = DeriveAccountsParam {
@@ -206,7 +233,7 @@ pub fn test_derive_accounts() {
         let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
         let derived_accounts: DeriveAccountsResult =
             DeriveAccountsResult::decode(derived_accounts_bytes.as_slice()).unwrap();
-        assert_eq!(17, derived_accounts.accounts.len());
+        assert_eq!(20, derived_accounts.accounts.len());
         assert_eq!(
             "LQ3JqCohgLQ3x1CJXYERnJTy1ySaqr1E32",
             derived_accounts.accounts[0].address
@@ -288,6 +315,19 @@ pub fn test_derive_accounts() {
         assert_eq!(
             "tz1YhnU6rUigVp6Jei1VJQHofGSbzGKphVmG",
             derived_accounts.accounts[16].address
+        );
+
+        assert_eq!(
+            "DGUrMnbLGQzZV3H1AYackWuykSKqqUMGEf",
+            derived_accounts.accounts[17].address
+        );
+        assert_eq!(
+            "DP48ckynvMTDkxC7SEvxtDztyFmZxviDCf",
+            derived_accounts.accounts[18].address
+        );
+        assert_eq!(
+            "1p37xv5xzd92c4wh8zt96f77a8jlf3n2qh4cps03xgurmpnllxy5us2dwgfl",
+            derived_accounts.accounts[19].address
         );
 
         remove_created_wallet(&import_result.id);
