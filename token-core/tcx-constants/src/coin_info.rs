@@ -296,6 +296,62 @@ lazy_static! {
                 seg_wit: "".to_string(),
                 hrp: "".to_string(),
             },
+            CoinInfo {
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/3'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/49'/3'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            },
+            CoinInfo {
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/49'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            },
+            CoinInfo {
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/84'/3'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "VERSION_0".to_string(),
+            },
+            CoinInfo {
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/84'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "VERSION_0".to_string(),
+            },
+            CoinInfo {
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/86'/3'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "VERSION_1".to_string(),
+            },
+            CoinInfo {
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/86'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "VERSION_1".to_string(),
+            },
         ];
 
         RwLock::new(coin_infos)
