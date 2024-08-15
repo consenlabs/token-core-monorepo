@@ -65,8 +65,8 @@ pub enum Error {
 }
 
 pub mod bitcoin {
-    use crate::{BITCOIN, LITECOIN};
-    pub const CHAINS: [&str; 2] = [BITCOIN, LITECOIN];
+    use crate::{BITCOIN, DOGECOIN, LITECOIN};
+    pub const CHAINS: [&str; 3] = [BITCOIN, LITECOIN, DOGECOIN];
     pub type Address = crate::BtcKinAddress;
     pub type TransactionInput = crate::transaction::BtcKinTxInput;
     pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
