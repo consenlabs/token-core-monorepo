@@ -201,7 +201,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
+                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "DOGECOIN".to_string(),
@@ -210,7 +210,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
+                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "DOGECOIN".to_string(),
@@ -219,7 +219,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "VERSION_1".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
+                hrp: "".to_string(),
             },
         ];
 

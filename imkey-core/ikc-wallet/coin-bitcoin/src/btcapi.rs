@@ -3,10 +3,10 @@
 pub struct Utxo {
     #[prost(string, tag = "1")]
     pub tx_hash: ::prost::alloc::string::String,
-    #[prost(int32, tag = "2")]
-    pub vout: i32,
-    #[prost(int64, tag = "3")]
-    pub amount: i64,
+    #[prost(uint32, tag = "2")]
+    pub vout: u32,
+    #[prost(uint64, tag = "3")]
+    pub amount: u64,
     #[prost(string, tag = "4")]
     pub address: ::prost::alloc::string::String,
     #[prost(string, tag = "5")]
@@ -31,12 +31,12 @@ pub struct BtcTxExtra {
 pub struct BtcTxInput {
     #[prost(string, tag = "1")]
     pub to: ::prost::alloc::string::String,
-    #[prost(int64, tag = "2")]
-    pub amount: i64,
-    #[prost(int64, tag = "3")]
-    pub fee: i64,
-    #[prost(uint32, tag = "4")]
-    pub change_address_index: u32,
+    #[prost(uint64, tag = "2")]
+    pub amount: u64,
+    #[prost(uint64, tag = "3")]
+    pub fee: u64,
+    #[prost(uint32, optional, tag = "4")]
+    pub change_address_index: ::core::option::Option<u32>,
     #[prost(message, repeated, tag = "5")]
     pub unspents: ::prost::alloc::vec::Vec<Utxo>,
     #[prost(string, tag = "6")]
@@ -55,4 +55,30 @@ pub struct BtcTxOutput {
     pub tx_hash: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub wtx_hash: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PsbtInput {
+    #[prost(string, tag = "1")]
+    pub psbt: ::prost::alloc::string::String,
+    #[prost(bool, tag = "2")]
+    pub auto_finalize: bool,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct PsbtOutput {
+    #[prost(string, tag = "1")]
+    pub psbt: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BtcMessageInput {
+    #[prost(string, tag = "1")]
+    pub message: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BtcMessageOutput {
+    #[prost(string, tag = "1")]
+    pub signature: ::prost::alloc::string::String,
 }

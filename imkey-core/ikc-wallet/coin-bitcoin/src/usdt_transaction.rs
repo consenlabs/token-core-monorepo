@@ -1,7 +1,4 @@
-use crate::common::{
-    address_verify, get_address_version, get_xpub_data, secp256k1_sign_verify, TransTypeFlg,
-    TxSignResult,
-};
+use crate::common::{get_address_version, get_utxo_pub_key, TxSignResult};
 use crate::transaction::BtcTransaction;
 use crate::Result;
 use bitcoin::blockdata::{opcodes, script::Builder};
@@ -47,7 +44,7 @@ impl BtcTransaction {
         }
 
         //utxo address verify
-        let utxo_pub_key_vec = address_verify(&self.unspents, network, TransTypeFlg::BTC)?;
+        let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents)?;
 
         //add change output
         let mut txouts: Vec<TxOut> = Vec::new();
@@ -156,7 +153,7 @@ impl BtcTransaction {
                 let sign_result_str =
                     btc_sign_apdu_return[2..btc_sign_apdu_return.len() - 6].to_string();
 
-                lock_script_ver.push(self.build_lock_script(
+                lock_script_ver.push(self.build_unlock_script(
                     sign_result_str.as_str(),
                     utxo_pub_key_vec.get(y).unwrap(),
                 )?);
@@ -208,7 +205,7 @@ impl BtcTransaction {
         }
 
         //utxo address verify
-        let utxo_pub_key_vec = address_verify(&self.unspents, network, TransTypeFlg::SEGWIT)?;
+        let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents)?;
 
         //5.add change output
         let mut txouts: Vec<TxOut> = vec![];
@@ -394,7 +391,7 @@ impl BtcTransaction {
         })
     }
 
-    pub fn build_omni_output(&self, property_id: i32, amount: i64) -> TxOut {
+    pub fn build_omni_output(&self, property_id: i32, amount: u64) -> TxOut {
         let mut property_id_bytes = num_bigint::BigInt::from(property_id).to_signed_bytes_le();
         while property_id_bytes.len() < 4 {
             property_id_bytes.push(0x00);

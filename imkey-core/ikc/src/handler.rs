@@ -11,11 +11,11 @@ use bitcoin::util::bip32::ExtendedPubKey;
 use bitcoin::Network;
 use coin_bch::address::BchAddress;
 use coin_bitcoin::address::BtcAddress;
+use coin_bitcoin::btcapi::PsbtInput;
 use coin_btc_fork::address::BtcForkAddress;
 use coin_btc_fork::btc_fork_network::network_from_param;
 use coin_ckb::address::CkbAddress;
 use coin_cosmos::address::CosmosAddress;
-use coin_eos::pubkey;
 use coin_eos::pubkey::EosPubkey;
 use coin_ethereum::address::EthAddress;
 use coin_filecoin::address::FilecoinAddress;
@@ -25,8 +25,9 @@ use ikc_common::curve::CurveType;
 use ikc_common::path::get_account_path;
 use ikc_common::utility::{
     encrypt_xpub, extended_pub_key_derive, from_ss58check_with_version, get_xpub_prefix,
-    hex_to_bytes, network_convert, to_ss58check_with_version, uncompress_pubkey_2_compress,
+    network_convert, to_ss58check_with_version, uncompress_pubkey_2_compress,
 };
+use ikc_common::SignParam;
 use prost::Message;
 use std::str::FromStr;
 
@@ -50,11 +51,27 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
         };
 
         let ext_public_key = match derivation.chain_type.as_str() {
-            "BITCOIN" | "LITECOIN" => {
+            "BITCOIN" => {
                 let network = network_convert(derivation.network.as_str());
                 let public_key = BtcAddress::get_pub_key(&derivation.path)?;
                 let public_key = uncompress_pubkey_2_compress(&public_key);
                 account_rsp.public_key = format!("0x{}", public_key);
+
+                let address = match derivation.seg_wit.as_str() {
+                    "P2WPKH" => BtcAddress::p2shwpkh(network, &derivation.path)?,
+                    "VERSION_0" => BtcAddress::p2wpkh(network, &derivation.path)?,
+                    "VERSION_1" => BtcAddress::p2tr(network, &derivation.path)?,
+                    _ => BtcAddress::p2pkh(network, &derivation.path)?,
+                };
+                account_rsp.address = address;
+                BtcAddress::get_xpub(network, &account_path)?
+            }
+            "LITECOIN" => {
+                let network = network_convert(derivation.network.as_str());
+                let public_key = BtcAddress::get_pub_key(&derivation.path)?;
+                let public_key = uncompress_pubkey_2_compress(&public_key);
+                account_rsp.public_key = format!("0x{}", public_key);
+
                 let btc_fork_network = network_from_param(
                     &derivation.chain_type,
                     &derivation.network,
@@ -65,8 +82,9 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                     "P2WPKH" => BtcForkAddress::p2shwpkh(&btc_fork_network, &derivation.path)?,
                     _ => BtcForkAddress::p2pkh(&btc_fork_network, &derivation.path)?,
                 };
+
                 account_rsp.address = address;
-                BtcAddress::get_xpub(network, &account_path)?
+                BtcForkAddress::get_xpub(network, &account_path)?
             }
             "ETHEREUM" => {
                 let public_key = EthAddress::get_pub_key(&derivation.path)?;
@@ -174,7 +192,15 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
         account.path = relative_path;
         let address = match param.chain_type.as_str() {
             "ETHEREUM" => EthAddress::from_pub_key(pub_key_uncompressed)?,
-            "BITCOIN" | "LITECOIN" => {
+            "BITCOIN" => {
+                let network = network_convert(&param.network);
+                BtcAddress::from_public_key(
+                    &hex::encode(pub_key_uncompressed),
+                    network,
+                    &param.seg_wit,
+                )?
+            }
+            "LITECOIN" => {
                 let btc_fork_network =
                     network_from_param(&param.chain_type, &param.network, &param.seg_wit);
                 if btc_fork_network.is_none() {
@@ -284,6 +310,36 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     }
 
     encode_message(GetPublicKeysResult { public_keys })
+}
+
+pub(crate) fn sign_psbt(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignParam = SignParam::decode(data).expect("sign_psbt param");
+
+    if !"BITCOIN".eq(&param.chain_type) {
+        return Err(anyhow!("unsupported_chain_type"));
+    }
+
+    let psbt_input = PsbtInput::decode(
+        param
+            .input
+            .as_ref()
+            .expect("psbt_input")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("psbt_input decode");
+
+    let network = if param.network == "TESTNET".to_string() {
+        Network::Testnet
+    } else {
+        Network::Bitcoin
+    };
+    encode_message(coin_bitcoin::psbt::sign_psbt(
+        &param.path,
+        psbt_input,
+        network,
+    )?)
 }
 
 #[cfg(test)]
