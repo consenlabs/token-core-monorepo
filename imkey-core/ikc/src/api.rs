@@ -58,8 +58,6 @@ pub struct PubKeyParam {
     pub path: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub network: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub is_seg_wit: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

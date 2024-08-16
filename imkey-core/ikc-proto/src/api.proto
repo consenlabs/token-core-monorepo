@@ -41,7 +41,6 @@ message PubKeyParam {
     string chainType = 1;
     string path = 2;
     string network = 3;
-    string isSegWit = 4;
 }
 
 message PubKeyResult {
