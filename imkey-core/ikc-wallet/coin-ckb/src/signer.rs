@@ -379,6 +379,7 @@ mod tests {
             receiver: "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6".to_string(),
             sender: "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6".to_string(),
             fee: "0.0001191 ckb".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let tx_output = CkbSigner::sign_transaction(&tx_input, &sign_param).expect("sign error");

@@ -24,6 +24,7 @@ use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::ecdsa::Signature;
 use std::borrow::Borrow;
 use std::str::FromStr;
+use secp256k1::PublicKey;
 
 #[derive(Clone)]
 pub struct Utxo {
@@ -342,7 +343,8 @@ impl BtcTransaction {
         data.extend(path_data.iter());
 
         let mut tweaked_pub_key_data: Vec<u8> = vec![];
-        let untweaked_public_key = UntweakedPublicKey::from_str(&pub_key[2..66])?;
+        let public_key = PublicKey::from_str(pub_key)?;
+        let untweaked_public_key = UntweakedPublicKey::from(public_key);
         let tweaked_pub_key = TapTweakHash::from_key_and_tweak(untweaked_public_key, None).to_vec();
         tweaked_pub_key_data.push(tweaked_pub_key.len() as u8);
         tweaked_pub_key_data.extend_from_slice(&tweaked_pub_key);
