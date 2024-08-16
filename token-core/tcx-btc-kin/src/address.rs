@@ -262,6 +262,7 @@ impl Display for BtcKinAddress {
 #[cfg(test)]
 mod tests {
     use bitcoin::SchnorrSighashType::Default;
+    use secp256k1::rand::seq::index::sample;
     use std::str::FromStr;
     use tcx_common::{FromHex, ToHex};
 
@@ -511,6 +512,36 @@ mod tests {
         assert_eq!(account.ext_pub_key, "xpub6CDSaXHQokkKmHHG2kNCFZeirJkcZgRZE97ZZUtViif3SFHSNVAvRpWC3CxeRt2VZetEGCcPTmWEFpKF4NDeeZrMNPQgfUaX5Hkw89kW8qE");
     }
 
+    #[test]
+    fn test_dogecoin_address_from_str() {
+        let addr = BtcKinAddress::from_str("DQ4tVEqdPWHc1aVBm4Sfwft8XyNRPMEchR").unwrap();
+        assert_eq!(addr.network.coin, "DOGECOIN");
+        assert_eq!(addr.network.network, "MAINNET");
+    }
+
+    #[test]
+    fn test_xpub() {
+        let mut hd = sample_hd_keystore();
+
+        let test_cases = [
+            ("BITCOIN", "MAINNET", "m/44'/0'/0/0", "xpub6CqzLtyBHdq6tZD7Bdxo9bpCEWfFBg7dim6UMxs83nqNYzFatwkr9yGkLtG5ktiKcgaUqP5BpuTMJLyaLQ167gANU8ZsfLRN86VXyx3atJX"),
+            ("LITECOIN", "MAINNET", "m/44'/2'/0'/0/0", "xpub6D3MqTwuLWB5veAfhDjPu1oHfS6L1imVbf22zQFWJW9EtnSmYYqiGMGkW1MCsT2HmkW872tefMY9deewW6DGd8zE7RcXVv8wKhZnbJeidjT"),
+            ("DOGECOIN", "MAINNET", "m/44'/3'/0'/0/0", "xpub6CDSaXHQokkKmHHG2kNCFZeirJkcZgRZE97ZZUtViif3SFHSNVAvRpWC3CxeRt2VZetEGCcPTmWEFpKF4NDeeZrMNPQgfUaX5Hkw89kW8qE"),
+        ];
+
+        for (coin, network, path, xpub) in test_cases {
+            let coin_info = CoinInfo {
+                coin: coin.to_string(),
+                derivation_path: path.to_string(),
+                curve: CurveType::SECP256k1,
+                network: network.to_string(),
+                seg_wit: "NONE".to_string(),
+                hrp: "".to_string(),
+            };
+            let account = hd.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
+            assert_eq!(account.ext_pub_key, xpub);
+        }
+    }
 
     #[test]
     fn test_bip84_spec_vector() {

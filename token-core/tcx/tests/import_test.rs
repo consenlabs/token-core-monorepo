@@ -311,6 +311,15 @@ pub fn test_import_private_key() {
                 curve: "secp256k1".to_string(),
                 hrp: "".to_string(),
             },
+            Derivation {
+                chain_type: "DOGECOIN".to_string(),
+                path: "pk_not_need_path".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                chain_id: "".to_string(),
+                curve: "secp256k1".to_string(),
+                hrp: "".to_string(),
+            },
         ];
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -322,7 +331,7 @@ pub fn test_import_private_key() {
         let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
         let derived_accounts: DeriveAccountsResult =
             DeriveAccountsResult::decode(derived_accounts_bytes.as_slice()).unwrap();
-        assert_eq!(13, derived_accounts.accounts.len());
+        assert_eq!(14, derived_accounts.accounts.len());
         assert_eq!(
             "LgGNTHMkgETS7oQcoekvACJQcH355xECog",
             derived_accounts.accounts[0].address
@@ -390,6 +399,11 @@ pub fn test_import_private_key() {
         assert_eq!(
             "bc1pqpae4d6594jj3yueluku5tlu7r6nqwm24xc8thk5g396s9e5anvq6x4n33",
             derived_accounts.accounts[12].address
+        );
+
+        assert_eq!(
+            "DSBWjKzZtz7fPzu4N6mBRwQFHCQ6KQSjue",
+            derived_accounts.accounts[13].address
         );
 
         // pk rederive
@@ -1076,6 +1090,73 @@ pub fn test_import_multi_curve() {
         );
 
         remove_created_wallet(&wallet_ret.id);
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_import_wif() {
+    run_test(|| {
+        let import_result: KeystoreResult = import_default_wallet();
+
+        let export_param = ExportPrivateKeyParam {
+            id: import_result.id.to_string(),
+            key: Some(crate::api::export_private_key_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+            chain_type: "DOGECOIN".to_string(),
+            network: "MAINNET".to_string(),
+            curve: "secp256k1".to_string(),
+            path: "m/44'/3'/0'/0'".to_string(),
+        };
+
+        let export_pk_bytes = call_api("export_private_key", export_param).unwrap();
+        let export_pk: ExportPrivateKeyResult =
+            ExportPrivateKeyResult::decode(export_pk_bytes.as_slice()).unwrap();
+        assert_eq!(
+            export_pk.private_key,
+            "QNfA3BhQaV73MY3QMYAoNrZXSPRyVqUFxb4akc6hBpN6TwZC8GDQ"
+        );
+
+        let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
+            private_key: export_pk.private_key.to_string(),
+            password: TEST_PASSWORD.to_string(),
+            name: "import_private_key_wallet".to_string(),
+            password_hint: "".to_string(),
+            network: "MAINNET".to_string(),
+            overwrite_id: "".to_string(),
+        };
+        let ret = call_api("import_private_key", param).unwrap();
+        let import_result: ImportPrivateKeyResult =
+            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+
+        let derivation = Derivation {
+            chain_type: "DOGECOIN".to_string(),
+            path: "m/44'/145'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            hrp: "".to_string(),
+        };
+        let param = DeriveAccountsParam {
+            id: import_result.id.to_string(),
+            key: Some(crate::api::derive_accounts_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+            derivations: vec![derivation],
+        };
+
+        let ret = call_api("derive_accounts", param).unwrap();
+        let result: DeriveAccountsResult = DeriveAccountsResult::decode(ret.as_slice()).unwrap();
+        let account = result.accounts.first().unwrap();
+        assert_eq!(account.chain_type, "DOGECOIN");
+        assert_eq!(account.address, "DGge46gf1ipekESG6eDFYxA15PxWf2UfrS");
+
+        assert_eq!(
+            import_result.identifier,
+            "im14x5EL1LDHgsXPpvzsF5RQCKE982c9XmM1VZx"
+        );
     })
 }
 
