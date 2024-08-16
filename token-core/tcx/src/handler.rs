@@ -292,6 +292,7 @@ pub(crate) fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey>
                     chain_types.push("BITCOIN".to_string());
                     chain_types.push("BITCOINCASH".to_string());
                     chain_types.push("LITECOIN".to_string());
+                    chain_types.push("DOGECOIN".to_string());
                 }
                 0x80 => {
                     if data_len == 37 {
@@ -309,6 +310,10 @@ pub(crate) fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey>
                 0xb0 => {
                     network = "MAINNET".to_string();
                     chain_types.push("LITECOIN".to_string());
+                }
+                0x9e => {
+                    network = "MAINNET".to_string();
+                    chain_types.push("DOGECOIN".to_string());
                 }
                 _ => return Err(anyhow!("unknow ver header when parse wif, ver: {}", ver[0])),
             }
