@@ -41,6 +41,7 @@ impl WIFDisplay for TypedPrivateKey {
         Ok(key.to_ss58check_with_version(&version))
     }
 }
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BtcKinAddress {
     pub network: BtcKinNetwork,
@@ -139,10 +140,13 @@ impl BtcKinAddress {
 fn bech32_network(bech32: &str) -> Option<&BtcKinNetwork> {
     let bech32_prefix = bech32.rfind('1').map(|sep| bech32.split_at(sep).0);
 
-    match bech32_prefix {
-        Some(prefix) => BtcKinNetwork::find_by_hrp(prefix),
-        None => None,
+    if bech32_prefix.is_some() {
+        let prefix = bech32_prefix.unwrap();
+        if (!prefix.is_empty()) {
+            return BtcKinNetwork::find_by_hrp(prefix);
+        }
     }
+    return None;
 }
 
 fn decode_base58(addr: &str) -> result::Result<Vec<u8>, LibAddressError> {
@@ -419,36 +423,36 @@ mod tests {
         let coin = coin_info_from_param("BITCOIN", "MAINNET", "P2WPKH", "").unwrap();
         assert!(BtcKinAddress::is_valid(
             "3Js9bGaZSQCNLudeGRHL4NExVinc25RbuG",
-            &coin
+            &coin,
         ));
 
         let coin = coin_info_from_param("BITCOIN", "MAINNET", "NONE", "").unwrap();
         assert!(BtcKinAddress::is_valid(
             "1Gx9QwpQBFnAjF27Uiz3ea2zYBDrLx31bw",
-            &coin
+            &coin,
         ));
 
         let coin = coin_info_from_param("BITCOIN", "MAINNET", "VERSION_0", "").unwrap();
         assert!(BtcKinAddress::is_valid(
             "bc1qnfv46v0wtarc6n82dnehtvzj2gtnqzjhj5wxqj",
-            &coin
+            &coin,
         ));
 
         let coin = coin_info_from_param("LITECOIN", "MAINNET", "NONE", "").unwrap();
         assert!(BtcKinAddress::is_valid(
             "Ldfdegx3hJygDuFDUA7Rkzjjx8gfFhP9DP",
-            &coin
+            &coin,
         ));
         let coin = coin_info_from_param("LITECOIN", "MAINNET", "P2WPKH", "").unwrap();
         assert!(BtcKinAddress::is_valid(
             "MR5Hu9zXPX3o9QuYNJGft1VMpRP418QDfW",
-            &coin
+            &coin,
         ));
 
         let coin = coin_info_from_param("LITECOIN", "MAINNET", "P2WPKH", "").unwrap();
         assert!(!BtcKinAddress::is_valid(
             "MR5Hu9zXPX3o9QuYNJGft1VMpRP418QDf",
-            &coin
+            &coin,
         ));
 
         let coin = coin_info_from_param("LITECOIN", "MAINNET", "P2WPKH", "").unwrap();

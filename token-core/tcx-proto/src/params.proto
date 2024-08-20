@@ -191,6 +191,7 @@ message DeriveSubAccountsParam {
   string segWit = 4;
   repeated string relativePaths = 5;
   string extendedPublicKey = 6;
+  string hrp = 7;
 }
 
 message DeriveSubAccountsResult {

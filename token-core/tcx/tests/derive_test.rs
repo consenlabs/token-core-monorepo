@@ -495,6 +495,7 @@ pub fn test_derive_btc_legacy_sub_accounts() {
             seg_wit: "NONE".to_string(),
             relative_paths: vec!["0/0".to_string(), "0/1".to_string(), "1/0".to_string()],
             extended_public_key: accounts.accounts[0].extended_public_key.to_string(),
+            hrp: "".to_string(),
         };
 
         let result_bytes = derive_sub_accounts(&encode_message(params).unwrap()).unwrap();
@@ -536,6 +537,7 @@ pub fn test_derive_btc_p2wpkh_sub_accounts() {
             seg_wit: "P2WPKH".to_string(),
             relative_paths: vec!["0/0".to_string(), "0/1".to_string(), "1/0".to_string()],
             extended_public_key: accounts.accounts[0].extended_public_key.to_string(),
+            hrp: "".to_string(),
         };
 
         let result_bytes = derive_sub_accounts(&encode_message(params).unwrap()).unwrap();
@@ -577,6 +579,7 @@ pub fn test_derive_eth_sub_accounts() {
             seg_wit: "".to_string(),
             relative_paths: vec!["0/0".to_string(), "0/1".to_string()],
             extended_public_key: accounts.accounts[0].extended_public_key.to_string(),
+            hrp: "".to_string(),
         };
 
         let result_bytes = derive_sub_accounts(&encode_message(params).unwrap()).unwrap();
@@ -589,6 +592,65 @@ pub fn test_derive_eth_sub_accounts() {
             "0x80427Ae1f55bCf60ee4CD2db7549b8BC69a74303",
             result.accounts[1].address
         );
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_derive_cosmos_sub_accounts() {
+    run_test(|| {
+        let derivation = Derivation {
+            chain_type: "COSMOS".to_string(),
+            path: "m/44'/118'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+            hrp: "cosmos".to_string(),
+        };
+
+        let (_, accounts) = import_and_derive(derivation);
+        let params = DeriveSubAccountsParam {
+            chain_type: "COSMOS".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            relative_paths: vec!["0/0".to_string(), "0/1".to_string()],
+            extended_public_key: accounts.accounts[0].extended_public_key.to_string(),
+            hrp: "cosmos".to_string(),
+        };
+
+        let result_bytes = derive_sub_accounts(&encode_message(params).unwrap()).unwrap();
+        let result = DeriveSubAccountsResult::decode(result_bytes.as_slice()).unwrap();
+        assert_eq!(
+            "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992",
+            result.accounts[0].address
+        );
+        assert_eq!(
+            "cosmos1nkujjlktqdue52xc0k09yzc7h3xswsfpl568zc",
+            result.accounts[1].address
+        );
+
+        let params = DeriveSubAccountsParam {
+            chain_type: "COSMOS".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            relative_paths: vec!["0/0".to_string(), "0/1".to_string()],
+            extended_public_key: accounts.accounts[0].extended_public_key.to_string(),
+            hrp: "osmo".to_string(),
+        };
+
+        let result_bytes = derive_sub_accounts(&encode_message(params).unwrap()).unwrap();
+        let result = DeriveSubAccountsResult::decode(result_bytes.as_slice()).unwrap();
+        assert_eq!(
+            "osmo1ajz9y0x3wekez7tz2td2j6l2dftn28v2jk74nc",
+            result.accounts[0].address
+        );
+        assert_eq!(
+            "osmo1nkujjlktqdue52xc0k09yzc7h3xswsfph0fh52",
+            result.accounts[1].address
+        )
     })
 }
 
