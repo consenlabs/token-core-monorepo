@@ -40,6 +40,8 @@ pub enum ApduError {
     ImkeyInMenuPage,
     #[error("imkey_pin_not_verified")]
     ImkeyPinNotVerified,
+    #[error("imkey_mnemonic_check_fail")]
+    ImkeyMnemonicCheckFail,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]
