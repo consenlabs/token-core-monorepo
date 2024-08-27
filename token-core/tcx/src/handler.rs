@@ -1296,6 +1296,8 @@ pub fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 &param.curve,
             )?;
             coin_info.derivation_path = relative_path.to_string();
+            coin_info.hrp = param.hrp.to_string();
+
             let acc: Account = derive_sub_account(&xpub, &coin_info)?;
 
             let enc_xpub = encrypt_xpub(&param.extended_public_key.to_string())?;
@@ -1394,6 +1396,7 @@ mod tests {
                 "BITCOIN".to_string(),
                 "BITCOINCASH".to_string(),
                 "LITECOIN".to_string(),
+                "DOGECOIN".to_string(),
             ]
         );
         assert_eq!(decoded.curve, CurveType::SECP256k1);

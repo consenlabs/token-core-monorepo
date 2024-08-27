@@ -680,7 +680,8 @@ pub fn test_backup_private_key() {
             vec![
                 "BITCOIN".to_string(),
                 "BITCOINCASH".to_string(),
-                "LITECOIN".to_string()
+                "LITECOIN".to_string(),
+                "DOGECOIN".to_string()
             ],
             import_result.identified_chain_types
         );
