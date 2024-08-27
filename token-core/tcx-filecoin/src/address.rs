@@ -161,6 +161,7 @@ mod tests {
         ];
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "FILECOIN".to_string(),
             derivation_path: "".to_string(),
             curve: CurveType::BLS,
@@ -257,6 +258,7 @@ mod tests {
         ];
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "FILECOIN".to_string(),
             derivation_path: "".to_string(),
             curve: CurveType::SECP256k1,

@@ -192,6 +192,7 @@ message DeriveSubAccountsParam {
   repeated string relativePaths = 5;
   string extendedPublicKey = 6;
   string hrp = 7;
+  string chain_id = 8;
 }
 
 message DeriveSubAccountsResult {

@@ -265,6 +265,7 @@ mod tests {
             .unwrap();
 
         let coin_infos = [CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,

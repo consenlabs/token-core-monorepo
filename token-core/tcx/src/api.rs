@@ -552,6 +552,8 @@ pub struct DeriveSubAccountsParam {
     pub extended_public_key: ::prost::alloc::string::String,
     #[prost(string, tag = "7")]
     pub hrp: ::prost::alloc::string::String,
+    #[prost(string, tag = "8")]
+    pub chain_id: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

@@ -25,6 +25,7 @@ Declare blockchain wallet information to [coin_info.rs](tcx-constans/src/coin_in
 
 ```rust
 coin_infos.push(CoinInfo {
+chain_id: "".to_string(),
     coin: "BITCOIN".to_string(), // Chain full name
     derivation_path: "m/44'/0'/0'/0/0".to_string(), // BIP44 or SLIP44 path
     curve: CurveType::SECP256k1, // Curve type, now only support secp256k1
@@ -32,6 +33,7 @@ coin_infos.push(CoinInfo {
     seg_wit: "NONE".to_string(), // Segwit type, options is ['', 'NONE', 'P2WPKH']
 });
 coin_infos.push(CoinInfo {
+chain_id: "".to_string(),
     coin: "BITCOIN".to_string(),
     derivation_path: "m/44'/1'/0'/0/0".to_string(),
     curve: CurveType::SECP256k1,

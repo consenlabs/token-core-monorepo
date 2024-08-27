@@ -341,6 +341,7 @@ mod tests {
 
         let coin_infos = [
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/44'/0'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -349,6 +350,7 @@ mod tests {
                 hrp: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/49'/0'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -357,6 +359,7 @@ mod tests {
                 hrp: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/84'/0'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -365,6 +368,7 @@ mod tests {
                 hrp: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/86'/0'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -373,6 +377,7 @@ mod tests {
                 hrp: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/44'/1'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -381,6 +386,7 @@ mod tests {
                 hrp: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/49'/1'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -389,6 +395,7 @@ mod tests {
                 hrp: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/84'/1'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -397,6 +404,7 @@ mod tests {
                 hrp: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/86'/1'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -405,6 +413,7 @@ mod tests {
                 hrp: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "TEZOS".to_string(),
                 derivation_path: "m/44'/1729'/0'/0'".to_string(),
                 curve: CurveType::ED25519,
@@ -438,6 +447,7 @@ mod tests {
             HdKeystore::from_mnemonic(MNEMONIC_WITH_WHITESPACE, TEST_PASSWORD, Metadata::default())
                 .unwrap();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -547,6 +557,7 @@ mod tests {
         let mut keystore =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -614,6 +625,7 @@ mod tests {
         let mut keystore =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -658,6 +670,7 @@ mod tests {
             .unwrap();
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -682,6 +695,7 @@ mod tests {
 
         let coin_infos = [
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/44'/0'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -690,6 +704,7 @@ mod tests {
                 hrp: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/49'/0'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -698,6 +713,7 @@ mod tests {
                 hrp: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/84'/0'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -706,6 +722,7 @@ mod tests {
                 hrp: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/84'/0'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -714,6 +731,7 @@ mod tests {
                 hrp: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/84'/0'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -746,6 +764,7 @@ mod tests {
             .unwrap();
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/49'/1'/0'".to_string(),
             curve: CurveType::SECP256k1,
@@ -757,6 +776,7 @@ mod tests {
         assert_eq!(acc.ext_pub_key, "tpubDD7tXK8KeQ3YY83yWq755fHY2JW8Ha8Q765tknUM5rSvjPcGWfUppDFMpQ1ScziKfW3ZNtZvAD7M3u7bSs7HofjTD3KP3YxPK7X6hwV8Rk2");
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/49'/1'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -780,6 +800,7 @@ mod tests {
             .unwrap();
 
         let mut coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/84'/0'/0'".to_string(),
             curve: CurveType::SECP256k1,
