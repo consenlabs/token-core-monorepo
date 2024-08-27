@@ -24,6 +24,7 @@ lazy_static! {
     pub static ref XPUB_COMMON_IV: RwLock<String> =
         RwLock::new("9C0C30889CBCC5E01AB5B2BB88715799".to_string());
     pub static ref OPERATING_SYSTEM: RwLock<String> = RwLock::new("".to_string());
+    pub static ref IMKEY_SERVER_URL: RwLock<String> = RwLock::new("https://imkeyserver.com:10444/imkey".to_string());
 }
 
 #[macro_use]

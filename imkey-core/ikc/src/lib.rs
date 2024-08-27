@@ -103,6 +103,9 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
         "init_imkey_core_x" => {
             landingpad(|| device_manager::init_imkey_core(&action.param.unwrap().value))
         }
+        "init_imkey_server" => {
+            landingpad(|| device_manager::init_imkey_server(&action.param.unwrap().value))
+        }
         // imkey manager
         "app_download" => landingpad(|| device_manager::app_download(&action.param.unwrap().value)),
         "app_update" => landingpad(|| device_manager::app_update(&action.param.unwrap().value)),

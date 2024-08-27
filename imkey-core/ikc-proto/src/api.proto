@@ -162,3 +162,7 @@ message GetPublicKeysParam {
 message GetPublicKeysResult {
     repeated string publicKeys = 1;
 }
+
+message InitImKeyServerParam {
+    string url = 1;
+}

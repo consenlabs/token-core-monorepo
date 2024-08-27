@@ -1,7 +1,7 @@
-use crate::api::{CommonResponse, InitImKeyCoreXParam};
+use crate::api::{CommonResponse, InitImKeyCoreXParam, InitImKeyServerParam};
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
-use ikc_common::applet;
+use ikc_common::{applet, IMKEY_SERVER_URL};
 use ikc_common::constants;
 use ikc_common::{OPERATING_SYSTEM, XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
 use ikc_device::device_manager;
@@ -35,6 +35,12 @@ pub fn init_imkey_core(data: &[u8]) -> Result<Vec<u8>> {
     *XPUB_COMMON_IV.write() = xpub_common_iv.to_string();
     *IS_DEBUG.write() = is_debug;
     *OPERATING_SYSTEM.write() = system;
+    Ok(vec![])
+}
+
+pub fn init_imkey_server(data: &[u8]) -> Result<Vec<u8>> {
+    let param = InitImKeyServerParam::decode(data).unwrap();
+    *IMKEY_SERVER_URL.write() = param.url;
     Ok(vec![])
 }
 
