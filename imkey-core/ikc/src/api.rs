@@ -265,3 +265,9 @@ pub struct GetPublicKeysResult {
     #[prost(string, repeated, tag = "1")]
     pub public_keys: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct InitImKeyServerParam {
+    #[prost(string, tag = "1")]
+    pub url: ::prost::alloc::string::String,
+}
