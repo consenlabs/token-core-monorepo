@@ -1,4 +1,4 @@
-name: Build Android Release
+name: Run Tcx Unit Testing
 
 on:
   pull_request:
