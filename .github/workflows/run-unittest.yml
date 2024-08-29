@@ -61,4 +61,4 @@ jobs:
 
       - name: Run TCX Unit Testing
         run: |
-          make test-tcx:
+          make test-tcx
