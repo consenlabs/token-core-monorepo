@@ -45,6 +45,7 @@ mod tests {
             Keystore::Hd(HdKeystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, meta).unwrap());
 
         let _coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "COSMOS".to_string(),
             derivation_path: "m/44'/118'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,

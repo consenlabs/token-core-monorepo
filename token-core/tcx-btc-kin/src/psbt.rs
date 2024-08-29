@@ -440,6 +440,7 @@ mod tests {
     fn test_sign_psbt_no_script() {
         let mut hd = sample_hd_keystore();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/86'/1'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -480,6 +481,7 @@ mod tests {
     fn test_sign_psbt_script() {
         let mut hd = sample_hd_keystore();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/86'/1'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,

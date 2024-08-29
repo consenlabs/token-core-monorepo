@@ -20,6 +20,7 @@ use tcx_constants::{OTHER_MNEMONIC, TEST_MNEMONIC, TEST_PASSWORD};
 use tcx_constants::{TEST_PRIVATE_KEY, TEST_WIF};
 
 use sp_core::ByteArray;
+use tcx::api::derive_accounts_param::Key::Password;
 
 use tcx::handler::*;
 
@@ -433,9 +434,9 @@ pub fn test_get_public_keys_ethereum2() {
         let public_key_result: GetPublicKeysResult =
             GetPublicKeysResult::decode(ret_bytes.as_slice()).unwrap();
         assert_eq!(
-                "0x99833eeee8cfad1bb7a82a5ceecca02590eeb342ad491c64c270fdb9bd739c398b7f8ca8608bfada25ba4efb5d8e5653",
-                public_key_result.public_keys[0]
-            );
+            "0x99833eeee8cfad1bb7a82a5ceecca02590eeb342ad491c64c270fdb9bd739c398b7f8ca8608bfada25ba4efb5d8e5653",
+            public_key_result.public_keys[0]
+        );
     })
 }
 
@@ -489,6 +490,7 @@ pub fn test_derive_btc_legacy_sub_accounts() {
 
         let (_wallet, accounts) = import_and_derive(derivation);
         let params = DeriveSubAccountsParam {
+            chain_id: "".to_string(),
             chain_type: "BITCOIN".to_string(),
             curve: "secp256k1".to_string(),
             network: "MAINNET".to_string(),
@@ -531,6 +533,7 @@ pub fn test_derive_btc_p2wpkh_sub_accounts() {
 
         let (_wallet, accounts) = import_and_derive(derivation);
         let params = DeriveSubAccountsParam {
+            chain_id: "".to_string(),
             chain_type: "BITCOIN".to_string(),
             curve: "secp256k1".to_string(),
             network: "MAINNET".to_string(),
@@ -573,6 +576,7 @@ pub fn test_derive_eth_sub_accounts() {
 
         let (_, accounts) = import_and_derive(derivation);
         let params = DeriveSubAccountsParam {
+            chain_id: "".to_string(),
             chain_type: "ETHEREUM".to_string(),
             curve: "secp256k1".to_string(),
             network: "MAINNET".to_string(),
@@ -611,6 +615,7 @@ pub fn test_derive_cosmos_sub_accounts() {
 
         let (_, accounts) = import_and_derive(derivation);
         let params = DeriveSubAccountsParam {
+            chain_id: "".to_string(),
             chain_type: "COSMOS".to_string(),
             curve: "secp256k1".to_string(),
             network: "MAINNET".to_string(),
@@ -632,6 +637,7 @@ pub fn test_derive_cosmos_sub_accounts() {
         );
 
         let params = DeriveSubAccountsParam {
+            chain_id: "".to_string(),
             chain_type: "COSMOS".to_string(),
             curve: "secp256k1".to_string(),
             network: "MAINNET".to_string(),
@@ -651,6 +657,72 @@ pub fn test_derive_cosmos_sub_accounts() {
             "osmo1nkujjlktqdue52xc0k09yzc7h3xswsfph0fh52",
             result.accounts[1].address
         )
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_derive_verify_hrp() {
+    run_test(|| {
+        let derivation = Derivation {
+            chain_type: "COSMOS".to_string(),
+            path: "m/44'/118'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "osmosis-1".to_string(),
+            curve: "secp256k1".to_string(),
+            hrp: "cosmos".to_string(),
+        };
+
+        let wallet = import_default_wallet();
+
+        let derivation_param = DeriveAccountsParam {
+            id: wallet.id.to_string(),
+            derivations: vec![derivation],
+            key: Some(Password(TEST_PASSWORD.to_string())),
+        };
+
+        let result = derive_accounts(&encode_message(derivation_param).unwrap());
+        assert_eq!(
+            format!("{}", result.err().unwrap()),
+            "chain_id_and_hrp_not_match"
+        );
+
+        let derivation = Derivation {
+            chain_type: "COSMOS".to_string(),
+            path: "m/44'/118'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "cosmoshub-4".to_string(),
+            curve: "secp256k1".to_string(),
+            hrp: "cosmos".to_string(),
+        };
+
+        let derivation_param = DeriveAccountsParam {
+            id: wallet.id.to_string(),
+            derivations: vec![derivation],
+            key: Some(Password(TEST_PASSWORD.to_string())),
+        };
+
+        let result = derive_accounts(&encode_message(derivation_param).unwrap()).unwrap();
+
+        let account = DeriveAccountsResult::decode(result.as_slice()).unwrap();
+        let params = DeriveSubAccountsParam {
+            chain_id: "osmosis-1".to_string(),
+            chain_type: "COSMOS".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            relative_paths: vec!["0/0".to_string(), "0/1".to_string()],
+            extended_public_key: account.accounts[0].extended_public_key.to_string(),
+            hrp: "cosmos".to_string(),
+        };
+
+        let result = derive_sub_accounts(&encode_message(params).unwrap());
+        assert_eq!(
+            format!("{}", result.err().unwrap()),
+            "chain_id_and_hrp_not_match"
+        );
     })
 }
 

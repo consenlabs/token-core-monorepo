@@ -71,6 +71,7 @@ mod test_super {
             (
                 "12pWV6LvG4iAfNpFNTvvkWy3H9H8wtCkjiXupAzo2BCmPViM",
                 CoinInfo {
+                    chain_id: "".to_string(),
                     coin: "POLKADOT".to_string(),
                     derivation_path: "//imToken//polakdot/0".to_string(),
                     curve: CurveType::SR25519,
@@ -82,6 +83,7 @@ mod test_super {
             (
                 "EPq15Rj2eTcyVdBBXgyWKVta7Zj4FTo7beB3YHPwtPjxEkr",
                 CoinInfo {
+                    chain_id: "".to_string(),
                     coin: "KUSAMA".to_string(),
                     derivation_path: "//imToken//kusama/0".to_string(),
                     curve: CurveType::SR25519,
@@ -101,6 +103,7 @@ mod test_super {
         let pub_key = sec_key.public_key();
         let typed_key = TypedPublicKey::SR25519(pub_key);
         let mut kusama_coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "KUSAMA".to_string(),
             derivation_path: "//imToken//kusama/0".to_string(),
             curve: CurveType::SR25519,
@@ -122,6 +125,7 @@ mod test_super {
     #[test]
     fn test_address_is_valid() {
         let mut coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "KUSAMA".to_string(),
             derivation_path: "//imToken//kusama/0".to_string(),
             curve: CurveType::SR25519,
@@ -150,6 +154,7 @@ mod test_super {
     #[test]
     fn test_address_is_invalid() {
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "KUSAMA".to_string(),
             derivation_path: "//imToken//kusama/0".to_string(),
             curve: CurveType::SR25519,

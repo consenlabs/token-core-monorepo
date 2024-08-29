@@ -68,6 +68,7 @@ fn parse_coin_info_from_legacy_ks(value: Value) -> Result<(CoinInfo, String)> {
         };
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: chain_str.to_string(),
             derivation_path,
             curve: CurveType::SECP256k1,
@@ -142,6 +143,7 @@ fn parse_coin_info_from_legacy_tcx_ks(legacy_tcx_ks: Value) -> Result<(CoinInfo,
             .unwrap_or_default()
             .to_string();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin,
             derivation_path,
             curve,

@@ -90,6 +90,7 @@ mod test {
     #[test]
     fn from_public_key_test() {
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "TEZOS".to_string(),
             derivation_path: "".to_string(),
             curve: CurveType::ED25519,
@@ -129,6 +130,7 @@ mod test {
     #[test]
     fn is_valid_test() {
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "TEZOS".to_string(),
             derivation_path: "".to_string(),
             curve: CurveType::ED25519,
@@ -152,6 +154,7 @@ mod test {
     #[test]
     fn cross_test_tw() {
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "TEZOS".to_string(),
             derivation_path: "".to_string(),
             curve: CurveType::ED25519,

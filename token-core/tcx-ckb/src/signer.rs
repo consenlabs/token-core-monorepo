@@ -299,6 +299,7 @@ mod tests {
         };
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "NERVOS".to_string(),
             derivation_path: "m/44'/309'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -435,6 +436,7 @@ mod tests {
         ks.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "NERVOS".to_string(),
             derivation_path: "".to_string(),
             curve: CurveType::SECP256k1,
@@ -518,6 +520,7 @@ mod tests {
         };
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "NERVOS".to_string(),
             derivation_path: "m/44'/309'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -584,6 +587,7 @@ mod tests {
         };
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "NERVOS".to_string(),
             derivation_path: "m/44'/309'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -654,6 +658,7 @@ mod tests {
         };
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "NERVOS".to_string(),
             derivation_path: "m/44'/309'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -692,6 +697,7 @@ mod tests {
         let tx_hash = "0x719933ec055272734ab709a80492edb44c083e6b675e5c37e5bb3f720fe88e5e";
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "NERVOS".to_string(),
             derivation_path: "m/44'/309'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -739,6 +745,7 @@ mod tests {
         let tx_hash = "0x719933ec055272734ab709a80492edb44c083e6b675e5c37e5bb3f720fe88e5e";
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "NERVOS".to_string(),
             derivation_path: "m/44'/309'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -886,6 +893,7 @@ mod tests {
         };
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "NERVOS".to_string(),
             derivation_path: "m/44'/309'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,

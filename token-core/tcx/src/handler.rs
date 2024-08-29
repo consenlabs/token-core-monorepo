@@ -105,6 +105,7 @@ fn derive_account(keystore: &mut Keystore, derivation: &Derivation) -> Result<Ac
     )?;
     coin_info.derivation_path = derivation.path.to_owned();
     coin_info.hrp = derivation.hrp.to_string();
+    coin_info.chain_id = derivation.chain_id.to_string();
 
     derive_account_internal(&coin_info, keystore)
 }
@@ -875,6 +876,7 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
         let pub_key = &public_keys[idx];
         let derivation = &param.derivations[idx];
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: derivation.chain_type.to_string(),
             derivation_path: derivation.path.to_string(),
             curve: CurveType::from_str(&derivation.curve),
@@ -1297,6 +1299,7 @@ pub fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
             )?;
             coin_info.derivation_path = relative_path.to_string();
             coin_info.hrp = param.hrp.to_string();
+            coin_info.chain_id = param.chain_id.to_string();
 
             let acc: Account = derive_sub_account(&xpub, &coin_info)?;
 
@@ -1327,6 +1330,7 @@ pub fn mnemonic_to_public(data: &[u8]) -> Result<Vec<u8>> {
     let param = MnemonicToPublicKeyParam::decode(data)?;
     let public_key = tcx_primitive::mnemonic_to_public(&param.mnemonic, &param.path, &param.curve)?;
     let coin_info = CoinInfo {
+        chain_id: "".to_string(),
         derivation_path: param.path,
         curve: CurveType::from_str(&param.curve),
         coin: param.encoding,

@@ -355,6 +355,7 @@ mod tests {
         let bitcoin_xprv_str = "xprv9yrdwPSRnvomqFK4u1y5uW2SaXS2Vnr3pAYTjJjbyRZR8p9BwoadRsCxtgUFdAKeRPbwvGRcCSYMV69nNK4N2kadevJ6L5iQVy1SwGKDTHQ";
         let anprv = Bip32DeterministicPrivateKey::from_ss58check(bitcoin_xprv_str).unwrap();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "LITECOIN".to_string(),
             derivation_path: "m/44'/2'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -375,6 +376,7 @@ mod tests {
             .unwrap()
             .deterministic_public_key();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "LITECOIN".to_string(),
             derivation_path: "m/44'/2'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -467,6 +469,7 @@ mod tests {
                 .unwrap()
                 .public_key();
         let mut coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/2'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -504,6 +507,7 @@ mod tests {
         let mut hd = sample_hd_keystore();
         let account = hd
             .derive_coin::<BtcKinAddress>(&CoinInfo {
+                chain_id: "".to_string(),
                 coin: "DOGECOIN".to_string(),
                 derivation_path: "m/44'/3'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -535,6 +539,7 @@ mod tests {
 
         for (coin, network, path, xpub) in test_cases {
             let coin_info = CoinInfo {
+                chain_id: "".to_string(),
                 coin: coin.to_string(),
                 derivation_path: path.to_string(),
                 curve: CurveType::SECP256k1,
@@ -556,6 +561,7 @@ mod tests {
         )
         .unwrap();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/84'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,

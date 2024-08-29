@@ -248,6 +248,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
         }
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: params.chain_type.clone(),
             derivation_path: params.derivation_path.clone(),
             curve: params.curve,
