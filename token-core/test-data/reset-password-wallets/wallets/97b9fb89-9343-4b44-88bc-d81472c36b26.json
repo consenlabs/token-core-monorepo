@@ -1,0 +1,42 @@
+{
+  "crypto": {
+    "cipher": "aes-128-ctr",
+    "cipherparams": {
+      "iv": "3e923714ad24027b805455ceeaaa1a07"
+    },
+    "ciphertext": "c4628170038a4ead6c8a81474300d2a343b61d10760b384a87d6c11db8cfed9630c8408233d2c932bcae8ef7ad70a4f16b9b993fc56a7f9d832d2ca4a7ee4b98e3649bcdaa521f24bcd93895417e3e15f47871aa529ed83dc388fd8fc6c566421339d7ac74fe906603989ed89402c5",
+    "kdf": "pbkdf2",
+    "kdfparams": {
+      "c": 10240,
+      "dklen": 32,
+      "prf": "hmac-sha256",
+      "salt": "00e485520e2abb0cf2f97c0fd7c0b07d4cb126c5243b68ee5837c63902ef9c5c"
+    },
+    "mac": "4f3c564a4ec14076ad752af4a7656ce909d52f06329a72a3fcafa0b991a2fb5d"
+  },
+  "id": "97b9fb89-9343-4b44-88bc-d81472c36b26",
+  "version": 44,
+  "address": "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB",
+  "encMnemonic": {
+    "encStr": "0a4e8c0506486f4aa8053e53c400fc2f38a7a90c6417eaaeca9e11c0f198f4597cdfd0d02eff2175a232f6bbcf867dee1858dbf93ed283cd94401bd5d3ada14dc6d42b10feaae4c5db97",
+    "nonce": "5025c706a4b2df9b4899dd7d0bd2b403"
+  },
+  "info": {
+    "curve": "spec256k1",
+    "purpuse": "sign"
+  },
+  "mnemonicPath": "m/49'/1'/0'",
+  "xpub": "tpubDCwNET9ErXmBracx3ZBfi6rXQZRjYkpitFe23FAW9M3RcCw4aveNC4SAV5yYrFDjtP3b46eFfv4VtiYP3EXoTZsbnJia2yNznExS8EEcACv",
+  "imTokenMeta": {
+    "backup": [],
+    "chainType": "BITCOIN",
+    "mode": "NORMAL",
+    "name": "BTC",
+    "network": "TESTNET",
+    "passwordHint": "",
+    "segWit": "P2WPKH",
+    "source": "RECOVERED_IDENTITY",
+    "timestamp": 1719541938,
+    "walletType": "HD"
+  }
+}
