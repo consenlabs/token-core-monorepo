@@ -20,3 +20,5 @@ wallets-ios-2_14_1/identity-wallet-ids.json
 wallets/_migrated.json
 !identity-keystore-delete
 !identity-keystore-delete/wallets/*
+!reset-password-wallets
+!reset-password-wallets/**

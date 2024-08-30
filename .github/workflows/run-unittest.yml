@@ -1,0 +1,64 @@
+name: Run Tcx Unit Testing
+
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.number || github.sha }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+
+jobs:
+  build:
+    name: Run Tcx Unit Testing
+    runs-on: macos-12
+    steps:
+      - name: Get the latest commit SHA
+        id: sha
+        uses: actions/github-script@v6
+        with:
+          result-encoding: string
+          script: |
+            const { owner, repo, number } = context.issue
+            const pr = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: number,
+            })
+            return pr.data.head.sha
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.sha.outputs.result }}
+          fetch-depth: 5
+
+      - name: Cache
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ~/.rustup
+            target
+          key: ${{ runner.os }}-nightly
+
+      - name: Install Rust
+        run: |
+          rustup toolchain install nightly-2022-10-31
+          rustup default nightly-2022-10-31-x86_64-apple-darwin
+          rustup show
+
+      - name: Install dependency
+        run: |
+          brew install protobuf
+
+      - name: Run TCX Unit Testing
+        run: |
+          make test-tcx
