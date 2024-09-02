@@ -1,8 +1,8 @@
 use crate::constants::{BTC_AID, COSMOS_AID, EOS_AID, ETH_AID, LC_MAX};
 use crate::error::ApduError;
+use crate::hex::ToHex;
 use crate::Result;
 use hex;
-use rustc_serialize::hex::ToHex;
 
 pub trait CoinCommonApdu: Default {
     fn select_applet() -> String;
