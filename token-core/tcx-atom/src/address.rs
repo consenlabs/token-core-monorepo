@@ -1,10 +1,8 @@
-use anyhow::{anyhow, format_err};
+use anyhow::anyhow;
 use core::str::FromStr;
-use std::collections::HashMap;
-use std::sync::RwLock;
 
+use crate::hrps::CHAIN_ID_HRP_MAP;
 use bech32::{FromBase32, ToBase32, Variant};
-use lazy_static::lazy_static;
 use tcx_common::{ripemd160, sha256};
 use tcx_constants::CoinInfo;
 use tcx_keystore::{Address, Result};
@@ -13,39 +11,18 @@ use tcx_primitive::TypedPublicKey;
 // size of address
 pub const LENGTH: usize = 20;
 
-// pub const HRP_MAP:
-lazy_static! {
-    static ref CHAIN_ID_HRP_MAP: RwLock<HashMap<String, String>> = {
-        let mut chain_id_hrp_map = HashMap::new();
-        chain_id_hrp_map.insert("cosmoshub-4".to_string(), "cosmos".to_string());
-        chain_id_hrp_map.insert("osmosis-1".to_string(), "osmo".to_string());
-        chain_id_hrp_map.insert("celestia".to_string(), "celestia".to_string());
-        chain_id_hrp_map.insert("neutron-1".to_string(), "neutron".to_string());
-        chain_id_hrp_map.insert("noble-1".to_string(), "noble".to_string());
-        chain_id_hrp_map.insert("stride-1".to_string(), "stride".to_string());
-        chain_id_hrp_map.insert("stargaze-1".to_string(), "stars".to_string());
-        chain_id_hrp_map.insert("axelar-dojo-1".to_string(), "axelar".to_string());
-        chain_id_hrp_map.insert("juno-1".to_string(), "juno".to_string());
-        chain_id_hrp_map.insert("injective-1".to_string(), "inj".to_string());
-        chain_id_hrp_map.insert("dydx-mainnet-1".to_string(), "dydx".to_string());
-        chain_id_hrp_map.insert("dymension_1100-1".to_string(), "dym".to_string());
-        chain_id_hrp_map.insert("secret-4".to_string(), "secret".to_string());
-        chain_id_hrp_map.insert("archway-1".to_string(), "archway".to_string());
-        chain_id_hrp_map.insert("akashnet-2".to_string(), "akash".to_string());
-        chain_id_hrp_map.insert("core-1".to_string(), "persistence".to_string());
-        RwLock::new(chain_id_hrp_map)
-    };
-}
-
 fn verify_hrp(coin_info: &CoinInfo) -> Result<()> {
     let map = CHAIN_ID_HRP_MAP.read().unwrap();
     let embed_hrp = map.get(&coin_info.chain_id);
-    if (embed_hrp.is_some()) {
-        if (&coin_info.hrp != embed_hrp.unwrap()) {
-            return Err(anyhow!("chain_id_and_hrp_not_match"));
-        }
+
+    let Some(embed_hrp) = embed_hrp else {
+        return Err(anyhow!("unknown_chain_id"))
+    };
+    if (&coin_info.hrp != embed_hrp) {
+        Err(anyhow!("chain_id_and_hrp_not_match"))
+    } else {
+        Ok(())
     }
-    return Ok(());
 }
 
 #[derive(PartialEq, Eq, Clone)]
@@ -118,7 +95,7 @@ mod tests {
 
     fn get_test_coin() -> CoinInfo {
         CoinInfo {
-            chain_id: "".to_string(),
+            chain_id: "cosmoshub-4".to_string(),
             coin: "COSMOS".to_string(),
             derivation_path: "m/44'/118'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -220,28 +197,32 @@ mod tests {
         let testcase = [
             (
                 "dydx",
+                "dydx-mainnet-1",
                 "m/44'/118'/0'/0/0",
                 "dydx1m566v5rcklnac8vc0dftfu4lnvznhlu7yg830z",
             ),
             (
                 "osmo",
+                "osmosis-1",
                 "m/44'/118'/0'/0/0",
                 "osmo1m566v5rcklnac8vc0dftfu4lnvznhlu79269e8",
             ),
             (
                 "neutron",
+                "neutron-1",
                 "m/44'/118'/0'/0/0",
                 "neutron1m566v5rcklnac8vc0dftfu4lnvznhlu7fwqh4j",
             ),
             (
                 "stride",
+                "stride-1",
                 "m/44'/118'/0'/0/0",
                 "stride1m566v5rcklnac8vc0dftfu4lnvznhlu7w6ffme",
             ),
         ];
-        for (hrp, path, expected_addr) in testcase {
+        for (hrp, chain_id, path, expected_addr) in testcase {
             let coin_info = CoinInfo {
-                chain_id: "".to_string(),
+                chain_id: chain_id.to_string(),
                 coin: "COSMOS".to_string(),
                 derivation_path: path.to_string(),
                 curve: CurveType::SECP256k1,
@@ -256,6 +237,7 @@ mod tests {
             assert_eq!(address, expected_addr)
         }
     }
+
     #[test]
     fn test_chain_id_hrp_verify() {
         let prv_str = "80e81ea269e66a0a05b11236df7919fb7fbeedba87452d667489d7403a02f005";
@@ -278,6 +260,19 @@ mod tests {
             format!("{}", address.err().unwrap()),
             "chain_id_and_hrp_not_match"
         );
+
+        let coin_info = CoinInfo {
+            chain_id: "unknown-chainid".to_string(),
+            coin: "COSMOS".to_string(),
+            derivation_path: "m/44'/118'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            hrp: "cosmos".to_string(),
+        };
+
+        let address = AtomAddress::from_public_key(&pub_key, &coin_info);
+        assert_eq!(format!("{}", address.err().unwrap()), "unknown_chain_id");
 
         let coin_info = CoinInfo {
             chain_id: "cosmoshub-4".to_string(),

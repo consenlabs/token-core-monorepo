@@ -487,7 +487,7 @@ pub fn test_chain_cannot_export_private_key() {
             path: "m/44'/118'/0'/0/0".to_string(),
             network: "MAINNET".to_string(),
             seg_wit: "".to_string(),
-            chain_id: "".to_string(),
+            chain_id: "cosmoshub-4".to_string(),
             curve: "secp256k1".to_string(),
             hrp: "".to_string(),
         }];

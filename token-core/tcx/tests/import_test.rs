@@ -253,9 +253,9 @@ pub fn test_import_private_key() {
                 path: "pk_not_need_path".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
-                chain_id: "".to_string(),
+                chain_id: "cosmoshub-4".to_string(),
                 curve: "secp256k1".to_string(),
-                hrp: "".to_string(),
+                hrp: "cosmos".to_string(),
             },
             Derivation {
                 chain_type: "EOS".to_string(),
@@ -1449,6 +1449,7 @@ pub fn test_reset_password_mnemonic_old_tcx_ks() {
                 password_hint: "".to_string(),
                 overwrite_id: overwrite_id.to_string(),
             };
+            dbg!(overwrite_id.clone());
             let ret = call_api("import_mnemonic", import_param).unwrap();
             let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
 

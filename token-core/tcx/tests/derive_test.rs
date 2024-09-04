@@ -128,7 +128,7 @@ pub fn test_derive_accounts() {
                 path: "m/44'/118'/0'/0/0".to_string(),
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
-                chain_id: "".to_string(),
+                chain_id: "cosmoshub-4".to_string(),
                 curve: "secp256k1".to_string(),
                 hrp: "cosmos".to_string(),
             },
@@ -608,14 +608,14 @@ pub fn test_derive_cosmos_sub_accounts() {
             path: "m/44'/118'/0'/0/0".to_string(),
             network: "MAINNET".to_string(),
             seg_wit: "".to_string(),
-            chain_id: "".to_string(),
+            chain_id: "cosmoshub-4".to_string(),
             curve: "secp256k1".to_string(),
             hrp: "cosmos".to_string(),
         };
 
         let (_, accounts) = import_and_derive(derivation);
         let params = DeriveSubAccountsParam {
-            chain_id: "".to_string(),
+            chain_id: "cosmoshub-4".to_string(),
             chain_type: "COSMOS".to_string(),
             curve: "secp256k1".to_string(),
             network: "MAINNET".to_string(),
@@ -637,7 +637,7 @@ pub fn test_derive_cosmos_sub_accounts() {
         );
 
         let params = DeriveSubAccountsParam {
-            chain_id: "".to_string(),
+            chain_id: "osmosis-1".to_string(),
             chain_type: "COSMOS".to_string(),
             curve: "secp256k1".to_string(),
             network: "MAINNET".to_string(),
