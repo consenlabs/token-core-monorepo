@@ -347,7 +347,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -356,7 +355,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "P2WPKH".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -365,7 +363,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "VERSION_0".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -374,7 +371,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "VERSION_1".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -383,7 +379,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -392,7 +387,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "P2WPKH".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -401,7 +395,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "VERSION_0".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -410,7 +403,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "VERSION_1".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -419,7 +411,6 @@ mod tests {
                 curve: CurveType::ED25519,
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
         ];
 
@@ -453,7 +444,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "".to_string(),
         };
         let _ = keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
@@ -563,7 +553,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "".to_string(),
         };
         let _ = keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
@@ -631,7 +620,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "".to_string(),
         };
         let _ = keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
@@ -676,7 +664,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "".to_string(),
         };
 
         m.iter(|| {
@@ -701,7 +688,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -710,7 +696,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -719,7 +704,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -728,7 +712,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "VERSION_0".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -737,7 +720,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "VERSION_1".to_string(),
-                hrp: "".to_string(),
             },
         ];
 
@@ -770,7 +752,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "".to_string(),
         };
         let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
         assert_eq!(acc.ext_pub_key, "tpubDD7tXK8KeQ3YY83yWq755fHY2JW8Ha8Q765tknUM5rSvjPcGWfUppDFMpQ1ScziKfW3ZNtZvAD7M3u7bSs7HofjTD3KP3YxPK7X6hwV8Rk2");
@@ -782,7 +763,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "".to_string(),
         };
         let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
         assert_eq!(
@@ -806,7 +786,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "".to_string(),
         };
         let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
         assert_eq!(acc.ext_pub_key, "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V");

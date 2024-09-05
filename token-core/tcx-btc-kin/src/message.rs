@@ -109,7 +109,6 @@ impl MessageSigner<BtcMessageInput, BtcMessageOutput> for Keystore {
             curve: CurveType::SECP256k1,
             network: params.network.to_string(),
             seg_wit: params.seg_wit.to_string(),
-            hrp: "".to_string(),
         };
 
         let address = BtcKinAddress::from_public_key(&public_key, &coin_info)?;
@@ -160,7 +159,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "VERSION_0".to_string(),
-            hrp: "".to_string(),
         };
 
         let account = ks.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
@@ -185,7 +183,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "P2WPKH".to_string(),
-            hrp: "".to_string(),
         };
 
         let account = ks.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
@@ -222,7 +219,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "".to_string(),
         };
 
         let account = ks.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
@@ -260,7 +256,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "VERSION_0".to_string(),
-            hrp: "".to_string(),
         };
 
         let account = ks.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
@@ -297,7 +292,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "VERSION_1".to_string(),
-            hrp: "".to_string(),
         };
 
         let account = ks.derive_coin::<BtcKinAddress>(&coin_info).unwrap();

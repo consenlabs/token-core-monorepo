@@ -255,7 +255,6 @@ mod test {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "".to_string(),
         })
         .unwrap();
 

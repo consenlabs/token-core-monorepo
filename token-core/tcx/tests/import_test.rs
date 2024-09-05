@@ -83,7 +83,6 @@ pub fn test_import_mnemonic() {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
-            hrp: "".to_string(),
         };
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -152,7 +151,6 @@ pub fn test_import_mnemonic_ltc() {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
-            hrp: "".to_string(),
         };
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -201,7 +199,6 @@ pub fn test_import_private_key() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
-                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "LITECOIN".to_string(),
@@ -210,7 +207,6 @@ pub fn test_import_private_key() {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
-                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "LITECOIN".to_string(),
@@ -219,7 +215,6 @@ pub fn test_import_private_key() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
-                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "TRON".to_string(),
@@ -228,7 +223,6 @@ pub fn test_import_private_key() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
-                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "NERVOS".to_string(),
@@ -237,7 +231,6 @@ pub fn test_import_private_key() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
-                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "ETHEREUM".to_string(),
@@ -246,7 +239,6 @@ pub fn test_import_private_key() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "COSMOS".to_string(),
@@ -255,7 +247,6 @@ pub fn test_import_private_key() {
                 seg_wit: "".to_string(),
                 chain_id: "cosmoshub-4".to_string(),
                 curve: "secp256k1".to_string(),
-                hrp: "cosmos".to_string(),
             },
             Derivation {
                 chain_type: "EOS".to_string(),
@@ -264,7 +255,6 @@ pub fn test_import_private_key() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -273,7 +263,6 @@ pub fn test_import_private_key() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -282,7 +271,6 @@ pub fn test_import_private_key() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -291,7 +279,6 @@ pub fn test_import_private_key() {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -300,7 +287,6 @@ pub fn test_import_private_key() {
                 seg_wit: "VERSION_0".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -309,7 +295,6 @@ pub fn test_import_private_key() {
                 seg_wit: "VERSION_1".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                hrp: "".to_string(),
             },
             Derivation {
                 chain_type: "DOGECOIN".to_string(),
@@ -318,7 +303,6 @@ pub fn test_import_private_key() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                hrp: "".to_string(),
             },
         ];
         let param = DeriveAccountsParam {
@@ -414,7 +398,6 @@ pub fn test_import_private_key() {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
-            hrp: "".to_string(),
         }];
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -460,7 +443,6 @@ pub fn test_filecoin_private_key_secp256k1_import() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
-            hrp: "".to_string(),
         }];
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -527,7 +509,6 @@ pub fn test_filecoin_private_key_bls_import() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "bls12-381".to_string(),
-            hrp: "".to_string(),
         }];
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -595,7 +576,6 @@ pub fn test_fil_bls_tezos_reimport() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: case.2.to_string(),
-                hrp: "".to_string(),
             }];
             let param = DeriveAccountsParam {
                 id: hd_import_result.id.to_string(),
@@ -641,7 +621,6 @@ pub fn test_fil_bls_tezos_reimport() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: case.2.to_string(),
-                hrp: "".to_string(),
             }];
             let param = DeriveAccountsParam {
                 id: pk_import_result.id.to_string(),
@@ -690,7 +669,6 @@ pub fn test_import_sr25519_private_key() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "sr25519".to_string(),
-            hrp: "".to_string(),
         }];
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -769,7 +747,6 @@ pub fn test_import_to_pk_which_from_hd() {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
-            hrp: "".to_string(),
         };
 
         let derive_param = DeriveAccountsParam {
@@ -869,7 +846,6 @@ pub fn test_import_substrate_keystore() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
-            hrp: "".to_string(),
         };
 
         let param = DeriveAccountsParam {
@@ -961,7 +937,6 @@ pub fn test_import_substrate_keystore_v3() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "sr25519".to_string(),
-            hrp: "".to_string(),
         };
 
         let param = DeriveAccountsParam {
@@ -1045,7 +1020,6 @@ pub fn test_import_multi_curve() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
-            hrp: "".to_string(),
         };
 
         let param = DeriveAccountsParam {
@@ -1071,7 +1045,6 @@ pub fn test_import_multi_curve() {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
-            hrp: "".to_string(),
         };
 
         let param = DeriveAccountsParam {
@@ -1137,7 +1110,6 @@ pub fn test_import_wif() {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
-            hrp: "".to_string(),
         };
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),

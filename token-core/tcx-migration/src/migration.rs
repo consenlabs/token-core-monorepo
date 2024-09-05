@@ -402,7 +402,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "".to_string(),
             seg_wit: "".to_string(),
-            hrp: "".to_string(),
         };
 
         keystore.unlock(&key).unwrap();
@@ -461,7 +460,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "".to_string(),
         };
 
         keystore.unlock_by_password("imtoken1").unwrap();
@@ -489,7 +487,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "".to_string(),
             seg_wit: "".to_string(),
-            hrp: "".to_string(),
         };
 
         keystore.unlock(&key).unwrap();
@@ -516,7 +513,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "".to_string(),
             seg_wit: "".to_string(),
-            hrp: "".to_string(),
         };
 
         keystore.unlock(&key).unwrap();
@@ -541,7 +537,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "".to_string(),
             seg_wit: "".to_string(),
-            hrp: "".to_string(),
         };
 
         keystore.unlock(&key).unwrap();
@@ -566,7 +561,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "".to_string(),
             seg_wit: "".to_string(),
-            hrp: "".to_string(),
         };
 
         keystore.unlock(&key).unwrap();
@@ -595,7 +589,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "".to_string(),
             seg_wit: "".to_string(),
-            hrp: "".to_string(),
         };
 
         keystore.unlock(&key).unwrap();

@@ -75,7 +75,6 @@ message DeriveAccountsParam {
     string segWit = 4;
     string chainId = 5;
     string curve = 6;
-    string hrp = 7;
   }
   repeated Derivation derivations = 4;
 }
@@ -111,17 +110,6 @@ message ExportJsonResult {
   string json = 2;
 }
 
-// // only support two types
-// enum KeyType {
-//     MNEMONIC = 0;
-//     PRIVATE_KEY = 1;
-// }
-
-/// Private Key Store
-
-// FUNCTION: import_private_key(ImportPrivateKeyParam): KeystoreResult
-//
-// create a new private key keystore by a private key
 message ImportPrivateKeyParam {
   string privateKey = 1;
   string password = 2;
@@ -130,15 +118,6 @@ message ImportPrivateKeyParam {
   string network = 5;
   string overwriteId = 6;
 }
-
-// FUNCTION: keystore_common_exists(KeystoreCommonExistsParam): ExistsKeystoreResult
-//
-// Check is there a keystore was generate by the special privateKey or mnemonic
-// message KeystoreCommonExistsParam {
-//     KeyType type = 1;
-//     string value = 2;
-//     string encoding = 3;
-// }
 
 message ExistsMnemonicParam {
   string mnemonic = 1;
@@ -164,12 +143,7 @@ message ImportJsonParam {
   bool overwrite = 3;
 }
 
-/// Sign Transaction
 
-// FUNCTION: sign_tx(SignParam)
-//
-// Sign transaction. This api is used for sign any chain_type, you should build the right TxInput instance and
-// put it in the `input` field
 message SignParam {
   string id = 1;
   oneof key {
@@ -191,8 +165,7 @@ message DeriveSubAccountsParam {
   string segWit = 4;
   repeated string relativePaths = 5;
   string extendedPublicKey = 6;
-  string hrp = 7;
-  string chain_id = 8;
+  string chain_id = 7;
 }
 
 message DeriveSubAccountsResult {

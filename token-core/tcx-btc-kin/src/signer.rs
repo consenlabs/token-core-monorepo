@@ -254,7 +254,6 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
             curve: params.curve,
             network: params.network.clone(),
             seg_wit: params.seg_wit.clone(),
-            hrp: "".to_string(),
         };
 
         let change_script = if let Some(change_address_index) = self.change_address_index && keystore.derivable() {

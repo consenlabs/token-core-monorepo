@@ -11,18 +11,15 @@ use tcx_primitive::TypedPublicKey;
 // size of address
 pub const LENGTH: usize = 20;
 
-fn verify_hrp(coin_info: &CoinInfo) -> Result<()> {
+fn find_hrp(chain_id: &str) -> Result<String> {
     let map = CHAIN_ID_HRP_MAP.read().unwrap();
-    let embed_hrp = map.get(&coin_info.chain_id);
+    let embed_hrp = map.get(chain_id);
 
-    let Some(embed_hrp) = embed_hrp else {
-        return Err(anyhow!("unknown_chain_id"))
-    };
-    if (&coin_info.hrp != embed_hrp) {
-        Err(anyhow!("chain_id_and_hrp_not_match"))
+    return if embed_hrp.is_some() {
+        Ok(embed_hrp.unwrap().to_string())
     } else {
-        Ok(())
-    }
+        Err(anyhow!("unknown_chain_id"))
+    };
 }
 
 #[derive(PartialEq, Eq, Clone)]
@@ -34,15 +31,10 @@ impl Address for AtomAddress {
         let mut bytes = [0u8; LENGTH];
         let pub_key_hash = ripemd160(&sha256(&pub_key_bytes));
         bytes.copy_from_slice(&pub_key_hash[..LENGTH]);
-        verify_hrp(&coin)?;
-        let hrp = if coin.hrp.is_empty() {
-            "cosmos"
-        } else {
-            coin.hrp.as_str()
-        };
+        let hrp = find_hrp(&coin.chain_id)?;
 
         Ok(AtomAddress(bech32::encode(
-            hrp,
+            &hrp,
             bytes.to_base32(),
             Variant::Bech32,
         )?))
@@ -53,10 +45,6 @@ impl Address for AtomAddress {
         if let Ok(val) = ret {
             let (hrp, data, _) = val;
             let data = Vec::from_base32(&data).unwrap();
-
-            if coin.hrp != hrp.as_str() {
-                return false;
-            }
 
             if data.len() != 20 {
                 return false;
@@ -101,7 +89,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "".to_string(),
-            hrp: "cosmos".to_string(),
         }
     }
 
@@ -179,7 +166,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "cosmos".to_string(),
         };
         let address = AtomAddress::from_public_key(&pub_key, &coin_info)
             .unwrap()
@@ -228,7 +214,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: hrp.to_string(),
             };
 
             let address = AtomAddress::from_public_key(&pub_key, &coin_info)
@@ -252,13 +237,12 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "cosmos-wrong".to_string(),
         };
         let address = AtomAddress::from_public_key(&pub_key, &coin_info);
 
         assert_eq!(
-            format!("{}", address.err().unwrap()),
-            "chain_id_and_hrp_not_match"
+            format!("{}", address.unwrap().to_string()),
+            "cosmos1hsk6jryyqjfhp5dhc55tc9jtckygx0eph6dd02"
         );
 
         let coin_info = CoinInfo {
@@ -268,7 +252,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "cosmos".to_string(),
         };
 
         let address = AtomAddress::from_public_key(&pub_key, &coin_info);
@@ -281,7 +264,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "cosmos".to_string(),
         };
 
         let address = AtomAddress::from_public_key(&pub_key, &coin_info);

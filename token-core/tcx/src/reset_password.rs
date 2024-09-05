@@ -78,11 +78,6 @@ fn parse_coin_info_from_legacy_ks(value: Value) -> Result<(CoinInfo, String)> {
             curve: CurveType::SECP256k1,
             network,
             seg_wit,
-            hrp: if chain_str.eq_ignore_ascii_case("cosmos") {
-                "cosmos".to_string()
-            } else {
-                "".to_string()
-            },
         };
         return Ok((coin_info, address));
     } else {
@@ -153,7 +148,6 @@ fn parse_coin_info_from_legacy_tcx_ks(legacy_tcx_ks: Value) -> Result<(CoinInfo,
             curve,
             network,
             seg_wit,
-            hrp: "".to_string(),
         };
         return Ok((coin_info, address));
     } else {

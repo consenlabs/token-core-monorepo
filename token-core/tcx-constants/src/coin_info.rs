@@ -21,7 +21,6 @@ pub struct CoinInfo {
     pub curve: CurveType,
     pub network: String,
     pub seg_wit: String,
-    pub hrp: String,
     pub chain_id: String,
 }
 
@@ -33,7 +32,7 @@ impl Default for CoinInfo {
             curve: CurveType::SECP256k1,
             network: "".to_string(),
             seg_wit: "".to_string(),
-            hrp: "".to_string(),
+
             chain_id: "".to_string(),
         }
     }
@@ -49,7 +48,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -58,7 +56,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -67,7 +64,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "P2WPKH".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -76,7 +72,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "P2WPKH".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -85,7 +80,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "VERSION_0".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -94,7 +88,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "VERSION_0".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -103,7 +96,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "VERSION_1".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -112,7 +104,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "VERSION_1".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -121,7 +112,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -130,7 +120,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -139,7 +128,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -148,7 +136,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -157,7 +144,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "P2WPKH".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -166,7 +152,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "P2WPKH".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -175,7 +160,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -184,7 +168,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -193,7 +176,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -202,7 +184,6 @@ lazy_static! {
                 curve: CurveType::SR25519,
                 network: "".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -211,7 +192,6 @@ lazy_static! {
                 curve: CurveType::SR25519,
                 network: "".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -220,7 +200,6 @@ lazy_static! {
                 curve: CurveType::ED25519,
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -229,7 +208,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -238,7 +216,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -247,7 +224,6 @@ lazy_static! {
                 curve: CurveType::BLS,
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -256,7 +232,6 @@ lazy_static! {
                 curve: CurveType::BLS,
                 network: "TESTNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -265,7 +240,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -274,7 +248,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -283,7 +256,6 @@ lazy_static! {
                 curve: CurveType::BLS,
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -292,7 +264,6 @@ lazy_static! {
                 curve: CurveType::BLS,
                 network: "TESTNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -301,7 +272,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -310,7 +280,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -319,7 +288,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -328,7 +296,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -337,7 +304,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -346,7 +312,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -355,7 +320,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "P2WPKH".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -364,7 +328,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "P2WPKH".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -373,7 +336,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "VERSION_0".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -382,7 +344,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "VERSION_0".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -391,7 +352,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "VERSION_1".to_string(),
-                hrp: "".to_string(),
             },
             CoinInfo {
                 chain_id: "".to_string(),
@@ -400,7 +360,6 @@ lazy_static! {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "VERSION_1".to_string(),
-                hrp: "".to_string(),
             },
         ];
 
