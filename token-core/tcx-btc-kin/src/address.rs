@@ -361,7 +361,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "".to_string(),
         };
         let ltc_xprv_str = BtcKinAddress::extended_private_key(&anprv, &coin_info).unwrap();
         assert_eq!("xprv9yrdwPSRnvomqFK4u1y5uW2SaXS2Vnr3pAYTjJjbyRZR8p9BwoadRsCxtgUFdAKeRPbwvGRcCSYMV69nNK4N2kadevJ6L5iQVy1SwGKDTHQ", ltc_xprv_str);
@@ -382,7 +381,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "".to_string(),
         };
         let ltc_xprv_str = BtcKinAddress::extended_public_key(&anpub, &coin_info).unwrap();
         assert_eq!("xpub6JeaAjhtvtjCDnEo4Bjr7uEbGccaHnJtLY4aBnMaAYGjkBRB3fP9XvjcCbNjMiU1n5tt7dYKVgHPGzh3t3W6eLBxavxABTaoQ2jhbiQrfe4", ltc_xprv_str);
@@ -475,7 +473,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
-            hrp: "".to_string(),
         };
         let address = BtcKinAddress::from_public_key(&pub_key, &coin_info)
             .unwrap()
@@ -513,7 +510,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             })
             .unwrap();
         assert_eq!(account.address, "DQ4tVEqdPWHc1aVBm4Sfwft8XyNRPMEchR");
@@ -545,7 +541,6 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: network.to_string(),
                 seg_wit: "NONE".to_string(),
-                hrp: "".to_string(),
             };
             let account = hd.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
             assert_eq!(account.ext_pub_key, xpub);
@@ -567,7 +562,6 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "VERSION_0".to_string(),
-            hrp: "".to_string(),
         };
         let address = BtcKinAddress::from_public_key(&pub_key, &coin_info)
             .unwrap()

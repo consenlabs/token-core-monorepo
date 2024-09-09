@@ -380,8 +380,6 @@ pub mod derive_accounts_param {
         pub chain_id: ::prost::alloc::string::String,
         #[prost(string, tag = "6")]
         pub curve: ::prost::alloc::string::String,
-        #[prost(string, tag = "7")]
-        pub hrp: ::prost::alloc::string::String,
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
@@ -443,9 +441,6 @@ pub struct ExportJsonResult {
     #[prost(string, tag = "2")]
     pub json: ::prost::alloc::string::String,
 }
-/// FUNCTION: import_private_key(ImportPrivateKeyParam): KeystoreResult
-///
-/// create a new private key keystore by a private key
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ImportPrivateKeyParam {
@@ -500,10 +495,6 @@ pub struct ImportJsonParam {
     #[prost(bool, tag = "3")]
     pub overwrite: bool,
 }
-/// FUNCTION: sign_tx(SignParam)
-///
-/// Sign transaction. This api is used for sign any chain_type, you should build the right TxInput instance and
-/// put it in the `input` field
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SignParam {
@@ -551,8 +542,6 @@ pub struct DeriveSubAccountsParam {
     #[prost(string, tag = "6")]
     pub extended_public_key: ::prost::alloc::string::String,
     #[prost(string, tag = "7")]
-    pub hrp: ::prost::alloc::string::String,
-    #[prost(string, tag = "8")]
     pub chain_id: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
