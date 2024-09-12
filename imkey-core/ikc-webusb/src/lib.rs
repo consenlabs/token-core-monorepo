@@ -6,8 +6,7 @@ use web_sys::window;
 
 
 
-#[wasm_bindgen]
-pub fn make_the_window_small() {
+pub fn test_a() {
     let navigator = window().expect("window should be available").navigator();
     if let Some(usb) = navigator.usb() {
         // 使用 WebUSB API
