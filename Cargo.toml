@@ -26,6 +26,7 @@ members = [
     "imkey-core/ikc-device",
     "imkey-core/ikc-proto",
     "imkey-core/ikc-transport",
+    "imkey-core/ikc-webusb",
     "imkey-core/ikc-wallet/coin-bitcoin",
     "imkey-core/ikc-wallet/coin-ethereum",
     "imkey-core/ikc-wallet/coin-eos",
