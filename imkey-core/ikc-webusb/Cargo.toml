@@ -15,6 +15,8 @@ js-sys = "0.3"
 wasm-bindgen-futures = "0.4"
 wasm-bindgen-test = "0.3.0"
 serde-wasm-bindgen = "0.3"
+lazy_static = "=1.4.0"
+parking_lot = "=0.12.1"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.0"

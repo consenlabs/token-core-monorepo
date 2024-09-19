@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rust WASM demo</title>
+</head>
+<body>
+    <button id="connectButton">Connect</button>
+    <script type="module">
+        import init from './pkg/ikc_webusb.js';
+        const connectButton = document.getElementById('connectButton');
+        connectButton.addEventListener('click', async () => {
+            try {
+                console.log('click connect');
+                init().then(({connect}) => {
+                    connect();
+                });
+            } catch (error) {
+                console.error('Error connecting to USB device:', error);
+            }
+        });
+   
+
+    </script>
+</body>
+</html>

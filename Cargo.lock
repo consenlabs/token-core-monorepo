@@ -2073,6 +2073,8 @@ name = "ikc-webusb"
 version = "0.1.0"
 dependencies = [
  "js-sys",
+ "lazy_static",
+ "parking_lot",
  "serde-wasm-bindgen",
  "serde_json",
  "wasm-bindgen",
