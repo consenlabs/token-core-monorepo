@@ -8,8 +8,13 @@
 </head>
 <body>
     <button id="connectButton">Connect</button>
+    <br><br>
+    <input type="text" id="apduInput" placeholder="Enter APDU command" />
+    <button id="sendButton">Send APDU</button>
+    <div id="output"></div>
+
     <script type="module">
-        import init from './pkg/ikc_webusb.js';
+        import init, {connect, send_apdu} from './pkg/ikc_webusb.js';
         const connectButton = document.getElementById('connectButton');
         connectButton.addEventListener('click', async () => {
             try {
@@ -22,6 +27,14 @@
             }
         });
    
+        const sendButton = document.getElementById('sendButton');
+        sendButton.addEventListener('click', async () => {
+            try {
+                await send_apdu(apduInput.value);
+            } catch (error) {
+                console.error('Error connecting to USB device:', error);
+            }
+        });
 
     </script>
 </body>

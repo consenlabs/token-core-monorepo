@@ -9,7 +9,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 wasm-bindgen = { version = "0.2.93", features = ["serde-serialize"] }
-web-sys = { version = "0.3.70", features = ["Usb", "UsbDevice", "Window", "WebTransport", "Navigator", "Serial", "UsbDeviceRequestOptions", "console", "UsbDeviceFilter"] }
+web-sys = { version = "0.3.70", features = ["Usb", "UsbDevice", "Window", "WebTransport", "Navigator", "Serial", "UsbDeviceRequestOptions", "console", "UsbDeviceFilter", "UsbConfiguration", "UsbInterface"] }
 serde_json = "1.0.89"
 js-sys = "0.3"
 wasm-bindgen-futures = "0.4"
