@@ -2072,6 +2072,9 @@ dependencies = [
 name = "ikc-webusb"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "bytes",
+ "hex",
  "js-sys",
  "lazy_static",
  "parking_lot",

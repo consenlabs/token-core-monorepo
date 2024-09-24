@@ -17,6 +17,8 @@ wasm-bindgen-test = "0.3.0"
 serde-wasm-bindgen = "0.3"
 lazy_static = "=1.4.0"
 parking_lot = "=0.12.1"
-
+bytes = "=1.4.0"
+anyhow = "=1.0.79"
+hex = "=0.4.3"
 [dev-dependencies]
 wasm-bindgen-test = "0.3.0"
