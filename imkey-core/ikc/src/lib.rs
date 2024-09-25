@@ -1863,7 +1863,7 @@ mod tests {
         let bind_result: BindCheckRes = BindCheckRes::decode(ret_bytes.as_slice()).unwrap();
         if "bound_other".eq(&bind_result.bind_status) {
             let param = BindAcquireReq {
-                bind_code: "5PJT7223".to_string(),
+                bind_code: "CM3SH5QE".to_string(),
             };
             let action: ImkeyAction = ImkeyAction {
                 method: "bind_acquire".to_string(),
