@@ -33,26 +33,18 @@ unsafe impl Send for UsbDeviceBox {}
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
 pub async fn connect() -> Result<(), JsValue> {
-    // alert(&format!("Hello, world!"));
-    web_sys::console::log_1(&"enter connect function".into());
     let navigator = window().expect("window should be available").navigator();
-    web_sys::console::log_1(&"获取navigator".into());
     let usb: Usb = navigator.usb();
-    web_sys::console::log_1(&"访问usb".into());
 
     // 手动构造过滤器对象
     let filters = vec![serde_json::json!({
-        "vendorId": 0x096e, // 替换为你的设备供应商 ID
-        "productId": 0x0891  // 替换为你的设备产品 ID
+        "vendorId": 0x096e,
+        "productId": 0x0891,
     })];
-    web_sys::console::log_1(&"定义过滤器".into());
     // 创建 UsbDeviceRequestOptions
     let options = UsbDeviceRequestOptions::new(&to_value(&vec![filters]).unwrap());
-    web_sys::console::log_1(&"创建 UsbDeviceRequestOptions".into());
     // 请求设备
-    // let options = JsValue::from_serde(&filters).unwrap();
     let promise = usb.request_device(&options);
-    web_sys::console::log_1(&"请求设备".into());
     // 处理请求设备的结果
     let device = wasm_bindgen_futures::JsFuture::from(promise).await;
     // 请求设备
@@ -62,12 +54,6 @@ pub async fn connect() -> Result<(), JsValue> {
             // 继续处理设备
             let device: UsbDevice = device.unchecked_into();
             web_sys::console::log_1(&format!("++++++++++++Product Name: {:?}", device.product_name()).into());
-            web_sys::console::log_1(&format!("++++++++++++Manufacturer Name: {:?}", device.manufacturer_name()).into());
-            web_sys::console::log_1(&format!("++++++++++++Serial Number: {:?}", device.serial_number()).into());
-            web_sys::console::log_1(&format!("++++++++++++Product ID: {:?}", device.product_id()).into());
-            web_sys::console::log_1(&format!("++++++++++++Vendor ID: {:?}", device.vendor_id()).into());
-
-            web_sys::console::log_1(&"device open".into());
             let open_promise = device.open();
             JsFuture::from(open_promise).await?;
 
@@ -78,15 +64,12 @@ pub async fn connect() -> Result<(), JsValue> {
              // 获取第一个接口
              let interface: UsbInterface = interfaces.get(0).unchecked_into();
              let interface_number = interface.interface_number(); // 获取接口编号
-             console::log_1(&format!("Interface number: {}", interface_number).into());
              // 选择配置，通常为默认配置 1
             let select_configuration_promise = device.select_configuration(1);
             JsFuture::from(select_configuration_promise).await?;
-            console::log_1(&"select configuration".into());
              // 声明接口 
             let claim_promise = device.claim_interface(interface_number);
             wasm_bindgen_futures::JsFuture::from(claim_promise).await?;
-
 
             let mut hid_device_obj = WEB_USB_DEVICE.lock();
             *hid_device_obj = Some(UsbDeviceBox(device));
@@ -97,8 +80,6 @@ pub async fn connect() -> Result<(), JsValue> {
             Ok(())
         }
     }
-
-
 
 }
 
