@@ -109,7 +109,6 @@ message DeriveAccountsParam {
         string segWit = 4;
         string chainId = 5;
         string curve = 6;
-        string bech32Prefix = 7;
     }
     repeated Derivation derivations= 1;
 }
