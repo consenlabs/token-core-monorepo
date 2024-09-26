@@ -1257,7 +1257,10 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
         SignAuthenticationMessageParam::decode(data).expect("SignAuthenticationMessageParam");
 
     let map = KEYSTORE_MAP.read();
-    let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
+    let Some(identity_ks) = map
+        .values()
+        .find(|ks| ks.identity().identifier == param.identifier)
+    else {
         return Err(anyhow::anyhow!("identity_not_found"));
     };
 
