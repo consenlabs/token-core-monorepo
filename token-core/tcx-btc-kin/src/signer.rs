@@ -268,16 +268,18 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
             seg_wit: params.seg_wit.clone(),
         };
 
-        let change_script = if let Some(change_address_index) = self.change_address_index && keystore.derivable() {
+        let change_script = if let Some(change_address_index) = self.change_address_index
+            && keystore.derivable()
+        {
             let account_path = get_account_path(&params.derivation_path)?;
             let dpk = keystore.get_deterministic_public_key(params.curve, &account_path)?;
             let pub_key = dpk
                 .derive(format!("1/{}", change_address_index).as_str())?
                 .public_key();
 
-           T::from_public_key(&pub_key, &coin_info)?.script_pubkey()
+            T::from_public_key(&pub_key, &coin_info)?.script_pubkey()
         } else {
-           T::from_str(&self.inputs[0].address)?.script_pubkey()
+            T::from_str(&self.inputs[0].address)?.script_pubkey()
         };
 
         let mut sks = vec![];

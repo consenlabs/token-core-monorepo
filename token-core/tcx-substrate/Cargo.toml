@@ -21,7 +21,7 @@ bytes = "=1.4.0"
 prost-types = "=0.11.2"
 
 base58 = "=0.2.0"
-codec = { package = "parity-scale-codec", default-features = false, features = ["derive"] }
+codec = { package = "parity-scale-codec", version = "3.5.0", default-features = false, features = ["derive"] }
 rand = "=0.8.5"
 
 anyhow = { version = "=1.0.79", features = [] }

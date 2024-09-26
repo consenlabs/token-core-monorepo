@@ -1,0 +1,20 @@
+syntax = "proto3";
+package transaction;
+
+
+
+
+message TonRawTxIn {
+  string rawData = 1;
+}
+
+message TonTxOut {
+  string signature = 1;
+}
+
+message TonTxIn {
+  string from = 1;
+  string to = 2;
+  string amount = 3;
+
+}
