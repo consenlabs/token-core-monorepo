@@ -13,6 +13,9 @@ use parking_lot::Mutex;
 #[macro_use]
 extern crate lazy_static;
 use js_sys::Array;
+// use core::result;
+// pub type Result<T> = result::Result<T, anyhow::Error>;
+use webusb::send_and_receive;
 
 lazy_static! {
     // 使用 Arc<Mutex<...>> 来包装 UsbDevice
@@ -101,19 +104,23 @@ pub async fn connect() -> Result<(), JsValue> {
 
 #[cfg(target_arch = "wasm32")]
 #[wasm_bindgen]
-pub fn send_apdu(apdu: &str) -> Result<String, JsValue> {
+pub async fn send_apdu(apdu: &str) -> Result<String, JsValue> {
+
     console::log_1(&"enter send_apdu function".into());
     console::log_1(&format!("-->{:?}", apdu).into());
     // 访问存储的 UsbDevice
     let hid_device_obj = WEB_USB_DEVICE.lock();
+    let mut response_data = "".to_string();
     if let Some(device) = &*hid_device_obj {
         // 这里可以使用 device 进行操作
         console::log_1(&format!("Using device: {:?}", device.0.product_name()).into());
+        response_data = send_and_receive(&device.0, hex::decode(apdu).unwrap().as_slice()).await;
     } else {
         console::log_1(&"No device found".into());
     }
-    console::log_1(&format!("<--{:?}", apdu).into());
-    Ok("return data!!!".to_string())
+    console::log_1(&format!("<--{:?}", response_data.clone()).into());
+
+    Ok(response_data)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

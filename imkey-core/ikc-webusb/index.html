@@ -9,8 +9,8 @@
 <body>
     <button id="connectButton">Connect</button>
     <br><br>
-    <input type="text" id="apduInput" placeholder="Enter APDU command" />
-    <button id="sendButton">Send APDU</button>
+    <input type="text" id="apduInput" placeholder="Enter APDU command" value="00A4040000" />
+    <button id="sendButton" >Send APDU</button>
     <div id="output"></div>
 
     <script type="module">
@@ -29,8 +29,12 @@
    
         const sendButton = document.getElementById('sendButton');
         sendButton.addEventListener('click', async () => {
+            const apduInput = document.getElementById('apduInput');
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerText += `-->${apduInput.value}\n`;
             try {
-                await send_apdu(apduInput.value);
+                const response = await send_apdu(apduInput.value);
+                document.getElementById('output').innerText += `<--${response}\n`;
             } catch (error) {
                 console.error('Error connecting to USB device:', error);
             }
