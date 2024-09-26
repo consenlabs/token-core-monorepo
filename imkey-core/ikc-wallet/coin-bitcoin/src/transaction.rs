@@ -114,19 +114,28 @@ impl BtcTransaction {
                 };
             }
         } else {
-            if BTC_SEG_WIT_TYPE_P2WPKH.eq(&seg_wit.to_uppercase()) {
-                self.original_tx_preview(&tx_to_sign, network)?;
-                for (idx, _) in self.unspents.iter().enumerate() {
-                    self.sign_p2sh_nested_p2wpkh_input(
-                        idx,
-                        &utxo_pub_key_vec[idx],
-                        &mut tx_to_sign,
-                    )?;
-                }
-            } else {
-                self.tx_preview(&tx_to_sign, network)?;
-                self.sign_p2pkh_inputs(&utxo_pub_key_vec, &mut tx_to_sign)?;
+            let address_version = get_address_version(network, &self.to.to_string())?;
+            match address_version {
+                0 | 111 | 5 | 96 =>{
+                    if BTC_SEG_WIT_TYPE_P2WPKH.eq(&seg_wit.to_uppercase()) {
+                        self.original_tx_preview(&tx_to_sign, network)?;
+                        for (idx, _) in self.unspents.iter().enumerate() {
+                            self.sign_p2sh_nested_p2wpkh_input(
+                                idx,
+                                &utxo_pub_key_vec[idx],
+                                &mut tx_to_sign,
+                            )?;
+                        }
+                    } else {
+                        self.tx_preview(&tx_to_sign, network)?;
+                        self.sign_p2pkh_inputs(&utxo_pub_key_vec, &mut tx_to_sign)?;
+                    }
+                },
+                _ => {
+                    return Err(CoinError::InvalidAddress.into());
+                },
             }
+
         }
 
         let tx_bytes = serialize(&tx_to_sign);
