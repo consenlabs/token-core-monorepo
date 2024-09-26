@@ -358,7 +358,6 @@ mod test {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "ed25519".to_string(),
-            bech32_prefix: "".to_string(),
         }];
         let param = DeriveAccountsParam { derivations };
         let response = derive_accounts(&encode_message(param).unwrap());
