@@ -13,7 +13,7 @@ tcx-primitive = { path = "../tcx-primitive" }
 tcx-constants = { path = "../tcx-constants" }
 tcx-common = { path = "../tcx-common" }
 
-sp-core = "=7.0.0"
+sp-core = { version = "=34.0.0", features = ["std"] }
 byteorder = "=1.4.3"
 
 prost = "=0.11.2"
@@ -28,14 +28,14 @@ anyhow = { version = "=1.0.79", features = [] }
 #tweetnacl = "0.2.1"
 xsalsa20poly1305 = "=0.9.0"
 serde_json = "=1.0.89"
-serde = { version = "=1.0.147", features = ["derive"] }
+serde = { version = "=1.0.210", features = ["derive"] }
 base64 = "=0.13.1"
 scrypt = { version = "=0.10.0", default-features = false }
 regex = "=1.9.3"
-schnorrkel = "=0.9.1"
+schnorrkel = "=0.11.4"
 thiserror = "=1.0.56"
 
 
 [dev-dependencies]
-sp-runtime = "=7.0.0"
-sp-keyring = "=7.0.0"
+sp-runtime = "=39.0.1"
+#sp-keyring = "=7.0.0"

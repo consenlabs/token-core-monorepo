@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 lazy_static = "=1.4.0"
 
-log = {version = "=0.4.17", features = ["std"]}
+log = {version = "=0.4.22", features = ["std"]}
 ikc-transport = {path = "../ikc-transport"}
 ikc-device = {path = "../ikc-device"}
 coin-ethereum = {path = "../ikc-wallet/coin-ethereum"}

@@ -1,6 +1,6 @@
 use crate::ecc::{KeyError, PrivateKey as TraitPrivateKey, PublicKey as TraitPublicKey};
 use crate::Result;
-use schnorrkel::SecretKey;
+use schnorrkel::keys::SecretKey;
 use std::convert::TryFrom;
 use tcx_common::{FromHex, ToHex};
 
@@ -39,6 +39,7 @@ impl TraitPrivateKey for Sr25519PrivateKey {
     fn from_slice(data: &[u8]) -> Result<Self> {
         let sec_key =
             SecretKey::from_ed25519_bytes(data).map_err(|_| KeyError::InvalidSR25519Key)?;
+
         Ok(Sr25519PrivateKey(Pair::from(sec_key)))
     }
 

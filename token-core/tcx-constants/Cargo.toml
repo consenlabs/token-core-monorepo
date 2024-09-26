@@ -11,5 +11,5 @@ tcx-common = { path = "../tcx-common" }
 anyhow = { version = "=1.0.79", features = [] }
 lazy_static = "=1.4.0"
 serde_json = "=1.0.89"
-serde = { version = "=1.0.147", features = ["derive"] }
+serde = { version = "=1.0.210", features = ["derive"] }
 parking_lot = "=0.12.1"
