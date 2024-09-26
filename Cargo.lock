@@ -4780,6 +4780,7 @@ dependencies = [
  "blake2b_simd 1.0.1",
  "bytes",
  "hex",
+ "num-bigint 0.4.3",
  "prost",
  "prost-types",
  "tcx-common",

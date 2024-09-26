@@ -16,5 +16,10 @@ message TonTxIn {
   string from = 1;
   string to = 2;
   string amount = 3;
-
+  string memo = 4;
+  bool isJetton = 5;
+  string jettonAmount = 6;
+  uint64 queryId = 7;
+  int32 sequenceNo = 8;
+  string walletVersion = 9;
 }
