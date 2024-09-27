@@ -86,7 +86,7 @@ impl BtcTransaction {
         };
 
         self.calc_tx_hash(&mut tx_to_sign, &btc_version)?;
-        
+
         //Compatible with Legacy and Nested Segwit transactions without upgrading btc apples
         if btc_version.as_str() >= "1.6.00" {
             self.tx_preview(&tx_to_sign, network)?;
@@ -114,9 +114,15 @@ impl BtcTransaction {
                 };
             }
         } else {
+            for utxo in self.unspents.iter() {
+                let script = Script::from_str(&utxo.script_pubkey)?;
+                if !script.is_p2pkh() && !script.is_p2sh() {
+                    return Err(CoinError::InvalidUtxo.into());
+                }
+            }
             let address_version = get_address_version(network, &self.to.to_string())?;
             match address_version {
-                0 | 111 | 5 | 96 =>{
+                0 | 111 | 5 | 96 => {
                     if BTC_SEG_WIT_TYPE_P2WPKH.eq(&seg_wit.to_uppercase()) {
                         self.original_tx_preview(&tx_to_sign, network)?;
                         for (idx, _) in self.unspents.iter().enumerate() {
@@ -130,12 +136,11 @@ impl BtcTransaction {
                         self.tx_preview(&tx_to_sign, network)?;
                         self.sign_p2pkh_inputs(&utxo_pub_key_vec, &mut tx_to_sign)?;
                     }
-                },
+                }
                 _ => {
                     return Err(CoinError::InvalidAddress.into());
-                },
+                }
             }
-
         }
 
         let tx_bytes = serialize(&tx_to_sign);
@@ -657,8 +662,8 @@ impl BtcTransaction {
     }
 
     /**
-    *original Nested Segwit transaction preview
-    **/
+     *original Nested Segwit transaction preview
+     **/
     pub fn original_tx_preview(&self, transaction: &Transaction, network: Network) -> Result<()> {
         let mut output_serialize_data = serialize(&transaction);
 
