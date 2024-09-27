@@ -224,10 +224,20 @@ pub fn is_bl_status() -> Result<bool> {
     Ok(true)
 }
 
+pub fn get_btc_apple_version() -> Result<String> {
+    select_isd()?;
+    let res = send_apdu("00a4040005695f62746300".to_string())?;
+    ApduCheck::check_response(res.as_str())?;
+    let btc_version = hex::decode(&res[0..(res.len() - 4)])?;
+    let btc_version = String::from_utf8(btc_version)?;
+    Ok(btc_version)
+}
+
 #[cfg(test)]
 mod test {
     use crate::device_manager::{
-        active_device, app_delete, app_download, app_update, bind_check, is_bl_status,
+        active_device, app_delete, app_download, app_update, bind_check, get_btc_apple_version,
+        is_bl_status,
     };
     use ikc_common::constants;
     use ikc_transport::hid_api::hid_connect;
@@ -294,6 +304,13 @@ mod test {
     fn active_device_test() {
         assert!(hid_connect(constants::DEVICE_MODEL_NAME).is_ok());
         let result = active_device();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn get_btc_version_test() {
+        assert!(hid_connect(constants::DEVICE_MODEL_NAME).is_ok());
+        let result = get_btc_apple_version();
         assert!(result.is_ok());
     }
 }
