@@ -1,3 +1,4 @@
+use bitcoin::hashes::hex::ToHex;
 use std::str::FromStr;
 use std::sync::Arc;
 use std::time::SystemTime;
@@ -10,19 +11,29 @@ use tonlib_core::message::{
 use tonlib_core::mnemonic::KeyPair;
 use tonlib_core::wallet::{TonWallet, WalletVersion};
 
-use tcx_common::{FromHex, ToHex};
+use tcx_common::{FromHex, ToHex as OtherToHex};
 use tcx_constants::Result;
 use tcx_keystore::{
     Keystore, SignatureParameters, Signer, TransactionSigner as TraitTransactionSigner,
 };
+use tcx_primitive::{Ed25519PrivateKey, PrivateKey, PublicKey};
 
 use crate::transaction::{TonTxIn, TonTxOut};
 
 impl TraitTransactionSigner<TonTxIn, TonTxOut> for Keystore {
     fn sign_transaction(&mut self, params: &SignatureParameters, tx: &TonTxIn) -> Result<TonTxOut> {
+        // for compare with other impl
+        let sec_key_bytes =
+            hex::decode("34815c96ad2434988d86a01e4b639acf41e8ecac7eeb260635b8a47028bbefd3")
+                .unwrap();
+        let sec_key = Ed25519PrivateKey::from_slice(&sec_key_bytes).unwrap();
+        let public_key = sec_key.public_key().to_bytes();
+        let public_key_hex = public_key.to_hex();
+        dbg!(public_key_hex);
+
         // construct a null key_pair
         let null_key_pair = KeyPair {
-            public_key: vec![],
+            public_key,
             secret_key: vec![],
         };
 
@@ -73,8 +84,8 @@ impl TraitTransactionSigner<TonTxIn, TonTxOut> for Keystore {
 
         let body = wallet.create_external_body(
             now + 60,
-            tx.sequence_no.try_into().unwrap(),
-            vec![Arc::new(transfer)],
+            tx.sequence_no.clone().try_into().unwrap(),
+            vec![Arc::new(transfer.clone())],
         )?;
         let hash = body.cell_hash();
         let sig = self.ed25519_sign(&hash.to_vec(), &params.derivation_path)?;
@@ -85,8 +96,34 @@ impl TraitTransactionSigner<TonTxIn, TonTxOut> for Keystore {
 
         let wrapped_body = wallet.wrap_signed_body(signed_body, true)?;
         let boc = BagOfCells::from_root(wrapped_body);
-        let tx = boc.serialize(true)?;
-        let signature = tx.to_hex();
+        let signed_tx = boc.serialize(true)?;
+        let signature = signed_tx.to_hex();
+        dbg!(&signature);
+
+        // for compare with other impl
+        let sec_key_bytes =
+            hex::decode("34815c96ad2434988d86a01e4b639acf41e8ecac7eeb260635b8a47028bbefd3")
+                .unwrap();
+        let sec_key = Ed25519PrivateKey::from_slice(&sec_key_bytes).unwrap();
+        let public_key = sec_key.public_key().to_bytes();
+        let keypair = tonlib_core::mnemonic::KeyPair {
+            public_key,
+            secret_key: hex::decode("34815c96ad2434988d86a01e4b639acf41e8ecac7eeb260635b8a47028bbefd3eb1f50b92caa0063308b060c73d1393e504c1566e8092096466acb974af99bf0").unwrap()
+        };
+        let wallet2 = TonWallet::derive_default(WalletVersion::V4R2, &keypair).unwrap();
+        let body = wallet.create_external_body(
+            now + 60,
+            tx.sequence_no.try_into().unwrap(),
+            vec![Arc::new(transfer)],
+        )?;
+        let signed_body = wallet2.sign_external_body(&body).unwrap();
+        let wrapped_body = wallet.wrap_signed_body(signed_body, true)?;
+        let boc = BagOfCells::from_root(wrapped_body);
+        let signed_tx = boc.serialize(true)?;
+        let signature = signed_tx.to_hex();
+
+        dbg!(&signature);
+
         Ok(TonTxOut { signature })
     }
 }
@@ -151,21 +188,5 @@ mod test_super {
 
         let sign_ret = keystore.sign_transaction(&param, &tx_in).unwrap();
         assert_eq!(sign_ret.signature, "");
-
-        let keypair = tonlib_core::mnemonic::KeyPair {
-            public_key: vec![],
-            secret_key: sec_key.to_bytes(),
-        };
-
-        let wallet =
-            tonlib_core::wallet::TonWallet::derive_default(WalletVersion::V4R2, &keypair).unwrap();
-
-        //
-        //
-        //
-        // let pk = keystore.get_private_key(CurveType::ED25519, "m/44'/607'/0'/0/0").unwrap();
-        //
-
-        // let keystore = Keystore::
     }
 }
