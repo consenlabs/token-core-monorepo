@@ -1,4 +1,4 @@
-use crate::address::BtcAddress;
+use crate::address::{AddressTrait, BtcAddress};
 use crate::btcapi::{BtcMessageInput, BtcMessageOutput};
 use crate::common::select_btc_applet;
 use crate::psbt::PsbtSigner;
@@ -150,7 +150,7 @@ fn witness_to_vec(witness: Vec<Vec<u8>>) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use crate::address::BtcAddress;
+    use crate::address::{AddressTrait, BtcAddress};
     use crate::btcapi::BtcMessageInput;
     use crate::message::MessageSinger;
     use bitcoin::{Address, Network};

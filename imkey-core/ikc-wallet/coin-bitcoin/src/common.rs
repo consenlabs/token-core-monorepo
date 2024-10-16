@@ -1,12 +1,10 @@
 use crate::transaction::Utxo;
 use crate::Result;
-use bitcoin::schnorr::UntweakedPublicKey;
 use bitcoin::util::base58;
-use bitcoin::util::bip32::{ChainCode, ChildNumber, ExtendedPubKey};
-use bitcoin::{Address, AddressType, Network, PublicKey};
+use bitcoin::{Network, PublicKey};
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
-use ikc_common::utility::{hex_to_bytes, sha256_hash};
+use ikc_common::utility::sha256_hash;
 use ikc_transport::message::send_apdu;
 use secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use std::str::FromStr;

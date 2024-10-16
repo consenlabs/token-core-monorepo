@@ -4,12 +4,8 @@ use crate::api::{
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use bitcoin::network::constants::Network;
-use bitcoin::schnorr::UntweakedPublicKey;
-use bitcoin::secp256k1::Secp256k1;
-use bitcoin::{secp256k1, Address};
-use coin_bitcoin::address::BtcAddress;
-use ikc_common::utility::{hex_to_bytes, network_convert};
-use prost::Message;
+use coin_bitcoin::address::{AddressTrait, BtcAddress};
+use ikc_common::utility::network_convert;
 
 pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
     let network = network_convert(param.network.as_ref());
