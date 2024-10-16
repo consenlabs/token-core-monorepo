@@ -63,7 +63,7 @@ pub fn btc_sign(param: &BtcTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
         _ => None,
     };
 
-    let signed = btc_tx.sign_Transaction(
+    let signed = btc_tx.sign_transaction(
         network,
         &sign_param.path,
         param.change_address_index,

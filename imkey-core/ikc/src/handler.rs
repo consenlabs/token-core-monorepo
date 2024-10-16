@@ -10,7 +10,7 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::util::bip32::ExtendedPubKey;
 use bitcoin::Network;
 use coin_bch::address::BchAddress;
-use coin_bitcoin::address::BtcAddress;
+use coin_bitcoin::address::{AddressTrait, BtcAddress};
 use coin_bitcoin::btcapi::PsbtInput;
 use coin_btc_fork::address::BtcForkAddress;
 use coin_btc_fork::btc_fork_network::network_from_param;

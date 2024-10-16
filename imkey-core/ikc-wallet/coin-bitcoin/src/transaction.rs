@@ -1,11 +1,10 @@
-use crate::address::BtcAddress;
+use crate::address::{AddressTrait, BtcAddress};
 use crate::common::{get_address_version, get_utxo_pub_key, TxSignResult};
 use crate::Result;
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};
 use bitcoin::hashes::hex::FromHex;
-use bitcoin::psbt::serialize::Serialize;
-use bitcoin::schnorr::{TapTweak, UntweakedPublicKey};
+use bitcoin::schnorr::UntweakedPublicKey;
 use bitcoin::util::taproot::TapTweakHash;
 use bitcoin::{
     Address, EcdsaSighashType, Network, OutPoint, PackedLockTime, SchnorrSighashType, Script,
@@ -27,7 +26,6 @@ use ikc_device::device_manager::get_btc_apple_version;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::ecdsa::Signature;
 use secp256k1::PublicKey;
-use std::borrow::Borrow;
 use std::str::FromStr;
 
 #[derive(Clone)]
@@ -49,7 +47,7 @@ pub struct BtcTransaction {
 }
 
 impl BtcTransaction {
-    pub fn sign_Transaction(
+    pub fn sign_transaction(
         &self,
         network: Network,
         path: &str,
@@ -778,7 +776,7 @@ mod tests {
             unspents: utxos,
             fee: 10000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             &"m/44'/1'/0'".to_string(),
             Some(53),
@@ -833,7 +831,7 @@ mod tests {
             unspents: utxos,
             fee: 10000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             &"m/49'/1'/0'".to_string(),
             Some(0),
@@ -871,7 +869,7 @@ mod tests {
             unspents: utxos,
             fee: 10000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             &"m/49'/1'/0'".to_string(),
             Some(0),
@@ -912,7 +910,7 @@ mod tests {
             unspents: utxos,
             fee: 10000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             &"m/49'/1'/0'".to_string(),
             Some(0),
@@ -953,7 +951,7 @@ mod tests {
             unspents: utxos,
             fee: 8000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             &"m/49'/1'/0'".to_string(),
             Some(0),
@@ -994,7 +992,7 @@ mod tests {
             unspents: utxos,
             fee: 7000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             &"m/49'/1'/0'".to_string(),
             Some(0),
@@ -1034,7 +1032,7 @@ mod tests {
             unspents: utxos,
             fee: 5000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             &"m/44'/1'/0'".to_string(),
             Some(0),
@@ -1071,7 +1069,7 @@ mod tests {
             unspents: utxos,
             fee: 4000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             &"m/49'/1'/0'".to_string(),
             Some(0),
@@ -1125,7 +1123,7 @@ mod tests {
             unspents: utxos,
             fee: 5000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             &"m/49'/1'/0'".to_string(),
             Some(0),
@@ -1167,7 +1165,7 @@ mod tests {
             fee: 10000,
         };
         let sign_result =
-            transaction.sign_Transaction(Network::Testnet, "m/49'/1'/0'", Some(0), None, "P2WPKH");
+            transaction.sign_transaction(Network::Testnet, "m/49'/1'/0'", Some(0), None, "P2WPKH");
 
         assert_eq!(
             "020000000001013a1b7c9719018d651c4e7fd6dea0561d34ea26fddd36e73e42ee2d1b2434f7320000000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffff01905f01000000000017a9148bbb53570df9656926ea0ef029cd2ee84dbc7d0f870247304402202931423820466e0554d99eb93d6c9b6a1b7270c21e1ed7279f98152247103ab602201df7809aa81b66bace7131a260fb1de661c9da9d6ddbb82ceac3c6bbb043122f0121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc00000000",
@@ -1216,7 +1214,7 @@ mod tests {
             unspents: utxos,
             fee: 10000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             &"m/49'/1'/0'/0/0".to_string(),
             Some(53),
@@ -1258,7 +1256,7 @@ mod tests {
             unspents: utxos,
             fee: 10000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             &"m/84'/1'/0'".to_string(),
             Some(53),
@@ -1313,7 +1311,7 @@ mod tests {
             unspents: utxos,
             fee: 20000,
         };
-        let sign_result = transaction_req_data.sign_Transaction(
+        let sign_result = transaction_req_data.sign_transaction(
             Network::Testnet,
             &"m/84'/1'/0'".to_string(),
             Some(53),
@@ -1369,7 +1367,7 @@ mod tests {
             unspents: utxos,
             fee: 10000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             "m/84'/1'/0'",
             Some(53),
@@ -1445,7 +1443,7 @@ mod tests {
             unspents: utxos,
             fee: 10000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             "m/84'/1'/0'",
             Some(53),
@@ -1488,7 +1486,7 @@ mod tests {
             fee: 10000,
         };
         let sign_result =
-            transaction.sign_Transaction(Network::Testnet, "m/49'/1'/0'", Some(53), None, "P2WPKH");
+            transaction.sign_transaction(Network::Testnet, "m/49'/1'/0'", Some(53), None, "P2WPKH");
 
         assert_eq!(
             "0100000001f5d3e9334df7f3a218354d55dd26aaa01f28bae7388e13ca1a07bfcaa2bfd91c000000006b48304502210091a1232f0c63dd72dcbf07092b92fe360ebb76425c57cb0281e12addfd92940d022055b500ccd12861bad5d48785a369157fca3a633df09e5cb800053e6e3b3d691c0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff02307500000000000017a9148bbb53570df9656926ea0ef029cd2ee84dbc7d0f8760ea00000000000017a914a906137d79fc84a9685de5e6185bf397c2249bcd8700000000",
@@ -1557,7 +1555,7 @@ mod tests {
             unspents: utxos.clone(),
             fee: 12000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             "m/44'/1'/0'/0/0",
             Some(53),
@@ -1604,7 +1602,7 @@ mod tests {
             unspents: utxos.clone(),
             fee: 12000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             "m/49'/1'/0'/0/0",
             Some(0),
@@ -1623,7 +1621,7 @@ mod tests {
             unspents: utxos.clone(),
             fee: 10000,
         };
-        let sign_result = transaction_req_data.sign_Transaction(
+        let sign_result = transaction_req_data.sign_transaction(
             Network::Testnet,
             "m/49'/1'/0'/0/0",
             Some(0),
@@ -1670,7 +1668,7 @@ mod tests {
             unspents: utxos.clone(),
             fee: 12000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             "m/49'/1'/0'/0/0",
             Some(0),
@@ -1709,7 +1707,7 @@ mod tests {
             unspents: utxos.clone(),
             fee: 1000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             "m/86'/1'/0'/0/0",
             Some(53),
@@ -1743,7 +1741,7 @@ mod tests {
             unspents: utxos,
             fee: 20000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             "m/86'/1'/0'/0/0",
             Some(53),
@@ -1834,7 +1832,7 @@ mod tests {
             unspents: utxos,
             fee: 40000,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             "m/86'/1'/0'/0/0",
             Some(53),
@@ -1947,7 +1945,7 @@ mod tests {
             unspents: utxos,
             fee: 502130,
         };
-        let sign_result = transaction.sign_Transaction(
+        let sign_result = transaction.sign_transaction(
             Network::Testnet,
             "m/44'/1'/0'/0/0",
             Some(53),

@@ -3,8 +3,8 @@ use crate::Result;
 use bitcoin::network::constants::Network;
 use bitcoin::schnorr::UntweakedPublicKey;
 use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
-use bitcoin::{Address, PublicKey};
-use bitcoin_hashes::{hash160, Hash};
+use bitcoin::{Address, PublicKey, ScriptHash};
+use bitcoin::blockdata::script;
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::constants;
 use ikc_common::error::CommonError;
@@ -13,14 +13,12 @@ use ikc_common::utility::hex_to_bytes;
 use ikc_transport::message::send_apdu;
 use secp256k1::{PublicKey as Secp256k1PublicKey, Secp256k1};
 use std::str::FromStr;
+use bitcoin::util::base58;
+use anyhow::anyhow;
 
-pub struct BtcAddress();
-
-impl BtcAddress {
-    /**
-    get btc xpub by path
-    */
-    pub fn get_xpub(network: Network, path: &str) -> Result<String> {
+pub trait AddressTrait {
+    
+    fn get_xpub(network: Network, path: &str) -> Result<String> {
         check_path_validity(path)?;
 
         let xpub_data = get_xpub_data(path, true)?;
@@ -60,10 +58,55 @@ impl BtcAddress {
         Ok(extend_public_key.to_string())
     }
 
+    fn get_pub_key(path: &str) -> Result<String> {
+        //path check
+        check_path_validity(path)?;
+
+        //get xpub
+        let xpub_data = get_xpub_data(path, true)?;
+        let pub_key = &xpub_data[..130];
+
+        Ok(pub_key.to_string())
+    }
+
+    /**
+    get parent public key path
+    */
+    fn get_parent_path(path: &str) -> Result<&str> {
+        if path.is_empty() {
+            return Err(CommonError::ImkeyPathIllegal.into());
+        }
+
+        let mut end_flg = path.rfind("/").unwrap();
+        if path.ends_with("/") {
+            let path = &path[..path.len() - 1];
+            end_flg = path.rfind("/").unwrap();
+        }
+        Ok(&path[..end_flg])
+    }
+
+    fn p2pkh(network: Network, path: &str) -> Result<String>;
+
+    fn p2shwpkh(network: Network, path: &str) -> Result<String>;
+
+    fn p2wpkh(network: Network, path: &str) -> Result<String>;
+
+    fn p2tr(network: Network, path: &str) -> Result<String>;
+
+    fn display_address(network: Network, path: &str, seg_wit: &str) -> Result<String>;
+
+    fn from_public_key(public_key: &str, network: Network, seg_wit: &str) -> Result<String>;
+
+}
+
+pub struct BtcAddress();
+
+impl AddressTrait for  BtcAddress {
+
     /**
     get btc address by path
     */
-    pub fn p2pkh(network: Network, path: &str) -> Result<String> {
+    fn p2pkh(network: Network, path: &str) -> Result<String> {
         //path check
         check_path_validity(path)?;
 
@@ -80,7 +123,7 @@ impl BtcAddress {
     /**
     get segwit address by path
     */
-    pub fn p2shwpkh(network: Network, path: &str) -> Result<String> {
+    fn p2shwpkh(network: Network, path: &str) -> Result<String> {
         //path check
         check_path_validity(path)?;
 
@@ -94,7 +137,7 @@ impl BtcAddress {
         Ok(Address::p2shwpkh(&pub_key_obj, network)?.to_string())
     }
 
-    pub fn p2wpkh(network: Network, path: &str) -> Result<String> {
+    fn p2wpkh(network: Network, path: &str) -> Result<String> {
         check_path_validity(path)?;
 
         let xpub_data = get_xpub_data(path, true)?;
@@ -105,7 +148,7 @@ impl BtcAddress {
         Ok(Address::p2wpkh(&pub_key_obj, network)?.to_string())
     }
 
-    pub fn p2tr(network: Network, path: &str) -> Result<String> {
+    fn p2tr(network: Network, path: &str) -> Result<String> {
         check_path_validity(path)?;
 
         let xpub_data = get_xpub_data(path, true)?;
@@ -117,34 +160,7 @@ impl BtcAddress {
         Ok(Address::p2tr(&secp256k1, untweak_pub_key, None, network).to_string())
     }
 
-    pub fn get_pub_key(path: &str) -> Result<String> {
-        //path check
-        check_path_validity(path)?;
-
-        //get xpub
-        let xpub_data = get_xpub_data(path, true)?;
-        let pub_key = &xpub_data[..130];
-
-        Ok(pub_key.to_string())
-    }
-
-    /**
-    get parent public key path
-    */
-    pub fn get_parent_path(path: &str) -> Result<&str> {
-        if path.is_empty() {
-            return Err(CommonError::ImkeyPathIllegal.into());
-        }
-
-        let mut end_flg = path.rfind("/").unwrap();
-        if path.ends_with("/") {
-            let path = &path[..path.len() - 1];
-            end_flg = path.rfind("/").unwrap();
-        }
-        Ok(&path[..end_flg])
-    }
-
-    pub fn display_address(network: Network, path: &str, seg_wit: &str) -> Result<String> {
+    fn display_address(network: Network, path: &str, seg_wit: &str) -> Result<String> {
         check_path_validity(path)?;
 
         let address = match seg_wit {
@@ -159,7 +175,7 @@ impl BtcAddress {
         Ok(address)
     }
 
-    pub fn from_public_key(public_key: &str, network: Network, seg_wit: &str) -> Result<String> {
+    fn from_public_key(public_key: &str, network: Network, seg_wit: &str) -> Result<String> {
         let mut pub_key_obj = PublicKey::from_str(public_key)?;
         pub_key_obj.compressed = true;
         let address = match seg_wit {
@@ -183,10 +199,121 @@ impl BtcAddress {
     }
 }
 
+pub struct DogeAddress();
+
+impl AddressTrait for  DogeAddress {
+
+    /**
+    get btc address by path
+    */
+    fn p2pkh(network: Network, path: &str) -> Result<String> {
+        //path check
+        check_path_validity(path)?;
+
+        //get xpub
+        let xpub_data = get_xpub_data(path, true)?;
+        let pub_key = &xpub_data[..130];
+
+        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
+        pub_key_obj.compressed = true;
+        let hash = pub_key_obj.pubkey_hash();
+        let mut prefixed = [0; 21];
+        prefixed[0] = match network {
+            Network::Testnet => 0x71,
+            _ => 0x1e,
+        };
+        prefixed[1..].copy_from_slice(&hash[..]);
+
+        Ok(base58::check_encode_slice(&prefixed[..]))
+    }
+
+    /**
+    get segwit address by path
+    */
+    fn p2shwpkh(network: Network, path: &str) -> Result<String> {
+        //path check
+        check_path_validity(path)?;
+
+        //get xpub
+        let xpub_data = get_xpub_data(path, true)?;
+        let pub_key = &xpub_data[..130];
+
+        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
+        pub_key_obj.compressed = true;
+
+        let builder = script::Builder::new()
+            .push_int(0)
+            .push_slice(&pub_key_obj.wpubkey_hash().unwrap());
+
+        let hash = builder.into_script().script_hash();
+
+        let mut prefixed = [0; 21];
+        prefixed[0] = match network {
+            Network::Testnet => 0xc4,
+            _ => 0x16,
+        };
+        prefixed[1..].copy_from_slice(&hash[..]);
+
+        Ok(base58::check_encode_slice(&prefixed[..]))
+    }
+
+    fn p2wpkh(_network: Network, _path: &str) -> Result<String> {
+        return Err(anyhow!("unsupport_segwit_type"));
+    }
+
+    fn p2tr(_network: Network, _path: &str) -> Result<String> {
+        return Err(anyhow!("unsupport_segwit_type"));
+    }
+
+    fn display_address(network: Network, path: &str, seg_wit: &str) -> Result<String> {
+        check_path_validity(path)?;
+
+        let address = match seg_wit {
+            constants::BTC_SEG_WIT_TYPE_P2WPKH => Self::p2shwpkh(network, path)?,
+            _ => Self::p2pkh(network, path)?,
+        };
+
+        let apdu_res = send_apdu(BtcApdu::register_address(&address.as_bytes()))?;
+        ApduCheck::check_response(apdu_res.as_str())?;
+        Ok(address)
+    }
+
+    fn from_public_key(public_key: &str, network: Network, seg_wit: &str) -> Result<String> {
+        let mut pub_key_obj = PublicKey::from_str(public_key)?;
+        pub_key_obj.compressed = true;
+        match seg_wit {
+            constants::BTC_SEG_WIT_TYPE_LEGACY => {
+                let hash = pub_key_obj.pubkey_hash();
+                let mut prefixed = [0; 21];
+                prefixed[0] = match network {
+                    Network::Testnet => 0x71,
+                    _ => 0x1e,
+                };
+                prefixed[1..].copy_from_slice(&hash[..]);
+                return Ok(base58::check_encode_slice(&prefixed[..]));
+            },
+            constants::BTC_SEG_WIT_TYPE_P2WPKH => {
+                let builder = script::Builder::new()
+                .push_int(0)
+                .push_slice(&pub_key_obj.wpubkey_hash().unwrap());
+                let hash = builder.into_script().script_hash();
+                let mut prefixed = [0; 21];
+                prefixed[0] = match network {
+                    Network::Testnet => 0xc4,
+                    _ => 0x16,
+                };
+                prefixed[1..].copy_from_slice(&hash[..]);
+                Ok(base58::check_encode_slice(&prefixed[..]))
+            },
+            _ => {return Err(anyhow!("unsupport_segwit_type"));},
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
-    use crate::address::BtcAddress;
-    use bitcoin::Network;
+    use crate::address::{AddressTrait, BtcAddress, DogeAddress};
+    use bitcoin::{network::address, Network};
     use ikc_device::device_binding::bind_test;
 
     #[test]
@@ -343,6 +470,42 @@ mod test {
         assert_eq!(
             "bc1p26r56upnktz0qm4vxw3228v956rxsc4sevasswxdvh9ysnq509fqctph3w",
             segwit_address
+        );
+    }
+
+    #[test]
+    fn test_dogecoin_address() {
+        bind_test();
+        let network: Network = Network::Bitcoin;
+        let path: &str = "m/44'/3'/0'/0/0";
+        let address = DogeAddress::p2pkh(network, path).unwrap();
+        assert_eq!(
+            "DQ4tVEqdPWHc1aVBm4Sfwft8XyNRPMEchR",
+            address
+        );
+
+        let network: Network = Network::Bitcoin;
+        let path: &str = "m/44'/3'/0'/0/0";
+        let address = DogeAddress::p2shwpkh(network, path).unwrap();
+        assert_eq!(
+            "9vpAGUfo7a9g9RumnuQXSwSf7qNYABYuR6",
+            address
+        );
+
+        let network: Network = Network::Testnet;
+        let path: &str = "m/44'/3'/0'/0/0";
+        let address = DogeAddress::p2pkh(network, path).unwrap();
+        assert_eq!(
+            "no7xDFaYKUkKtZ4Nnt68C5URmqkiMUTRTE",
+            address
+        );
+
+        let network: Network = Network::Testnet;
+        let path: &str = "m/44'/3'/0'/0/0";
+        let address = DogeAddress::p2shwpkh(network, path).unwrap();
+        assert_eq!(
+            "2Mwd7bNXvexn8SrAr3uMypkoYdcCfsh5o3G",
+            address
         );
     }
 }

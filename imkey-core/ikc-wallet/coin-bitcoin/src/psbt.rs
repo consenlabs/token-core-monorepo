@@ -1,17 +1,16 @@
-use crate::address::BtcAddress;
+use crate::address::{AddressTrait, BtcAddress};
 use crate::btcapi::{PsbtInput, PsbtOutput};
 use crate::common::{get_address_version, get_xpub_data, select_btc_applet};
 use crate::Result;
 use anyhow::anyhow;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::consensus::{serialize, Decodable, Encodable};
-use bitcoin::psbt::serialize::Serialize;
 use bitcoin::psbt::Psbt;
-use bitcoin::schnorr::{TapTweak, UntweakedPublicKey};
+use bitcoin::schnorr::UntweakedPublicKey;
 use bitcoin::util::taproot::{TapLeafHash, TapTweakHash};
 use bitcoin::{
-    Address, EcdsaSig, EcdsaSighashType, Network, PackedLockTime, PublicKey, SchnorrSig,
-    SchnorrSighashType, Script, Transaction, TxOut, WPubkeyHash, Witness,
+    Address, EcdsaSig, EcdsaSighashType, Network, PublicKey, SchnorrSig,
+    SchnorrSighashType, Script, TxOut, WPubkeyHash, Witness,
 };
 use bitcoin_hashes::hex::ToHex;
 use bitcoin_hashes::{hash160, Hash};
@@ -221,7 +220,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn sign_p2sh_nested_p2wpkh(&mut self, idx: usize, pub_key: &str) -> Result<()> {
-        let mut temp_serialize_txin = self
+        let temp_serialize_txin = self
             .psbt
             .unsigned_tx
             .input
@@ -283,7 +282,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn sign_p2wpkh(&mut self, idx: usize, pub_key: &str) -> Result<()> {
-        let mut temp_serialize_txin = self
+        let temp_serialize_txin = self
             .psbt
             .unsigned_tx
             .input
@@ -473,7 +472,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     pub fn tx_preview(&self, network: Network) -> Result<()> {
-        let (total_amount, fee, outputs) = self.get_preview_info()?;
+        let (total_amount, fee, _outputs) = self.get_preview_info()?;
         let mut preview_data = vec![];
         preview_data.extend(&serialize(&self.psbt.unsigned_tx.version)); //version
         let input_number = self.psbt.unsigned_tx.input.len();
@@ -545,7 +544,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn finalize_p2pkh(&mut self, index: usize) {
-        let mut input = &mut self.psbt.inputs[index];
+        let input = &mut self.psbt.inputs[index];
 
         if !input.partial_sigs.is_empty() {
             let sig = input.partial_sigs.first_key_value().unwrap();
@@ -560,7 +559,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn finalize_p2sh_nested_p2wpkh(&mut self, index: usize) {
-        let mut input = &mut self.psbt.inputs[index];
+        let input = &mut self.psbt.inputs[index];
 
         if !input.partial_sigs.is_empty() {
             let sig = input.partial_sigs.first_key_value().unwrap();
@@ -579,7 +578,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn finalize_p2wpkh(&mut self, index: usize) {
-        let mut input = &mut self.psbt.inputs[index];
+        let input = &mut self.psbt.inputs[index];
 
         if !input.partial_sigs.is_empty() {
             let sig = input.partial_sigs.first_key_value().unwrap();
@@ -593,7 +592,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn finalize_p2tr(&mut self, index: usize) {
-        let mut input = &mut self.psbt.inputs[index];
+        let input = &mut self.psbt.inputs[index];
 
         if input.tap_key_sig.is_some() {
             let mut witness = Witness::new();
@@ -612,7 +611,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn clear_finalized_input(&mut self, index: usize) {
-        let mut input = &mut self.psbt.inputs[index];
+        let input = &mut self.psbt.inputs[index];
         input.tap_key_sig = None;
         input.tap_scripts = BTreeMap::new();
         input.tap_internal_key = None;
@@ -691,7 +690,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     pub fn get_preview_info(&self) -> Result<(u64, u64, Vec<TxOut>)> {
-        let mut outputs = &self.preview_output;
+        let outputs = &self.preview_output;
         let payment_total_amount = outputs.iter().map(|tx_out| tx_out.value).sum();
         let input_total_amount: u64 = self.prevouts.iter().map(|tx_out| tx_out.value).sum();
         let output_total_amount: u64 = self
