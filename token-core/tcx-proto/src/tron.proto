@@ -21,7 +21,8 @@ message TronTxOutput {
 // build the `TronMessageInput` and put it in the `input` field
 message TronMessageInput {
     string value = 1;
-    bool isTronHeader = 2;
+    string header = 2;
+    uint32 version = 3;
 }
 
 message TronMessageOutput {
