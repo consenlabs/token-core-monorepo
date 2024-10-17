@@ -44,6 +44,7 @@ pub struct BtcTransaction {
     pub amount: u64,
     pub unspents: Vec<Utxo>,
     pub fee: u64,
+    pub chain_type: String,
 }
 
 impl BtcTransaction {

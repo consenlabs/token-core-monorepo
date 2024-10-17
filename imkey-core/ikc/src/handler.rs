@@ -10,7 +10,7 @@ use bitcoin::hashes::hex::ToHex;
 use bitcoin::util::bip32::ExtendedPubKey;
 use bitcoin::Network;
 use coin_bch::address::BchAddress;
-use coin_bitcoin::address::{AddressTrait, BtcAddress};
+use coin_bitcoin::address::{AddressTrait, BtcAddress, DogeAddress};
 use coin_bitcoin::btcapi::PsbtInput;
 use coin_btc_fork::address::BtcForkAddress;
 use coin_btc_fork::btc_fork_network::network_from_param;
@@ -65,6 +65,21 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 };
                 account_rsp.address = address;
                 BtcAddress::get_xpub(network, &account_path)?
+            }
+            "DOGECOIN" => {
+                let network = network_convert(derivation.network.as_str());
+                let public_key = DogeAddress::get_pub_key(&derivation.path)?;
+                let public_key = uncompress_pubkey_2_compress(&public_key);
+                account_rsp.public_key = format!("0x{}", public_key);
+
+                let address = match derivation.seg_wit.as_str() {
+                    "P2WPKH" => DogeAddress::p2shwpkh(network, &derivation.path)?,
+                    "VERSION_0" => DogeAddress::p2wpkh(network, &derivation.path)?,
+                    "VERSION_1" => DogeAddress::p2tr(network, &derivation.path)?,
+                    _ => DogeAddress::p2pkh(network, &derivation.path)?,
+                };
+                account_rsp.address = address;
+                DogeAddress::get_xpub(network, &account_path)?
             }
             "LITECOIN" => {
                 let network = network_convert(derivation.network.as_str());
@@ -200,6 +215,14 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
                     &param.seg_wit,
                 )?
             }
+            "DOGECOIN" => {
+                let network = network_convert(&param.network);
+                DogeAddress::from_public_key(
+                    &hex::encode(pub_key_uncompressed),
+                    network,
+                    &param.seg_wit,
+                )?
+            }
             "LITECOIN" => {
                 let btc_fork_network =
                     network_from_param(&param.chain_type, &param.network, &param.seg_wit);
@@ -234,7 +257,7 @@ pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
             return Err(anyhow!("unsupported_curve_type"));
         }
         let extended_public_key = match public_key_derivation.chain_type.as_str() {
-            "BITCOIN" | "LITECOIN" | "BITCOINCASH" => {
+            "BITCOIN" | "LITECOIN" | "BITCOINCASH" | "DOGECOIN" => {
                 BtcAddress::get_xpub(Network::Bitcoin, public_key_derivation.path.as_str())?
             }
             "ETHEREUM" => EthAddress::get_xpub(public_key_derivation.path.as_str())?,
@@ -261,7 +284,7 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
         let public_key = match public_key_derivation.curve.as_str() {
             "secp256k1" => {
                 let mut public_key = match public_key_derivation.chain_type.as_str() {
-                    "BITCOIN" | "LITECOIN" | "BITCOINCASH" => {
+                    "BITCOIN" | "LITECOIN" | "BITCOINCASH" | "DOGECOIN" => {
                         BtcAddress::get_pub_key(&public_key_derivation.path)?
                     }
 

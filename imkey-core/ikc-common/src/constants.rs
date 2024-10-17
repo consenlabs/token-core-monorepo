@@ -29,6 +29,7 @@ pub const NERVOS_AID: &str = "695F6B315F636B62";
 pub const TEZOS_AID: &str = "695F65645F78747A";
 pub const BCH_AID: &str = "695F626368";
 pub const LTC_AID: &str = "695F6C7463";
+pub const DOGECOIN_AID: &str = "695F6D7463";
 
 pub const BL_AID: &str = "D0426F6F746C6F61646572";
 
