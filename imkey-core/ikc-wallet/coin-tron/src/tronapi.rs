@@ -13,12 +13,14 @@ pub struct TronTxOutput {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TronMessageInput {
-    #[prost(string, tag = "2")]
+    #[prost(string, tag = "1")]
     pub message: ::prost::alloc::string::String,
-    #[prost(bool, tag = "4")]
+    #[prost(bool, tag = "2")]
     pub is_hex: bool,
-    #[prost(bool, tag = "5")]
+    #[prost(bool, tag = "3")]
     pub is_tron_header: bool,
+    #[prost(string, tag = "4")]
+    pub version: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

@@ -24,6 +24,8 @@ pub struct TronMessageInput {
     pub value: ::prost::alloc::string::String,
     #[prost(bool, tag = "2")]
     pub is_tron_header: bool,
+    #[prost(string, tag = "3")]
+    pub version: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

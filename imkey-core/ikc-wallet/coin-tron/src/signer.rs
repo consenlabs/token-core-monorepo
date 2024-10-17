@@ -35,7 +35,10 @@ impl TronSigner {
 
         // this code is from tron wallet
         let header = match input.is_tron_header {
-            true => "\x19TRON Signed Message:\n32".as_bytes(),
+            true => match input.version.to_uppercase().as_str() {
+                "V2" => "\x19TRON Signed Message:\n".as_bytes(),
+                _ => "\x19TRON Signed Message:\n32".as_bytes(),
+            },
             false => "\x19Ethereum Signed Message:\n32".as_bytes(),
         };
         let mut msg_with_header = Vec::new();

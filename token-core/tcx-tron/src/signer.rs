@@ -66,7 +66,10 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
         let data = Vec::from_hex_auto(&message.value)?;
 
         let header = match message.is_tron_header {
-            true => "\x19TRON Signed Message:\n32".as_bytes(),
+            true => match message.version.to_uppercase().as_str() {
+                "V2" => "\x19TRON Signed Message:\n".as_bytes(),
+                _ => "\x19TRON Signed Message:\n32".as_bytes(),
+            },
             false => "\x19Ethereum Signed Message:\n32".as_bytes(),
         };
         let to_hash = [header, &data].concat();
