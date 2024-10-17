@@ -43,6 +43,7 @@ pub fn btc_sign(param: &BtcTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
         amount: param.amount,
         unspents,
         fee: param.fee,
+        chain_type: sign_param.chain_type.clone(),
     };
 
     let network = if sign_param.network == "TESTNET".to_string() {
@@ -50,14 +51,7 @@ pub fn btc_sign(param: &BtcTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
     } else {
         Network::Bitcoin
     };
-    // let op_return: Option<&[u8]>;
-    // if let Some(extra) = param.extra.clone() {
-    //     let data = hex_to_bytes(&extra.op_return.clone())?;
-    //     op_return = Some(data.clone().as_slice())
-    //     // op_return = Some(hex::decode(extra.op_return.clone())?.as_slice());
-    // } else {
-    //     op_return = None;
-    // }
+    
     let op_return = match &param.extra {
         Some(extra) => Some(extra.op_return.clone()),
         _ => None,
@@ -98,6 +92,7 @@ pub fn sign_usdt_transaction(input: &BtcTxInput, sign_param: &SignParam) -> Resu
         amount: input.amount,
         unspents: unspents,
         fee: input.fee,
+        chain_type: sign_param.chain_type.clone(),
     };
 
     let network = if sign_param.network == "TESTNET".to_string() {
@@ -140,6 +135,7 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
         amount: input.amount,
         unspents: unspents,
         fee: input.fee,
+        chain_type: sign_param.chain_type.clone(),
     };
 
     let network = if sign_param.network == "TESTNET".to_string() {
