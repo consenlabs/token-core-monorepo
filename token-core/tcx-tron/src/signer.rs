@@ -7,6 +7,7 @@ use tcx_keystore::{
 use bitcoin_hashes::sha256::Hash;
 use bitcoin_hashes::Hash as TraitHash;
 
+use anyhow::anyhow;
 use tcx_common::{keccak256, FromHex, ToHex};
 
 // http://jsoneditoronline.org/index.html?id=2b86a8503ba641bebed73f32b4ac9c42
@@ -65,13 +66,16 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
     ) -> Result<TronMessageOutput> {
         let data = Vec::from_hex_auto(&message.value)?;
 
-        let header = match message.is_tron_header {
-            true => match message.version.to_uppercase().as_str() {
-                "V2" => "\x19TRON Signed Message:\n".as_bytes(),
+        let header = match message.header.to_uppercase().as_str() {
+            "TRON" => match message.version {
+                2 => "\x19TRON Signed Message:\n".as_bytes(),
                 _ => "\x19TRON Signed Message:\n32".as_bytes(),
             },
-            false => "\x19Ethereum Signed Message:\n32".as_bytes(),
+            "ETH" => "\x19Ethereum Signed Message:\n32".as_bytes(),
+            "NONE" => "\x19Ethereum Signed Message:\n32".as_bytes(),
+            _ => return Err(anyhow!("sign_message_header_type_incorrect")),
         };
+
         let to_hash = [header, &data].concat();
 
         let hash = keccak256(&to_hash);
@@ -132,7 +136,8 @@ mod tests {
 
         let message = TronMessageInput {
             value: "hello world".as_bytes().to_hex(),
-            is_tron_header: true,
+            header: "TRON".to_string(),
+            version: 1,
         };
 
         let signed = keystore.sign_message(&params, &message).unwrap();
@@ -141,12 +146,33 @@ mod tests {
 
         let message = TronMessageInput {
             value: "hello world".as_bytes().to_hex(),
-            is_tron_header: false,
+            header: "NONE".to_string(),
+            version: 1,
         };
 
         let signed = keystore.sign_message(&params, &message).unwrap();
 
         assert_eq!(signed.signature, "0xe14f6aab4b87af398917c8a0fd6d065029df9ecc01afbc4d789eefd6c2de1e243272d630992b470c2bbb7f52024280af9bbd2e62d96ecab333c91f527b059ffe1c");
+
+        let message = TronMessageInput {
+            value: "hello world".as_bytes().to_hex(),
+            header: "ETH".to_string(),
+            version: 1,
+        };
+
+        let signed = keystore.sign_message(&params, &message).unwrap();
+
+        assert_eq!(signed.signature, "0xe14f6aab4b87af398917c8a0fd6d065029df9ecc01afbc4d789eefd6c2de1e243272d630992b470c2bbb7f52024280af9bbd2e62d96ecab333c91f527b059ffe1c");
+
+        let message = TronMessageInput {
+            value: "hello world".as_bytes().to_hex(),
+            header: "TRON".to_string(),
+            version: 2,
+        };
+
+        let signed = keystore.sign_message(&params, &message).unwrap();
+
+        assert_eq!(signed.signature, "0xbca12bfcc9f0e23ff1d3567c4ef04ff83ac93346d6b3062d56922cc15b7669436c1aaa6a3f1ec4013545ba7d3bb79ab4b1125159d251a910f92ea198cbc469a21c");
     }
 
     #[test]

@@ -506,20 +506,20 @@ fn test_tron_sign_message() {
                 (TronMessageInput {
                     value: "0x645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76"
                         .to_string(),
-                    is_tron_header: true,
-                    version: "V1".to_string(),
+                    header: "TRON".to_string(),
+                    version: 1,
                 }, "0x16417c6489da3a88ef980bf0a42551b9e76181d03e7334548ab3cb36e7622a484482722882a29e2fe4587b95c739a68624ebf9ada5f013a9340d883f03fcf9af1b"),
                 (TronMessageInput {
                     value: "645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76"
                         .to_string(),
-                    is_tron_header: true,
-                    version: "V1".to_string(),
+                    header: "TRON".to_string(),
+                    version: 1,
                 }, "0x16417c6489da3a88ef980bf0a42551b9e76181d03e7334548ab3cb36e7622a484482722882a29e2fe4587b95c739a68624ebf9ada5f013a9340d883f03fcf9af1b"),
                 (TronMessageInput {
                     value: "abcdef"
                         .to_string(),
-                    is_tron_header: true,
-                    version: "V1".to_string(),
+                    header: "TRON".to_string(),
+                    version: 1,
                 }, "0x13e407627e584c821ba527d23d64163d458447dfea1c3bfc92be660aa8d093ee5cfa3881870c4c51f157828eb9d4f7fad8112761f3b51cf76c7a4a3f241033d51b"),
             ];
         for (input, expected) in input_expects {
@@ -551,12 +551,11 @@ fn test_tron_sign_message_v2() {
         let wallet = import_default_wallet();
 
         let input = TronMessageInput {
-            value: "0x645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76"
-                .to_string(),
-            is_tron_header: true,
-            version: "V2".to_string(),
+            value: "0x645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76".to_string(),
+            header: "TRON".to_string(),
+            version: 2,
         };
-        
+
         let tx = SignParam {
             id: wallet.id.to_string(),
             key: Some(Key::Password(TEST_PASSWORD.to_string())),
@@ -574,7 +573,6 @@ fn test_tron_sign_message_v2() {
         let sign_result = call_api("sign_msg", tx).unwrap();
         let ret: TronMessageOutput = TronMessageOutput::decode(sign_result.as_slice()).unwrap();
         assert_eq!("0x9e7a691647c02fad5fe939a50df0351a58be67b3cdd87619c37f316b913d0be92ecf190f5e0c3640d54d9be731e8ab4bea4894ca9e7267b6c86d852e5c5dd71d1c", ret.signature);
-        
     });
 }
 
@@ -625,8 +623,8 @@ fn test_sign_by_dk_hd_store() {
         let wallet = import_default_wallet();
         let input = TronMessageInput {
             value: "0x645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76".to_string(),
-            is_tron_header: true,
-            version: "V1".to_string()
+            header: "TRON".to_string(),
+            version: 1,
         };
 
         let dk_param = WalletKeyParam {

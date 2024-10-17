@@ -12,8 +12,8 @@ message TronTxOutput {
 message TronMessageInput {
     string message = 1;
     bool is_hex = 2;
-    bool is_tron_header = 3;
-    string version = 4;
+    string header = 3;
+    uint32 version = 4;
 }
 
 message TronMessageOutput {

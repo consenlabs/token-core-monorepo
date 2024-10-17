@@ -1,6 +1,7 @@
 use crate::address::TronAddress;
 use crate::tronapi::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 use crate::Result;
+use anyhow::anyhow;
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::TRON_AID;
 use ikc_common::error::CoinError;
@@ -34,12 +35,14 @@ impl TronSigner {
         };
 
         // this code is from tron wallet
-        let header = match input.is_tron_header {
-            true => match input.version.to_uppercase().as_str() {
-                "V2" => "\x19TRON Signed Message:\n".as_bytes(),
+        let header = match input.header.to_uppercase().as_str() {
+            "TRON" => match input.version {
+                2 => "\x19TRON Signed Message:\n".as_bytes(),
                 _ => "\x19TRON Signed Message:\n32".as_bytes(),
             },
-            false => "\x19Ethereum Signed Message:\n32".as_bytes(),
+            "ETH" => "\x19Ethereum Signed Message:\n32".as_bytes(),
+            "NONE" => "\x19Ethereum Signed Message:\n32".as_bytes(),
+            _ => return Err(anyhow!("sign_message_header_type_incorrect")),
         };
         let mut msg_with_header = Vec::new();
         msg_with_header.extend(header);
@@ -203,12 +206,14 @@ mod tests {
             receiver: "".to_string(),
             sender: "TY2uroBeZ5trA9QT96aEWj32XLkAAhQ9R2".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let input = TronMessageInput {
             message: "645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76".to_string(),
             is_hex: true,
-            is_tron_header: true,
+            header: "TRON".to_string(),
+            version: 1,
         };
         let res = TronSigner::sign_message(input, &sign_param).unwrap();
         assert_eq!("16417c6489da3a88ef980bf0a42551b9e76181d03e7334548ab3cb36e7622a484482722882a29e2fe4587b95c739a68624ebf9ada5f013a9340d883f03fcf9af1b", &res.signature);
@@ -216,7 +221,8 @@ mod tests {
         let input2 = TronMessageInput {
             message: "645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76".to_string(),
             is_hex: true,
-            is_tron_header: false,
+            header: "ETH".to_string(),
+            version: 1,
         };
         let res = TronSigner::sign_message(input2, &sign_param).unwrap();
         assert_eq!("06ff3c5f98b8e8e257f47a66ce8e953c7a7d0f96eb6687da6a98b66a36c2a725759cab3df94d014bd17760328adf860649303c68c4fa6644d9f307e2f32cc3311c", &res.signature);
@@ -224,10 +230,38 @@ mod tests {
         let input3 = TronMessageInput {
             message: "abcdef".to_string(),
             is_hex: false,
-            is_tron_header: true,
+            header: "TRON".to_string(),
+            version: 1,
         };
         let res = TronSigner::sign_message(input3, &sign_param).unwrap();
         assert_eq!("a87eb6ae7e97621b6ba2e2f70db31fe0c744c6adcfdc005044026506b70ac11a33f415f4478b6cf84af32b3b5d70a13a77e53287613449b345bb16fe012c04081b", &res.signature);
+
+        let input4 = TronMessageInput {
+            message: "hello world".to_string(),
+            is_hex: false,
+            header: "ETH".to_string(),
+            version: 1,
+        };
+        let res = TronSigner::sign_message(input4, &sign_param).unwrap();
+        assert_eq!("e14f6aab4b87af398917c8a0fd6d065029df9ecc01afbc4d789eefd6c2de1e243272d630992b470c2bbb7f52024280af9bbd2e62d96ecab333c91f527b059ffe1c", &res.signature);
+
+        let input5 = TronMessageInput {
+            message: "hello world".to_string(),
+            is_hex: false,
+            header: "TRON".to_string(),
+            version: 2,
+        };
+        let res = TronSigner::sign_message(input5, &sign_param).unwrap();
+        assert_eq!("bca12bfcc9f0e23ff1d3567c4ef04ff83ac93346d6b3062d56922cc15b7669436c1aaa6a3f1ec4013545ba7d3bb79ab4b1125159d251a910f92ea198cbc469a21c", &res.signature);
+
+        let input6 = TronMessageInput {
+            message: "hello world".to_string(),
+            is_hex: false,
+            header: "NONE".to_string(),
+            version: 1,
+        };
+        let res = TronSigner::sign_message(input6, &sign_param).unwrap();
+        assert_eq!("e14f6aab4b87af398917c8a0fd6d065029df9ecc01afbc4d789eefd6c2de1e243272d630992b470c2bbb7f52024280af9bbd2e62d96ecab333c91f527b059ffe1c", &res.signature);
     }
 
     #[test]
@@ -242,6 +276,7 @@ mod tests {
             receiver: "TDQqJsFsStSy5fjG52KuiWW7HhJGAKGJLb".to_string(),
             sender: "TY2uroBeZ5trA9QT96aEWj32XLkAAhQ9R2".to_string(),
             fee: "20 dd".to_string(),
+            seg_wit: "".to_string(),
         };
         let input = TronTxInput{
             raw_data: "0a0208312208b02efdc02638b61e40f083c3a7c92d5a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a1541a1e81654258bf14f63feb2e8d1380075d45b0dac1215410b3e84ec677b3e63c99affcadb91a6b4e086798f186470a0bfbfa7c92d".to_string(),
