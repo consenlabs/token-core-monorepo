@@ -1,10 +1,13 @@
 use crate::common::get_xpub_data;
 use crate::Result;
+use bech32::{ToBase32, Variant};
 use bitcoin::network::constants::Network;
 use bitcoin::schnorr::UntweakedPublicKey;
+use bitcoin::util::address::WitnessVersion;
 use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
-use bitcoin::{Address, PublicKey, ScriptHash};
+use bitcoin::{Address, PublicKey};
 use bitcoin::blockdata::script;
+use bitcoin::util::address::Payload;
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::constants;
 use ikc_common::error::CommonError;
@@ -257,12 +260,56 @@ impl AddressTrait for  DogeAddress {
         Ok(base58::check_encode_slice(&prefixed[..]))
     }
 
-    fn p2wpkh(_network: Network, _path: &str) -> Result<String> {
-        return Err(anyhow!("unsupport_segwit_type"));
+    fn p2wpkh(network: Network, path: &str) -> Result<String> {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data(path, true)?;
+        let pub_key = &xpub_data[..130];
+        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
+        pub_key_obj.compressed = true;
+        let address = Address::p2wpkh(&pub_key_obj, network)?;
+
+        let mut written_str = String::new();
+        if let Payload::WitnessProgram { program: ref prog, version } = address.payload {
+            let mut bech32_writer = bech32::Bech32Writer::new(
+                "",
+                Variant::Bech32,
+                &mut written_str,
+            )?;
+            bech32::WriteBase32::write_u5(&mut bech32_writer, version.into())?;
+            bech32::ToBase32::write_base32(&prog, &mut bech32_writer)?;
+        } else {
+            return Err(anyhow!("get_dogecoin_address_fail"));
+        };
+
+        Ok(written_str)
     }
 
-    fn p2tr(_network: Network, _path: &str) -> Result<String> {
-        return Err(anyhow!("unsupport_segwit_type"));
+    fn p2tr(network: Network, path: &str) -> Result<String> {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data(path, true)?;
+        let pub_key = &xpub_data[..130];
+        let untweak_pub_key =
+            UntweakedPublicKey::from(secp256k1::PublicKey::from_slice(&hex_to_bytes(&pub_key)?)?);
+
+        let secp256k1 = Secp256k1::new();
+        let address = Address::p2tr(&secp256k1, untweak_pub_key, None, network);
+
+        let mut written_str = String::new();
+        if let Payload::WitnessProgram { program: ref prog, version } = address.payload {
+            let mut bech32_writer = bech32::Bech32Writer::new(
+                "",
+                Variant::Bech32m,
+                &mut written_str,
+            )?;
+            bech32::WriteBase32::write_u5(&mut bech32_writer, version.into())?;
+            bech32::ToBase32::write_base32(&prog, &mut bech32_writer)?;
+        } else {
+            return Err(anyhow!("get_dogecoin_address_fail"));
+        };
+
+        Ok(written_str)
     }
 
     fn display_address(network: Network, path: &str, seg_wit: &str) -> Result<String> {
@@ -476,6 +523,7 @@ mod test {
     #[test]
     fn test_dogecoin_address() {
         bind_test();
+
         let network: Network = Network::Bitcoin;
         let path: &str = "m/44'/3'/0'/0/0";
         let address = DogeAddress::p2pkh(network, path).unwrap();
@@ -485,27 +533,28 @@ mod test {
         );
 
         let network: Network = Network::Bitcoin;
-        let path: &str = "m/44'/3'/0'/0/0";
+        let path: &str = "m/44'/1'/0'/0/0";
         let address = DogeAddress::p2shwpkh(network, path).unwrap();
         assert_eq!(
-            "9vpAGUfo7a9g9RumnuQXSwSf7qNYABYuR6",
+            "A6tT5rU6MZBzArAVVei5PqqocfxBqJhSqg",
             address
         );
 
-        let network: Network = Network::Testnet;
-        let path: &str = "m/44'/3'/0'/0/0";
-        let address = DogeAddress::p2pkh(network, path).unwrap();
+        let network: Network = Network::Bitcoin;
+        let path: &str = "m/44'/1'/0'/0/0";
+        let address = DogeAddress::p2wpkh(network, path).unwrap();
         assert_eq!(
-            "no7xDFaYKUkKtZ4Nnt68C5URmqkiMUTRTE",
+            "1q8qlms89s5078yj67pr8ch02qgvmdwy0k24vwhn",
             address
         );
 
-        let network: Network = Network::Testnet;
-        let path: &str = "m/44'/3'/0'/0/0";
-        let address = DogeAddress::p2shwpkh(network, path).unwrap();
+        let network: Network = Network::Bitcoin;
+        let path: &str = "m/44'/1'/0'/0/0";
+        let address = DogeAddress::p2tr(network, path).unwrap();
         assert_eq!(
-            "2Mwd7bNXvexn8SrAr3uMypkoYdcCfsh5o3G",
+            "1pd2gajgcpr7c5ajgl377sgmqexw5jxqvl305zw2a7aeujf8pun7ksh45tuj",
             address
         );
+
     }
 }
