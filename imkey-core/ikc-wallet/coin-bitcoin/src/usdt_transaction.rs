@@ -445,6 +445,7 @@ mod tests {
             amount: 10050000000,
             unspents: utxos,
             fee: 4000,
+            chain_type: "".to_string(),
         };
         let sign_result = transaction_req_data.sign_omni_transaction(
             Network::Testnet,
@@ -483,6 +484,7 @@ mod tests {
             amount: 10000000000,
             unspents: utxos,
             fee: 4000,
+            chain_type: "".to_string(),
         };
         let sign_result = transaction_req_data.sign_omni_segwit_transaction(
             Network::Testnet,
@@ -592,6 +594,7 @@ mod tests {
             amount: 750000000,
             unspents: utxos,
             fee: 502130,
+            chain_type: "".to_string(),
         };
         let sign_result = transaction_req_data.sign_omni_segwit_transaction(
             Network::Bitcoin,
@@ -629,6 +632,7 @@ mod tests {
             amount: 345678,
             unspents: utxos,
             fee: 502130,
+            chain_type: "".to_string(),
         };
         let sign_result = transaction_req_data.sign_omni_segwit_transaction(
             Network::Bitcoin,
@@ -665,6 +669,7 @@ mod tests {
             amount: 345678,
             unspents: utxos,
             fee: 502130,
+            chain_type: "".to_string(),
         };
         let sign_result = transaction_req_data.sign_omni_segwit_transaction(
             Network::Bitcoin,
@@ -695,6 +700,7 @@ mod tests {
             amount: 10050000000,
             unspents: utxos,
             fee: 4000,
+            chain_type: "".to_string(),
         };
         let sign_result = transaction_req_data.sign_omni_transaction(
             Network::Testnet,
@@ -727,6 +733,7 @@ mod tests {
             amount: 100,
             unspents: utxos,
             fee: 900,
+            chain_type: "".to_string(),
         };
         let sign_result = transaction_req_data.sign_omni_segwit_transaction(
             Network::Bitcoin,
@@ -755,6 +762,7 @@ mod tests {
             amount: 100,
             unspents: utxos,
             fee: 900,
+            chain_type: "".to_string(),
         };
         let sign_result = transaction_req_data.sign_omni_transaction(
             Network::Testnet,

@@ -776,6 +776,7 @@ mod tests {
             amount: 799988000,
             unspents: utxos,
             fee: 10000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -831,6 +832,7 @@ mod tests {
             amount: 88000,
             unspents: utxos,
             fee: 10000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -869,6 +871,7 @@ mod tests {
             amount: 88000,
             unspents: utxos,
             fee: 10000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -910,6 +913,7 @@ mod tests {
             amount: 50000,
             unspents: utxos,
             fee: 10000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -951,6 +955,7 @@ mod tests {
             amount: 30000,
             unspents: utxos,
             fee: 8000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -992,6 +997,7 @@ mod tests {
             amount: 30000,
             unspents: utxos,
             fee: 7000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1032,6 +1038,7 @@ mod tests {
             amount: 25000,
             unspents: utxos,
             fee: 5000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1069,6 +1076,7 @@ mod tests {
             amount: 26000,
             unspents: utxos,
             fee: 4000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1123,6 +1131,7 @@ mod tests {
             amount: 31000,
             unspents: utxos,
             fee: 5000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1164,6 +1173,7 @@ mod tests {
             amount: 90000,
             unspents: utxos,
             fee: 10000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result =
             transaction.sign_transaction(Network::Testnet, "m/49'/1'/0'", Some(0), None, "P2WPKH");
@@ -1214,6 +1224,7 @@ mod tests {
             amount: 1508852,
             unspents: utxos,
             fee: 10000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1256,6 +1267,7 @@ mod tests {
             amount: 30000,
             unspents: utxos,
             fee: 10000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1311,6 +1323,7 @@ mod tests {
             amount: 110000,
             unspents: utxos,
             fee: 20000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction_req_data.sign_transaction(
             Network::Testnet,
@@ -1367,6 +1380,7 @@ mod tests {
             amount: 90000,
             unspents: utxos,
             fee: 10000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1443,6 +1457,7 @@ mod tests {
             amount: 310000,
             unspents: utxos,
             fee: 10000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1485,6 +1500,7 @@ mod tests {
             amount: 30000,
             unspents: utxos,
             fee: 10000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result =
             transaction.sign_transaction(Network::Testnet, "m/49'/1'/0'", Some(53), None, "P2WPKH");
@@ -1555,6 +1571,7 @@ mod tests {
             amount: 799988000,
             unspents: utxos.clone(),
             fee: 12000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1602,6 +1619,7 @@ mod tests {
             amount: 88000,
             unspents: utxos.clone(),
             fee: 12000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1621,6 +1639,7 @@ mod tests {
             amount: 80000,
             unspents: utxos.clone(),
             fee: 10000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction_req_data.sign_transaction(
             Network::Testnet,
@@ -1668,6 +1687,7 @@ mod tests {
             amount: 88000,
             unspents: utxos.clone(),
             fee: 12000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1707,6 +1727,7 @@ mod tests {
             amount: 40000,
             unspents: utxos.clone(),
             fee: 1000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1741,6 +1762,7 @@ mod tests {
             amount: 50000,
             unspents: utxos,
             fee: 20000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1832,6 +1854,7 @@ mod tests {
             amount: 40000,
             unspents: utxos,
             fee: 40000,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,
@@ -1945,6 +1968,7 @@ mod tests {
             amount: 750000000,
             unspents: utxos,
             fee: 502130,
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             Network::Testnet,

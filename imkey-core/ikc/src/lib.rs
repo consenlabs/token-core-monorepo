@@ -531,7 +531,7 @@ mod tests {
             },
             Derivation {
                 chain_type: "DOGECOIN".to_string(),
-                path: "m/44'/0'/0'/0/0".to_string(),
+                path: "m/44'/3'/0'/0/0".to_string(),
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
@@ -539,25 +539,17 @@ mod tests {
             },
             Derivation {
                 chain_type: "DOGECOIN".to_string(),
-                path: "m/49'/0'/0'/0/0".to_string(),
+                path: "m/44'/1'/0'/0/0".to_string(),
                 network: "MAINNET".to_string(),
-                seg_wit: "P2WPKH".to_string(),
-                chain_id: "".to_string(),
-                curve: "secp256k1".to_string(),
-            },
-            Derivation {
-                chain_type: "DOGECOIN".to_string(),
-                path: "m/44'/0'/0'/0/0".to_string(),
-                network: "TESTNET".to_string(),
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
             },
             Derivation {
                 chain_type: "DOGECOIN".to_string(),
-                path: "m/49'/0'/0'/0/0".to_string(),
-                network: "TESTNET".to_string(),
-                seg_wit: "P2WPKH".to_string(),
+                path: "m/44'/1'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "VERSION_1".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
             },
@@ -839,48 +831,38 @@ mod tests {
         assert_eq!("XMpKliPCkntBO51gk2e9O2kNxYcIe64boiJ3yjdiYdGJjbM3GeEUIaJnrNR13mqKLphye+RbzfMnaITZG+qSTYxFT2p6SEoeBUxionjKb9gVJ/AbUkseruRVJ3I8pI0Gefd/KoJe76bFBZhGEXSD2Q==", derived_accounts.accounts[23].encrypted_extended_public_key);
 
         assert_eq!(
-            "D78C2FooMJe77f6WtcZQhW7YtGuJNVLesB",
+            "DQ4tVEqdPWHc1aVBm4Sfwft8XyNRPMEchR",
             derived_accounts.accounts[24].address
         );
         assert_eq!(
-            "0x026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
+            "0x030940ee016f241f8355f8bbeac3e36ed95aaa0472e9e0d3eb3fa999c28512335f",
             derived_accounts.accounts[24].public_key
         );
-        assert_eq!("xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8", derived_accounts.accounts[24].extended_public_key);
-        assert_eq!("BdgvWHN/Uh/K526q/+CdpGwEPZ41SvZHHGSgiSqhFesjErdbo6UnJMIoDOHV94qW8fd2KBW18UG3nTzDwS7a5oArqPtv+2aE9+1bNvCdtYoAx3979N3vbX4Xxn/najTABykXrJDjgpoaXxSo/xTktQ==", derived_accounts.accounts[24].encrypted_extended_public_key);
+        assert_eq!("xpub6CDSaXHQokkKmHHG2kNCFZeirJkcZgRZE97ZZUtViif3SFHSNVAvRpWC3CxeRt2VZetEGCcPTmWEFpKF4NDeeZrMNPQgfUaX5Hkw89kW8qE", derived_accounts.accounts[24].extended_public_key);
+        assert_eq!("xfp4vzRYZmLL7L/3HQZeGxbWkkU5Pr/2MPb2t3NvPiI+t+8SbOof9Vo3tW6B/5JO+Qt4Dud4d+OTS1rbcZ35F8ldMbClq/z/+vaN2PwkiLmF2WrKJofr9BdHbfyLbQeg6LJ02hZ7yVAjP7w5pn2S8w==", derived_accounts.accounts[24].encrypted_extended_public_key);
 
         assert_eq!(
-            "A9X7PZY8Pr1GwpLoxuDXS9AaKeE4rb7evH",
+            "DAGWiHeAHCTLUTsBEFMWviSkdGeZGveASM",
             derived_accounts.accounts[25].address
         );
         assert_eq!(
-            "0x03036695c5f3de2e2792b170f59679d4db88a8516728012eaa42a22ce6f8bf593b",
+            "0x033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4e",
             derived_accounts.accounts[25].public_key
         );
-        assert_eq!("xpub6Boii2KSAfEv7EhbBuopXKB2Gshi8kMpTGWyHuY9BHwYA8qPeu7ZYdnnXCuUdednhwyjyK2Z8gJD2AfawgBHp3Kkf2GjBjzEQAyJ3uJ4SuG", derived_accounts.accounts[25].extended_public_key);
-        assert_eq!("CPEZEgxonR02LextSVWxqQmH7zSjfNN44+0KYuTJ4ezARna34lG4YcX7nR5xvSrMhuRv4eI8BG+2h3Zz4523lNPp8Y6pEEtdJHSvTzS/APQYtdpHB3Hye+kQ+D7YuJ7Ps+LxoxFAwpic7a3CS+R+cw==", derived_accounts.accounts[25].encrypted_extended_public_key);
+        assert_eq!("xpub6CSt8ZdrPg6j9ECzMGGDaKJJDUe8Cfm4xHjVrvL7PyGkBGdog8asBznBaZQiYbRtCdWRUAKGpKcbyUYMUUwgmiNt7mPs1QCUMhyHB6rBURT", derived_accounts.accounts[25].extended_public_key);
+        assert_eq!("aZQFapKlNXVFODnqcTrkYcUdEBOJng0detiaBwO/7yNBWxxukf9/GJOn1dUh4oumFTtHoNNsBxYjYXpMdO7HMksOlOOJUCFNGRvVkiS5W83nAMTTDDbJGlC9ZB0lbm6wC4RYP3uGlg1anIl2BOW+mg==", derived_accounts.accounts[25].encrypted_extended_public_key);
 
         assert_eq!(
-            "nWBFkGYiHH6pzdfhvSCrwuhr89HbMqwMZR",
+            "1pd2gajgcpr7c5ajgl377sgmqexw5jxqvl305zw2a7aeujf8pun7ksh45tuj",
             derived_accounts.accounts[26].address
         );
         assert_eq!(
-            "0x026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
+            "0x033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4e",
             derived_accounts.accounts[26].public_key
         );
-        assert_eq!("tpubDDDcs8o1LaKXKXaPTEVBUZJYTgNAte4xj24MtFCMsfrHku93ZZjy87CGyz93dcocR6x6JHdusHodD9EVcSQuDbmkAWznWZtvyqyMDqS6VK4", derived_accounts.accounts[26].extended_public_key);
-        assert_eq!("KN9qVdfibQ6+qM/gpglypnGYL0A5Wsu/hm7q5QHoAzUNRQUmKOmyQquyka2FNzSEIfBp/3PZemS/uhEEbbpJfSh7mhbKDQfNQHRalWLEXrfZvOk3Aaej7cxtMnm0UdzNQlYlbeCo/E43kcfCnlsKBw==", derived_accounts.accounts[26].encrypted_extended_public_key);
+        assert_eq!("xpub6CSt8ZdrPg6j9ECzMGGDaKJJDUe8Cfm4xHjVrvL7PyGkBGdog8asBznBaZQiYbRtCdWRUAKGpKcbyUYMUUwgmiNt7mPs1QCUMhyHB6rBURT", derived_accounts.accounts[26].extended_public_key);
+        assert_eq!("aZQFapKlNXVFODnqcTrkYcUdEBOJng0detiaBwO/7yNBWxxukf9/GJOn1dUh4oumFTtHoNNsBxYjYXpMdO7HMksOlOOJUCFNGRvVkiS5W83nAMTTDDbJGlC9ZB0lbm6wC4RYP3uGlg1anIl2BOW+mg==", derived_accounts.accounts[26].encrypted_extended_public_key);
 
-        assert_eq!(
-            "2NAL4iTQFwEdjFEbtDuAyoxXTqR4Cd8qtSx",
-            derived_accounts.accounts[27].address
-        );
-        assert_eq!(
-            "0x03036695c5f3de2e2792b170f59679d4db88a8516728012eaa42a22ce6f8bf593b",
-            derived_accounts.accounts[27].public_key
-        );
-        assert_eq!("tpubDCBMEG97swCNP2tSe6nujEWPbzoN88rszu7GeTbHXChRuRW6j7xeh5TcmEzGA9b2VrWeatYRfn8FiMACLY2XhUn3id22sGeTz8ZhounC4Wa", derived_accounts.accounts[27].extended_public_key);
-        assert_eq!("LtJEXs9Hqofmtz+0eVqUcdnrX4Ax41/LFjPXVWr2zg/LSL9mbj09oVo4I8mmID2xm4Q+cCjMfmroYTUFJKJxZQ2jQwmbQP+eVlcFtmKzafaUEen+rbchlWbWRKLzyVFLBNT72I0SjplHi2f5QHKauA==", derived_accounts.accounts[27].encrypted_extended_public_key);
     }
 
     #[test]
