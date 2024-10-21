@@ -9,8 +9,8 @@ use bitcoin::psbt::Psbt;
 use bitcoin::schnorr::UntweakedPublicKey;
 use bitcoin::util::taproot::{TapLeafHash, TapTweakHash};
 use bitcoin::{
-    Address, EcdsaSig, EcdsaSighashType, Network, PublicKey, SchnorrSig,
-    SchnorrSighashType, Script, TxOut, WPubkeyHash, Witness,
+    Address, EcdsaSig, EcdsaSighashType, Network, PublicKey, SchnorrSig, SchnorrSighashType,
+    Script, TxOut, WPubkeyHash, Witness,
 };
 use bitcoin_hashes::hex::ToHex;
 use bitcoin_hashes::{hash160, Hash};

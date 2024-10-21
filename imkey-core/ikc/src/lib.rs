@@ -862,7 +862,6 @@ mod tests {
         );
         assert_eq!("xpub6CSt8ZdrPg6j9ECzMGGDaKJJDUe8Cfm4xHjVrvL7PyGkBGdog8asBznBaZQiYbRtCdWRUAKGpKcbyUYMUUwgmiNt7mPs1QCUMhyHB6rBURT", derived_accounts.accounts[26].extended_public_key);
         assert_eq!("aZQFapKlNXVFODnqcTrkYcUdEBOJng0detiaBwO/7yNBWxxukf9/GJOn1dUh4oumFTtHoNNsBxYjYXpMdO7HMksOlOOJUCFNGRvVkiS5W83nAMTTDDbJGlC9ZB0lbm6wC4RYP3uGlg1anIl2BOW+mg==", derived_accounts.accounts[26].encrypted_extended_public_key);
-
     }
 
     #[test]
@@ -1575,6 +1574,141 @@ mod tests {
         );
         assert_eq!(
             "tb1p4rt8lyrvvvzg7hq9nlmqh9saym73gvtup09daje9x3q5wjfgmkgqy47h72",
+            derived_sub_accounts.accounts[1].address
+        );
+    }
+
+    #[test]
+    fn test_dogecoin_derive_sub_accounts() {
+        let mut derivation = Derivation {
+            chain_type: "DOGECOIN".to_string(),
+            path: "m/44'/0'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+        };
+        let derived_accounts_result = derive_account(derivation.clone());
+        let mut derive_sub_accounts_param = DeriveSubAccountsParam {
+            chain_type: "DOGECOIN".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            relative_paths: vec!["0/0".to_string(), "0/1".to_string()],
+            extended_public_key: derived_accounts_result.accounts[0]
+                .extended_public_key
+                .to_string(),
+        };
+        let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
+        assert_eq!(
+            "D78C2FooMJe77f6WtcZQhW7YtGuJNVLesB",
+            derived_sub_accounts.accounts[0].address
+        );
+        assert_eq!(
+            "0x026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
+            derived_sub_accounts.accounts[0].public_key
+        );
+        assert_eq!(
+            "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8",
+            derived_sub_accounts.accounts[0].extended_public_key
+        );
+        assert_eq!(
+            "BdgvWHN/Uh/K526q/+CdpGwEPZ41SvZHHGSgiSqhFesjErdbo6UnJMIoDOHV94qW8fd2KBW18UG3nTzDwS7a5oArqPtv+2aE9+1bNvCdtYoAx3979N3vbX4Xxn/najTABykXrJDjgpoaXxSo/xTktQ==",
+            derived_sub_accounts.accounts[0].encrypted_extended_public_key
+        );
+        assert_eq!(
+            "DDE8E8VmhDHm5HyEzAkJkE2Wdkyenc7wCc",
+            derived_sub_accounts.accounts[1].address
+        );
+        assert_eq!(
+            "0x024fb7df3961e08f01025e434ea19708a4317d2fe59775cddd38df6e8a2d30697d",
+            derived_sub_accounts.accounts[1].public_key
+        );
+
+        derivation.seg_wit = "P2WPKH".to_string();
+        derivation.path = "m/84'/0'/0'/0/0".to_string();
+        let derived_accounts_result = derive_account(derivation.clone());
+        derive_sub_accounts_param.seg_wit = "P2WPKH".to_string();
+        derive_sub_accounts_param.extended_public_key = derived_accounts_result.accounts[0]
+            .extended_public_key
+            .to_string();
+        let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
+        assert_eq!(
+            "9vz3rYvWamWSBpezGmxtnj1WRhTYttsDJa",
+            derived_sub_accounts.accounts[0].address
+        );
+        assert_eq!(
+            "0x0324778f934a20a9ca06cec3fb7176ccbc054278b9d5d7f0a1077582367af92e75",
+            derived_sub_accounts.accounts[0].public_key
+        );
+        assert_eq!(
+            "xpub6CKMszasQeidek6fYD7g5N1mwUK3ouX8YHWs47MZyXh62GxsEQsU57NuN6GTS3Mh3bwykHGa14617A6HQoYFDSM9deJvgjDeEJxBYsfJ1bs",
+            derived_sub_accounts.accounts[0].extended_public_key
+        );
+        assert_eq!(
+            "lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==",
+            derived_sub_accounts.accounts[0].encrypted_extended_public_key
+        );
+        assert_eq!(
+            "AEnAz82LcjUDw1iieSxUMofK84raXDRPcV",
+            derived_sub_accounts.accounts[1].address
+        );
+
+        derivation.seg_wit = "VERSION_0".to_string();
+        derivation.path = "m/84'/0'/0'/0/0".to_string();
+        let derived_accounts_result = derive_account(derivation.clone());
+        derive_sub_accounts_param.seg_wit = "VERSION_0".to_string();
+        derive_sub_accounts_param.extended_public_key = derived_accounts_result.accounts[0]
+            .extended_public_key
+            .to_string();
+        let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
+        assert_eq!(
+            "1q05ec6z8df2vlzkxjxfd2xr3veypzm93whtnyq3",
+            derived_sub_accounts.accounts[0].address
+        );
+        assert_eq!(
+            "0x0324778f934a20a9ca06cec3fb7176ccbc054278b9d5d7f0a1077582367af92e75",
+            derived_sub_accounts.accounts[0].public_key
+        );
+        assert_eq!(
+            "xpub6CKMszasQeidek6fYD7g5N1mwUK3ouX8YHWs47MZyXh62GxsEQsU57NuN6GTS3Mh3bwykHGa14617A6HQoYFDSM9deJvgjDeEJxBYsfJ1bs",
+            derived_sub_accounts.accounts[0].extended_public_key
+        );
+        assert_eq!(
+            "lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==",
+            derived_sub_accounts.accounts[0].encrypted_extended_public_key
+        );
+        assert_eq!(
+            "1qak0g6t8syjpq36t8z3768sfz7n0uf0lc4x75yt",
+            derived_sub_accounts.accounts[1].address
+        );
+
+        derivation.seg_wit = "VERSION_1".to_string();
+        derivation.path = "m/84'/0'/0'/0/0".to_string();
+        let derived_accounts_result = derive_account(derivation.clone());
+        derive_sub_accounts_param.seg_wit = "VERSION_1".to_string();
+        derive_sub_accounts_param.extended_public_key = derived_accounts_result.accounts[0]
+            .extended_public_key
+            .to_string();
+        let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
+        assert_eq!(
+            "1pgf72k7lhzaz9gmlaxtrnq4kcmhnwwk0t6xnecr9rgpvrspf2tn8qzsahaz",
+            derived_sub_accounts.accounts[0].address
+        );
+        assert_eq!(
+            "0x0324778f934a20a9ca06cec3fb7176ccbc054278b9d5d7f0a1077582367af92e75",
+            derived_sub_accounts.accounts[0].public_key
+        );
+        assert_eq!(
+            "xpub6CKMszasQeidek6fYD7g5N1mwUK3ouX8YHWs47MZyXh62GxsEQsU57NuN6GTS3Mh3bwykHGa14617A6HQoYFDSM9deJvgjDeEJxBYsfJ1bs",
+            derived_sub_accounts.accounts[0].extended_public_key
+        );
+        assert_eq!(
+            "lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==",
+            derived_sub_accounts.accounts[0].encrypted_extended_public_key
+        );
+        assert_eq!(
+            "1pxlnp964ka353cuws7m3l7eshf38lyh0m2rme2y69n57t4dhlfq2sks3dcl",
             derived_sub_accounts.accounts[1].address
         );
     }
