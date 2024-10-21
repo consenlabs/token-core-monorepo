@@ -14,60 +14,61 @@ pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
     let receive_address: String;
 
     match param.seg_wit.as_str() {
-        "P2WPKH" => {
-            match param.chain_type.as_str() {
-                "DEGECOIN" => {
-                    main_address = DogeAddress::p2shwpkh(network, format!("{}/0/0", account_path).as_str())?;
-                    receive_address =
+        "P2WPKH" => match param.chain_type.as_str() {
+            "DEGECOIN" => {
+                main_address =
+                    DogeAddress::p2shwpkh(network, format!("{}/0/0", account_path).as_str())?;
+                receive_address =
                     DogeAddress::p2shwpkh(network, format!("{}/0/1", account_path).as_str())?;
-                },
-                _ => {
-                    main_address = BtcAddress::p2shwpkh(network, format!("{}/0/0", account_path).as_str())?;
-                    receive_address =
-                        BtcAddress::p2shwpkh(network, format!("{}/0/1", account_path).as_str())?;
-                },        
             }
-        }
-        "VERSION_0" => {
-            match param.chain_type.as_str() {
-                "DEGECOIN" => {
-                    main_address = DogeAddress::p2wpkh(network, format!("{}/0/0", account_path).as_str())?;
-                    receive_address =
+            _ => {
+                main_address =
+                    BtcAddress::p2shwpkh(network, format!("{}/0/0", account_path).as_str())?;
+                receive_address =
+                    BtcAddress::p2shwpkh(network, format!("{}/0/1", account_path).as_str())?;
+            }
+        },
+        "VERSION_0" => match param.chain_type.as_str() {
+            "DEGECOIN" => {
+                main_address =
+                    DogeAddress::p2wpkh(network, format!("{}/0/0", account_path).as_str())?;
+                receive_address =
                     DogeAddress::p2wpkh(network, format!("{}/0/1", account_path).as_str())?;
-                },
-                _ => {
-                    main_address = BtcAddress::p2wpkh(network, format!("{}/0/0", account_path).as_str())?;
-                    receive_address =
-                        BtcAddress::p2wpkh(network, format!("{}/0/1", account_path).as_str())?;
-                }, 
             }
-        }
-        "VERSION_1" => {
-            match param.chain_type.as_str() {
-                "DEGECOIN" => {
-                    main_address = DogeAddress::p2tr(network, format!("{}/0/0", account_path).as_str())?;
-                    receive_address = DogeAddress::p2tr(network, format!("{}/0/1", account_path).as_str())?;
-                },
-                _ => {
-                    main_address = BtcAddress::p2tr(network, format!("{}/0/0", account_path).as_str())?;
-                    receive_address = BtcAddress::p2tr(network, format!("{}/0/1", account_path).as_str())?;
-                }, 
-                    
+            _ => {
+                main_address =
+                    BtcAddress::p2wpkh(network, format!("{}/0/0", account_path).as_str())?;
+                receive_address =
+                    BtcAddress::p2wpkh(network, format!("{}/0/1", account_path).as_str())?;
             }
-        }
-        _ => {
-            match param.chain_type.as_str() {
-                "DEGECOIN" => {
-                    main_address = DogeAddress::p2pkh(network, format!("{}/0/0", account_path).as_str())?;
-                    receive_address = DogeAddress::p2pkh(network, format!("{}/0/1", account_path).as_str())?;
-                },
-                _ => {
-                    main_address = BtcAddress::p2pkh(network, format!("{}/0/0", account_path).as_str())?;
-                    receive_address = BtcAddress::p2pkh(network, format!("{}/0/1", account_path).as_str())?;
-                }, 
-                    
+        },
+        "VERSION_1" => match param.chain_type.as_str() {
+            "DEGECOIN" => {
+                main_address =
+                    DogeAddress::p2tr(network, format!("{}/0/0", account_path).as_str())?;
+                receive_address =
+                    DogeAddress::p2tr(network, format!("{}/0/1", account_path).as_str())?;
             }
-        }
+            _ => {
+                main_address = BtcAddress::p2tr(network, format!("{}/0/0", account_path).as_str())?;
+                receive_address =
+                    BtcAddress::p2tr(network, format!("{}/0/1", account_path).as_str())?;
+            }
+        },
+        _ => match param.chain_type.as_str() {
+            "DEGECOIN" => {
+                main_address =
+                    DogeAddress::p2pkh(network, format!("{}/0/0", account_path).as_str())?;
+                receive_address =
+                    DogeAddress::p2pkh(network, format!("{}/0/1", account_path).as_str())?;
+            }
+            _ => {
+                main_address =
+                    BtcAddress::p2pkh(network, format!("{}/0/0", account_path).as_str())?;
+                receive_address =
+                    BtcAddress::p2pkh(network, format!("{}/0/1", account_path).as_str())?;
+            }
+        },
     }
 
     let enc_xpub = get_enc_xpub(network, param.path.as_ref())?;

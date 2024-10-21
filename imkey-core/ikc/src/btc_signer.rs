@@ -51,7 +51,7 @@ pub fn btc_sign(param: &BtcTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
     } else {
         Network::Bitcoin
     };
-    
+
     let op_return = match &param.extra {
         Some(extra) => Some(extra.op_return.clone()),
         _ => None,
