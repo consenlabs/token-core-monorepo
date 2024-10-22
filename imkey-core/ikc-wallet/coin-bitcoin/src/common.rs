@@ -72,7 +72,11 @@ get address version
 pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
     let version = match network {
         Network::Bitcoin => {
-            if address.starts_with('1') || address.starts_with('3') {
+            if address.starts_with('1')
+                || address.starts_with('3')
+                || address.starts_with('D')
+                || address.starts_with('A')
+            {
                 let address_bytes = base58::from(address)?;
                 address_bytes.as_slice()[0]
             } else if address.starts_with("bc1") {

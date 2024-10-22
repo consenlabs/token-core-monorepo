@@ -1768,6 +1768,11 @@ mod tests {
                 path: "m/44'/309'/0'".to_string(),
                 curve: "secp256k1".to_string(),
             },
+            PublicKeyDerivation {
+                chain_type: "DOGECOIN".to_string(),
+                path: "m/44'/145'/0'/0/0".to_string(),
+                curve: "secp256k1".to_string(),
+            },
         ];
         let param = GetExtendedPublicKeysParam { derivations };
         let action: ImkeyAction = ImkeyAction {
@@ -1792,6 +1797,7 @@ mod tests {
         assert_eq!(extended_public_key.extended_public_keys[7], "xpub6CaaaWKi9NRFAnRyDFZxWKWs7Sh8d9WiaCspHVpkDcaVwqQFRH2z5ygLbHZs8yWtwyR3QhJLDJzbrdSTZRC9PWaRfAMNCruoSJnWhKFFCWV");
         assert_eq!(extended_public_key.extended_public_keys[8], "xpub6CUtvjXi3yjmhjaC2GxjiWE9FbQs1TrtqAgRDhB2gmDBsPzTfwqZ7MvGGYScKiVx8PBNFSmHm4mCnFDCaX23c1nJS4p8ynR2wnGne4qEEX9");
         assert_eq!(extended_public_key.extended_public_keys[9], "xpub6CyvXfYwHJjJ9syYjG7qZMva1yMx93SUmqUcKHvoReUadCzqJA8mMXrrXQjRvzveuahgdQmCsdsuiCkMRsLec63DW83Wwu5UqKJQmsonKpo");
+        assert_eq!(extended_public_key.extended_public_keys[10], "xpub6GZjFnyumLtEwC4KQkigvc3vXJdZvy71QxHTsFQQv1YtEUWNEwynKWsK2LBFZNLWdTk3w1Y9cRv4NN7V2pnDBoWgH3PkVE9r9Q2kSQL2zkH");
     }
 
     #[test]
@@ -1917,6 +1923,11 @@ mod tests {
                 path: "m/0'/0'".to_string(),
                 curve: "ed25519".to_string(),
             },
+            PublicKeyDerivation {
+                chain_type: "DOGECOIN".to_string(),
+                path: "m/44'/145'/0'".to_string(),
+                curve: "secp256k1".to_string(),
+            },
         ];
         let param = GetPublicKeysParam { derivations };
         let action: ImkeyAction = ImkeyAction {
@@ -1982,6 +1993,10 @@ mod tests {
         assert_eq!(
             result.public_keys[12],
             "0x4f3f24c064893a591d5a5b31990de9d12ed9da0c8650bcf98ede27e3da141401"
+        );
+        assert_eq!(
+            result.public_keys[13],
+            "0x0303f2f84851514bf2f40a46b5bb9dbf4e5913fbacde1a96968cda08f9fd882caa"
         );
     }
 

@@ -514,6 +514,120 @@ mod tests {
             .unwrap();
         assert_eq!(account.address, "DQ4tVEqdPWHc1aVBm4Sfwft8XyNRPMEchR");
         assert_eq!(account.ext_pub_key, "xpub6CDSaXHQokkKmHHG2kNCFZeirJkcZgRZE97ZZUtViif3SFHSNVAvRpWC3CxeRt2VZetEGCcPTmWEFpKF4NDeeZrMNPQgfUaX5Hkw89kW8qE");
+        let account = hd
+            .derive_coin::<BtcKinAddress>(&CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/3'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            })
+            .unwrap();
+        assert_eq!(account.address, "no7xDFaYKUkKtZ4Nnt68C5URmqkiMUTRTE");
+
+        let account = hd
+            .derive_coin::<BtcKinAddress>(&CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            })
+            .unwrap();
+        assert_eq!(account.address, "A6tT5rU6MZBzArAVVei5PqqocfxBqJhSqg");
+        let account = hd
+            .derive_coin::<BtcKinAddress>(&CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            })
+            .unwrap();
+        assert_eq!(account.address, "2N7hQQkLDtwpSUGRZkefXmfCh8SnKabUcC5");
+
+        let account = hd
+            .derive_coin::<BtcKinAddress>(&CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "VERSION_0".to_string(),
+            })
+            .unwrap();
+        assert_eq!(account.address, "1q8qlms89s5078yj67pr8ch02qgvmdwy0k24vwhn");
+        let account = hd
+            .derive_coin::<BtcKinAddress>(&CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "VERSION_0".to_string(),
+            })
+            .unwrap();
+        assert_eq!(account.address, "1q8qlms89s5078yj67pr8ch02qgvmdwy0k24vwhn");
+
+        let account = hd
+            .derive_coin::<BtcKinAddress>(&CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "VERSION_1".to_string(),
+            })
+            .unwrap();
+        assert_eq!(
+            account.address,
+            "1pd2gajgcpr7c5ajgl377sgmqexw5jxqvl305zw2a7aeujf8pun7ksh45tuj"
+        );
+        let account = hd
+            .derive_coin::<BtcKinAddress>(&CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "VERSION_1".to_string(),
+            })
+            .unwrap();
+        assert_eq!(
+            account.address,
+            "1pd2gajgcpr7c5ajgl377sgmqexw5jxqvl305zw2a7aeujf8pun7ksh45tuj"
+        );
+    }
+
+    #[test]
+    fn test_dogecoin_address2() {
+        let mut hd = sample_hd_keystore();
+        let account = hd
+            .derive_coin::<BtcKinAddress>(&CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            })
+            .unwrap();
+        assert_eq!(account.address, "DAGWiHeAHCTLUTsBEFMWviSkdGeZGveASM");
+        // assert_eq!(account.ext_pub_key, "xpub6CDSaXHQokkKmHHG2kNCFZeirJkcZgRZE97ZZUtViif3SFHSNVAvRpWC3CxeRt2VZetEGCcPTmWEFpKF4NDeeZrMNPQgfUaX5Hkw89kW8qE");
+        let account = hd
+            .derive_coin::<BtcKinAddress>(&CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/1'/0'/0/22".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            })
+            .unwrap();
+        assert_eq!(account.address, "nZKaSJP5DAv4MSSNG4zyB833s92rHdzyqW");
     }
 
     #[test]

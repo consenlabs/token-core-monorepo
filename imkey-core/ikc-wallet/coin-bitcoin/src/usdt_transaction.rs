@@ -4,6 +4,7 @@ use crate::Result;
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};
 use bitcoin::hashes::hex::FromHex;
+use bitcoin::Address;
 use bitcoin::{
     EcdsaSighashType, Network, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn,
     TxOut, Witness,
@@ -19,6 +20,7 @@ use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::ecdsa::Signature;
+use std::str::FromStr;
 
 impl BtcTransaction {
     pub fn sign_omni_transaction(
@@ -29,10 +31,7 @@ impl BtcTransaction {
     ) -> Result<TxSignResult> {
         //path check
         check_path_validity(path)?;
-        let mut path_str = path.to_string();
-        if !path.ends_with("/") {
-            path_str = format!("{}{}", path_str, "/");
-        }
+
         //check uxto number
         if &self.unspents.len() > &MAX_UTXO_NUMBER {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
@@ -49,17 +48,17 @@ impl BtcTransaction {
         //add change output
         let mut txouts: Vec<TxOut> = Vec::new();
         let change_amount = self.get_total_amount() - MIN_NONDUST_OUTPUT - self.fee;
-        let receiver_address = &self.unspents.get(0).unwrap().address;
         let txout_send_output = TxOut {
             value: change_amount as u64,
-            script_pubkey: receiver_address.script_pubkey(),
+            script_pubkey: Address::from_str(&self.unspents.get(0).unwrap().address)?
+                .script_pubkey(),
         };
         txouts.push(txout_send_output);
 
         //add send to output
         let txout_change_output = TxOut {
             value: MIN_NONDUST_OUTPUT as u64,
-            script_pubkey: self.to.script_pubkey(),
+            script_pubkey: Address::from_str(&self.to)?.script_pubkey(),
         };
         txouts.push(txout_change_output);
 
@@ -190,10 +189,7 @@ impl BtcTransaction {
     ) -> Result<TxSignResult> {
         //path check
         check_path_validity(path)?;
-        let mut path_str = path.to_string();
-        if !path.ends_with("/") {
-            path_str = format!("{}{}", path_str, "/");
-        }
+
         //check uxto number
         if &self.unspents.len() > &MAX_UTXO_NUMBER {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
@@ -210,16 +206,17 @@ impl BtcTransaction {
         //5.add change output
         let mut txouts: Vec<TxOut> = vec![];
         let receiver_address = &self.unspents.get(0).unwrap().address;
+        let script_pubkey = Address::from_str(receiver_address)?.script_pubkey();
         let txout_send_output = TxOut {
             value: change_amount as u64,
-            script_pubkey: receiver_address.script_pubkey(),
+            script_pubkey,
         };
         txouts.push(txout_send_output);
 
         //6.add send to output
         let txout_change_output = TxOut {
             value: MIN_NONDUST_OUTPUT as u64,
-            script_pubkey: self.to.script_pubkey(),
+            script_pubkey: Address::from_str(&self.to)?.script_pubkey(),
         };
         txouts.push(txout_change_output);
 
@@ -432,7 +429,7 @@ mod tests {
             txhash: "0dd195c815c5086c5995f43a0c67d28344ae5fa130739a5e03ef40fea54f2031".to_string(),
             vout: 0,
             amount: 14824854,
-            address: Address::from_str("mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN").unwrap(),
+            address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
             script_pubkey: "76a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688ac".to_string(),
             derive_path: "m/44'/1'/0'/0/0".to_string(),
             sequence: 4294967295,
@@ -441,7 +438,7 @@ mod tests {
         utxos.push(utxo);
 
         let transaction_req_data = BtcTransaction {
-            to: Address::from_str("moLK3tBG86ifpDDTqAQzs4a9cUoNjVLRE3").unwrap(),
+            to: "moLK3tBG86ifpDDTqAQzs4a9cUoNjVLRE3".to_string(),
             amount: 10050000000,
             unspents: utxos,
             fee: 4000,
@@ -471,7 +468,7 @@ mod tests {
             txhash: "9baf6fd0e560f9f199f4879c23cb73b9c4affb54a1cfdbacb85687efa89f4c78".to_string(),
             vout: 1,
             amount: 21863396,
-            address: Address::from_str("2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB").unwrap(),
+            address: "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB".to_string(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
             derive_path: "m/49'/1'/0'/0/0".to_string(),
             sequence: 0,
@@ -480,7 +477,7 @@ mod tests {
         let mut utxos = Vec::new();
         utxos.push(utxo);
         let transaction_req_data = BtcTransaction {
-            to: Address::from_str("moLK3tBG86ifpDDTqAQzs4a9cUoNjVLRE3").unwrap(),
+            to: "moLK3tBG86ifpDDTqAQzs4a9cUoNjVLRE3".to_string(),
             amount: 10000000000,
             unspents: utxos,
             fee: 4000,
@@ -511,7 +508,7 @@ mod tests {
             txhash: "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a".to_string(),
             vout: 0,
             amount: 200000000,
-            address: Address::from_str("37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e").unwrap(),
+            address: "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e".to_string(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
             derive_path: "m/49'/0'/0'/0/22".to_string(),
             sequence: 0,
@@ -520,7 +517,7 @@ mod tests {
             txhash: "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531".to_string(),
             vout: 1,
             amount: 200000000,
-            address: Address::from_str("3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp").unwrap(),
+            address: "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp".to_string(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
             derive_path: "m/49'/0'/0'/0/0".to_string(),
             sequence: 0,
@@ -529,7 +526,7 @@ mod tests {
             txhash: "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9".to_string(),
             vout: 0,
             amount: 200000000,
-            address: Address::from_str("3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp").unwrap(),
+            address: "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp".to_string(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
             derive_path: "m/49'/0'/0'/0/0".to_string(),
             sequence: 0,
@@ -538,7 +535,7 @@ mod tests {
             txhash: "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9".to_string(),
             vout: 1,
             amount: 200000000,
-            address: Address::from_str("3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp").unwrap(),
+            address: "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp".to_string(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
             derive_path: "m/49'/0'/0'/0/0".to_string(),
             sequence: 0,
@@ -547,7 +544,7 @@ mod tests {
             txhash: "013adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a".to_string(),
             vout: 0,
             amount: 200000000,
-            address: Address::from_str("37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e").unwrap(),
+            address: "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e".to_string(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
             derive_path: "m/49'/0'/0'/0/22".to_string(),
             sequence: 0,
@@ -556,7 +553,7 @@ mod tests {
             txhash: "023adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a".to_string(),
             vout: 0,
             amount: 200000000,
-            address: Address::from_str("37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e").unwrap(),
+            address: "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e".to_string(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
             derive_path: "m/49'/0'/0'/0/22".to_string(),
             sequence: 0,
@@ -565,7 +562,7 @@ mod tests {
             txhash: "033adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a".to_string(),
             vout: 0,
             amount: 200000000,
-            address: Address::from_str("37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e").unwrap(),
+            address: "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e".to_string(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
             derive_path: "m/49'/0'/0'/0/22".to_string(),
             sequence: 0,
@@ -574,7 +571,7 @@ mod tests {
             txhash: "043adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a".to_string(),
             vout: 0,
             amount: 200000000,
-            address: Address::from_str("37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e").unwrap(),
+            address: "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e".to_string(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
             derive_path: "m/49'/0'/0'/0/22".to_string(),
             sequence: 0,
@@ -590,7 +587,7 @@ mod tests {
         utxos.push(utxo7);
         utxos.push(utxo8);
         let transaction_req_data = BtcTransaction {
-            to: Address::from_str("3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a").unwrap(),
+            to: "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a".to_string(),
             amount: 750000000,
             unspents: utxos,
             fee: 502130,
@@ -620,7 +617,7 @@ mod tests {
             txhash: "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a".to_string(),
             vout: 0,
             amount: 10000112345678,
-            address: Address::from_str("37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e").unwrap(),
+            address: "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e".to_string(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
             derive_path: "m/49'/0'/0'/0/22".to_string(),
             sequence: 0,
@@ -628,7 +625,7 @@ mod tests {
         let mut utxos = Vec::new();
         utxos.push(utxo);
         let transaction_req_data = BtcTransaction {
-            to: Address::from_str("3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a").unwrap(),
+            to: "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a".to_string(),
             amount: 345678,
             unspents: utxos,
             fee: 502130,
@@ -655,7 +652,7 @@ mod tests {
             txhash: "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a".to_string(),
             vout: 0,
             amount: 10000112345678,
-            address: Address::from_str("37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e").unwrap(),
+            address: "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e".to_string(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
             derive_path: "m/49'/0'/0'/0/22".to_string(),
             sequence: 0,
@@ -665,7 +662,7 @@ mod tests {
             utxos.push(utxo.clone());
         }
         let transaction_req_data = BtcTransaction {
-            to: Address::from_str("3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a").unwrap(),
+            to: "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a".to_string(),
             amount: 345678,
             unspents: utxos,
             fee: 502130,
@@ -685,7 +682,7 @@ mod tests {
             txhash: "0dd195c815c5086c5995f43a0c67d28344ae5fa130739a5e03ef40fea54f2031".to_string(),
             vout: 0,
             amount: 14824854,
-            address: Address::from_str("mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN").unwrap(),
+            address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
             script_pubkey: "76a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688ac".to_string(),
             derive_path: "m/44'/1'/0'/0/0".to_string(),
             sequence: 4294967295,
@@ -696,7 +693,7 @@ mod tests {
         }
 
         let transaction_req_data = BtcTransaction {
-            to: Address::from_str("moLK3tBG86ifpDDTqAQzs4a9cUoNjVLRE3").unwrap(),
+            to: "moLK3tBG86ifpDDTqAQzs4a9cUoNjVLRE3".to_string(),
             amount: 10050000000,
             unspents: utxos,
             fee: 4000,
@@ -720,7 +717,7 @@ mod tests {
             txhash: "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a".to_string(),
             vout: 0,
             amount: 1000,
-            address: Address::from_str("37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e").unwrap(),
+            address: "37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e".to_string(),
             script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
             derive_path: "m/49'/0'/0'/0/22".to_string(),
             sequence: 0,
@@ -729,7 +726,7 @@ mod tests {
         utxos.push(utxo);
 
         let transaction_req_data = BtcTransaction {
-            to: Address::from_str("3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a").unwrap(),
+            to: "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a".to_string(),
             amount: 100,
             unspents: utxos,
             fee: 900,
@@ -749,7 +746,7 @@ mod tests {
             txhash: "0dd195c815c5086c5995f43a0c67d28344ae5fa130739a5e03ef40fea54f2031".to_string(),
             vout: 0,
             amount: 1000,
-            address: Address::from_str("mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN").unwrap(),
+            address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
             script_pubkey: "76a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688ac".to_string(),
             derive_path: "m/44'/1'/0'/0/0".to_string(),
             sequence: 4294967295,
@@ -758,7 +755,7 @@ mod tests {
         utxos.push(utxo);
 
         let transaction_req_data = BtcTransaction {
-            to: Address::from_str("moLK3tBG86ifpDDTqAQzs4a9cUoNjVLRE3").unwrap(),
+            to: "moLK3tBG86ifpDDTqAQzs4a9cUoNjVLRE3".to_string(),
             amount: 100,
             unspents: utxos,
             fee: 900,
