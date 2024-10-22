@@ -8,6 +8,8 @@ pub enum CommonError {
     InvalidKeyIvLength,
     #[error("invalid_base58")]
     InvalidBase58,
+    #[error("missing_network")]
+    MissingNetwork,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]

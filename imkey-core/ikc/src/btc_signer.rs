@@ -1,13 +1,12 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
-use bitcoin::{Address, Network};
+use bitcoin::Network;
 use coin_bitcoin::btcapi::{BtcMessageInput, BtcTxInput, BtcTxOutput};
 use coin_bitcoin::message::MessageSinger;
 use coin_bitcoin::transaction::{BtcTransaction, Utxo};
 use ikc_common::path::get_account_path;
 use ikc_common::SignParam;
 use prost::Message;
-use std::str::FromStr;
 
 pub fn sign_btc_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
     let input: BtcTxInput = BtcTxInput::decode(data).expect("BtcTxInput");
@@ -30,7 +29,7 @@ pub fn btc_sign(param: &BtcTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
             txhash: utxo.tx_hash.to_string(),
             vout: utxo.vout,
             amount: utxo.amount,
-            address: Address::from_str(&utxo.address).unwrap(),
+            address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
             derive_path: utxo.derived_path.to_uppercase(),
             sequence: utxo.sequence,
@@ -39,17 +38,11 @@ pub fn btc_sign(param: &BtcTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
     }
 
     let btc_tx = BtcTransaction {
-        to: Address::from_str(&param.to).unwrap(),
+        to: param.to.to_string(),
         amount: param.amount,
         unspents,
         fee: param.fee,
         chain_type: sign_param.chain_type.clone(),
-    };
-
-    let network = if sign_param.network == "TESTNET".to_string() {
-        Network::Testnet
-    } else {
-        Network::Bitcoin
     };
 
     let op_return = match &param.extra {
@@ -58,7 +51,7 @@ pub fn btc_sign(param: &BtcTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
     };
 
     let signed = btc_tx.sign_transaction(
-        network,
+        &sign_param.network,
         &sign_param.path,
         param.change_address_index,
         op_return.as_deref(),
@@ -79,7 +72,7 @@ pub fn sign_usdt_transaction(input: &BtcTxInput, sign_param: &SignParam) -> Resu
             txhash: utxo.tx_hash.to_string(),
             vout: utxo.vout,
             amount: utxo.amount,
-            address: Address::from_str(&utxo.address).unwrap(),
+            address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
             derive_path: utxo.derived_path.to_string(),
             sequence: utxo.sequence,
@@ -88,7 +81,7 @@ pub fn sign_usdt_transaction(input: &BtcTxInput, sign_param: &SignParam) -> Resu
     }
 
     let btc_tx = BtcTransaction {
-        to: Address::from_str(&input.to).unwrap(),
+        to: input.to.to_string(),
         amount: input.amount,
         unspents: unspents,
         fee: input.fee,
@@ -121,7 +114,7 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
             txhash: utxo.tx_hash.to_string(),
             vout: utxo.vout,
             amount: utxo.amount,
-            address: Address::from_str(&utxo.address).unwrap(),
+            address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
             derive_path: utxo.derived_path.to_string(),
             sequence: utxo.sequence,
@@ -130,8 +123,7 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
     }
 
     let btc_tx = BtcTransaction {
-        to: Address::from_str(&input.to).unwrap(),
-        //        change_idx: input.change_address_index as i32,
+        to: input.to.to_string(),
         amount: input.amount,
         unspents: unspents,
         fee: input.fee,

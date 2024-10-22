@@ -1,4 +1,4 @@
-use crate::address::{AddressTrait, BtcAddress};
+use crate::address::BtcAddress;
 use crate::btcapi::{PsbtInput, PsbtOutput};
 use crate::common::{get_address_version, get_xpub_data, select_btc_applet};
 use crate::Result;

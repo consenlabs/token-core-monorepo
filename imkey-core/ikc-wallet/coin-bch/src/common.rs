@@ -2,7 +2,6 @@ use crate::address::BchAddress;
 use crate::transaction::Utxo;
 use crate::Result;
 use bitcoin::network::constants::Network;
-use bitcoin::secp256k1::Secp256k1 as BitcoinSecp256k1;
 use bitcoin::util::base58;
 use bitcoin::util::bip32::{ChainCode, ChildNumber, ExtendedPubKey};
 use bitcoin::{Address, PublicKey};
