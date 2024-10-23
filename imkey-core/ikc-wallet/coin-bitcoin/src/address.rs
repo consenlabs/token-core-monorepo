@@ -4,7 +4,6 @@ use bitcoin::network::constants::Network;
 use bitcoin::schnorr::UntweakedPublicKey;
 use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
 use bitcoin::{Address, PublicKey};
-use bitcoin_hashes::{hash160, Hash};
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::constants;
 use ikc_common::error::CommonError;

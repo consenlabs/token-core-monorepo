@@ -564,6 +564,7 @@ name = "coin-bitcoin"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bech32 0.9.1",
  "bitcoin",
  "bitcoin_hashes",
  "bytes",
