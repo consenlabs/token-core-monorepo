@@ -500,9 +500,7 @@ impl BtcTransaction {
     pub fn build_send_to_output(&self) -> TxOut {
         TxOut {
             value: self.amount as u64,
-            script_pubkey: Address::from_str(&self.to)
-                .expect("build_to_output_error")
-                .script_pubkey(),
+            script_pubkey: BtcKinAddress::from_str(&self.to).unwrap().script_pubkey()
         }
     }
 
@@ -592,7 +590,7 @@ impl BtcTransaction {
         let mut amount_vec = vec![];
         let mut script_pubkeys_vec = vec![];
         for unspent in self.unspents.iter() {
-            let address = Address::from_str(&unspent.address)?;
+            let address = BtcKinAddress::from_str(&unspent.address)?;
             if !address.script_pubkey().is_p2pkh() {
                 transaction.version = 2i32;
             }
@@ -1949,5 +1947,185 @@ mod tests {
             "3aa6ed94e29c01b96fe3a20c30825d161f421d5e2358eb1ceade43de533e1977",
             sign_result.as_ref().unwrap().tx_hash
         );
+    }
+
+    #[test]
+    fn test_sign_dogecoin_p2pkh_testnet() {
+        bind_test();
+
+        let utxos = vec![
+            Utxo {
+                txhash: "983adf9d813a2b8057454cc6f36c6081948af849966f9b9a33e5b653b02f227a"
+                    .to_string(),
+                vout: 0,
+                amount: 200000000,
+                address: "nVnwhEpurmQg4GWWecpUwQcQLng798GRai".to_string(),
+                script_pubkey: "76a914118c3123196e030a8a607c22bafc1577af61497d88ac".to_string(),
+                derive_path: "m/44'/1'/0'/0/22".to_string(),
+                sequence: 4294967295,
+            },
+            Utxo {
+                txhash: "45ef8ac7f78b3d7d5ce71ae7934aea02f4ece1af458773f12af8ca4d79a9b531"
+                    .to_string(),
+                vout: 1,
+                amount: 200000000,
+                address: "nZKaSJP5DAv4MSSNG4zyB833s92rHdzyqW".to_string(),
+                script_pubkey: "76a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688ac".to_string(),
+                derive_path: "m/44'/1'/0'/0/0".to_string(),
+                sequence: 4294967295,
+            },
+            Utxo {
+                txhash: "14c67e92611dc33df31887bbc468fbbb6df4b77f551071d888a195d1df402ca9"
+                    .to_string(),
+                vout: 0,
+                amount: 200000000,
+                address: "nZKaSJP5DAv4MSSNG4zyB833s92rHdzyqW".to_string(),
+                script_pubkey: "76a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688ac".to_string(),
+                derive_path: "m/44'/1'/0'/0/0".to_string(),
+                sequence: 4294967295,
+            },
+            Utxo {
+                txhash: "117fb6b85ded92e87ee3b599fb0468f13aa0c24b4a442a0d334fb184883e9ab9"
+                    .to_string(),
+                vout: 1,
+                amount: 200000000,
+                address: "nZKaSJP5DAv4MSSNG4zyB833s92rHdzyqW".to_string(),
+                script_pubkey: "76a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688ac".to_string(),
+                derive_path: "m/44'/1'/0'/0/0".to_string(),
+                sequence: 4294967295,
+            },
+        ];
+
+        let transaction = BtcTransaction {
+            to: "nZKaSJP5DAv4MSSNG4zyB833s92rHdzyqW".to_string(),
+            amount: 799988000,
+            unspents: utxos,
+            fee: 10000,
+            chain_type: "DOGECOIN".to_string(),
+        };
+        let sign_result = transaction.sign_transaction(
+            "TESTNET",
+            &"m/44'/1'/0'".to_string(),
+            Some(53),
+            None,
+            "NONE",
+        );
+        
+        assert_eq!(
+            "01000000047a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000006a47304402200eb094ab218f492e15bcae19c61c980111fdca403108ed8502a6c4ada5ffe8b802204afb0b58b770a4523148895ffdb1a154c0642584223306c267ee67e6d2f35fba01210312a0cb31ff52c480c049da26d0aaa600f47e9deee53d02fc2b0e9acf3c20fbdfffffffff31b5a9794dcaf82af1738745afe1ecf402ea4a93e71ae75c7d3d8bf7c78aef45010000006a47304402203b7317f8443f49a8c2930b679181feb0640e88447bca3f2a94600cc0078e4ab90220624ec6e2ba25f3bde477df048d84a9aad736087332ffced65377a66b1ea4d3c10121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffffa92c40dfd195a188d87110557fb7f46dbbfb68c4bb8718f33dc31d61927ec614000000006b4830450221008541d1e27f76450b4b78a89af8e6707a042a30151d1e59d271f335720a3a4a590220152b688827df0fff697cb8ba47a6293a4785d651e5da426854bebce7ea4d34010121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffffb99a3e8884b14f330d2a444a4bc2a03af16804fb99b5e37ee892ed5db8b67f11010000006a473044022042b27e6639c575f0acf4ebb4b43ee52ff9fef2888caf5d88d38a6c6b062cbbae022048446492f4c315cc5cd37d6dac041d67ffbf1bc199311bfc5f29fbdb102279a60121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff0220d9ae2f000000001976a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688acd0070000000000001976a91412967cdd9ceb72bbdbb7e5db85e2dbc6d6c3ab1a88ac00000000",
+            sign_result.as_ref().unwrap().signature
+        );
+        assert_eq!(
+            "365d003e2bb2213e6754e787a576007cab51a46a146bad1c722a59622ff26535",
+            sign_result.as_ref().unwrap().tx_hash
+        );
+        assert_eq!(
+            "365d003e2bb2213e6754e787a576007cab51a46a146bad1c722a59622ff26535",
+            sign_result.as_ref().unwrap().wtx_id
+        );
+    }
+
+    #[test]
+    fn test_sign_dogecoin_p2wpkh_testnet() {
+        bind_test();
+
+        let utxos = vec![
+            Utxo {
+                txhash: "c2ceb5088cf39b677705526065667a3992c68cc18593a9af12607e057672717f"
+                    .to_string(),
+                vout: 0,
+                amount: 50000,
+                address: "2MwN441dq8qudMvtM5eLVwC3u4zfKuGSQAB".to_string(),
+                script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
+                derive_path: "m/49'/1'/0'/0/0".to_string(),
+                sequence: 0,
+            },
+            Utxo {
+                txhash: "9ad628d450952a575af59f7d416c9bc337d184024608f1d2e13383c44bd5cd74"
+                    .to_string(),
+                vout: 0,
+                amount: 50000,
+                address: "2N54wJxopnWTvBfqgAPVWqXVEdaqoH7Suvf".to_string(),
+                script_pubkey: "a91481af6d803fdc6dca1f3a1d03f5ffe8124cd1b44787".to_string(),
+                derive_path: "m/49'/1'/0'/0/1".to_string(),
+                sequence: 0,
+            },
+        ];
+
+        let transaction = BtcTransaction {
+            to: "2N9wBy6f1KTUF5h2UUeqRdKnBT6oSMh4Whp".to_string(),
+            amount: 88000,
+            unspents: utxos,
+            fee: 10000,
+            chain_type: "DOGECOIN".to_string(),
+        };
+        let sign_result = transaction.sign_transaction(
+            "TESTNET",
+            &"m/49'/1'/0'".to_string(),
+            Some(0),
+            Some("1234"),
+            "P2WPKH",
+        );
+        assert_eq!(
+            "dc021850ca46b2fdc3f278020ac4e27ee18d9753dd07cbd97b84a2a0a2af3940",
+            sign_result.as_ref().unwrap().tx_hash
+        );
+        assert_eq!(
+            "4eede542b9da11500d12f38b81c3728ae6cd094b866bc9629cbb2c6ab0810914",
+            sign_result.as_ref().unwrap().wtx_id
+        );
+        assert_eq!(sign_result.as_ref().unwrap().signature, "020000000001027f717276057e6012afa99385c18cc692397a666560520577679bf38c08b5cec20000000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffff74cdd54bc48333e1d2f108460284d137c39b6c417d9ff55a572a9550d428d69a00000000171600149d66aa6399de69d5c5ae19f9098047760251a854ffffffff03c05701000000000017a914b710f6e5049eaf0404c2f02f091dd5bb79fa135e87d00700000000000017a914755fba51b5c443b9f16b1f86665dec10dd7a25c5870000000000000000046a02123402483045022100c5c33638f7a93094f4c5f30e384ed619f1818ee5095f6c892909b1fde0ec3d45022078d4c458e05d7ffee8dc7807d4b1b576c2ba1311b05d1e6f4c41775da77deb4d0121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc0247304402201d0b9fd415cbe3af809709fea17dfab49291d5f9e42c2ec916dc547b8819df8d02203281c5a742093d46d6b681afc837022ae33c6ff3839ac502bb6bf443782f8010012103a241c8d13dd5c92475652c43bf56580fbf9f1e8bc0aa0132ddc8443c03062bb900000000");
+    }
+
+    #[test]
+    fn test_sign_dogecoin_p2wpkh_mainnet() {
+        bind_test();
+
+        let utxos = vec![
+            Utxo {
+                txhash: "c2ceb5088cf39b677705526065667a3992c68cc18593a9af12607e057672717f"
+                    .to_string(),
+                vout: 0,
+                amount: 50000,
+                address: "9vZ6j7mhbTHB4WdGpeP3ZNh1ZDqCBLfmjQ".to_string(),
+                script_pubkey: "a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987".to_string(),
+                derive_path: "m/49'/1'/0'/0/0".to_string(),
+                sequence: 0,
+            },
+            Utxo {
+                txhash: "9ad628d450952a575af59f7d416c9bc337d184024608f1d2e13383c44bd5cd74"
+                    .to_string(),
+                vout: 0,
+                amount: 50000,
+                address: "A4Fyz4whF7qTtFabuPY4Ti8M7p1faxWKsQ".to_string(),
+                script_pubkey: "a91481af6d803fdc6dca1f3a1d03f5ffe8124cd1b44787".to_string(),
+                derive_path: "m/49'/1'/0'/0/1".to_string(),
+                sequence: 0,
+            },
+        ];
+
+        let transaction = BtcTransaction {
+            to: "A4Fyz4whF7qTtFabuPY4Ti8M7p1faxWKsQ".to_string(),
+            amount: 88000,
+            unspents: utxos,
+            fee: 10000,
+            chain_type: "DOGECOIN".to_string(),
+        };
+        let sign_result = transaction.sign_transaction(
+            "MAINNET",
+            &"m/49'/1'/0'".to_string(),
+            Some(0),
+            None,
+            "P2WPKH",
+        );
+        assert_eq!(
+            "330df579f9432661cd295cd6317c9f6f0af4356e7e78c258dfd3e40fd4e8ca47",
+            sign_result.as_ref().unwrap().tx_hash
+        );
+        assert_eq!(
+            "6e6fe4bf6396e5255f28fb956edc0d6b1968898f7a62b92cf87c71a851899a3f",
+            sign_result.as_ref().unwrap().wtx_id
+        );
+        assert_eq!(sign_result.as_ref().unwrap().signature, "020000000001027f717276057e6012afa99385c18cc692397a666560520577679bf38c08b5cec20000000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffff74cdd54bc48333e1d2f108460284d137c39b6c417d9ff55a572a9550d428d69a00000000171600149d66aa6399de69d5c5ae19f9098047760251a854ffffffff02c05701000000000017a91481af6d803fdc6dca1f3a1d03f5ffe8124cd1b44787d00700000000000017a914755fba51b5c443b9f16b1f86665dec10dd7a25c58702483045022100aa512e5b38e828bc2219ea58c8f8c432f5f1ad5e13a7972e01d1b43740e08cf302201ae50dfd52cd1d37d285a085064afe18ec822d7f05187441614cb0865ce8db530121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc0247304402202da72ad7f19306c6aabcf7ee2ce48bcf4c3b508027ce1c572f6cd0ea95bf0a5202204331ddced75e1eb67e2ead1ee328942e4f3b7c6eb2b785a1caa6b7fe2abf7542012103a241c8d13dd5c92475652c43bf56580fbf9f1e8bc0aa0132ddc8443c03062bb900000000");
     }
 }
