@@ -314,7 +314,7 @@ mod tests {
     use crate::api::{
         AddressResult, DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam,
         DeriveSubAccountsResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult,
-        GetPublicKeysParam, GetPublicKeysResult, PublicKeyDerivation,
+        GetPublicKeysParam, GetPublicKeysResult, PublicKeyDerivation, InitImKeyServerParam
     };
     use coin_bitcoin::btcapi::{
         BtcMessageInput, BtcMessageOutput, BtcTxExtra, BtcTxInput, BtcTxOutput, PsbtInput,
@@ -2328,6 +2328,28 @@ mod tests {
         assert_eq!(
             result.address,
             "bc1pqvrla5hul9cqdtz60lwwn35zdcx363pyxua0trqnz3wx8hvjxzdsdevceu"
+        );
+    }
+
+    #[test]
+    fn test_imkey_server_init(){
+        let req_pram = InitImKeyServerParam{
+            url: ikc_common::constants::URL.to_string(),
+        };
+
+        let action: ImkeyAction = ImkeyAction {
+            method: "init_imkey_server".to_string(),
+            param: Some(::prost_types::Any {
+                type_url: "init_imkey_server".to_string(),
+                value: encode_message(req_pram).unwrap(),
+            }),
+        };
+
+        let action = hex::encode(encode_message(action).unwrap());
+        unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
+        assert_eq!(
+            ikc_common::constants::URL,
+            ikc_common::IMKEY_SERVER_URL.read().to_string()
         );
     }
 }
