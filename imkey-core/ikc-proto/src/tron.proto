@@ -10,9 +10,10 @@ message TronTxOutput {
 }
 
 message TronMessageInput {
-    string message = 2;
-    bool is_hex =4;
-    bool is_tron_header=5;
+    string message = 1;
+    bool is_hex = 2;
+    string header = 3;//"TRON","ETH","NONE"
+    uint32 version = 4;//1: V1 2:V2
 }
 
 message TronMessageOutput {
