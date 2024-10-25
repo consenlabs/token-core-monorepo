@@ -1,7 +1,9 @@
 pub mod address;
+pub mod btc_kin_address;
 pub mod btcapi;
 pub mod common;
 pub mod message;
+pub mod network;
 pub mod psbt;
 pub mod transaction;
 pub mod usdt_transaction;

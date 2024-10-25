@@ -1,12 +1,10 @@
 use crate::transaction::Utxo;
 use crate::Result;
-use bitcoin::schnorr::UntweakedPublicKey;
 use bitcoin::util::base58;
-use bitcoin::util::bip32::{ChainCode, ChildNumber, ExtendedPubKey};
-use bitcoin::{Address, AddressType, Network, PublicKey};
+use bitcoin::{Network, PublicKey};
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
-use ikc_common::utility::{hex_to_bytes, sha256_hash};
+use ikc_common::utility::sha256_hash;
 use ikc_transport::message::send_apdu;
 use secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use std::str::FromStr;
@@ -74,7 +72,11 @@ get address version
 pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
     let version = match network {
         Network::Bitcoin => {
-            if address.starts_with('1') || address.starts_with('3') {
+            if address.starts_with('1')
+                || address.starts_with('3')
+                || address.starts_with('D')
+                || address.starts_with('A')
+            {
                 let address_bytes = base58::from(address)?;
                 address_bytes.as_slice()[0]
             } else if address.starts_with("bc1") {
