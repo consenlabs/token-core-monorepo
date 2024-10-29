@@ -11,7 +11,7 @@ use tcx_primitive::TypedPublicKey;
 // size of address
 pub const LENGTH: usize = 20;
 
-fn find_hrp(chain_id: &str) -> Result<String> {
+pub fn find_hrp(chain_id: &str) -> Result<String> {
     let map = CHAIN_ID_HRP_MAP.read().unwrap();
     let embed_hrp = map.get(chain_id);
 

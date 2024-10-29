@@ -38,6 +38,8 @@ pub struct AddressParam {
     pub network: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
     pub seg_wit: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub chain_id: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -224,6 +226,8 @@ pub struct DeriveSubAccountsParam {
     pub relative_paths: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
     #[prost(string, tag = "6")]
     pub extended_public_key: ::prost::alloc::string::String,
+    #[prost(string, tag = "7")]
+    pub chain_id: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

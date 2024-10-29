@@ -109,7 +109,8 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 let public_key = CosmosAddress::get_pub_key(&derivation.path)?;
                 let public_key = uncompress_pubkey_2_compress(&public_key[..130]);
                 account_rsp.public_key = format!("0x{}", public_key);
-                account_rsp.address = CosmosAddress::get_address(&derivation.path)?;
+                account_rsp.address =
+                    CosmosAddress::get_address(&derivation.path, &derivation.chain_id)?;
                 CosmosAddress::get_xpub(&account_path)?
             }
             "FILECOIN" => {
@@ -224,7 +225,7 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 }
                 BtcForkAddress::from_pub_key(pub_key_uncompressed, btc_fork_network.unwrap())?
             }
-            "COSMOS" => CosmosAddress::from_pub_key(pub_key_uncompressed)?,
+            "COSMOS" => CosmosAddress::from_pub_key(pub_key_uncompressed, &param.chain_id)?,
             "FILECOIN" => FilecoinAddress::from_pub_key(pub_key_uncompressed, &param.network)?,
             "TRON" => TronAddress::from_pub_key(&pub_key_uncompressed)?,
             "NERVOS" => CkbAddress::from_public_key(&param.network, &pub_key_uncompressed)?,
@@ -392,6 +393,7 @@ mod test {
             seg_wit: "".to_string(),
             relative_paths: vec!["0/0".to_string()],
             extended_public_key: "".to_string(),
+            chain_id: "".to_string(),
         };
         let response = derive_sub_accounts(&encode_message(param).unwrap());
         assert!(response.is_err());
@@ -404,6 +406,7 @@ mod test {
             seg_wit: "".to_string(),
             relative_paths: vec!["0/0".to_string()],
             extended_public_key: "xpub6Boii2KSAfEv7EhbBuopXKB2Gshi8kMpTGWyHuY9BHwYA8qPeu7ZYdnnXCuUdednhwyjyK2Z8gJD2AfawgBHp3Kkf2GjBjzEQAyJ3uJ4SuG".to_string(),
+            chain_id: "".to_string(),
         };
         let response = derive_sub_accounts(&encode_message(param).unwrap());
         assert!(response.is_err());

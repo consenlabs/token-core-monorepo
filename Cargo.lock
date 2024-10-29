@@ -647,6 +647,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
+ "tcx-atom",
 ]
 
 [[package]]

@@ -10,10 +10,12 @@ use ikc_common::error::CoinError;
 use ikc_common::path;
 use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::utility;
+use ikc_common::utility::hex_to_bytes;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
 use secp256k1::PublicKey;
 use std::str::FromStr;
+use tcx_atom::address::find_hrp;
 
 #[derive(Debug)]
 pub struct CosmosAddress {}
@@ -48,19 +50,14 @@ impl CosmosAddress {
         Ok(sign_source_val.to_string())
     }
 
-    pub fn get_address(path: &str) -> Result<String> {
-        let compress_pubkey =
-            utility::uncompress_pubkey_2_compress(&CosmosAddress::get_pub_key(path)?);
-        //hash160
-        let pub_key_bytes = hex::decode(compress_pubkey).unwrap();
-        let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).to_hex();
-        let hh = Vec::from_hex(&pub_key_hash).unwrap();
-        let address = encode("cosmos", hh.to_base32(), Variant::Bech32)?;
+    pub fn get_address(path: &str, chain_id: &str) -> Result<String> {
+        let pub_key = utility::uncompress_pubkey_2_compress(&CosmosAddress::get_pub_key(path)?);
+        let address = Self::from_pub_key(hex_to_bytes(&pub_key)?, chain_id)?;
         Ok(address)
     }
 
-    pub fn display_address(path: &str) -> Result<String> {
-        let address = CosmosAddress::get_address(path).unwrap();
+    pub fn display_address(path: &str, chain_id: &str) -> Result<String> {
+        let address = CosmosAddress::get_address(path, chain_id).unwrap();
         let reg_apdu = CosmosApdu::register_address(address.as_bytes());
         let res_reg = message::send_apdu(reg_apdu)?;
         ApduCheck::check_response(&res_reg)?;
@@ -115,11 +112,12 @@ impl CosmosAddress {
         Ok(extend_public_key.to_string())
     }
 
-    pub fn from_pub_key(pub_key: Vec<u8>) -> Result<String> {
+    pub fn from_pub_key(pub_key: Vec<u8>, chain_id: &str) -> Result<String> {
         let public_key = PublicKey::from_slice(pub_key.as_slice())?;
         let compressed_pubkey = public_key.serialize();
         let pub_key_hash = hash160::Hash::hash(&compressed_pubkey).to_vec();
-        let address = encode("cosmos", pub_key_hash.to_base32(), Variant::Bech32)?;
+        let hrp = find_hrp(chain_id)?;
+        let address = encode(&hrp, pub_key_hash.to_base32(), Variant::Bech32)?;
         Ok(address)
     }
 }
@@ -128,7 +126,8 @@ impl CosmosAddress {
 mod tests {
     use crate::address::CosmosAddress;
     use bech32::{ToBase32, Variant};
-    use ikc_common::constants;
+    use ikc_common::utility::hex_to_bytes;
+    use ikc_common::{constants, utility};
     use ikc_device::device_binding::bind_test;
 
     #[test]
@@ -146,14 +145,15 @@ mod tests {
     fn test_get_address() {
         bind_test();
 
-        let address = CosmosAddress::get_address(constants::COSMOS_PATH).unwrap();
+        let address = CosmosAddress::get_address(constants::COSMOS_PATH, "cosmoshub-4").unwrap();
         assert_eq!(&address, "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992");
     }
 
     #[test]
     fn test_display_address() {
         bind_test();
-        let address = CosmosAddress::display_address(constants::COSMOS_PATH).unwrap();
+        let address =
+            CosmosAddress::display_address(constants::COSMOS_PATH, "cosmoshub-4").unwrap();
         assert_eq!(&address, "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992");
     }
 
@@ -169,5 +169,46 @@ mod tests {
             Err(_e) => return,
         };
         assert_eq!(address, "bech321qqqsyrhqy2a".to_string());
+    }
+
+    #[test]
+    fn test_sub_net() {
+        bind_test();
+
+        let testcase = [
+            (
+                "dydx",
+                "dydx-mainnet-1",
+                "m/44'/118'/0'/0/0",
+                "dydx1ajz9y0x3wekez7tz2td2j6l2dftn28v2n5rp9a",
+            ),
+            (
+                "osmo",
+                "osmosis-1",
+                "m/44'/118'/0'/0/0",
+                "osmo1ajz9y0x3wekez7tz2td2j6l2dftn28v2jk74nc",
+            ),
+            (
+                "neutron",
+                "neutron-1",
+                "m/44'/118'/0'/0/0",
+                "neutron1ajz9y0x3wekez7tz2td2j6l2dftn28v27jy8ld",
+            ),
+            (
+                "stride",
+                "stride-1",
+                "m/44'/118'/0'/0/0",
+                "stride1ajz9y0x3wekez7tz2td2j6l2dftn28v2exde3x",
+            ),
+        ];
+
+        for (hrp, chain_id, path, expected_addr) in testcase {
+            let pub_key =
+                utility::uncompress_pubkey_2_compress(&CosmosAddress::get_pub_key(path).unwrap());
+            let address = CosmosAddress::from_pub_key(hex_to_bytes(&pub_key).unwrap(), &chain_id)
+                .unwrap()
+                .to_string();
+            assert_eq!(address, expected_addr);
+        }
     }
 }

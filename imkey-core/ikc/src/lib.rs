@@ -317,6 +317,7 @@ mod tests {
         BtcMessageInput, BtcMessageOutput, BtcTxExtra, BtcTxInput, BtcTxOutput, PsbtInput,
         PsbtOutput, Utxo,
     };
+    use coin_cosmos::cosmosapi::{CosmosTxInput, CosmosTxOutput};
     use ikc_device::deviceapi::{BindAcquireReq, BindCheckRes};
     use ikc_transport::hid_api::hid_connect;
     use prost::Message;
@@ -390,7 +391,7 @@ mod tests {
                 path: "m/44'/118'/0'/0/0".to_string(),
                 network: "MAINNET".to_string(),
                 seg_wit: "".to_string(),
-                chain_id: "".to_string(),
+                chain_id: "cosmoshub-4".to_string(),
                 curve: "secp256k1".to_string(),
             },
             Derivation {
@@ -486,7 +487,7 @@ mod tests {
                 path: "m/44'/118'/0'/0/0".to_string(),
                 network: "TESTNET".to_string(),
                 seg_wit: "".to_string(),
-                chain_id: "".to_string(),
+                chain_id: "cosmoshub-4".to_string(),
                 curve: "secp256k1".to_string(),
             },
             Derivation {
@@ -884,6 +885,7 @@ mod tests {
             extended_public_key: derived_accounts_result.accounts[0]
                 .extended_public_key
                 .to_string(),
+            chain_id: "".to_string(),
         };
         let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
         assert_eq!(
@@ -964,6 +966,7 @@ mod tests {
             extended_public_key: derived_accounts_result.accounts[0]
                 .extended_public_key
                 .to_string(),
+            chain_id: "".to_string(),
         };
         let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
         assert_eq!(
@@ -1139,6 +1142,7 @@ mod tests {
             extended_public_key: derived_accounts_result.accounts[0]
                 .extended_public_key
                 .to_string(),
+            chain_id: "".to_string(),
         };
         let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param);
         assert_eq!(
@@ -1187,6 +1191,7 @@ mod tests {
             extended_public_key: derived_accounts_result.accounts[0]
                 .extended_public_key
                 .to_string(),
+            chain_id: "".to_string(),
         };
 
         let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
@@ -1268,6 +1273,7 @@ mod tests {
             extended_public_key: derived_accounts_result.accounts[0]
                 .extended_public_key
                 .to_string(),
+            chain_id: "".to_string(),
         };
         let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
         assert_eq!(
@@ -1348,6 +1354,7 @@ mod tests {
             extended_public_key: derived_accounts_result.accounts[0]
                 .extended_public_key
                 .to_string(),
+            chain_id: "".to_string(),
         };
         let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
         assert_eq!(
@@ -1598,6 +1605,7 @@ mod tests {
             extended_public_key: derived_accounts_result.accounts[0]
                 .extended_public_key
                 .to_string(),
+            chain_id: "".to_string(),
         };
         let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
         assert_eq!(
@@ -1710,6 +1718,55 @@ mod tests {
         assert_eq!(
             "1pxlnp964ka353cuws7m3l7eshf38lyh0m2rme2y69n57t4dhlfq2sks3dcl",
             derived_sub_accounts.accounts[1].address
+        );
+    }
+
+    #[test]
+    fn test_cosmos_derive_sub_accounts() {
+        let mut derivation = Derivation {
+            chain_type: "COSMOS".to_string(),
+            path: "m/44'/118'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            chain_id: "realionetwork_3301-1".to_string(),
+            curve: "secp256k1".to_string(),
+        };
+        let derived_accounts_result = derive_account(derivation.clone());
+        let mut derive_sub_accounts_param = DeriveSubAccountsParam {
+            chain_type: "COSMOS".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            relative_paths: vec!["0/0".to_string(), "0/1".to_string()],
+            extended_public_key: derived_accounts_result.accounts[0]
+                .extended_public_key
+                .to_string(),
+            chain_id: "realionetwork_3301-1".to_string(),
+        };
+        let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
+        assert_eq!(
+            "realio1ajz9y0x3wekez7tz2td2j6l2dftn28v2ncf0es",
+            derived_sub_accounts.accounts[0].address
+        );
+        assert_eq!(
+            "0x0232c1ef21d73c19531b0aa4e863cf397c2b982b2f958f60cdb62969824c096d65",
+            derived_sub_accounts.accounts[0].public_key
+        );
+        assert_eq!(
+            "xpub6CrWRZY39gj49G1ipdmcVunEnb5RoTGf9o6QnJQp8c4b84V2piN1Rdy1xWVJ4P7VXNx5Ckg6rZcvSNvJtvWz8zs3RkPayHn9vMMuK9ERrFr",
+            derived_sub_accounts.accounts[0].extended_public_key
+        );
+        assert_eq!(
+            "rJQ+jO02Yn+Rdfjn5QbStU/2aS0T5zW5HU83JoHLBZHafsr8FSdG7lPV59XAw1LwuUCMCtRBueG1iJ2AsA76PP1zyVzj0LxDIq3iHAOxBdwIZDP5C1sY+RMGwXk+6a2OwmYN/zF/q2SL8D6aeGyD9g==",
+            derived_sub_accounts.accounts[0].encrypted_extended_public_key
+        );
+        assert_eq!(
+            "realio1nkujjlktqdue52xc0k09yzc7h3xswsfpkp7d7z",
+            derived_sub_accounts.accounts[1].address
+        );
+        assert_eq!(
+            "0x033467ca2010bef683d46edc012aa38793dc81332aeadedf368631e6effa5cdc45",
+            derived_sub_accounts.accounts[1].public_key
         );
     }
 
@@ -2309,6 +2366,7 @@ mod tests {
             path: "m/86'/0'/0'/0/0".to_string(),
             network: "MAINNET".to_string(),
             seg_wit: "VERSION_1".to_string(),
+            chain_id: "".to_string(),
         };
 
         let action: ImkeyAction = ImkeyAction {
@@ -2325,6 +2383,44 @@ mod tests {
         assert_eq!(
             result.address,
             "bc1pqvrla5hul9cqdtz60lwwn35zdcx363pyxua0trqnz3wx8hvjxzdsdevceu"
+        );
+    }
+
+    #[test]
+    fn test_cosmos_sign() {
+        connect_and_bind();
+        let tx_input = CosmosTxInput{
+            data: "7b226163636f756e745f6e756d626572223a2231323334353637383930222c22636861696e5f6964223a2274656e6465726d696e745f74657374222c22666565223a7b22616d6f756e74223a5b7b22616d6f756e74223a2230222c2264656e6f6d223a22227d5d2c22676173223a223231393036227d2c226d656d6f223a22222c226d736773223a5b7b2274797065223a22636f736d6f732d73646b2f4d736744656c6567617465222c2276616c7565223a7b22616d6f756e74223a5b7b22616d6f756e74223a223130222c2264656e6f6d223a2261746f6d227d5d2c2264656c656761746f725f61646472657373223a22636f736d6f73317930613873633561797635326632666d35743768723267383871676c6a7a6b346a637a373866222c2276616c696461746f725f61646472657373223a22636f736d6f7376616c6f706572317a6b757072383368727a6b6e33757035656c6b747a63713374756674386e78736d7764716770227d7d5d2c2273657175656e6365223a2231323334353637383930227d".to_string(),
+        };
+        let input_value = encode_message(tx_input).unwrap();
+        let param = SignParam {
+            chain_type: "COSMOS".to_string(),
+            path: "m/44'/118'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imkey".to_string(),
+                value: input_value.clone(),
+            }),
+            payment: "0.001 ATOM".to_string(),
+            receiver: "stride1ajz9y0x3wekez7tz2td2j6l2dftn28v2exde3x".to_string(),
+            sender: "".to_string(),
+            fee: "0.00075 atom".to_string(),
+            seg_wit: "".to_string(),
+        };
+        let action: ImkeyAction = ImkeyAction {
+            method: "sign_tx".to_string(),
+            param: Some(::prost_types::Any {
+                type_url: "deviceapi.sign_tx".to_string(),
+                value: encode_message(param).unwrap(),
+            }),
+        };
+        let action = hex::encode(encode_message(action).unwrap());
+        let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
+        let ret_bytes = hex::decode(ret_hex).unwrap();
+        let sign_result = CosmosTxOutput::decode(ret_bytes.as_slice()).unwrap();
+        assert_eq!(
+            "h4//cOYLTiDYbdw+1NVZufwppIAcEQ1xsWMYcCdcGtsu4xSnYStxyJgIa57445sHnXgWP84VvnQ5geoUZAKxlQ==",
+            sign_result.signature
         );
     }
 }
