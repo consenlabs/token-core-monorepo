@@ -29,6 +29,7 @@ message AddressParam {
     string path = 2;
     string network = 3;
     string segWit = 4;
+    string chainId = 5;
 }
 
 message AddressResult {
@@ -135,6 +136,7 @@ message DeriveSubAccountsParam {
     string segWit = 4;
     repeated string relativePaths = 5;
     string extendedPublicKey = 6;
+    string chainId = 7;
 }
 
 message DeriveSubAccountsResult {

@@ -17,8 +17,10 @@ pub struct TronMessageInput {
     pub message: ::prost::alloc::string::String,
     #[prost(bool, tag = "2")]
     pub is_hex: bool,
+    /// "TRON","ETH","NONE"
     #[prost(string, tag = "3")]
     pub header: ::prost::alloc::string::String,
+    /// 1: V1 2:V2
     #[prost(uint32, tag = "4")]
     pub version: u32,
 }
