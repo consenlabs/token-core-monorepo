@@ -5,6 +5,7 @@ use super::se_secure_check::SeSecureCheckRequest;
 use crate::app_delete::AppDeleteRequest;
 use crate::app_download::{AppDownloadRequest, AppDownloadResponse};
 use crate::app_update::AppUpdateResponse;
+use crate::ble_upgrade::BleUpgradeRequest;
 use crate::cos_check_update::{CosCheckUpdateRequest, CosCheckUpdateResponse};
 use crate::cos_upgrade::CosUpgradeRequest;
 use crate::device_binding::DeviceManage;
@@ -163,12 +164,10 @@ pub fn check_update() -> Result<ServiceResponse<SeQueryResponse>> {
 pub fn app_download(app_name: &str) -> Result<ServiceResponse<AppDownloadResponse>> {
     let seid: String = get_se_id()?;
     let device_cert: String = get_cert()?;
-    let sdk_version = Some(constants::VERSION.to_string());
     let instance_aid: String = applet::get_instid_by_appname(app_name)
         .expect("imkey_app_name_not_exist")
         .to_string();
-    AppDownloadRequest::build_request_data(seid, instance_aid, device_cert, sdk_version)
-        .send_message()
+    AppDownloadRequest::build_request_data(seid, instance_aid, device_cert).send_message()
 }
 
 pub fn app_update(app_name: &str) -> Result<ServiceResponse<AppUpdateResponse>> {
@@ -205,14 +204,15 @@ pub fn bind_acquire(bind_code: &str) -> Result<String> {
 
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub fn cos_upgrade() -> Result<()> {
-    CosUpgradeRequest::cos_upgrade(None)
+    CosUpgradeRequest::cos_upgrade()
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub fn cos_check_update() -> Result<ServiceResponse<CosCheckUpdateResponse>> {
     let seid = get_se_id()?;
     let cos_version = get_firmware_version()?;
-    CosCheckUpdateRequest::build_request_data(seid, cos_version).send_message()
+    let ble_version = get_ble_version()?;
+    CosCheckUpdateRequest::build_request_data(seid, cos_version, ble_version).send_message()
 }
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub fn is_bl_status() -> Result<bool> {
@@ -222,6 +222,11 @@ pub fn is_bl_status() -> Result<bool> {
         return Ok(false);
     }
     Ok(true)
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+pub fn ble_upgrade() -> Result<()> {
+    BleUpgradeRequest::ble_upgrade()
 }
 
 pub fn get_btc_apple_version() -> Result<String> {

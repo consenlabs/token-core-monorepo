@@ -10,6 +10,9 @@ pub struct CosCheckUpdateRequest {
     pub cos_version: String,
     #[serde(rename = "commandID")]
     pub command_id: String,
+    pub sdk_version: String,
+    pub terminal_type: String,
+    pub ble_version: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -18,6 +21,7 @@ pub struct CosCheckUpdateResponse {
     pub seid: String,
     pub is_latest: bool,
     pub latest_cos_version: Option<String>,
+    pub latest_ble_version: Option<String>,
     pub update_type: Option<String>,
     pub description: Option<String>,
     pub is_update_success: bool,
@@ -39,11 +43,15 @@ impl TsmService for CosCheckUpdateRequest {
 }
 
 impl CosCheckUpdateRequest {
-    pub fn build_request_data(seid: String, cos_version: String) -> Self {
+    pub fn build_request_data(seid: String, cos_version: String, ble_version: String) -> Self {
+        let terminal_type = ikc_common::TERMINAL_TYPE.read().to_string();
         CosCheckUpdateRequest {
             seid,
             cos_version,
             command_id: String::from(constants::TSM_ACTION_COS_CHECK_UPDATE),
+            sdk_version: constants::VERSION.to_string(),
+            terminal_type,
+            ble_version,
         }
     }
 }

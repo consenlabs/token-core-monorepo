@@ -3,9 +3,7 @@ use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use ikc_common::applet;
 use ikc_common::constants;
-use ikc_common::{
-    OPERATING_SYSTEM, SDK_VERSION, TERMINAL_TYPE, XPUB_COMMON_IV, XPUB_COMMON_KEY_128,
-};
+use ikc_common::{OPERATING_SYSTEM, TERMINAL_TYPE, XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
 use ikc_device::device_manager;
 use ikc_device::deviceapi::{
     AppDeleteReq, AppDownloadReq, AppDownloadRes, AppUpdateReq, AppUpdateRes, AvailableAppBean,
@@ -40,7 +38,6 @@ pub fn init_imkey_core(data: &[u8]) -> Result<Vec<u8>> {
     *IS_DEBUG.write() = is_debug;
     *OPERATING_SYSTEM.write() = system;
     *TERMINAL_TYPE.write() = terminal_type.to_uppercase();
-    *SDK_VERSION.write() = sdk_version;
     Ok(vec![])
 }
 
@@ -294,6 +291,10 @@ pub fn cos_check_update() -> Result<Vec<u8>> {
         update_type: cos_check_update.return_data.update_type.unwrap_or_default(),
         description: cos_check_update.return_data.description.unwrap_or_default(),
         is_update_success: cos_check_update.return_data.is_update_success,
+        latest_ble_version: cos_check_update
+            .return_data
+            .latest_ble_version
+            .unwrap_or_default(),
     })
 }
 

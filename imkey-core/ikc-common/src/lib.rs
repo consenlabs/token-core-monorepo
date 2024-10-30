@@ -26,7 +26,6 @@ lazy_static! {
     pub static ref OPERATING_SYSTEM: RwLock<String> = RwLock::new("".to_string());
     pub static ref TERMINAL_TYPE: RwLock<String> =
         RwLock::new(constants::TERMINAL_TYPE_APP.to_string());
-    pub static ref SDK_VERSION: RwLock<String> = RwLock::new("".to_string());
 }
 
 #[macro_use]

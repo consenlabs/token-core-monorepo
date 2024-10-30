@@ -23,7 +23,7 @@ use crate::error::ImkeyError;
 use ikc_common::constants;
 use ikc_transport::message;
 use serde::{Deserialize, Serialize};
-
+pub mod ble_upgrade;
 pub mod cos_check_update;
 
 #[allow(non_snake_case)]

@@ -12,6 +12,8 @@ pub const TSM_ACTION_AUTHCODE_STORAGE: &str = "/authCodeStorage";
 pub const TSM_ACTION_DEVICE_CERT_CHECK: &str = "/deviceCertCheck";
 pub const TSM_ACTION_COS_UPGRADE: &str = "/seCosUpdate";
 pub const TSM_ACTION_COS_CHECK_UPDATE: &str = "/cosCheckUpdate";
+pub const TSM_ACTION_BLE_UPDATE: &str = "/bleUpdate";
+pub const TSM_ACTION_BLE_CHECK_UPDATE: &str = "/bleCheckUpdate";
 
 //apud related constant
 pub const LC_MAX: u32 = 245;

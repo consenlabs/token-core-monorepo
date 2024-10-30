@@ -158,10 +158,24 @@ pub struct CosCheckUpdateRes {
     pub description: ::prost::alloc::string::String,
     #[prost(bool, tag = "6")]
     pub is_update_success: bool,
+    #[prost(string, tag = "7")]
+    pub latest_ble_version: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct IsBlStatusRes {
     #[prost(bool, tag = "1")]
     pub check_result: bool,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BleCheckUpdateRes {
+    #[prost(string, tag = "1")]
+    pub seid: ::prost::alloc::string::String,
+    #[prost(bool, tag = "2")]
+    pub is_latest: bool,
+    #[prost(string, tag = "3")]
+    pub latest_cos_version: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub description: ::prost::alloc::string::String,
 }
