@@ -145,6 +145,10 @@ pub struct InitImKeyCoreXParam {
     pub is_debug: bool,
     #[prost(string, tag = "5")]
     pub system: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub terminal_type: ::prost::alloc::string::String,
+    #[prost(string, tag = "7")]
+    pub sdk_version: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
