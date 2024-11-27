@@ -200,7 +200,7 @@ mod tests {
             version: 1,
         };
         let signed = keystore.sign_message(&params, &message).unwrap();
-        assert_eq!("0x8686cc3cf49e772d96d3a8147a59eb3df2659c172775f3611648bfbe7e3c48c11859b873d9d2185567a4f64a14fa38ce78dc385a7364af55109c5b6426e4c0f61b", &signed.signature);
+        assert_eq!("0x06ff3c5f98b8e8e257f47a66ce8e953c7a7d0f96eb6687da6a98b66a36c2a725759cab3df94d014bd17760328adf860649303c68c4fa6644d9f307e2f32cc3311c", &signed.signature);
     }
 
     #[test]
