@@ -510,17 +510,23 @@ fn test_tron_sign_message() {
                     version: 1,
                 }, "0x16417c6489da3a88ef980bf0a42551b9e76181d03e7334548ab3cb36e7622a484482722882a29e2fe4587b95c739a68624ebf9ada5f013a9340d883f03fcf9af1b"),
                 (TronMessageInput {
-                    value: "645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76"
+                    value: "0X645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76"
                         .to_string(),
                     header: "TRON".to_string(),
                     version: 1,
                 }, "0x16417c6489da3a88ef980bf0a42551b9e76181d03e7334548ab3cb36e7622a484482722882a29e2fe4587b95c739a68624ebf9ada5f013a9340d883f03fcf9af1b"),
                 (TronMessageInput {
-                    value: "abcdef"
+                    value: "0xabcdef"
                         .to_string(),
                     header: "TRON".to_string(),
                     version: 1,
                 }, "0x13e407627e584c821ba527d23d64163d458447dfea1c3bfc92be660aa8d093ee5cfa3881870c4c51f157828eb9d4f7fad8112761f3b51cf76c7a4a3f241033d51b"),
+                (TronMessageInput {
+                    value: "hello world"
+                        .to_string(),
+                    header: "TRON".to_string(),
+                    version: 1,
+                }, "0x8686cc3cf49e772d96d3a8147a59eb3df2659c172775f3611648bfbe7e3c48c11859b873d9d2185567a4f64a14fa38ce78dc385a7364af55109c5b6426e4c0f61b"),
             ];
         for (input, expected) in input_expects {
             let tx = SignParam {
