@@ -1,5 +1,7 @@
+use anyhow::anyhow;
 use core::str::FromStr;
 
+use crate::hrps::CHAIN_ID_HRP_MAP;
 use bech32::{FromBase32, ToBase32, Variant};
 use tcx_common::{ripemd160, sha256};
 use tcx_constants::CoinInfo;
@@ -8,34 +10,41 @@ use tcx_primitive::TypedPublicKey;
 
 // size of address
 pub const LENGTH: usize = 20;
+
+fn find_hrp(chain_id: &str) -> Result<String> {
+    let map = CHAIN_ID_HRP_MAP.read().unwrap();
+    let embed_hrp = map.get(chain_id);
+
+    return if embed_hrp.is_some() {
+        Ok(embed_hrp.unwrap().to_string())
+    } else {
+        Err(anyhow!("unknown_chain_id"))
+    };
+}
+
 #[derive(PartialEq, Eq, Clone)]
 pub struct AtomAddress(String);
 
 impl Address for AtomAddress {
-    fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
-        let prefix = "cosmos";
-
+    fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
         let pub_key_bytes = public_key.to_bytes();
         let mut bytes = [0u8; LENGTH];
         let pub_key_hash = ripemd160(&sha256(&pub_key_bytes));
         bytes.copy_from_slice(&pub_key_hash[..LENGTH]);
+        let hrp = find_hrp(&coin.chain_id)?;
 
         Ok(AtomAddress(bech32::encode(
-            prefix,
+            &hrp,
             bytes.to_base32(),
             Variant::Bech32,
         )?))
     }
 
-    fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
+    fn is_valid(address: &str, coin: &CoinInfo) -> bool {
         let ret = bech32::decode(address);
         if let Ok(val) = ret {
             let (hrp, data, _) = val;
             let data = Vec::from_base32(&data).unwrap();
-
-            if hrp.as_str() != "cosmos" {
-                return false;
-            }
 
             if data.len() != 20 {
                 return false;
@@ -64,6 +73,7 @@ impl ToString for AtomAddress {
 #[cfg(test)]
 mod tests {
     use crate::address::AtomAddress;
+    use anyhow::anyhow;
     use std::str::FromStr;
     use tcx_keystore::Address;
 
@@ -73,6 +83,7 @@ mod tests {
 
     fn get_test_coin() -> CoinInfo {
         CoinInfo {
+            chain_id: "cosmoshub-4".to_string(),
             coin: "COSMOS".to_string(),
             derivation_path: "m/44'/118'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -149,6 +160,7 @@ mod tests {
                 .unwrap()
                 .public_key();
         let coin_info = CoinInfo {
+            chain_id: "cosmoshub-4".to_string(),
             coin: "COSMOS".to_string(),
             derivation_path: "m/44'/118'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -159,5 +171,105 @@ mod tests {
             .unwrap()
             .to_string();
         assert_eq!(address, "cosmos1hsk6jryyqjfhp5dhc55tc9jtckygx0eph6dd02");
+    }
+
+    #[test]
+    fn test_sub_net() {
+        let pub_key_hex = "0317f65e6736ad182b47e386af40af0f26fb524bdd94e172a6145a6603d65a44b2";
+        let pub_key =
+            TypedPublicKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(pub_key_hex).unwrap())
+                .unwrap();
+
+        let testcase = [
+            (
+                "dydx",
+                "dydx-mainnet-1",
+                "m/44'/118'/0'/0/0",
+                "dydx1m566v5rcklnac8vc0dftfu4lnvznhlu7yg830z",
+            ),
+            (
+                "osmo",
+                "osmosis-1",
+                "m/44'/118'/0'/0/0",
+                "osmo1m566v5rcklnac8vc0dftfu4lnvznhlu79269e8",
+            ),
+            (
+                "neutron",
+                "neutron-1",
+                "m/44'/118'/0'/0/0",
+                "neutron1m566v5rcklnac8vc0dftfu4lnvznhlu7fwqh4j",
+            ),
+            (
+                "stride",
+                "stride-1",
+                "m/44'/118'/0'/0/0",
+                "stride1m566v5rcklnac8vc0dftfu4lnvznhlu7w6ffme",
+            ),
+        ];
+        for (hrp, chain_id, path, expected_addr) in testcase {
+            let coin_info = CoinInfo {
+                chain_id: chain_id.to_string(),
+                coin: "COSMOS".to_string(),
+                derivation_path: path.to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            };
+
+            let address = AtomAddress::from_public_key(&pub_key, &coin_info)
+                .unwrap()
+                .to_string();
+            assert_eq!(address, expected_addr)
+        }
+    }
+
+    #[test]
+    fn test_chain_id_hrp_verify() {
+        let prv_str = "80e81ea269e66a0a05b11236df7919fb7fbeedba87452d667489d7403a02f005";
+        let pub_key =
+            TypedPrivateKey::from_slice(CurveType::SECP256k1, &Vec::from_hex(prv_str).unwrap())
+                .unwrap()
+                .public_key();
+        let coin_info = CoinInfo {
+            chain_id: "cosmoshub-4".to_string(),
+            coin: "COSMOS".to_string(),
+            derivation_path: "m/44'/118'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+        let address = AtomAddress::from_public_key(&pub_key, &coin_info);
+
+        assert_eq!(
+            format!("{}", address.unwrap().to_string()),
+            "cosmos1hsk6jryyqjfhp5dhc55tc9jtckygx0eph6dd02"
+        );
+
+        let coin_info = CoinInfo {
+            chain_id: "unknown-chainid".to_string(),
+            coin: "COSMOS".to_string(),
+            derivation_path: "m/44'/118'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+
+        let address = AtomAddress::from_public_key(&pub_key, &coin_info);
+        assert_eq!(format!("{}", address.err().unwrap()), "unknown_chain_id");
+
+        let coin_info = CoinInfo {
+            chain_id: "cosmoshub-4".to_string(),
+            coin: "COSMOS".to_string(),
+            derivation_path: "m/44'/118'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+
+        let address = AtomAddress::from_public_key(&pub_key, &coin_info);
+        assert_eq!(
+            address.unwrap().to_string(),
+            "cosmos1hsk6jryyqjfhp5dhc55tc9jtckygx0eph6dd02"
+        );
     }
 }

@@ -1,8 +1,8 @@
 use crate::constants::{BTC_AID, COSMOS_AID, EOS_AID, ETH_AID, LC_MAX};
 use crate::error::ApduError;
+use crate::hex::ToHex;
 use crate::Result;
 use hex;
-use rustc_serialize::hex::ToHex;
 
 pub trait CoinCommonApdu: Default {
     fn select_applet() -> String;
@@ -69,6 +69,19 @@ impl BtcApdu {
         apdu.to_hex().to_uppercase()
     }
 
+    /**
+     *p2 00:sign psbt transaction  80: sign message
+     **/
+    pub fn btc_psbt_preview(data: &Vec<u8>, p2: u8) -> String {
+        if data.len() as u32 > LC_MAX {
+            panic!("data to long");
+        }
+        let mut apdu = ApduHeader::new(0x80, 0x4C, 0x00, p2, data.len() as u8).to_array();
+        apdu.extend(data.iter());
+        apdu.push(0x00);
+        apdu.to_hex().to_uppercase()
+    }
+
     pub fn btc_sign(index: u8, hash_type: u8, path: &str) -> String {
         let path_bytes = path.as_bytes();
         let mut apdu =
@@ -93,6 +106,36 @@ impl BtcApdu {
         apdu.to_hex().to_uppercase()
     }
 
+    pub fn btc_taproot_sign(last_one: bool, data: Vec<u8>) -> String {
+        if data.len() as u32 > LC_MAX {
+            panic!("data to long");
+        }
+
+        let mut apdu = match last_one {
+            true => ApduHeader::new(0x80, 0x40, 0x80, 0x00, data.len() as u8).to_array(),
+            _ => ApduHeader::new(0x80, 0x40, 0x00, 0x00, data.len() as u8).to_array(),
+        };
+
+        apdu.extend(data.iter());
+        apdu.push(0x00);
+        apdu.to_hex().to_uppercase()
+    }
+
+    pub fn btc_taproot_script_sign(last_one: bool, data: Vec<u8>) -> String {
+        if data.len() as u32 > LC_MAX {
+            panic!("data to long");
+        }
+
+        let mut apdu = match last_one {
+            true => ApduHeader::new(0x80, 0x40, 0x80, 0x80, data.len() as u8).to_array(),
+            _ => ApduHeader::new(0x80, 0x40, 0x00, 0x80, data.len() as u8).to_array(),
+        };
+
+        apdu.extend(data.iter());
+        apdu.push(0x00);
+        apdu.to_hex().to_uppercase()
+    }
+
     pub fn omni_prepare_data(p1: u8, data: Vec<u8>) -> String {
         if data.len() as u32 > LC_MAX {
             panic!("data to long");
@@ -110,6 +153,58 @@ impl BtcApdu {
         data.push(name.len() as u8);
         data.extend(name);
         Apdu::register_address(0x37, &data)
+    }
+
+    pub fn btc_single_utxo_sign_prepare(ins: u8, data: &Vec<u8>) -> Vec<String> {
+        let mut apdu_vec = Vec::new();
+        let apdu_number = (data.len() - 1) / LC_MAX as usize + 1;
+        for index in 0..apdu_number {
+            if index == 0 && index == apdu_number - 1 {
+                let length = if data.len() % LC_MAX as usize == 0 {
+                    LC_MAX
+                } else {
+                    (data.len() % LC_MAX as usize) as u32
+                };
+                let mut temp_apdu_vec =
+                    ApduHeader::new(0x80, ins, 0x00, 0x80, length as u8).to_array();
+                temp_apdu_vec.extend_from_slice(&data[index * LC_MAX as usize..]);
+                apdu_vec.push(hex::encode_upper(temp_apdu_vec));
+            } else if index == 0 && index != apdu_number - 1 {
+                let mut temp_apdu_vec =
+                    ApduHeader::new(0x80, ins, 0x00, 0x00, LC_MAX as u8).to_array();
+                temp_apdu_vec.extend_from_slice(
+                    &data[index * LC_MAX as usize..((index + 1) * LC_MAX as usize) as usize],
+                );
+                apdu_vec.push(hex::encode_upper(temp_apdu_vec));
+            } else if index != 0 && index != apdu_number - 1 {
+                let mut temp_apdu_vec =
+                    ApduHeader::new(0x80, ins, 0x80, 0x00, LC_MAX as u8).to_array();
+                temp_apdu_vec.extend_from_slice(
+                    &data[index * LC_MAX as usize..((index + 1) * LC_MAX as usize) as usize],
+                );
+                apdu_vec.push(hex::encode_upper(temp_apdu_vec));
+            } else if index != 0 && index == apdu_number - 1 {
+                let length = if data.len() % LC_MAX as usize == 0 {
+                    LC_MAX
+                } else {
+                    (data.len() % LC_MAX as usize) as u32
+                };
+                let mut temp_apdu_vec =
+                    ApduHeader::new(0x80, ins, 0x80, 0x80, length as u8).to_array();
+                temp_apdu_vec.extend_from_slice(&data[index * LC_MAX as usize..]);
+                apdu_vec.push(hex::encode_upper(temp_apdu_vec));
+            }
+        }
+        return apdu_vec;
+    }
+
+    pub fn btc_single_utxo_sign(index: u8, hash_type: u8, path: &str) -> String {
+        let path_bytes = path.as_bytes();
+        let mut apdu =
+            ApduHeader::new(0x80, 0x45, index, hash_type, path_bytes.len() as u8).to_array();
+        apdu.extend(path_bytes.iter());
+        apdu.push(0x00);
+        apdu.to_hex().to_uppercase()
     }
 }
 
@@ -562,6 +657,7 @@ impl ApduCheck {
             "F080" => Err(ApduError::ImkeyInMenuPage.into()),
             "F081" => Err(ApduError::ImkeyPinNotVerified.into()),
             "6F01" => Err(ApduError::ImkeyBluetoothChannelError.into()),
+            "6943" => Err(ApduError::ImkeyMnemonicCheckFail.into()),
             _ => Err(anyhow!("imkey_command_execute_fail_{}", response_data)), //Err(ApduError::ImkeyCommandExecuteFail.into())
         }
     }

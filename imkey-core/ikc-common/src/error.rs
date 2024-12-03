@@ -8,6 +8,8 @@ pub enum CommonError {
     InvalidKeyIvLength,
     #[error("invalid_base58")]
     InvalidBase58,
+    #[error("missing_network")]
+    MissingNetwork,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]
@@ -40,6 +42,8 @@ pub enum ApduError {
     ImkeyInMenuPage,
     #[error("imkey_pin_not_verified")]
     ImkeyPinNotVerified,
+    #[error("imkey_mnemonic_check_fail")]
+    ImkeyMnemonicCheckFail,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]
@@ -88,4 +92,8 @@ pub enum CoinError {
     InvalidVersion,
     #[error("invalid addr length")]
     InvalidAddrLength,
+    #[error("invalid_utxo")]
+    InvalidUtxo,
+    #[error("missing_signature")]
+    MissingSignature,
 }

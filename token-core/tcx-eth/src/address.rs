@@ -127,6 +127,7 @@ mod test {
         secp256k1_private_key.0.compressed = false;
         let typed_public_key = TypedPrivateKey::Secp256k1(secp256k1_private_key).public_key();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "ETHEREUM".to_string(),
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -207,6 +208,7 @@ mod test {
                 .unwrap()
                 .public_key();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "ETHEREUM".to_string(),
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,

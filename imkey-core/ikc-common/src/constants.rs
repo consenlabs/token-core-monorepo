@@ -1,4 +1,4 @@
-pub const VERSION: &str = "2.15.2";
+pub const VERSION: &str = "2.16.0";
 pub const URL: &str = "https://imkey.online:1000/imkey";
 // pub const URL: &str = "https://imkeyserver.com:10444/imkey";
 
@@ -29,6 +29,7 @@ pub const NERVOS_AID: &str = "695F6B315F636B62";
 pub const TEZOS_AID: &str = "695F65645F78747A";
 pub const BCH_AID: &str = "695F626368";
 pub const LTC_AID: &str = "695F6C7463";
+pub const DOGECOIN_AID: &str = "695F646F6765636F696E";
 
 pub const BL_AID: &str = "D0426F6F746C6F61646572";
 
@@ -44,11 +45,11 @@ pub const TRON_PATH: &str = "m/44'/195'/0'/0/0";
 
 pub const MAX_UTXO_NUMBER: usize = 252;
 pub const EACH_ROUND_NUMBER: usize = 5;
-pub const DUST_THRESHOLD: i64 = 2730;
-pub const MIN_NONDUST_OUTPUT: i64 = 546;
+pub const DUST_THRESHOLD: u64 = 2730;
+pub const MIN_NONDUST_OUTPUT: u64 = 546;
 // max op return size
 pub const MAX_OPRETURN_SIZE: usize = 80;
-pub const BTC_FORK_DUST: i64 = 546;
+pub const BTC_FORK_DUST: u64 = 546;
 
 // imkey device status
 pub const IMKEY_DEV_STATUS_INACTIVATED: &str = "inactivated";
@@ -117,6 +118,13 @@ pub const ETH_TRANSACTION_TYPE_EIP2718: &str = "01";
 pub const ETH_TRANSACTION_TYPE_EIP1559: &str = "02";
 
 pub const ETH_MAX_SUPPORT_PAYMENT_LEN: usize = 255;
+
+pub const BTC_PSBT_TRX_PER_PAGE_NUMBER: usize = 3;
+
+pub const BTC_SEG_WIT_TYPE_LEGACY: &str = "NONE";
+pub const BTC_SEG_WIT_TYPE_P2WPKH: &str = "P2WPKH";
+pub const BTC_SEG_WIT_TYPE_VERSION_0: &str = "VERSION_0";
+pub const BTC_SEG_WIT_TYPE_VERSION_1: &str = "VERSION_1";
 
 lazy_static! {
     /// Lazily initialized secp256k1 engine

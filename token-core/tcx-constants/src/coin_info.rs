@@ -12,6 +12,7 @@ pub fn get_xpub_prefix(network: &str) -> Vec<u8> {
         Vec::from_hex("043587cf").unwrap()
     }
 }
+
 /// Blockchain basic config
 #[derive(Clone, Debug)]
 pub struct CoinInfo {
@@ -20,6 +21,7 @@ pub struct CoinInfo {
     pub curve: CurveType,
     pub network: String,
     pub seg_wit: String,
+    pub chain_id: String,
 }
 
 impl Default for CoinInfo {
@@ -30,6 +32,8 @@ impl Default for CoinInfo {
             curve: CurveType::SECP256k1,
             network: "".to_string(),
             seg_wit: "".to_string(),
+
+            chain_id: "".to_string(),
         }
     }
 }
@@ -38,6 +42,7 @@ lazy_static! {
     static ref COIN_INFOS: RwLock<Vec<CoinInfo>> = {
         let coin_infos = vec![
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/44'/0'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -45,6 +50,7 @@ lazy_static! {
                 seg_wit: "NONE".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/44'/1'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -52,6 +58,7 @@ lazy_static! {
                 seg_wit: "NONE".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/49'/0'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -59,6 +66,7 @@ lazy_static! {
                 seg_wit: "P2WPKH".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/49'/1'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -66,6 +74,7 @@ lazy_static! {
                 seg_wit: "P2WPKH".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/84'/0'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -73,6 +82,7 @@ lazy_static! {
                 seg_wit: "VERSION_0".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/84'/1'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -80,6 +90,7 @@ lazy_static! {
                 seg_wit: "VERSION_0".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/86'/0'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -87,6 +98,7 @@ lazy_static! {
                 seg_wit: "VERSION_1".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOIN".to_string(),
                 derivation_path: "m/86'/1'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -94,6 +106,7 @@ lazy_static! {
                 seg_wit: "VERSION_1".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOINCASH".to_string(),
                 derivation_path: "m/44'/145'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -101,6 +114,7 @@ lazy_static! {
                 seg_wit: "NONE".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "BITCOINCASH".to_string(),
                 derivation_path: "m/44'/1'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -108,6 +122,7 @@ lazy_static! {
                 seg_wit: "NONE".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "LITECOIN".to_string(),
                 derivation_path: "m/44'/2'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -115,6 +130,7 @@ lazy_static! {
                 seg_wit: "NONE".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "LITECOIN".to_string(),
                 derivation_path: "m/44'/1'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -122,6 +138,7 @@ lazy_static! {
                 seg_wit: "NONE".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "LITECOIN".to_string(),
                 derivation_path: "m/49'/2'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -129,6 +146,7 @@ lazy_static! {
                 seg_wit: "P2WPKH".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "LITECOIN".to_string(),
                 derivation_path: "m/49'/1'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -136,6 +154,7 @@ lazy_static! {
                 seg_wit: "P2WPKH".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "TRON".to_string(),
                 derivation_path: "m/44'/195'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -143,6 +162,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "NERVOS".to_string(),
                 derivation_path: "m/44'/309'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -150,6 +170,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "NERVOS".to_string(),
                 derivation_path: "m/44'/309'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -157,6 +178,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "POLKADOT".to_string(),
                 derivation_path: "//polkadot//imToken/0".to_string(),
                 curve: CurveType::SR25519,
@@ -164,6 +186,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "KUSAMA".to_string(),
                 derivation_path: "//kusama//imToken/0".to_string(),
                 curve: CurveType::SR25519,
@@ -171,6 +194,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "TEZOS".to_string(),
                 derivation_path: "m/44'/1729'/0'/0'".to_string(),
                 curve: CurveType::ED25519,
@@ -178,6 +202,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "FILECOIN".to_string(),
                 derivation_path: "m/44'/461'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -185,6 +210,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "FILECOIN".to_string(),
                 derivation_path: "m/44'/461'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -192,6 +218,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "FILECOIN".to_string(),
                 derivation_path: "m/2334/461/0/0".to_string(),
                 curve: CurveType::BLS,
@@ -199,6 +226,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "FILECOIN".to_string(),
                 derivation_path: "m/2334/461/0/0".to_string(),
                 curve: CurveType::BLS,
@@ -206,6 +234,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "ETHEREUM".to_string(),
                 derivation_path: "m/44'/60'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -213,6 +242,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "ETHEREUM".to_string(),
                 derivation_path: "m/44'/60'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -220,6 +250,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "ETHEREUM2".to_string(),
                 derivation_path: "m/12381/3600/0/0".to_string(),
                 curve: CurveType::BLS,
@@ -227,6 +258,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "ETHEREUM2".to_string(),
                 derivation_path: "m/12381/3600/0/0".to_string(),
                 curve: CurveType::BLS,
@@ -234,6 +266,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "COSMOS".to_string(),
                 derivation_path: "m/44'/118'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -241,6 +274,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "EOS".to_string(),
                 derivation_path: "m/44'/194'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -248,6 +282,7 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "COSMOS".to_string(),
                 derivation_path: "m/44'/118'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
@@ -255,11 +290,76 @@ lazy_static! {
                 seg_wit: "".to_string(),
             },
             CoinInfo {
+                chain_id: "".to_string(),
                 coin: "EOS".to_string(),
                 derivation_path: "m/44'/194'/0'/0/0".to_string(),
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "".to_string(),
+            },
+            CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/3'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            },
+            CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/49'/3'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            },
+            CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/49'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "P2WPKH".to_string(),
+            },
+            CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/84'/3'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "VERSION_0".to_string(),
+            },
+            CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/84'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "VERSION_0".to_string(),
+            },
+            CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/86'/3'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "VERSION_1".to_string(),
+            },
+            CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/86'/1'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "TESTNET".to_string(),
+                seg_wit: "VERSION_1".to_string(),
             },
         ];
 
@@ -294,7 +394,6 @@ pub fn coin_info_from_param(
 
 #[cfg(test)]
 mod test {
-
     #[test]
     fn test_coin_info_default() {
         let coin_info = super::CoinInfo::default();

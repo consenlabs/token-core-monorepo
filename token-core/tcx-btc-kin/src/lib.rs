@@ -33,6 +33,8 @@ pub use transaction::{BtcKinTxInput, BtcKinTxOutput, OmniTxInput, Utxo};
 pub const BITCOIN: &str = "BITCOIN";
 pub const BITCOINCASH: &str = "BITCOINCASH";
 
+pub const DOGECOIN: &str = "DOGECOIN";
+
 pub const LITECOIN: &str = "LITECOIN";
 
 pub const OMNI: &str = "OMNI";
@@ -63,8 +65,8 @@ pub enum Error {
 }
 
 pub mod bitcoin {
-    use crate::{BITCOIN, LITECOIN};
-    pub const CHAINS: [&str; 2] = [BITCOIN, LITECOIN];
+    use crate::{BITCOIN, DOGECOIN, LITECOIN};
+    pub const CHAINS: [&str; 3] = [BITCOIN, LITECOIN, DOGECOIN];
     pub type Address = crate::BtcKinAddress;
     pub type TransactionInput = crate::transaction::BtcKinTxInput;
     pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
@@ -80,6 +82,22 @@ pub mod bitcoincash {
     pub static CHAINS: [&str; 1] = [BITCOINCASH];
 
     pub type Address = crate::BchAddress;
+
+    pub type TransactionInput = crate::transaction::BtcKinTxInput;
+
+    pub type TransactionOutput = crate::transaction::BtcKinTxOutput;
+
+    pub type MessageInput = crate::transaction::BtcMessageInput;
+
+    pub type MessageOutput = crate::transaction::BtcMessageOutput;
+}
+
+pub mod dogecoin {
+    use crate::DOGECOIN;
+
+    pub static CHAINS: [&str; 1] = [DOGECOIN];
+
+    pub type Address = crate::BtcKinAddress;
 
     pub type TransactionInput = crate::transaction::BtcKinTxInput;
 

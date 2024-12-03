@@ -188,6 +188,7 @@ mod tests {
             receiver: "f1d2xrzcslx7xlbbylc5c3d5lvandqw4iwl6epxba".to_string(),
             sender: "f1o2ph66tg7o7obyrqa7eiwiinrltauzxitkuk4ay".to_string(),
             fee: "0.1 FILECOIN".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let tx_result = Transaction::sign_tx(tx_input, &sign_param).unwrap();

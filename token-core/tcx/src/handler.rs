@@ -104,6 +104,7 @@ fn derive_account(keystore: &mut Keystore, derivation: &Derivation) -> Result<Ac
         &derivation.curve,
     )?;
     coin_info.derivation_path = derivation.path.to_owned();
+    coin_info.chain_id = derivation.chain_id.to_string();
 
     derive_account_internal(&coin_info, keystore)
 }
@@ -291,6 +292,7 @@ pub(crate) fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey>
                     chain_types.push("BITCOIN".to_string());
                     chain_types.push("BITCOINCASH".to_string());
                     chain_types.push("LITECOIN".to_string());
+                    chain_types.push("DOGECOIN".to_string());
                 }
                 0x80 => {
                     if data_len == 37 {
@@ -308,6 +310,10 @@ pub(crate) fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey>
                 0xb0 => {
                     network = "MAINNET".to_string();
                     chain_types.push("LITECOIN".to_string());
+                }
+                0x9e => {
+                    network = "MAINNET".to_string();
+                    chain_types.push("DOGECOIN".to_string());
                 }
                 _ => return Err(anyhow!("unknow ver header when parse wif, ver: {}", ver[0])),
             }
@@ -868,6 +874,7 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
         let pub_key = &public_keys[idx];
         let derivation = &param.derivations[idx];
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: derivation.chain_type.to_string(),
             derivation_path: derivation.path.to_string(),
             curve: CurveType::from_str(&derivation.curve),
@@ -1289,6 +1296,8 @@ pub fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 &param.curve,
             )?;
             coin_info.derivation_path = relative_path.to_string();
+            coin_info.chain_id = param.chain_id.to_string();
+
             let acc: Account = derive_sub_account(&xpub, &coin_info)?;
 
             let enc_xpub = encrypt_xpub(&param.extended_public_key.to_string())?;
@@ -1318,6 +1327,7 @@ pub fn mnemonic_to_public(data: &[u8]) -> Result<Vec<u8>> {
     let param = MnemonicToPublicKeyParam::decode(data)?;
     let public_key = tcx_primitive::mnemonic_to_public(&param.mnemonic, &param.path, &param.curve)?;
     let coin_info = CoinInfo {
+        chain_id: "".to_string(),
         derivation_path: param.path,
         curve: CurveType::from_str(&param.curve),
         coin: param.encoding,
@@ -1387,6 +1397,7 @@ mod tests {
                 "BITCOIN".to_string(),
                 "BITCOINCASH".to_string(),
                 "LITECOIN".to_string(),
+                "DOGECOIN".to_string(),
             ]
         );
         assert_eq!(decoded.curve, CurveType::SECP256k1);

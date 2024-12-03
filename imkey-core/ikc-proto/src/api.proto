@@ -28,7 +28,7 @@ message AddressParam {
     string chainType = 1;
     string path = 2;
     string network = 3;
-    bool isSegWit = 4;
+    string segWit = 4;
 }
 
 message AddressResult {
@@ -41,7 +41,6 @@ message PubKeyParam {
     string chainType = 1;
     string path = 2;
     string network = 3;
-    string isSegWit = 4;
 }
 
 message PubKeyResult {
@@ -110,7 +109,6 @@ message DeriveAccountsParam {
         string segWit = 4;
         string chainId = 5;
         string curve = 6;
-        string bech32Prefix = 7;
     }
     repeated Derivation derivations= 1;
 }

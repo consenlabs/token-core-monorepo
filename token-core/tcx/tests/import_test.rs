@@ -83,7 +83,6 @@ pub fn test_import_mnemonic() {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
-            bech32_prefix: "".to_string(),
         };
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -152,7 +151,6 @@ pub fn test_import_mnemonic_ltc() {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
-            bech32_prefix: "".to_string(),
         };
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -201,7 +199,6 @@ pub fn test_import_private_key() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "LITECOIN".to_string(),
@@ -210,7 +207,6 @@ pub fn test_import_private_key() {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "LITECOIN".to_string(),
@@ -219,7 +215,6 @@ pub fn test_import_private_key() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "TRON".to_string(),
@@ -228,7 +223,6 @@ pub fn test_import_private_key() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "NERVOS".to_string(),
@@ -237,7 +231,6 @@ pub fn test_import_private_key() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "ETHEREUM".to_string(),
@@ -246,16 +239,14 @@ pub fn test_import_private_key() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "COSMOS".to_string(),
                 path: "pk_not_need_path".to_string(),
                 network: "".to_string(),
                 seg_wit: "".to_string(),
-                chain_id: "".to_string(),
+                chain_id: "cosmoshub-4".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "EOS".to_string(),
@@ -264,7 +255,6 @@ pub fn test_import_private_key() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -273,7 +263,6 @@ pub fn test_import_private_key() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -282,7 +271,6 @@ pub fn test_import_private_key() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -291,7 +279,6 @@ pub fn test_import_private_key() {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -300,7 +287,6 @@ pub fn test_import_private_key() {
                 seg_wit: "VERSION_0".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -309,7 +295,14 @@ pub fn test_import_private_key() {
                 seg_wit: "VERSION_1".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
+            },
+            Derivation {
+                chain_type: "DOGECOIN".to_string(),
+                path: "pk_not_need_path".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                chain_id: "".to_string(),
+                curve: "secp256k1".to_string(),
             },
         ];
         let param = DeriveAccountsParam {
@@ -322,7 +315,7 @@ pub fn test_import_private_key() {
         let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
         let derived_accounts: DeriveAccountsResult =
             DeriveAccountsResult::decode(derived_accounts_bytes.as_slice()).unwrap();
-        assert_eq!(13, derived_accounts.accounts.len());
+        assert_eq!(14, derived_accounts.accounts.len());
         assert_eq!(
             "LgGNTHMkgETS7oQcoekvACJQcH355xECog",
             derived_accounts.accounts[0].address
@@ -392,6 +385,11 @@ pub fn test_import_private_key() {
             derived_accounts.accounts[12].address
         );
 
+        assert_eq!(
+            "DSBWjKzZtz7fPzu4N6mBRwQFHCQ6KQSjue",
+            derived_accounts.accounts[13].address
+        );
+
         // pk rederive
         let derivations = vec![Derivation {
             chain_type: "LITECOIN".to_string(),
@@ -400,7 +398,6 @@ pub fn test_import_private_key() {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
-            bech32_prefix: "".to_string(),
         }];
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -446,7 +443,6 @@ pub fn test_filecoin_private_key_secp256k1_import() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
-            bech32_prefix: "".to_string(),
         }];
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -513,7 +509,6 @@ pub fn test_filecoin_private_key_bls_import() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "bls12-381".to_string(),
-            bech32_prefix: "".to_string(),
         }];
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -581,7 +576,6 @@ pub fn test_fil_bls_tezos_reimport() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: case.2.to_string(),
-                bech32_prefix: "".to_string(),
             }];
             let param = DeriveAccountsParam {
                 id: hd_import_result.id.to_string(),
@@ -627,7 +621,6 @@ pub fn test_fil_bls_tezos_reimport() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: case.2.to_string(),
-                bech32_prefix: "".to_string(),
             }];
             let param = DeriveAccountsParam {
                 id: pk_import_result.id.to_string(),
@@ -676,7 +669,6 @@ pub fn test_import_sr25519_private_key() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "sr25519".to_string(),
-            bech32_prefix: "".to_string(),
         }];
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -755,7 +747,6 @@ pub fn test_import_to_pk_which_from_hd() {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
-            bech32_prefix: "".to_string(),
         };
 
         let derive_param = DeriveAccountsParam {
@@ -855,7 +846,6 @@ pub fn test_import_substrate_keystore() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
-            bech32_prefix: "".to_string(),
         };
 
         let param = DeriveAccountsParam {
@@ -947,7 +937,6 @@ pub fn test_import_substrate_keystore_v3() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "sr25519".to_string(),
-            bech32_prefix: "".to_string(),
         };
 
         let param = DeriveAccountsParam {
@@ -1031,7 +1020,6 @@ pub fn test_import_multi_curve() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
-            bech32_prefix: "".to_string(),
         };
 
         let param = DeriveAccountsParam {
@@ -1057,7 +1045,6 @@ pub fn test_import_multi_curve() {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
-            bech32_prefix: "".to_string(),
         };
 
         let param = DeriveAccountsParam {
@@ -1076,6 +1063,72 @@ pub fn test_import_multi_curve() {
         );
 
         remove_created_wallet(&wallet_ret.id);
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_import_wif() {
+    run_test(|| {
+        let import_result: KeystoreResult = import_default_wallet();
+
+        let export_param = ExportPrivateKeyParam {
+            id: import_result.id.to_string(),
+            key: Some(crate::api::export_private_key_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+            chain_type: "DOGECOIN".to_string(),
+            network: "MAINNET".to_string(),
+            curve: "secp256k1".to_string(),
+            path: "m/44'/3'/0'/0'".to_string(),
+        };
+
+        let export_pk_bytes = call_api("export_private_key", export_param).unwrap();
+        let export_pk: ExportPrivateKeyResult =
+            ExportPrivateKeyResult::decode(export_pk_bytes.as_slice()).unwrap();
+        assert_eq!(
+            export_pk.private_key,
+            "QNfA3BhQaV73MY3QMYAoNrZXSPRyVqUFxb4akc6hBpN6TwZC8GDQ"
+        );
+
+        let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
+            private_key: export_pk.private_key.to_string(),
+            password: TEST_PASSWORD.to_string(),
+            name: "import_private_key_wallet".to_string(),
+            password_hint: "".to_string(),
+            network: "MAINNET".to_string(),
+            overwrite_id: "".to_string(),
+        };
+        let ret = call_api("import_private_key", param).unwrap();
+        let import_result: ImportPrivateKeyResult =
+            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+
+        let derivation = Derivation {
+            chain_type: "DOGECOIN".to_string(),
+            path: "m/44'/145'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+        };
+        let param = DeriveAccountsParam {
+            id: import_result.id.to_string(),
+            key: Some(crate::api::derive_accounts_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+            derivations: vec![derivation],
+        };
+
+        let ret = call_api("derive_accounts", param).unwrap();
+        let result: DeriveAccountsResult = DeriveAccountsResult::decode(ret.as_slice()).unwrap();
+        let account = result.accounts.first().unwrap();
+        assert_eq!(account.chain_type, "DOGECOIN");
+        assert_eq!(account.address, "DGge46gf1ipekESG6eDFYxA15PxWf2UfrS");
+
+        assert_eq!(
+            import_result.identifier,
+            "im14x5EL1LDHgsXPpvzsF5RQCKE982c9XmM1VZx"
+        );
     })
 }
 
@@ -1368,6 +1421,7 @@ pub fn test_reset_password_mnemonic_old_tcx_ks() {
                 password_hint: "".to_string(),
                 overwrite_id: overwrite_id.to_string(),
             };
+            dbg!(overwrite_id.clone());
             let ret = call_api("import_mnemonic", import_param).unwrap();
             let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
 

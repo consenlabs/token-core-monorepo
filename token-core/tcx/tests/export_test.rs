@@ -85,7 +85,6 @@ pub fn test_tezos_import_private_key_export() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
-            bech32_prefix: "".to_string(),
         }];
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -166,7 +165,6 @@ pub fn test_tezos_hd_private_key_export() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "ed25519".to_string(),
-            bech32_prefix: "".to_string(),
         }];
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -278,7 +276,6 @@ pub fn test_export_private_key() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOINCASH".to_string(),
@@ -287,7 +284,6 @@ pub fn test_export_private_key() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "TRON".to_string(),
@@ -296,7 +292,6 @@ pub fn test_export_private_key() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "ETHEREUM".to_string(),
@@ -305,7 +300,6 @@ pub fn test_export_private_key() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "FILECOIN".to_string(),
@@ -314,7 +308,6 @@ pub fn test_export_private_key() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -323,7 +316,6 @@ pub fn test_export_private_key() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -332,7 +324,6 @@ pub fn test_export_private_key() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -341,7 +332,6 @@ pub fn test_export_private_key() {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -350,7 +340,6 @@ pub fn test_export_private_key() {
                 seg_wit: "VERSION_0".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -359,7 +348,6 @@ pub fn test_export_private_key() {
                 seg_wit: "VERSION_1".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "EOS".to_string(),
@@ -368,7 +356,6 @@ pub fn test_export_private_key() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
         ];
         let pks = vec![
@@ -487,9 +474,8 @@ pub fn test_chain_cannot_export_private_key() {
             path: "m/44'/118'/0'/0/0".to_string(),
             network: "MAINNET".to_string(),
             seg_wit: "".to_string(),
-            chain_id: "".to_string(),
+            chain_id: "cosmoshub-4".to_string(),
             curve: "secp256k1".to_string(),
-            bech32_prefix: "".to_string(),
         }];
 
         let export_info = vec![
@@ -680,7 +666,8 @@ pub fn test_backup_private_key() {
             vec![
                 "BITCOIN".to_string(),
                 "BITCOINCASH".to_string(),
-                "LITECOIN".to_string()
+                "LITECOIN".to_string(),
+                "DOGECOIN".to_string()
             ],
             import_result.identified_chain_types
         );

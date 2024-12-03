@@ -396,6 +396,7 @@ mod tests {
         let mut keystore = ks.migrate(&key, &IdentityNetwork::Testnet).unwrap();
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "EOS".to_string(),
             derivation_path: "m/44'/194'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -453,6 +454,7 @@ mod tests {
         assert_eq!(keystore.id(), "02a55ab6-554a-4e78-bc26-6a7acced7e5e");
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -479,6 +481,7 @@ mod tests {
         assert_eq!(keystore.id(), "045861fe-0e9b-4069-92aa-0ac03cad55e0");
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "ETHEREUM".to_string(),
             derivation_path: "".to_string(),
             curve: CurveType::SECP256k1,
@@ -504,6 +507,7 @@ mod tests {
         assert_eq!(keystore.id(), "045861fe-0e9b-4069-92aa-0ac03cad55e1");
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "ETHEREUM".to_string(),
             derivation_path: "".to_string(),
             curve: CurveType::SECP256k1,
@@ -527,6 +531,7 @@ mod tests {
         assert_eq!(keystore.derivable(), true);
         assert_eq!(keystore.id(), "175169f7-5a35-4df7-93c1-1ff612168e71");
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "ETHEREUM".to_string(),
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -550,6 +555,7 @@ mod tests {
         assert_eq!(keystore.derivable(), true);
         assert_eq!(keystore.id(), "5991857a-2488-4546-b730-463a5f84ea6a");
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "ETHEREUM".to_string(),
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -577,6 +583,7 @@ mod tests {
         assert_eq!(keystore.derivable(), true);
         assert_eq!(keystore.id(), "6f8c2912-ebe8-4359-90f4-f1d1f1af1e4d");
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "ETHEREUM".to_string(),
             derivation_path: "m/44'/60'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,

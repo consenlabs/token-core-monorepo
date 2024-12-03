@@ -1,6 +1,6 @@
 use crate::constants::{
-    BCH_AID, BTC_AID, COSMOS_AID, EOS_AID, ETH_AID, FILECOIN_AID, IMK_AID, KUSAMA_AID, LTC_AID,
-    NERVOS_AID, POLKADOT_AID, TEZOS_AID, TRON_AID,
+    BCH_AID, BTC_AID, COSMOS_AID, DOGECOIN_AID, EOS_AID, ETH_AID, FILECOIN_AID, IMK_AID,
+    KUSAMA_AID, LTC_AID, NERVOS_AID, POLKADOT_AID, TEZOS_AID, TRON_AID,
 };
 // type __appletName = 'IMK' | 'Ethereum' | 'Bitcoin' | 'EOS' | 'Cosmos' | 'Filecoin' | 'Kusama' | 'Tezos' | 'Polkadot' | 'TRON' | 'Bitcoin Cash' | 'Litecoin' | 'Nervos'
 pub fn get_appname_by_instid(instid: &str) -> Option<&str> {
@@ -18,6 +18,7 @@ pub fn get_appname_by_instid(instid: &str) -> Option<&str> {
         IMK_AID => Some("IMK"),
         NERVOS_AID => Some("Nervos"),
         TEZOS_AID => Some("Tezos"),
+        DOGECOIN_AID => Some("Dogecoin"),
         _ => None,
     }
 }
@@ -36,6 +37,7 @@ pub fn get_instid_by_appname(appname: &str) -> Option<&str> {
         "Bitcoin Cash" => Some(BCH_AID),
         "Litecoin" => Some(LTC_AID),
         "IMK" => Some(IMK_AID),
+        "Dogecoin" => Some(DOGECOIN_AID),
         _ => None,
     }
 }
@@ -56,6 +58,7 @@ mod tests {
         assert_eq!(get_appname_by_instid("695F626368").unwrap(), "Bitcoin Cash");
         assert_eq!(get_appname_by_instid("695F6C7463").unwrap(), "Litecoin");
         assert_eq!(get_appname_by_instid("695F696D6B").unwrap(), "IMK");
+        assert_eq!(get_appname_by_instid("695F646F6765636F696E").unwrap(), "Dogecoin");
         assert!(get_appname_by_instid("1111111111").is_none());
     }
 
@@ -72,6 +75,7 @@ mod tests {
         );
         assert_eq!(get_instid_by_appname("Bitcoin Cash").unwrap(), "695F626368");
         assert_eq!(get_instid_by_appname("Litecoin").unwrap(), "695F6C7463");
+        assert_eq!(get_instid_by_appname("Dogecoin").unwrap(), "695F646F6765636F696E");
         assert!(get_instid_by_appname("APPLET").is_none());
     }
 }

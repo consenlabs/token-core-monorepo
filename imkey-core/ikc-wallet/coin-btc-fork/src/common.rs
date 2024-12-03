@@ -1,7 +1,6 @@
 use crate::address::BtcForkAddress;
 use crate::btcforkapi::Utxo;
 use crate::Result;
-use bitcoin::secp256k1::Secp256k1 as BitcoinSecp256k1;
 use bitcoin::util::base58;
 use bitcoin::util::bip32::{ChainCode, ChildNumber, ExtendedPubKey};
 use bitcoin::Network;

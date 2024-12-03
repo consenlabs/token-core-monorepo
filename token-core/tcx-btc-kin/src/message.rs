@@ -11,6 +11,7 @@ use tcx_keystore::{Address, Keystore, MessageSigner, SignatureParameters};
 
 const UTXO: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 const TAG: &str = "BIP0322-signed-message";
+
 fn get_spend_tx_id(data: &[u8], script_pub_key: Script) -> Result<Txid> {
     let tag_hash = sha256(&TAG.as_bytes().to_vec());
     let mut to_sign = Vec::new();
@@ -102,6 +103,7 @@ impl MessageSigner<BtcMessageInput, BtcMessageOutput> for Keystore {
 
         let public_key = self.get_public_key(CurveType::SECP256k1, &path)?;
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: params.chain_type.to_string(),
             derivation_path: path.clone(),
             curve: CurveType::SECP256k1,
@@ -151,6 +153,7 @@ mod tests {
         let message = "hello world";
         let mut ks = sample_hd_keystore();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -174,6 +177,7 @@ mod tests {
         let message = "hello world";
         let mut ks = sample_hd_keystore();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/49'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -209,6 +213,7 @@ mod tests {
         let message = "hello world";
         let mut ks = sample_hd_keystore();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -245,6 +250,7 @@ mod tests {
         let message = "hello world";
         let mut ks = sample_hd_keystore();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -280,6 +286,7 @@ mod tests {
         let message = "Sign this message to log in to https://www.subber.xyz // 200323342";
         let mut ks = wif_keystore("L4F5BYm82Bck6VEY64EbqQkoBXqkegq9X9yc6iLTV3cyJoqUasnY");
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/86'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,

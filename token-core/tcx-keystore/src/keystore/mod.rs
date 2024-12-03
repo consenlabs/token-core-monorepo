@@ -897,6 +897,7 @@ pub(crate) mod tests {
         assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -969,6 +970,7 @@ pub(crate) mod tests {
         assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
 
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -1013,6 +1015,7 @@ pub(crate) mod tests {
     #[test]
     fn test_derive_sub_account() {
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "0/0".to_string(),
             curve: CurveType::SECP256k1,

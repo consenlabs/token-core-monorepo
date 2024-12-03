@@ -41,6 +41,7 @@ impl WIFDisplay for TypedPrivateKey {
         Ok(key.to_ss58check_with_version(&version))
     }
 }
+
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BtcKinAddress {
     pub network: BtcKinNetwork,
@@ -139,10 +140,13 @@ impl BtcKinAddress {
 fn bech32_network(bech32: &str) -> Option<&BtcKinNetwork> {
     let bech32_prefix = bech32.rfind('1').map(|sep| bech32.split_at(sep).0);
 
-    match bech32_prefix {
-        Some(prefix) => BtcKinNetwork::find_by_hrp(prefix),
-        None => None,
+    if bech32_prefix.is_some() {
+        let prefix = bech32_prefix.unwrap();
+        if (!prefix.is_empty()) {
+            return BtcKinNetwork::find_by_hrp(prefix);
+        }
     }
+    return None;
 }
 
 fn decode_base58(addr: &str) -> result::Result<Vec<u8>, LibAddressError> {
@@ -261,6 +265,8 @@ impl Display for BtcKinAddress {
 
 #[cfg(test)]
 mod tests {
+    use bitcoin::SchnorrSighashType::Default;
+    use secp256k1::rand::seq::index::sample;
     use std::str::FromStr;
     use tcx_common::{FromHex, ToHex};
 
@@ -273,6 +279,7 @@ mod tests {
 
     use crate::address::BtcKinAddress;
     use crate::tcx_keystore::Address;
+    use crate::tests::sample_hd_keystore;
     use crate::BtcKinNetwork;
 
     #[test]
@@ -302,6 +309,18 @@ mod tests {
             .unwrap()
             .to_string();
         assert_eq!(addr, "bc1qum864wd9nwsc0u9ytkctz6wzrw6g7zdntm7f4e");
+
+        let network = BtcKinNetwork::find_by_coin("DOGECOIN", "MAINNET").unwrap();
+        let addr = BtcKinAddress::p2pkh(&pub_key, &network)
+            .unwrap()
+            .to_string();
+        assert_eq!(addr, "DSBWjKzZtz7fPzu4N6mBRwQFHCQ6KQSjue");
+
+        let network = BtcKinNetwork::find_by_coin("DOGECOIN", "TESTNET").unwrap();
+        let addr = BtcKinAddress::p2pkh(&pub_key, &network)
+            .unwrap()
+            .to_string();
+        assert_eq!(addr, "nqEaTLjUpxaPGyUFPvQdgLzYX4nPLCD1Py");
     }
 
     #[test]
@@ -336,6 +355,7 @@ mod tests {
         let bitcoin_xprv_str = "xprv9yrdwPSRnvomqFK4u1y5uW2SaXS2Vnr3pAYTjJjbyRZR8p9BwoadRsCxtgUFdAKeRPbwvGRcCSYMV69nNK4N2kadevJ6L5iQVy1SwGKDTHQ";
         let anprv = Bip32DeterministicPrivateKey::from_ss58check(bitcoin_xprv_str).unwrap();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "LITECOIN".to_string(),
             derivation_path: "m/44'/2'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -355,6 +375,7 @@ mod tests {
             .unwrap()
             .deterministic_public_key();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "LITECOIN".to_string(),
             derivation_path: "m/44'/2'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -402,36 +423,36 @@ mod tests {
         let coin = coin_info_from_param("BITCOIN", "MAINNET", "P2WPKH", "").unwrap();
         assert!(BtcKinAddress::is_valid(
             "3Js9bGaZSQCNLudeGRHL4NExVinc25RbuG",
-            &coin
+            &coin,
         ));
 
         let coin = coin_info_from_param("BITCOIN", "MAINNET", "NONE", "").unwrap();
         assert!(BtcKinAddress::is_valid(
             "1Gx9QwpQBFnAjF27Uiz3ea2zYBDrLx31bw",
-            &coin
+            &coin,
         ));
 
         let coin = coin_info_from_param("BITCOIN", "MAINNET", "VERSION_0", "").unwrap();
         assert!(BtcKinAddress::is_valid(
             "bc1qnfv46v0wtarc6n82dnehtvzj2gtnqzjhj5wxqj",
-            &coin
+            &coin,
         ));
 
         let coin = coin_info_from_param("LITECOIN", "MAINNET", "NONE", "").unwrap();
         assert!(BtcKinAddress::is_valid(
             "Ldfdegx3hJygDuFDUA7Rkzjjx8gfFhP9DP",
-            &coin
+            &coin,
         ));
         let coin = coin_info_from_param("LITECOIN", "MAINNET", "P2WPKH", "").unwrap();
         assert!(BtcKinAddress::is_valid(
             "MR5Hu9zXPX3o9QuYNJGft1VMpRP418QDfW",
-            &coin
+            &coin,
         ));
 
         let coin = coin_info_from_param("LITECOIN", "MAINNET", "P2WPKH", "").unwrap();
         assert!(!BtcKinAddress::is_valid(
             "MR5Hu9zXPX3o9QuYNJGft1VMpRP418QDf",
-            &coin
+            &coin,
         ));
 
         let coin = coin_info_from_param("LITECOIN", "MAINNET", "P2WPKH", "").unwrap();
@@ -446,6 +467,7 @@ mod tests {
                 .unwrap()
                 .public_key();
         let mut coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/44'/2'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -478,6 +500,54 @@ mod tests {
     }
 
     #[test]
+    fn test_dogecoin_address() {
+        let mut hd = sample_hd_keystore();
+        let account = hd
+            .derive_coin::<BtcKinAddress>(&CoinInfo {
+                chain_id: "".to_string(),
+                coin: "DOGECOIN".to_string(),
+                derivation_path: "m/44'/3'/0'/0/0".to_string(),
+                curve: CurveType::SECP256k1,
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+            })
+            .unwrap();
+        assert_eq!(account.address, "DQ4tVEqdPWHc1aVBm4Sfwft8XyNRPMEchR");
+        assert_eq!(account.ext_pub_key, "xpub6CDSaXHQokkKmHHG2kNCFZeirJkcZgRZE97ZZUtViif3SFHSNVAvRpWC3CxeRt2VZetEGCcPTmWEFpKF4NDeeZrMNPQgfUaX5Hkw89kW8qE");
+    }
+
+    #[test]
+    fn test_dogecoin_address_from_str() {
+        let addr = BtcKinAddress::from_str("DQ4tVEqdPWHc1aVBm4Sfwft8XyNRPMEchR").unwrap();
+        assert_eq!(addr.network.coin, "DOGECOIN");
+        assert_eq!(addr.network.network, "MAINNET");
+    }
+
+    #[test]
+    fn test_xpub() {
+        let mut hd = sample_hd_keystore();
+
+        let test_cases = [
+            ("BITCOIN", "MAINNET", "m/44'/0'/0/0", "xpub6CqzLtyBHdq6tZD7Bdxo9bpCEWfFBg7dim6UMxs83nqNYzFatwkr9yGkLtG5ktiKcgaUqP5BpuTMJLyaLQ167gANU8ZsfLRN86VXyx3atJX"),
+            ("LITECOIN", "MAINNET", "m/44'/2'/0'/0/0", "xpub6D3MqTwuLWB5veAfhDjPu1oHfS6L1imVbf22zQFWJW9EtnSmYYqiGMGkW1MCsT2HmkW872tefMY9deewW6DGd8zE7RcXVv8wKhZnbJeidjT"),
+            ("DOGECOIN", "MAINNET", "m/44'/3'/0'/0/0", "xpub6CDSaXHQokkKmHHG2kNCFZeirJkcZgRZE97ZZUtViif3SFHSNVAvRpWC3CxeRt2VZetEGCcPTmWEFpKF4NDeeZrMNPQgfUaX5Hkw89kW8qE"),
+        ];
+
+        for (coin, network, path, xpub) in test_cases {
+            let coin_info = CoinInfo {
+                chain_id: "".to_string(),
+                coin: coin.to_string(),
+                derivation_path: path.to_string(),
+                curve: CurveType::SECP256k1,
+                network: network.to_string(),
+                seg_wit: "NONE".to_string(),
+            };
+            let account = hd.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
+            assert_eq!(account.ext_pub_key, xpub);
+        }
+    }
+
+    #[test]
     fn test_bip84_spec_vector() {
         let pub_key = TypedPublicKey::from_slice(
             CurveType::SECP256k1,
@@ -486,6 +556,7 @@ mod tests {
         )
         .unwrap();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "m/84'/0'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,

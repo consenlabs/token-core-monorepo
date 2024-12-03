@@ -249,6 +249,7 @@ mod test {
     #[test]
     fn test_network_from_coin() {
         let network = super::network_from_coin(&super::CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOIN".to_string(),
             derivation_path: "".to_string(),
             curve: CurveType::SECP256k1,
