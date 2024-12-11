@@ -378,9 +378,9 @@ checksum = "327762f6e5a765692301e5bb513e0d9fef63be86bbc14528052b1cd3e6f03e07"
 
 [[package]]
 name = "bitstream-io"
-version = "2.5.3"
+version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b81e1519b0d82120d2fd469d5bfb2919a9361c48b02d82d04befc1cdd2002452"
+checksum = "6099cdc01846bc367c4e7dd630dc5966dccf36b652fae7a74e17b640411a91b2"
 
 [[package]]
 name = "bitvec"
@@ -5115,7 +5115,7 @@ dependencies = [
  "tcx-crypto",
  "tcx-keystore",
  "tcx-primitive",
- "tonlib-core",
+ "tonlib-core 0.19.1",
 ]
 
 [[package]]
@@ -5411,6 +5411,26 @@ dependencies = [
  "num-bigint 0.4.3",
  "num-traits",
  "pbkdf2 0.12.2",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "thiserror",
+]
+
+[[package]]
+name = "tonlib-core"
+version = "0.21.1"
+dependencies = [
+ "base64 0.22.1",
+ "bitstream-io",
+ "crc",
+ "hex",
+ "hmac 0.12.1",
+ "lazy_static",
+ "nacl",
+ "num-bigint 0.4.3",
+ "num-traits",
+ "pbkdf2 0.11.0",
  "serde",
  "serde_json",
  "sha2 0.10.8",
