@@ -3173,9 +3173,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8ed6a7761f76e3b9f92dfb0a60a6a6477c61024b775147ff0973a02653abaf2"
 dependencies = [
  "digest 0.10.7",
- "hmac 0.12.1",
  "password-hash 0.5.0",
- "sha2 0.10.8",
 ]
 
 [[package]]
@@ -5103,11 +5101,6 @@ name = "tcx-ton"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bitcoin",
- "blake2b_simd 1.0.1",
- "bytes",
- "hex",
- "num-bigint 0.4.3",
  "prost",
  "prost-types",
  "tcx-common",
@@ -5115,7 +5108,7 @@ dependencies = [
  "tcx-crypto",
  "tcx-keystore",
  "tcx-primitive",
- "tonlib-core 0.19.1",
+ "tonlib-core",
 ]
 
 [[package]]
@@ -5393,28 +5386,6 @@ dependencies = [
  "serde_spanned",
  "toml_datetime",
  "winnow",
-]
-
-[[package]]
-name = "tonlib-core"
-version = "0.19.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "872a87c2489d8867aa2089b163f2f7ed34c8ef052dace0a82a1892447703ed9b"
-dependencies = [
- "base64 0.22.1",
- "bitstream-io",
- "crc",
- "hex",
- "hmac 0.12.1",
- "lazy_static",
- "nacl",
- "num-bigint 0.4.3",
- "num-traits",
- "pbkdf2 0.12.2",
- "serde",
- "serde_json",
- "sha2 0.10.8",
- "thiserror",
 ]
 
 [[package]]

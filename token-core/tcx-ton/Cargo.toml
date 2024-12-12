@@ -11,13 +11,8 @@ tcx-constants = { path = "../tcx-constants" }
 tcx-primitive = { path = "../tcx-primitive" }
 tcx-crypto = { path = "../tcx-crypto" }
 tcx-common = { path = "../tcx-common" }
+tonlib-core = { path = "../tcx-libs/tonlib-core" }
 
 anyhow = { version = "=1.0.79", features = [] }
-blake2b_simd = "=1.0.1"
-hex = "=0.4.3"
-bitcoin = "=0.29.2"
 prost = "=0.11.2"
-bytes = "=1.4.0"
 prost-types = "=0.11.2"
-tonlib-core = "0.19.1"
-num-bigint = "0.4.3"
