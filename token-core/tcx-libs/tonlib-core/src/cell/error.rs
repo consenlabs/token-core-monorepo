@@ -35,6 +35,9 @@ pub enum TonCellError {
     #[error("Invalid input error ({0})")]
     InvalidInput(String),
 
+    #[error("Invalid init code ({0})")]
+    InvalidInitCode(String),
+
     #[error(
         "Non-empty reader (Remaining bits: {remaining_bits}, Remaining refs: {remaining_refs})"
     )]

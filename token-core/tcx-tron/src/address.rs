@@ -67,6 +67,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "".to_string(),
             seg_wit: "".to_string(),
+            contract_code: "".to_string(),
         };
 
         assert_eq!(
@@ -135,6 +136,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            contract_code: "".to_string(),
         };
         let address = TronAddress::from_public_key(&pub_key, &coin_info)
             .unwrap()

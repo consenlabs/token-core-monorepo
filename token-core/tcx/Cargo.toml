@@ -22,6 +22,7 @@ tcx-eth2 = { path = "../tcx-eth2" }
 tcx-eth = { path = "../tcx-eth" }
 tcx-common = { path = "../tcx-common" }
 tcx-migration = { path = "../tcx-migration" }
+tcx-ton = { path = "../tcx-ton" }
 #zksync-crypto = { git="https://github.com/consenlabs/zksync", branch="hotfix/compatible_with_tcx" }
 
 prost = "=0.11.2"

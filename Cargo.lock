@@ -4716,6 +4716,7 @@ dependencies = [
  "tcx-proto",
  "tcx-substrate",
  "tcx-tezos",
+ "tcx-ton",
  "tcx-tron",
 ]
 
