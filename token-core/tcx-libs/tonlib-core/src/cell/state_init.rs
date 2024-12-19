@@ -16,6 +16,7 @@ pub struct StateInit {
 
 impl StateInitBuilder {
     pub fn new(code: &ArcCell, data: &ArcCell) -> StateInitBuilder {
+        //===
         StateInitBuilder {
             code: Some(code.clone()),
             data: Some(data.clone()),
@@ -25,22 +26,14 @@ impl StateInitBuilder {
         }
     }
 
-    pub fn with_split_depth(&mut self, split_depth: bool) -> &mut Self {
-        self.split_depth = split_depth;
-        self
-    }
-
-    pub fn with_tick_tock(&mut self, tick_tock: bool) -> &mut Self {
-        self.tick_tock = tick_tock;
-        self
-    }
-
     pub fn with_library(&mut self, library: bool) -> &mut Self {
+        //===
         self.library = library;
         self
     }
 
     pub fn build(&self) -> Result<Cell, TonCellError> {
+        //====
         let mut builder = CellBuilder::new();
         builder
             .store_bit(self.split_depth)? //Split depth
@@ -59,7 +52,9 @@ impl StateInitBuilder {
 }
 
 impl StateInit {
+    //===
     pub fn create_account_id(code: &ArcCell, data: &ArcCell) -> Result<TonHash, TonCellError> {
+        //====
         Ok(StateInitBuilder::new(code, data)
             .with_library(false)
             .build()?

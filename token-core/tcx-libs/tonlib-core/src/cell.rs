@@ -1,11 +1,9 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
-use std::ops::Deref;
 use std::sync::Arc;
 use std::{fmt, io};
 
 pub use bag_of_cells::*;
-use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
 use bitstream_io::{BigEndian, BitWrite, BitWriter};
 pub use builder::*;
@@ -15,9 +13,7 @@ use lazy_static::lazy_static;
 pub use parser::*;
 pub use raw::*;
 use sha2::Sha256;
-pub use slice::*;
 pub use state_init::*;
-pub use util::*;
 
 use crate::cell::cell_type::CellType;
 use crate::cell::level_mask::LevelMask;
@@ -28,15 +24,11 @@ mod bag_of_cells;
 mod builder;
 
 mod cell_type;
-pub mod dict;
 mod error;
 mod level_mask;
 mod parser;
 mod raw;
-mod raw_boc_from_boc;
-mod slice;
 mod state_init;
-mod util;
 const DEPTH_BYTES: usize = 2;
 const MAX_LEVEL: u8 = 3;
 
@@ -60,6 +52,7 @@ pub struct Cell {
 
 impl Cell {
     pub fn new(
+        //===
         data: Vec<u8>,
         bit_len: usize,
         references: Vec<ArcCell>,
@@ -93,153 +86,27 @@ impl Cell {
         CellParser::new(self.bit_len, &self.data, &self.references)
     }
 
-    #[allow(clippy::let_and_return)]
-    pub fn parse<F, T>(&self, parse: F) -> Result<T, TonCellError>
-    where
-        F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
-    {
-        let mut parser = self.parser();
-        let res = parse(&mut parser);
-        res
-    }
-
-    pub fn parse_fully<F, T>(&self, parse: F) -> Result<T, TonCellError>
-    where
-        F: FnOnce(&mut CellParser) -> Result<T, TonCellError>,
-    {
-        let mut reader = self.parser();
-        let res = parse(&mut reader);
-        reader.ensure_empty()?;
-        res
-    }
-
-    pub fn reference(&self, idx: usize) -> Result<&ArcCell, TonCellError> {
-        self.references.get(idx).ok_or(TonCellError::InvalidIndex {
-            idx,
-            ref_count: self.references.len(),
-        })
-    }
-
-    pub fn data(&self) -> &[u8] {
-        self.data.as_slice()
-    }
-
-    pub fn bit_len(&self) -> usize {
-        self.bit_len
-    }
-
-    pub fn references(&self) -> &[ArcCell] {
-        self.references.as_slice()
-    }
-
-    pub(crate) fn get_level_mask(&self) -> u32 {
-        self.level_mask.mask()
-    }
-
-    pub fn cell_depth(&self) -> u16 {
-        self.get_depth(MAX_LEVEL)
-    }
-
     pub fn get_depth(&self, level: u8) -> u16 {
         self.depths[level.min(3) as usize]
     }
 
     pub fn cell_hash(&self) -> TonHash {
+        //==
         self.get_hash(MAX_LEVEL)
     }
 
     pub fn get_hash(&self, level: u8) -> TonHash {
+        //====
         self.hashes[level.min(3) as usize]
-    }
-
-    pub fn is_exotic(&self) -> bool {
-        self.cell_type != CellType::Ordinary
-    }
-
-    pub fn cell_hash_base64(&self) -> String {
-        URL_SAFE_NO_PAD.encode(self.cell_hash())
-    }
-
-    pub fn load_snake_formatted_string(&self) -> Result<String, TonCellError> {
-        let mut cell: &Cell = self;
-        let mut first_cell = true;
-        let mut uri = String::new();
-        loop {
-            let parsed_cell = if first_cell {
-                String::from_utf8_lossy(&cell.data[1..]).to_string()
-            } else {
-                String::from_utf8_lossy(&cell.data).to_string()
-            };
-            uri.push_str(&parsed_cell);
-            match cell.references.len() {
-                0 => return Ok(uri),
-                1 => {
-                    cell = cell.references[0].deref();
-                    first_cell = false;
-                }
-                n => {
-                    return Err(TonCellError::boc_deserialization_error(format!(
-                        "Invalid snake format string: found cell with {} references",
-                        n
-                    )))
-                }
-            }
-        }
-    }
-
-    fn parse_snake_data(&self, buffer: &mut Vec<u8>) -> Result<(), TonCellError> {
-        let mut cell = self;
-        let mut first_cell = true;
-        loop {
-            let mut parser = cell.parser();
-            if first_cell {
-                let first_byte = parser.load_u8(8)?;
-
-                if first_byte != 0 {
-                    return Err(TonCellError::boc_deserialization_error(
-                        "Invalid snake format",
-                    ));
-                }
-            }
-            let remaining_bytes = parser.remaining_bytes();
-            let mut data = parser.load_bytes(remaining_bytes)?;
-            buffer.append(&mut data);
-            match cell.references.len() {
-                0 => return Ok(()),
-                1 => {
-                    cell = cell.references[0].deref();
-                    first_cell = false;
-                }
-                n => {
-                    return Err(TonCellError::boc_deserialization_error(format!(
-                        "Invalid snake format string: found cell with {} references",
-                        n
-                    )))
-                }
-            }
-        }
     }
 
     pub fn to_arc(self) -> ArcCell {
         Arc::new(self)
     }
-
-    /// It is recommended to use CellParser::next_reference() instead
-    #[deprecated]
-    pub fn expect_reference_count(&self, expected_refs: usize) -> Result<(), TonCellError> {
-        let ref_count = self.references.len();
-        if ref_count != expected_refs {
-            Err(TonCellError::CellParserError(format!(
-                "Cell should contain {} reference cells, actual: {}",
-                expected_refs, ref_count
-            )))
-        } else {
-            Ok(())
-        }
-    }
 }
 
 impl Debug for Cell {
+    //==
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         let t = match self.cell_type {
             CellType::Ordinary | CellType::Library => 'x',
@@ -306,6 +173,7 @@ impl Default for Cell {
 }
 
 fn get_repr_for_data(
+    //===
     original_data_bit_len: usize,
     (data, data_bit_len): (&[u8], usize),
     refs: &[ArcCell],
@@ -342,6 +210,7 @@ fn get_repr_for_data(
 /// This function replicates unknown logic of resolving cell data
 /// https://github.com/ton-blockchain/ton/blob/24dc184a2ea67f9c47042b4104bbb4d82289fac1/crypto/vm/cells/DataCell.cpp#L214
 fn calculate_hashes_and_depths(
+    //===
     cell_type: CellType,
     data: &[u8],
     bit_len: usize,
@@ -513,52 +382,4 @@ fn write_ref_hashes(
     }
 
     Ok(())
-}
-
-#[cfg(test)]
-mod test {
-    use std::sync::Arc;
-
-    use super::cell_type::CellType;
-    use super::{get_bits_descriptor, get_refs_descriptor, Cell};
-    use crate::cell::CellBuilder;
-
-    #[test]
-    fn default_cell() {
-        let result = Cell::default();
-
-        let expected = Cell::new(vec![], 0, vec![], false).unwrap();
-
-        assert_eq!(result, expected)
-    }
-
-    #[test]
-    fn d1_descriptor_test() {
-        let empty_cell = Arc::new(CellBuilder::new().build().unwrap());
-
-        let r1 = get_refs_descriptor(CellType::Ordinary, &[], 0).unwrap();
-        assert_eq!(r1, 0);
-
-        let r2 = get_refs_descriptor(CellType::Ordinary, &[], 4).is_err();
-        assert!(r2);
-
-        let r3 = get_refs_descriptor(CellType::Ordinary, &[empty_cell.clone()], 3).unwrap();
-        assert_eq!(r3, 97);
-
-        let r4 =
-            get_refs_descriptor(CellType::Ordinary, vec![empty_cell; 5].as_slice(), 3).is_err();
-        assert!(r4);
-    }
-
-    #[test]
-    fn d2_descriptor_test() {
-        let r1 = get_bits_descriptor(0).unwrap();
-        assert_eq!(r1, 0);
-
-        let r2 = get_bits_descriptor(1023).unwrap();
-        assert_eq!(r2, 255);
-
-        let r3 = get_bits_descriptor(1024).is_err();
-        assert!(r3)
-    }
 }

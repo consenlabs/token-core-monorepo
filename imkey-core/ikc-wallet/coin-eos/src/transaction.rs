@@ -282,6 +282,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let result = EosTransaction::sign_tx(eox_tx_input, &sign_param).unwrap();
@@ -315,6 +316,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let result = EosTransaction::sign_tx(eox_tx_input, &sign_param);
@@ -348,6 +350,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let result = EosTransaction::sign_tx(eox_tx_input, &sign_param).unwrap();
@@ -375,6 +378,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);
@@ -402,6 +406,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);
@@ -429,6 +434,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);
@@ -456,6 +462,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);
@@ -483,6 +490,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);

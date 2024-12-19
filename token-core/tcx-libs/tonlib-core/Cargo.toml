@@ -14,10 +14,8 @@ crc = "=3.2.1"
 hex = "=0.4.3"
 hmac = {version = "=0.12.1", features = ["std"]}
 lazy_static = "=1.4.0"
-nacl = "0.5.3"
 num-bigint = { version = "=0.4.3", features = ["serde"] }
 num-traits = "=0.2.19"
-pbkdf2 = { version="=0.11.0", features = ["simple"] }
 serde = { version = "=1.0.210", features = ["derive"] }
 serde_json = "=1.0.89"
 sha2 = "=0.10.8"

@@ -69,12 +69,6 @@ impl WalletVersion {
     }
 
     pub fn initial_data(&self, key: &[u8], wallet_id: i32) -> Result<ArcCell, TonCellError> {
-        // let public_key: TonHash = key_pair
-        //     .public_key
-        //     .clone()
-        //     .try_into()
-        //     .map_err(|_| TonCellError::InternalError("Invalid public key size".to_string()))?;
-
         let mut public_key: [u8; 32] = [0; 32];
         public_key.copy_from_slice(&key.to_vec());
         let data_cell: Cell = match &self {

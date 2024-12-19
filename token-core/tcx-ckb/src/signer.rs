@@ -293,7 +293,7 @@ mod tests {
         let tx_input = CkbTxInput {
             inputs,
             witnesses,
-            tx_hash: tx_hash.clone().to_owned(),
+            tx_hash: tx_hash.to_owned(),
             cached_cells,
             ..CkbTxInput::default()
         };
@@ -452,7 +452,7 @@ mod tests {
                 CkbTxInput {
                     inputs: inputs.clone(),
                     witnesses: vec![],
-                    tx_hash: tx_hash.clone().to_owned(),
+                    tx_hash: tx_hash.to_owned(),
                     cached_cells: cached_cells.clone(),
                     ..CkbTxInput::default()
                 },
@@ -462,7 +462,7 @@ mod tests {
                 CkbTxInput {
                     inputs: vec![],
                     witnesses: witnesses.clone(),
-                    tx_hash: tx_hash.clone().to_owned(),
+                    tx_hash: tx_hash.to_owned(),
                     cached_cells: cached_cells.clone(),
                     ..CkbTxInput::default()
                 },
@@ -482,7 +482,7 @@ mod tests {
                 CkbTxInput {
                     inputs: inputs.clone(),
                     witnesses: witnesses.clone(),
-                    tx_hash: tx_hash.clone().to_owned(),
+                    tx_hash: tx_hash.to_owned(),
                     cached_cells: vec![],
                     ..CkbTxInput::default()
                 },
@@ -514,7 +514,7 @@ mod tests {
         let tx_input = CkbTxInput {
             inputs,
             witnesses,
-            tx_hash: tx_hash.clone().to_owned(),
+            tx_hash: tx_hash.to_owned(),
             cached_cells,
             ..CkbTxInput::default()
         };
@@ -581,7 +581,7 @@ mod tests {
         let tx_input = CkbTxInput {
             inputs,
             witnesses,
-            tx_hash: tx_hash.clone().to_owned(),
+            tx_hash: tx_hash.to_owned(),
             cached_cells,
             ..CkbTxInput::default()
         };
@@ -652,7 +652,7 @@ mod tests {
         let tx_input = CkbTxInput {
             inputs,
             witnesses,
-            tx_hash: tx_hash.clone().to_owned(),
+            tx_hash: tx_hash.to_owned(),
             cached_cells,
             ..CkbTxInput::default()
         };
@@ -887,7 +887,7 @@ mod tests {
         let tx_input = CkbTxInput {
             inputs,
             witnesses,
-            tx_hash: tx_hash.clone().to_owned(),
+            tx_hash: tx_hash.to_owned(),
             cached_cells,
             ..CkbTxInput::default()
         };
