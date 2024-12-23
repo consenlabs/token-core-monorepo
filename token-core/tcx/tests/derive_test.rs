@@ -49,6 +49,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "LITECOIN".to_string(),
@@ -57,6 +58,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "LITECOIN".to_string(),
@@ -65,6 +67,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "TRON".to_string(),
@@ -73,6 +76,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "NERVOS".to_string(),
@@ -81,6 +85,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "KUSAMA".to_string(),
@@ -89,6 +94,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "sr25519".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "POLKADOT".to_string(),
@@ -97,6 +103,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "sr25519".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "FILECOIN".to_string(),
@@ -105,6 +112,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "FILECOIN".to_string(),
@@ -113,6 +121,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "bls12-381".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "COSMOS".to_string(),
@@ -121,6 +130,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "".to_string(),
                 chain_id: "cosmoshub-4".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "EOS".to_string(),
@@ -129,6 +139,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "ETHEREUM".to_string(),
@@ -137,6 +148,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -145,6 +157,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -153,6 +166,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -161,6 +175,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "VERSION_0".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -169,6 +184,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "VERSION_1".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "TEZOS".to_string(),
@@ -177,6 +193,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "ed25519".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "DOGECOIN".to_string(),
@@ -185,6 +202,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "DOGECOIN".to_string(),
@@ -193,6 +211,7 @@ pub fn test_derive_accounts() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "DOGECOIN".to_string(),
@@ -201,6 +220,16 @@ pub fn test_derive_accounts() {
                 seg_wit: "VERSION_1".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
+            },
+            Derivation {
+                chain_type: "TON".to_string(),
+                path: "m/44'/607'/0'".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "ed25519".to_string(),
+                contract_code: "te6ccgECFAEAAoEAART/APSkE/S88sgLAQIBIAIDAgFIBAUBAvIOAtzQINdJwSCRW49jINcLHyCCEGV4dG69IYIQc2ludL2wkl8D4IIQZXh0brqOtIAg1yEB0HTXIfpAMPpE+Cj6RDBYvZFb4O1E0IEBQdch9AWDB/QOb6ExkTDhgEDXIXB/2zzgMSDXSYECgLmRMOBw4hAPAgEgBgcCASAICQAZvl8PaiaECAoOuQ+gLAIBbgoLAgFIDA0AGa3OdqJoQCDrkOuF/8AAGa8d9qJoQBDrkOuFj8AAF7Ml+1E0HHXIdcLH4AARsmL7UTQ1woAgAR4g1wsfghBzaWduuvLgin8PAeaO8O2i7fshgwjXIgKDCNcjIIAg1yHTH9Mf0x/tRNDSANMfINMf0//XCgAK+QFAzPkQmiiUXwrbMeHywIffArNQB7Dy0IRRJbry4IVQNrry4Ib4I7vy0IgikvgA3gGkf8jKAMsfAc8Wye1UIJL4D95w2zzYEAP27aLt+wL0BCFukmwhjkwCIdc5MHCUIccAs44tAdcoIHYeQ2wg10nACPLgkyDXSsAC8uCTINcdBscSwgBSMLDy0InXTNc5MAGk6GwShAe78uCT10rAAPLgk+1V4tIAAcAAkVvg69csCBQgkXCWAdcsCBwS4lIQseMPINdKERITAJYB+kAB+kT4KPpEMFi68uCR7UTQgQFB1xj0BQSdf8jKAEAEgwf0U/Lgi44UA4MH9Fvy4Iwi1woAIW4Bs7Dy0JDiyFADzxYS9ADJ7VQAcjDXLAgkji0h8uCS0gDtRNDSAFETuvLQj1RQMJExnAGBAUDXIdcKAPLgjuLIygBYzxbJ7VST8sCN4gAQk1vbMeHXTNA=".to_string(),
             },
         ];
 
@@ -214,7 +243,7 @@ pub fn test_derive_accounts() {
         let derived_accounts_bytes = call_api("derive_accounts", param).unwrap();
         let derived_accounts: DeriveAccountsResult =
             DeriveAccountsResult::decode(derived_accounts_bytes.as_slice()).unwrap();
-        assert_eq!(20, derived_accounts.accounts.len());
+        assert_eq!(21, derived_accounts.accounts.len());
         assert_eq!(
             "LQ3JqCohgLQ3x1CJXYERnJTy1ySaqr1E32",
             derived_accounts.accounts[0].address
@@ -310,6 +339,10 @@ pub fn test_derive_accounts() {
             "1p37xv5xzd92c4wh8zt96f77a8jlf3n2qh4cps03xgurmpnllxy5us2dwgfl",
             derived_accounts.accounts[19].address
         );
+        assert_eq!(
+            "UQDt6ko7K8TqHga_KO5fsKr-vrIz5EyuhpX1NrERE4UOg4CG",
+            derived_accounts.accounts[20].address
+        );
 
         remove_created_wallet(&import_result.id);
     })
@@ -329,6 +362,7 @@ pub fn test_hd_store_derive_invalid_param() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "LITECOIN".to_string(),
@@ -337,6 +371,7 @@ pub fn test_hd_store_derive_invalid_param() {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "LITECOIN".to_string(),
@@ -345,6 +380,7 @@ pub fn test_hd_store_derive_invalid_param() {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "".to_string(),
+                contract_code: "".to_string(),
             },
         ];
         for derivation in invalid_derivations {
@@ -462,6 +498,7 @@ pub fn test_derive_btc_legacy_sub_accounts() {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
 
         let (_wallet, accounts) = import_and_derive(derivation);
@@ -503,6 +540,7 @@ pub fn test_derive_btc_p2wpkh_sub_accounts() {
             seg_wit: "P2WPKH".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
 
         let (_wallet, accounts) = import_and_derive(derivation);
@@ -544,6 +582,7 @@ pub fn test_derive_eth_sub_accounts() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
 
         let (_, accounts) = import_and_derive(derivation);
@@ -775,6 +814,7 @@ fn polkadotjs_cross_test() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "sr25519".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "POLKADOT".to_string(),
@@ -783,6 +823,7 @@ fn polkadotjs_cross_test() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "sr25519".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "POLKADOT".to_string(),
@@ -791,6 +832,7 @@ fn polkadotjs_cross_test() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "sr25519".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "KUSAMA".to_string(),
@@ -799,6 +841,7 @@ fn polkadotjs_cross_test() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "sr25519".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "KUSAMA".to_string(),
@@ -807,6 +850,7 @@ fn polkadotjs_cross_test() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "sr25519".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "KUSAMA".to_string(),
@@ -815,6 +859,7 @@ fn polkadotjs_cross_test() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "sr25519".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "KUSAMA".to_string(),
@@ -823,6 +868,7 @@ fn polkadotjs_cross_test() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "sr25519".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "POLKADOT".to_string(),
@@ -831,6 +877,7 @@ fn polkadotjs_cross_test() {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "sr25519".to_string(),
+                contract_code: "".to_string(),
             },
         ];
         let param = DeriveAccountsParam {
@@ -885,6 +932,7 @@ fn test_derive_other_curve_on_pk_keystore() {
                     network: "".to_string(),
                     curve: "secp256k1".to_string(),
                     seg_wit: "".to_string(),
+                    contract_code: "".to_string(),
                 },
                 Derivation {
                     chain_type: "FILECOIN".to_string(),
@@ -893,6 +941,7 @@ fn test_derive_other_curve_on_pk_keystore() {
                     network: "".to_string(),
                     curve: "secp256k1".to_string(),
                     seg_wit: "".to_string(),
+                    contract_code: "".to_string(),
                 },
             ],
             key: Some(api::derive_accounts_param::Key::Password(
@@ -919,6 +968,7 @@ fn test_derive_other_curve_on_pk_keystore() {
                 network: "".to_string(),
                 curve: "ed25519".to_string(),
                 seg_wit: "".to_string(),
+                contract_code: "".to_string(),
             }],
             key: Some(api::derive_accounts_param::Key::Password(
                 TEST_PASSWORD.to_string(),
@@ -939,6 +989,7 @@ fn test_derive_other_curve_on_pk_keystore() {
                 network: "".to_string(),
                 curve: "sr25519".to_string(),
                 seg_wit: "".to_string(),
+                contract_code: "".to_string(),
             }],
             key: Some(api::derive_accounts_param::Key::Password(
                 TEST_PASSWORD.to_string(),
@@ -976,6 +1027,7 @@ fn test_derive_mainnet_account_on_test_wif() {
                 network: "TESTNET".to_string(),
                 curve: "secp256k1".to_string(),
                 seg_wit: "VERSION_1".to_string(),
+                contract_code: "".to_string(),
             }],
             key: Some(api::derive_accounts_param::Key::Password(
                 TEST_PASSWORD.to_string(),

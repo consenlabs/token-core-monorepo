@@ -41,6 +41,7 @@ use tcx_eth::transaction::{
 use tcx_filecoin::{SignedMessage, UnsignedMessage};
 use tcx_substrate::{SubstrateRawTxIn, SubstrateTxOut};
 use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
+use tcx_ton::transaction::{TonRawTxIn, TonTxOut};
 use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 
 #[test]
@@ -321,6 +322,7 @@ pub fn test_sign_tron_tx_by_pk() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
+            contract_code: "".to_string(),
         };
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -743,6 +745,7 @@ pub fn test_lock_after_sign() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
+            contract_code: "".to_string(),
         };
 
         let (wallet, _acc_rsp) = import_and_derive(derivation);
@@ -952,6 +955,7 @@ pub fn test_sign_ethereum_legacy_tx() {
             seg_wit: "".to_string(),
             chain_id: "1".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
 
         let (wallet, acc_rsp) = import_and_derive(derivation);
@@ -1261,4 +1265,38 @@ Issued At: 2024-02-27T06:45:12.725Z".to_string(),
             EthBatchPersonalSignResult::decode(sign_result.as_slice()).unwrap();
         assert_eq!(ret.signatures[0], "0xa30a252dd84370a22035b1bdd43e594bb54c3e874f3cee2b4c12e16392feb3c13d4589d3f2b006fcad20426a4cb2b16c3523cc82705d1e447a9926cb1e2398481c".to_string());
     });
+}
+
+#[test]
+#[serial]
+pub fn test_sign_ton_tx() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let hash = "0xd356774c21d6a6e2c651a5255f3f876fa973f1cfb7dce941c14ecabc2b1511d0".to_string();
+        let input = TonRawTxIn { hash };
+        let input_value = encode_message(input).unwrap();
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TON".to_string(),
+            path: "m/44'/607'/0'".to_string(),
+            curve: "ed25519".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value,
+            }),
+        };
+
+        let ret = call_api("sign_tx", tx.clone()).unwrap();
+
+        let output: TonTxOut = TonTxOut::decode(ret.as_slice()).unwrap();
+        let expected_sign = "0x9771c1bf4c69630b69cc0f0ae38db635f4ff1d161badc0f70b257b5a8f6a387cd75b72361ebf67fc5803feccdbb22ade85d053d766ed3b7c7029509363990c02";
+        assert_eq!(expected_sign, output.signature.as_str());
+
+        remove_created_wallet(&wallet.id);
+    })
 }

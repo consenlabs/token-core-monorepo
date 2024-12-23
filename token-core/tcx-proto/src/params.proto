@@ -75,6 +75,7 @@ message DeriveAccountsParam {
     string segWit = 4;
     string chainId = 5;
     string curve = 6;
+    string contractCode = 7;
   }
   repeated Derivation derivations = 4;
 }
