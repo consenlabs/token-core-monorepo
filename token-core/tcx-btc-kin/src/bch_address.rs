@@ -191,6 +191,7 @@ mod tests {
         );
 
         let wrong_coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOINCASH".to_string(),
             derivation_path: "".to_string(),
             curve: CurveType::SECP256k1,
@@ -282,6 +283,7 @@ mod tests {
                 .unwrap()
                 .public_key();
         let coin_info = CoinInfo {
+            chain_id: "".to_string(),
             coin: "BITCOINCASH".to_string(),
             derivation_path: "".to_string(),
             curve: CurveType::SECP256k1,

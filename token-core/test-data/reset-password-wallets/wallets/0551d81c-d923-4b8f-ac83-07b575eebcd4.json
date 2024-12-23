@@ -1,0 +1,35 @@
+{
+  "crypto": {
+    "cipher": "aes-128-ctr",
+    "cipherparams": {
+      "iv": "2b5b0195707b2099ec1b9cfb8cb8e8ec"
+    },
+    "ciphertext": "f26ad8777f7ce2051253773a6105ecc34aeaff4f8688beaa514f195b881c4a35",
+    "kdf": "pbkdf2",
+    "kdfparams": {
+      "c": 10240,
+      "dklen": 32,
+      "prf": "hmac-sha256",
+      "salt": "5a75d1902236879d4bd889cc0810f20ecc7bd842a4c544c1c6517b94a644393b"
+    },
+    "mac": "e4181397a7b38c523feaac582041446495c3aa875d4da5995b9adeb31727cb10"
+  },
+  "id": "0551d81c-d923-4b8f-ac83-07b575eebcd4",
+  "version": 3,
+  "address": "97d8c69afd4d0888197b9a87f265d75ec299e143",
+  "encMnemonic": {
+    "encStr": "b002a37fa81274f96300a2d5e0618d8add19c8dd5446ec378e2b0c14630cd82a9482134e9de29538dec3434c70f3e40ed953694002b87fef81f313671150e00beb609855983e700e5ad2",
+    "nonce": "299b303e92c90a4cc342f98cf7d9d81f"
+  },
+  "mnemonicPath": "m/44'/60'/0'/0",
+  "imTokenMeta": {
+    "backup": [],
+    "chainType": "ETHEREUM",
+    "mode": "NORMAL",
+    "name": "ETH",
+    "passwordHint": "",
+    "source": "MNEMONIC",
+    "timestamp": 1719542012,
+    "walletType": "V3"
+  }
+}

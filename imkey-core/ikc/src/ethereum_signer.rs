@@ -153,6 +153,7 @@ mod tests {
             receiver: "0x9Ed0c5350Bc17FF45529722eb07580Ff564c3a78".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.001316 ETH".to_string(),
+            seg_wit: "".to_string(),
         };
         let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
         println!("sign");
@@ -172,6 +173,7 @@ mod tests {
             receiver: "0x9Ed0c5350Bc17FF45529722eb07580Ff564c3a78".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.001316 ETH".to_string(),
+            seg_wit: "".to_string(),
         };
         let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
         println!("sign");
@@ -191,6 +193,7 @@ mod tests {
             receiver: "0x9Ed0c5350Bc17FF45529722eb07580Ff564c3a78".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.001316 ETH".to_string(),
+            seg_wit: "".to_string(),
         };
         let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
         println!("sign");
@@ -210,6 +213,7 @@ mod tests {
             receiver: "0x9Ed0c5350Bc17FF45529722eb07580Ff564c3a78".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.001316 ETH".to_string(),
+            seg_wit: "".to_string(),
         };
         let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
         println!("sign");
@@ -249,6 +253,7 @@ mod tests {
             receiver: "0xE6F4142dfFA574D1d9f18770BF73814df07931F3".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.0032 ether".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let data = encode_message(tx).unwrap();
@@ -292,6 +297,7 @@ mod tests {
             receiver: "0xE6F4142dfFA574D1d9f18770BF73814df07931F3".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.0032 ether".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let data = encode_message(tx).unwrap();
@@ -360,6 +366,7 @@ mod tests {
             receiver: "0xE6F4142dfFA574D1d9f18770BF73814df07931F3".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.0032 ether".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let data = encode_message(tx).unwrap();
@@ -428,6 +435,7 @@ mod tests {
             receiver: "0xE6F4142dfFA574D1d9f18770BF73814df07931F3".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.0032 ether".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let data = encode_message(tx).unwrap();
@@ -469,6 +477,7 @@ mod tests {
             receiver: "0xE6F4142dfFA574D1d9f18770BF73814df07931F3".to_string(),
             sender: "0x6031564e7b2F5cc33737807b2E58DaFF870B590b".to_string(),
             fee: "0.0032 ether".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let data = hex::decode("0a0138120b32303030303030303030381a063138393030302228333533353335333533353335333533353335333533353335333533353335333533353335333533352a033531323a023238").unwrap();

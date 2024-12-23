@@ -1,6 +1,7 @@
 use crate::aes::cbc::encrypt_pkcs7;
 use crate::constants::SECP256K1_ENGINE;
 use crate::error::CommonError;
+use crate::hex::FromHex;
 use crate::Result;
 use bitcoin::hashes::{sha256, Hash};
 use bitcoin::util::base58;
@@ -203,6 +204,19 @@ pub fn network_convert(network: &str) -> Network {
         "MAINNET" => Network::Bitcoin,
         "TESTNET" => Network::Testnet,
         _ => Network::Testnet,
+    }
+}
+
+pub fn utf8_or_hex_to_bytes(value: &str) -> Result<Vec<u8>> {
+    if value.to_lowercase().starts_with("0x") {
+        let ret = FromHex::from_0x_hex(value);
+        if ret.is_err() {
+            Ok(value.as_bytes().to_vec())
+        } else {
+            ret
+        }
+    } else {
+        Ok(value.as_bytes().to_vec())
     }
 }
 

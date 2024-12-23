@@ -11,6 +11,9 @@ use bitcoin::util::bip32::ExtendedPubKey;
 use bitcoin::Network;
 use coin_bch::address::BchAddress;
 use coin_bitcoin::address::BtcAddress;
+use coin_bitcoin::btc_kin_address::{AddressTrait, BtcKinAddress, ImkeyPublicKey};
+use coin_bitcoin::btcapi::PsbtInput;
+use coin_bitcoin::network::BtcKinNetwork;
 use coin_btc_fork::address::BtcForkAddress;
 use coin_btc_fork::btc_fork_network::network_from_param;
 use coin_ckb::address::CkbAddress;
@@ -21,11 +24,13 @@ use coin_filecoin::address::FilecoinAddress;
 use coin_substrate::address::{AddressType, SubstrateAddress};
 use coin_tron::address::TronAddress;
 use ikc_common::curve::CurveType;
+use ikc_common::error::CommonError;
 use ikc_common::path::get_account_path;
 use ikc_common::utility::{
     encrypt_xpub, extended_pub_key_derive, from_ss58check_with_version, get_xpub_prefix,
     network_convert, to_ss58check_with_version, uncompress_pubkey_2_compress,
 };
+use ikc_common::SignParam;
 use prost::Message;
 use std::str::FromStr;
 
@@ -49,20 +54,29 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
         };
 
         let ext_public_key = match derivation.chain_type.as_str() {
-            "BITCOIN" => {
-                let network = network_convert(derivation.network.as_str());
-                let public_key = BtcAddress::get_pub_key(&derivation.path)?;
+            "BITCOIN" | "DOGECOIN" => {
+                let network = BtcKinNetwork::find_by_coin(
+                    &derivation.chain_type,
+                    &derivation.network.to_uppercase(),
+                );
+                if network.is_none() {
+                    return Err(CommonError::MissingNetwork.into());
+                }
+                let network = network.unwrap();
+
+                let public_key = ImkeyPublicKey::get_pub_key(&derivation.path)?;
                 let public_key = uncompress_pubkey_2_compress(&public_key);
                 account_rsp.public_key = format!("0x{}", public_key);
 
                 let address = match derivation.seg_wit.as_str() {
-                    "P2WPKH" => BtcAddress::p2shwpkh(network, &derivation.path)?,
-                    "VERSION_0" => BtcAddress::p2wpkh(network, &derivation.path)?,
-                    "VERSION_1" => BtcAddress::p2tr(network, &derivation.path)?,
-                    _ => BtcAddress::p2pkh(network, &derivation.path)?,
+                    "P2WPKH" => BtcKinAddress::p2shwpkh(&network, &derivation.path)?.to_string(),
+                    "VERSION_0" => BtcKinAddress::p2wpkh(network, &derivation.path)?.to_string(),
+                    "VERSION_1" => BtcKinAddress::p2tr(network, &derivation.path)?.to_string(),
+                    _ => BtcKinAddress::p2pkh(network, &derivation.path)?.to_string(),
                 };
                 account_rsp.address = address;
-                BtcAddress::get_xpub(network, &account_path)?
+                let network = network_convert(derivation.network.as_str());
+                ImkeyPublicKey::get_xpub(network, &account_path)?
             }
             "LITECOIN" => {
                 let network = network_convert(derivation.network.as_str());
@@ -70,12 +84,12 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 let public_key = uncompress_pubkey_2_compress(&public_key);
                 account_rsp.public_key = format!("0x{}", public_key);
 
-
                 let btc_fork_network = network_from_param(
                     &derivation.chain_type,
                     &derivation.network,
                     &derivation.seg_wit,
-                ).unwrap();
+                )
+                .unwrap();
                 let address = match derivation.seg_wit.as_str() {
                     "P2WPKH" => BtcForkAddress::p2shwpkh(&btc_fork_network, &derivation.path)?,
                     _ => BtcForkAddress::p2pkh(&btc_fork_network, &derivation.path)?,
@@ -190,9 +204,17 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
         account.path = relative_path;
         let address = match param.chain_type.as_str() {
             "ETHEREUM" => EthAddress::from_pub_key(pub_key_uncompressed)?,
-            "BITCOIN" => {
-                let network = network_convert(&param.network);
-                BtcAddress::from_public_key(&hex::encode(pub_key_uncompressed), network, &param.seg_wit)?
+            "BITCOIN" | "DOGECOIN" => {
+                let network = BtcKinNetwork::find_by_coin(&param.chain_type, &param.network);
+                if network.is_none() {
+                    return Err(CommonError::MissingNetwork.into());
+                }
+                BtcKinAddress::from_public_key(
+                    &hex::encode(pub_key_uncompressed),
+                    &network.unwrap(),
+                    &param.seg_wit,
+                )?
+                .to_string()
             }
             "LITECOIN" => {
                 let btc_fork_network =
@@ -201,7 +223,6 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
                     return Err(anyhow!("get_btc_fork_network_is_null"));
                 }
                 BtcForkAddress::from_pub_key(pub_key_uncompressed, btc_fork_network.unwrap())?
-
             }
             "COSMOS" => CosmosAddress::from_pub_key(pub_key_uncompressed)?,
             "FILECOIN" => FilecoinAddress::from_pub_key(pub_key_uncompressed, &param.network)?,
@@ -224,12 +245,11 @@ pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     let param: GetExtendedPublicKeysParam = GetExtendedPublicKeysParam::decode(data)?;
     let mut extended_public_keys = vec![];
     for public_key_derivation in param.derivations.iter() {
-        // if "".eq(&public_key_derivation.path) || &public_key_derivation.path.split("/") {  }
         if !public_key_derivation.curve.eq("secp256k1") {
             return Err(anyhow!("unsupported_curve_type"));
         }
         let extended_public_key = match public_key_derivation.chain_type.as_str() {
-            "BITCOIN" | "LITECOIN" | "BITCOINCASH" => {
+            "BITCOIN" | "LITECOIN" | "BITCOINCASH" | "DOGECOIN" => {
                 BtcAddress::get_xpub(Network::Bitcoin, public_key_derivation.path.as_str())?
             }
             "ETHEREUM" => EthAddress::get_xpub(public_key_derivation.path.as_str())?,
@@ -256,7 +276,7 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
         let public_key = match public_key_derivation.curve.as_str() {
             "secp256k1" => {
                 let mut public_key = match public_key_derivation.chain_type.as_str() {
-                    "BITCOIN" | "LITECOIN" | "BITCOINCASH" => {
+                    "BITCOIN" | "LITECOIN" | "BITCOINCASH" | "DOGECOIN" => {
                         BtcAddress::get_pub_key(&public_key_derivation.path)?
                     }
 
@@ -307,6 +327,36 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
     encode_message(GetPublicKeysResult { public_keys })
 }
 
+pub(crate) fn sign_psbt(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignParam = SignParam::decode(data).expect("sign_psbt param");
+
+    if !"BITCOIN".eq(&param.chain_type) {
+        return Err(anyhow!("unsupported_chain_type"));
+    }
+
+    let psbt_input = PsbtInput::decode(
+        param
+            .input
+            .as_ref()
+            .expect("psbt_input")
+            .value
+            .clone()
+            .as_slice(),
+    )
+    .expect("psbt_input decode");
+
+    let network = if param.network == "TESTNET".to_string() {
+        Network::Testnet
+    } else {
+        Network::Bitcoin
+    };
+    encode_message(coin_bitcoin::psbt::sign_psbt(
+        &param.path,
+        psbt_input,
+        network,
+    )?)
+}
+
 #[cfg(test)]
 mod test {
     use crate::api::derive_accounts_param::Derivation;
@@ -323,7 +373,6 @@ mod test {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "ed25519".to_string(),
-            bech32_prefix: "".to_string(),
         }];
         let param = DeriveAccountsParam { derivations };
         let response = derive_accounts(&encode_message(param).unwrap());

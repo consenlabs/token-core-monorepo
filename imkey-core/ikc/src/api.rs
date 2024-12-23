@@ -58,8 +58,6 @@ pub struct PubKeyParam {
     pub path: ::prost::alloc::string::String,
     #[prost(string, tag = "3")]
     pub network: ::prost::alloc::string::String,
-    #[prost(string, tag = "4")]
-    pub is_seg_wit: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -183,8 +181,6 @@ pub mod derive_accounts_param {
         pub chain_id: ::prost::alloc::string::String,
         #[prost(string, tag = "6")]
         pub curve: ::prost::alloc::string::String,
-        #[prost(string, tag = "7")]
-        pub bech32_prefix: ::prost::alloc::string::String,
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

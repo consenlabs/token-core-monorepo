@@ -41,7 +41,7 @@ pub mod tezos_signer;
 extern crate lazy_static;
 extern crate anyhow;
 use crate::error_handling::{landingpad, LAST_ERROR};
-use crate::handler::{derive_accounts, get_extended_public_keys, get_public_keys};
+use crate::handler::{derive_accounts, get_extended_public_keys, get_public_keys, sign_psbt};
 use crate::message_handler::encode_message;
 use ikc_transport::message;
 
@@ -138,7 +138,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
             let param: AddressParam = AddressParam::decode(action.param.unwrap().value.as_slice())
                 .expect("imkey_illegal_param");
             match param.chain_type.as_str() {
-                "BITCOIN" => btc_address::get_address(&param),
+                "BITCOIN" | "DEGECOIN" => btc_address::get_address(&param),
                 "ETHEREUM" => ethereum_address::get_address(&param),
                 "COSMOS" => cosmos_address::get_address(&param),
                 "FILECOIN" => filecoin_address::get_address(&param),
@@ -242,6 +242,9 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                     &param,
                 ),
                 "TRON" => tron_signer::sign_message(&param.clone().input.unwrap().value, &param),
+                "BITCOIN" => {
+                    btc_signer::btc_sign_message(&param.clone().input.unwrap().value, &param)
+                }
                 _ => Err(anyhow!(
                     "sign message is not supported the chain {}",
                     param.chain_type
@@ -263,6 +266,9 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
         "get_extended_public_keys" => {
             landingpad(|| get_extended_public_keys(&action.param.unwrap().value))
         }
+
+        "sign_psbt" => landingpad(|| sign_psbt(&action.param.unwrap().value)),
+
         _ => landingpad(|| Err(anyhow!("unsupported_method"))),
     };
     match reply {
@@ -303,19 +309,19 @@ mod tests {
     use super::*;
     use crate::api::derive_accounts_param::Derivation;
     use crate::api::{
-        DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
-        GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
-        GetPublicKeysResult, PublicKeyDerivation,
+        AddressResult, DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam,
+        DeriveSubAccountsResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult,
+        GetPublicKeysParam, GetPublicKeysResult, PublicKeyDerivation,
     };
-
-    use bitcoin::Address;
-    use coin_bitcoin::btcapi::{BtcTxExtra, BtcTxInput, BtcTxOutput, Utxo};
+    use coin_bitcoin::btcapi::{
+        BtcMessageInput, BtcMessageOutput, BtcTxExtra, BtcTxInput, BtcTxOutput, PsbtInput,
+        PsbtOutput, Utxo,
+    };
     use ikc_device::deviceapi::{BindAcquireReq, BindCheckRes};
     use ikc_transport::hid_api::hid_connect;
     use prost::Message;
     use std::ffi::{CStr, CString};
     use std::os::raw::c_char;
-    use std::str::FromStr;
 
     fn _to_c_char(str: &str) -> *const c_char {
         CString::new(str).unwrap().into_raw()
@@ -338,7 +344,6 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "LITECOIN".to_string(),
@@ -347,7 +352,6 @@ mod tests {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "LITECOIN".to_string(),
@@ -356,7 +360,6 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "TRON".to_string(),
@@ -365,7 +368,6 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "NERVOS".to_string(),
@@ -374,7 +376,6 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "FILECOIN".to_string(),
@@ -383,7 +384,6 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "COSMOS".to_string(),
@@ -392,7 +392,6 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "EOS".to_string(),
@@ -401,7 +400,6 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "ETHEREUM".to_string(),
@@ -410,7 +408,6 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -419,7 +416,6 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -428,7 +424,6 @@ mod tests {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "KUSAMA".to_string(),
@@ -437,7 +432,6 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "ed25519".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "POLKADOT".to_string(),
@@ -446,7 +440,6 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "ed25519".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOINCASH".to_string(),
@@ -455,7 +448,6 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "NERVOS".to_string(),
@@ -464,7 +456,6 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "FILECOIN".to_string(),
@@ -473,7 +464,6 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -482,7 +472,6 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -491,7 +480,6 @@ mod tests {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "COSMOS".to_string(),
@@ -500,7 +488,6 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "EOS".to_string(),
@@ -509,7 +496,6 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -518,7 +504,6 @@ mod tests {
                 seg_wit: "VERSION_0".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -527,7 +512,6 @@ mod tests {
                 seg_wit: "VERSION_1".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -536,7 +520,6 @@ mod tests {
                 seg_wit: "VERSION_0".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -545,7 +528,30 @@ mod tests {
                 seg_wit: "VERSION_1".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
-                bech32_prefix: "".to_string(),
+            },
+            Derivation {
+                chain_type: "DOGECOIN".to_string(),
+                path: "m/44'/3'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                chain_id: "".to_string(),
+                curve: "secp256k1".to_string(),
+            },
+            Derivation {
+                chain_type: "DOGECOIN".to_string(),
+                path: "m/44'/1'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                chain_id: "".to_string(),
+                curve: "secp256k1".to_string(),
+            },
+            Derivation {
+                chain_type: "DOGECOIN".to_string(),
+                path: "m/44'/1'/0'/0/0".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "VERSION_1".to_string(),
+                chain_id: "".to_string(),
+                curve: "secp256k1".to_string(),
             },
         ];
         let param = DeriveAccountsParam { derivations };
@@ -780,7 +786,10 @@ mod tests {
         assert_eq!("tpubDCrXSyMPmFhDyXm3UTwpvRZWaiWWzrMxNoGiaFEB2fy5cgfAkAgeFob6WaXPrDTBvHiGs2HAJAbFURhoyNsHVTEbVfZSfK5GXjsCQ3kYMcy", derived_accounts.accounts[19].extended_public_key);
         assert_eq!("GmqrouLXtLQX0uCLHClBSkupGErjvRRkcooO0xLJWE04j14KZeadxrAsJD4nqRPxbM99rzybs9FRY2jkqfR1OyEP3XDx7Vmn0iuYt/0y7aLsiAsma3iM5CwaXKuXFM3bFAuBRHUk3Meqhx2F8zmCBQ==", derived_accounts.accounts[19].encrypted_extended_public_key);
 
-        assert_eq!("bc1q05ec6z8df2vlzkxjxfd2xr3veypzm93wqnazr2", derived_accounts.accounts[20].address);
+        assert_eq!(
+            "bc1q05ec6z8df2vlzkxjxfd2xr3veypzm93wqnazr2",
+            derived_accounts.accounts[20].address
+        );
         assert_eq!(
             "0x0324778f934a20a9ca06cec3fb7176ccbc054278b9d5d7f0a1077582367af92e75",
             derived_accounts.accounts[20].public_key
@@ -788,7 +797,10 @@ mod tests {
         assert_eq!("xpub6CKMszasQeidek6fYD7g5N1mwUK3ouX8YHWs47MZyXh62GxsEQsU57NuN6GTS3Mh3bwykHGa14617A6HQoYFDSM9deJvgjDeEJxBYsfJ1bs", derived_accounts.accounts[20].extended_public_key);
         assert_eq!("lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==", derived_accounts.accounts[20].encrypted_extended_public_key);
 
-        assert_eq!("bc1pqvrla5hul9cqdtz60lwwn35zdcx363pyxua0trqnz3wx8hvjxzdsdevceu", derived_accounts.accounts[21].address);
+        assert_eq!(
+            "bc1pqvrla5hul9cqdtz60lwwn35zdcx363pyxua0trqnz3wx8hvjxzdsdevceu",
+            derived_accounts.accounts[21].address
+        );
         assert_eq!(
             "0x0212d50fb3ba37b766219cdbc6e3bf8bf14fd4427ccd822ed3cf0719ab0c849c9b",
             derived_accounts.accounts[21].public_key
@@ -796,7 +808,10 @@ mod tests {
         assert_eq!("xpub6CHyG1anQPWb9ss5CUeZ7cHnvoxqAZNzJBNx6fpxaWPmybH7YbJMxjp4wFp5gnxqX59hCAAbwbQTVTzAbwJsVYgBw4CYU3eAeCGn2tUajR3", derived_accounts.accounts[21].extended_public_key);
         assert_eq!("rb+ddXgewhq85D6t5JDIV/+7kbzUF3aQxSvleskiKtQthnJmexw16XzB7hjAcCMY+8ADQ2KGIIELsvxrb1OTwvx8hF5xNzFjntBZPVT/C4WWEmdbcMvgDr+l29kdCKCWyaBh3fJRmxZw3VDlfWzehw==", derived_accounts.accounts[21].encrypted_extended_public_key);
 
-        assert_eq!("tb1q05ec6z8df2vlzkxjxfd2xr3veypzm93w24x3ce", derived_accounts.accounts[22].address);
+        assert_eq!(
+            "tb1q05ec6z8df2vlzkxjxfd2xr3veypzm93w24x3ce",
+            derived_accounts.accounts[22].address
+        );
         assert_eq!(
             "0x0324778f934a20a9ca06cec3fb7176ccbc054278b9d5d7f0a1077582367af92e75",
             derived_accounts.accounts[22].public_key
@@ -804,8 +819,10 @@ mod tests {
         assert_eq!("tpubDCgzQEQZ7vg5vYHWzQ6mHHM9GbQhoJ2C5v7AQfQiKSSymZdaJdiZDZ3jc8MExYJvqWUtMrnSY9v3oLatofPV6soShF4ENFsspGYbJq1Hz2f", derived_accounts.accounts[22].extended_public_key);
         assert_eq!("5nOP+V6SX2jPrrRq8kIHvECIUTy+tClgU92qR5SZSD54cFlfzYDvUjcCu2/RRrUO45S34TcGpU7aj0kuowRWdtTtbzql8kSVK4J0xm30Bv+MsA5zSSAwaPIpoyXbmju4kg2JNknuI7U7lVYG44HEEw==", derived_accounts.accounts[22].encrypted_extended_public_key);
 
-
-        assert_eq!("tb1pqvrla5hul9cqdtz60lwwn35zdcx363pyxua0trqnz3wx8hvjxzds636hrn", derived_accounts.accounts[23].address);
+        assert_eq!(
+            "tb1pqvrla5hul9cqdtz60lwwn35zdcx363pyxua0trqnz3wx8hvjxzds636hrn",
+            derived_accounts.accounts[23].address
+        );
         assert_eq!(
             "0x0212d50fb3ba37b766219cdbc6e3bf8bf14fd4427ccd822ed3cf0719ab0c849c9b",
             derived_accounts.accounts[23].public_key
@@ -813,6 +830,38 @@ mod tests {
         assert_eq!("tpubDCfbnFQU7fU3Rg3vefdeKXdAFw4V9wt3qoyFTDt6vR9fiswpcp9T7BUuBHtsDHv5JygbojgUUhEWBeUmzoA7Nz8Uzewr9aJQE9sBnsJkNxG", derived_accounts.accounts[23].extended_public_key);
         assert_eq!("XMpKliPCkntBO51gk2e9O2kNxYcIe64boiJ3yjdiYdGJjbM3GeEUIaJnrNR13mqKLphye+RbzfMnaITZG+qSTYxFT2p6SEoeBUxionjKb9gVJ/AbUkseruRVJ3I8pI0Gefd/KoJe76bFBZhGEXSD2Q==", derived_accounts.accounts[23].encrypted_extended_public_key);
 
+        assert_eq!(
+            "DQ4tVEqdPWHc1aVBm4Sfwft8XyNRPMEchR",
+            derived_accounts.accounts[24].address
+        );
+        assert_eq!(
+            "0x030940ee016f241f8355f8bbeac3e36ed95aaa0472e9e0d3eb3fa999c28512335f",
+            derived_accounts.accounts[24].public_key
+        );
+        assert_eq!("xpub6CDSaXHQokkKmHHG2kNCFZeirJkcZgRZE97ZZUtViif3SFHSNVAvRpWC3CxeRt2VZetEGCcPTmWEFpKF4NDeeZrMNPQgfUaX5Hkw89kW8qE", derived_accounts.accounts[24].extended_public_key);
+        assert_eq!("xfp4vzRYZmLL7L/3HQZeGxbWkkU5Pr/2MPb2t3NvPiI+t+8SbOof9Vo3tW6B/5JO+Qt4Dud4d+OTS1rbcZ35F8ldMbClq/z/+vaN2PwkiLmF2WrKJofr9BdHbfyLbQeg6LJ02hZ7yVAjP7w5pn2S8w==", derived_accounts.accounts[24].encrypted_extended_public_key);
+
+        assert_eq!(
+            "DAGWiHeAHCTLUTsBEFMWviSkdGeZGveASM",
+            derived_accounts.accounts[25].address
+        );
+        assert_eq!(
+            "0x033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4e",
+            derived_accounts.accounts[25].public_key
+        );
+        assert_eq!("xpub6CSt8ZdrPg6j9ECzMGGDaKJJDUe8Cfm4xHjVrvL7PyGkBGdog8asBznBaZQiYbRtCdWRUAKGpKcbyUYMUUwgmiNt7mPs1QCUMhyHB6rBURT", derived_accounts.accounts[25].extended_public_key);
+        assert_eq!("aZQFapKlNXVFODnqcTrkYcUdEBOJng0detiaBwO/7yNBWxxukf9/GJOn1dUh4oumFTtHoNNsBxYjYXpMdO7HMksOlOOJUCFNGRvVkiS5W83nAMTTDDbJGlC9ZB0lbm6wC4RYP3uGlg1anIl2BOW+mg==", derived_accounts.accounts[25].encrypted_extended_public_key);
+
+        assert_eq!(
+            "1pd2gajgcpr7c5ajgl377sgmqexw5jxqvl305zw2a7aeujf8pun7ksh45tuj",
+            derived_accounts.accounts[26].address
+        );
+        assert_eq!(
+            "0x033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4e",
+            derived_accounts.accounts[26].public_key
+        );
+        assert_eq!("xpub6CSt8ZdrPg6j9ECzMGGDaKJJDUe8Cfm4xHjVrvL7PyGkBGdog8asBznBaZQiYbRtCdWRUAKGpKcbyUYMUUwgmiNt7mPs1QCUMhyHB6rBURT", derived_accounts.accounts[26].extended_public_key);
+        assert_eq!("aZQFapKlNXVFODnqcTrkYcUdEBOJng0detiaBwO/7yNBWxxukf9/GJOn1dUh4oumFTtHoNNsBxYjYXpMdO7HMksOlOOJUCFNGRvVkiS5W83nAMTTDDbJGlC9ZB0lbm6wC4RYP3uGlg1anIl2BOW+mg==", derived_accounts.accounts[26].encrypted_extended_public_key);
     }
 
     #[test]
@@ -824,7 +873,6 @@ mod tests {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
-            bech32_prefix: "".to_string(),
         };
         let derived_accounts_result = derive_account(derivation.clone());
         let mut derive_sub_accounts_param = DeriveSubAccountsParam {
@@ -905,7 +953,6 @@ mod tests {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
-            bech32_prefix: "".to_string(),
         };
         let derived_accounts_result = derive_account(derivation.clone());
         let mut derive_sub_accounts_param = DeriveSubAccountsParam {
@@ -1081,7 +1128,6 @@ mod tests {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
-            bech32_prefix: "".to_string(),
         };
         let derived_accounts_result = derive_account(derivation);
         let derive_sub_accounts_param = DeriveSubAccountsParam {
@@ -1130,7 +1176,6 @@ mod tests {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
-            bech32_prefix: "".to_string(),
         };
         let derived_accounts_result = derive_account(derivation.clone());
         let mut derive_sub_accounts_param = DeriveSubAccountsParam {
@@ -1212,7 +1257,6 @@ mod tests {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
-            bech32_prefix: "".to_string(),
         };
         let derived_accounts_result = derive_account(derivation.clone());
         let mut derive_sub_accounts_param = DeriveSubAccountsParam {
@@ -1293,7 +1337,6 @@ mod tests {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
-            bech32_prefix: "".to_string(),
         };
         let derived_accounts_result = derive_account(derivation.clone());
         let mut derive_sub_accounts_param = DeriveSubAccountsParam {
@@ -1533,7 +1576,141 @@ mod tests {
             "tb1p4rt8lyrvvvzg7hq9nlmqh9saym73gvtup09daje9x3q5wjfgmkgqy47h72",
             derived_sub_accounts.accounts[1].address
         );
+    }
 
+    #[test]
+    fn test_dogecoin_derive_sub_accounts() {
+        let mut derivation = Derivation {
+            chain_type: "DOGECOIN".to_string(),
+            path: "m/44'/0'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            chain_id: "".to_string(),
+            curve: "secp256k1".to_string(),
+        };
+        let derived_accounts_result = derive_account(derivation.clone());
+        let mut derive_sub_accounts_param = DeriveSubAccountsParam {
+            chain_type: "DOGECOIN".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            relative_paths: vec!["0/0".to_string(), "0/1".to_string()],
+            extended_public_key: derived_accounts_result.accounts[0]
+                .extended_public_key
+                .to_string(),
+        };
+        let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
+        assert_eq!(
+            "D78C2FooMJe77f6WtcZQhW7YtGuJNVLesB",
+            derived_sub_accounts.accounts[0].address
+        );
+        assert_eq!(
+            "0x026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868",
+            derived_sub_accounts.accounts[0].public_key
+        );
+        assert_eq!(
+            "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8",
+            derived_sub_accounts.accounts[0].extended_public_key
+        );
+        assert_eq!(
+            "BdgvWHN/Uh/K526q/+CdpGwEPZ41SvZHHGSgiSqhFesjErdbo6UnJMIoDOHV94qW8fd2KBW18UG3nTzDwS7a5oArqPtv+2aE9+1bNvCdtYoAx3979N3vbX4Xxn/najTABykXrJDjgpoaXxSo/xTktQ==",
+            derived_sub_accounts.accounts[0].encrypted_extended_public_key
+        );
+        assert_eq!(
+            "DDE8E8VmhDHm5HyEzAkJkE2Wdkyenc7wCc",
+            derived_sub_accounts.accounts[1].address
+        );
+        assert_eq!(
+            "0x024fb7df3961e08f01025e434ea19708a4317d2fe59775cddd38df6e8a2d30697d",
+            derived_sub_accounts.accounts[1].public_key
+        );
+
+        derivation.seg_wit = "P2WPKH".to_string();
+        derivation.path = "m/84'/0'/0'/0/0".to_string();
+        let derived_accounts_result = derive_account(derivation.clone());
+        derive_sub_accounts_param.seg_wit = "P2WPKH".to_string();
+        derive_sub_accounts_param.extended_public_key = derived_accounts_result.accounts[0]
+            .extended_public_key
+            .to_string();
+        let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
+        assert_eq!(
+            "9vz3rYvWamWSBpezGmxtnj1WRhTYttsDJa",
+            derived_sub_accounts.accounts[0].address
+        );
+        assert_eq!(
+            "0x0324778f934a20a9ca06cec3fb7176ccbc054278b9d5d7f0a1077582367af92e75",
+            derived_sub_accounts.accounts[0].public_key
+        );
+        assert_eq!(
+            "xpub6CKMszasQeidek6fYD7g5N1mwUK3ouX8YHWs47MZyXh62GxsEQsU57NuN6GTS3Mh3bwykHGa14617A6HQoYFDSM9deJvgjDeEJxBYsfJ1bs",
+            derived_sub_accounts.accounts[0].extended_public_key
+        );
+        assert_eq!(
+            "lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==",
+            derived_sub_accounts.accounts[0].encrypted_extended_public_key
+        );
+        assert_eq!(
+            "AEnAz82LcjUDw1iieSxUMofK84raXDRPcV",
+            derived_sub_accounts.accounts[1].address
+        );
+
+        derivation.seg_wit = "VERSION_0".to_string();
+        derivation.path = "m/84'/0'/0'/0/0".to_string();
+        let derived_accounts_result = derive_account(derivation.clone());
+        derive_sub_accounts_param.seg_wit = "VERSION_0".to_string();
+        derive_sub_accounts_param.extended_public_key = derived_accounts_result.accounts[0]
+            .extended_public_key
+            .to_string();
+        let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
+        assert_eq!(
+            "1q05ec6z8df2vlzkxjxfd2xr3veypzm93whtnyq3",
+            derived_sub_accounts.accounts[0].address
+        );
+        assert_eq!(
+            "0x0324778f934a20a9ca06cec3fb7176ccbc054278b9d5d7f0a1077582367af92e75",
+            derived_sub_accounts.accounts[0].public_key
+        );
+        assert_eq!(
+            "xpub6CKMszasQeidek6fYD7g5N1mwUK3ouX8YHWs47MZyXh62GxsEQsU57NuN6GTS3Mh3bwykHGa14617A6HQoYFDSM9deJvgjDeEJxBYsfJ1bs",
+            derived_sub_accounts.accounts[0].extended_public_key
+        );
+        assert_eq!(
+            "lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==",
+            derived_sub_accounts.accounts[0].encrypted_extended_public_key
+        );
+        assert_eq!(
+            "1qak0g6t8syjpq36t8z3768sfz7n0uf0lc4x75yt",
+            derived_sub_accounts.accounts[1].address
+        );
+
+        derivation.seg_wit = "VERSION_1".to_string();
+        derivation.path = "m/84'/0'/0'/0/0".to_string();
+        let derived_accounts_result = derive_account(derivation.clone());
+        derive_sub_accounts_param.seg_wit = "VERSION_1".to_string();
+        derive_sub_accounts_param.extended_public_key = derived_accounts_result.accounts[0]
+            .extended_public_key
+            .to_string();
+        let derived_sub_accounts = derive_sub_account(derive_sub_accounts_param.clone());
+        assert_eq!(
+            "1pgf72k7lhzaz9gmlaxtrnq4kcmhnwwk0t6xnecr9rgpvrspf2tn8qzsahaz",
+            derived_sub_accounts.accounts[0].address
+        );
+        assert_eq!(
+            "0x0324778f934a20a9ca06cec3fb7176ccbc054278b9d5d7f0a1077582367af92e75",
+            derived_sub_accounts.accounts[0].public_key
+        );
+        assert_eq!(
+            "xpub6CKMszasQeidek6fYD7g5N1mwUK3ouX8YHWs47MZyXh62GxsEQsU57NuN6GTS3Mh3bwykHGa14617A6HQoYFDSM9deJvgjDeEJxBYsfJ1bs",
+            derived_sub_accounts.accounts[0].extended_public_key
+        );
+        assert_eq!(
+            "lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==",
+            derived_sub_accounts.accounts[0].encrypted_extended_public_key
+        );
+        assert_eq!(
+            "1pxlnp964ka353cuws7m3l7eshf38lyh0m2rme2y69n57t4dhlfq2sks3dcl",
+            derived_sub_accounts.accounts[1].address
+        );
     }
 
     #[test]
@@ -1591,6 +1768,11 @@ mod tests {
                 path: "m/44'/309'/0'".to_string(),
                 curve: "secp256k1".to_string(),
             },
+            PublicKeyDerivation {
+                chain_type: "DOGECOIN".to_string(),
+                path: "m/44'/145'/0'/0/0".to_string(),
+                curve: "secp256k1".to_string(),
+            },
         ];
         let param = GetExtendedPublicKeysParam { derivations };
         let action: ImkeyAction = ImkeyAction {
@@ -1615,6 +1797,7 @@ mod tests {
         assert_eq!(extended_public_key.extended_public_keys[7], "xpub6CaaaWKi9NRFAnRyDFZxWKWs7Sh8d9WiaCspHVpkDcaVwqQFRH2z5ygLbHZs8yWtwyR3QhJLDJzbrdSTZRC9PWaRfAMNCruoSJnWhKFFCWV");
         assert_eq!(extended_public_key.extended_public_keys[8], "xpub6CUtvjXi3yjmhjaC2GxjiWE9FbQs1TrtqAgRDhB2gmDBsPzTfwqZ7MvGGYScKiVx8PBNFSmHm4mCnFDCaX23c1nJS4p8ynR2wnGne4qEEX9");
         assert_eq!(extended_public_key.extended_public_keys[9], "xpub6CyvXfYwHJjJ9syYjG7qZMva1yMx93SUmqUcKHvoReUadCzqJA8mMXrrXQjRvzveuahgdQmCsdsuiCkMRsLec63DW83Wwu5UqKJQmsonKpo");
+        assert_eq!(extended_public_key.extended_public_keys[10], "xpub6GZjFnyumLtEwC4KQkigvc3vXJdZvy71QxHTsFQQv1YtEUWNEwynKWsK2LBFZNLWdTk3w1Y9cRv4NN7V2pnDBoWgH3PkVE9r9Q2kSQL2zkH");
     }
 
     #[test]
@@ -1740,6 +1923,11 @@ mod tests {
                 path: "m/0'/0'".to_string(),
                 curve: "ed25519".to_string(),
             },
+            PublicKeyDerivation {
+                chain_type: "DOGECOIN".to_string(),
+                path: "m/44'/145'/0'".to_string(),
+                curve: "secp256k1".to_string(),
+            },
         ];
         let param = GetPublicKeysParam { derivations };
         let action: ImkeyAction = ImkeyAction {
@@ -1805,6 +1993,10 @@ mod tests {
         assert_eq!(
             result.public_keys[12],
             "0x4f3f24c064893a591d5a5b31990de9d12ed9da0c8650bcf98ede27e3da141401"
+        );
+        assert_eq!(
+            result.public_keys[13],
+            "0x0303f2f84851514bf2f40a46b5bb9dbf4e5913fbacde1a96968cda08f9fd882caa"
         );
     }
 
@@ -1878,7 +2070,7 @@ mod tests {
         let bind_result: BindCheckRes = BindCheckRes::decode(ret_bytes.as_slice()).unwrap();
         if "bound_other".eq(&bind_result.bind_status) {
             let param = BindAcquireReq {
-                bind_code: "5PJT7223".to_string(),
+                bind_code: "CM3SH5QE".to_string(),
             };
             let action: ImkeyAction = ImkeyAction {
                 method: "bind_acquire".to_string(),
@@ -1930,6 +2122,7 @@ mod tests {
             receiver: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_string(),
             sender: "".to_string(),
             fee: "8000".to_string(),
+            seg_wit: "".to_string(),
         };
         let action: ImkeyAction = ImkeyAction {
             method: "sign_tx".to_string(),
@@ -2009,6 +2202,7 @@ mod tests {
             receiver: "2N9wBy6f1KTUF5h2UUeqRdKnBT6oSMh4Whp".to_string(),
             sender: "".to_string(),
             fee: "10000".to_string(),
+            seg_wit: "".to_string(),
         };
         let action: ImkeyAction = ImkeyAction {
             method: "sign_tx".to_string(),
@@ -2032,6 +2226,105 @@ mod tests {
         assert_eq!(
             "4eede542b9da11500d12f38b81c3728ae6cd094b866bc9629cbb2c6ab0810914",
             sign_result.wtx_hash
+        );
+    }
+
+    #[test]
+    fn test_psbt_sign() {
+        connect_and_bind();
+        let psbt_input = PsbtInput{
+            psbt: "70736274ff01005e02000000012bd2f6479f3eeaffe95c03b5fdd76a873d346459114dec99c59192a0cb6409e90000000000ffffffff01409c000000000000225120677cc88dc36a75707b370e27efff3e454d446ad55004dac1685c1725ee1a89ea000000000001012b50c3000000000000225120a9a3350206de400f09a73379ec1bcfa161fc11ac095e5f3d7354126f0ec8e87f6215c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0d2956573f010fa1a3c135279c5eb465ec2250205dcdfe2122637677f639b1021356c963cd9c458508d6afb09f3fa2f9b48faec88e75698339a4bbb11d3fc9b0efd570120aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29bad200aee0509b16db71c999238a4827db945526859b13c95487ab46725357c9a9f25ac20113c3a32a9d320b72190a04a020a0db3976ef36972673258e9a38a364f3dc3b0ba2017921cf156ccb4e73d428f996ed11b245313e37e27c978ac4d2cc21eca4672e4ba203bb93dfc8b61887d771f3630e9a63e97cbafcfcc78556a474df83a31a0ef899cba2040afaf47c4ffa56de86410d8e47baa2bb6f04b604f4ea24323737ddc3fe092dfba2079a71ffd71c503ef2e2f91bccfc8fcda7946f4653cef0d9f3dde20795ef3b9f0ba20d21faf78c6751a0d38e6bd8028b907ff07e9a869a43fc837d6b3f8dff6119a36ba20f5199efae3f28bb82476163a7e458c7ad445d9bffb0682d10d3bdb2cb41f8e8eba20fa9d882d45f4060bdb8042183828cd87544f1ea997380e586cab77d5fd698737ba569cc001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00000".to_string(),
+            auto_finalize: true,
+        };
+        let input_value = encode_message(psbt_input).unwrap();
+        let param = SignParam {
+            chain_type: "BITCOIN".to_string(),
+            path: "m/86'/1'/0'".to_string(),
+            network: "MAINNET".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imkey".to_string(),
+                value: input_value.clone(),
+            }),
+            payment: "".to_string(),
+            receiver: "".to_string(),
+            sender: "".to_string(),
+            fee: "".to_string(),
+            seg_wit: "".to_string(),
+        };
+        let action: ImkeyAction = ImkeyAction {
+            method: "sign_psbt".to_string(),
+            param: Some(::prost_types::Any {
+                type_url: "deviceapi.sign_psbt".to_string(),
+                value: encode_message(param).unwrap(),
+            }),
+        };
+        let action = hex::encode(encode_message(action).unwrap());
+        let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
+        let ret_bytes = hex::decode(ret_hex).unwrap();
+        let sign_result = PsbtOutput::decode(ret_bytes.as_slice()).unwrap();
+
+        assert!(sign_result.psbt.len() > 0);
+    }
+
+    #[test]
+    fn test_btc_sign_message() {
+        connect_and_bind();
+        let input = BtcMessageInput {
+            message: "hello world".to_string(),
+        };
+        let input_value = encode_message(input).unwrap();
+        let param = SignParam {
+            chain_type: "BITCOIN".to_string(),
+            path: "m/44'/0'/0'".to_string(),
+            network: "MAINNET".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imkey".to_string(),
+                value: input_value.clone(),
+            }),
+            payment: "".to_string(),
+            receiver: "".to_string(),
+            sender: "".to_string(),
+            fee: "".to_string(),
+            seg_wit: "NONE".to_string(),
+        };
+        let action: ImkeyAction = ImkeyAction {
+            method: "sign_message".to_string(),
+            param: Some(::prost_types::Any {
+                type_url: "signapi.sign_message".to_string(),
+                value: encode_message(param).unwrap(),
+            }),
+        };
+        let action = hex::encode(encode_message(action).unwrap());
+        let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
+        let ret_bytes = hex::decode(ret_hex).unwrap();
+        let sign_result = BtcMessageOutput::decode(ret_bytes.as_slice()).unwrap();
+        assert_eq!(sign_result.signature, "02483045022100dbbdfedfb1902ca12c6cba14d4892a98f77c434daaa4f97fd35e618374c908f602206527ff2b1ce550c16c836c2ce3508bfae543fa6c11759d2f4966cc0d3552c4430121026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868");
+    }
+
+    #[test]
+    fn test_btc_register_address() {
+        connect_and_bind();
+        let param = AddressParam {
+            chain_type: "BITCOIN".to_string(),
+            path: "m/86'/0'/0'/0/0".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "VERSION_1".to_string(),
+        };
+
+        let action: ImkeyAction = ImkeyAction {
+            method: "register_address".to_string(),
+            param: Some(::prost_types::Any {
+                type_url: "register_address".to_string(),
+                value: encode_message(param).unwrap(),
+            }),
+        };
+        let action = hex::encode(encode_message(action).unwrap());
+        let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
+        let ret_bytes = hex::decode(ret_hex).unwrap();
+        let result = AddressResult::decode(ret_bytes.as_slice()).unwrap();
+        assert_eq!(
+            result.address,
+            "bc1pqvrla5hul9cqdtz60lwwn35zdcx363pyxua0trqnz3wx8hvjxzdsdevceu"
         );
     }
 }
