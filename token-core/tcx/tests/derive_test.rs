@@ -620,6 +620,7 @@ pub fn test_derive_cosmos_sub_accounts() {
             seg_wit: "".to_string(),
             chain_id: "cosmoshub-4".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
 
         let (_, accounts) = import_and_derive(derivation);
@@ -678,6 +679,7 @@ pub fn test_derive_verify_hrp() {
             seg_wit: "".to_string(),
             chain_id: "osmosis-2".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
 
         let wallet = import_default_wallet();
@@ -698,6 +700,7 @@ pub fn test_derive_verify_hrp() {
             seg_wit: "".to_string(),
             chain_id: "cosmoshub-4".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
 
         let derivation_param = DeriveAccountsParam {

@@ -402,6 +402,24 @@ lazy_static! {
                 seg_wit: "VERSION_1".to_string(),
                 contract_code: "".to_string(),
             },
+            CoinInfo {
+                chain_id: "".to_string(),
+                coin: "TON".to_string(),
+                derivation_path: "m/44'/607'/0'".to_string(),
+                curve: CurveType::ED25519,
+                network: "MAINNET".to_string(),
+                seg_wit: "".to_string(),
+                contract_code: "".to_string(),
+            },
+            CoinInfo {
+                chain_id: "".to_string(),
+                coin: "TON".to_string(),
+                derivation_path: "m/44'/607'/0'".to_string(),
+                curve: CurveType::ED25519,
+                network: "TESTNET".to_string(),
+                seg_wit: "".to_string(),
+                contract_code: "".to_string(),
+            },
         ];
 
         RwLock::new(coin_infos)

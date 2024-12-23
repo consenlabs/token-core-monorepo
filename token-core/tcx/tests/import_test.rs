@@ -414,6 +414,7 @@ pub fn test_import_private_key() {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
+            contract_code: "".to_string(),
         }];
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -1107,7 +1108,6 @@ pub fn test_import_wif() {
             network: "MAINNET".to_string(),
             curve: "secp256k1".to_string(),
             path: "m/44'/3'/0'/0'".to_string(),
-            contract_code: "".to_string(),
         };
 
         let export_pk_bytes = call_api("export_private_key", export_param).unwrap();
