@@ -78,6 +78,7 @@ fn parse_coin_info_from_legacy_ks(value: Value) -> Result<(CoinInfo, String)> {
             curve: CurveType::SECP256k1,
             network,
             seg_wit,
+            contract_code: "".to_string(),
         };
         return Ok((coin_info, address));
     } else {
@@ -148,6 +149,7 @@ fn parse_coin_info_from_legacy_tcx_ks(legacy_tcx_ks: Value) -> Result<(CoinInfo,
             curve,
             network,
             seg_wit,
+            contract_code: "".to_string(),
         };
         return Ok((coin_info, address));
     } else {

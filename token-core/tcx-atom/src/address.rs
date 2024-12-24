@@ -89,6 +89,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "".to_string(),
+            contract_code: "".to_string(),
         }
     }
 
@@ -166,6 +167,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            contract_code: "".to_string(),
         };
         let address = AtomAddress::from_public_key(&pub_key, &coin_info)
             .unwrap()
@@ -214,6 +216,7 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "MAINNET".to_string(),
                 seg_wit: "NONE".to_string(),
+                contract_code: "".to_string(),
             };
 
             let address = AtomAddress::from_public_key(&pub_key, &coin_info)
@@ -237,6 +240,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            contract_code: "".to_string(),
         };
         let address = AtomAddress::from_public_key(&pub_key, &coin_info);
 
@@ -252,6 +256,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            contract_code: "".to_string(),
         };
 
         let address = AtomAddress::from_public_key(&pub_key, &coin_info);
@@ -264,6 +269,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            contract_code: "".to_string(),
         };
 
         let address = AtomAddress::from_public_key(&pub_key, &coin_info);
