@@ -20,7 +20,7 @@ impl Address for TonAddress {
             _ => DEFAULT_WALLET_ID,
         };
 
-        let non_production = match coin.network.as_str() {
+        let is_testnet = match coin.network.as_str() {
             "TESTNET" => true,
             _ => false,
         };
@@ -31,7 +31,7 @@ impl Address for TonAddress {
 
         let addr = TonAddressLib::new(0, &state_init_hash);
         //true:Non-bounceable false:Bounceable
-        let address = addr.to_base64_url_flags(true, non_production);
+        let address = addr.to_base64_url_flags(true, is_testnet);
 
         Ok(TonAddress(address))
     }
