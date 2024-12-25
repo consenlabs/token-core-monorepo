@@ -27,7 +27,6 @@ struct Pruned {
 
 impl CellType {
     pub(crate) fn determine_exotic_cell_type(data: &[u8]) -> Result<Self, TonCellError> {
-        //===
         let Some(type_byte) = data.first() else {
             return Err(TonCellError::InvalidExoticCellData(
                 "Not enough data for an exotic cell".to_owned(),
@@ -50,7 +49,6 @@ impl CellType {
     }
 
     pub(crate) fn validate(
-        //==
         &self,
         data: &[u8],
         bit_len: usize,
@@ -66,7 +64,6 @@ impl CellType {
     }
 
     pub(crate) fn level_mask(
-        //==
         &self,
         cell_data: &[u8],
         cell_data_bit_len: usize,

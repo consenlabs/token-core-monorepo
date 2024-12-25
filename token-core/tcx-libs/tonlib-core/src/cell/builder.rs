@@ -25,7 +25,6 @@ pub enum EitherCellLayout {
 
 impl CellBuilder {
     pub fn new() -> CellBuilder {
-        //==
         let bit_writer = BitWriter::endian(Vec::new(), BigEndian);
         CellBuilder {
             bit_writer,

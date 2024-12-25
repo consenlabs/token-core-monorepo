@@ -17,7 +17,6 @@ impl BagOfCells {
     }
 
     pub fn single_root(&self) -> Result<&ArcCell, TonCellError> {
-        //==
         let root_count = self.roots.len();
         if root_count == 1 {
             Ok(&self.roots[0])
@@ -30,7 +29,6 @@ impl BagOfCells {
     }
 
     pub fn parse(serial: &[u8]) -> Result<BagOfCells, TonCellError> {
-        //==
         let raw = RawBagOfCells::parse(serial)?;
         let num_cells = raw.cells.len();
         let mut cells: Vec<ArcCell> = Vec::with_capacity(num_cells);
@@ -67,7 +65,6 @@ impl BagOfCells {
     }
 
     pub fn parse_base64(base64: &str) -> Result<BagOfCells, TonCellError> {
-        //==
         let bin = STANDARD.decode(base64).map_boc_deserialization_error()?;
         Self::parse(&bin)
     }

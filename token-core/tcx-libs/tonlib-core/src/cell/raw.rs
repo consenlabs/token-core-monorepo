@@ -1,22 +1,14 @@
 use std::io::Cursor;
 
-use bitstream_io::{BigEndian, ByteRead, ByteReader};
-use crc::Crc;
-use lazy_static::lazy_static;
-
 use crate::cell::level_mask::LevelMask;
 use crate::cell::{MapTonCellError, TonCellError};
-
-// lazy_static! {
-//     pub static ref CRC_32_ISCSI: Crc<u32> = Crc::<u32>::new(&crc::CRC_32_ISCSI);
-// }
+use bitstream_io::{BigEndian, ByteRead, ByteReader};
 
 /// Raw representation of Cell.
 ///
 /// References are stored as indices in BagOfCells.
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub(crate) struct RawCell {
-    //===
     pub(crate) data: Vec<u8>,
     pub(crate) bit_len: usize,
     pub(crate) references: Vec<usize>,
@@ -47,7 +39,6 @@ impl RawCell {
 /// `cells` must be topologically sorted.
 #[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub(crate) struct RawBagOfCells {
-    //===
     pub(crate) cells: Vec<RawCell>,
     pub(crate) roots: Vec<usize>,
 }
@@ -58,7 +49,6 @@ const _INDEXED_CRC32_MAGIC: u32 = 0xacc3a728;
 
 impl RawBagOfCells {
     pub(crate) fn parse(serial: &[u8]) -> Result<RawBagOfCells, TonCellError> {
-        //==
         let cursor = Cursor::new(serial);
 
         let mut reader: ByteReader<Cursor<&[u8]>, BigEndian> =
@@ -130,7 +120,6 @@ impl RawBagOfCells {
 }
 
 fn read_cell(
-    //==
     reader: &mut ByteReader<Cursor<&[u8]>, BigEndian>,
     size: u8,
 ) -> Result<RawCell, TonCellError> {
@@ -183,7 +172,6 @@ fn read_cell(
 }
 
 fn read_var_size(
-    //==
     reader: &mut ByteReader<Cursor<&[u8]>, BigEndian>,
     n: u8,
 ) -> Result<usize, TonCellError> {

@@ -69,7 +69,6 @@ where
     }
 
     fn map_boc_deserialization_error(self) -> Result<R, TonCellError> {
-        //====
         self.map_err(|e| TonCellError::boc_deserialization_error(e))
     }
 

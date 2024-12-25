@@ -15,6 +15,12 @@ impl TraitTransactionSigner<TonRawTxIn, TonTxOut> for Keystore {
         if tx.hash.is_empty() {
             return Err(anyhow!("invalid_sign_hash"));
         }
+
+        let path_parts = params.derivation_path.split('/').collect::<Vec<_>>();
+        if path_parts.len() < 4 || path_parts[2] != "607'" {
+            return Err(anyhow!("invalid_ton_sign_path"));
+        }
+
         let hash = Vec::from_hex_auto(&tx.hash)?;
         let sig = self.ed25519_sign(&hash.to_vec(), &params.derivation_path)?;
 
@@ -31,7 +37,7 @@ mod test_super {
     use tcx_keystore::{HdKeystore, Keystore, Metadata, SignatureParameters, TransactionSigner};
 
     #[test]
-    fn test_nacl_sign() {
+    fn test_ton_sign() {
         let hd =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
         let path = "m/44'/607'/0'".to_string();
@@ -69,5 +75,41 @@ mod test_super {
 
         let sign_ret = keystore.sign_transaction(&param, &tx_in).unwrap();
         assert_eq!(sign_ret.signature, "0x9771c1bf4c69630b69cc0f0ae38db635f4ff1d161badc0f70b257b5a8f6a387cd75b72361ebf67fc5803feccdbb22ade85d053d766ed3b7c7029509363990c02");
+    }
+
+    #[test]
+    fn test_exception_case() {
+        let hd =
+            HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        let mut keystore = Keystore::Hd(hd);
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+
+        let tx_in = TonRawTxIn {
+            hash: "".to_string(),
+        };
+
+        let param = SignatureParameters {
+            curve: CurveType::ED25519,
+            derivation_path: "m/44'/607'/0'".to_string(),
+            chain_type: "TON".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        let sign_ret = keystore.sign_transaction(&param, &tx_in);
+        assert!(sign_ret.is_err());
+
+        let param = SignatureParameters {
+            curve: CurveType::ED25519,
+            derivation_path: "m/44'/607/0'".to_string(),
+            chain_type: "TON".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+        };
+        let tx_in = TonRawTxIn {
+            hash: "0xd356774c21d6a6e2c651a5255f3f876fa973f1cfb7dce941c14ecabc2b1511d0".to_string(),
+        };
+        let sign_ret = keystore.sign_transaction(&param, &tx_in);
+        assert!(sign_ret.is_err());
     }
 }
