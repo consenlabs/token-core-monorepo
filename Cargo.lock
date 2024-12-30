@@ -775,6 +775,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "coin-ton"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hex",
+ "ikc-common",
+ "ikc-device",
+ "ikc-transport",
+ "prost",
+ "tonlib-core",
+]
+
+[[package]]
 name = "coin-tron"
 version = "0.1.0"
 dependencies = [
@@ -1991,6 +2004,7 @@ dependencies = [
  "coin-filecoin",
  "coin-substrate",
  "coin-tezos",
+ "coin-ton",
  "coin-tron",
  "ethereum-types",
  "hex",

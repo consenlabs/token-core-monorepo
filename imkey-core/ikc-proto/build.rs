@@ -51,6 +51,10 @@ fn main() {
     // tcx-btc-fork
     env::set_var("OUT_DIR", "../ikc-wallet/coin-btc-fork/src");
     prost_build::compile_protos(&["src/btcfork.proto"], &["src/"]).unwrap();
+
+    // ton
+    env::set_var("OUT_DIR", "../ikc-wallet/coin-ton/src");
+    prost_build::compile_protos(&["src/ton.proto"], &["src/"]).unwrap();
 }
 
 #[cfg(test)]

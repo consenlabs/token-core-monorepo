@@ -29,6 +29,8 @@ pub mod nervos_address;
 pub mod nervos_signer;
 pub mod substrate_address;
 pub mod substrate_signer;
+pub mod ton_address;
+pub mod ton_signer;
 pub mod tron_address;
 pub mod tron_signer;
 
@@ -149,6 +151,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                 "TEZOS" => tezos_address::get_address(&param),
                 "BITCOINCASH" => bch_address::get_address(&param),
                 "LITECOIN" => btc_fork_address::get_address(&param),
+                "TON" => ton_address::get_address(&param),
                 _ => Err(anyhow!("get_address unsupported_chain")),
             }
         }),
@@ -177,6 +180,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                 "TRON" => tron_address::display_address(&param),
                 "NERVOS" => nervos_address::display_address(&param),
                 "TEZOS" => tezos_address::display_tezos_address(&param),
+                "TON" => ton_address::display_address(&param),
                 _ => Err(anyhow!("register_address unsupported_chain")),
             }
         }),
@@ -225,6 +229,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                 "LITECOIN" => {
                     btc_fork_signer::sign_transaction(&param.clone().input.unwrap().value, &param)
                 }
+                "TON" => ton_signer::sign_transaction(&param.clone().input.unwrap().value, &param),
                 _ => Err(anyhow!("sign_tx unsupported_chain")),
             }
         }),
@@ -344,6 +349,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "LITECOIN".to_string(),
@@ -352,6 +358,7 @@ mod tests {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "LITECOIN".to_string(),
@@ -360,6 +367,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "TRON".to_string(),
@@ -368,6 +376,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "NERVOS".to_string(),
@@ -376,6 +385,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "FILECOIN".to_string(),
@@ -384,6 +394,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "COSMOS".to_string(),
@@ -392,6 +403,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "EOS".to_string(),
@@ -400,6 +412,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "ETHEREUM".to_string(),
@@ -408,6 +421,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -416,6 +430,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -424,6 +439,7 @@ mod tests {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "KUSAMA".to_string(),
@@ -432,6 +448,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "ed25519".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "POLKADOT".to_string(),
@@ -440,6 +457,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "ed25519".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOINCASH".to_string(),
@@ -448,6 +466,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "NERVOS".to_string(),
@@ -456,6 +475,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "FILECOIN".to_string(),
@@ -464,6 +484,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -472,6 +493,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -480,6 +502,7 @@ mod tests {
                 seg_wit: "P2WPKH".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "COSMOS".to_string(),
@@ -488,6 +511,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "EOS".to_string(),
@@ -496,6 +520,7 @@ mod tests {
                 seg_wit: "".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -504,6 +529,7 @@ mod tests {
                 seg_wit: "VERSION_0".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -512,6 +538,7 @@ mod tests {
                 seg_wit: "VERSION_1".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -520,6 +547,7 @@ mod tests {
                 seg_wit: "VERSION_0".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "BITCOIN".to_string(),
@@ -528,6 +556,7 @@ mod tests {
                 seg_wit: "VERSION_1".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "DOGECOIN".to_string(),
@@ -536,6 +565,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "DOGECOIN".to_string(),
@@ -544,6 +574,7 @@ mod tests {
                 seg_wit: "NONE".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
             },
             Derivation {
                 chain_type: "DOGECOIN".to_string(),
@@ -552,6 +583,16 @@ mod tests {
                 seg_wit: "VERSION_1".to_string(),
                 chain_id: "".to_string(),
                 curve: "secp256k1".to_string(),
+                contract_code: "".to_string(),
+            },
+            Derivation {
+                chain_type: "TON".to_string(),
+                path: "m/44'/607'/0'".to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "".to_string(),
+                chain_id: "".to_string(),
+                curve: "ed25519".to_string(),
+                contract_code: "te6cckECFAEAAtQAART/APSkE/S88sgLAQIBIAIDAgFIBAUE+PKDCNcYINMf0x/THwL4I7vyZO1E0NMf0x/T//QE0VFDuvKhUVG68qIF+QFUEGT5EPKj+AAkpMjLH1JAyx9SMMv/UhD0AMntVPgPAdMHIcAAn2xRkyDXSpbTB9QC+wDoMOAhwAHjACHAAuMAAcADkTDjDQOkyMsfEssfy/8QERITAubQAdDTAyFxsJJfBOAi10nBIJJfBOAC0x8hghBwbHVnvSKCEGRzdHK9sJJfBeAD+kAwIPpEAcjKB8v/ydDtRNCBAUDXIfQEMFyBAQj0Cm+hMbOSXwfgBdM/yCWCEHBsdWe6kjgw4w0DghBkc3RyupJfBuMNBgcCASAICQB4AfoA9AQw+CdvIjBQCqEhvvLgUIIQcGx1Z4MesXCAGFAEywUmzxZY+gIZ9ADLaRfLH1Jgyz8gyYBA+wAGAIpQBIEBCPRZMO1E0IEBQNcgyAHPFvQAye1UAXKwjiOCEGRzdHKDHrFwgBhQBcsFUAPPFiP6AhPLassfyz/JgED7AJJfA+ICASAKCwBZvSQrb2omhAgKBrkPoCGEcNQICEekk30pkQzmkD6f+YN4EoAbeBAUiYcVnzGEAgFYDA0AEbjJftRNDXCx+AA9sp37UTQgQFA1yH0BDACyMoHy//J0AGBAQj0Cm+hMYAIBIA4PABmtznaiaEAga5Drhf/AABmvHfaiaEAQa5DrhY/AAG7SB/oA1NQi+QAFyMoHFcv/ydB3dIAYyMsFywIizxZQBfoCFMtrEszMyXP7AMhAFIEBCPRR8qcCAHCBAQjXGPoA0z/IVCBHgQEI9FHyp4IQbm90ZXB0gBjIywXLAlAGzxZQBPoCFMtqEssfyz/Jc/sAAgBsgQEI1xj6ANM/MFIkgQEI9Fnyp4IQZHN0cnB0gBjIywXLAlAFzxZQA/oCE8tqyx8Syz/Jc/sAAAr0AMntVGliJeU=".to_string(),
             },
         ];
         let param = DeriveAccountsParam { derivations };
@@ -862,6 +903,19 @@ mod tests {
         );
         assert_eq!("xpub6CSt8ZdrPg6j9ECzMGGDaKJJDUe8Cfm4xHjVrvL7PyGkBGdog8asBznBaZQiYbRtCdWRUAKGpKcbyUYMUUwgmiNt7mPs1QCUMhyHB6rBURT", derived_accounts.accounts[26].extended_public_key);
         assert_eq!("aZQFapKlNXVFODnqcTrkYcUdEBOJng0detiaBwO/7yNBWxxukf9/GJOn1dUh4oumFTtHoNNsBxYjYXpMdO7HMksOlOOJUCFNGRvVkiS5W83nAMTTDDbJGlC9ZB0lbm6wC4RYP3uGlg1anIl2BOW+mg==", derived_accounts.accounts[26].encrypted_extended_public_key);
+        assert_eq!(
+            "UQAz8TQ4n_ktc--IpefK-d5ABVpTR-FciJgLZr9vUpEgaNfu",
+            derived_accounts.accounts[27].address
+        );
+        assert_eq!(
+            "0x80b67838eb6baf90f3838367da7c9db28f8485396bbc4adcfb1cb5e6d7d5ca37",
+            derived_accounts.accounts[27].public_key
+        );
+        assert_eq!("", derived_accounts.accounts[27].extended_public_key);
+        assert_eq!(
+            "",
+            derived_accounts.accounts[27].encrypted_extended_public_key
+        );
     }
 
     #[test]
@@ -873,6 +927,7 @@ mod tests {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
         let derived_accounts_result = derive_account(derivation.clone());
         let mut derive_sub_accounts_param = DeriveSubAccountsParam {
@@ -953,6 +1008,7 @@ mod tests {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
         let derived_accounts_result = derive_account(derivation.clone());
         let mut derive_sub_accounts_param = DeriveSubAccountsParam {
@@ -1128,6 +1184,7 @@ mod tests {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
         let derived_accounts_result = derive_account(derivation);
         let derive_sub_accounts_param = DeriveSubAccountsParam {
@@ -1176,6 +1233,7 @@ mod tests {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
         let derived_accounts_result = derive_account(derivation.clone());
         let mut derive_sub_accounts_param = DeriveSubAccountsParam {
@@ -1257,6 +1315,7 @@ mod tests {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
         let derived_accounts_result = derive_account(derivation.clone());
         let mut derive_sub_accounts_param = DeriveSubAccountsParam {
@@ -1337,6 +1396,7 @@ mod tests {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
         let derived_accounts_result = derive_account(derivation.clone());
         let mut derive_sub_accounts_param = DeriveSubAccountsParam {
@@ -1587,6 +1647,7 @@ mod tests {
             seg_wit: "NONE".to_string(),
             chain_id: "".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
         let derived_accounts_result = derive_account(derivation.clone());
         let mut derive_sub_accounts_param = DeriveSubAccountsParam {
@@ -1928,6 +1989,11 @@ mod tests {
                 path: "m/44'/145'/0'".to_string(),
                 curve: "secp256k1".to_string(),
             },
+            PublicKeyDerivation {
+                chain_type: "TON".to_string(),
+                path: "m/44'/607'/0'".to_string(),
+                curve: "ed25519".to_string(),
+            },
         ];
         let param = GetPublicKeysParam { derivations };
         let action: ImkeyAction = ImkeyAction {
@@ -1997,6 +2063,10 @@ mod tests {
         assert_eq!(
             result.public_keys[13],
             "0x0303f2f84851514bf2f40a46b5bb9dbf4e5913fbacde1a96968cda08f9fd882caa"
+        );
+        assert_eq!(
+            result.public_keys[14],
+            "0x80b67838eb6baf90f3838367da7c9db28f8485396bbc4adcfb1cb5e6d7d5ca37"
         );
     }
 
@@ -2309,6 +2379,7 @@ mod tests {
             path: "m/86'/0'/0'/0/0".to_string(),
             network: "MAINNET".to_string(),
             seg_wit: "VERSION_1".to_string(),
+            contract_code: "".to_string(),
         };
 
         let action: ImkeyAction = ImkeyAction {
@@ -2325,6 +2396,34 @@ mod tests {
         assert_eq!(
             result.address,
             "bc1pqvrla5hul9cqdtz60lwwn35zdcx363pyxua0trqnz3wx8hvjxzdsdevceu"
+        );
+    }
+
+    #[test]
+    fn test_ton_register_address() {
+        connect_and_bind();
+        let param = AddressParam {
+            chain_type: "TON".to_string(),
+            path: "m/44'/607'/0'".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            contract_code: "te6ccgECFAEAAoEAART/APSkE/S88sgLAQIBIAIDAgFIBAUBAvIOAtzQINdJwSCRW49jINcLHyCCEGV4dG69IYIQc2ludL2wkl8D4IIQZXh0brqOtIAg1yEB0HTXIfpAMPpE+Cj6RDBYvZFb4O1E0IEBQdch9AWDB/QOb6ExkTDhgEDXIXB/2zzgMSDXSYECgLmRMOBw4hAPAgEgBgcCASAICQAZvl8PaiaECAoOuQ+gLAIBbgoLAgFIDA0AGa3OdqJoQCDrkOuF/8AAGa8d9qJoQBDrkOuFj8AAF7Ml+1E0HHXIdcLH4AARsmL7UTQ1woAgAR4g1wsfghBzaWduuvLgin8PAeaO8O2i7fshgwjXIgKDCNcjIIAg1yHTH9Mf0x/tRNDSANMfINMf0//XCgAK+QFAzPkQmiiUXwrbMeHywIffArNQB7Dy0IRRJbry4IVQNrry4Ib4I7vy0IgikvgA3gGkf8jKAMsfAc8Wye1UIJL4D95w2zzYEAP27aLt+wL0BCFukmwhjkwCIdc5MHCUIccAs44tAdcoIHYeQ2wg10nACPLgkyDXSsAC8uCTINcdBscSwgBSMLDy0InXTNc5MAGk6GwShAe78uCT10rAAPLgk+1V4tIAAcAAkVvg69csCBQgkXCWAdcsCBwS4lIQseMPINdKERITAJYB+kAB+kT4KPpEMFi68uCR7UTQgQFB1xj0BQSdf8jKAEAEgwf0U/Lgi44UA4MH9Fvy4Iwi1woAIW4Bs7Dy0JDiyFADzxYS9ADJ7VQAcjDXLAgkji0h8uCS0gDtRNDSAFETuvLQj1RQMJExnAGBAUDXIdcKAPLgjuLIygBYzxbJ7VST8sCN4gAQk1vbMeHXTNA=".to_string(),
+        };
+
+        let action: ImkeyAction = ImkeyAction {
+            method: "register_address".to_string(),
+            param: Some(::prost_types::Any {
+                type_url: "register_address".to_string(),
+                value: encode_message(param).unwrap(),
+            }),
+        };
+        let action = hex::encode(encode_message(action).unwrap());
+        let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
+        let ret_bytes = hex::decode(ret_hex).unwrap();
+        let result = AddressResult::decode(ret_bytes.as_slice()).unwrap();
+        assert_eq!(
+            result.address,
+            "UQDBKGsYs49NgdqM4gMoiVMV9Re5hM-yy3nvR_4XB0ZbUMd7"
         );
     }
 }

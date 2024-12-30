@@ -30,6 +30,7 @@ pub const TEZOS_AID: &str = "695F65645F78747A";
 pub const BCH_AID: &str = "695F626368";
 pub const LTC_AID: &str = "695F6C7463";
 pub const DOGECOIN_AID: &str = "695F646F6765636F696E";
+pub const TON_AID: &str = "695F746F6E";
 
 pub const BL_AID: &str = "D0426F6F746C6F61646572";
 
@@ -42,6 +43,7 @@ pub const NERVOS_PATH: &str = "m/44'/309'/0'/0/0";
 pub const POLKADOT_PATH: &str = "m/44'/354'/0'/0'/0'";
 pub const KUSAMA_PATH: &str = "m/44'/434'/0'/0'/0'";
 pub const TRON_PATH: &str = "m/44'/195'/0'/0/0";
+pub const TON_PATH: &str = "m/44'/607'/0'";
 
 pub const MAX_UTXO_NUMBER: usize = 252;
 pub const EACH_ROUND_NUMBER: usize = 5;

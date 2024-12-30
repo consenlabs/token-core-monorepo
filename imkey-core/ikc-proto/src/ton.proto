@@ -1,0 +1,10 @@
+syntax = "proto3";
+package tonapi;
+
+message TonRawTxIn {
+    string hash = 1;
+}
+
+message TonTxOut {
+    string signature = 1;
+}

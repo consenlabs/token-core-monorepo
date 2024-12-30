@@ -17,6 +17,10 @@ impl Transaction {
     pub fn sign_tx(tezos_tx_input: TezosTxInput, sign_param: &SignParam) -> Result<TezosTxOutput> {
         //check path
         check_path_validity(&sign_param.path).expect("check path error");
+        let path_parts = params.derivation_path.split('/').collect::<Vec<_>>();
+        if path_parts[2] != "1729'" {
+            return Err(anyhow!("invalid_sign_path"));
+        }
         //check address
         Self::address_check(sign_param.receiver.as_str());
 
