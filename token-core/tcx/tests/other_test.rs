@@ -1,5 +1,6 @@
 use std::fs;
 
+use api::ScanKeystoresResult;
 use common::run_test;
 use serial_test::serial;
 
@@ -11,13 +12,13 @@ use prost::Message;
 use tcx::api::{
     DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DerivedKeyResult, EncryptDataToIpfsParam,
     EncryptDataToIpfsResult, ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam,
-    GeneralResult, ImportPrivateKeyParam, KeystoreResult, SignAuthenticationMessageParam,
-    SignAuthenticationMessageResult, WalletKeyParam,
+    GeneralResult, ImportPrivateKeyParam, ImportPrivateKeyResult, KeystoreResult,
+    SignAuthenticationMessageParam, SignAuthenticationMessageResult, WalletKeyParam,
 };
 
 use tcx::handler::{encode_message, get_derived_key, import_private_key};
 
-use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
+use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY};
 
 use sp_core::ByteArray;
 
@@ -284,5 +285,47 @@ pub fn test_sign_authentication_message() {
         let resp: SignAuthenticationMessageResult =
             SignAuthenticationMessageResult::decode(ret.as_slice()).unwrap();
         assert_eq!(resp.signature, "0x120cc977f9023c90635144bd0f4c8b85ff8aa23c003edcced9449f0465d05e954bccf9c114484e472c1837b0394f1933ad78ec8050673099e8bf5e9329737fe01c".to_string());
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+        let ret = call_api("scan_keystores", "".to_string()).unwrap();
+        let resp: ScanKeystoresResult = ScanKeystoresResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(resp.hd_keystores.len(), 1);
+        assert_eq!(
+            resp.hd_keystores[0].identifier,
+            "im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf".to_string()
+        );
+        assert_eq!(
+            resp.hd_keystores[0].ipfs_id,
+            "QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6".to_string()
+        );
+        assert_eq!(resp.private_key_keystores.len(), 0);
+
+        let param = ImportPrivateKeyParam {
+            password: TEST_PASSWORD.to_string(),
+            private_key: TEST_PRIVATE_KEY.to_string(),
+            name: "hex pk".to_string(),
+            password_hint: "".to_string(),
+            network: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
+        let ret = call_api("import_private_key", param).unwrap();
+        let imported = ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+        let ret = call_api("scan_keystores", "".to_string()).unwrap();
+        let resp: ScanKeystoresResult = ScanKeystoresResult::decode(ret.as_slice()).unwrap();
+        assert_eq!(resp.private_key_keystores.len(), 1);
+        assert_eq!(
+            resp.private_key_keystores[0].identifier,
+            "im14x5GLbjpSGz4Y2ebqcP2aN2R1qY54qKsX6bj".to_string()
+        );
+        assert_eq!(
+            resp.private_key_keystores[0].ipfs_id,
+            "QmYS86Nzo9mi7ccBH7iZc11ModqXahbUxtTDNaZHU6EHqV".to_string()
+        );
     })
 }
