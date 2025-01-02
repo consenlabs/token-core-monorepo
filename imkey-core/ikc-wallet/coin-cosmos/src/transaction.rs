@@ -1,5 +1,6 @@
 use crate::cosmosapi::CosmosTxOutput;
 use crate::Result;
+use anyhow::anyhow;
 use bitcoin_hashes::hex::ToHex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu};
 use ikc_common::constants;
@@ -21,6 +22,10 @@ pub struct CosmosTransaction {
 impl CosmosTransaction {
     pub fn sign(self) -> Result<CosmosTxOutput> {
         check_path_validity(&self.path).unwrap();
+        let path_parts = self.path.split('/').collect::<Vec<_>>();
+        if path_parts[2] != "118'" {
+            return Err(anyhow!("invalid_sign_path"));
+        }
         let sign_hash = sha256_hash(hex_to_bytes(&self.sign_data)?.as_slice());
         let mut sign_pack = "0120".to_string();
         sign_pack.push_str(&sign_hash.to_hex());

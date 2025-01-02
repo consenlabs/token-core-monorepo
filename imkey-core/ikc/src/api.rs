@@ -38,6 +38,8 @@ pub struct AddressParam {
     pub network: ::prost::alloc::string::String,
     #[prost(string, tag = "4")]
     pub seg_wit: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub contract_code: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -181,6 +183,8 @@ pub mod derive_accounts_param {
         pub chain_id: ::prost::alloc::string::String,
         #[prost(string, tag = "6")]
         pub curve: ::prost::alloc::string::String,
+        #[prost(string, tag = "7")]
+        pub contract_code: ::prost::alloc::string::String,
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

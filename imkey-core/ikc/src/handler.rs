@@ -6,7 +6,6 @@ use crate::api::{
 use crate::message_handler::encode_message;
 use crate::Result;
 use anyhow::anyhow;
-use bitcoin::hashes::hex::ToHex;
 use bitcoin::util::bip32::ExtendedPubKey;
 use bitcoin::Network;
 use coin_bch::address::BchAddress;
@@ -22,9 +21,11 @@ use coin_eos::pubkey::EosPubkey;
 use coin_ethereum::address::EthAddress;
 use coin_filecoin::address::FilecoinAddress;
 use coin_substrate::address::{AddressType, SubstrateAddress};
+use coin_ton::address::TonAddress;
 use coin_tron::address::TronAddress;
 use ikc_common::curve::CurveType;
 use ikc_common::error::CommonError;
+use ikc_common::hex::ToHex;
 use ikc_common::path::get_account_path;
 use ikc_common::utility::{
     encrypt_xpub, extended_pub_key_derive, from_ss58check_with_version, get_xpub_prefix,
@@ -159,6 +160,16 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 account_rsp.public_key = format!("0x{}", public_key);
                 account_rsp.address = BchAddress::get_address(network, &derivation.path)?;
                 BtcAddress::get_xpub(network, &account_path)?
+            }
+            "TON" => {
+                let public_key = TonAddress::get_public_key(&derivation.path)?;
+                account_rsp.public_key = public_key.to_0x_hex();
+                account_rsp.address = TonAddress::get_address(
+                    &derivation.path,
+                    &derivation.network,
+                    &derivation.contract_code,
+                )?;
+                "".to_string()
             }
             _ => return Err(anyhow!("unsupported_chain_type")),
         };
@@ -311,6 +322,7 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
                         &public_key_derivation.path,
                         &AddressType::from_str(&public_key_derivation.chain_type)?,
                     )?,
+                    "TON" => TonAddress::get_public_key(&public_key_derivation.path)?.to_0x_hex(),
                     _ => return Err(anyhow!("unsupported_chain_type")),
                 };
 
@@ -373,6 +385,7 @@ mod test {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "ed25519".to_string(),
+            contract_code: "".to_string(),
         }];
         let param = DeriveAccountsParam { derivations };
         let response = derive_accounts(&encode_message(param).unwrap());

@@ -22,6 +22,7 @@ coin-tron = {path = "../ikc-wallet/coin-tron"}
 coin-ckb = {path = "../ikc-wallet/coin-ckb"}
 coin-bch = {path = "../ikc-wallet/coin-bch"}
 coin-btc-fork = {path = "../ikc-wallet/coin-btc-fork"}
+coin-ton = {path = "../ikc-wallet/coin-ton"}
 
 ikc-common = {path = "../ikc-common"}
 coin-tezos = {path = "../ikc-wallet/coin-tezos"}

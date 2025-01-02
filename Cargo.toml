@@ -39,4 +39,5 @@ members = [
     "imkey-core/ikc-wallet/coin-bch",
     "imkey-core/ikc-wallet/coin-filecoin",
     "imkey-core/ikc-wallet/coin-btc-fork",
+    "imkey-core/ikc-wallet/coin-ton",
 ]

@@ -80,7 +80,10 @@ impl TronSigner {
 
     pub fn sign_transaction(input: TronTxInput, sign_param: &SignParam) -> Result<TronTxOutput> {
         check_path_validity(&sign_param.path).unwrap();
-
+        let path_parts = sign_param.path.split('/').collect::<Vec<_>>();
+        if path_parts[2] != "195'" {
+            return Err(anyhow!("invalid_sign_path"));
+        }
         let mut data_pack = Vec::new();
 
         let raw_data = hex::decode(input.raw_data)?;
@@ -284,11 +287,5 @@ mod tests {
 
         let res = TronSigner::sign_transaction(input, &sign_param).unwrap();
         assert_eq!("c65b4bde808f7fcfab7b0ef9c1e3946c83311f8ac0a5e95be2d8b6d2400cfe8b5e24dc8f0883132513e422f2aaad8a4ecc14438eae84b2683eefa626e3adffc61c", &res.signature);
-    }
-
-    #[test]
-    fn ttt() {
-        let a = "abdcef".to_string().into_bytes();
-        println!("{}", hex::encode(a));
     }
 }

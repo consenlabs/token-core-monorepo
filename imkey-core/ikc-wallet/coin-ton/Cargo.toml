@@ -1,0 +1,15 @@
+[package]
+name = "coin-ton"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ikc-common = {path = "../../ikc-common"}
+ikc-device = {path = "../../ikc-device"}
+ikc-transport = {path = "../../ikc-transport"}
+tonlib-core ={ path = "../../../token-core/tcx-libs/tonlib-core"}
+anyhow = "=1.0.79"
+prost = "=0.11.2"
+hex = "=0.4.3"
