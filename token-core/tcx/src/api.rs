@@ -303,6 +303,8 @@ pub struct KeystoreResult {
     pub is_existed: bool,
     #[prost(string, tag = "9")]
     pub existed_id: ::prost::alloc::string::String,
+    #[prost(bool, tag = "10")]
+    pub is_migrated: bool,
 }
 /// FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
 ///
@@ -350,6 +352,8 @@ pub struct ImportPrivateKeyResult {
     pub is_existed: bool,
     #[prost(string, tag = "12")]
     pub existed_id: ::prost::alloc::string::String,
+    #[prost(bool, tag = "13")]
+    pub is_migrated: bool,
 }
 ///
 /// derive new accounts from a hd keystore

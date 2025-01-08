@@ -191,6 +191,7 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
                 source_fingerprint: keystore.fingerprint().to_string(),
                 is_existed,
                 existed_id,
+                is_migrated: true,
             };
 
             let ret = encode_message(MigrateKeystoreResult {
@@ -521,6 +522,11 @@ fn merge_migrate_source(id: &str, ori_source: &str) -> String {
     } else {
         ori_source.to_string()
     }
+}
+
+pub fn is_migrated_keystore(id: &str) -> bool {
+   let migrated_id_map = read_migrated_map().1;
+    migrated_id_map.values().any(|ids| ids.contains(&id.to_string()))
 }
 
 #[cfg(test)]

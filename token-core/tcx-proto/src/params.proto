@@ -31,6 +31,7 @@ message KeystoreResult {
   // ture if mnemonic already existed when call import_mnemonic
   bool isExisted = 8;
   string existedId = 9;
+  bool isMigrated = 10;
 }
 
 // FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
@@ -58,6 +59,7 @@ message ImportPrivateKeyResult {
   string sourceFingerprint = 10;
   bool isExisted = 11;
   string existedId = 12;
+  bool isMigrated = 13;
 }
 
 //

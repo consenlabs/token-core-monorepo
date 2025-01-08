@@ -14,7 +14,7 @@ use tcx::api::{
     export_mnemonic_param, migrate_keystore_param, wallet_key_param, BackupResult,
     ExportMnemonicParam, ExportMnemonicResult, GeneralResult, MarkIdentityWalletsParam,
     MigrateKeystoreParam, MigrateKeystoreResult, ReadKeystoreMnemonicPathResult, SignParam,
-    WalletId, WalletKeyParam,
+    WalletId, WalletKeyParam, ScanKeystoresResult,
 };
 
 use tcx::handler::encode_message;
@@ -75,6 +75,10 @@ pub fn test_migrate_keystores_existed() {
     assert!(result.is_existed);
     assert_eq!(result.existed_id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
 
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScanKeystoresResult = ScanKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert!(resp.hd_keystores[0].is_migrated);
+    
     fs::remove_dir_all("../test-data/walletsV2").unwrap();
 }
 
