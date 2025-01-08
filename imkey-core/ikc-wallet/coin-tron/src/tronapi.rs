@@ -15,11 +15,11 @@ pub struct TronTxOutput {
 pub struct TronMessageInput {
     #[prost(string, tag = "1")]
     pub message: ::prost::alloc::string::String,
-    #[prost(bool, tag = "2")]
-    pub is_hex: bool,
-    #[prost(string, tag = "3")]
+    /// "TRON","ETH","NONE"
+    #[prost(string, tag = "2")]
     pub header: ::prost::alloc::string::String,
-    #[prost(uint32, tag = "4")]
+    /// 1: V1 2:V2
+    #[prost(uint32, tag = "3")]
     pub version: u32,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]

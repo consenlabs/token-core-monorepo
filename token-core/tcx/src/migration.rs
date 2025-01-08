@@ -123,7 +123,7 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let json_str = fs::read_to_string(file_path)?;
     let json = serde_json::from_str::<Value>(&json_str)?;
 
-    let key = match param.key.clone().unwrap() {
+    let key = match param.key.clone().expect("need_password_or_derived_key") {
         migrate_keystore_param::Key::Password(password) => tcx_crypto::Key::Password(password),
         migrate_keystore_param::Key::DerivedKey(derived_key) => {
             tcx_crypto::Key::DerivedKey(derived_key)

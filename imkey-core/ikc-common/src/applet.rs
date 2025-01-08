@@ -58,7 +58,10 @@ mod tests {
         assert_eq!(get_appname_by_instid("695F626368").unwrap(), "Bitcoin Cash");
         assert_eq!(get_appname_by_instid("695F6C7463").unwrap(), "Litecoin");
         assert_eq!(get_appname_by_instid("695F696D6B").unwrap(), "IMK");
-        assert_eq!(get_appname_by_instid("695F646F6765636F696E").unwrap(), "Dogecoin");
+        assert_eq!(
+            get_appname_by_instid("695F646F6765636F696E").unwrap(),
+            "Dogecoin"
+        );
         assert!(get_appname_by_instid("1111111111").is_none());
     }
 
@@ -75,7 +78,10 @@ mod tests {
         );
         assert_eq!(get_instid_by_appname("Bitcoin Cash").unwrap(), "695F626368");
         assert_eq!(get_instid_by_appname("Litecoin").unwrap(), "695F6C7463");
-        assert_eq!(get_instid_by_appname("Dogecoin").unwrap(), "695F646F6765636F696E");
+        assert_eq!(
+            get_instid_by_appname("Dogecoin").unwrap(),
+            "695F646F6765636F696E"
+        );
         assert!(get_instid_by_appname("APPLET").is_none());
     }
 }

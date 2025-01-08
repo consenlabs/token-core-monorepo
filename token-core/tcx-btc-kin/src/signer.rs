@@ -50,6 +50,10 @@ impl TxSigner {
         let key = &self.private_keys[index];
         let prevout = &self.prevouts[index];
 
+        if prevout.script_pubkey.len() < 25 {
+            return Err(Error::InvalidUtxo.into());
+        }
+
         let hash = self.sighash_cache.legacy_hash(
             index,
             &prevout.script_pubkey,
@@ -66,9 +70,17 @@ impl TxSigner {
         ]
         .concat();
 
+        let pubkey = &key.public_key();
+        let mut pubkey_vec = pubkey.to_compressed();
+
+        let address_hash = prevout.script_pubkey[3..23].to_vec();
+        if self.hash160(&pubkey_vec).to_vec() != address_hash {
+            pubkey_vec = pubkey.to_uncompressed();
+        }
+
         self.tx.input[index].script_sig = Builder::new()
             .push_slice(&sig)
-            .push_slice(&key.public_key().to_bytes())
+            .push_slice(&pubkey_vec)
             .into_script();
 
         Ok(())
@@ -612,10 +624,47 @@ mod tests {
 
     mod btc {
         use super::*;
-        use crate::tests::{sample_hd_keystore, sample_wif_keystore};
+        use crate::tests::{sample_hd_keystore, sample_wif_keystore, wif_keystore};
         use bitcoin::psbt::serialize::Deserialize;
         use secp256k1::schnorr::Signature;
         use secp256k1::XOnlyPublicKey;
+
+        #[test]
+        fn test_uncompressed_wif_on_testnet() {
+            let mut ks = wif_keystore("5HrEqFqUK5ux57vrgoFq5V4y3upDnp4zKmJNYVhuRQwhVzS3t3E");
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                chain_type: BITCOIN.to_string(),
+                network: "TESTNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                derivation_path: "".to_string(),
+            };
+
+            let inputs = vec![Utxo {
+                tx_hash: "838b869dec0a64f2df6e6308f9ec15dcd2ad7f5be3b42a21a148b8f2a05ed3e2"
+                    .to_string(),
+                vout: 0,
+                amount: 300000,
+                address: "msZNa3cVJhHdVRM1QBboFHfLYqsauuCcUf".to_string(),
+                derived_path: "".to_string(),
+            }];
+
+            let tx_input = BtcKinTxInput {
+                inputs: inputs.clone(),
+                to: "msZNa3cVJhHdVRM1QBboFHfLYqsauuCcUf".to_string(),
+                amount: 164389,
+                fee: 135611,
+                change_address_index: None,
+                op_return: None,
+            };
+
+            let actual = ks.sign_transaction(&params, &tx_input).unwrap();
+            assert_eq!(actual.raw_tx, "0100000001e2d35ea0f2b848a1212ab4e35b7fadd2dc15ecf908636edff2640aec9d868b83000000008b483045022100cf2d3588fca9b4d510fb523f6a8191b59e11f1e36c6478e03364fa457de9c97302203ecd89e01b7d87ca9b25694eec04a32c0e52e150b2afb83fb90902b83b80dced0141046641d3362771d827229d3ca47016c075b0f291bce20600ebb7d089a9e3d02bb609a7a352bdb76651fcaefb043d9405a687d920bb0c37cc288b45dfd7d5f2300cffffffff0125820200000000001976a91484169b0ddf7dd75a0d879180841de1b2ad53ad9588ac00000000");
+            assert_eq!(
+                actual.tx_hash,
+                "24316eb750e5cd79fbd4d037a0783e5914bc6020899f91a939b6594538863582"
+            );
+        }
 
         #[test]
         fn test_sign_with_p2wpkh_on_testnet() {
@@ -1121,7 +1170,7 @@ mod tests {
 
     mod ltc {
         use super::*;
-        use crate::tests::{hex_keystore, sample_hd_keystore, wif_keystore};
+        use crate::tests::{hex_keystore, sample_hd_keystore, sample_wif_keystore, wif_keystore};
 
         #[test]
         fn test_sign_with_hd_on_testnet() {
@@ -1387,7 +1436,7 @@ mod tests {
                     op_return: None,
                 };
 
-                let mut ks = wif_keystore(TEST_WIF);
+                let mut ks = sample_wif_keystore();
 
                 let params = SignatureParameters {
                     curve: CurveType::SECP256k1,
@@ -1398,7 +1447,7 @@ mod tests {
                 };
 
                 let ret = ks.sign_transaction(&params, &tx_input);
-                assert!(ret.is_err());
+                assert!(ret.is_err_and(|e| e.to_string().contains("invalid_address")));
             }
         }
 

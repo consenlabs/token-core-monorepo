@@ -5,6 +5,7 @@ use anyhow::anyhow;
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::TRON_AID;
 use ikc_common::error::CoinError;
+use ikc_common::hex::FromHex;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{secp256k1_sign, sha256_hash};
 use ikc_common::{constants, utility, SignParam};
@@ -23,15 +24,10 @@ impl TronSigner {
     ) -> Result<TronMessageOutput> {
         check_path_validity(&sign_param.path).unwrap();
 
-        let message = match input.is_hex {
-            true => {
-                let mut raw_hex: String = input.message.to_owned();
-                if raw_hex.to_uppercase().starts_with("0X") {
-                    raw_hex.replace_range(..2, "")
-                }
-                hex::decode(&raw_hex)?
-            }
-            false => input.message.into_bytes(),
+        let message = if input.message.to_lowercase().starts_with("0x") {
+            Vec::from_hex_auto(&input.message)?
+        } else {
+            input.message.into_bytes()
         };
 
         // this code is from tron wallet
@@ -210,8 +206,8 @@ mod tests {
         };
 
         let input = TronMessageInput {
-            message: "645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76".to_string(),
-            is_hex: true,
+            message: "0x645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76"
+                .to_string(),
             header: "TRON".to_string(),
             version: 1,
         };
@@ -219,8 +215,8 @@ mod tests {
         assert_eq!("16417c6489da3a88ef980bf0a42551b9e76181d03e7334548ab3cb36e7622a484482722882a29e2fe4587b95c739a68624ebf9ada5f013a9340d883f03fcf9af1b", &res.signature);
 
         let input2 = TronMessageInput {
-            message: "645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76".to_string(),
-            is_hex: true,
+            message: "0x645c0b7b58158babbfa6c6cd5a48aa7340a8749176b120e8516216787a13dc76"
+                .to_string(),
             header: "ETH".to_string(),
             version: 1,
         };
@@ -229,7 +225,6 @@ mod tests {
 
         let input3 = TronMessageInput {
             message: "abcdef".to_string(),
-            is_hex: false,
             header: "TRON".to_string(),
             version: 1,
         };
@@ -238,7 +233,6 @@ mod tests {
 
         let input4 = TronMessageInput {
             message: "hello world".to_string(),
-            is_hex: false,
             header: "ETH".to_string(),
             version: 1,
         };
@@ -247,7 +241,6 @@ mod tests {
 
         let input5 = TronMessageInput {
             message: "hello world".to_string(),
-            is_hex: false,
             header: "TRON".to_string(),
             version: 2,
         };
@@ -256,12 +249,19 @@ mod tests {
 
         let input6 = TronMessageInput {
             message: "hello world".to_string(),
-            is_hex: false,
             header: "NONE".to_string(),
             version: 1,
         };
         let res = TronSigner::sign_message(input6, &sign_param).unwrap();
         assert_eq!("e14f6aab4b87af398917c8a0fd6d065029df9ecc01afbc4d789eefd6c2de1e243272d630992b470c2bbb7f52024280af9bbd2e62d96ecab333c91f527b059ffe1c", &res.signature);
+
+        let input7 = TronMessageInput {
+            message: "hello world".to_string(),
+            header: "TRON".to_string(),
+            version: 1,
+        };
+        let res = TronSigner::sign_message(input7, &sign_param).unwrap();
+        assert_eq!("8686cc3cf49e772d96d3a8147a59eb3df2659c172775f3611648bfbe7e3c48c11859b873d9d2185567a4f64a14fa38ce78dc385a7364af55109c5b6426e4c0f61b", &res.signature);
     }
 
     #[test]
@@ -284,5 +284,11 @@ mod tests {
 
         let res = TronSigner::sign_transaction(input, &sign_param).unwrap();
         assert_eq!("c65b4bde808f7fcfab7b0ef9c1e3946c83311f8ac0a5e95be2d8b6d2400cfe8b5e24dc8f0883132513e422f2aaad8a4ecc14438eae84b2683eefa626e3adffc61c", &res.signature);
+    }
+
+    #[test]
+    fn ttt() {
+        let a = "abdcef".to_string().into_bytes();
+        println!("{}", hex::encode(a));
     }
 }

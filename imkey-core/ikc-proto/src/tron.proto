@@ -11,9 +11,8 @@ message TronTxOutput {
 
 message TronMessageInput {
     string message = 1;
-    bool is_hex = 2;
-    string header = 3;//"TRON","ETH","NONE"
-    uint32 version = 4;//1: V1 2:V2
+    string header = 2;//"TRON","ETH","NONE"
+    uint32 version = 3;//1: V1 2:V2
 }
 
 message TronMessageOutput {
