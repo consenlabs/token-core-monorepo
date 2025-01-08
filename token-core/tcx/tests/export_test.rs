@@ -76,7 +76,8 @@ pub fn test_tezos_import_private_key_export() {
             };
 
         let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
-        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+        let import_result: ImportPrivateKeyResult =
+            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
 
         let derivations = vec![Derivation {
             chain_type: "TEZOS".to_string(),

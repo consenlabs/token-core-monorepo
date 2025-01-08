@@ -434,7 +434,8 @@ pub fn test_filecoin_private_key_secp256k1_import() {
         };
 
         let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
-        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+        let import_result: ImportPrivateKeyResult =
+            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
 
         let derivations = vec![Derivation {
             chain_type: "FILECOIN".to_string(),
@@ -500,7 +501,8 @@ pub fn test_filecoin_private_key_bls_import() {
         };
 
         let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
-        let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+        let import_result: ImportPrivateKeyResult =
+            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
 
         let derivations = vec![Derivation {
             chain_type: "FILECOIN".to_string(),
@@ -612,7 +614,8 @@ pub fn test_fil_bls_tezos_reimport() {
             };
 
             let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
-            let pk_import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
+            let pk_import_result: ImportPrivateKeyResult =
+                ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
 
             let derivations = vec![Derivation {
                 chain_type: case.0.to_string(),
@@ -832,7 +835,8 @@ pub fn test_import_substrate_keystore() {
         assert!(!exists_result.is_exists);
 
         let ret_bytes = call_api("import_json", param.clone()).unwrap();
-        let wallet_ret: KeystoreResult = KeystoreResult::decode(ret_bytes.as_slice()).unwrap();
+        let wallet_ret: ImportPrivateKeyResult =
+            ImportPrivateKeyResult::decode(ret_bytes.as_slice()).unwrap();
 
         let ret_bytes = call_api("exists_json", param.clone()).unwrap();
         let exists_result: ExistsKeystoreResult =
@@ -923,7 +927,8 @@ pub fn test_import_substrate_keystore_v3() {
         assert!(!exists_result.is_exists);
 
         let ret_bytes = call_api("import_json", param.clone()).unwrap();
-        let wallet_ret: KeystoreResult = KeystoreResult::decode(ret_bytes.as_slice()).unwrap();
+        let wallet_ret: ImportPrivateKeyResult =
+            ImportPrivateKeyResult::decode(ret_bytes.as_slice()).unwrap();
 
         let ret_bytes = call_api("exists_json", param.clone()).unwrap();
         let exists_result: ExistsKeystoreResult =
@@ -1012,7 +1017,8 @@ pub fn test_import_multi_curve() {
         };
 
         let ret_bytes = call_api("import_json", param).unwrap();
-        let wallet_ret: KeystoreResult = KeystoreResult::decode(ret_bytes.as_slice()).unwrap();
+        let wallet_ret: ImportPrivateKeyResult =
+            ImportPrivateKeyResult::decode(ret_bytes.as_slice()).unwrap();
         let derivation = Derivation {
             chain_type: "KUSAMA".to_string(),
             path: "".to_string(),

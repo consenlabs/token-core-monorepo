@@ -87,7 +87,7 @@ pub fn import_default_pk_store() -> ImportPrivateKeyResult {
     ImportPrivateKeyResult::decode(ret.as_slice()).unwrap()
 }
 
-pub fn import_filecoin_pk_store() -> KeystoreResult {
+pub fn import_filecoin_pk_store() -> ImportPrivateKeyResult {
     let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
         private_key: "f15716d3b003b304b8055d9cc62e6b9c869d56cc930c3858d4d7c31f5f53f14a".to_string(),
         password: TEST_PASSWORD.to_string(),
@@ -98,7 +98,7 @@ pub fn import_filecoin_pk_store() -> KeystoreResult {
     };
 
     let ret = import_private_key(&encode_message(param).unwrap()).unwrap();
-    KeystoreResult::decode(ret.as_slice()).unwrap()
+    ImportPrivateKeyResult::decode(ret.as_slice()).unwrap()
 }
 
 pub fn import_and_derive(derivation: Derivation) -> (KeystoreResult, DeriveAccountsResult) {

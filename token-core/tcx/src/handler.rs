@@ -72,7 +72,8 @@ use tcx_tezos::{encode_tezos_private_key, parse_tezos_private_key};
 
 use crate::macros::{impl_to_key, use_chains};
 use crate::migration::{
-    read_all_identity_wallet_ids, remove_all_identity_wallets, remove_old_keystore_by_id, is_migrated_keystore,
+    is_migrated_keystore, read_all_identity_wallet_ids, remove_all_identity_wallets,
+    remove_old_keystore_by_id,
 };
 use crate::reset_password::assert_seed_equals;
 

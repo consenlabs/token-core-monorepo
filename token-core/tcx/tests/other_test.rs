@@ -72,7 +72,8 @@ pub fn test_delete_keystore_by_password() {
         };
 
         let ret_bytes = import_private_key(&encode_message(param).unwrap()).unwrap();
-        let import_result: KeystoreResult = KeystoreResult::decode(ret_bytes.as_slice()).unwrap();
+        let import_result: ImportPrivateKeyResult =
+            ImportPrivateKeyResult::decode(ret_bytes.as_slice()).unwrap();
         let param: WalletKeyParam = WalletKeyParam {
             id: import_result.id.to_string(),
             key: Some(api::wallet_key_param::Key::Password(
@@ -120,7 +121,8 @@ pub fn test_delete_keystore_by_derived_key() {
         };
 
         let ret_bytes = import_private_key(&encode_message(param).unwrap()).unwrap();
-        let import_result: KeystoreResult = KeystoreResult::decode(ret_bytes.as_slice()).unwrap();
+        let import_result: ImportPrivateKeyResult =
+            ImportPrivateKeyResult::decode(ret_bytes.as_slice()).unwrap();
         let param = WalletKeyParam {
             id: import_result.id.to_string(),
             key: Some(api::wallet_key_param::Key::Password(
