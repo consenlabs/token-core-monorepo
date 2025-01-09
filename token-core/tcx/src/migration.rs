@@ -191,7 +191,6 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
                 source_fingerprint: keystore.fingerprint().to_string(),
                 is_existed,
                 existed_id,
-                status: "migrated".to_string(),
             };
 
             let ret = encode_message(MigrateKeystoreResult {
@@ -443,14 +442,12 @@ fn parse_legacy_kesytore(contents: String) -> Result<LegacyKeystoreResult> {
         NumberOrNumberStr::Number(t) => t,
         NumberOrNumberStr::NumberStr(t) => f64::from_str(&t).expect("f64 from timestamp") as i64,
     };
-    let status = get_migrated_status(WALLET_V1_DIR, &legacy_keystore.id)?;
     let keystore_result = LegacyKeystoreResult {
         id: legacy_keystore.id.to_string(),
         name: meta.name.to_string(),
         source: meta.source.as_ref().unwrap_or(&"".to_string()).to_string(),
         created_at: created_at.to_string(),
         accounts: vec![account],
-        status,
     };
     Ok(keystore_result)
 }
@@ -503,14 +500,12 @@ fn parse_tcx_keystore(v: &Value) -> Result<LegacyKeystoreResult> {
     }
     let id = v["id"].as_str().expect("keystore id").to_string();
     let meta: Metadata = serde_json::from_value(v["imTokenMeta"].clone())?;
-    let status = get_migrated_status(WALLET_V1_DIR, &id)?;
     let keystore_result = LegacyKeystoreResult {
         id,
         name: meta.name.to_string(),
         source: meta.source.to_string(),
         created_at: meta.timestamp.to_string(),
         accounts: account_responses,
-        status,
     };
     Ok(keystore_result)
 }
@@ -528,19 +523,11 @@ fn merge_migrate_source(id: &str, ori_source: &str) -> String {
     }
 }
 
-pub fn get_migrated_status(dir: &str, id: &str) -> Result<String> {
+pub fn is_migrated(id: &str) -> bool {
     let migrated_id_map = read_migrated_map().1;
-    let is_migrated = migrated_id_map
+    migrated_id_map
         .values()
-        .any(|ids| ids.contains(&id.to_string()));
-    let status = match (dir, is_migrated) {
-        (WALLET_V1_DIR, true) => "migrated".to_string(),
-        (WALLET_V1_DIR, false) => "unmigrated".to_string(),
-        (WALLET_V2_DIR, true) => "migrated".to_string(),
-        (WALLET_V2_DIR, false) => "new".to_string(),
-        _ => return Err(anyhow!("{}", "get_migrated_status_error")),
-    };
-    Ok(status)
+        .any(|ids| ids.contains(&id.to_string()))
 }
 
 #[cfg(test)]

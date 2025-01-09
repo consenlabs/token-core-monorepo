@@ -303,9 +303,6 @@ pub struct KeystoreResult {
     pub is_existed: bool,
     #[prost(string, tag = "9")]
     pub existed_id: ::prost::alloc::string::String,
-    /// This field can have one of three values: "migrated", "unmigrated", or "new".
-    #[prost(string, tag = "10")]
-    pub status: ::prost::alloc::string::String,
 }
 /// FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
 ///
@@ -353,9 +350,6 @@ pub struct ImportPrivateKeyResult {
     pub is_existed: bool,
     #[prost(string, tag = "12")]
     pub existed_id: ::prost::alloc::string::String,
-    /// This field can have one of three values: "migrated", "unmigrated", or "new".
-    #[prost(string, tag = "13")]
-    pub status: ::prost::alloc::string::String,
 }
 ///
 /// derive new accounts from a hd keystore
@@ -672,11 +666,36 @@ pub struct MigrateKeystoreResult {
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ScanKeystoresResult {
     #[prost(message, repeated, tag = "1")]
-    pub hd_keystores: ::prost::alloc::vec::Vec<KeystoreResult>,
-    #[prost(message, repeated, tag = "2")]
-    pub private_key_keystores: ::prost::alloc::vec::Vec<ImportPrivateKeyResult>,
-    #[prost(message, repeated, tag = "3")]
-    pub legacy_keystores: ::prost::alloc::vec::Vec<LegacyKeystoreResult>,
+    pub keystores: ::prost::alloc::vec::Vec<ScannedKeystore>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ScannedKeystore {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub identifier: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub ipfs_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub source: ::prost::alloc::string::String,
+    #[prost(int64, tag = "6")]
+    pub created_at: i64,
+    #[prost(message, repeated, tag = "7")]
+    pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
+    /// This field can have one of three values: "migrated", "unmigrated", or "new".
+    #[prost(string, tag = "8")]
+    pub migration_status: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "9")]
+    pub identified_chain_types: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, tag = "10")]
+    pub identified_network: ::prost::alloc::string::String,
+    #[prost(string, tag = "11")]
+    pub identified_curve: ::prost::alloc::string::String,
+    #[prost(string, tag = "12")]
+    pub source_fingerprint: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -691,9 +710,6 @@ pub struct LegacyKeystoreResult {
     pub created_at: ::prost::alloc::string::String,
     #[prost(message, repeated, tag = "5")]
     pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
-    /// This field can have one of three values: "migrated", "unmigrated", or "new".
-    #[prost(string, tag = "6")]
-    pub status: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
