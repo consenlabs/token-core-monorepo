@@ -20,7 +20,7 @@ use tcx::api::{
 use tcx::handler::encode_message;
 use tcx_constants::CurveType;
 use tcx_constants::{OTHER_MNEMONIC, TEST_PASSWORD};
-use tcx_keystore::Keystore;
+use tcx_keystore::{keystore, Keystore};
 
 use anyhow::{anyhow, format_err};
 use std::path::Path;
@@ -77,7 +77,14 @@ pub fn test_migrate_keystores_existed() {
 
     let ret = call_api("scan_keystores", "".to_string()).unwrap();
     let resp: ScanKeystoresResult = ScanKeystoresResult::decode(ret.as_slice()).unwrap();
-    assert!(resp.hd_keystores[0].is_migrated);
+    assert_eq!(resp.hd_keystores[0].status, "migrated");
+    for keystore in resp.legacy_keystores {
+        if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id)
+            || "00fc0804-7cea-46d8-9e95-ed1efac65358".eq(&keystore.id)
+        {
+            assert_eq!(&keystore.status, "migrated");
+        }
+    }
 
     fs::remove_dir_all("../test-data/walletsV2").unwrap();
 }

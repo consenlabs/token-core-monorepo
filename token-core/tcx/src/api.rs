@@ -303,8 +303,9 @@ pub struct KeystoreResult {
     pub is_existed: bool,
     #[prost(string, tag = "9")]
     pub existed_id: ::prost::alloc::string::String,
-    #[prost(bool, tag = "10")]
-    pub is_migrated: bool,
+    /// This field can have one of three values: "migrated", "unmigrated", or "new".
+    #[prost(string, tag = "10")]
+    pub status: ::prost::alloc::string::String,
 }
 /// FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
 ///
@@ -352,8 +353,9 @@ pub struct ImportPrivateKeyResult {
     pub is_existed: bool,
     #[prost(string, tag = "12")]
     pub existed_id: ::prost::alloc::string::String,
-    #[prost(bool, tag = "13")]
-    pub is_migrated: bool,
+    /// This field can have one of three values: "migrated", "unmigrated", or "new".
+    #[prost(string, tag = "13")]
+    pub status: ::prost::alloc::string::String,
 }
 ///
 /// derive new accounts from a hd keystore
@@ -673,6 +675,8 @@ pub struct ScanKeystoresResult {
     pub hd_keystores: ::prost::alloc::vec::Vec<KeystoreResult>,
     #[prost(message, repeated, tag = "2")]
     pub private_key_keystores: ::prost::alloc::vec::Vec<ImportPrivateKeyResult>,
+    #[prost(message, repeated, tag = "3")]
+    pub legacy_keystores: ::prost::alloc::vec::Vec<LegacyKeystoreResult>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -687,6 +691,9 @@ pub struct LegacyKeystoreResult {
     pub created_at: ::prost::alloc::string::String,
     #[prost(message, repeated, tag = "5")]
     pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
+    /// This field can have one of three values: "migrated", "unmigrated", or "new".
+    #[prost(string, tag = "6")]
+    pub status: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

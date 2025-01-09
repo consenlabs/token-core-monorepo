@@ -72,8 +72,8 @@ use tcx_tezos::{encode_tezos_private_key, parse_tezos_private_key};
 
 use crate::macros::{impl_to_key, use_chains};
 use crate::migration::{
-    is_migrated_keystore, read_all_identity_wallet_ids, remove_all_identity_wallets,
-    remove_old_keystore_by_id,
+    get_migrated_status, read_all_identity_wallet_ids, remove_all_identity_wallets,
+    remove_old_keystore_by_id, scan_legacy_keystores,
 };
 use crate::reset_password::assert_seed_equals;
 
@@ -445,9 +445,7 @@ pub fn scan_keystores() -> Result<ScanKeystoresResult> {
 
         if version == HdKeystore::VERSION || version == PrivateKeystore::VERSION {
             let keystore = Keystore::from_json(&contents)?;
-            //Verify that the keystore has been migrated
-            let is_migrated = is_migrated_keystore(&keystore.id());
-
+            let status = get_migrated_status(WALLET_V2_DIR, &keystore.id())?;
             if version == HdKeystore::VERSION {
                 let keystore_result = KeystoreResult {
                     id: keystore.id(),
@@ -457,7 +455,7 @@ pub fn scan_keystores() -> Result<ScanKeystoresResult> {
                     source: keystore.meta().source.to_string(),
                     created_at: keystore.meta().timestamp,
                     source_fingerprint: keystore.fingerprint().to_string(),
-                    is_migrated,
+                    status,
                     ..Default::default()
                 };
                 hd_keystores.push(keystore_result);
@@ -476,7 +474,7 @@ pub fn scan_keystores() -> Result<ScanKeystoresResult> {
                     identified_chain_types: curve_to_chain_type(&curve),
                     identified_network: keystore.meta().network.to_string(),
                     identified_curve: curve.as_str().to_string(),
-                    is_migrated,
+                    status,
                     ..Default::default()
                 };
                 private_key_keystores.push(kestore_result);
@@ -484,10 +482,12 @@ pub fn scan_keystores() -> Result<ScanKeystoresResult> {
             cache_keystore(keystore);
         }
     }
+    let legacy_keystores = scan_legacy_keystores()?.keystores;
 
     Ok(ScanKeystoresResult {
         hd_keystores,
         private_key_keystores,
+        legacy_keystores,
     })
 }
 

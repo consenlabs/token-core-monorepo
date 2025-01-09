@@ -31,7 +31,7 @@ message KeystoreResult {
   // ture if mnemonic already existed when call import_mnemonic
   bool isExisted = 8;
   string existedId = 9;
-  bool isMigrated = 10;
+  string status = 10; // This field can have one of three values: "migrated", "unmigrated", or "new".
 }
 
 // FUNCTION: import_mnemonic(ImportMnemonicParam): KeystoreResult
@@ -59,7 +59,7 @@ message ImportPrivateKeyResult {
   string sourceFingerprint = 10;
   bool isExisted = 11;
   string existedId = 12;
-  bool isMigrated = 13;
+  string status = 13;// This field can have one of three values: "migrated", "unmigrated", or "new".
 }
 
 //
@@ -238,6 +238,7 @@ message MigrateKeystoreResult {
 message ScanKeystoresResult {
   repeated KeystoreResult hdKeystores = 1;
   repeated ImportPrivateKeyResult privateKeyKeystores = 2;
+  repeated LegacyKeystoreResult legacyKeystores = 3;
 }
 
 message LegacyKeystoreResult {
@@ -246,6 +247,7 @@ message LegacyKeystoreResult {
   string source = 3;
   string createdAt = 4;
   repeated AccountResponse accounts = 5;
+  string status = 6;// This field can have one of three values: "migrated", "unmigrated", or "new".
 }
 
 message ScanLegacyKeystoresResult {
