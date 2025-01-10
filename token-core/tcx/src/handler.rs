@@ -488,6 +488,79 @@ pub fn cache_keystores() -> Result<ScanKeystoresResult> {
 }
 
 pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
+    let mut keystores = get_legacy_keystore()?;
+    let file_dir = WALLET_FILE_DIR.read();
+    let p = Path::new(file_dir.as_str());
+    let walk_dir = std::fs::read_dir(p).expect("read dir");
+    let migrated_map = read_migrated_map().1;
+    for entry in walk_dir {
+        let entry = entry.expect("DirEntry");
+        let fp = entry.path();
+        if !fp
+            .file_name()
+            .expect("file_name")
+            .to_str()
+            .expect("file_name str")
+            .ends_with(".json")
+        {
+            continue;
+        }
+
+        let mut f = fs::File::open(fp).expect("open file");
+        let mut contents = String::new();
+
+        let _ = f.read_to_string(&mut contents);
+        let v: Value = serde_json::from_str(&contents).expect("read json from content");
+
+        let version = v["version"].as_i64().expect("version");
+
+        if version == HdKeystore::VERSION || version == PrivateKeystore::VERSION {
+            let keystore = Keystore::from_json(&contents)?;
+            let (chain_type, curve_type) = match keystore.get_curve() {
+                Some(v) => (curve_to_chain_type(&v), v.as_str().to_string()),
+                None => (vec![], "".to_string()),
+            };
+            let is_migrated = migrated_map
+                .values()
+                .any(|ids| ids.contains(&keystore.id()));
+            if is_migrated {
+                let mut found = false;
+                for legacy_keystore in &mut keystores {
+                    if legacy_keystore.id == keystore.id() {
+                        legacy_keystore.migration_status = "migrated".to_string();
+                        legacy_keystore.identified_chain_types = chain_type.clone();
+                        legacy_keystore.identified_network = keystore.meta().network.to_string();
+                        legacy_keystore.identified_curve = curve_type.clone();
+                        legacy_keystore.source_fingerprint = keystore.fingerprint().to_string();
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    let scanned_keystore = ScannedKeystore {
+                        id: keystore.id(),
+                        name: keystore.meta().name.to_string(),
+                        identifier: keystore.identity().identifier.to_string(),
+                        ipfs_id: keystore.identity().ipfs_id.to_string(),
+                        source: keystore.meta().source.to_string(),
+                        created_at: keystore.meta().timestamp,
+                        migration_status: "new".to_string(),
+                        identified_chain_types: chain_type,
+                        identified_network: keystore.meta().network.to_string(),
+                        identified_curve: curve_type,
+                        source_fingerprint: keystore.fingerprint().to_string(),
+                        ..Default::default()
+                    };
+                    keystores.push(scanned_keystore);
+                }
+            }
+        }
+    }
+
+    Ok(ScannedKeystoresResult { keystores })
+}
+
+fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
     let mut keystores = vec![];
     let legacy_keystores = scan_legacy_keystores()?;
     let migrated_map = read_migrated_map().1;
@@ -513,106 +586,7 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
         }
         keystores.push(scanned_keystore);
     }
-
-    let file_dir = WALLET_FILE_DIR.read();
-    let p = Path::new(file_dir.as_str());
-    let walk_dir = std::fs::read_dir(p).expect("read dir");
-
-    for entry in walk_dir {
-        let entry = entry.expect("DirEntry");
-        let fp = entry.path();
-        if !fp
-            .file_name()
-            .expect("file_name")
-            .to_str()
-            .expect("file_name str")
-            .ends_with(".json")
-        {
-            continue;
-        }
-
-        let mut f = fs::File::open(fp).expect("open file");
-        let mut contents = String::new();
-
-        let _ = f.read_to_string(&mut contents);
-        let v: Value = serde_json::from_str(&contents).expect("read json from content");
-
-        let version = v["version"].as_i64().expect("version");
-
-        if version == HdKeystore::VERSION || version == PrivateKeystore::VERSION {
-            let keystore = Keystore::from_json(&contents)?;
-            if version == HdKeystore::VERSION {
-                let is_migrated = migrated_map
-                    .values()
-                    .any(|ids| ids.contains(&keystore.id()));
-                if is_migrated {
-                    let mut found = false;
-                    for legacy_keystore in &mut keystores {
-                        if legacy_keystore.id == keystore.id() {
-                            legacy_keystore.migration_status = "migrated".to_string();
-                            legacy_keystore.source_fingerprint = keystore.fingerprint().to_string();
-                            found = true;
-                            break;
-                        }
-                    }
-                    if !found {
-                        let scanned_keystore = ScannedKeystore {
-                            id: keystore.id(),
-                            name: keystore.meta().name.to_string(),
-                            identifier: keystore.identity().identifier.to_string(),
-                            ipfs_id: keystore.identity().ipfs_id.to_string(),
-                            source: keystore.meta().source.to_string(),
-                            created_at: keystore.meta().timestamp,
-                            migration_status: "new".to_string(),
-                            ..Default::default()
-                        };
-                        keystores.push(scanned_keystore);
-                    }
-                }
-            } else {
-                let curve = keystore
-                    .get_curve()
-                    .expect("pk keystore must contains curve");
-                let is_migrated = migrated_map
-                    .values()
-                    .any(|ids| ids.contains(&keystore.id()));
-                if is_migrated {
-                    let mut found = false;
-                    for legacy_keystore in &mut keystores {
-                        if legacy_keystore.id == keystore.id() {
-                            legacy_keystore.migration_status = "migrated".to_string();
-                            legacy_keystore.identified_chain_types = curve_to_chain_type(&curve);
-                            legacy_keystore.identified_network =
-                                keystore.meta().network.to_string();
-                            legacy_keystore.identified_curve = curve.as_str().to_string();
-                            legacy_keystore.source_fingerprint = keystore.fingerprint().to_string();
-                            found = true;
-                            break;
-                        }
-                    }
-                    if !found {
-                        let scanned_keystore = ScannedKeystore {
-                            id: keystore.id(),
-                            name: keystore.meta().name.to_string(),
-                            identifier: keystore.identity().identifier.to_string(),
-                            ipfs_id: keystore.identity().ipfs_id.to_string(),
-                            source: keystore.meta().source.to_string(),
-                            created_at: keystore.meta().timestamp,
-                            migration_status: "new".to_string(),
-                            identified_chain_types: curve_to_chain_type(&curve),
-                            identified_network: keystore.meta().network.to_string(),
-                            identified_curve: curve.as_str().to_string(),
-                            source_fingerprint: keystore.fingerprint().to_string(),
-                            ..Default::default()
-                        };
-                        keystores.push(scanned_keystore);
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(ScannedKeystoresResult { keystores })
+    Ok(keystores)
 }
 
 pub fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
