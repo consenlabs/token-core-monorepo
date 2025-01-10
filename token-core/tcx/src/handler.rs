@@ -38,8 +38,8 @@ use crate::api::{
     GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
     GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
     ImportPrivateKeyResult, KeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
-    ScanKeystoresResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
-    SignHashesParam, SignHashesResult, WalletKeyParam,
+    ScanKeystoresResult, ScannedKeystore, ScannedKeystoresResult, SignAuthenticationMessageParam,
+    SignAuthenticationMessageResult, SignHashesParam, SignHashesResult, WalletKeyParam,
 };
 use crate::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult};
 use crate::api::{InitTokenCoreXParam, SignParam};
@@ -72,7 +72,8 @@ use tcx_tezos::{encode_tezos_private_key, parse_tezos_private_key};
 
 use crate::macros::{impl_to_key, use_chains};
 use crate::migration::{
-    read_all_identity_wallet_ids, remove_all_identity_wallets, remove_old_keystore_by_id,
+    is_migrated, read_all_identity_wallet_ids, remove_all_identity_wallets,
+    remove_old_keystore_by_id, scan_legacy_keystores,
 };
 use crate::reset_password::assert_seed_equals;
 
@@ -407,12 +408,12 @@ pub fn init_token_core_x(data: &[u8]) -> Result<()> {
             *KDF_ROUNDS.write() = 1;
         }
     }
-    scan_keystores()?;
+    cache_keystores()?;
 
     Ok(())
 }
 
-pub fn scan_keystores() -> Result<ScanKeystoresResult> {
+pub fn cache_keystores() -> Result<ScanKeystoresResult> {
     clean_keystore();
     let file_dir = WALLET_FILE_DIR.read();
     let p = Path::new(file_dir.as_str());
@@ -484,6 +485,127 @@ pub fn scan_keystores() -> Result<ScanKeystoresResult> {
         hd_keystores,
         private_key_keystores,
     })
+}
+
+pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
+    // clean_keystore();
+
+    let mut keystores = vec![];
+    let legacy_keystores = scan_legacy_keystores()?;
+    for keystore in legacy_keystores.keystores.iter() {
+        let mut scanned_keystore = ScannedKeystore {
+            id: keystore.id.clone(),
+            name: keystore.name.clone(),
+            identifier: legacy_keystores.identifier.clone(),
+            ipfs_id: legacy_keystores.ipfs_id.clone(),
+            source: legacy_keystores.source.clone(),
+            created_at: f64::from_str(&keystore.created_at).expect("f64 from timestamp") as i64,
+            accounts: keystore.accounts.clone(),
+            migration_status: "unmigrated".to_string(),
+            ..Default::default()
+        };
+        if is_migrated(&keystore.id) {
+            scanned_keystore.migration_status = "migrated".to_string();
+        }
+        keystores.push(scanned_keystore);
+    }
+
+    let file_dir = WALLET_FILE_DIR.read();
+    let p = Path::new(file_dir.as_str());
+    let walk_dir = std::fs::read_dir(p).expect("read dir");
+
+    // let mut hd_keystores: Vec<KeystoreResult> = Vec::new();
+    // let mut private_key_keystores: Vec<ImportPrivateKeyResult> = Vec::new();
+
+    for entry in walk_dir {
+        let entry = entry.expect("DirEntry");
+        let fp = entry.path();
+        if !fp
+            .file_name()
+            .expect("file_name")
+            .to_str()
+            .expect("file_name str")
+            .ends_with(".json")
+        {
+            continue;
+        }
+
+        let mut f = fs::File::open(fp).expect("open file");
+        let mut contents = String::new();
+
+        let _ = f.read_to_string(&mut contents);
+        let v: Value = serde_json::from_str(&contents).expect("read json from content");
+
+        let version = v["version"].as_i64().expect("version");
+
+        if version == HdKeystore::VERSION || version == PrivateKeystore::VERSION {
+            let keystore = Keystore::from_json(&contents)?;
+            if version == HdKeystore::VERSION {
+                if is_migrated(&keystore.id()) {
+                    let mut found = false;
+                    for legacy_keystore in &mut keystores {
+                        if legacy_keystore.id == keystore.id() {
+                            legacy_keystore.migration_status = "migrated".to_string();
+                            legacy_keystore.source_fingerprint = keystore.fingerprint().to_string();
+                            found = true;
+                            break;
+                        }
+                    }
+                    if !found {
+                        let scanned_keystore = ScannedKeystore {
+                            id: keystore.id(),
+                            name: keystore.meta().name.to_string(),
+                            identifier: keystore.identity().identifier.to_string(),
+                            ipfs_id: keystore.identity().ipfs_id.to_string(),
+                            source: keystore.meta().source.to_string(),
+                            created_at: keystore.meta().timestamp,
+                            migration_status: "new".to_string(),
+                            ..Default::default()
+                        };
+                        keystores.push(scanned_keystore);
+                    }
+                }
+            } else {
+                let curve = keystore
+                    .get_curve()
+                    .expect("pk keystore must contains curve");
+                if is_migrated(&keystore.id()) {
+                    let mut found = false;
+                    for legacy_keystore in &mut keystores {
+                        if legacy_keystore.id == keystore.id() {
+                            legacy_keystore.migration_status = "migrated".to_string();
+                            legacy_keystore.identified_chain_types = curve_to_chain_type(&curve);
+                            legacy_keystore.identified_network =
+                                keystore.meta().network.to_string();
+                            legacy_keystore.identified_curve = curve.as_str().to_string();
+                            legacy_keystore.source_fingerprint = keystore.fingerprint().to_string();
+                            found = true;
+                            break;
+                        }
+                    }
+                    if !found {
+                        let scanned_keystore = ScannedKeystore {
+                            id: keystore.id(),
+                            name: keystore.meta().name.to_string(),
+                            identifier: keystore.identity().identifier.to_string(),
+                            ipfs_id: keystore.identity().ipfs_id.to_string(),
+                            source: keystore.meta().source.to_string(),
+                            created_at: keystore.meta().timestamp,
+                            migration_status: "new".to_string(),
+                            identified_chain_types: curve_to_chain_type(&curve),
+                            identified_network: keystore.meta().network.to_string(),
+                            identified_curve: curve.as_str().to_string(),
+                            source_fingerprint: keystore.fingerprint().to_string(),
+                            ..Default::default()
+                        };
+                        keystores.push(scanned_keystore);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(ScannedKeystoresResult { keystores })
 }
 
 pub fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
@@ -1489,7 +1611,7 @@ mod tests {
 
     use crate::{api::ImportPrivateKeyResult, filemanager::WALLET_FILE_DIR};
 
-    use super::{decode_private_key, scan_keystores};
+    use super::{cache_keystores, decode_private_key};
     use serial_test::serial;
 
     #[test]
@@ -1575,9 +1697,9 @@ mod tests {
     }
 
     #[test]
-    fn test_scan_keystores() {
+    fn test_cache_keystores() {
         *WALLET_FILE_DIR.write() = "../test-data/scan-keystores-fixtures/".to_string();
-        let result = scan_keystores().unwrap();
+        let result = cache_keystores().unwrap();
         assert_eq!(result.hd_keystores.len(), 1);
         let hd = result.hd_keystores.first().unwrap();
         assert_eq!(hd.id, "1055741c-2904-4973-b7ee-4b69bfd8bcc6");
