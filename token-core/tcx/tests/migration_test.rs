@@ -1077,12 +1077,10 @@ pub fn test_scan_keystores() {
 
     let ret = call_api("scan_keystores", "".to_string()).unwrap();
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 3);
     for keystore in resp.keystores {
         if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
             assert_eq!(&keystore.migration_status, "migrated");
-        };
-        if "00fc0804-7cea-46d8-9e95-ed1efac65358".eq(&keystore.id) {
-            assert_eq!(&keystore.migration_status, "unmigrated");
         };
         if "00fc0804-7cea-46d8-9e95-ed1efac65358".eq(&keystore.id) {
             assert_eq!(&keystore.migration_status, "unmigrated");
@@ -1106,12 +1104,13 @@ pub fn test_scan_keystores() {
 
     let ret = call_api("scan_keystores", "".to_string()).unwrap();
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 2);
     for keystore in resp.keystores {
         if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
             assert_eq!(&keystore.migration_status, "migrated");
         };
-        if "00fc0804-7cea-46d8-9e95-ed1efac65358".eq(&keystore.id) {
-            assert_eq!(&keystore.migration_status, "migrated");
+        if "0d49aae6-cf73-4ebb-998d-b6312d18361f".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, "unmigrated");
         };
     }
 
@@ -1126,12 +1125,9 @@ pub fn test_scan_keystores() {
 
     let ret = call_api("scan_keystores", "".to_string()).unwrap();
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 2);
     for keystore in resp.keystores {
-        println!("{}-{}", &keystore.id, &keystore.migration_status);
         if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
-            assert_eq!(&keystore.migration_status, "migrated");
-        };
-        if "00fc0804-7cea-46d8-9e95-ed1efac65358".eq(&keystore.id) {
             assert_eq!(&keystore.migration_status, "migrated");
         };
         if "0d49aae6-cf73-4ebb-998d-b6312d18361f".eq(&keystore.id) {

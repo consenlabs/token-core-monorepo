@@ -37,7 +37,7 @@ pub struct AllIdentityWallets {
     pub source: String,
 }
 
-fn read_migrated_map() -> (String, HashMap<String, Vec<String>>) {
+pub fn read_migrated_map() -> (String, HashMap<String, Vec<String>>) {
     let legacy_file_dir = {
         let dir = LEGACY_WALLET_FILE_DIR.read();
         dir.to_string()

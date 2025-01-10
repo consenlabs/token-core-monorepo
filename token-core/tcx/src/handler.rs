@@ -72,7 +72,7 @@ use tcx_tezos::{encode_tezos_private_key, parse_tezos_private_key};
 
 use crate::macros::{impl_to_key, use_chains};
 use crate::migration::{
-    is_migrated, read_all_identity_wallet_ids, remove_all_identity_wallets,
+    is_migrated, read_all_identity_wallet_ids, read_migrated_map, remove_all_identity_wallets,
     remove_old_keystore_by_id, scan_legacy_keystores,
 };
 use crate::reset_password::assert_seed_equals;
@@ -490,6 +490,7 @@ pub fn cache_keystores() -> Result<ScanKeystoresResult> {
 pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
     let mut keystores = vec![];
     let legacy_keystores = scan_legacy_keystores()?;
+    let migrated_map = read_migrated_map().1;
     for keystore in legacy_keystores.keystores.iter() {
         let mut scanned_keystore = ScannedKeystore {
             id: keystore.id.clone(),
@@ -502,8 +503,10 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
             migration_status: "unmigrated".to_string(),
             ..Default::default()
         };
-        if is_migrated(&keystore.id) {
+        if is_migrated(&keystore.id) && migrated_map.contains_key(&keystore.id) {
             scanned_keystore.migration_status = "migrated".to_string();
+        } else if is_migrated(&keystore.id) && !migrated_map.contains_key(&keystore.id) {
+            continue;
         }
         keystores.push(scanned_keystore);
     }
