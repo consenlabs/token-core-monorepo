@@ -72,7 +72,7 @@ use tcx_tezos::{encode_tezos_private_key, parse_tezos_private_key};
 
 use crate::macros::{impl_to_key, use_chains};
 use crate::migration::{
-    is_migrated, read_all_identity_wallet_ids, read_migrated_map, remove_all_identity_wallets,
+    read_all_identity_wallet_ids, read_migrated_map, remove_all_identity_wallets,
     remove_old_keystore_by_id, scan_legacy_keystores,
 };
 use crate::reset_password::assert_seed_equals;
@@ -503,9 +503,12 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
             migration_status: "unmigrated".to_string(),
             ..Default::default()
         };
-        if is_migrated(&keystore.id) && migrated_map.contains_key(&keystore.id) {
+        let is_migrated = migrated_map
+            .values()
+            .any(|ids| ids.contains(&keystore.id.to_string()));
+        if is_migrated && migrated_map.contains_key(&keystore.id) {
             scanned_keystore.migration_status = "migrated".to_string();
-        } else if is_migrated(&keystore.id) && !migrated_map.contains_key(&keystore.id) {
+        } else if is_migrated && !migrated_map.contains_key(&keystore.id) {
             continue;
         }
         keystores.push(scanned_keystore);
@@ -539,7 +542,10 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
         if version == HdKeystore::VERSION || version == PrivateKeystore::VERSION {
             let keystore = Keystore::from_json(&contents)?;
             if version == HdKeystore::VERSION {
-                if is_migrated(&keystore.id()) {
+                let is_migrated = migrated_map
+                    .values()
+                    .any(|ids| ids.contains(&keystore.id()));
+                if is_migrated {
                     let mut found = false;
                     for legacy_keystore in &mut keystores {
                         if legacy_keystore.id == keystore.id() {
@@ -567,7 +573,10 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
                 let curve = keystore
                     .get_curve()
                     .expect("pk keystore must contains curve");
-                if is_migrated(&keystore.id()) {
+                let is_migrated = migrated_map
+                    .values()
+                    .any(|ids| ids.contains(&keystore.id()));
+                if is_migrated {
                     let mut found = false;
                     for legacy_keystore in &mut keystores {
                         if legacy_keystore.id == keystore.id() {

@@ -523,13 +523,6 @@ fn merge_migrate_source(id: &str, ori_source: &str) -> String {
     }
 }
 
-pub fn is_migrated(id: &str) -> bool {
-    let migrated_id_map = read_migrated_map().1;
-    migrated_id_map
-        .values()
-        .any(|ids| ids.contains(&id.to_string()))
-}
-
 #[cfg(test)]
 mod tests {
     use std::fs;
