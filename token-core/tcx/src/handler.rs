@@ -488,8 +488,6 @@ pub fn cache_keystores() -> Result<ScanKeystoresResult> {
 }
 
 pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
-    // clean_keystore();
-
     let mut keystores = vec![];
     let legacy_keystores = scan_legacy_keystores()?;
     for keystore in legacy_keystores.keystores.iter() {
@@ -513,9 +511,6 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
     let file_dir = WALLET_FILE_DIR.read();
     let p = Path::new(file_dir.as_str());
     let walk_dir = std::fs::read_dir(p).expect("read dir");
-
-    // let mut hd_keystores: Vec<KeystoreResult> = Vec::new();
-    // let mut private_key_keystores: Vec<ImportPrivateKeyResult> = Vec::new();
 
     for entry in walk_dir {
         let entry = entry.expect("DirEntry");
