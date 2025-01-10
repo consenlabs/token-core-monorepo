@@ -187,7 +187,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
             match param.chain_type.as_str() {
                 "BITCOIN" => {
                     btc_signer::sign_btc_transaction(&param.clone().input.unwrap().value, &param)
-                },
+                }
                 "ETHEREUM" => ethereum_signer::sign_eth_transaction(
                     &param.clone().input.unwrap().value,
                     &param,
@@ -221,10 +221,10 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                 ),
                 "BITCOINCASH" => {
                     bch_signer::sign_transaction(&param.clone().input.unwrap().value, &param)
-                },
+                }
                 "LITECOIN" => {
                     btc_fork_signer::sign_transaction(&param.clone().input.unwrap().value, &param)
-                },
+                }
                 "DOGECOIN" => {
                     btc_signer::sign_btc_transaction(&param.clone().input.unwrap().value, &param)
                 }
