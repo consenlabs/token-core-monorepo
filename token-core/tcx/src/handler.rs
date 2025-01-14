@@ -46,7 +46,8 @@ use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
 use crate::filemanager::{
     cache_keystore, clean_keystore, exist_migrated_file, flush_keystore, KEYSTORE_BASE_DIR,
-    LEGACY_WALLET_FILE_DIR, WALLET_FILE_DIR, WALLET_V1_DIR, WALLET_V2_DIR,
+    LEGACY_WALLET_FILE_DIR, MIGRATED_STATUS_MIGRATED, MIGRATED_STATUS_NEW,
+    MIGRATED_STATUS_UNMIGRATED, WALLET_FILE_DIR, WALLET_V1_DIR, WALLET_V2_DIR,
 };
 use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
@@ -492,19 +493,27 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
 
     let file_dir = WALLET_FILE_DIR.read();
     let p = Path::new(file_dir.as_str());
-    let is_empty_v2_dir = p.read_dir()?.all(|_| false);
+    //Indicates whether the walletV2 directory or keystore file is empty
+    let is_empty_v2_keystore = p.exists() && p.read_dir()?.all(|_| false);
 
-    if keystores.is_empty() && (!p.exists() || is_empty_v2_dir) {
+    if keystores.is_empty() && is_empty_v2_keystore {
+        //Legacy keystore, v2 keystone are both empty, return error
+
         return Err(anyhow!("{}", "keystores_not_found"));
-    } else if !keystores.is_empty() && (!p.exists() || is_empty_v2_dir) {
+    } else if !keystores.is_empty() && is_empty_v2_keystore {
+        //Legacy keystore exists， v2 keyston is empty, return all legacy keystore
+
         return Ok(ScannedKeystoresResult { keystores });
-    } else if keystores.is_empty() && p.exists() {
+    } else if keystores.is_empty() && !is_empty_v2_keystore {
+        //Legacy keystore is empty v2 keyston exists, return all v2 keystore
+
         let v2_keystores = get_walletv2_keystores()?;
         return Ok(ScannedKeystoresResult {
             keystores: v2_keystores,
         });
     }
 
+    //Both v1 and v2 exist，return all keystore and deduplicate
     let walk_dir = std::fs::read_dir(p).expect("read dir");
     let migrated_map = read_migrated_map().1;
     for entry in walk_dir {
@@ -541,7 +550,7 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
                 let mut found = false;
                 for legacy_keystore in &mut keystores {
                     if legacy_keystore.id == keystore.id() {
-                        legacy_keystore.migration_status = "migrated".to_string();
+                        legacy_keystore.migration_status = MIGRATED_STATUS_MIGRATED.to_string();
                         legacy_keystore.identified_chain_types = chain_type.clone();
                         legacy_keystore.identified_network = keystore.meta().network.to_string();
                         legacy_keystore.identified_curve = curve_type.clone();
@@ -558,7 +567,7 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
                         ipfs_id: keystore.identity().ipfs_id.to_string(),
                         source: keystore.meta().source.to_string(),
                         created_at: keystore.meta().timestamp,
-                        migration_status: "new".to_string(),
+                        migration_status: MIGRATED_STATUS_NEW.to_string(),
                         identified_chain_types: chain_type,
                         identified_network: keystore.meta().network.to_string(),
                         identified_curve: curve_type,
@@ -576,12 +585,11 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
 
 fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
     let mut keystores = vec![];
-    let legacy_keystores_res = scan_legacy_keystores();
-    if legacy_keystores_res.is_err() {
-        return Ok(keystores);
-    }
+    let legacy_keystores = match scan_legacy_keystores() {
+        Ok(keystores) => keystores,
+        Err(_) => return Ok(keystores),
+    };
     let migrated_map = read_migrated_map().1;
-    let legacy_keystores = legacy_keystores_res?;
     for keystore in legacy_keystores.keystores.iter() {
         let mut scanned_keystore: ScannedKeystore = ScannedKeystore {
             id: keystore.id.clone(),
@@ -591,7 +599,7 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
             source: legacy_keystores.source.clone(),
             created_at: f64::from_str(&keystore.created_at).expect("f64 from timestamp") as i64,
             accounts: keystore.accounts.clone(),
-            migration_status: "unmigrated".to_string(),
+            migration_status: MIGRATED_STATUS_UNMIGRATED.to_string(),
             ..Default::default()
         };
         let is_migrated = migrated_map
@@ -611,7 +619,7 @@ fn get_walletv2_keystores() -> Result<Vec<ScannedKeystore>> {
     let mut keystores = vec![];
     let walletv2_keystores = cache_keystores()?;
     for keystore in walletv2_keystores.hd_keystores.iter() {
-        let mut scanned_keystore = ScannedKeystore {
+        let scanned_keystore = ScannedKeystore {
             id: keystore.id.clone(),
             name: keystore.name.clone(),
             identifier: keystore.identifier.clone(),
@@ -619,14 +627,14 @@ fn get_walletv2_keystores() -> Result<Vec<ScannedKeystore>> {
             source: keystore.source.clone(),
             created_at: keystore.created_at,
             accounts: vec![],
-            migration_status: "new".to_string(),
+            migration_status: MIGRATED_STATUS_NEW.to_string(),
             source_fingerprint: keystore.source_fingerprint.clone(),
             ..Default::default()
         };
         keystores.push(scanned_keystore);
     }
     for keystore in walletv2_keystores.private_key_keystores.iter() {
-        let mut scanned_keystore = ScannedKeystore {
+        let scanned_keystore = ScannedKeystore {
             id: keystore.id.clone(),
             name: keystore.name.clone(),
             identifier: keystore.identifier.clone(),
@@ -634,7 +642,7 @@ fn get_walletv2_keystores() -> Result<Vec<ScannedKeystore>> {
             source: keystore.source.clone(),
             created_at: keystore.created_at,
             accounts: vec![],
-            migration_status: "new".to_string(),
+            migration_status: MIGRATED_STATUS_NEW.to_string(),
             identified_chain_types: keystore.identified_chain_types.clone(),
             identified_network: keystore.identified_network.clone(),
             identified_curve: keystore.identified_curve.clone(),

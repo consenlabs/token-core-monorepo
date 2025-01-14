@@ -1,3 +1,4 @@
+use filemanager::{MIGRATED_STATUS_MIGRATED, MIGRATED_STATUS_NEW, MIGRATED_STATUS_UNMIGRATED};
 use libc::id_t;
 use serial_test::serial;
 
@@ -1079,13 +1080,13 @@ pub fn test_scan_keystores() {
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
     for keystore in resp.keystores {
         if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
-            assert_eq!(&keystore.migration_status, "migrated");
+            assert_eq!(&keystore.migration_status, MIGRATED_STATUS_MIGRATED);
         };
         if "00fc0804-7cea-46d8-9e95-ed1efac65358".eq(&keystore.id) {
-            assert_eq!(&keystore.migration_status, "unmigrated");
+            assert_eq!(&keystore.migration_status, MIGRATED_STATUS_UNMIGRATED);
         };
         if "0d49aae6-cf73-4ebb-998d-b6312d18361f".eq(&keystore.id) {
-            assert_eq!(&keystore.migration_status, "unmigrated");
+            assert_eq!(&keystore.migration_status, MIGRATED_STATUS_UNMIGRATED);
         };
     }
 
@@ -1105,10 +1106,10 @@ pub fn test_scan_keystores() {
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
     for keystore in resp.keystores {
         if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
-            assert_eq!(&keystore.migration_status, "migrated");
+            assert_eq!(&keystore.migration_status, MIGRATED_STATUS_MIGRATED);
         };
         if "0d49aae6-cf73-4ebb-998d-b6312d18361f".eq(&keystore.id) {
-            assert_eq!(&keystore.migration_status, "unmigrated");
+            assert_eq!(&keystore.migration_status, MIGRATED_STATUS_UNMIGRATED);
         };
     }
 
@@ -1128,7 +1129,7 @@ pub fn test_scan_keystores() {
             assert_eq!(&keystore.migration_status, "migrated");
         };
         if "0d49aae6-cf73-4ebb-998d-b6312d18361f".eq(&keystore.id) {
-            assert_eq!(&keystore.migration_status, "migrated");
+            assert_eq!(&keystore.migration_status, MIGRATED_STATUS_MIGRATED);
         };
     }
 
@@ -1153,7 +1154,10 @@ pub fn test_scan_keystores_keystores_only_legacy() {
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
     assert_eq!(resp.keystores.len(), 1);
     assert_eq!(resp.keystores[0].id, "175169f7-5a35-4df7-93c1-1ff612168e71");
-    assert_eq!(resp.keystores[0].migration_status, "unmigrated");
+    assert_eq!(
+        resp.keystores[0].migration_status,
+        MIGRATED_STATUS_UNMIGRATED
+    );
 }
 
 #[test]
@@ -1164,5 +1168,5 @@ pub fn test_scan_keystores_keystores_only_walletsv2() {
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
     assert_eq!(resp.keystores.len(), 1);
     assert_eq!(resp.keystores[0].id, "175169f7-5a35-4df7-93c1-1ff612168e71");
-    assert_eq!(resp.keystores[0].migration_status, "new");
+    assert_eq!(resp.keystores[0].migration_status, MIGRATED_STATUS_NEW);
 }
