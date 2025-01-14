@@ -225,6 +225,9 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
                 "LITECOIN" => {
                     btc_fork_signer::sign_transaction(&param.clone().input.unwrap().value, &param)
                 }
+                "DOGECOIN" => {
+                    btc_signer::sign_btc_transaction(&param.clone().input.unwrap().value, &param)
+                }
                 _ => Err(anyhow!("sign_tx unsupported_chain")),
             }
         }),
