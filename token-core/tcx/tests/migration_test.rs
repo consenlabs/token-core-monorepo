@@ -1,3 +1,4 @@
+use filemanager::{MIGRATED_STATUS_MIGRATED, MIGRATED_STATUS_NEW, MIGRATED_STATUS_UNMIGRATED};
 use libc::id_t;
 use serial_test::serial;
 
@@ -13,8 +14,8 @@ use prost::Message;
 use tcx::api::{
     export_mnemonic_param, migrate_keystore_param, wallet_key_param, BackupResult,
     ExportMnemonicParam, ExportMnemonicResult, GeneralResult, MarkIdentityWalletsParam,
-    MigrateKeystoreParam, MigrateKeystoreResult, ReadKeystoreMnemonicPathResult, SignParam,
-    WalletId, WalletKeyParam,
+    MigrateKeystoreParam, MigrateKeystoreResult, ReadKeystoreMnemonicPathResult,
+    ScannedKeystoresResult, SignParam, WalletId, WalletKeyParam,
 };
 
 use tcx::handler::encode_message;
@@ -1054,4 +1055,118 @@ fn test_read_keystore_mnemonic_path() {
         let mnemonic_path = ReadKeystoreMnemonicPathResult::decode(ret.as_slice()).unwrap();
         assert_eq!(mnemonic_path.path, path);
     }
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores() {
+    let _ = fs::remove_dir_all("../test-data/scan-keystores/walletsV2");
+    let _ = fs::remove_file("../test-data/scan-keystores/wallets/_migrated.json");
+    init_token_core_x("../test-data/scan-keystores");
+
+    let param: MigrateKeystoreParam = MigrateKeystoreParam {
+        id: "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string(),
+        network: "TESTNET".to_string(),
+        key: Some(migrate_keystore_param::Key::Password(
+            TEST_PASSWORD.to_string(),
+        )),
+    };
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    let keystore = result.keystore.unwrap();
+    assert_eq!(keystore.id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
+
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    for keystore in resp.keystores {
+        if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, MIGRATED_STATUS_MIGRATED);
+        };
+        if "00fc0804-7cea-46d8-9e95-ed1efac65358".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, MIGRATED_STATUS_UNMIGRATED);
+        };
+        if "0d49aae6-cf73-4ebb-998d-b6312d18361f".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, MIGRATED_STATUS_UNMIGRATED);
+        };
+    }
+
+    let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "00fc0804-7cea-46d8-9e95-ed1efac65358".to_string(),
+            network: "TESTNET".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "2d7380db28736ae5b0693340a5731e137759d32bbcc1f7988574bc5a1ffd97f3411b4edc14ea648fa17d511129e81a84d2b8a00d45bc37f4784e49b641d5c3be".to_string(),
+            )),
+        };
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    assert!(result.is_existed);
+    assert_eq!(result.existed_id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
+
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    for keystore in resp.keystores {
+        if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, MIGRATED_STATUS_MIGRATED);
+        };
+        if "0d49aae6-cf73-4ebb-998d-b6312d18361f".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, MIGRATED_STATUS_UNMIGRATED);
+        };
+    }
+
+    let param = MigrateKeystoreParam {
+        id: "0d49aae6-cf73-4ebb-998d-b6312d18361f".to_string(),
+        network: "TESTNET".to_string(),
+        key: Some(migrate_keystore_param::Key::Password(
+            "11111111".to_string(),
+        )),
+    };
+    call_api("migrate_keystore", param).unwrap();
+
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    for keystore in resp.keystores {
+        if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, "migrated");
+        };
+        if "0d49aae6-cf73-4ebb-998d-b6312d18361f".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, MIGRATED_STATUS_MIGRATED);
+        };
+    }
+
+    fs::remove_dir_all("../test-data/scan-keystores/walletsV2").unwrap();
+    fs::remove_file("../test-data/scan-keystores/wallets/_migrated.json");
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_keystores_not_exist() {
+    init_token_core_x("../test-data/scan-keystores/keystores-not-exist");
+    let ret = call_api("scan_keystores", "".to_string());
+    assert!(ret.is_err());
+    assert_eq!(format!("{}", ret.err().unwrap()), "keystores_not_found");
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_keystores_only_legacy() {
+    init_token_core_x("../test-data/scan-keystores/only-legacy");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 1);
+    assert_eq!(resp.keystores[0].id, "175169f7-5a35-4df7-93c1-1ff612168e71");
+    assert_eq!(
+        resp.keystores[0].migration_status,
+        MIGRATED_STATUS_UNMIGRATED
+    );
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_keystores_only_walletsv2() {
+    init_token_core_x("../test-data/scan-keystores/only-walletsv2");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 1);
+    assert_eq!(resp.keystores[0].id, "175169f7-5a35-4df7-93c1-1ff612168e71");
+    assert_eq!(resp.keystores[0].migration_status, MIGRATED_STATUS_NEW);
 }

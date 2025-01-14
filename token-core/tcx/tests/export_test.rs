@@ -5,7 +5,7 @@ mod common;
 
 use tcx::api::derive_accounts_param::Derivation;
 
-use tcx::handler::scan_keystores;
+use tcx::handler::cache_keystores;
 use tcx::*;
 
 use prost::Message;
@@ -703,7 +703,7 @@ pub fn test_backup_private_key() {
         assert_eq!(backup_result.original, TEST_WIF);
 
         change_fingerprint_in_keystore(&import_result.id, &import_result.source_fingerprint);
-        scan_keystores().unwrap();
+        cache_keystores().unwrap();
 
         let ret = call_api("backup", param);
         assert_eq!(format!("{}", ret.err().unwrap()), "fingerprint_not_match");
@@ -756,7 +756,7 @@ pub fn test_backup_mnemonic() {
         assert_eq!(export_result.original, TEST_MNEMONIC.to_string());
 
         change_fingerprint_in_keystore(&import_result.id, &import_result.source_fingerprint);
-        scan_keystores().unwrap();
+        cache_keystores().unwrap();
 
         let ret = call_api("backup", param);
         assert_eq!(format!("{}", ret.err().unwrap()), "fingerprint_not_match");
