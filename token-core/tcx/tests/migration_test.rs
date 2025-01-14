@@ -1139,7 +1139,7 @@ pub fn test_scan_keystores() {
 #[test]
 #[serial]
 pub fn test_scan_keystores_keystores_not_exist() {
-    init_token_core_x("../test-data/scan-keystores/keystores_not_exist");
+    init_token_core_x("../test-data/scan-keystores/keystores-not-exist");
     let ret = call_api("scan_keystores", "".to_string());
     assert!(ret.is_err());
     assert_eq!(format!("{}", ret.err().unwrap()), "keystores_not_found");
@@ -1148,7 +1148,7 @@ pub fn test_scan_keystores_keystores_not_exist() {
 #[test]
 #[serial]
 pub fn test_scan_keystores_keystores_only_legacy() {
-    init_token_core_x("../test-data/scan-keystores/only_legacy");
+    init_token_core_x("../test-data/scan-keystores/only-legacy");
     let ret = call_api("scan_keystores", "".to_string()).unwrap();
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
     assert_eq!(resp.keystores.len(), 1);
@@ -1159,7 +1159,7 @@ pub fn test_scan_keystores_keystores_only_legacy() {
 #[test]
 #[serial]
 pub fn test_scan_keystores_keystores_only_walletsv2() {
-    init_token_core_x("../test-data/scan-keystores/only_walletsv2");
+    init_token_core_x("../test-data/scan-keystores/only-walletsv2");
     let ret = call_api("scan_keystores", "".to_string()).unwrap();
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
     assert_eq!(resp.keystores.len(), 1);
