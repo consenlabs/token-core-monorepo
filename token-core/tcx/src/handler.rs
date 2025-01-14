@@ -489,8 +489,22 @@ pub fn cache_keystores() -> Result<ScanKeystoresResult> {
 
 pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
     let mut keystores = get_legacy_keystore()?;
+
     let file_dir = WALLET_FILE_DIR.read();
     let p = Path::new(file_dir.as_str());
+    let is_empty_v2_dir = p.read_dir()?.all(|_| false);
+
+    if keystores.is_empty() && (!p.exists() || is_empty_v2_dir) {
+        return Err(anyhow!("{}", "keystores_not_found"));
+    } else if !keystores.is_empty() && (!p.exists() || is_empty_v2_dir) {
+        return Ok(ScannedKeystoresResult { keystores });
+    } else if keystores.is_empty() && p.exists() {
+        let v2_keystores = get_walletv2_keystores()?;
+        return Ok(ScannedKeystoresResult {
+            keystores: v2_keystores,
+        });
+    }
+
     let walk_dir = std::fs::read_dir(p).expect("read dir");
     let migrated_map = read_migrated_map().1;
     for entry in walk_dir {
@@ -562,10 +576,14 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
 
 fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
     let mut keystores = vec![];
-    let legacy_keystores = scan_legacy_keystores()?;
+    let legacy_keystores_res = scan_legacy_keystores();
+    if legacy_keystores_res.is_err() {
+        return Ok(keystores);
+    }
     let migrated_map = read_migrated_map().1;
+    let legacy_keystores = legacy_keystores_res?;
     for keystore in legacy_keystores.keystores.iter() {
-        let mut scanned_keystore = ScannedKeystore {
+        let mut scanned_keystore: ScannedKeystore = ScannedKeystore {
             id: keystore.id.clone(),
             name: keystore.name.clone(),
             identifier: legacy_keystores.identifier.clone(),
@@ -586,6 +604,45 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
         }
         keystores.push(scanned_keystore);
     }
+    Ok(keystores)
+}
+
+fn get_walletv2_keystores() -> Result<Vec<ScannedKeystore>> {
+    let mut keystores = vec![];
+    let walletv2_keystores = cache_keystores()?;
+    for keystore in walletv2_keystores.hd_keystores.iter() {
+        let mut scanned_keystore = ScannedKeystore {
+            id: keystore.id.clone(),
+            name: keystore.name.clone(),
+            identifier: keystore.identifier.clone(),
+            ipfs_id: keystore.ipfs_id.clone(),
+            source: keystore.source.clone(),
+            created_at: keystore.created_at,
+            accounts: vec![],
+            migration_status: "new".to_string(),
+            source_fingerprint: keystore.source_fingerprint.clone(),
+            ..Default::default()
+        };
+        keystores.push(scanned_keystore);
+    }
+    for keystore in walletv2_keystores.private_key_keystores.iter() {
+        let mut scanned_keystore = ScannedKeystore {
+            id: keystore.id.clone(),
+            name: keystore.name.clone(),
+            identifier: keystore.identifier.clone(),
+            ipfs_id: keystore.ipfs_id.clone(),
+            source: keystore.source.clone(),
+            created_at: keystore.created_at,
+            accounts: vec![],
+            migration_status: "new".to_string(),
+            identified_chain_types: keystore.identified_chain_types.clone(),
+            identified_network: keystore.identified_network.clone(),
+            identified_curve: keystore.identified_curve.clone(),
+            source_fingerprint: keystore.source_fingerprint.clone(),
+        };
+        keystores.push(scanned_keystore);
+    }
+
     Ok(keystores)
 }
 

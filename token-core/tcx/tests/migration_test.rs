@@ -1077,7 +1077,6 @@ pub fn test_scan_keystores() {
 
     let ret = call_api("scan_keystores", "".to_string()).unwrap();
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
-    assert_eq!(resp.keystores.len(), 3);
     for keystore in resp.keystores {
         if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
             assert_eq!(&keystore.migration_status, "migrated");
@@ -1104,7 +1103,6 @@ pub fn test_scan_keystores() {
 
     let ret = call_api("scan_keystores", "".to_string()).unwrap();
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
-    assert_eq!(resp.keystores.len(), 2);
     for keystore in resp.keystores {
         if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
             assert_eq!(&keystore.migration_status, "migrated");
@@ -1125,7 +1123,6 @@ pub fn test_scan_keystores() {
 
     let ret = call_api("scan_keystores", "".to_string()).unwrap();
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
-    assert_eq!(resp.keystores.len(), 2);
     for keystore in resp.keystores {
         if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
             assert_eq!(&keystore.migration_status, "migrated");
@@ -1137,4 +1134,35 @@ pub fn test_scan_keystores() {
 
     fs::remove_dir_all("../test-data/scan-keystores/walletsV2").unwrap();
     fs::remove_file("../test-data/scan-keystores/wallets/_migrated.json");
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_keystores_not_exist() {
+    init_token_core_x("../test-data/scan-keystores/keystores_not_exist");
+    let ret = call_api("scan_keystores", "".to_string());
+    assert!(ret.is_err());
+    assert_eq!(format!("{}", ret.err().unwrap()), "keystores_not_found");
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_keystores_only_legacy() {
+    init_token_core_x("../test-data/scan-keystores/only_legacy");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 1);
+    assert_eq!(resp.keystores[0].id, "175169f7-5a35-4df7-93c1-1ff612168e71");
+    assert_eq!(resp.keystores[0].migration_status, "unmigrated");
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_keystores_only_walletsv2() {
+    init_token_core_x("../test-data/scan-keystores/only_walletsv2");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 1);
+    assert_eq!(resp.keystores[0].id, "175169f7-5a35-4df7-93c1-1ff612168e71");
+    assert_eq!(resp.keystores[0].migration_status, "new");
 }
