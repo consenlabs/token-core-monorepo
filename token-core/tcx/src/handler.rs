@@ -590,6 +590,11 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
         Err(_) => return Ok(keystores),
     };
     let migrated_map = read_migrated_map().1;
+    let mut first_migrited_id = "".to_string();
+    let mut identity_accounts = vec![];
+    let mut identity_keystore = ScannedKeystore {
+        ..Default::default()
+    };
     for keystore in legacy_keystores.keystores.iter() {
         let mut scanned_keystore: ScannedKeystore = ScannedKeystore {
             id: keystore.id.clone(),
@@ -602,16 +607,41 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
             migration_status: MIGRATED_STATUS_UNMIGRATED.to_string(),
             ..Default::default()
         };
+
+        match keystore.source.as_str() {
+            "NEW_IDENTITY" | "RECOVERED_IDENTITY" => {
+                identity_accounts.push(keystore.accounts[0].clone());
+                if migrated_map.contains_key(&keystore.id) {
+                    scanned_keystore.migration_status = MIGRATED_STATUS_MIGRATED.to_string();
+                    identity_keystore = scanned_keystore.clone();
+                    first_migrited_id = keystore.id.clone();
+                }
+
+                if first_migrited_id.is_empty() {
+                    identity_keystore = scanned_keystore;
+                }
+
+                continue;
+            }
+            _ => (),
+        };
+
         let is_migrated = migrated_map
             .values()
             .any(|ids| ids.contains(&keystore.id.to_string()));
+
         if is_migrated && migrated_map.contains_key(&keystore.id) {
-            scanned_keystore.migration_status = "migrated".to_string();
+            scanned_keystore.migration_status = MIGRATED_STATUS_MIGRATED.to_string();
         } else if is_migrated && !migrated_map.contains_key(&keystore.id) {
             continue;
         }
         keystores.push(scanned_keystore);
     }
+    if !identity_accounts.is_empty() {
+        identity_keystore.accounts = identity_accounts;
+        keystores.push(identity_keystore);
+    }
+
     Ok(keystores)
 }
 
