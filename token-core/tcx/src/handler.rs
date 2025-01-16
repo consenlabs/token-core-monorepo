@@ -539,7 +539,6 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
 
         if version == HdKeystore::VERSION || version == PrivateKeystore::VERSION {
             let keystore = Keystore::from_json(&contents)?;
-            println!("{}", keystore.id());
             let (chain_type, curve_type) = match keystore.get_curve() {
                 Some(v) => (curve_to_chain_type(&v), v.as_str().to_string()),
                 None => (vec![], "".to_string()),
