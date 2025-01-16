@@ -499,7 +499,7 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
     if keystores.is_empty() && is_empty_v2_keystore {
         //Legacy keystore, v2 keystone are both empty, return error
 
-        return Err(anyhow!("{}", "keystores_not_found"));
+        return Err(anyhow!("{}", "No such file or directory"));
     } else if !keystores.is_empty() && is_empty_v2_keystore {
         //Legacy keystore exists， v2 keyston is empty, return all legacy keystore
 
@@ -607,7 +607,7 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
             name: keystore.name.clone(),
             identifier: legacy_keystores.identifier.clone(),
             ipfs_id: legacy_keystores.ipfs_id.clone(),
-            source: legacy_keystores.source.clone(),
+            source: keystore.source.clone(),
             created_at: f64::from_str(&keystore.created_at).expect("f64 from timestamp") as i64,
             accounts: keystore.accounts.clone(),
             migration_status: STATUS_UNMIGRATED.to_string(),
