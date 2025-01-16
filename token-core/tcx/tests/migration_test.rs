@@ -1153,7 +1153,7 @@ pub fn test_scan_keystores_keystores_only_legacy() {
     let ret = call_api("scan_keystores", "".to_string()).unwrap();
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
     assert_eq!(resp.keystores.len(), 1);
-    assert_eq!(resp.keystores[0].id, "175169f7-5a35-4df7-93c1-1ff612168e71");
+    assert_eq!(resp.keystores[0].id, "3831346d-0b81-405b-89cf-cdb1d010430e");
     assert_eq!(resp.keystores[0].migration_status, STATUS_UNMIGRATED);
 }
 
