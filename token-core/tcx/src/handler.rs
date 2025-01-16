@@ -555,6 +555,9 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
                         legacy_keystore.identified_network = keystore.meta().network.to_string();
                         legacy_keystore.identified_curve = curve_type.clone();
                         legacy_keystore.source_fingerprint = keystore.fingerprint().to_string();
+                        legacy_keystore.identifier = keystore.identity().clone().identifier;
+                        legacy_keystore.ipfs_id = keystore.identity().clone().ipfs_id;
+                        legacy_keystore.source = keystore.meta().source.to_string();
                         found = true;
                         break;
                     }
