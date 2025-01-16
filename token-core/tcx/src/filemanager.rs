@@ -17,9 +17,9 @@ lazy_static! {
 
 pub const WALLET_V1_DIR: &str = "wallets";
 pub const WALLET_V2_DIR: &str = "walletsV2";
-pub const MIGRATED_STATUS_NEW: &str = "new";
-pub const MIGRATED_STATUS_UNMIGRATED: &str = "unmigrated";
-pub const MIGRATED_STATUS_MIGRATED: &str = "migrated";
+pub const STATUS_NEW: &str = "new";
+pub const STATUS_UNMIGRATED: &str = "unmigrated";
+pub const STATUS_MIGRATED: &str = "migrated";
 
 pub fn clean_keystore() {
     KEYSTORE_MAP.write().clear()
