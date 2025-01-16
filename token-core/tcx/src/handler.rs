@@ -497,9 +497,9 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
     let is_empty_v2_keystore = p.exists() && p.read_dir()?.all(|_| false);
 
     if keystores.is_empty() && is_empty_v2_keystore {
-        //Legacy keystore, v2 keystone are both empty, return error
+        //Legacy keystore, v2 keystone are both empty, return null keystores
 
-        return Err(anyhow!("{}", "No such file or directory"));
+        return Ok(ScannedKeystoresResult { keystores });
     } else if !keystores.is_empty() && is_empty_v2_keystore {
         //Legacy keystore exists， v2 keyston is empty, return all legacy keystore
 
@@ -615,6 +615,9 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
         };
         match keystore.source.as_str() {
             "NEW_IDENTITY" => {
+                if scanned_keystore.identifier.is_empty() {
+                    continue;
+                }
                 new_identity_accounts.extend(keystore.accounts.clone());
                 if migrated_map.contains_key(&keystore.id) {
                     scanned_keystore.migration_status = STATUS_MIGRATED.to_string();
@@ -629,6 +632,9 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
                 continue;
             }
             "RECOVERED_IDENTITY" => {
+                if scanned_keystore.identifier.is_empty() {
+                    continue;
+                }
                 rcv_identity_accounts.extend(keystore.accounts.clone());
                 if migrated_map.contains_key(&keystore.id) {
                     scanned_keystore.migration_status = STATUS_MIGRATED.to_string();
