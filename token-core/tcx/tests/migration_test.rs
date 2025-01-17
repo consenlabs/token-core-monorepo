@@ -13,9 +13,9 @@ use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
 use prost::Message;
 use tcx::api::{
     export_mnemonic_param, migrate_keystore_param, wallet_key_param, BackupResult,
-    ExportMnemonicParam, ExportMnemonicResult, GeneralResult, MarkIdentityWalletsParam,
-    MigrateKeystoreParam, MigrateKeystoreResult, ReadKeystoreMnemonicPathResult,
-    ScannedKeystoresResult, SignParam, WalletId, WalletKeyParam,
+    ExportMnemonicParam, ExportMnemonicResult, GeneralResult, ImportJsonParam, KeystoreResult,
+    MarkIdentityWalletsParam, MigrateKeystoreParam, MigrateKeystoreResult,
+    ReadKeystoreMnemonicPathResult, ScannedKeystoresResult, SignParam, WalletId, WalletKeyParam,
 };
 
 use tcx::handler::encode_message;
@@ -1166,4 +1166,18 @@ pub fn test_scan_keystores_keystores_only_walletsv2() {
     assert_eq!(resp.keystores.len(), 1);
     assert_eq!(resp.keystores[0].id, "175169f7-5a35-4df7-93c1-1ff612168e71");
     assert_eq!(resp.keystores[0].migration_status, STATUS_NEW);
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_v3keystore() {
+    init_token_core_x("../test-data/scan-keystores/rec-v3keystore");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 1);
+    assert_eq!(resp.keystores[0].id, "33bb1668-0b9e-4c2c-b81a-3a7d5b4fb6fa");
+    assert_eq!(resp.keystores[0].source, "KEYSTORE_V3");
+    assert_eq!(resp.keystores[0].identified_chain_types.len(), 1);
+    assert_eq!(resp.keystores[0].identified_chain_types[0], "ETHEREUM");
+
 }
