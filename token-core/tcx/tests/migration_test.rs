@@ -1179,5 +1179,29 @@ pub fn test_scan_keystores_v3keystore() {
     assert_eq!(resp.keystores[0].source, "KEYSTORE_V3");
     assert_eq!(resp.keystores[0].identified_chain_types.len(), 1);
     assert_eq!(resp.keystores[0].identified_chain_types[0], "ETHEREUM");
+}
 
+#[test]
+#[serial]
+pub fn test_scan_keystores_wifkeystore() {
+    init_token_core_x("../test-data/scan-keystores/rec-wifkeystore");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 1);
+    assert_eq!(resp.keystores[0].id, "de895d72-0962-4e69-95fc-7d5500bc9bf4");
+    assert_eq!(resp.keystores[0].source, "WIF");
+    assert_eq!(resp.keystores[0].identified_chain_types.len(), 2);
+    assert_eq!(resp.keystores[0].identified_chain_types[0], "BITCOIN");
+    assert_eq!(resp.keystores[0].identified_chain_types[1], "BITCOINCASH");
+    println!("{:?}", resp.keystores[0]);
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_delete_identity() {
+    init_token_core_x("../test-data/scan-keystores/delete-identity");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 1);
+    assert_eq!(resp.keystores[0].id, "749916f0-ca38-45af-9e12-ed8ac5b0702f");
 }
