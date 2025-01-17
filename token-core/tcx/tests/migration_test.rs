@@ -1193,7 +1193,6 @@ pub fn test_scan_keystores_wifkeystore() {
     assert_eq!(resp.keystores[0].identified_chain_types.len(), 2);
     assert_eq!(resp.keystores[0].identified_chain_types[0], "BITCOIN");
     assert_eq!(resp.keystores[0].identified_chain_types[1], "BITCOINCASH");
-    println!("{:?}", resp.keystores[0]);
 }
 
 #[test]
