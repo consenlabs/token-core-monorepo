@@ -601,6 +601,7 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
                 ("KEYSTORE_V3", _) => vec!["ETHERUM".to_string()],
                 ("PRIVATE", "ETHEREUM" | "TRON") => vec!["ETHERUM".to_string(), "TRON".to_string()],
                 (_, "KUSAMA" | "POLKADOT") => vec!["KUSAMA".to_string(), "POLKADOT".to_string()],
+                ("NEW_IDENTITY" | "RECOVERED_IDENTITY" | "MNEMONIC", _) => vec![],
                 _ => active_chain_types,
             };
 
