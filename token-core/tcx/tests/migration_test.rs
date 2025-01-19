@@ -5,7 +5,7 @@ use serial_test::serial;
 mod common;
 use api::sign_param::Key;
 
-use tcx::filemanager::{KEYSTORE_MAP, LEGACY_WALLET_FILE_DIR};
+use tcx::filemanager::KEYSTORE_MAP;
 
 use tcx::*;
 use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
@@ -13,9 +13,9 @@ use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
 use prost::Message;
 use tcx::api::{
     export_mnemonic_param, migrate_keystore_param, wallet_key_param, BackupResult,
-    ExportMnemonicParam, ExportMnemonicResult, GeneralResult, ImportJsonParam, KeystoreResult,
-    MarkIdentityWalletsParam, MigrateKeystoreParam, MigrateKeystoreResult,
-    ReadKeystoreMnemonicPathResult, ScannedKeystoresResult, SignParam, WalletId, WalletKeyParam,
+    ExportMnemonicParam, ExportMnemonicResult, KeystoreResult, MarkIdentityWalletsParam,
+    MigrateKeystoreParam, MigrateKeystoreResult, ReadKeystoreMnemonicPathResult,
+    ScannedKeystoresResult, SignParam, WalletId, WalletKeyParam,
 };
 
 use tcx::handler::encode_message;
@@ -1203,4 +1203,54 @@ pub fn test_scan_keystores_delete_identity() {
     let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
     assert_eq!(resp.keystores.len(), 1);
     assert_eq!(resp.keystores[0].id, "749916f0-ca38-45af-9e12-ed8ac5b0702f");
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_old_version_private_import() {
+    init_token_core_x("../test-data/scan-keystores/old-version-private-import");
+
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    for k in resp.keystores.iter() {
+        match k.id.as_str() {
+            "5cf25a3e-cd9c-4d3e-bb43-207a40e460e7" => {
+                assert_eq!(k.accounts.len(), 12);
+            }
+            "7b5f5bcb-aeb7-40e9-8d01-89bc4db389e0" => {
+                assert_eq!(k.identified_chain_types.len(), 2);
+                assert!(
+                    k.identified_chain_types.contains(&"BITCOIN".to_string())
+                        & k.identified_chain_types
+                            .contains(&"BITCOINCASH".to_string())
+                );
+            }
+            "a2338abb-0fe2-4ae9-84ef-e97d66a2ee91" => {
+                assert_eq!(k.identified_chain_types.len(), 1);
+                assert_eq!(k.identified_chain_types[0], "TEZOS");
+            }
+            "1d1360a6-6cbd-4a32-8bfa-92f179cc19d8" => {
+                assert_eq!(k.identified_chain_types.len(), 1);
+                assert_eq!(k.identified_chain_types[0], "ETHEREUM");
+            }
+            "651964fa-88b0-44af-aa39-5d5e8fa46919" => {
+                assert_eq!(k.identified_chain_types.len(), 1);
+                assert_eq!(k.identified_chain_types[0], "FILECOIN");
+            }
+            "7ee1e796-7819-4984-8f40-c2b36d661fbc" => {
+                assert_eq!(k.identified_chain_types.len(), 2);
+            }
+            "d3e4075d-b5d9-4c88-8e70-1c42be8758a7" => {
+                assert_eq!(k.identified_chain_types.len(), 2);
+            }
+            "6b953acd-8983-4647-bb43-5b2f05462c31" => {
+                assert_eq!(k.identified_chain_types.len(), 2);
+                assert!(
+                    k.identified_chain_types.contains(&"KUSAMA".to_string())
+                        & k.identified_chain_types.contains(&"POLKADOT".to_string())
+                );
+            }
+            _ => (),
+        }
+    }
 }

@@ -585,6 +585,25 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
         ..Default::default()
     };
     for keystore in legacy_keystores.keystores.iter() {
+        let active_chain_types: Vec<String> = keystore
+            .accounts
+            .iter()
+            .map(|account| account.chain_type.clone())
+            .collect();
+        let identified_chain_types =
+            match (keystore.source.as_str(), active_chain_types[0].as_str()) {
+                ("WIF", "BITCOIN" | "BITCOINCASH") => {
+                    vec!["BITCOIN".to_string(), "BITCOINCASH".to_string()]
+                }
+                ("WIF", "LITECOIN" | "EOS" | "DOGECOIN") => {
+                    vec![active_chain_types[0].to_owned()]
+                }
+                ("KEYSTORE_V3", _) => vec!["ETHERUM".to_string()],
+                ("PRIVATE", "ETHEREUM" | "TRON") => vec!["ETHERUM".to_string(), "TRON".to_string()],
+                (_, "KUSAMA" | "POLKADOT") => vec!["KUSAMA".to_string(), "POLKADOT".to_string()],
+                _ => active_chain_types,
+            };
+
         let mut scanned_keystore: ScannedKeystore = ScannedKeystore {
             id: keystore.id.clone(),
             name: keystore.name.clone(),
@@ -594,6 +613,7 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
             created_at: f64::from_str(&keystore.created_at).expect("f64 from timestamp") as i64,
             accounts: keystore.accounts.clone(),
             migration_status: STATUS_UNMIGRATED.to_string(),
+            identified_chain_types,
             ..Default::default()
         };
         match keystore.source.as_str() {
