@@ -37,9 +37,10 @@ use crate::api::{
     ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
     GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
     GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
-    ImportPrivateKeyResult, KeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
-    ScanKeystoresResult, ScannedKeystore, ScannedKeystoresResult, SignAuthenticationMessageParam,
-    SignAuthenticationMessageResult, SignHashesParam, SignHashesResult, WalletKeyParam,
+    ImportPrivateKeyResult, KeystoreResult, LegacyKeystoreResult, MnemonicToPublicKeyParam,
+    MnemonicToPublicKeyResult, ScanKeystoresResult, ScannedKeystore, ScannedKeystoresResult,
+    SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
+    SignHashesResult, WalletKeyParam,
 };
 use crate::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult};
 use crate::api::{InitTokenCoreXParam, SignParam};
@@ -585,25 +586,7 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
         ..Default::default()
     };
     for keystore in legacy_keystores.keystores.iter() {
-        let active_chain_types: Vec<String> = keystore
-            .accounts
-            .iter()
-            .map(|account| account.chain_type.clone())
-            .collect();
-        let identified_chain_types =
-            match (keystore.source.as_str(), active_chain_types[0].as_str()) {
-                ("WIF", "BITCOIN" | "BITCOINCASH") => {
-                    vec!["BITCOIN".to_string(), "BITCOINCASH".to_string()]
-                }
-                ("WIF", "LITECOIN" | "EOS" | "DOGECOIN") => {
-                    vec![active_chain_types[0].to_owned()]
-                }
-                ("KEYSTORE_V3", _) => vec!["ETHERUM".to_string()],
-                ("PRIVATE", "ETHEREUM" | "TRON") => vec!["ETHERUM".to_string(), "TRON".to_string()],
-                (_, "KUSAMA" | "POLKADOT") => vec!["KUSAMA".to_string(), "POLKADOT".to_string()],
-                ("NEW_IDENTITY" | "RECOVERED_IDENTITY" | "MNEMONIC", _) => vec![],
-                _ => active_chain_types,
-            };
+        let identified_chain_types = get_chain_types_by_legacy_keystore(keystore);
 
         let mut scanned_keystore: ScannedKeystore = ScannedKeystore {
             id: keystore.id.clone(),
@@ -678,6 +661,30 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
     }
 
     Ok(keystores)
+}
+
+fn get_chain_types_by_legacy_keystore(legacy_keystore: &LegacyKeystoreResult) -> Vec<String> {
+    let active_chain_types: Vec<String> = legacy_keystore
+        .accounts
+        .iter()
+        .map(|account| account.chain_type.clone())
+        .collect();
+    match (
+        legacy_keystore.source.as_str(),
+        active_chain_types[0].as_str(),
+    ) {
+        ("WIF", "BITCOIN" | "BITCOINCASH") => {
+            vec!["BITCOIN".to_string(), "BITCOINCASH".to_string()]
+        }
+        ("WIF", "LITECOIN" | "EOS" | "DOGECOIN") => {
+            vec![active_chain_types[0].to_owned()]
+        }
+        ("KEYSTORE_V3", _) => vec!["ETHERUM".to_string()],
+        ("PRIVATE", "ETHEREUM" | "TRON") => vec!["ETHERUM".to_string(), "TRON".to_string()],
+        (_, "KUSAMA" | "POLKADOT") => vec!["KUSAMA".to_string(), "POLKADOT".to_string()],
+        ("NEW_IDENTITY" | "RECOVERED_IDENTITY" | "MNEMONIC", _) => vec![],
+        _ => active_chain_types,
+    }
 }
 
 pub fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
