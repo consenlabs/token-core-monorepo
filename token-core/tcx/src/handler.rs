@@ -680,7 +680,10 @@ fn identify_legacy_keystore_chain_types(legacy_keystore: &LegacyKeystoreResult) 
             vec![active_chain_types[0].to_owned()]
         }
         ("KEYSTORE_V3", _) => vec!["ETHERUM".to_string()],
-        ("PRIVATE", "ETHEREUM" | "TRON") => vec!["ETHERUM".to_string(), "TRON".to_string()],
+        ("PRIVATE", "ETHEREUM" | "TRON") => vec!["ETHEREUM".to_string(), "TRON".to_string()],
+        ("PRIVATE", "BITCOIN" | "BITCOINCASH") => {
+            vec!["BITCOIN".to_string(), "BITCOINCASH".to_string()]
+        }
         (_, "KUSAMA" | "POLKADOT") => vec!["KUSAMA".to_string(), "POLKADOT".to_string()],
         ("NEW_IDENTITY" | "RECOVERED_IDENTITY" | "MNEMONIC", _) => vec![],
         _ => active_chain_types,

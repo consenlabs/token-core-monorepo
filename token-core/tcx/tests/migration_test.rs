@@ -1254,3 +1254,32 @@ pub fn test_scan_keystores_old_version_private_import() {
         }
     }
 }
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_private_key_import() {
+    init_token_core_x("../test-data/scan-keystores/eth-private-import");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    for k in resp.keystores.iter() {
+        match k.id.as_str() {
+            "bceea109-0864-4d63-9ba7-149a451c6488" => {
+                assert_eq!(k.identified_chain_types.len(), 2);
+                assert!(
+                    k.identified_chain_types.contains(&"BITCOIN".to_string())
+                        & k.identified_chain_types
+                            .contains(&"BITCOINCASH".to_string())
+                );
+            }
+            "ea85be04-36eb-42a8-8da4-d8b263c2f243" | "11545fb1-fcc7-4e80-be38-c85e8e316fde" => {
+                assert_eq!(k.identified_chain_types.len(), 2);
+                assert_eq!(k.source, "PRIVATE");
+                assert!(
+                    k.identified_chain_types.contains(&"ETHEREUM".to_string())
+                        & k.identified_chain_types.contains(&"TRON".to_string())
+                );
+            }
+            _ => (),
+        }
+    }
+}
