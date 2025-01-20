@@ -586,7 +586,7 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
         ..Default::default()
     };
     for keystore in legacy_keystores.keystores.iter() {
-        let identified_chain_types = get_chain_types_by_legacy_keystore(keystore);
+        let identified_chain_types = identify_legacy_keystore_chain_types(keystore);
 
         let mut scanned_keystore: ScannedKeystore = ScannedKeystore {
             id: keystore.id.clone(),
@@ -663,7 +663,7 @@ fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
     Ok(keystores)
 }
 
-fn get_chain_types_by_legacy_keystore(legacy_keystore: &LegacyKeystoreResult) -> Vec<String> {
+fn identify_legacy_keystore_chain_types(legacy_keystore: &LegacyKeystoreResult) -> Vec<String> {
     let active_chain_types: Vec<String> = legacy_keystore
         .accounts
         .iter()
