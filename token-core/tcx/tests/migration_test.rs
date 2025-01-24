@@ -1,10 +1,11 @@
+use filemanager::{STATUS_MIGRATED, STATUS_NEW, STATUS_UNMIGRATED};
 use libc::id_t;
 use serial_test::serial;
 
 mod common;
 use api::sign_param::Key;
 
-use tcx::filemanager::{KEYSTORE_MAP, LEGACY_WALLET_FILE_DIR};
+use tcx::filemanager::KEYSTORE_MAP;
 
 use tcx::*;
 use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
@@ -12,9 +13,9 @@ use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
 use prost::Message;
 use tcx::api::{
     export_mnemonic_param, migrate_keystore_param, wallet_key_param, BackupResult,
-    ExportMnemonicParam, ExportMnemonicResult, GeneralResult, MarkIdentityWalletsParam,
-    MigrateKeystoreParam, MigrateKeystoreResult, ReadKeystoreMnemonicPathResult, SignParam,
-    WalletId, WalletKeyParam,
+    ExportMnemonicParam, ExportMnemonicResult, KeystoreResult, MarkIdentityWalletsParam,
+    MigrateKeystoreParam, MigrateKeystoreResult, ReadKeystoreMnemonicPathResult,
+    ScannedKeystoresResult, SignParam, WalletId, WalletKeyParam,
 };
 
 use tcx::handler::encode_message;
@@ -1053,5 +1054,232 @@ fn test_read_keystore_mnemonic_path() {
         let ret = call_api("read_keystore_mnemonic_path", param).unwrap();
         let mnemonic_path = ReadKeystoreMnemonicPathResult::decode(ret.as_slice()).unwrap();
         assert_eq!(mnemonic_path.path, path);
+    }
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores() {
+    let _ = fs::remove_dir_all("../test-data/scan-keystores/walletsV2");
+    let _ = fs::remove_file("../test-data/scan-keystores/wallets/_migrated.json");
+    init_token_core_x("../test-data/scan-keystores");
+
+    let param: MigrateKeystoreParam = MigrateKeystoreParam {
+        id: "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string(),
+        network: "TESTNET".to_string(),
+        key: Some(migrate_keystore_param::Key::Password(
+            TEST_PASSWORD.to_string(),
+        )),
+    };
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    let keystore = result.keystore.unwrap();
+    assert_eq!(keystore.id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
+
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    for keystore in resp.keystores {
+        if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, STATUS_MIGRATED);
+        };
+        if "00fc0804-7cea-46d8-9e95-ed1efac65358".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, STATUS_UNMIGRATED);
+        };
+        if "0d49aae6-cf73-4ebb-998d-b6312d18361f".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, STATUS_UNMIGRATED);
+        };
+    }
+
+    let param: MigrateKeystoreParam = MigrateKeystoreParam {
+            id: "00fc0804-7cea-46d8-9e95-ed1efac65358".to_string(),
+            network: "TESTNET".to_string(),
+            key: Some(migrate_keystore_param::Key::DerivedKey(
+                "2d7380db28736ae5b0693340a5731e137759d32bbcc1f7988574bc5a1ffd97f3411b4edc14ea648fa17d511129e81a84d2b8a00d45bc37f4784e49b641d5c3be".to_string(),
+            )),
+        };
+    let ret = call_api("migrate_keystore", param).unwrap();
+    let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    assert!(result.is_existed);
+    assert_eq!(result.existed_id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
+
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    for keystore in resp.keystores {
+        if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, STATUS_MIGRATED);
+        };
+        if "0d49aae6-cf73-4ebb-998d-b6312d18361f".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, STATUS_UNMIGRATED);
+        };
+    }
+
+    let param = MigrateKeystoreParam {
+        id: "0d49aae6-cf73-4ebb-998d-b6312d18361f".to_string(),
+        network: "TESTNET".to_string(),
+        key: Some(migrate_keystore_param::Key::Password(
+            "11111111".to_string(),
+        )),
+    };
+    call_api("migrate_keystore", param).unwrap();
+
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    for keystore in resp.keystores {
+        if "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, "migrated");
+        };
+        if "0d49aae6-cf73-4ebb-998d-b6312d18361f".eq(&keystore.id) {
+            assert_eq!(&keystore.migration_status, STATUS_MIGRATED);
+        };
+    }
+
+    fs::remove_dir_all("../test-data/scan-keystores/walletsV2").unwrap();
+    fs::remove_file("../test-data/scan-keystores/wallets/_migrated.json");
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_keystores_not_exist() {
+    init_token_core_x("../test-data/scan-keystores/keystores-not-exist");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 0);
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_keystores_only_legacy() {
+    init_token_core_x("../test-data/scan-keystores/only-legacy");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 1);
+    assert_eq!(resp.keystores[0].id, "3831346d-0b81-405b-89cf-cdb1d010430e");
+    assert_eq!(resp.keystores[0].migration_status, STATUS_UNMIGRATED);
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_keystores_only_walletsv2() {
+    init_token_core_x("../test-data/scan-keystores/only-walletsv2");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 1);
+    assert_eq!(resp.keystores[0].id, "175169f7-5a35-4df7-93c1-1ff612168e71");
+    assert_eq!(resp.keystores[0].migration_status, STATUS_NEW);
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_v3keystore() {
+    init_token_core_x("../test-data/scan-keystores/rec-v3keystore");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 1);
+    assert_eq!(resp.keystores[0].id, "33bb1668-0b9e-4c2c-b81a-3a7d5b4fb6fa");
+    assert_eq!(resp.keystores[0].source, "KEYSTORE_V3");
+    assert_eq!(resp.keystores[0].identified_chain_types.len(), 1);
+    assert_eq!(resp.keystores[0].identified_chain_types[0], "ETHEREUM");
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_wifkeystore() {
+    init_token_core_x("../test-data/scan-keystores/rec-wifkeystore");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 1);
+    assert_eq!(resp.keystores[0].id, "de895d72-0962-4e69-95fc-7d5500bc9bf4");
+    assert_eq!(resp.keystores[0].source, "WIF");
+    assert_eq!(resp.keystores[0].identified_chain_types.len(), 2);
+    assert_eq!(resp.keystores[0].identified_chain_types[0], "BITCOIN");
+    assert_eq!(resp.keystores[0].identified_chain_types[1], "BITCOINCASH");
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_delete_identity() {
+    init_token_core_x("../test-data/scan-keystores/delete-identity");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    assert_eq!(resp.keystores.len(), 1);
+    assert_eq!(resp.keystores[0].id, "749916f0-ca38-45af-9e12-ed8ac5b0702f");
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_old_version_private_import() {
+    init_token_core_x("../test-data/scan-keystores/old-version-private-import");
+
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    for k in resp.keystores.iter() {
+        match k.id.as_str() {
+            "5cf25a3e-cd9c-4d3e-bb43-207a40e460e7" => {
+                assert_eq!(k.accounts.len(), 12);
+            }
+            "7b5f5bcb-aeb7-40e9-8d01-89bc4db389e0" => {
+                assert_eq!(k.identified_chain_types.len(), 2);
+                assert!(
+                    k.identified_chain_types.contains(&"BITCOIN".to_string())
+                        & k.identified_chain_types
+                            .contains(&"BITCOINCASH".to_string())
+                );
+            }
+            "a2338abb-0fe2-4ae9-84ef-e97d66a2ee91" => {
+                assert_eq!(k.identified_chain_types.len(), 1);
+                assert_eq!(k.identified_chain_types[0], "TEZOS");
+            }
+            "1d1360a6-6cbd-4a32-8bfa-92f179cc19d8" => {
+                assert_eq!(k.identified_chain_types.len(), 1);
+                assert_eq!(k.identified_chain_types[0], "ETHEREUM");
+            }
+            "651964fa-88b0-44af-aa39-5d5e8fa46919" => {
+                assert_eq!(k.identified_chain_types.len(), 1);
+                assert_eq!(k.identified_chain_types[0], "FILECOIN");
+            }
+            "7ee1e796-7819-4984-8f40-c2b36d661fbc" => {
+                assert_eq!(k.identified_chain_types.len(), 2);
+            }
+            "d3e4075d-b5d9-4c88-8e70-1c42be8758a7" => {
+                assert_eq!(k.identified_chain_types.len(), 2);
+            }
+            "6b953acd-8983-4647-bb43-5b2f05462c31" => {
+                assert_eq!(k.identified_chain_types.len(), 2);
+                assert!(
+                    k.identified_chain_types.contains(&"KUSAMA".to_string())
+                        & k.identified_chain_types.contains(&"POLKADOT".to_string())
+                );
+            }
+            _ => (),
+        }
+    }
+}
+
+#[test]
+#[serial]
+pub fn test_scan_keystores_private_key_import() {
+    init_token_core_x("../test-data/scan-keystores/eth-private-import");
+    let ret = call_api("scan_keystores", "".to_string()).unwrap();
+    let resp: ScannedKeystoresResult = ScannedKeystoresResult::decode(ret.as_slice()).unwrap();
+    for k in resp.keystores.iter() {
+        match k.id.as_str() {
+            "bceea109-0864-4d63-9ba7-149a451c6488" => {
+                assert_eq!(k.identified_chain_types.len(), 2);
+                assert!(
+                    k.identified_chain_types.contains(&"BITCOIN".to_string())
+                        & k.identified_chain_types
+                            .contains(&"BITCOINCASH".to_string())
+                );
+            }
+            "ea85be04-36eb-42a8-8da4-d8b263c2f243" | "11545fb1-fcc7-4e80-be38-c85e8e316fde" => {
+                assert_eq!(k.identified_chain_types.len(), 2);
+                assert_eq!(k.source, "PRIVATE");
+                assert!(
+                    k.identified_chain_types.contains(&"ETHEREUM".to_string())
+                        & k.identified_chain_types.contains(&"TRON".to_string())
+                );
+            }
+            _ => (),
+        }
     }
 }

@@ -37,7 +37,7 @@ pub struct AllIdentityWallets {
     pub source: String,
 }
 
-fn read_migrated_map() -> (String, HashMap<String, Vec<String>>) {
+pub fn read_migrated_map() -> (String, HashMap<String, Vec<String>>) {
     let legacy_file_dir = {
         let dir = LEGACY_WALLET_FILE_DIR.read();
         dir.to_string()
@@ -319,7 +319,7 @@ pub struct LegacyAccount {
 pub(crate) fn scan_legacy_keystores() -> Result<ScanLegacyKeystoresResult> {
     let file_dir = LEGACY_WALLET_FILE_DIR.read();
     let p = Path::new(file_dir.as_str());
-    let walk_dir = std::fs::read_dir(p).expect("read dir");
+    let walk_dir = std::fs::read_dir(p)?;
 
     let mut keystores: Vec<LegacyKeystoreResult> = Vec::new();
     let mut result = ScanLegacyKeystoresResult::default();

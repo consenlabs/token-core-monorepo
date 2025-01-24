@@ -37,16 +37,18 @@ use crate::api::{
     ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
     GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
     GetPublicKeysResult, ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam,
-    ImportPrivateKeyResult, KeystoreResult, MnemonicToPublicKeyParam, MnemonicToPublicKeyResult,
-    ScanKeystoresResult, SignAuthenticationMessageParam, SignAuthenticationMessageResult,
-    SignHashesParam, SignHashesResult, WalletKeyParam,
+    ImportPrivateKeyResult, KeystoreResult, LegacyKeystoreResult, MnemonicToPublicKeyParam,
+    MnemonicToPublicKeyResult, ScanKeystoresResult, ScannedKeystore, ScannedKeystoresResult,
+    SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
+    SignHashesResult, WalletKeyParam,
 };
 use crate::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult};
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
 use crate::filemanager::{
     cache_keystore, clean_keystore, exist_migrated_file, flush_keystore, KEYSTORE_BASE_DIR,
-    LEGACY_WALLET_FILE_DIR, WALLET_FILE_DIR, WALLET_V1_DIR, WALLET_V2_DIR,
+    LEGACY_WALLET_FILE_DIR, STATUS_MIGRATED, STATUS_NEW, STATUS_UNMIGRATED, WALLET_FILE_DIR,
+    WALLET_V1_DIR, WALLET_V2_DIR,
 };
 use crate::filemanager::{delete_keystore_file, KEYSTORE_MAP};
 
@@ -72,7 +74,8 @@ use tcx_tezos::{encode_tezos_private_key, parse_tezos_private_key};
 
 use crate::macros::{impl_to_key, use_chains};
 use crate::migration::{
-    read_all_identity_wallet_ids, remove_all_identity_wallets, remove_old_keystore_by_id,
+    read_all_identity_wallet_ids, read_migrated_map, remove_all_identity_wallets,
+    remove_old_keystore_by_id, scan_legacy_keystores,
 };
 use crate::reset_password::assert_seed_equals;
 
@@ -366,24 +369,6 @@ fn key_info_from_substrate_keystore(keystore: &str, password: &str) -> Result<(V
     Ok((pk, ks.meta.name))
 }
 
-fn curve_to_chain_type(curve: &CurveType) -> Vec<String> {
-    match curve {
-        CurveType::SECP256k1 => vec![
-            "BITCOIN".to_string(),
-            "BITCOINCASH".to_string(),
-            "LITECOIN".to_string(),
-            "FILECOIN".to_string(),
-            "EOS".to_string(),
-            "TRON".to_string(),
-            "COSMOS".to_string(),
-        ],
-        CurveType::ED25519 => vec!["TEZOS".to_string()],
-        CurveType::SR25519 => vec!["KUSAMA".to_string(), "POLKADOT".to_string()],
-        CurveType::BLS => vec!["FILECOIN".to_string()],
-        _ => vec![],
-    }
-}
-
 pub fn init_token_core_x(data: &[u8]) -> Result<()> {
     let InitTokenCoreXParam {
         file_dir,
@@ -407,12 +392,12 @@ pub fn init_token_core_x(data: &[u8]) -> Result<()> {
             *KDF_ROUNDS.write() = 1;
         }
     }
-    scan_keystores()?;
+    cache_keystores()?;
 
     Ok(())
 }
 
-pub fn scan_keystores() -> Result<ScanKeystoresResult> {
+pub fn cache_keystores() -> Result<ScanKeystoresResult> {
     clean_keystore();
     let file_dir = WALLET_FILE_DIR.read();
     let p = Path::new(file_dir.as_str());
@@ -461,6 +446,11 @@ pub fn scan_keystores() -> Result<ScanKeystoresResult> {
                 let curve = keystore
                     .get_curve()
                     .expect("pk keystore must contains curve");
+                let identified_chain_types = keystore
+                    .meta()
+                    .identified_chain_types
+                    .clone()
+                    .unwrap_or_default();
                 let kestore_result = ImportPrivateKeyResult {
                     id: keystore.id(),
                     name: keystore.meta().name.to_string(),
@@ -469,7 +459,7 @@ pub fn scan_keystores() -> Result<ScanKeystoresResult> {
                     source: keystore.meta().source.to_string(),
                     created_at: keystore.meta().timestamp,
                     source_fingerprint: keystore.fingerprint().to_string(),
-                    identified_chain_types: curve_to_chain_type(&curve),
+                    identified_chain_types,
                     identified_network: keystore.meta().network.to_string(),
                     identified_curve: curve.as_str().to_string(),
                     ..Default::default()
@@ -484,6 +474,220 @@ pub fn scan_keystores() -> Result<ScanKeystoresResult> {
         hd_keystores,
         private_key_keystores,
     })
+}
+
+pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
+    let mut keystores = get_legacy_keystore()?;
+
+    let file_dir = WALLET_FILE_DIR.read();
+    let p = Path::new(file_dir.as_str());
+    //Indicates whether the walletV2 directory or keystore file is empty
+    let is_empty_v2_keystore = p.exists() && p.read_dir()?.all(|_| false);
+    //Legacy keystore, v2 keystone are both empty or only legacy keystore is empty, return legacy keystores
+    if (keystores.is_empty() && is_empty_v2_keystore)
+        || (!keystores.is_empty() && is_empty_v2_keystore)
+    {
+        return Ok(ScannedKeystoresResult { keystores });
+    }
+
+    let walk_dir = std::fs::read_dir(p).expect("read dir");
+    let migrated_map = read_migrated_map().1;
+    for entry in walk_dir {
+        let entry = entry.expect("DirEntry");
+        let fp = entry.path();
+        if !fp
+            .file_name()
+            .expect("file_name")
+            .to_str()
+            .expect("file_name str")
+            .ends_with(".json")
+        {
+            continue;
+        }
+
+        let mut f = fs::File::open(fp).expect("open file");
+        let mut contents = String::new();
+
+        let _ = f.read_to_string(&mut contents);
+        let v: Value = serde_json::from_str(&contents).expect("read json from content");
+
+        let version = v["version"].as_i64().expect("version");
+
+        if version == HdKeystore::VERSION || version == PrivateKeystore::VERSION {
+            let keystore = Keystore::from_json(&contents)?;
+            let chain_types = match keystore.meta().source {
+                Source::KeystoreV3 => vec!["ETHEREUM".to_string()],
+                _ => keystore
+                    .meta()
+                    .identified_chain_types
+                    .clone()
+                    .unwrap_or_default(),
+            };
+            let curve_type = keystore
+                .get_curve()
+                .map(|x| x.as_str().to_string())
+                .unwrap_or("".to_string());
+            let is_migrated = migrated_map
+                .values()
+                .any(|ids| ids.contains(&keystore.id()));
+            let mut found = false;
+            for legacy_keystore in &mut keystores {
+                if legacy_keystore.id == keystore.id() {
+                    legacy_keystore.migration_status = STATUS_MIGRATED.to_string();
+                    legacy_keystore.identified_chain_types = chain_types.clone();
+                    legacy_keystore.identified_network = keystore.meta().network.to_string();
+                    legacy_keystore.identified_curve = curve_type.clone();
+                    legacy_keystore.source_fingerprint = keystore.fingerprint().to_string();
+                    legacy_keystore.identifier = keystore.identity().clone().identifier;
+                    legacy_keystore.ipfs_id = keystore.identity().clone().ipfs_id;
+                    legacy_keystore.source = keystore.meta().source.to_string();
+                    found = true;
+                    break;
+                }
+            }
+            if !found || !is_migrated {
+                let scanned_keystore = ScannedKeystore {
+                    id: keystore.id(),
+                    name: keystore.meta().name.to_string(),
+                    identifier: keystore.identity().identifier.to_string(),
+                    ipfs_id: keystore.identity().ipfs_id.to_string(),
+                    source: keystore.meta().source.to_string(),
+                    created_at: keystore.meta().timestamp,
+                    migration_status: STATUS_NEW.to_string(),
+                    identified_chain_types: chain_types,
+                    identified_network: keystore.meta().network.to_string(),
+                    identified_curve: curve_type,
+                    source_fingerprint: keystore.fingerprint().to_string(),
+                    ..Default::default()
+                };
+                keystores.push(scanned_keystore);
+            }
+        }
+    }
+
+    Ok(ScannedKeystoresResult { keystores })
+}
+
+fn get_legacy_keystore() -> Result<Vec<ScannedKeystore>> {
+    let mut keystores = vec![];
+    let legacy_keystores = match scan_legacy_keystores() {
+        Ok(keystores) => keystores,
+        Err(_) => return Ok(keystores),
+    };
+    let migrated_map = read_migrated_map().1;
+    let mut first_migrated_new = "".to_string();
+    let mut first_migrated_rcv = "".to_string();
+    let mut new_identity_accounts = vec![];
+    let mut rcv_identity_accounts = vec![];
+    let mut new_identity_keystore = ScannedKeystore {
+        ..Default::default()
+    };
+    let mut rcv_identity_keystore = ScannedKeystore {
+        ..Default::default()
+    };
+    for keystore in legacy_keystores.keystores.iter() {
+        let identified_chain_types = identify_legacy_keystore_chain_types(keystore);
+
+        let mut scanned_keystore: ScannedKeystore = ScannedKeystore {
+            id: keystore.id.clone(),
+            name: keystore.name.clone(),
+            identifier: legacy_keystores.identifier.clone(),
+            ipfs_id: legacy_keystores.ipfs_id.clone(),
+            source: keystore.source.clone(),
+            created_at: f64::from_str(&keystore.created_at).expect("f64 from timestamp") as i64,
+            accounts: keystore.accounts.clone(),
+            migration_status: STATUS_UNMIGRATED.to_string(),
+            identified_chain_types,
+            ..Default::default()
+        };
+        match keystore.source.as_str() {
+            "NEW_IDENTITY" => {
+                if scanned_keystore.identifier.is_empty() {
+                    continue;
+                }
+                new_identity_accounts.extend(keystore.accounts.clone());
+                if migrated_map.contains_key(&keystore.id) {
+                    scanned_keystore.migration_status = STATUS_MIGRATED.to_string();
+                    new_identity_keystore = scanned_keystore.clone();
+                    first_migrated_new = keystore.id.clone();
+                }
+
+                if first_migrated_new.is_empty() {
+                    new_identity_keystore = scanned_keystore;
+                }
+
+                continue;
+            }
+            "RECOVERED_IDENTITY" => {
+                if scanned_keystore.identifier.is_empty() {
+                    continue;
+                }
+                rcv_identity_accounts.extend(keystore.accounts.clone());
+                if migrated_map.contains_key(&keystore.id) {
+                    scanned_keystore.migration_status = STATUS_MIGRATED.to_string();
+                    rcv_identity_keystore = scanned_keystore.clone();
+                    first_migrated_rcv = keystore.id.clone();
+                }
+
+                if first_migrated_rcv.is_empty() {
+                    rcv_identity_keystore = scanned_keystore;
+                }
+
+                continue;
+            }
+            _ => (),
+        };
+
+        let is_migrated = migrated_map
+            .values()
+            .any(|ids| ids.contains(&keystore.id.to_string()));
+
+        if is_migrated && migrated_map.contains_key(&keystore.id) {
+            scanned_keystore.migration_status = STATUS_MIGRATED.to_string();
+        } else if is_migrated && !migrated_map.contains_key(&keystore.id) {
+            continue;
+        }
+        keystores.push(scanned_keystore);
+    }
+
+    if !new_identity_accounts.is_empty() {
+        new_identity_keystore.accounts = new_identity_accounts;
+        keystores.push(new_identity_keystore);
+    }
+
+    if !rcv_identity_accounts.is_empty() {
+        rcv_identity_keystore.accounts = rcv_identity_accounts;
+        keystores.push(rcv_identity_keystore);
+    }
+
+    Ok(keystores)
+}
+
+fn identify_legacy_keystore_chain_types(legacy_keystore: &LegacyKeystoreResult) -> Vec<String> {
+    let active_chain_types: Vec<String> = legacy_keystore
+        .accounts
+        .iter()
+        .map(|account| account.chain_type.clone())
+        .collect();
+    match (
+        legacy_keystore.source.as_str(),
+        active_chain_types[0].as_str(),
+    ) {
+        ("WIF", "BITCOIN" | "BITCOINCASH") => {
+            vec!["BITCOIN".to_string(), "BITCOINCASH".to_string()]
+        }
+        ("WIF", "LITECOIN" | "EOS" | "DOGECOIN") => {
+            vec![active_chain_types[0].to_owned()]
+        }
+        ("KEYSTORE_V3", _) => vec!["ETHERUM".to_string()],
+        ("PRIVATE", "ETHEREUM" | "TRON") => vec!["ETHEREUM".to_string(), "TRON".to_string()],
+        ("PRIVATE", "BITCOIN" | "BITCOINCASH") => {
+            vec!["BITCOIN".to_string(), "BITCOINCASH".to_string()]
+        }
+        (_, "KUSAMA" | "POLKADOT") => vec!["KUSAMA".to_string(), "POLKADOT".to_string()],
+        ("NEW_IDENTITY" | "RECOVERED_IDENTITY" | "MNEMONIC", _) => vec![],
+        _ => active_chain_types,
+    }
 }
 
 pub fn create_keystore(data: &[u8]) -> Result<Vec<u8>> {
@@ -1489,7 +1693,7 @@ mod tests {
 
     use crate::{api::ImportPrivateKeyResult, filemanager::WALLET_FILE_DIR};
 
-    use super::{decode_private_key, scan_keystores};
+    use super::{cache_keystores, decode_private_key};
     use serial_test::serial;
 
     #[test]
@@ -1575,9 +1779,9 @@ mod tests {
     }
 
     #[test]
-    fn test_scan_keystores() {
+    fn test_cache_keystores() {
         *WALLET_FILE_DIR.write() = "../test-data/scan-keystores-fixtures/".to_string();
-        let result = scan_keystores().unwrap();
+        let result = cache_keystores().unwrap();
         assert_eq!(result.hd_keystores.len(), 1);
         let hd = result.hd_keystores.first().unwrap();
         assert_eq!(hd.id, "1055741c-2904-4973-b7ee-4b69bfd8bcc6");
