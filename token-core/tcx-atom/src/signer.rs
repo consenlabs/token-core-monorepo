@@ -3,9 +3,9 @@ use tcx_keystore::{
     Keystore, Result, SignatureParameters, Signer, TransactionSigner as TraitTransactionSigner,
 };
 
-use tcx_common::{sha256, FromHex};
-
+use anyhow::anyhow;
 use base64;
+use tcx_common::{sha256, FromHex};
 
 const SIG_LEN: usize = 64;
 
@@ -15,6 +15,11 @@ impl TraitTransactionSigner<AtomTxInput, AtomTxOutput> for Keystore {
         params: &SignatureParameters,
         tx: &AtomTxInput,
     ) -> Result<AtomTxOutput> {
+        let path_parts = params.derivation_path.split('/').collect::<Vec<_>>();
+        if path_parts.len() < 4 || path_parts[2] != "118'" {
+            return Err(anyhow!("invalid_sign_path"));
+        }
+
         let data = Vec::from_hex_auto(&tx.raw_data)?;
         let hash = sha256(&data);
 
@@ -51,6 +56,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "".to_string(),
             seg_wit: "".to_string(),
+            contract_code: "".to_string(),
         };
         let mut guard = KeystoreGuard::unlock_by_password(&mut keystore, TEST_PASSWORD).unwrap();
 

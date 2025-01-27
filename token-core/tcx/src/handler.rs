@@ -91,6 +91,7 @@ use_chains!(
     tcx_substrate::polkadot,
     tcx_tezos::tezos,
     tcx_tron::tron,
+    tcx_ton::ton,
 );
 
 pub fn encode_message(msg: impl Message) -> Result<Vec<u8>> {
@@ -108,6 +109,7 @@ fn derive_account(keystore: &mut Keystore, derivation: &Derivation) -> Result<Ac
     )?;
     coin_info.derivation_path = derivation.path.to_owned();
     coin_info.chain_id = derivation.chain_id.to_string();
+    coin_info.contract_code = derivation.contract_code.to_string();
 
     derive_account_internal(&coin_info, keystore)
 }

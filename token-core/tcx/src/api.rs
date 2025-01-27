@@ -380,6 +380,8 @@ pub mod derive_accounts_param {
         pub chain_id: ::prost::alloc::string::String,
         #[prost(string, tag = "6")]
         pub curve: ::prost::alloc::string::String,
+        #[prost(string, tag = "7")]
+        pub contract_code: ::prost::alloc::string::String,
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
