@@ -10,6 +10,8 @@ pub enum CommonError {
     InvalidBase58,
     #[error("missing_network")]
     MissingNetwork,
+    #[error("upgrade_applet")]
+    UpgradeApplet,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]
@@ -42,8 +44,8 @@ pub enum ApduError {
     ImkeyInMenuPage,
     #[error("imkey_pin_not_verified")]
     ImkeyPinNotVerified,
-    #[error("imkey_mnemonic_check_fail")]
-    ImkeyMnemonicCheckFail,
+    #[error("imkey_mnemonic_check_failed")]
+    ImkeyMnemonicCheckFailed,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]
