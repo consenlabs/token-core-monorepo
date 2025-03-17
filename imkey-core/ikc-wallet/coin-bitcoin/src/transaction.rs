@@ -140,7 +140,7 @@ impl BtcTransaction {
                     self.sign_p2pkh_inputs(&utxo_pub_key_vec, &mut tx_to_sign)?;
                 }
             } else {
-                return Err(CoinError::InvalidAddress.into());
+                return Err(CommonError::UpgradeApplet.into());
             }
         }
 
