@@ -120,7 +120,7 @@ impl BtcTransaction {
             for utxo in self.unspents.iter() {
                 let script = Script::from_str(&utxo.script_pubkey)?;
                 if !script.is_p2pkh() && !script.is_p2sh() {
-                    return Err(CoinError::InvalidUtxo.into());
+                    return Err(CommonError::UpgradeApplet.into());
                 }
             }
             let address_version =
@@ -140,7 +140,7 @@ impl BtcTransaction {
                     self.sign_p2pkh_inputs(&utxo_pub_key_vec, &mut tx_to_sign)?;
                 }
             } else {
-                return Err(CoinError::InvalidAddress.into());
+                return Err(CommonError::UpgradeApplet.into());
             }
         }
 
