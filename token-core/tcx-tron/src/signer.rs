@@ -80,6 +80,7 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
         let header = match message.header.to_uppercase().as_str() {
             "TRON" => match message.version {
                 2 => "\x19TRON Signed Message:\n".as_bytes(),
+                3 => "\x19\x01".as_bytes(),
                 _ => "\x19TRON Signed Message:\n32".as_bytes(),
             },
             "ETH" => "\x19Ethereum Signed Message:\n32".as_bytes(),
@@ -208,6 +209,14 @@ mod tests {
         };
         let signed = keystore.sign_message(&params, &message).unwrap();
         assert_eq!("0x8686cc3cf49e772d96d3a8147a59eb3df2659c172775f3611648bfbe7e3c48c11859b873d9d2185567a4f64a14fa38ce78dc385a7364af55109c5b6426e4c0f61b", &signed.signature);
+
+        let message = TronMessageInput {
+            value: "0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090fc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e".to_string(),
+            header: "TRON".to_string(),
+            version: 3,
+        };
+        let signed = keystore.sign_message(&params, &message).unwrap();
+        assert_eq!("0x90125790eae4cb484dbb7470f9a9aafcb95c166843ae319d9876399481e5d350738a86b971532c51b2cf74108e43b32a1ed8658031869471c0e0414fd5aa3cd81b", &signed.signature);
     }
 
     #[test]
@@ -225,5 +234,11 @@ mod tests {
         let mut signed = sk.sign_recoverable(&hash).unwrap();
         signed[64] = signed[64] + 27;
         assert_eq!("7209610445e867cf2a36ea301bb5d1fbc3da597fd2ce4bb7fa64796fbf0620a4175e9f841cbf60d12c26737797217c0082fdb3caa8e44079e04ec3f93e86bbea1c", signed.to_hex())
+    }
+
+    #[test]
+    fn test1() {
+        let a = "\x19\x01".as_bytes();
+        println!("{}", hex::encode(a));
     }
 }
