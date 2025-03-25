@@ -12,7 +12,7 @@ message TronTxOutput {
 message TronMessageInput {
     string message = 1;
     string header = 2;//"TRON","ETH","NONE"
-    uint32 version = 3;//1: V1 2:V2
+    uint32 version = 3;//1: V1 2:V2 3:TIP-712
 }
 
 message TronMessageOutput {
