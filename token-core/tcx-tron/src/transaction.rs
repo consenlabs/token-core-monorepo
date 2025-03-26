@@ -22,8 +22,10 @@ pub struct TronTxOutput {
 pub struct TronMessageInput {
     #[prost(string, tag = "1")]
     pub value: ::prost::alloc::string::String,
+    /// "TRON","ETH","NONE"
     #[prost(string, tag = "2")]
     pub header: ::prost::alloc::string::String,
+    /// 1: V1 2:V2 3:TIP-712
     #[prost(uint32, tag = "3")]
     pub version: u32,
 }
