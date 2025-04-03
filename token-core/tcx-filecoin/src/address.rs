@@ -167,6 +167,7 @@ mod tests {
             curve: CurveType::BLS,
             network: "TESTNET".to_string(),
             seg_wit: "".to_string(),
+            contract_code: "".to_string(),
         };
 
         for (input, expected) in test_cases {
@@ -263,6 +264,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "".to_string(),
+            contract_code: "".to_string(),
         };
 
         for (input, expected) in test_cases {

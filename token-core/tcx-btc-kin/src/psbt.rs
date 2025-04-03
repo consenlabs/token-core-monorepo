@@ -446,6 +446,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "VERSION_1".to_string(),
+            contract_code: "".to_string(),
         };
 
         let account = hd.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
@@ -498,6 +499,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "TESTNET".to_string(),
             seg_wit: "VERSION_1".to_string(),
+            contract_code: "".to_string(),
         };
 
         let account = hd.derive_coin::<BtcKinAddress>(&coin_info).unwrap();

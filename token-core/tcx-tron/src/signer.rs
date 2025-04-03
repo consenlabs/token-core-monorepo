@@ -46,6 +46,11 @@ impl TraitTransactionSigner<TronTxInput, TronTxOutput> for Keystore {
         sign_context: &SignatureParameters,
         tx: &TronTxInput,
     ) -> Result<TronTxOutput> {
+        let path_parts = sign_context.derivation_path.split('/').collect::<Vec<_>>();
+        if path_parts.len() < 4 || path_parts[2] != "195'" {
+            return Err(anyhow!("invalid_sign_path"));
+        }
+
         let data = Vec::from_hex(&tx.raw_data)?;
         let hash = Hash::hash(&data);
 
@@ -113,13 +118,13 @@ mod tests {
 
         let sign_context = SignatureParameters {
             curve: CurveType::SECP256k1,
-            derivation_path: "m/44'/145'/0'/0/0".to_string(),
+            derivation_path: "m/44'/195'/0'/0/0".to_string(),
             chain_type: "TRON".to_string(),
             ..Default::default()
         };
         let signed_tx: TronTxOutput = ks.sign_transaction(&sign_context, &tx)?;
 
-        assert_eq!(signed_tx.signatures[0], "beac4045c3ea5136b541a3d5ec2a3e5836d94f28a1371440a01258808612bc161b5417e6f5a342451303cda840f7e21bfaba1011fad5f63538cb8cc132a9768800");
+        assert_eq!(signed_tx.signatures[0], "c65b4bde808f7fcfab7b0ef9c1e3946c83311f8ac0a5e95be2d8b6d2400cfe8b5e24dc8f0883132513e422f2aaad8a4ecc14438eae84b2683eefa626e3adffc601");
 
         Ok(())
     }

@@ -53,4 +53,8 @@ fn main() {
     //tcx-eth
     env::set_var("OUT_DIR", "../tcx-eth/src");
     prost_build::compile_protos(&["src/eth.proto"], &["src/"]).unwrap();
+
+    //tcx-ton
+    env::set_var("OUT_DIR", "../tcx-ton/src");
+    prost_build::compile_protos(&["src/ton.proto"], &["src/"]).unwrap();
 }
