@@ -322,21 +322,12 @@ mod test {
     }
 
     #[test]
-    fn test1() {
-        let BIND_STATUS_MAP: HashMap<&str, &str> = {
-            let mut bind_status_mapping = HashMap::new();
-            bind_status_mapping.insert("1", "unbound");
-            bind_status_mapping.insert("2", "bound_this");
-            bind_status_mapping.insert("3", "bound_other");
-            bind_status_mapping.insert("4", "success");
-            bind_status_mapping.insert("5", "authcode_error");
-            bind_status_mapping
-        };
-        let binding_status = "unbound";
-        if !BIND_STATUS_MAP.values().any(|v| v == &binding_status) {
-            println!("包含");
-        } else {
-            println!("不包含")
-        }
+    fn test_invalid_bind_status() {
+        assert!(hid_connect("imKey Pro").is_ok());
+        let bind_result = DeviceManage::bind_acquire(&TEST_BIND_CODE, "invalid_bind_status");
+        assert_eq!(
+            bind_result.err().unwrap().to_string(),
+            "imkey_invalid_bind_status"
+        );
     }
 }
