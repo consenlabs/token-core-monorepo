@@ -1,6 +1,7 @@
 use super::key_manager::KeyManager;
 use crate::auth_code_storage::AuthCodeStorageRequest;
 use crate::device_cert_check::DeviceCertCheckRequest;
+use crate::device_manager::bind_check;
 use crate::error::{BindError, ImkeyError};
 use crate::Result;
 use crate::{device_manager, TsmService};
@@ -21,6 +22,7 @@ use rsa::{BigUint, PaddingScheme, PublicKey as RSAPublic, RsaPublicKey};
 use secp256k1::{ecdh, PublicKey, SecretKey};
 use sha1::Sha1;
 use std::collections::HashMap;
+use std::string;
 
 lazy_static! {
     pub static ref KEY_MANAGER: Mutex<KeyManager> = Mutex::new(KeyManager::new());
@@ -98,7 +100,7 @@ impl DeviceManage {
         Ok(BIND_STATUS_MAP.get(status.as_str()).unwrap().to_string())
     }
 
-    pub fn bind_acquire(binding_code: &String) -> Result<String> {
+    pub fn bind_acquire(binding_code: &str, binding_status: &str) -> Result<String> {
         let temp_binding_code = binding_code.to_uppercase();
         let binding_code_bytes = temp_binding_code.as_bytes();
         //check auth code
@@ -109,9 +111,19 @@ impl DeviceManage {
         //encryption auth code
         let auth_code_ciphertext = auth_code_encrypt(&temp_binding_code)?;
 
+        //check binding status
+        if !BIND_STATUS_MAP.values().any(|v| v == &binding_status) {
+            return Err(BindError::ImkeyInvalidBindStatus.into());
+        }
+
         //save auth Code cipher
         let seid = device_manager::get_se_id()?;
-        AuthCodeStorageRequest::build_request_data(seid, auth_code_ciphertext).send_message()?;
+        AuthCodeStorageRequest::build_request_data(
+            seid,
+            auth_code_ciphertext,
+            binding_status.to_string(),
+        )
+        .send_message()?;
 
         let key_manager_obj = KEY_MANAGER.lock();
         //select IMK applet
@@ -222,7 +234,7 @@ pub fn bind_test() {
     let check_result = DeviceManage::bind_check(&path).unwrap_or_default();
     if !"bound_this".eq(check_result.as_str()) {
         //If it is not bound to this device, then perform the binding operation
-        let bind_result = DeviceManage::bind_acquire(&bind_code).unwrap_or_default();
+        let bind_result = DeviceManage::bind_acquire(&bind_code, &check_result).unwrap_or_default();
         if "success".eq(bind_result.as_str()) {
             println!("{:?}", "binding success");
         } else {
@@ -237,7 +249,7 @@ pub fn bind_test() {
 // pub const TEST_KEY_PATH: &str = "/tmp/";
 // pub const TEST_BIND_CODE: &str = "MCYNK5AH";
 pub const TEST_KEY_PATH: &str = "/tmp/";
-pub const TEST_BIND_CODE: &str = "CM3SH5QE";
+pub const TEST_BIND_CODE: &str = "K3AUVVAH";
 
 #[cfg(test)]
 mod test {
@@ -246,6 +258,7 @@ mod test {
     };
     use crate::device_manager::bind_display_code;
     use ikc_transport::hid_api::hid_connect;
+    use std::collections::HashMap;
     use std::fs::OpenOptions;
     use std::io::Read;
     use std::path::Path;
@@ -271,9 +284,9 @@ mod test {
                 .open(Path::new("bind_code.txt"))
                 .expect("imkey_keyfile_opertion_error");
             file.read_to_string(&mut bind_code_temp);
-            bind_result = DeviceManage::bind_acquire(&bind_code_temp).unwrap();
+            bind_result = DeviceManage::bind_acquire(&bind_code_temp, "unbound").unwrap();
         } else if check_result.as_str().eq("bound_other") {
-            bind_result = DeviceManage::bind_acquire(&bind_code).unwrap();
+            bind_result = DeviceManage::bind_acquire(&bind_code, "unbound").unwrap();
         } else {
             ();
         }
@@ -306,5 +319,24 @@ mod test {
     fn auth_code_encrypt_test() {
         let auth_code = "PVU3FY64".to_string();
         assert!(auth_code_encrypt(&auth_code).is_ok());
+    }
+
+    #[test]
+    fn test1() {
+        let BIND_STATUS_MAP: HashMap<&str, &str> = {
+            let mut bind_status_mapping = HashMap::new();
+            bind_status_mapping.insert("1", "unbound");
+            bind_status_mapping.insert("2", "bound_this");
+            bind_status_mapping.insert("3", "bound_other");
+            bind_status_mapping.insert("4", "success");
+            bind_status_mapping.insert("5", "authcode_error");
+            bind_status_mapping
+        };
+        let binding_status = "unbound";
+        if !BIND_STATUS_MAP.values().any(|v| v == &binding_status) {
+            println!("包含");
+        } else {
+            println!("不包含")
+        }
     }
 }

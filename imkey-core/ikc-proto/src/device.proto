@@ -45,6 +45,7 @@ message BindCheckRes {
 
 message BindAcquireReq {
     string bind_code = 1;
+    string bind_status = 2;
 }
 
 message BindAcquireRes {
