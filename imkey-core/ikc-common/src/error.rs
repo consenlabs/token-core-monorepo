@@ -46,6 +46,8 @@ pub enum ApduError {
     ImkeyPinNotVerified,
     #[error("imkey_mnemonic_check_failed")]
     ImkeyMnemonicCheckFailed,
+    #[error("imkey_cancel_mnemonic_check")]
+    ImkeyCancelMnemonicCheck,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]
