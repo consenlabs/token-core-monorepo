@@ -33,6 +33,7 @@ lazy_static! {
         bind_status_mapping.insert(BIND_STATUS_BOUND_OTHER, "bound_other");
         bind_status_mapping.insert(BIND_RESULT_SUCCESS, "success");
         bind_status_mapping.insert(BIND_RESULT_ERROR, "authcode_error");
+        bind_status_mapping.insert(BIND_RESULT_ERROR, "activation");
         bind_status_mapping
     };
 }
