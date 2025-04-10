@@ -1,6 +1,7 @@
 use bytes::BytesMut;
 use prost::Message;
 use serde_json::Value;
+use sp_core::Pair;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
@@ -78,6 +79,7 @@ use crate::migration::{
     remove_old_keystore_by_id, scan_legacy_keystores,
 };
 use crate::reset_password::assert_seed_equals;
+use schnorrkel::SecretKey;
 
 use_chains!(
     tcx_btc_kin::bitcoin,
@@ -270,7 +272,10 @@ pub(crate) fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey>
                 curve = CurveType::SECP256k1;
             } else if decoded_data.len() == 64 {
                 let sr25519_key = Sr25519PrivateKey::from_slice(&decoded_data)?;
-                private_key_bytes = sr25519_key.to_bytes();
+                let bytes = sr25519_key.0.to_raw_vec();
+                let secret_key =
+                    SecretKey::from_bytes(&bytes).map_err(|_| anyhow!("invalid_private_key"))?;
+                private_key_bytes = secret_key.to_ed25519_bytes().to_vec();
                 chain_types.push("KUSAMA".to_string());
                 chain_types.push("POLKADOT".to_string());
                 curve = CurveType::SR25519;

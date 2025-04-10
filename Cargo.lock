@@ -4339,6 +4339,7 @@ dependencies = [
  "prost",
  "prost-build",
  "prost-types",
+ "schnorrkel",
  "serde",
  "serde_json",
  "serial_test",
