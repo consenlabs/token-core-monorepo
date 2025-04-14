@@ -41,6 +41,8 @@ base58 = "=0.2.0"
 parking_lot = "=0.12.1"
 ethereum-types = "=0.14.0"
 strum = { version = "=0.25.0", features = ["derive"] }
+sp-core = "=7.0.0"
+schnorrkel = "=0.9.1"
 
 [lib]
 name = "tcx"

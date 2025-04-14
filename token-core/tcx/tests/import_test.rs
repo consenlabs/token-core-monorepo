@@ -1782,3 +1782,22 @@ fn delete_dir_contents(path: &str) {
         }
     };
 }
+
+#[test]
+#[serial]
+pub fn test_import_invalid_private_key() {
+    run_test(|| {
+        let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
+            private_key: "19e2ee93266b2d9bb72130afa34abcc5ce44790c9a9bdc78aed829e076175ec0eef295f3b5918187fc9f65f1cd3db0a06051582128af45aaf54a10d38ff56d29"
+                .to_string(),
+            password: TEST_PASSWORD.to_string(),
+            name: "test_import_invalid_private".to_string(),
+            password_hint: "".to_string(),
+            network: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
+
+        let ret = import_private_key(&encode_message(param).unwrap());
+        assert_eq!(ret.err().unwrap().to_string(), "invalid_private_key");
+    })
+}
