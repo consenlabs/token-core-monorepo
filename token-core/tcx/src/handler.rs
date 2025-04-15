@@ -1033,6 +1033,7 @@ pub(crate) fn delete_keystore(data: &[u8]) -> Result<Vec<u8>> {
 pub(crate) fn exists_private_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: ExistsPrivateKeyParam =
         ExistsPrivateKeyParam::decode(data).expect("exists_private_key param");
+    decode_private_key(&param.private_key)?;
     let fingerprint = fingerprint_from_any_format_pk(&param.private_key)?;
 
     exists_fingerprint(&fingerprint)
