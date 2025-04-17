@@ -199,8 +199,8 @@ pub fn bind_display_code() -> Result<()> {
     DeviceManage::display_bind_code()
 }
 
-pub fn bind_acquire(bind_code: &str) -> Result<String> {
-    DeviceManage::bind_acquire(&bind_code.to_string())
+pub fn bind_acquire(bind_code: &str, bind_status: &str) -> Result<String> {
+    DeviceManage::bind_acquire(&bind_code.to_string(), bind_status)
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
