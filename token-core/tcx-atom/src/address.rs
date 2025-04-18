@@ -277,5 +277,37 @@ mod tests {
             address.unwrap().to_string(),
             "cosmos1hsk6jryyqjfhp5dhc55tc9jtckygx0eph6dd02"
         );
+
+        let coin_info = CoinInfo {
+            chain_id: "cosmos:bbn-1".to_string(),
+            coin: "COSMOS".to_string(),
+            derivation_path: "m/44'/118'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            contract_code: "".to_string(),
+        };
+
+        let address = AtomAddress::from_public_key(&pub_key, &coin_info);
+        assert_eq!(
+            address.unwrap().to_string(),
+            "bbn11hsk6jryyqjfhp5dhc55tc9jtckygx0eppvctve"
+        );
+
+        let coin_info = CoinInfo {
+            chain_id: "cosmos:bbn-test-5".to_string(),
+            coin: "COSMOS".to_string(),
+            derivation_path: "m/44'/118'/0'/0/0".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            contract_code: "".to_string(),
+        };
+
+        let address = AtomAddress::from_public_key(&pub_key, &coin_info);
+        assert_eq!(
+            address.unwrap().to_string(),
+            "bbn11hsk6jryyqjfhp5dhc55tc9jtckygx0eppvctve"
+        );
     }
 }
