@@ -279,7 +279,7 @@ mod tests {
         );
 
         let coin_info = CoinInfo {
-            chain_id: "cosmos:bbn-1".to_string(),
+            chain_id: "bbn-1".to_string(),
             coin: "COSMOS".to_string(),
             derivation_path: "m/44'/118'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -291,11 +291,11 @@ mod tests {
         let address = AtomAddress::from_public_key(&pub_key, &coin_info);
         assert_eq!(
             address.unwrap().to_string(),
-            "bbn11hsk6jryyqjfhp5dhc55tc9jtckygx0eppvctve"
+            "bbn1hsk6jryyqjfhp5dhc55tc9jtckygx0epqyuusn"
         );
 
         let coin_info = CoinInfo {
-            chain_id: "cosmos:bbn-test-5".to_string(),
+            chain_id: "bbn-test-5".to_string(),
             coin: "COSMOS".to_string(),
             derivation_path: "m/44'/118'/0'/0/0".to_string(),
             curve: CurveType::SECP256k1,
@@ -307,7 +307,7 @@ mod tests {
         let address = AtomAddress::from_public_key(&pub_key, &coin_info);
         assert_eq!(
             address.unwrap().to_string(),
-            "bbn11hsk6jryyqjfhp5dhc55tc9jtckygx0eppvctve"
+            "bbn1hsk6jryyqjfhp5dhc55tc9jtckygx0epqyuusn"
         );
     }
 }

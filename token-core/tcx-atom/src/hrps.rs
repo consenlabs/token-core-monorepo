@@ -185,8 +185,8 @@ lazy_static! {
         chain_id_hrp_map.insert("vidulum-1".to_string(), "vdl".to_string());
         chain_id_hrp_map.insert("dimension_37-1".to_string(), "xpla".to_string());
         chain_id_hrp_map.insert("zetachain_7000-1".to_string(), "zeta".to_string());
-        chain_id_hrp_map.insert("cosmos:bbn-1".to_string(), "bbn1".to_string());
-        chain_id_hrp_map.insert("cosmos:bbn-test-5".to_string(), "bbn1".to_string());
+        chain_id_hrp_map.insert("bbn-1".to_string(), "bbn".to_string());
+        chain_id_hrp_map.insert("bbn-test-5".to_string(), "bbn".to_string());
         RwLock::new(chain_id_hrp_map)
     };
 }
