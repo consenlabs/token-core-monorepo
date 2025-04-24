@@ -70,6 +70,8 @@ pub struct BindCheckRes {
 pub struct BindAcquireReq {
     #[prost(string, tag = "1")]
     pub bind_code: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub bind_status: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
