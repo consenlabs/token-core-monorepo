@@ -6,10 +6,12 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.OSSRH_USERNAME }}
-  ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.OSSRH_PASSWORD }}
-  ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
-  ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_SECRET }}
+  JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  JRELEASER_GPG_PASSPHRASE: ${{ secrets.SIGNING_SECRET }}
+  JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
+  JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+  JRELEASER_NEXUS2_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+  JRELEASER_NEXUS2_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
 
 jobs:
   build:
@@ -91,6 +93,12 @@ jobs:
           ./build-android.sh
           popd
 
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
         with:
@@ -107,17 +115,30 @@ jobs:
           OUTPUT="$(git log -n 5 --pretty=format:"%s")"
           echo ::set-output name=commits::"${OUTPUT}"
 
-      - name: Publish
-        id: publish
+      - name: Build AAR
+        id: build
         run: |
-          export JAVA_HOME=$JAVA_HOME_17_X64
-          export PATH="$JAVA_HOME:$PATH" 
           pushd ${{github.workspace}}/publish/android
           ./gradlew assemble
           echo "tokencore_sha256=$(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')" >> $GITHUB_OUTPUT
           echo "tokencore-release.aar sha256: $(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')"
-          VERSION=${{steps.getversion.outputs.version}} ./gradlew publishToSonatype closeSonatypeStagingRepository
           popd
+
+      - name: Publish with JReleaser
+        id: publish
+        run: |
+          pushd ${{github.workspace}}/publish/android
+          VERSION=${{steps.getversion.outputs.version}} ./gradlew jreleaserDeploy
+          popd
+
+      - name: JReleaser output
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: jreleaser-output
+          path: |
+            ${{github.workspace}}/publish/android/build/jreleaser/trace.log
+            ${{github.workspace}}/publish/android/build/jreleaser/output.properties
 
       - name: Send custom JSON data to Slack workflow
         id: slack
@@ -126,13 +147,13 @@ jobs:
           # For posting a rich message using Block Kit
           payload: |
             {
-              "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.publish.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}",
+              "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.build.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.publish.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}"
+                    "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.build.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}"
                   }
                 }
               ]
