@@ -1,7 +1,8 @@
 name: Build Android Release
 
 on:
-  workflow_dispatch:
+  pull_request_review:
+    types: [submitted]
 
 env:
   CARGO_TERM_COLOR: always
@@ -127,7 +128,7 @@ jobs:
         id: publish
         run: |
           pushd ${{github.workspace}}/publish/android
-          VERSION=${{steps.getversion.outputs.version}} ./gradlew jreleaserDeploy
+          VERSION=${{steps.getversion.outputs.version}} ./gradlew jreleaserFullRelease
           popd
 
       - name: JReleaser output
