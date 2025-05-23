@@ -1,8 +1,7 @@
 name: Build Android Release
 
 on:
-  pull_request_review:
-    types: [submitted]
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
