@@ -127,8 +127,8 @@ jobs:
       - name: Publish with JReleaser
         id: publish
         run: |
-          pushd ${{github.workspace}}/publish/android
-          VERSION=${{steps.getversion.outputs.version}} ./gradlew jreleaserFullRelease
+          pushd ${{github.workspace}}
+          VERSION=${{steps.getversion.outputs.version}} ./publish/android/gradlew -p publish/android  jreleaserFullRelease
           popd
 
       - name: JReleaser output

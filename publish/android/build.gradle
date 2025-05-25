@@ -85,9 +85,11 @@ afterEvaluate {
 }
 
 jreleaser {
+    gitRootSearch = true
+
     project {
         name = 'token-core'
-        description = 'A android library for web3'
+        description = 'A secure and efficient Android library for Web3 wallet management, supporting multiple blockchains and token standards'
         website = 'https://github.com/consenlabs/token-core-monorepo'
         license = 'Apache-2.0'
         java {
@@ -118,9 +120,6 @@ jreleaser {
                     closeRepository = true
                     releaseRepository = true
                     stagingRepositories = ['build/staging-deploy']
-                    // 要发布的产物
-                    // publication = 'Production'
-                    // 是否要签名，默认为true
                     sign = true
                 }
             }
