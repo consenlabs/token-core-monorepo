@@ -12,6 +12,8 @@ env:
   JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
   JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.OSSRH_USERNAME }}
   JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+  JRELEASER_LOG_LEVEL: DEBUG
+  JRELEASER_DEBUG: true
 
 jobs:
   build:
@@ -134,8 +136,57 @@ jobs:
         id: publish
         run: |
           pushd ${{github.workspace}}
-          VERSION=${{steps.getversion.outputs.version}} ./publish/android/gradlew -p publish/android  jreleaserFullRelease
+          echo "🚀 开始JReleaser发布..."
+          VERSION=${{steps.getversion.outputs.version}} ./publish/android/gradlew -p publish/android --info --debug --stacktrace jreleaserFullRelease
           popd
+
+      - name: Show JReleaser logs
+        if: always()
+        run: |
+          echo "📋 JReleaser执行完成，显示详细日志..."
+          
+          echo "=== 🗂️ Staging目录内容 ==="
+          if [ -d "${{github.workspace}}/publish/android/build/staging-deploy" ]; then
+            find "${{github.workspace}}/publish/android/build/staging-deploy" -type f -exec ls -la {} \;
+          else
+            echo "❌ staging-deploy 目录不存在"
+          fi
+          echo
+          
+          if [ -f "${{github.workspace}}/publish/android/build/jreleaser/trace.log" ]; then
+            echo "=== 📄 JReleaser Trace Log ==="
+            cat "${{github.workspace}}/publish/android/build/jreleaser/trace.log"
+            echo "=== Trace Log 结束 ==="
+          else
+            echo "❌ trace.log 文件不存在"
+          fi
+          
+          if [ -f "${{github.workspace}}/publish/android/build/jreleaser/output.properties" ]; then
+            echo "=== 📊 JReleaser Output Properties ==="
+            cat "${{github.workspace}}/publish/android/build/jreleaser/output.properties"
+            echo "=== Output Properties 结束 ==="
+          else
+            echo "❌ output.properties 文件不存在"
+          fi
+
+      - name: Analyze JReleaser errors
+        if: always()
+        run: |
+          echo "🔍 分析JReleaser错误..."
+          
+          if [ -f "${{github.workspace}}/publish/android/build/jreleaser/trace.log" ]; then
+            echo "=== 🚨 错误信息搜索 ==="
+            grep -i "error\|exception\|failed\|unexpected" "${{github.workspace}}/publish/android/build/jreleaser/trace.log" || echo "未找到明显错误"
+            echo
+            
+            echo "=== 🌐 HTTP状态码 ==="
+            grep -i "http.*[0-9][0-9][0-9]" "${{github.workspace}}/publish/android/build/jreleaser/trace.log" || echo "未找到HTTP状态码"
+            echo
+            
+            echo "=== 📤 上传相关 ==="
+            grep -i "upload\|deploy\|publish\|bundle" "${{github.workspace}}/publish/android/build/jreleaser/trace.log" | tail -20 || echo "未找到上传信息"
+            echo
+          fi
 
       - name: JReleaser output
         if: always()
@@ -145,6 +196,8 @@ jobs:
           path: |
             ${{github.workspace}}/publish/android/build/jreleaser/trace.log
             ${{github.workspace}}/publish/android/build/jreleaser/output.properties
+            ${{github.workspace}}/publish/android/build/jreleaser/**/*.log
+            ${{github.workspace}}/publish/android/build/staging-deploy/**/*
 
       - name: Send custom JSON data to Slack workflow
         id: slack

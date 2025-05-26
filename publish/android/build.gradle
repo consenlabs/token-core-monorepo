@@ -75,6 +75,12 @@ afterEvaluate {
 
 jreleaser {
     gitRootSearch = true
+    dryrun = false
+    
+    // 添加详细日志配置
+    logging {
+        level = 'DEBUG'
+    }
 
     project {
         name = 'token-core'
