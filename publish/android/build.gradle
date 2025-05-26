@@ -94,15 +94,11 @@ jreleaser {
     
     deploy {
         maven {
-            nexus2 {
-                maven {
+            mavenCentral {
+                sonatype {
                     active = 'ALWAYS'
-                    url = 'https://s01.oss.sonatype.org/service/local'
-                    closeRepository = true
-                    releaseRepository = true
+                    url = 'https://central.sonatype.com/api/v1/publisher'
                     stagingRepository('build/staging-deploy')
-                    sign = true
-                    verifyPom = false
                     
                     // 专门为AAR包装类型配置artifact覆盖
                     artifactOverride {
