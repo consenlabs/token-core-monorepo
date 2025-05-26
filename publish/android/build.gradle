@@ -32,6 +32,7 @@ afterEvaluate {
                 version this.version
 
                 pom {
+                    packaging = 'aar'
                     name = "token-core"
                     description = "a android library for web3"
                     url = "https://github.com/consenlabs/token-core-monorepo"
@@ -101,6 +102,16 @@ jreleaser {
                     releaseRepository = true
                     stagingRepository('build/staging-deploy')
                     sign = true
+                    verifyPom = false
+                    
+                    // 专门为AAR包装类型配置artifact覆盖
+                    artifactOverride {
+                        groupId = this.group
+                        artifactId = 'token-core'
+                        verifyPom = false
+                        sourceJar = false
+                        javadocJar = false
+                    }
                 }
             }
         }
