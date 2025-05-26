@@ -69,7 +69,6 @@ afterEvaluate {
     signing {
         // Completely disable Gradle signing - JReleaser will handle all signing
         required { false }
-        // No signing configuration needed here
     }
 }
 
