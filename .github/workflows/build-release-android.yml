@@ -137,7 +137,7 @@ jobs:
         run: |
           pushd ${{github.workspace}}
           echo "🚀 开始JReleaser发布..."
-          VERSION=${{steps.getversion.outputs.version}} ./publish/android/gradlew -p publish/android --info --debug --stacktrace jreleaserFullRelease
+          VERSION=${{steps.getversion.outputs.version}} ./publish/android/gradlew -p publish/android --info --debug --stacktrace jreleaserDeploy
           popd
 
       - name: Show JReleaser logs

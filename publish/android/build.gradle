@@ -88,6 +88,14 @@ jreleaser {
         }
     }
 
+    release {
+        github {
+            enabled = false
+            skipTag = true
+            skipRelease = true
+        }
+    }
+
     signing {
         active = 'ALWAYS'
         armored = true
