@@ -124,6 +124,12 @@ jobs:
           echo "tokencore-release.aar sha256: $(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')"
           popd
 
+      - name: Publish to staging
+        run: |
+          pushd ${{github.workspace}}/publish/android
+          VERSION=${{steps.getversion.outputs.version}} ./gradlew publishProductionPublicationToStagingRepository
+          popd
+
       - name: Publish with JReleaser
         id: publish
         run: |
