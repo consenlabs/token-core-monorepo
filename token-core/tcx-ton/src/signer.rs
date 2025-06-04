@@ -16,9 +16,11 @@ impl TraitTransactionSigner<TonRawTxIn, TonTxOut> for Keystore {
             return Err(anyhow!("invalid_sign_hash"));
         }
 
-        let path_parts = params.derivation_path.split('/').collect::<Vec<_>>();
-        if path_parts.len() < 4 || path_parts[2] != "607'" {
-            return Err(anyhow!("invalid_sign_path"));
+        if !params.derivation_path.is_empty() {
+            let path_parts = params.derivation_path.split('/').collect::<Vec<_>>();
+            if path_parts.len() < 4 || path_parts[2] != "607'" {
+                return Err(anyhow!("invalid_sign_path"));
+            }
         }
 
         let hash = Vec::from_hex_auto(&tx.hash)?;

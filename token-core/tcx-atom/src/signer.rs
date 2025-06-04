@@ -15,9 +15,11 @@ impl TraitTransactionSigner<AtomTxInput, AtomTxOutput> for Keystore {
         params: &SignatureParameters,
         tx: &AtomTxInput,
     ) -> Result<AtomTxOutput> {
-        let path_parts = params.derivation_path.split('/').collect::<Vec<_>>();
-        if path_parts.len() < 4 || path_parts[2] != "118'" {
-            return Err(anyhow!("invalid_sign_path"));
+        if !params.derivation_path.is_empty() {
+            let path_parts = params.derivation_path.split('/').collect::<Vec<_>>();
+            if path_parts.len() < 4 || path_parts[2] != "118'" {
+                return Err(anyhow!("invalid_sign_path"));
+            }
         }
 
         let data = Vec::from_hex_auto(&tx.raw_data)?;
