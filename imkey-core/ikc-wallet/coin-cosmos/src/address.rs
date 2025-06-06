@@ -5,13 +5,13 @@ use bitcoin::Network;
 use bitcoin_hashes::hex::{FromHex, ToHex};
 use bitcoin_hashes::{hash160, Hash};
 use hex;
-use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu};
+use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu, Secp256k1Apdu};
 use ikc_common::error::CoinError;
 use ikc_common::path;
 use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::utility;
 use ikc_device::device_binding::KEY_MANAGER;
-use ikc_transport::message;
+use ikc_transport::message::send_apdu;
 use secp256k1::PublicKey;
 use std::str::FromStr;
 
@@ -23,18 +23,28 @@ impl CosmosAddress {
         path::check_path_validity(path)?;
 
         let select_apdu = CosmosApdu::select_applet();
-        let select_response = message::send_apdu(select_apdu)?;
+        let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
         //get public
-        let msg_pubkey = CosmosApdu::get_xpub(&path, true);
-        let res_msg_pubkey = message::send_apdu(msg_pubkey)?;
+        let key_manager_obj = KEY_MANAGER.lock();
+        let bind_signature = utility::secp256k1_sign(&key_manager_obj.pri_key, &path.as_bytes())?;
+
+        let mut apdu_pack: Vec<u8> = vec![];
+        apdu_pack.push(0x00);
+        apdu_pack.push(bind_signature.len() as u8);
+        apdu_pack.extend(bind_signature.as_slice());
+        apdu_pack.push(0x01);
+        apdu_pack.push(path.as_bytes().len() as u8);
+        apdu_pack.extend(path.as_bytes());
+
+        //get public
+        let msg_pubkey = Secp256k1Apdu::get_xpub(&apdu_pack);
+        let res_msg_pubkey = send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
         let sign_source_val = &res_msg_pubkey[..194];
         let sign_result = &res_msg_pubkey[194..res_msg_pubkey.len() - 4];
-
-        let key_manager_obj = KEY_MANAGER.lock();
 
         let sign_verify_result = utility::secp256k1_sign_verify(
             &key_manager_obj.se_pub_key,
@@ -60,9 +70,10 @@ impl CosmosAddress {
     }
 
     pub fn display_address(path: &str) -> Result<String> {
-        let address = CosmosAddress::get_address(path).unwrap();
-        let reg_apdu = CosmosApdu::register_address(address.as_bytes());
-        let res_reg = message::send_apdu(reg_apdu)?;
+        let address = Self::get_address(path).unwrap();
+        let cosmos_menu_name = "ATOM".as_bytes();
+        let reg_apdu = Secp256k1Apdu::register_address(cosmos_menu_name, address.as_bytes());
+        let res_reg = send_apdu(reg_apdu)?;
         ApduCheck::check_response(&res_reg)?;
         Ok(address)
     }
