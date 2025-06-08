@@ -62,4 +62,6 @@ pub enum BindError {
     ImkeySaveKeyFileFail,
     #[error("imkey_authcode_error")]
     ImkeyAuthcodeError,
+    #[error("imkey_invalid_bind_status")]
+    ImkeyInvalidBindStatus,
 }

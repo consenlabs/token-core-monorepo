@@ -169,7 +169,8 @@ pub fn bind_display_code() -> Result<Vec<u8>> {
 
 pub fn bind_acquire(data: &[u8]) -> Result<Vec<u8>> {
     let bind_acquire: BindAcquireReq = BindAcquireReq::decode(data).expect("imkey_illegal_param");
-    let bind_result = device_manager::bind_acquire(&bind_acquire.bind_code)?;
+    let bind_result =
+        device_manager::bind_acquire(&bind_acquire.bind_code, &bind_acquire.bind_status)?;
     let response_msg = BindAcquireRes { bind_result };
     encode_message(response_msg)
 }
