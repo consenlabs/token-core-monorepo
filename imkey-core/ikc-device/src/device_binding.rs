@@ -237,7 +237,7 @@ pub fn bind_test() {
 // pub const TEST_KEY_PATH: &str = "/tmp/";
 // pub const TEST_BIND_CODE: &str = "MCYNK5AH";
 pub const TEST_KEY_PATH: &str = "/tmp/";
-pub const TEST_BIND_CODE: &str = "CM3SH5QE";
+pub const TEST_BIND_CODE: &str = "PDSANLN9";
 
 #[cfg(test)]
 mod test {

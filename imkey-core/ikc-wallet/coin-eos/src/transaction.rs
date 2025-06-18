@@ -8,7 +8,9 @@ use bitcoin_hashes::hex::ToHex;
 use bitcoin_hashes::{ripemd160, Hash};
 use bytes::BufMut;
 use hex::FromHex;
-use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EosApdu};
+use ikc_common::apdu::{Apdu, ApduCheck, CoinCommonApdu, EosApdu, Secp256k1Apdu};
+use ikc_common::constants::EOS_AID;
+use ikc_common::error::CoinError;
 use ikc_common::utility::{retrieve_recid, secp256k1_sign, sha256_hash};
 use ikc_common::{constants, path, utility, SignParam};
 use ikc_device::device_binding::KEY_MANAGER;
@@ -21,8 +23,8 @@ impl EosTransaction {
     pub fn sign_tx(tx_input: EosTxInput, sign_param: &SignParam) -> Result<EosTxOutput> {
         path::check_path_validity(&sign_param.path)?;
 
-        let select_apdu = EosApdu::select_applet();
-        let select_response = send_apdu(select_apdu)?;
+        // let select_apdu = EosApdu::select_applet();
+        let select_response = send_apdu("00A4040006695F656F7311".to_string())?;
         ApduCheck::check_response(&select_response)?;
 
         let mut trans_multi_signs: Vec<EosSignResult> = Vec::new();
@@ -47,51 +49,27 @@ impl EosTransaction {
             //tx data hash
             let tx_data_hash = sha256_hash(&tx_data_pack);
 
-            //view_info
-            let mut view_info = "".to_string();
-            view_info.push_str("07");
-            view_info.push_str(&format!("{:02x}", &sign_data.payment.as_bytes().len()));
-            view_info.push_str(&hex::encode(&sign_data.payment));
-            view_info.push_str("08");
-            view_info.push_str(&format!("{:02x}", &sign_data.receiver.as_bytes().len()));
-            view_info.push_str(&hex::encode(&sign_data.receiver));
-
             //sign
             for pub_key in &sign_data.public_keys {
-                let mut sign_data_pack: Vec<u8> = Vec::new();
-                sign_data_pack.push(0x01);
-                sign_data_pack.push(tx_data_hash.len() as u8); //hash len
-                sign_data_pack.extend(tx_data_hash.iter());
-                sign_data_pack.push(0x02);
-                sign_data_pack.push(sign_param.path.len() as u8); //hash len
-                sign_data_pack.extend(sign_param.path.as_bytes());
-                sign_data_pack.extend(hex::decode(&view_info).unwrap().as_slice());
+                let select_apdu = Apdu::select_applet(EOS_AID);
+                let select_result = send_apdu(select_apdu)?;
+                ApduCheck::check_response(&select_result)?;
 
-                //bind signature
                 let key_manager_obj = KEY_MANAGER.lock();
-                let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &sign_data_pack)?;
+                let path_signature =
+                    secp256k1_sign(&key_manager_obj.pri_key, &sign_param.path.as_bytes())?;
+                let mut path_pack: Vec<u8> = vec![];
+                path_pack.push(0x00);
+                path_pack.push(path_signature.len() as u8);
+                path_pack.extend(path_signature.as_slice());
+                path_pack.push(0x01);
+                path_pack.push(sign_param.path.as_bytes().len() as u8);
+                path_pack.extend(sign_param.path.as_bytes());
 
-                //send prepare data
-                let mut prepare_apdu_data: Vec<u8> = Vec::new();
-                prepare_apdu_data.push(0x00);
-                prepare_apdu_data.push(bind_signature.len() as u8);
-                prepare_apdu_data.extend(bind_signature.iter());
-                prepare_apdu_data.extend(sign_data_pack.iter());
-
-                let prepare_apdus = EosApdu::prepare_sign(prepare_apdu_data);
-                let mut prepare_result = "".to_string();
-                for prepare_apdu in prepare_apdus {
-                    prepare_result = send_apdu_timeout(prepare_apdu, constants::TIMEOUT_LONG)?;
-                    ApduCheck::check_response(&prepare_result)?;
-                }
-
-                //check pub key
-                let mut signature = "".to_string();
-                let uncomprs_pubkey: String = prepare_result
-                    .chars()
-                    .take(prepare_result.len() - 4)
-                    .collect();
-                let comprs_pubkey = utility::uncompress_pubkey_2_compress(&uncomprs_pubkey);
+                let msg_pubkey = Secp256k1Apdu::get_xpub(&path_pack);
+                let res_msg_pubkey = send_apdu(msg_pubkey)?;
+                let pubkey_raw = hex::decode(&res_msg_pubkey[..130]).unwrap();
+                let comprs_pubkey = utility::uncompress_pubkey_2_compress(&res_msg_pubkey);
                 let mut comprs_pubkey_slice = hex::decode(comprs_pubkey)?;
                 let pubkey_hash = ripemd160::Hash::hash(&comprs_pubkey_slice);
                 let check_sum = &pubkey_hash[0..4];
@@ -101,15 +79,64 @@ impl EosTransaction {
                     return Err(anyhow!("imkey_publickey_mismatch_with_path"));
                 }
 
+                let mut data_pack = Vec::new();
+
+                data_pack.push(0x01);
+                data_pack.push(tx_data_hash.len() as u8);
+                data_pack.extend(&tx_data_hash);
+
+                let path = sign_param.path.as_bytes();
+                data_pack.push(0x02);
+                data_pack.push(path.len() as u8);
+                data_pack.extend(path);
+
+                let payment = sign_data.payment.as_bytes();
+                data_pack.push(0x07);
+                data_pack.push(payment.len() as u8);
+                data_pack.extend(payment);
+
+                let to = sign_data.receiver.as_bytes();
+                data_pack.push(0x08);
+                data_pack.push(to.len() as u8);
+                data_pack.extend(to);
+
+                // let key_manager_obj = KEY_MANAGER.lock();
+                let data_pack_sig = secp256k1_sign(&key_manager_obj.pri_key, &data_pack)?;
+
+                let mut data_pack_with_sig = Vec::new();
+                data_pack_with_sig.push(0x00);
+                data_pack_with_sig.push(data_pack_sig.len() as u8);
+                data_pack_with_sig.extend(&data_pack_sig);
+                data_pack_with_sig.extend(&data_pack);
+
+                let sign_apdus = Secp256k1Apdu::prepare_eos(&data_pack_with_sig);
+                for apdu in sign_apdus {
+                    let sign_response = send_apdu_timeout(apdu, constants::TIMEOUT_LONG)?;
+                    ApduCheck::check_response(&sign_response)?;
+                }
+
                 //sign
                 let mut nonce = 0;
+                let mut signature = "".to_string();
                 loop {
-                    let sign_apdu = EosApdu::sign_tx(nonce);
-                    let sign_result = send_apdu(sign_apdu)?;
-                    ApduCheck::check_response(&sign_result)?;
+                    let sign_apdu = Secp256k1Apdu::sign_eos(nonce);
+                    let sign_response = send_apdu(sign_apdu)?;
+                    ApduCheck::check_response(&sign_response)?;
 
-                    let sign_result_vec =
-                        Vec::from_hex(&sign_result[2..sign_result.len() - 6]).unwrap();
+                    // verify
+                    let sign_source_val = &sign_response[..132];
+                    let sign_result = &sign_response[132..sign_response.len() - 4];
+                    let sign_verify_result = utility::secp256k1_sign_verify(
+                        &key_manager_obj.se_pub_key,
+                        hex::decode(sign_result).unwrap().as_slice(),
+                        hex::decode(sign_source_val).unwrap().as_slice(),
+                    )?;
+
+                    if !sign_verify_result {
+                        return Err(CoinError::ImkeySignatureVerifyFail.into());
+                    }
+
+                    let sign_result_vec = Vec::from_hex(&sign_result[2..130]).unwrap();
                     let mut signature_obj =
                         Signature::from_compact(sign_result_vec.as_slice()).unwrap();
                     //generator der sign data
@@ -122,9 +149,8 @@ impl EosTransaction {
                     let len_s = signatrue_der[5 + len_r as usize];
                     if len_r == 32 && len_s == 32 {
                         //calc v
-                        let pub_key_raw = hex::decode(&uncomprs_pubkey).unwrap();
-                        let sign_compact = hex::decode(&sign_result[2..130]).unwrap();
-                        let rec_id = retrieve_recid(&tx_data_hash, &sign_compact, &pub_key_raw)?;
+                        let sign_compact = hex::decode(&sign_response[2..130]).unwrap();
+                        let rec_id = retrieve_recid(&tx_data_hash, &sign_compact, &pubkey_raw)?;
                         let rec_id = rec_id.to_i32();
                         let v = rec_id + 27 + 4;
 
@@ -159,55 +185,105 @@ impl EosTransaction {
         input: EosMessageInput,
         sign_param: &SignParam,
     ) -> Result<EosMessageOutput> {
-        let hash = if input.is_hex {
+        let tx_data_hash = if input.is_hex {
             hex::decode(input.data).unwrap()
         } else {
             sha256_hash(input.data.as_bytes())
         };
 
-        let mut data_pack: Vec<u8> = Vec::new();
+        let mut data_pack = Vec::new();
+
         data_pack.push(0x01);
-        data_pack.push(0x20);
-        data_pack.extend(hash.as_slice());
+        data_pack.push(tx_data_hash.len() as u8);
+        data_pack.extend(&tx_data_hash);
+
+        let path = sign_param.path.as_bytes();
         data_pack.push(0x02);
-        data_pack.push(sign_param.path.as_bytes().len() as u8);
-        data_pack.extend(sign_param.path.as_bytes());
+        data_pack.push(path.len() as u8);
+        data_pack.extend(path);
 
         let key_manager_obj = KEY_MANAGER.lock();
-        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &data_pack).unwrap();
+        let msg_sig = secp256k1_sign(&key_manager_obj.pri_key, &data_pack)?;
+        let mut data_pack_with_sig = Vec::new();
+        data_pack_with_sig.push(0x00);
+        data_pack_with_sig.push(msg_sig.len() as u8);
+        data_pack_with_sig.extend(msg_sig);
+        data_pack_with_sig.extend(&data_pack);
 
-        let mut prepare_pack: Vec<u8> = Vec::new();
-        prepare_pack.push(0x00);
-        prepare_pack.push(bind_signature.len() as u8);
-        prepare_pack.extend(bind_signature.iter());
-        prepare_pack.extend(data_pack.iter());
+        let select_apdu = Apdu::select_applet(EOS_AID);
+        let select_result = send_apdu(select_apdu)?;
+        ApduCheck::check_response(&select_result)?;
 
-        let select_apdu = EosApdu::select_applet();
-        let select_response = send_apdu(select_apdu)?;
-        ApduCheck::check_response(&select_response)?;
+        let path_signature = secp256k1_sign(&key_manager_obj.pri_key, &sign_param.path.as_bytes())?;
+        let mut path_pack: Vec<u8> = vec![];
+        path_pack.push(0x00);
+        path_pack.push(path_signature.len() as u8);
+        path_pack.extend(path_signature.as_slice());
+        path_pack.push(0x01);
+        path_pack.push(sign_param.path.as_bytes().len() as u8);
+        path_pack.extend(sign_param.path.as_bytes());
 
-        let prepare_apdus = EosApdu::prepare_message_sign(prepare_pack);
-
-        let mut prepare_response = "".to_string();
-        for apdu in prepare_apdus {
-            prepare_response = send_apdu_timeout(apdu, constants::TIMEOUT_LONG)?;
-            ApduCheck::check_response(&prepare_response)?;
-        }
-
-        //todo optmize,calc from prepare response
-        let pubkey = EosPubkey::pubkey_from_response(&prepare_response).unwrap();
-        let mut signature = "".to_string();
-        if &pubkey != &input.pubkey {
+        let msg_pubkey = Secp256k1Apdu::get_xpub(&path_pack);
+        let res_msg_pubkey = send_apdu(msg_pubkey)?;
+        let pubkey_raw = hex::decode(&res_msg_pubkey[..130]).unwrap();
+        let comprs_pubkey = utility::uncompress_pubkey_2_compress(&res_msg_pubkey);
+        let mut comprs_pubkey_slice = hex::decode(comprs_pubkey)?;
+        let pubkey_hash = ripemd160::Hash::hash(&comprs_pubkey_slice);
+        let check_sum = &pubkey_hash[0..4];
+        comprs_pubkey_slice.extend(check_sum);
+        let eos_pk = "EOS".to_owned() + base58::encode_slice(&comprs_pubkey_slice).as_ref();
+        if &input.pubkey != &eos_pk {
             return Err(anyhow!("imkey_publickey_mismatch_with_path"));
         }
+
+        let mut data_pack = Vec::new();
+
+        data_pack.push(0x01);
+        data_pack.push(tx_data_hash.len() as u8);
+        data_pack.extend(&tx_data_hash);
+
+        let path = sign_param.path.as_bytes();
+        data_pack.push(0x02);
+        data_pack.push(path.len() as u8);
+        data_pack.extend(path);
+
+        // let key_manager_obj = KEY_MANAGER.lock();
+        let data_pack_sig = secp256k1_sign(&key_manager_obj.pri_key, &data_pack)?;
+
+        let mut data_pack_with_sig = Vec::new();
+        data_pack_with_sig.push(0x00);
+        data_pack_with_sig.push(data_pack_sig.len() as u8);
+        data_pack_with_sig.extend(&data_pack_sig);
+        data_pack_with_sig.extend(&data_pack);
+
+        let sign_apdus = Secp256k1Apdu::prepare_eos(&data_pack_with_sig);
+        for apdu in sign_apdus {
+            let sign_response = send_apdu_timeout(apdu, constants::TIMEOUT_LONG)?;
+            ApduCheck::check_response(&sign_response)?;
+        }
+
         //sign
         let mut nonce = 0;
+        let mut signature = "".to_string();
         loop {
-            let sign_apdu = EosApdu::sign_message(nonce);
-            let sign_result = send_apdu(sign_apdu)?;
-            ApduCheck::check_response(&sign_result)?;
+            let sign_apdu = Secp256k1Apdu::sign_eos(nonce);
+            let sign_response = send_apdu(sign_apdu)?;
+            ApduCheck::check_response(&sign_response)?;
 
-            let sign_result_vec = Vec::from_hex(&sign_result[2..sign_result.len() - 6]).unwrap();
+            // verify
+            let sign_source_val = &sign_response[..132];
+            let sign_result = &sign_response[132..sign_response.len() - 4];
+            let sign_verify_result = utility::secp256k1_sign_verify(
+                &key_manager_obj.se_pub_key,
+                hex::decode(sign_result).unwrap().as_slice(),
+                hex::decode(sign_source_val).unwrap().as_slice(),
+            )?;
+
+            if !sign_verify_result {
+                return Err(CoinError::ImkeySignatureVerifyFail.into());
+            }
+
+            let sign_result_vec = Vec::from_hex(&sign_source_val[2..130]).unwrap();
             let mut signature_obj = Signature::from_compact(sign_result_vec.as_slice()).unwrap();
             //generator der sign data
             signature_obj.normalize_s();
@@ -219,13 +295,8 @@ impl EosTransaction {
             let len_s = signatrue_der[5 + len_r as usize];
             if len_r == 32 && len_s == 32 {
                 //calc v
-                let uncomprs_pubkey: String = prepare_response
-                    .chars()
-                    .take(prepare_response.len() - 4)
-                    .collect();
-                let pub_key_raw = hex::decode(&uncomprs_pubkey).unwrap();
-                let sign_compact = hex::decode(&sign_result[2..130]).unwrap();
-                let rec_id = utility::retrieve_recid(&hash, &sign_compact, &pub_key_raw).unwrap();
+                let sign_compact = hex::decode(&sign_response[2..130]).unwrap();
+                let rec_id = retrieve_recid(&tx_data_hash, &sign_compact, &pubkey_raw)?;
                 let rec_id = rec_id.to_i32();
                 let v = rec_id + 27 + 4;
 
@@ -237,6 +308,7 @@ impl EosTransaction {
         }
 
         //checksum base58
+        println!("signature: {}", signature);
         let mut to_hash = hex::decode(&signature).unwrap();
         to_hash.put_slice("K1".as_bytes());
         let signature_hash = ripemd160::Hash::hash(&to_hash);
@@ -282,6 +354,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let result = EosTransaction::sign_tx(eox_tx_input, &sign_param).unwrap();
@@ -315,6 +388,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let result = EosTransaction::sign_tx(eox_tx_input, &sign_param);
@@ -348,6 +422,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let result = EosTransaction::sign_tx(eox_tx_input, &sign_param).unwrap();
@@ -375,6 +450,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);
@@ -402,6 +478,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);
@@ -429,6 +506,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);
@@ -456,6 +534,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);
@@ -483,6 +562,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);

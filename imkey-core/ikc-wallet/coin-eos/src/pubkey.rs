@@ -5,11 +5,12 @@ use bitcoin::util::base58;
 use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
 use bitcoin::Network;
 use bitcoin_hashes::{ripemd160, Hash};
-use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EosApdu};
+use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EosApdu, Secp256k1Apdu};
+use ikc_common::error::CoinError;
 use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::{path, utility};
 use ikc_device::device_binding::KEY_MANAGER;
-use ikc_transport::message;
+use ikc_transport::message::send_apdu;
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -20,35 +21,39 @@ impl EosPubkey {
         path::check_path_validity(path)?;
 
         let select_apdu = EosApdu::select_applet();
-        let select_response = message::send_apdu(select_apdu)?;
+        let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
         //get public key
-        let msg_pubkey = EosApdu::get_xpub(&path, true);
-        let res_msg_pubkey = message::send_apdu(msg_pubkey)?;
+        let key_manager_obj = KEY_MANAGER.lock();
+        let bind_signature = utility::secp256k1_sign(&key_manager_obj.pri_key, &path.as_bytes())?;
+
+        let mut apdu_pack: Vec<u8> = vec![];
+        apdu_pack.push(0x00);
+        apdu_pack.push(bind_signature.len() as u8);
+        apdu_pack.extend(bind_signature.as_slice());
+        apdu_pack.push(0x01);
+        apdu_pack.push(path.as_bytes().len() as u8);
+        apdu_pack.extend(path.as_bytes());
+
+        //get public
+        let msg_pubkey = Secp256k1Apdu::get_xpub(&apdu_pack);
+        let res_msg_pubkey = send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
         let sign_source_val = &res_msg_pubkey[..194];
         let sign_result = &res_msg_pubkey[194..res_msg_pubkey.len() - 4];
 
-        let key_manager_obj = KEY_MANAGER.lock();
-
-        //use se public key verify sign
         let sign_verify_result = utility::secp256k1_sign_verify(
             &key_manager_obj.se_pub_key,
             hex::decode(sign_result).unwrap().as_slice(),
             hex::decode(sign_source_val).unwrap().as_slice(),
         )?;
         if !sign_verify_result {
-            return Err(anyhow!("imkey_signature_verify_fail"));
+            return Err(CoinError::ImkeySignatureVerifyFail.into());
         }
 
-        //compressed key
-        let uncomprs_pubkey: String = res_msg_pubkey
-            .chars()
-            .take(res_msg_pubkey.len() - 4)
-            .collect();
-        let comprs_pubkey = utility::uncompress_pubkey_2_compress(&uncomprs_pubkey);
+        let comprs_pubkey = utility::uncompress_pubkey_2_compress(&sign_source_val);
 
         //checksum base58
         let mut comprs_pubkey_slice = hex::decode(comprs_pubkey).expect("Decoding failed");
@@ -64,12 +69,12 @@ impl EosPubkey {
         path::check_path_validity(path)?;
 
         let select_apdu = EosApdu::select_applet();
-        let select_response = message::send_apdu(select_apdu)?;
+        let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
         //get public key
         let msg_pubkey = EosApdu::get_xpub(&path, true);
-        let res_msg_pubkey = message::send_apdu(msg_pubkey)?;
+        let res_msg_pubkey = send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
         let sign_source_val = &res_msg_pubkey[..194];
@@ -151,10 +156,12 @@ impl EosPubkey {
 
         Ok(eos_pk)
     }
+
     pub fn display_pubkey(path: &str) -> Result<String> {
         let pubkey = EosPubkey::get_pubkey(path).unwrap();
-        let reg_apdu = EosApdu::register_address(pubkey.as_bytes());
-        let res_reg = message::send_apdu(reg_apdu)?;
+        let eos_menu_name = "EOS".as_bytes();
+        let reg_apdu = Secp256k1Apdu::register_address(eos_menu_name, pubkey.as_bytes());
+        let res_reg = send_apdu(reg_apdu)?;
         ApduCheck::check_response(&res_reg)?;
         Ok(pubkey)
     }
