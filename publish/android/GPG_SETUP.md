@@ -53,7 +53,7 @@
 
 确保您已经：
 
-1. 在Sonatype OSSRH (https://s01.oss.sonatype.org/) 注册了一个账号
+1. 在Sonatype OSSRH (https://central.sonatype.com/) 注册了一个账号
 2. 创建了一个项目/包的命名空间（例如：io.github.yourusername）
 3. 将以下信息添加为GitHub Secrets：
    - `OSSRH_USERNAME`: 您的Sonatype用户名
