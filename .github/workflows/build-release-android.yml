@@ -146,6 +146,11 @@ jobs:
             ${{github.workspace}}/publish/android/build/jreleaser/trace.log
             ${{github.workspace}}/publish/android/build/jreleaser/output.properties
 
+      - name: Get GPG key SHA256 hash
+        id: gpg_info
+        run: |
+          echo "gpg_sha256=$(echo '${{ secrets.GPG_PUBLIC_KEY }}' | shasum -a 256 | awk '{print $1}')" >> $GITHUB_OUTPUT
+
       - name: Send custom JSON data to Slack workflow
         id: slack
         uses: slackapi/slack-github-action@v1.23.0
@@ -153,13 +158,13 @@ jobs:
           # For posting a rich message using Block Kit
           payload: |
             {
-              "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.build.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}",
+              "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.build.outputs.tokencore_sha256 }}\nGPG Key SHA256: ${{ steps.gpg_info.outputs.gpg_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}\n@Brian Shi @xyz @xiaoguang Please review the build results.",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.build.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}"
+                    "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.build.outputs.tokencore_sha256 }}\nGPG Key SHA256: ${{ steps.gpg_info.outputs.gpg_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}\n@Brian Shi @xyz @xiaoguang Please review the build results."
                   }
                 }
               ]
