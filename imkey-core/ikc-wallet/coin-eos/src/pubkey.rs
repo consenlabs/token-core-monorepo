@@ -6,10 +6,12 @@ use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKe
 use bitcoin::Network;
 use bitcoin_hashes::{ripemd160, Hash};
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EosApdu, Secp256k1Apdu};
+use ikc_common::constants::EOS_AID;
 use ikc_common::error::CoinError;
 use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::{path, utility};
 use ikc_device::device_binding::KEY_MANAGER;
+use ikc_device::device_manager::get_apple_version;
 use ikc_transport::message::send_apdu;
 use std::str::FromStr;
 
@@ -18,6 +20,58 @@ pub struct EosPubkey {}
 
 impl EosPubkey {
     pub fn get_pubkey(path: &str) -> Result<String> {
+        let version = get_apple_version(EOS_AID)?;
+        match version.as_str() {
+            "0.0.1" => Self::get_pubkey_for_eos(path),
+            _ => Self::get_pubkey_for_k1(path),
+        }
+    }
+
+    pub fn get_pubkey_for_eos(path: &str) -> Result<String> {
+        path::check_path_validity(path)?;
+
+        let select_apdu = EosApdu::select_applet();
+        let select_response = send_apdu(select_apdu)?;
+        ApduCheck::check_response(&select_response)?;
+
+        //get public key
+        let msg_pubkey = EosApdu::get_xpub(&path, true);
+        let res_msg_pubkey = send_apdu(msg_pubkey)?;
+        ApduCheck::check_response(&res_msg_pubkey)?;
+
+        let sign_source_val = &res_msg_pubkey[..194];
+        let sign_result = &res_msg_pubkey[194..res_msg_pubkey.len() - 4];
+
+        let key_manager_obj = KEY_MANAGER.lock();
+
+        //use se public key verify sign
+        let sign_verify_result = utility::secp256k1_sign_verify(
+            &key_manager_obj.se_pub_key,
+            hex::decode(sign_result).unwrap().as_slice(),
+            hex::decode(sign_source_val).unwrap().as_slice(),
+        )?;
+        if !sign_verify_result {
+            return Err(anyhow!("imkey_signature_verify_fail"));
+        }
+
+        //compressed key
+        let uncomprs_pubkey: String = res_msg_pubkey
+            .chars()
+            .take(res_msg_pubkey.len() - 4)
+            .collect();
+        let comprs_pubkey = utility::uncompress_pubkey_2_compress(&uncomprs_pubkey);
+
+        //checksum base58
+        let mut comprs_pubkey_slice = hex::decode(comprs_pubkey).expect("Decoding failed");
+        let pubkey_hash = ripemd160::Hash::hash(&comprs_pubkey_slice);
+        let check_sum = &pubkey_hash[0..4];
+        comprs_pubkey_slice.extend(check_sum);
+        let eos_pk = "EOS".to_owned() + base58::encode_slice(&comprs_pubkey_slice).as_ref();
+
+        Ok(eos_pk)
+    }
+
+    pub fn get_pubkey_for_k1(path: &str) -> Result<String> {
         path::check_path_validity(path)?;
 
         let select_apdu = EosApdu::select_applet();
@@ -158,7 +212,23 @@ impl EosPubkey {
     }
 
     pub fn display_pubkey(path: &str) -> Result<String> {
-        let pubkey = EosPubkey::get_pubkey(path).unwrap();
+        let version = get_apple_version(EOS_AID)?;
+        match version.as_str() {
+            "0.0.1" => Self::display_pubkey_for_eos(path),
+            _ => Self::display_pubkey_for_k1(path),
+        }
+    }
+
+    pub fn display_pubkey_for_eos(path: &str) -> Result<String> {
+        let pubkey = EosPubkey::get_pubkey(path)?;
+        let reg_apdu = EosApdu::register_address(pubkey.as_bytes());
+        let res_reg = send_apdu(reg_apdu)?;
+        ApduCheck::check_response(&res_reg)?;
+        Ok(pubkey)
+    }
+
+    pub fn display_pubkey_for_k1(path: &str) -> Result<String> {
+        let pubkey = EosPubkey::get_pubkey(path)?;
         let eos_menu_name = "EOS".as_bytes();
         let reg_apdu = Secp256k1Apdu::register_address(eos_menu_name, pubkey.as_bytes());
         let res_reg = send_apdu(reg_apdu)?;

@@ -1,11 +1,14 @@
 use crate::cosmosapi::CosmosTxOutput;
 use crate::Result;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu, Secp256k1Apdu};
+use ikc_common::constants::COSMOS_AID;
 use ikc_common::error::CoinError;
+use ikc_common::hex::ToHex;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{hex_to_bytes, secp256k1_sign, sha256_hash};
 use ikc_common::{constants, utility};
 use ikc_device::device_binding::KEY_MANAGER;
+use ikc_device::device_manager::get_apple_version;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::{self, ecdsa::Signature as SecpSignature};
 
@@ -20,6 +23,68 @@ pub struct CosmosTransaction {
 
 impl CosmosTransaction {
     pub fn sign(self) -> Result<CosmosTxOutput> {
+        let version = get_apple_version(COSMOS_AID)?;
+        match version.as_str() {
+            "1.0.00" => self.sign_for_cosmos(),
+            _ => self.sign_for_k1(),
+        }
+    }
+
+    pub fn sign_for_cosmos(self) -> Result<CosmosTxOutput> {
+        check_path_validity(&self.path).unwrap();
+        let sign_hash = sha256_hash(hex_to_bytes(&self.sign_data)?.as_slice());
+        let mut sign_pack = "0120".to_string();
+        sign_pack.push_str(&sign_hash.to_hex());
+        if self.payment_dis == "" {
+            sign_pack.push_str("070008000900");
+        } else {
+            sign_pack.push_str("07");
+            sign_pack.push_str(&format!("{:02x}", self.payment_dis.as_bytes().len()));
+            sign_pack.push_str(&hex::encode(&self.payment_dis));
+            sign_pack.push_str("08");
+            sign_pack.push_str(&format!("{:02x}", self.to_dis.as_bytes().len()));
+            sign_pack.push_str(&hex::encode(&self.to_dis));
+            sign_pack.push_str("09");
+            sign_pack.push_str(&format!("{:02x}", self.fee_dis.as_bytes().len()));
+            sign_pack.push_str(&hex::encode(&self.fee_dis));
+        }
+
+        let sign_pack_vec = hex::decode(sign_pack).expect("Decoding failed");
+
+        let key_manager_obj = KEY_MANAGER.lock();
+        let mut prepare_data = secp256k1_sign(&key_manager_obj.pri_key, &sign_pack_vec.as_slice())?;
+        std::mem::drop(key_manager_obj);
+        prepare_data.insert(0, prepare_data.len() as u8);
+        prepare_data.insert(0, 0x00);
+        prepare_data.extend(sign_pack_vec.iter());
+
+        let select_apdu = CosmosApdu::select_applet();
+        let select_response = send_apdu(select_apdu)?;
+        ApduCheck::check_response(&select_response)?;
+
+        let prepare_apdus = CosmosApdu::prepare_sign(prepare_data);
+
+        for apdu in prepare_apdus {
+            let response = send_apdu_timeout(apdu, constants::TIMEOUT_LONG)?;
+            ApduCheck::check_response(&response)?;
+        }
+
+        let sign_apdu = CosmosApdu::sign_digest(&self.path);
+
+        let sign_result = send_apdu(sign_apdu)?;
+        ApduCheck::check_response(&sign_result)?;
+
+        let sign_compact = hex::decode(&sign_result[2..130]).unwrap();
+        let mut signature_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
+        signature_obj.normalize_s();
+        let normalizes_sig_vec = signature_obj.serialize_compact();
+        let signature = base64::encode(&normalizes_sig_vec.as_ref());
+
+        let output = CosmosTxOutput { signature };
+        Ok(output)
+    }
+
+    pub fn sign_for_k1(self) -> Result<CosmosTxOutput> {
         check_path_validity(&self.path).unwrap();
         let mut data_pack = Vec::new();
 
