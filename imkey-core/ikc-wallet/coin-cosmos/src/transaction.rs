@@ -1,7 +1,7 @@
 use crate::cosmosapi::CosmosTxOutput;
 use crate::Result;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu, Secp256k1Apdu};
-use ikc_common::constants::COSMOS_AID;
+use ikc_common::constants::{COSMOS_AID, COSMOS_LEGACY_APPLET_VERSION};
 use ikc_common::error::CoinError;
 use ikc_common::hex::ToHex;
 use ikc_common::path::check_path_validity;
@@ -25,7 +25,7 @@ impl CosmosTransaction {
     pub fn sign(self) -> Result<CosmosTxOutput> {
         let version = get_apple_version(COSMOS_AID)?;
         match version.as_str() {
-            "1.0.00" => self.sign_for_cosmos(),
+            COSMOS_LEGACY_APPLET_VERSION => self.sign_for_cosmos(),
             _ => self.sign_for_k1(),
         }
     }

@@ -6,7 +6,7 @@ use bitcoin_hashes::hex::{FromHex, ToHex};
 use bitcoin_hashes::{hash160, Hash};
 use hex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu, Secp256k1Apdu};
-use ikc_common::constants::COSMOS_AID;
+use ikc_common::constants::{COSMOS_AID, COSMOS_LEGACY_APPLET_VERSION};
 use ikc_common::error::CoinError;
 use ikc_common::path;
 use ikc_common::path::{check_path_validity, get_parent_path};
@@ -24,7 +24,7 @@ impl CosmosAddress {
     pub fn get_pub_key(path: &str) -> Result<String> {
         let version = get_apple_version(COSMOS_AID)?;
         match version.as_str() {
-            "1.0.00" => Self::get_pub_key_for_cosmos(path),
+            COSMOS_LEGACY_APPLET_VERSION => Self::get_pub_key_for_cosmos(path),
             _ => Self::get_pub_key_for_k1(path),
         }
     }
@@ -111,7 +111,7 @@ impl CosmosAddress {
     pub fn display_address(path: &str) -> Result<String> {
         let version = get_apple_version(COSMOS_AID)?;
         match version.as_str() {
-            "1.0.00" => Self::display_address_for_cosmos(path),
+            COSMOS_LEGACY_APPLET_VERSION => Self::display_address_for_cosmos(path),
             _ => Self::display_address_for_k1(path),
         }
     }

@@ -6,7 +6,7 @@ use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKe
 use bitcoin::Network;
 use bitcoin_hashes::{ripemd160, Hash};
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EosApdu, Secp256k1Apdu};
-use ikc_common::constants::EOS_AID;
+use ikc_common::constants::{EOS_AID, EOS_LEGACY_APPLET_VERSION};
 use ikc_common::error::CoinError;
 use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::{path, utility};
@@ -22,7 +22,7 @@ impl EosPubkey {
     pub fn get_pubkey(path: &str) -> Result<String> {
         let version = get_apple_version(EOS_AID)?;
         match version.as_str() {
-            "0.0.1" => Self::get_pubkey_for_eos(path),
+            EOS_LEGACY_APPLET_VERSION => Self::get_pubkey_for_eos(path),
             _ => Self::get_pubkey_for_k1(path),
         }
     }

@@ -126,6 +126,10 @@ pub const BTC_SEG_WIT_TYPE_P2WPKH: &str = "P2WPKH";
 pub const BTC_SEG_WIT_TYPE_VERSION_0: &str = "VERSION_0";
 pub const BTC_SEG_WIT_TYPE_VERSION_1: &str = "VERSION_1";
 
+// Applet version constants for migration strategy
+pub const EOS_LEGACY_APPLET_VERSION: &str = "0.0.1";
+pub const COSMOS_LEGACY_APPLET_VERSION: &str = "1.0.00";
+
 lazy_static! {
     /// Lazily initialized secp256k1 engine
     pub static ref SECP256K1_ENGINE: secp256k1::Secp256k1<secp256k1::All> = secp256k1::Secp256k1::new();
