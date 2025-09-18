@@ -326,7 +326,7 @@ impl EosTransaction {
                         return Err(CoinError::ImkeySignatureVerifyFail.into());
                     }
 
-                    let sign_result_vec = Vec::from_hex(&sign_result[2..130])
+                    let sign_result_vec = Vec::from_hex(&sign_source_val[2..130])
                         .map_err(|e| anyhow!("Failed to decode sign result: {}", e))?;
 
                     let (sig_str, is_valid) =
@@ -681,7 +681,6 @@ impl EosTransaction {
         }
 
         //checksum base58
-        println!("signature: {}", signature);
         let mut to_hash = hex::decode(&signature).unwrap();
         to_hash.put_slice("K1".as_bytes());
         let signature_hash = ripemd160::Hash::hash(&to_hash);
@@ -734,6 +733,10 @@ mod tests {
         assert_eq!(
             result.trans_multi_signs[0].hash,
             "6af5b3ae9871c25e2de195168ed7423f455a68330955701e327f02276bb34088"
+        );
+        assert_eq!(
+            result.trans_multi_signs[0].signs[0],
+            "SIG_K1_KAPzeZtUYNxrQsAeChG99gi8tb8yps5pZ91eKQPGead5AVgwv4kji6rN5ex2XTrSX6asdvcosdMXeidTrQvdkjEQSRckVE"
         );
     }
 
@@ -802,6 +805,10 @@ mod tests {
         assert_eq!(
             result.trans_multi_signs[0].hash,
             "6af5b3ae9871c25e2de195168ed7423f455a68330955701e327f02276bb34088"
+        );
+        assert_eq!(
+            result.trans_multi_signs[0].signs[0],
+            "SIG_K1_KmUwyrzZy7s9hpkuQLe7ttweCXJ5X7aJuoCPu3skFDXcmtnHYTtnioPiX9wCEMFbs1oe7DhZzP8PqBrLHcX24WVJXG9bz9"
         );
     }
 
