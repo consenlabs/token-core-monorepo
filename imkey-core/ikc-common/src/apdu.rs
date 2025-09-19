@@ -345,6 +345,18 @@ impl Secp256k1Apdu {
         Apdu::prepare_sign(0x81, data.to_vec())
     }
 
+    pub fn prepare_eos(data: &[u8]) -> Vec<String> {
+        Apdu::prepare_sign(0x84, data.to_vec())
+    }
+
+    pub fn sign_eos(nonce: usize) -> String {
+        let mut apdu = ApduHeader::new(0x80, 0x85, 0x00, 0x00, 0x02).to_array();
+        apdu.push(((nonce & 0xFF00) >> 8) as u8);
+        apdu.push((nonce & 0x00FF) as u8);
+        apdu.push(0x00);
+        apdu.to_hex().to_uppercase()
+    }
+
     pub fn get_xpub(data: &[u8]) -> String {
         if data.len() as u32 > LC_MAX {
             panic!("data to long");

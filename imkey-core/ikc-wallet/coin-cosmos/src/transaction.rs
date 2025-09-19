@@ -1,11 +1,14 @@
 use crate::cosmosapi::CosmosTxOutput;
 use crate::Result;
-use bitcoin_hashes::hex::ToHex;
-use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu};
-use ikc_common::constants;
+use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu, Secp256k1Apdu};
+use ikc_common::constants::{COSMOS_AID, COSMOS_LEGACY_APPLET_VERSION};
+use ikc_common::error::CoinError;
+use ikc_common::hex::ToHex;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{hex_to_bytes, secp256k1_sign, sha256_hash};
+use ikc_common::{constants, utility};
 use ikc_device::device_binding::KEY_MANAGER;
+use ikc_device::device_manager::get_apple_version;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::{self, ecdsa::Signature as SecpSignature};
 
@@ -20,6 +23,14 @@ pub struct CosmosTransaction {
 
 impl CosmosTransaction {
     pub fn sign(self) -> Result<CosmosTxOutput> {
+        let version = get_apple_version(COSMOS_AID)?;
+        match version.as_str() {
+            COSMOS_LEGACY_APPLET_VERSION => self.sign_for_cosmos(),
+            _ => self.sign_for_k1(),
+        }
+    }
+
+    pub fn sign_for_cosmos(self) -> Result<CosmosTxOutput> {
         check_path_validity(&self.path).unwrap();
         let sign_hash = sha256_hash(hex_to_bytes(&self.sign_data)?.as_slice());
         let mut sign_pack = "0120".to_string();
@@ -64,6 +75,70 @@ impl CosmosTransaction {
         ApduCheck::check_response(&sign_result)?;
 
         let sign_compact = hex::decode(&sign_result[2..130]).unwrap();
+        let mut signature_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
+        signature_obj.normalize_s();
+        let normalizes_sig_vec = signature_obj.serialize_compact();
+        let signature = base64::encode(&normalizes_sig_vec.as_ref());
+
+        let output = CosmosTxOutput { signature };
+        Ok(output)
+    }
+
+    pub fn sign_for_k1(self) -> Result<CosmosTxOutput> {
+        check_path_validity(&self.path).unwrap();
+        let mut data_pack = Vec::new();
+
+        let hash = sha256_hash(hex_to_bytes(&self.sign_data)?.as_slice());
+        //hash
+        data_pack.extend([0x01, hash.len() as u8].iter());
+        data_pack.extend(hash.iter());
+        //path
+        data_pack.extend([0x02, self.path.as_bytes().len() as u8].iter());
+        data_pack.extend(self.path.as_bytes().iter());
+        //payment info in TLV format
+        data_pack.extend([0x07, self.payment_dis.as_bytes().len() as u8].iter());
+        data_pack.extend(self.payment_dis.as_bytes().iter());
+        //receiver info in TLV format
+        data_pack.extend([0x08, self.to_dis.as_bytes().len() as u8].iter());
+        data_pack.extend(self.to_dis.as_bytes().iter());
+        //fee info in TLV format
+        data_pack.extend([0x09, self.fee_dis.as_bytes().len() as u8].iter());
+        data_pack.extend(self.fee_dis.as_bytes().iter());
+
+        let key_manager_obj = KEY_MANAGER.lock();
+        let data_pack_sig = secp256k1_sign(&key_manager_obj.pri_key, &data_pack)?;
+
+        let mut data_pack_with_sig = Vec::new();
+        data_pack_with_sig.push(0x00);
+        data_pack_with_sig.push(data_pack_sig.len() as u8);
+        data_pack_with_sig.extend(&data_pack_sig);
+        data_pack_with_sig.extend(&data_pack);
+
+        let select_apdu = CosmosApdu::select_applet();
+        let select_result = send_apdu(select_apdu)?;
+        ApduCheck::check_response(&select_result)?;
+
+        let mut sign_response = "".to_string();
+        let sign_apdus = Secp256k1Apdu::sign(&data_pack_with_sig);
+        for apdu in sign_apdus {
+            sign_response = send_apdu_timeout(apdu, constants::TIMEOUT_LONG)?;
+            ApduCheck::check_response(&sign_response)?;
+        }
+
+        let sign_source_val = &sign_response[..132];
+        let sign_result = &sign_response[132..sign_response.len() - 4];
+        let sign_verify_result = utility::secp256k1_sign_verify(
+            &key_manager_obj.se_pub_key,
+            hex::decode(sign_result).unwrap().as_slice(),
+            hex::decode(sign_source_val).unwrap().as_slice(),
+        )?;
+
+        if !sign_verify_result {
+            return Err(CoinError::ImkeySignatureVerifyFail.into());
+        }
+
+        let sign_compact = hex::decode(&sign_response[2..130]).unwrap();
+
         let mut signature_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
         signature_obj.normalize_s();
         let normalizes_sig_vec = signature_obj.serialize_compact();

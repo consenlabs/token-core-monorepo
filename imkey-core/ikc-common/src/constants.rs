@@ -1,4 +1,4 @@
-pub const VERSION: &str = "2.16.4";
+pub const VERSION: &str = "2.16.5";
 pub const URL: &str = "https://imkey.online:1000/imkey";
 // pub const URL: &str = "https://imkeyserver.com:10444/imkey";
 
@@ -125,6 +125,10 @@ pub const BTC_SEG_WIT_TYPE_LEGACY: &str = "NONE";
 pub const BTC_SEG_WIT_TYPE_P2WPKH: &str = "P2WPKH";
 pub const BTC_SEG_WIT_TYPE_VERSION_0: &str = "VERSION_0";
 pub const BTC_SEG_WIT_TYPE_VERSION_1: &str = "VERSION_1";
+
+// Applet version constants for migration strategy
+pub const EOS_LEGACY_APPLET_VERSION: &str = "0.0.1";
+pub const COSMOS_LEGACY_APPLET_VERSION: &str = "1.0.00";
 
 lazy_static! {
     /// Lazily initialized secp256k1 engine

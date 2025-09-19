@@ -233,6 +233,16 @@ pub fn get_btc_apple_version() -> Result<String> {
     Ok(btc_version)
 }
 
+pub fn get_apple_version(instance_aid: &str) -> Result<String> {
+    select_isd()?;
+    let select_apdu = Apdu::select_applet(instance_aid);
+    let res = send_apdu(select_apdu)?;
+
+    ApduCheck::check_response(res.as_str())?;
+    let version_number = hex::decode(&res[0..(res.len() - 4)])?;
+    Ok(String::from_utf8(version_number)?)
+}
+
 #[cfg(test)]
 mod test {
     use crate::device_manager::{
