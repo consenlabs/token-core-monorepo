@@ -35,19 +35,19 @@ OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/android-x86_64/lib OPENSSL_INCLUDE_DIR=$OP
 mkdir -p ../publish/android/tokencore/src/main/jniLibs/arm64-v8a/
 cp -rf ../target/aarch64-linux-android/release/libconnector.so ../publish/android/tokencore/src/main/jniLibs/arm64-v8a/
 cp -rf ../target/aarch64-linux-android/release/libtcx.so ../publish/android/tokencore/src/main/jniLibs/arm64-v8a/
-cp -rf ../token-core/tcx-libs/secp256k1/target/aarch64-linux-android/release/libsecp256k1.so ../publish/android/tokencore/src/main/jniLibs/arm64-v8a/
+# cp -rf ../token-core/tcx-libs/secp256k1/target/aarch64-linux-android/release/libsecp256k1.so ../publish/android/tokencore/src/main/jniLibs/arm64-v8a/
 
 mkdir -p ../publish/android/tokencore/src/main/jniLibs/armeabi-v7a/
 cp -rf ../target/armv7-linux-androideabi/release/libconnector.so ../publish/android/tokencore/src/main/jniLibs/armeabi-v7a/
 cp -rf ../target/armv7-linux-androideabi/release/libtcx.so ../publish/android/tokencore/src/main/jniLibs/armeabi-v7a/
-cp -rf ../token-core/tcx-libs/secp256k1/target/armv7-linux-androideabi/release/libsecp256k1.so ../publish/android/tokencore/src/main/jniLibs/armeabi-v7a/
+# cp -rf ../token-core/tcx-libs/secp256k1/target/armv7-linux-androideabi/release/libsecp256k1.so ../publish/android/tokencore/src/main/jniLibs/armeabi-v7a/
 
 mkdir -p ../publish/android/tokencore/src/main/jniLibs/x86/
 cp -rf ../target/i686-linux-android/release/libconnector.so ../publish/android/tokencore/src/main/jniLibs/x86/
 cp -rf ../target/i686-linux-android/release/libtcx.so ../publish/android/tokencore/src/main/jniLibs/x86/
-cp -rf ../token-core/tcx-libs/secp256k1/target/i686-linux-android/release/libsecp256k1.so ../publish/android/tokencore/src/main/jniLibs/x86/
+# cp -rf ../token-core/tcx-libs/secp256k1/target/i686-linux-android/release/libsecp256k1.so ../publish/android/tokencore/src/main/jniLibs/x86/
 
 mkdir -p ../publish/android/tokencore/src/main/jniLibs/x86_64/
 cp -rf ../target/x86_64-linux-android/release/libconnector.so ../publish/android/tokencore/src/main/jniLibs/x86_64/
 cp -rf ../target/x86_64-linux-android/release/libtcx.so ../publish/android/tokencore/src/main/jniLibs/x86_64/
-cp -rf ../token-core/tcx-libs/secp256k1/target/x86_64-linux-android/release/libsecp256k1.so ../publish/android/tokencore/src/main/jniLibs/x86_64/
+# cp -rf ../token-core/tcx-libs/secp256k1/target/x86_64-linux-android/release/libsecp256k1.so ../publish/android/tokencore/src/main/jniLibs/x86_64/
