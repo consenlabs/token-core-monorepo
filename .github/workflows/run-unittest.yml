@@ -17,7 +17,7 @@ env:
 jobs:
   build:
     name: Run Tcx Unit Testing
-    runs-on: macos-13
+    runs-on: macos-latest
     steps:
       - name: Get the latest commit SHA
         id: sha
