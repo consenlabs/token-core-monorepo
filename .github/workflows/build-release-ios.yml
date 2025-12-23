@@ -53,7 +53,7 @@ jobs:
       - name: Install Rust
         run: |
           rustup toolchain install nightly-2023-06-15
-          rustup default nightly-2023-06-15-x86_64-apple-darwin
+          rustup default nightly-2023-06-15-aarch64-apple-darwin
           rustup target add aarch64-apple-ios x86_64-apple-ios
           rustup show
           cargo install cargo-lipo --version 3.3.1 --locked
