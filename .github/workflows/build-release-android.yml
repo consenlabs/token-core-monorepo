@@ -17,7 +17,7 @@ jobs:
   build:
     name: Build Android Release
     if: github.event.review.state == 'approved'
-    runs-on: macos-latest
+    runs-on: macos-14
     steps:
       - name: Get the latest commit SHA
         id: sha
