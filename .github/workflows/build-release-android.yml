@@ -17,7 +17,7 @@ jobs:
   build:
     name: Build Android Release
     if: github.event.review.state == 'approved'
-    runs-on: macos-13
+    runs-on: macos-14
     steps:
       - name: Get the latest commit SHA
         id: sha
@@ -52,7 +52,7 @@ jobs:
       - name: Install Rust
         run: |
           rustup toolchain install nightly-2022-10-31
-          rustup default nightly-2022-10-31-x86_64-apple-darwin
+          rustup default nightly-2022-10-31-aarch64-apple-darwin
           rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
           rustup show
 

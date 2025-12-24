@@ -40,3 +40,6 @@ members = [
     "imkey-core/ikc-wallet/coin-filecoin",
     "imkey-core/ikc-wallet/coin-btc-fork",
 ]
+
+[patch.crates-io]
+fff = { path = "token-core/tcx-libs/fff" }
