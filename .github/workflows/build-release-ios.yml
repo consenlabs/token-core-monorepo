@@ -112,7 +112,7 @@ jobs:
           if [ -d "./ios-release" ]; then
             rm -rf ./ios-release
           fi
-          mkdir -p ./ios-release
+          mkdir -p ./ios-release/device ./ios-release/simulator
 
           BUILD_DIR=./Products
           BUILD_ROOT=./Products
@@ -133,8 +133,8 @@ jobs:
           # Build device framework
           xcodebuild -target $PROJECT_NAME_IKC ONLY_ACTIVE_ARCH=NO -configuration $CONFIGURATION -sdk iphoneos BUILD_DIR=$BUILD_DIR BUILD_ROOT=$BUILD_ROOT build
           
-          # Save device framework
-          cp -R $BUILD_DIR/$CONFIGURATION-iphoneos/$PROJECT_NAME_IKC.framework ${{github.workspace}}/ios-release/${PROJECT_NAME_IKC}-device.framework
+          # Save device framework (keep original name)
+          cp -R $BUILD_DIR/$CONFIGURATION-iphoneos/$PROJECT_NAME_IKC.framework ${{github.workspace}}/ios-release/device/
           
           # Build imKeyCoreX Simulator Framework
           # Copy simulator library (arm64 + x86_64)
@@ -143,17 +143,17 @@ jobs:
           # Build simulator framework
           xcodebuild -target $PROJECT_NAME_IKC -configuration Debug -sdk iphonesimulator ONLY_ACTIVE_ARCH=NO BUILD_DIR=$BUILD_DIR BUILD_ROOT=$BUILD_ROOT build      
           
-          # Save simulator framework
-          cp -R $BUILD_DIR/Debug-iphonesimulator/$PROJECT_NAME_IKC.framework ${{github.workspace}}/ios-release/${PROJECT_NAME_IKC}-simulator.framework
+          # Save simulator framework (keep original name)
+          cp -R $BUILD_DIR/Debug-iphonesimulator/$PROJECT_NAME_IKC.framework ${{github.workspace}}/ios-release/simulator/
           
           popd
 
           # Create imKeyCoreX XCFramework
           pushd ${{github.workspace}}/ios-release
           xcodebuild -create-xcframework \
-            -framework ${PROJECT_NAME_IKC}-device.framework \
-            -framework ${PROJECT_NAME_IKC}-simulator.framework \
-            -output ${PROJECT_NAME_IKC}.xcframework
+            -framework device/$PROJECT_NAME_IKC.framework \
+            -framework simulator/$PROJECT_NAME_IKC.framework \
+            -output $PROJECT_NAME_IKC.xcframework
           
           # Package
           PACKAGE_NAME=ios-ikc-${{ steps.getversion.outputs.version }}.zip
@@ -174,8 +174,8 @@ jobs:
           # Build device framework
           xcodebuild -target $PROJECT_NAME_TCX ONLY_ACTIVE_ARCH=NO -configuration $CONFIGURATION -sdk iphoneos BUILD_DIR=$BUILD_DIR BUILD_ROOT=$BUILD_ROOT build
           
-          # Save device framework
-          cp -R $BUILD_DIR/$CONFIGURATION-iphoneos/$PROJECT_NAME_TCX.framework ${{github.workspace}}/ios-release/${PROJECT_NAME_TCX}-device.framework
+          # Save device framework (keep original name)
+          cp -R $BUILD_DIR/$CONFIGURATION-iphoneos/$PROJECT_NAME_TCX.framework ${{github.workspace}}/ios-release/device/
           
           # Build TokenCoreX Simulator Framework
           # Copy simulator library (arm64 + x86_64)
@@ -184,17 +184,17 @@ jobs:
           # Build simulator framework
           xcodebuild -target $PROJECT_NAME_TCX -configuration Debug -sdk iphonesimulator ONLY_ACTIVE_ARCH=NO BUILD_DIR=$BUILD_DIR BUILD_ROOT=$BUILD_ROOT build      
           
-          # Save simulator framework
-          cp -R $BUILD_DIR/Debug-iphonesimulator/$PROJECT_NAME_TCX.framework ${{github.workspace}}/ios-release/${PROJECT_NAME_TCX}-simulator.framework
+          # Save simulator framework (keep original name)
+          cp -R $BUILD_DIR/Debug-iphonesimulator/$PROJECT_NAME_TCX.framework ${{github.workspace}}/ios-release/simulator/
           
           popd
 
           # Create TokenCoreX XCFramework
           pushd ${{github.workspace}}/ios-release
           xcodebuild -create-xcframework \
-            -framework ${PROJECT_NAME_TCX}-device.framework \
-            -framework ${PROJECT_NAME_TCX}-simulator.framework \
-            -output ${PROJECT_NAME_TCX}.xcframework
+            -framework device/$PROJECT_NAME_TCX.framework \
+            -framework simulator/$PROJECT_NAME_TCX.framework \
+            -output $PROJECT_NAME_TCX.xcframework
           
           # Package
           PACKAGE_NAME=ios-tcx-${{ steps.getversion.outputs.version }}.zip
