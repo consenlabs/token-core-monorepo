@@ -85,11 +85,11 @@ jobs:
           # Build for simulator (x86_64)
           cargo build --release --target x86_64-apple-ios
           # Create universal binary with all three architectures
-          mkdir -p ./target/universal/release
-          lipo -create -output ./target/universal/release/libconnector.a \
-            ./target/aarch64-apple-ios/release/libconnector.a \
-            ./target/aarch64-apple-ios-sim/release/libconnector.a \
-            ./target/x86_64-apple-ios/release/libconnector.a
+          mkdir -p ${{github.workspace}}/target/universal/release
+          lipo -create -output ${{github.workspace}}/target/universal/release/libconnector.a \
+            ${{github.workspace}}/target/aarch64-apple-ios/release/libconnector.a \
+            ${{github.workspace}}/target/aarch64-apple-ios-sim/release/libconnector.a \
+            ${{github.workspace}}/target/x86_64-apple-ios/release/libconnector.a
           cbindgen ./src/lib.rs -l c > ${{github.workspace}}/target/connector.h
           popd
 
@@ -102,20 +102,20 @@ jobs:
           # Build for simulator (x86_64)
           cargo build --release --target x86_64-apple-ios
           # Create universal binary with all three architectures
-          mkdir -p ./target/universal/release
-          lipo -create -output ./target/universal/release/libtcx.a \
-            ./target/aarch64-apple-ios/release/libtcx.a \
-            ./target/aarch64-apple-ios-sim/release/libtcx.a \
-            ./target/x86_64-apple-ios/release/libtcx.a
+          mkdir -p ${{github.workspace}}/target/universal/release
+          lipo -create -output ${{github.workspace}}/target/universal/release/libtcx.a \
+            ${{github.workspace}}/target/aarch64-apple-ios/release/libtcx.a \
+            ${{github.workspace}}/target/aarch64-apple-ios-sim/release/libtcx.a \
+            ${{github.workspace}}/target/x86_64-apple-ios/release/libtcx.a
           cbindgen ./src/lib.rs -l c > ${{github.workspace}}/target/tcx.h
           popd
 
           LIBS_IKC=./imkey-core/mobile-sdk/imKeyCoreX/imKeyCoreX
           LIBS_TCX=./token-core/tcx-examples/TokenCoreX/TokenCoreX
-          cp ./imkey-core/ikc/target/universal/release/libconnector.a $LIBS_IKC/libconnector.a
-          cp ./token-core/tcx/target/universal/release/libtcx.a $LIBS_TCX/libtcx.a
-          cp ./target/connector.h $LIBS_IKC/connector.h
-          cp ./target/tcx.h $LIBS_TCX/tcx.h
+          cp ${{github.workspace}}/target/universal/release/libconnector.a $LIBS_IKC/libconnector.a
+          cp ${{github.workspace}}/target/universal/release/libtcx.a $LIBS_TCX/libtcx.a
+          cp ${{github.workspace}}/target/connector.h $LIBS_IKC/connector.h
+          cp ${{github.workspace}}/target/tcx.h $LIBS_TCX/tcx.h
           if [ -d "./ios-release" ]; then
             rm -rf ./ios-release
           fi
