@@ -30,6 +30,13 @@ impl TronSigner {
             input.message.into_bytes()
         };
 
+        // TIP-712 typically uses 32-byte digest (64 hex chars), but we allow variable length
+        // The message should be the pre-computed keccak256(domainSeparator || hashStruct)
+        // which is always 32 bytes. However, we accept any valid hex to maintain flexibility.
+        if input.version == 3 && message.is_empty() {
+            return Err(anyhow!("tip712_message_cannot_be_empty"));
+        }
+
         // this code is from tron wallet
         let header = match input.header.to_uppercase().as_str() {
             "TRON" => match input.version {
@@ -271,6 +278,16 @@ mod tests {
         };
         let res = TronSigner::sign_message(input, &sign_param).unwrap();
         assert_eq!("90125790eae4cb484dbb7470f9a9aafcb95c166843ae319d9876399481e5d350738a86b971532c51b2cf74108e43b32a1ed8658031869471c0e0414fd5aa3cd81b", &res.signature);
+
+        // Test TIP-712 empty message validation
+        let input_empty = TronMessageInput {
+            message: "0x".to_string(), // Empty hex
+            header: "TRON".to_string(),
+            version: 3,
+        };
+        let result = TronSigner::sign_message(input_empty, &sign_param);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("tip712_message_cannot_be_empty"));
     }
 
     #[test]

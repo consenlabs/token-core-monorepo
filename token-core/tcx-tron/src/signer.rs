@@ -77,6 +77,13 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
             message.value.as_bytes().to_vec()
         };
 
+        // TIP-712 typically uses 32-byte digest (64 hex chars), but we allow variable length
+        // The message should be the pre-computed keccak256(domainSeparator || hashStruct)
+        // which is always 32 bytes. However, we accept any valid hex to maintain flexibility.
+        if message.version == 3 && data.is_empty() {
+            return Err(anyhow!("tip712_message_cannot_be_empty"));
+        }
+
         let header = match message.header.to_uppercase().as_str() {
             "TRON" => match message.version {
                 2 => "\x19TRON Signed Message:\n".as_bytes(),
@@ -217,6 +224,16 @@ mod tests {
         };
         let signed = keystore.sign_message(&params, &message).unwrap();
         assert_eq!("0x90125790eae4cb484dbb7470f9a9aafcb95c166843ae319d9876399481e5d350738a86b971532c51b2cf74108e43b32a1ed8658031869471c0e0414fd5aa3cd81b", &signed.signature);
+
+        // Test TIP-712 empty message validation
+        let message_empty = TronMessageInput {
+            value: "0x".to_string(), // Empty hex
+            header: "TRON".to_string(),
+            version: 3,
+        };
+        let result = keystore.sign_message(&params, &message_empty);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("tip712_message_cannot_be_empty"));
     }
 
     #[test]
