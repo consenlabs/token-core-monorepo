@@ -83,12 +83,12 @@ imKey 硬件钱包路径在 `imkey-core/ikc-wallet/coin-bitcoin/src/message.rs` 
 
 **[BIP-137 标志字节约定在各钱包间有差异]** → 部分钱包使用略有不同的标志范围。缓解措施：严格遵循 BIP-137 规范（31-34 用于 P2PKH 压缩公钥，35-38 用于 P2SH-P2WPKH）。Standard 格式（始终 31-34）作为最大兼容性的备选方案。
 
-**[imKey 硬件钱包可能不支持 BIP-137 APDU]** → 当前 imKey 固件可能没有专用的 BIP-137 签名命令。缓解措施：检查现有的 `personal_sign` 或通用 ECDSA 签名 APDU 是否可与预计算的 BIP-137 消息哈希配合使用。如不行，imKey 上的 BIP-137 可能需要延后。
+**[imKey 硬件钱包可能不支持 BIP-137 APDU]** → 当前 imKey 固件可能没有专用的 BIP-137 签名命令。缓解措施：检查现有的 `personal_sign` 或通用 ECDSA 签名 APDU 是否可与预计算的 BIP-137 消息哈希配合使用。如不行，需要修改bitcoin applet，增加message签名指令支持。
 
 **[Taproot 的 BIP-322 Full 增加签名体积]** → Full 格式包含完整交易而非仅 witness，数据量更大。缓解措施：这是 BIP-322 规范和 PRD 的要求。增量约 100-200 字节，可接受。
 
-## 待确认问题
+## 已确认事项
 
-1. Native SegWit（P2WPKH）是否需要支持 BIP-137 格式（标志位 39-42）？PRD 仅提到 BIP-322 Simple，但 BIP-137 技术上为 P2WPKH 定义了标志范围。
-2. imKey 固件当前是否支持生成可格式化为 BIP-137 的原始 ECDSA 可恢复签名？需要验证 APDU 能力。
-3. BIP-137 签名是否需要支持十六进制消息输入（`0x` 前缀），以匹配现有 `utf8_or_hex_to_bytes` 的行为？
+1. **Native SegWit（P2WPKH）需要支持全部三种签名格式**：Standard（标志位 31-34）、BIP-137（标志位 39-42）、BIP-322（Simple）。
+2. **imKey 固件已支持 ECDSA 可恢复签名能力**，可用于 BIP-137 签名流程，无需额外验证 APDU 能力。但 Bitcoin Applet 需要新增 message 签名专用接口。
+3. **BIP-137 签名支持十六进制消息输入**（`0x` 前缀），与现有 `utf8_or_hex_to_bytes` 行为一致。
