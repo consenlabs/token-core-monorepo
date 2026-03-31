@@ -146,5 +146,6 @@ message BtcMessageInput {
 
 - **Protobuf API**：`btc_kin.proto` — `BtcMessageInput` 新增 `signatureType` 枚举字段；`BtcMessageOutput` 的 signature 字段语义变更（hex → Base64）
 - **token-core**：`tcx-btc-kin/src/message.rs` — 重构为按地址类型和签名格式分流派发
-- **imkey-core**：`ikc-wallet/coin-bitcoin/src/message.rs` — 同步修改硬件钱包签名路径
-- **破坏性变更**：BIP-322 签名输出从 hex 改为 Base64，调用方必须更新解析逻辑
+- **imkey-core**：`ikc-wallet/coin-bitcoin/src/message.rs` — 同步修改硬件钱包签名路径（新增 BIP-137 / Standard 格式支持、BIP-322 Full 格式支持）
+- **imKey 集成侧（imToken → imKey 调用路径）**：**无需适配**。imKey 的签名输出在集成到 imToken 时已统一转换为 Base64 返回，本次 BIP-322 hex→Base64 的编码变更仅影响 token-core 直接调用方，不影响通过 imKey 路径获取签名的客户端
+- **破坏性变更**：BIP-322 签名输出从 hex 改为 Base64。**影响范围仅限直接解析 token-core BIP-322 签名输出的调用方**（即直接使用 TCX API 获取 BIP-322 hex 签名的客户端），这些调用方必须更新解析逻辑。通过 imKey 路径的调用方不受影响
