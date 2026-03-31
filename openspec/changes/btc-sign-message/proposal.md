@@ -87,7 +87,7 @@ message BtcMessageInput {
 
 ## 签名输出格式
 
-所有签名输出统一为 Base64 编码字符串（当前 BIP-322 输出为 hex，需修改）：
+所有签名输出统一为 Base64 编码字符串（当前 BIP-322 输出为 hex，本次统一为 Base64；由于 imToken 采用捆绑分发模型，此变更对客户端无兼容性影响）：
 
 | 签名类型 | 输出内容 | 编码 |
 |---------|---------|------|
@@ -147,5 +147,6 @@ message BtcMessageInput {
 - **Protobuf API**：`btc_kin.proto` — `BtcMessageInput` 新增 `signatureType` 枚举字段；`BtcMessageOutput` 的 signature 字段语义变更（hex → Base64）
 - **token-core**：`tcx-btc-kin/src/message.rs` — 重构为按地址类型和签名格式分流派发
 - **imkey-core**：`ikc-wallet/coin-bitcoin/src/message.rs` — 同步修改硬件钱包签名路径（新增 BIP-137 / Standard 格式支持、BIP-322 Full 格式支持）
-- **imKey 集成侧（imToken → imKey 调用路径）**：**无需适配**。imKey 的签名输出在集成到 imToken 时已统一转换为 Base64 返回，本次 BIP-322 hex→Base64 的编码变更仅影响 token-core 直接调用方，不影响通过 imKey 路径获取签名的客户端
-- **破坏性变更**：BIP-322 签名输出从 hex 改为 Base64。**影响范围仅限直接解析 token-core BIP-322 签名输出的调用方**（即直接使用 TCX API 获取 BIP-322 hex 签名的客户端），这些调用方必须更新解析逻辑。通过 imKey 路径的调用方不受影响
+- **imKey 集成侧（imToken → imKey 调用路径）**：**无需适配**。imKey 的签名输出在集成到 imToken 时已统一转换为 Base64 返回，本次 BIP-322 hex→Base64 的编码变更不影响通过 imKey 路径获取签名的客户端
+- **imToken 客户端**：**无兼容性风险**。imToken 采用捆绑分发模型 — tcx 和 ikc 作为内置库随 App 版本一起打包发布，不存在新版客户端搭配旧版签名库（或反之）的错配场景。每个 App 版本内部的签名库输出格式与客户端解析逻辑始终一致，因此 hex→Base64 的编码变更对 imToken 用户而言是**无感知的非破坏性升级**
+- **外部直接调用方**：若存在绕过 imToken 直接调用 TCX API 并解析 BIP-322 hex 签名输出的第三方集成，这些调用方需要更新解析逻辑以适配 Base64 编码。但在当前已知的使用场景中，**不存在此类外部直接调用方**
