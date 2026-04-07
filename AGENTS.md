@@ -21,7 +21,7 @@ This file provides working guidance for coding agents in `/Users/xyz/Code/token-
 
 ## Coding Style & Naming Conventions
 - Use standard Rust style with 4-space indentation.
-- Format before commit with `cargo fmt --all`.
+- **After every code change, run `cargo fmt --all` and verify with `cargo fmt -- --check` before finishing.** This is a mandatory step, not optional.
 - Keep lint output clean with `cargo clippy --all-targets --all-features -- -D warnings`.
 - Use `snake_case` for modules, files, and functions.
 - Use `UpperCamelCase` for structs, enums, and traits.

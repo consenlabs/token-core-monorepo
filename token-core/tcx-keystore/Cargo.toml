@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 tcx-crypto = { path = "../tcx-crypto" }
-tcx-primitive = { path = "../tcx-primitive" }
+tcx-primitive = { path = "../tcx-primitive", default-features = false }
 tcx-constants = { path = "../tcx-constants" }
 tcx-common = {path = "../tcx-common"}
 
@@ -38,5 +38,6 @@ features = ["precommit-hook", "run-cargo-fmt"]
 
 
 [features]
-default = []
+default = ["substrate-crypto"]
+substrate-crypto = ["tcx-primitive/substrate-crypto"]
 cache_dk = []

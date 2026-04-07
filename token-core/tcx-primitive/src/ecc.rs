@@ -13,6 +13,7 @@ use crate::ecc::TypedDeterministicPrivateKey::{Bip32Ed25519, SR25519};
 use crate::ed25519::{Ed25519PrivateKey, Ed25519PublicKey};
 use crate::ed25519_bip32::{Ed25519DeterministicPrivateKey, Ed25519DeterministicPublicKey};
 use crate::sr25519::{Sr25519PrivateKey, Sr25519PublicKey};
+#[cfg(feature = "substrate-crypto")]
 use sp_core::Pair;
 use tcx_constants::CurveType;
 use thiserror::Error;
@@ -386,7 +387,7 @@ impl ToString for TypedDeterministicPrivateKey {
     fn to_string(&self) -> String {
         match self {
             TypedDeterministicPrivateKey::Bip32Sepc256k1(sk) => sk.to_string(),
-            TypedDeterministicPrivateKey::SR25519(sk) => sk.0.to_raw_vec().to_hex(),
+            TypedDeterministicPrivateKey::SR25519(sk) => sk.to_bytes().to_hex(),
             TypedDeterministicPrivateKey::Bip32Ed25519(sk) => sk.to_string(),
             TypedDeterministicPrivateKey::BLS(sk) => sk.0.to_string(),
         }

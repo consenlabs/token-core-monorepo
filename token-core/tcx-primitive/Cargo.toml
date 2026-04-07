@@ -25,14 +25,18 @@ tiny-bip39 = "=1.0.0"
 ed25519-bip32 = "=0.3.2"
 ed25519-dalek = "=2.1.0"
 blake2b_simd = "=1.0.1"
-blst = "=0.3.3"
+blst = { version = "=0.3.3", optional = true }
 num-bigint = "=0.4.3"
 num-traits = "=0.2.15"
 sha2 = "=0.10.6"
 digest = "=0.10.6"
 hkdf = "=0.12.3"
 
-sp-core = "=7.0.0"
+sp-core = { version = "=7.0.0", optional = true }
 regex = { version = "=1.9.3"}
-schnorrkel = "=0.9.1"
+schnorrkel = { version = "=0.9.1", optional = true }
 thiserror = "=1.0.56"
+
+[features]
+default = ["substrate-crypto"]
+substrate-crypto = ["dep:blst", "dep:sp-core", "dep:schnorrkel"]
