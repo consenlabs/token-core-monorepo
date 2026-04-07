@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>web-core WASM smoke test</title>
+  <style>
+    body { font-family: monospace; padding: 2rem; }
+    .ok  { color: green; }
+    .err { color: red; }
+    pre  { background: #f4f4f4; padding: 1rem; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h2>web-core WASM smoke test</h2>
+  <pre id="output">Loading WASM module…</pre>
+
+  <script type="module">
+    import init, {
+      generate_mnemonic,
+      mnemonic_to_seed,
+      derive_key,
+      derive_public_key,
+      secp256k1_sign,
+      secp256k1_verify,
+    } from './pkg/web_core.js';
+
+    const out = document.getElementById('output');
+    function log(msg, ok = true) {
+      const span = document.createElement('span');
+      span.className = ok ? 'ok' : 'err';
+      span.textContent = (ok ? '[OK] ' : '[FAIL] ') + msg + '\n';
+      out.appendChild(span);
+    }
+
+    try {
+      await init();
+      out.textContent = '';
+
+      // 1. generate_mnemonic
+      const m12 = generate_mnemonic(12);
+      log(`generate_mnemonic(12): ${m12.split(' ').length} words`);
+
+      // 2. mnemonic_to_seed
+      const testMnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+      const seed = mnemonic_to_seed(testMnemonic, '');
+      const seedOk = seed === '5eb00bbddcf069084889a8ab9155568165f5c453ccb85e70811aaed6f6da5fc19a5ac40b389cd370d086206dec8aa6c43daea6690f20ad3d8d48b2d2ce9e38e4';
+      log(`mnemonic_to_seed: ${seedOk ? 'matches BIP39 vector' : 'MISMATCH'}`, seedOk);
+
+      // 3. derive_key
+      const keys = derive_key(seed, "m/44'/60'/0'/0/0");
+      log(`derive_key: pubkey=${keys.public_key.substring(0, 10)}… privkey=${keys.private_key.substring(0, 10)}…`);
+
+      // 4. derive_public_key
+      const pubOnly = derive_public_key(seed, "m/44'/60'/0'/0/0");
+      const pubMatch = pubOnly === keys.public_key;
+      log(`derive_public_key matches derive_key: ${pubMatch}`, pubMatch);
+
+      // 5. secp256k1_sign
+      const msgHash = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824';
+      const sig = secp256k1_sign(keys.private_key, msgHash);
+      log(`secp256k1_sign: r=${sig.r.substring(0, 10)}… s=${sig.s.substring(0, 10)}… v=${sig.v}`);
+
+      // 6. secp256k1_verify
+      const sigHex = sig.r + sig.s;
+      const valid = secp256k1_verify(keys.public_key, msgHash, sigHex);
+      log(`secp256k1_verify: ${valid}`, valid);
+
+      log('\nAll smoke tests passed!');
+    } catch (e) {
+      log(`Error: ${e.message || e}`, false);
+      console.error(e);
+    }
+  </script>
+</body>
+</html>

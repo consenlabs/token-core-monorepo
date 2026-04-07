@@ -96,4 +96,8 @@ imkey-core/mobile-sdk/imKeyCoreX/imKeyCoreX/libconnector.a
 
 script/*-local.sh
 
+# WASM build output
+web-core/pkg/
+
 ios-*.zip
+.cursor

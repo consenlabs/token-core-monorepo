@@ -40,6 +40,7 @@ members = [
     "imkey-core/ikc-wallet/coin-bch",
     "imkey-core/ikc-wallet/coin-filecoin",
     "imkey-core/ikc-wallet/coin-btc-fork",
+    "web-core",
 ]
 
 [patch.crates-io]

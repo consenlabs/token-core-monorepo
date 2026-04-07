@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>web-core WASM Demo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; color: #1a1a2e; line-height: 1.6; }
+    .container { max-width: 800px; margin: 0 auto; padding: 24px 16px; }
+    h1 { text-align: center; font-size: 1.5rem; margin-bottom: 24px; color: #1a1a2e; }
+    .card { background: #fff; border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .card h2 { font-size: 1rem; color: #4a4a6a; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .card h2 .num { background: #4361ee; color: #fff; width: 24px; height: 24px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; flex-shrink: 0; }
+    label { display: block; font-size: 0.8rem; color: #666; margin-bottom: 4px; margin-top: 10px; }
+    input, textarea { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 0.8rem; transition: border-color .2s; }
+    input:focus, textarea:focus { outline: none; border-color: #4361ee; }
+    textarea { resize: vertical; min-height: 60px; }
+    .row { display: flex; gap: 8px; align-items: flex-end; }
+    .row > * { flex: 1; }
+    .row > button { flex: none; }
+    button { padding: 8px 20px; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all .15s; }
+    button:active { transform: scale(0.97); }
+    .btn-primary { background: #4361ee; color: #fff; }
+    .btn-primary:hover { background: #3a56d4; }
+    .btn-primary:disabled { background: #a0aec0; cursor: not-allowed; }
+    .btn-success { background: #2ec4b6; color: #fff; }
+    .btn-success:hover { background: #26a69a; }
+    .btn-danger { background: #e63946; color: #fff; }
+    .btn-danger:hover { background: #d32f2f; }
+    .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+    .output { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 0.78rem; word-break: break-all; white-space: pre-wrap; min-height: 36px; color: #333; }
+    .output.empty { color: #999; font-style: italic; }
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-left: 6px; }
+    .tag-ok { background: #d4edda; color: #155724; }
+    .tag-fail { background: #f8d7da; color: #721c24; }
+    .tag-info { background: #cce5ff; color: #004085; }
+    .status-bar { text-align: center; padding: 10px; font-size: 0.85rem; color: #666; }
+    .status-bar.ready { color: #2ec4b6; }
+    .btn-group { display: flex; gap: 8px; margin-top: 10px; }
+    .divider { height: 1px; background: #eee; margin: 14px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>web-core WASM Demo</h1>
+    <div id="status" class="status-bar">Loading WASM module...</div>
+
+    <!-- 1. Seed Generation -->
+    <div class="card">
+      <h2><span class="num">1</span> Seed Generation (BIP39)</h2>
+      <div class="row">
+        <div>
+          <label>Word Count</label>
+          <select id="wordCount" style="width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:0.85rem;">
+            <option value="12">12 words</option>
+            <option value="24">24 words</option>
+          </select>
+        </div>
+        <div>
+          <label>Passphrase (optional)</label>
+          <input id="passphrase" type="text" placeholder="leave empty for no passphrase">
+        </div>
+        <button id="btnGenSeed" class="btn-primary" disabled>Generate</button>
+      </div>
+      <label>Mnemonic</label>
+      <div id="outMnemonic" class="output empty">click Generate</div>
+      <label>Seed (hex, 64 bytes)</label>
+      <div id="outSeed" class="output empty">—</div>
+    </div>
+
+    <!-- 2. BIP44 Derivation -->
+    <div class="card">
+      <h2><span class="num">2</span> BIP44 Key Derivation</h2>
+      <div class="row">
+        <div style="flex:3">
+          <label>Derivation Path</label>
+          <input id="derivePath" type="text" value="m/44'/60'/0'/0/0">
+        </div>
+        <button id="btnDerive" class="btn-primary" disabled>Derive</button>
+      </div>
+      <label>Public Key (compressed, 33 bytes)</label>
+      <div id="outPubKey" class="output empty">—</div>
+      <label>Private Key (32 bytes)</label>
+      <div id="outPrivKey" class="output empty">—</div>
+    </div>
+
+    <!-- 3. Signing -->
+    <div class="card">
+      <h2><span class="num">3</span> secp256k1 Sign & Verify</h2>
+      <label>Message (will be SHA-256 hashed)</label>
+      <input id="signMsg" type="text" placeholder="enter message to sign" value="hello world">
+      <div class="btn-group">
+        <button id="btnSign" class="btn-primary btn-sm" disabled>Sign</button>
+        <button id="btnVerify" class="btn-success btn-sm" disabled>Verify</button>
+      </div>
+      <label>Message Hash (SHA-256, hex)</label>
+      <div id="outMsgHash" class="output empty">—</div>
+      <label>Signature</label>
+      <div id="outSig" class="output empty">—</div>
+      <label>Verification</label>
+      <div id="outVerify" class="output empty">—</div>
+    </div>
+
+    <!-- 4. FIDO Register -->
+    <div class="card">
+      <h2><span class="num">4</span> FIDO / Passkey Registration</h2>
+      <div class="row">
+        <div>
+          <label>Username</label>
+          <input id="fidoUser" type="text" placeholder="user@example.com" value="demo@test.com">
+        </div>
+        <div>
+          <label>RP ID</label>
+          <input id="fidoRpId" type="text" value="localhost">
+        </div>
+        <button id="btnFidoReg" class="btn-primary" disabled>Register</button>
+      </div>
+      <label>Registration Result</label>
+      <div id="outFidoReg" class="output empty">—</div>
+    </div>
+
+    <!-- 5. FIDO PRF Key Derivation -->
+    <div class="card">
+      <h2><span class="num">5</span> FIDO PRF Symmetric Key</h2>
+      <div class="row">
+        <div style="flex:3">
+          <label>Salt (hex, 32 bytes)</label>
+          <input id="prfSalt" type="text" placeholder="64 hex chars" value="">
+        </div>
+        <button id="btnPrf" class="btn-primary" disabled>Derive Key</button>
+      </div>
+      <label>Symmetric Key (hex)</label>
+      <div id="outPrfKey" class="output empty">—</div>
+    </div>
+
+    <!-- 6. AES-256-CBC Encrypt / Decrypt & Google Drive Backup -->
+    <div class="card">
+      <h2><span class="num">6</span> AES-256-CBC Encrypt / Decrypt</h2>
+      <div class="row">
+        <div style="flex:3">
+          <label>Key (hex, 32 bytes) — auto-filled from PRF or enter manually</label>
+          <input id="aesKey" type="text" placeholder="64 hex chars">
+        </div>
+        <div style="flex:2">
+          <label>IV (hex, 16 bytes)</label>
+          <input id="aesIv" type="text" placeholder="32 hex chars">
+        </div>
+        <button id="btnRandIv" class="btn-success btn-sm" title="Random IV">Random IV</button>
+      </div>
+      <label>Plaintext</label>
+      <input id="aesPlaintext" type="text" placeholder="text to encrypt" value="Hello, web-core AES!">
+      <div class="btn-group">
+        <button id="btnEncrypt" class="btn-primary btn-sm">Encrypt</button>
+        <button id="btnDecrypt" class="btn-success btn-sm">Decrypt</button>
+      </div>
+      <label>Ciphertext (hex)</label>
+      <div id="outCiphertext" class="output empty">—</div>
+      <label>Decrypted</label>
+      <div id="outDecrypted" class="output empty">—</div>
+    </div>
+
+    <!-- 7. Google Drive Backup -->
+    <div class="card">
+      <h2><span class="num">7</span> Backup Ciphertext to Google Drive</h2>
+      <div class="row">
+        <div style="flex:3">
+          <label>Google Cloud OAuth Client ID</label>
+          <input id="gClientId" type="text" placeholder="xxxx.apps.googleusercontent.com" value="">
+        </div>
+      </div>
+      <label>Backup Filename</label>
+      <input id="gFileName" type="text" value="web-core-backup.json">
+      <div class="btn-group">
+        <button id="btnGLogin" class="btn-primary btn-sm">Sign in with Google</button>
+        <button id="btnGBackup" class="btn-success btn-sm" disabled>Backup to Drive</button>
+        <button id="btnGRestore" class="btn-primary btn-sm" disabled>Restore from Drive</button>
+      </div>
+      <label>Google Account</label>
+      <div id="outGAccount" class="output empty">not signed in</div>
+      <label>Backup Result</label>
+      <div id="outGDrive" class="output empty">—</div>
+    </div>
+  </div>
+
+  <!-- Google Identity Services -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <script type="module">
+    import init, {
+      generate_mnemonic,
+      mnemonic_to_seed,
+      derive_key,
+      secp256k1_sign,
+      secp256k1_verify,
+      fido_register,
+      fido_derive_prf_key,
+      aes_cbc_encrypt,
+      aes_cbc_decrypt,
+    } from './pkg/web_core.js';
+
+    // ── State ───────────────────────────────────────────────────────────────
+    let currentSeed = null;
+    let currentPrivKey = null;
+    let currentPubKey = null;
+    let currentCredentialId = null;
+    let lastMsgHash = null;
+    let lastSigHex = null;
+    let gAccessToken = null;
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    function $(id) { return document.getElementById(id); }
+
+    function setOutput(id, text, cls) {
+      const el = $(id);
+      el.textContent = text;
+      el.className = 'output' + (cls ? ' ' + cls : '');
+    }
+
+    function toHex(buffer) {
+      return Array.from(new Uint8Array(buffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+
+    async function sha256hex(message) {
+      const encoded = new TextEncoder().encode(message);
+      const hashBuffer = await crypto.subtle.digest('SHA-256', encoded);
+      return toHex(hashBuffer);
+    }
+
+    function randomHex(bytes) {
+      const buf = new Uint8Array(bytes);
+      crypto.getRandomValues(buf);
+      return toHex(buf);
+    }
+
+    // ── Init ────────────────────────────────────────────────────────────────
+    try {
+      await init();
+      $('status').textContent = 'WASM module loaded';
+      $('status').className = 'status-bar ready';
+
+      $('btnGenSeed').disabled = false;
+      $('btnFidoReg').disabled = false;
+
+      // Pre-fill PRF salt and AES IV
+      $('prfSalt').value = randomHex(32);
+      $('aesIv').value = randomHex(16);
+    } catch (e) {
+      $('status').textContent = 'Failed to load WASM: ' + (e.message || e);
+      $('status').style.color = '#e63946';
+      console.error(e);
+    }
+
+    // ── 1. Seed Generation ──────────────────────────────────────────────────
+    $('btnGenSeed').addEventListener('click', () => {
+      try {
+        const count = parseInt($('wordCount').value);
+        const passphrase = $('passphrase').value;
+        const mnemonic = generate_mnemonic(count);
+        setOutput('outMnemonic', mnemonic);
+
+        currentSeed = mnemonic_to_seed(mnemonic, passphrase);
+        setOutput('outSeed', currentSeed);
+
+        $('btnDerive').disabled = false;
+
+        // Reset downstream
+        currentPrivKey = null;
+        currentPubKey = null;
+        setOutput('outPubKey', '—', 'empty');
+        setOutput('outPrivKey', '—', 'empty');
+        setOutput('outMsgHash', '—', 'empty');
+        setOutput('outSig', '—', 'empty');
+        setOutput('outVerify', '—', 'empty');
+        $('btnSign').disabled = true;
+        $('btnVerify').disabled = true;
+      } catch (e) {
+        setOutput('outMnemonic', 'Error: ' + e.message);
+      }
+    });
+
+    // ── 2. BIP44 Derivation ─────────────────────────────────────────────────
+    $('btnDerive').addEventListener('click', () => {
+      try {
+        const path = $('derivePath').value.trim();
+        const keys = derive_key(currentSeed, path);
+        currentPubKey = keys.public_key;
+        currentPrivKey = keys.private_key;
+        setOutput('outPubKey', keys.public_key);
+        setOutput('outPrivKey', keys.private_key);
+        $('btnSign').disabled = false;
+
+        // Reset sign outputs
+        setOutput('outMsgHash', '—', 'empty');
+        setOutput('outSig', '—', 'empty');
+        setOutput('outVerify', '—', 'empty');
+        $('btnVerify').disabled = true;
+      } catch (e) {
+        setOutput('outPubKey', 'Error: ' + e.message);
+      }
+    });
+
+    // ── 3. Sign & Verify ────────────────────────────────────────────────────
+    $('btnSign').addEventListener('click', async () => {
+      try {
+        const msg = $('signMsg').value;
+        lastMsgHash = await sha256hex(msg);
+        setOutput('outMsgHash', lastMsgHash);
+
+        const sig = secp256k1_sign(currentPrivKey, lastMsgHash);
+        lastSigHex = sig.r + sig.s;
+        setOutput('outSig', `r: ${sig.r}\ns: ${sig.s}\nv: ${sig.v}\n\nfull (r+s): ${lastSigHex}`);
+        $('btnVerify').disabled = false;
+        setOutput('outVerify', '—', 'empty');
+      } catch (e) {
+        setOutput('outSig', 'Error: ' + e.message);
+      }
+    });
+
+    $('btnVerify').addEventListener('click', () => {
+      try {
+        const valid = secp256k1_verify(currentPubKey, lastMsgHash, lastSigHex);
+        if (valid) {
+          setOutput('outVerify', 'Signature is VALID');
+          $('outVerify').style.color = '#155724';
+          $('outVerify').style.background = '#d4edda';
+        } else {
+          setOutput('outVerify', 'Signature is INVALID');
+          $('outVerify').style.color = '#721c24';
+          $('outVerify').style.background = '#f8d7da';
+        }
+      } catch (e) {
+        setOutput('outVerify', 'Error: ' + e.message);
+      }
+    });
+
+    // ── 4. FIDO Register ────────────────────────────────────────────────────
+    $('btnFidoReg').addEventListener('click', async () => {
+      const userName = $('fidoUser').value.trim() || 'demo@test.com';
+      const rpId = $('fidoRpId').value.trim() || 'localhost';
+
+      setOutput('outFidoReg', 'Waiting for authenticator...');
+      $('btnFidoReg').disabled = true;
+
+      try {
+        const userId = toHex(new TextEncoder().encode(userName));
+        const result = await fido_register({
+          rp_id: rpId,
+          rp_name: 'web-core demo',
+          user_id: userId,
+          user_name: userName,
+        });
+
+        currentCredentialId = result.credential_id;
+        const lines = [
+          `credential_id: ${result.credential_id}`,
+          `attestation_object: ${result.attestation_object.substring(0, 60)}...`,
+          `prf_supported: ${result.prf_supported}`,
+        ];
+        setOutput('outFidoReg', lines.join('\n'));
+        $('btnPrf').disabled = !result.prf_supported;
+
+        if (!result.prf_supported) {
+          setOutput('outPrfKey', 'PRF not supported by this authenticator', 'empty');
+        }
+      } catch (e) {
+        setOutput('outFidoReg', 'Error: ' + (e.message || e));
+      } finally {
+        $('btnFidoReg').disabled = false;
+      }
+    });
+
+    // ── 5. FIDO PRF Key Derivation ──────────────────────────────────────────
+    $('btnPrf').addEventListener('click', async () => {
+      const salt = $('prfSalt').value.trim();
+      if (salt.length !== 64) {
+        setOutput('outPrfKey', 'Error: salt must be 64 hex characters (32 bytes)');
+        return;
+      }
+      if (!currentCredentialId) {
+        setOutput('outPrfKey', 'Error: register a FIDO credential first');
+        return;
+      }
+
+      setOutput('outPrfKey', 'Waiting for authenticator...');
+      $('btnPrf').disabled = true;
+
+      try {
+        const rpId = $('fidoRpId').value.trim() || 'localhost';
+        const result = await fido_derive_prf_key({
+          credential_id: currentCredentialId,
+          rp_id: rpId,
+          salt: salt,
+        });
+        setOutput('outPrfKey', result.symmetric_key);
+        // Auto-fill AES key from PRF result
+        $('aesKey').value = result.symmetric_key;
+      } catch (e) {
+        setOutput('outPrfKey', 'Error: ' + (e.message || e));
+      } finally {
+        $('btnPrf').disabled = false;
+      }
+    });
+
+    // ── 6. AES-256-CBC Encrypt / Decrypt ────────────────────────────────────
+    $('btnRandIv').addEventListener('click', () => {
+      $('aesIv').value = randomHex(16);
+    });
+
+    $('btnEncrypt').addEventListener('click', () => {
+      try {
+        const key = $('aesKey').value.trim();
+        const iv = $('aesIv').value.trim();
+        const text = $('aesPlaintext').value;
+        const plaintextHex = toHex(new TextEncoder().encode(text));
+
+        const ct = aes_cbc_encrypt(key, iv, plaintextHex);
+        setOutput('outCiphertext', ct);
+        setOutput('outDecrypted', '—', 'empty');
+      } catch (e) {
+        setOutput('outCiphertext', 'Error: ' + (e.message || e));
+      }
+    });
+
+    $('btnDecrypt').addEventListener('click', () => {
+      try {
+        const key = $('aesKey').value.trim();
+        const iv = $('aesIv').value.trim();
+        const ct = $('outCiphertext').textContent.trim();
+        if (!ct || ct === '—') {
+          setOutput('outDecrypted', 'Error: encrypt something first');
+          return;
+        }
+
+        const ptHex = aes_cbc_decrypt(key, iv, ct);
+        const ptBytes = new Uint8Array(ptHex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+        const ptText = new TextDecoder().decode(ptBytes);
+        setOutput('outDecrypted', ptText);
+        $('outDecrypted').style.color = '#155724';
+        $('outDecrypted').style.background = '#d4edda';
+      } catch (e) {
+        setOutput('outDecrypted', 'Error: ' + (e.message || e));
+        $('outDecrypted').style.color = '#721c24';
+        $('outDecrypted').style.background = '#f8d7da';
+      }
+    });
+
+    // ── 7. Google Drive Backup ───────────────────────────────────────────────
+
+    function getClientId() {
+      const cid = $('gClientId').value.trim();
+      if (!cid) {
+        setOutput('outGDrive', 'Error: enter your Google Cloud OAuth Client ID first');
+        return null;
+      }
+      return cid;
+    }
+
+    $('btnGLogin').addEventListener('click', () => {
+      const clientId = getClientId();
+      if (!clientId) return;
+
+      if (typeof google === 'undefined' || !google.accounts) {
+        setOutput('outGDrive', 'Error: Google Identity Services not loaded. Check network / ad-blocker.');
+        return;
+      }
+
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: clientId,
+        scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+        callback: (tokenResponse) => {
+          if (tokenResponse.error) {
+            setOutput('outGAccount', 'Auth failed: ' + tokenResponse.error);
+            return;
+          }
+          gAccessToken = tokenResponse.access_token;
+          setOutput('outGAccount', 'Signed in (token acquired)');
+          $('outGAccount').style.color = '#155724';
+          $('outGAccount').style.background = '#d4edda';
+          $('btnGBackup').disabled = false;
+          $('btnGRestore').disabled = false;
+
+          fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { 'Authorization': 'Bearer ' + gAccessToken }
+          }).then(r => r.json()).then(info => {
+            setOutput('outGAccount', `${info.email || 'unknown'} (${info.name || ''})`);
+            $('outGAccount').style.color = '#155724';
+            $('outGAccount').style.background = '#d4edda';
+          }).catch(() => {});
+        },
+      });
+
+      tokenClient.requestAccessToken();
+    });
+
+    $('btnGBackup').addEventListener('click', async () => {
+      if (!gAccessToken) {
+        setOutput('outGDrive', 'Error: sign in with Google first');
+        return;
+      }
+
+      const ct = $('outCiphertext').textContent.trim();
+      if (!ct || ct === '—' || ct.startsWith('Error')) {
+        setOutput('outGDrive', 'Error: encrypt something first (section 6)');
+        return;
+      }
+
+      const backupPayload = {
+        version: 1,
+        created_at: new Date().toISOString(),
+        iv: $('aesIv').value.trim(),
+        ciphertext: ct,
+        note: 'Encrypted by web-core WASM demo with AES-256-CBC, key from FIDO PRF',
+      };
+
+      const fileName = $('gFileName').value.trim() || 'web-core-backup.json';
+      setOutput('outGDrive', 'Uploading to Google Drive...');
+
+      try {
+        const existingId = await findDriveFile(fileName);
+
+        let res;
+        if (existingId) {
+          res = await updateDriveFile(existingId, backupPayload);
+        } else {
+          res = await createDriveFile(fileName, backupPayload);
+        }
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || JSON.stringify(data));
+
+        const action = existingId ? 'Updated' : 'Created';
+        setOutput('outGDrive', `${action} file on Google Drive\nFile ID: ${data.id}\nName: ${data.name}\nLink: https://drive.google.com/file/d/${data.id}/view`);
+        $('outGDrive').style.color = '#155724';
+        $('outGDrive').style.background = '#d4edda';
+      } catch (e) {
+        setOutput('outGDrive', 'Error: ' + (e.message || e));
+        $('outGDrive').style.color = '#721c24';
+        $('outGDrive').style.background = '#f8d7da';
+      }
+    });
+
+    $('btnGRestore').addEventListener('click', async () => {
+      if (!gAccessToken) {
+        setOutput('outGDrive', 'Error: sign in with Google first');
+        return;
+      }
+      const fileName = $('gFileName').value.trim() || 'web-core-backup.json';
+      setOutput('outGDrive', 'Searching Google Drive for ' + fileName + '...');
+
+      try {
+        const fileId = await findDriveFile(fileName);
+        if (!fileId) {
+          setOutput('outGDrive', 'No backup file found on Google Drive with name: ' + fileName);
+          return;
+        }
+
+        const contentRes = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
+          { headers: { 'Authorization': 'Bearer ' + gAccessToken } }
+        );
+        if (!contentRes.ok) throw new Error('Failed to download: ' + contentRes.statusText);
+
+        const backup = await contentRes.json();
+        if (backup.iv) $('aesIv').value = backup.iv;
+        if (backup.ciphertext) setOutput('outCiphertext', backup.ciphertext);
+
+        setOutput('outGDrive',
+          `Restored from Google Drive\nFile: ${fileName}\nCreated: ${backup.created_at || 'unknown'}\nCiphertext length: ${(backup.ciphertext || '').length} hex chars\n\nIV and ciphertext have been filled in above. Enter the correct AES key and click "Decrypt".`);
+        $('outGDrive').style.color = '#155724';
+        $('outGDrive').style.background = '#d4edda';
+      } catch (e) {
+        setOutput('outGDrive', 'Error: ' + (e.message || e));
+        $('outGDrive').style.color = '#721c24';
+        $('outGDrive').style.background = '#f8d7da';
+      }
+    });
+
+    async function findDriveFile(name) {
+      const q = encodeURIComponent(`name='${name}' and trashed=false`);
+      const res = await fetch(
+        `https://www.googleapis.com/drive/v3/files?q=${q}&spaces=drive&fields=files(id,name)&pageSize=1`,
+        { headers: { 'Authorization': 'Bearer ' + gAccessToken } }
+      );
+      const data = await res.json();
+      return data.files?.[0]?.id || null;
+    }
+
+    async function createDriveFile(name, payload) {
+      const metadata = { name, mimeType: 'application/json' };
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }));
+
+      return fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + gAccessToken },
+        body: form,
+      });
+    }
+
+    async function updateDriveFile(fileId, payload) {
+      return fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&fields=id,name`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': 'Bearer ' + gAccessToken,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload, null, 2),
+      });
+    }
+  </script>
+</body>
+</html>
