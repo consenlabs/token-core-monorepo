@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use wasm_bindgen::prelude::*;
 
 mod types;
@@ -11,8 +13,24 @@ use tcx_primitive::{mnemonic_from_entropy, TypedPublicKey};
 
 use types::*;
 
+thread_local! {
+    static CACHED_KEYSTORE_JSON: RefCell<Option<String>> = RefCell::new(None);
+}
+
 fn to_js_err(e: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&e.to_string())
+}
+
+fn resolve_keystore_json(explicit: Option<String>) -> Result<String, JsValue> {
+    if let Some(json) = explicit {
+        return Ok(json);
+    }
+    CACHED_KEYSTORE_JSON.with(|cache| {
+        cache
+            .borrow()
+            .clone()
+            .ok_or_else(|| JsValue::from_str("keystore_json not provided and no cached keystore"))
+    })
 }
 
 fn now_timestamp() -> i64 {
@@ -49,6 +67,20 @@ fn unlock_keystore_from_mnemonic(mnemonic: &str) -> Result<Keystore, JsValue> {
     let mut ks = result?;
     ks.unlock_by_password(temp_password).map_err(to_js_err)?;
     Ok(ks)
+}
+
+#[wasm_bindgen]
+pub fn cache_keystore(keystore_json: &str) {
+    CACHED_KEYSTORE_JSON.with(|cache| {
+        *cache.borrow_mut() = Some(keystore_json.to_string());
+    });
+}
+
+#[wasm_bindgen]
+pub fn clear_cached_keystore() {
+    CACHED_KEYSTORE_JSON.with(|cache| {
+        *cache.borrow_mut() = None;
+    });
 }
 
 #[wasm_bindgen]
@@ -91,7 +123,8 @@ pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
 pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
     let param: DeriveAccountsParam = serde_json::from_str(param_json).map_err(to_js_err)?;
 
-    let ks_data: PasskeyKeystore = serde_json::from_str(&param.keystore_json).map_err(to_js_err)?;
+    let keystore_json = resolve_keystore_json(param.keystore_json)?;
+    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
     let mnemonic = decrypt_mnemonic(
         &ks_data.encrypted_mnemonic,
         &ks_data.mnemonic_iv,
@@ -133,7 +166,8 @@ pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
 pub fn sign_tx(param_json: &str) -> Result<String, JsValue> {
     let param: SignTxParam = serde_json::from_str(param_json).map_err(to_js_err)?;
 
-    let ks_data: PasskeyKeystore = serde_json::from_str(&param.keystore_json).map_err(to_js_err)?;
+    let keystore_json = resolve_keystore_json(param.keystore_json)?;
+    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
     let mnemonic = decrypt_mnemonic(
         &ks_data.encrypted_mnemonic,
         &ks_data.mnemonic_iv,

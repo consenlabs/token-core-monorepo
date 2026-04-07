@@ -25,7 +25,7 @@ pub struct PasskeyKeystore {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeriveAccountsParam {
-    pub keystore_json: String,
+    pub keystore_json: Option<String>,
     pub prf_key: String,
     pub derivation_path: Option<String>,
     pub chain_id: Option<String>,
@@ -44,7 +44,7 @@ pub struct AccountResponse {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SignTxParam {
-    pub keystore_json: String,
+    pub keystore_json: Option<String>,
     pub prf_key: String,
     pub derivation_path: Option<String>,
     pub input: EthTxInputJson,
