@@ -1,6 +1,7 @@
 use super::{Result, Signer};
 use std::fmt;
 use std::str::FromStr;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::{SystemTime, UNIX_EPOCH};
 
 mod guard;
@@ -191,10 +192,16 @@ pub struct Metadata {
     pub identified_chain_types: Option<Vec<String>>,
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 fn metadata_default_time() -> i64 {
     let start = SystemTime::now();
     let since_the_epoch = start.duration_since(UNIX_EPOCH).expect("get timestamp");
     since_the_epoch.as_secs() as i64
+}
+
+#[cfg(target_arch = "wasm32")]
+fn metadata_default_time() -> i64 {
+    (js_sys::Date::now() / 1000.0) as i64
 }
 
 fn metadata_default_source() -> Source {

@@ -4627,6 +4627,7 @@ dependencies = [
  "cargo-husky",
  "hex",
  "hmac-sha256",
+ "js-sys",
  "lazy_static",
  "multihash 0.18.1",
  "parking_lot",
