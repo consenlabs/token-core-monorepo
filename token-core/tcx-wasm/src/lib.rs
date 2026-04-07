@@ -7,7 +7,7 @@ use tcx_constants::CurveType;
 use tcx_eth::address::EthAddress;
 use tcx_eth::transaction::{AccessList as ProtoAccessList, EthTxInput, EthTxOutput};
 use tcx_keystore::{Keystore, Metadata, SignatureParameters, TransactionSigner};
-use tcx_primitive::{generate_mnemonic, TypedPublicKey};
+use tcx_primitive::{mnemonic_from_entropy, TypedPublicKey};
 
 use types::*;
 
@@ -60,9 +60,15 @@ pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
         return Err(JsValue::from_str("PRF key must be 32 bytes"));
     }
 
-    let mnemonic = match param.mnemonic {
-        Some(m) => m,
-        None => generate_mnemonic(),
+    let mnemonic = if let Some(m) = param.mnemonic {
+        m
+    } else if let Some(entropy_hex) = param.entropy {
+        let entropy = Vec::from_hex(&entropy_hex).map_err(to_js_err)?;
+        mnemonic_from_entropy(&entropy).map_err(to_js_err)?
+    } else {
+        return Err(JsValue::from_str(
+            "either mnemonic or entropy must be provided",
+        ));
     };
 
     let iv = random_u8_16();

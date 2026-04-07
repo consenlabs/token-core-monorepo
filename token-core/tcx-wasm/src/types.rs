@@ -8,6 +8,7 @@ pub struct CreateKeystoreParam {
     pub credential_id: String,
     pub rp_id: String,
     pub mnemonic: Option<String>,
+    pub entropy: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]

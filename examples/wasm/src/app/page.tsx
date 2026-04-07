@@ -17,7 +17,14 @@ interface TestResult {
 
 const TEST_MNEMONIC =
   "inject kidney empty canal shadow pact comfort wife crush horse wife sketch";
-const TEST_PASSWORD = "password_for_test";
+const TEST_PRF_KEY =
+  "0000000000000000000000000000000000000000000000000000000000000001";
+
+function toHex(bytes: Uint8Array): string {
+  return Array.from(bytes)
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
 
 export default function Home() {
   const [results, setResults] = useState<TestResult[]>([]);
@@ -46,38 +53,45 @@ export default function Home() {
 
       // 1. Create keystore (import mnemonic)
       push({ name: "Create Keystore (import)", status: "running" });
-      const createRes = JSON.parse(
-        create_keystore(
-          JSON.stringify({
-            password: TEST_PASSWORD,
-            mnemonic: TEST_MNEMONIC,
-            name: "test-wallet",
-          })
-        )
+      const keystoreJson = create_keystore(
+        JSON.stringify({
+          prfKey: TEST_PRF_KEY,
+          userId: "test-user",
+          credentialId: "test-credential",
+          rpId: "localhost",
+          mnemonic: TEST_MNEMONIC,
+        })
       );
-      if (!createRes.id || createRes.source !== "MNEMONIC") {
-        throw new Error(`Unexpected: ${JSON.stringify(createRes)}`);
+      const importedKs = JSON.parse(keystoreJson);
+      if (!importedKs.encryptedMnemonic || !importedKs.mnemonicIv) {
+        throw new Error(`Unexpected: ${keystoreJson}`);
       }
       push({
         name: "Create Keystore (import)",
         status: "pass",
-        detail: `ID: ${createRes.id} | Source: ${createRes.source}`,
+        detail: `User: ${importedKs.userId} | Created: ${importedKs.createdAt}`,
       });
 
-      // 2. Create keystore (new mnemonic)
-      push({ name: "Create Keystore (new)", status: "running" });
-      const newRes = JSON.parse(
-        create_keystore(
-          JSON.stringify({ password: TEST_PASSWORD, name: "generated-wallet" })
-        )
+      // 2. Create keystore (new — entropy from Web Crypto)
+      push({ name: "Create Keystore (new via entropy)", status: "running" });
+      const entropy = crypto.getRandomValues(new Uint8Array(16));
+      const newKeystoreJson = create_keystore(
+        JSON.stringify({
+          prfKey: TEST_PRF_KEY,
+          userId: "test-user-2",
+          credentialId: "test-credential-2",
+          rpId: "localhost",
+          entropy: toHex(entropy),
+        })
       );
-      if (!newRes.id || newRes.source !== "NEW_MNEMONIC") {
-        throw new Error(`Unexpected: ${JSON.stringify(newRes)}`);
+      const newKs = JSON.parse(newKeystoreJson);
+      if (!newKs.encryptedMnemonic || !newKs.mnemonicIv) {
+        throw new Error(`Unexpected: ${newKeystoreJson}`);
       }
       push({
-        name: "Create Keystore (new)",
+        name: "Create Keystore (new via entropy)",
         status: "pass",
-        detail: `ID: ${newRes.id} | Source: ${newRes.source}`,
+        detail: `User: ${newKs.userId} | Entropy: ${toHex(entropy).slice(0, 16)}...`,
       });
 
       // 3. Derive ETH account
@@ -85,8 +99,8 @@ export default function Home() {
       const acct = JSON.parse(
         derive_accounts(
           JSON.stringify({
-            keystoreJson: createRes.keystoreJson,
-            password: TEST_PASSWORD,
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
             derivationPath: "m/44'/60'/0'/0/0",
             chainId: "1",
             network: "MAINNET",
@@ -107,8 +121,8 @@ export default function Home() {
       const legacyTx = JSON.parse(
         sign_tx(
           JSON.stringify({
-            keystoreJson: createRes.keystoreJson,
-            password: TEST_PASSWORD,
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
             derivationPath: "m/44'/60'/0'/0/0",
             input: {
               nonce: "0",
@@ -135,8 +149,8 @@ export default function Home() {
       const eip1559Tx = JSON.parse(
         sign_tx(
           JSON.stringify({
-            keystoreJson: createRes.keystoreJson,
-            password: TEST_PASSWORD,
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
             derivationPath: "m/44'/60'/0'/0/0",
             input: {
               nonce: "1",
