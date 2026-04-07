@@ -101,6 +101,7 @@ export default function Home() {
           JSON.stringify({
             keystoreJson,
             prfKey: TEST_PRF_KEY,
+            chain: "ETHEREUM",
             derivationPath: "m/44'/60'/0'/0/0",
             chainId: "1",
             network: "MAINNET",
@@ -116,7 +117,27 @@ export default function Home() {
         detail: `Address: ${acct.address}`,
       });
 
-      // 4. Sign legacy tx
+      // 4. Derive TRON account
+      push({ name: "Derive TRON Account", status: "running" });
+      const tronAcct = JSON.parse(
+        derive_accounts(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            chain: "TRON",
+          })
+        )
+      );
+      if (!tronAcct.address?.startsWith("T")) {
+        throw new Error(`Bad TRON address: ${tronAcct.address}`);
+      }
+      push({
+        name: "Derive TRON Account",
+        status: "pass",
+        detail: `Address: ${tronAcct.address}`,
+      });
+
+      // 5. Sign legacy tx
       push({ name: "Sign Legacy TX (EIP-155)", status: "running" });
       const legacyTx = JSON.parse(
         sign_tx(
@@ -144,7 +165,7 @@ export default function Home() {
         detail: `Hash: ${legacyTx.txHash}`,
       });
 
-      // 5. Sign EIP-1559 tx
+      // 6. Sign EIP-1559 tx
       push({ name: "Sign EIP-1559 TX", status: "running" });
       const eip1559Tx = JSON.parse(
         sign_tx(
@@ -174,6 +195,30 @@ export default function Home() {
         status: "pass",
         detail: `Hash: ${eip1559Tx.txHash}`,
       });
+
+      // 7. Sign TRON tx
+      push({ name: "Sign TRON TX", status: "running" });
+      const tronTx = JSON.parse(
+        sign_tx(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            chain: "TRON",
+            input: {
+              rawData:
+                "0a0208312208b02efdc02638b61e40f083c3a7c92d5a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a1541a1e81654258bf14f63feb2e8d1380075d45b0dac1215410b3e84ec677b3e63c99affcadb91a6b4e086798f186470a0bfbfa7c92d",
+            },
+          })
+        )
+      );
+      if (!tronTx.signatures || tronTx.signatures.length === 0) {
+        throw new Error("Missing TRON signatures");
+      }
+      push({
+        name: "Sign TRON TX",
+        status: "pass",
+        detail: `Signature: ${tronTx.signatures[0].slice(0, 32)}...`,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       push({
@@ -197,7 +242,7 @@ export default function Home() {
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
           Browser-side WASM integration tests for keystore, account derivation &
-          ETH signing.
+          ETH / TRON signing.
         </p>
 
         <button
