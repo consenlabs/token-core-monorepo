@@ -21,3 +21,6 @@ anyhow = { version = "=1.0.79" }
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.38"
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
