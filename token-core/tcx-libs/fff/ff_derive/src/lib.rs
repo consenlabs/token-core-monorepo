@@ -847,7 +847,6 @@ fn prime_field_impl(
             {
                 // This cannot exceed the backing capacity.
                 use std::arch::x86_64::*;
-                use std::mem;
 
                 unsafe {
                     let mut carry = _addcarry_u64(
@@ -873,7 +872,7 @@ fn prime_field_impl(
                         &mut (#a.0).0[3]
                     );
 
-                    let mut s_sub: [u64; 4] = mem::uninitialized();
+                    let mut s_sub: [u64; 4] = [0u64; 4];
 
                     carry = _subborrow_u64(
                         0,
