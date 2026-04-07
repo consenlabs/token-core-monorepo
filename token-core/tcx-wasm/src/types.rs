@@ -3,27 +3,29 @@ use serde::{Deserialize, Serialize};
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateKeystoreParam {
-    pub password: String,
+    pub prf_key: String,
+    pub user_id: String,
+    pub credential_id: String,
+    pub rp_id: String,
     pub mnemonic: Option<String>,
-    pub name: Option<String>,
-    pub password_hint: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct KeystoreResult {
-    pub id: String,
-    pub name: String,
-    pub source: String,
+pub struct PasskeyKeystore {
+    pub user_id: String,
+    pub credential_id: String,
+    pub rp_id: String,
+    pub encrypted_mnemonic: String,
+    pub mnemonic_iv: String,
     pub created_at: i64,
-    pub keystore_json: String,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeriveAccountsParam {
     pub keystore_json: String,
-    pub password: String,
+    pub prf_key: String,
     pub derivation_path: Option<String>,
     pub chain_id: Option<String>,
     pub network: Option<String>,
@@ -42,7 +44,7 @@ pub struct AccountResponse {
 #[serde(rename_all = "camelCase")]
 pub struct SignTxParam {
     pub keystore_json: String,
-    pub password: String,
+    pub prf_key: String,
     pub derivation_path: Option<String>,
     pub input: EthTxInputJson,
 }

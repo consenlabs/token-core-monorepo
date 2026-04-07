@@ -2,14 +2,12 @@ use wasm_bindgen::prelude::*;
 
 mod types;
 
-use tcx_common::ToHex;
+use tcx_common::{random_u8_16, FromHex, ToHex};
 use tcx_constants::CurveType;
 use tcx_eth::address::EthAddress;
 use tcx_eth::transaction::{AccessList as ProtoAccessList, EthTxInput, EthTxOutput};
-use tcx_keystore::{
-    HdKeystore, Keystore, Metadata, SignatureParameters, Source, TransactionSigner,
-};
-use tcx_primitive::TypedPublicKey;
+use tcx_keystore::{Keystore, Metadata, SignatureParameters, TransactionSigner};
+use tcx_primitive::{generate_mnemonic, TypedPublicKey};
 
 use types::*;
 
@@ -17,33 +15,67 @@ fn to_js_err(e: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&e.to_string())
 }
 
+fn now_timestamp() -> i64 {
+    (js_sys::Date::now() / 1000.0) as i64
+}
+
+fn decrypt_mnemonic(
+    encrypted_mnemonic: &str,
+    iv_hex: &str,
+    prf_key_hex: &str,
+) -> Result<String, JsValue> {
+    let key = Vec::from_hex(prf_key_hex).map_err(to_js_err)?;
+    if key.len() != 32 {
+        return Err(JsValue::from_str("PRF key must be 32 bytes"));
+    }
+    let iv = Vec::from_hex(iv_hex).map_err(to_js_err)?;
+    let encrypted = Vec::from_hex(encrypted_mnemonic).map_err(to_js_err)?;
+    let decrypted =
+        tcx_crypto::aes::ctr256::decrypt_nopadding(&encrypted, &key, &iv).map_err(to_js_err)?;
+    String::from_utf8(decrypted).map_err(to_js_err)
+}
+
+fn unlock_keystore_from_mnemonic(mnemonic: &str) -> Result<Keystore, JsValue> {
+    // todo: use a fake keystore struct
+    let temp_password = "prf_temp";
+    {
+        *tcx_crypto::KDF_ROUNDS.write() = 1;
+    }
+    let meta = Metadata::default();
+    let result = Keystore::from_mnemonic(mnemonic, temp_password, meta).map_err(to_js_err);
+    {
+        *tcx_crypto::KDF_ROUNDS.write() = 262144;
+    }
+    let mut ks = result?;
+    ks.unlock_by_password(temp_password).map_err(to_js_err)?;
+    Ok(ks)
+}
+
 #[wasm_bindgen]
 pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
     let param: CreateKeystoreParam = serde_json::from_str(param_json).map_err(to_js_err)?;
 
-    let meta = Metadata {
-        name: param.name.unwrap_or_else(|| "Unknown".to_string()),
-        password_hint: param.password_hint,
-        source: if param.mnemonic.is_some() {
-            Source::Mnemonic
-        } else {
-            Source::NewMnemonic
-        },
-        ..Metadata::default()
+    let prf_key = Vec::from_hex(&param.prf_key).map_err(to_js_err)?;
+    if prf_key.len() != 32 {
+        return Err(JsValue::from_str("PRF key must be 32 bytes"));
+    }
+
+    let mnemonic = match param.mnemonic {
+        Some(m) => m,
+        None => generate_mnemonic(),
     };
 
-    let keystore = if let Some(mnemonic) = &param.mnemonic {
-        Keystore::from_mnemonic(mnemonic, &param.password, meta).map_err(to_js_err)?
-    } else {
-        Keystore::Hd(HdKeystore::new(&param.password, meta))
-    };
+    let iv = random_u8_16();
+    let encrypted = tcx_crypto::aes::ctr256::encrypt_nopadding(mnemonic.as_bytes(), &prf_key, &iv)
+        .map_err(to_js_err)?;
 
-    let result = KeystoreResult {
-        id: keystore.id(),
-        name: keystore.meta().name,
-        source: keystore.meta().source.to_string(),
-        created_at: keystore.meta().timestamp,
-        keystore_json: keystore.to_json(),
+    let result = PasskeyKeystore {
+        user_id: param.user_id,
+        credential_id: param.credential_id,
+        rp_id: param.rp_id,
+        encrypted_mnemonic: encrypted.to_hex(),
+        mnemonic_iv: iv.to_hex(),
+        created_at: now_timestamp(),
     };
 
     serde_json::to_string(&result).map_err(to_js_err)
@@ -53,10 +85,14 @@ pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
 pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
     let param: DeriveAccountsParam = serde_json::from_str(param_json).map_err(to_js_err)?;
 
-    let mut keystore = Keystore::from_json(&param.keystore_json).map_err(to_js_err)?;
-    keystore
-        .unlock_by_password(&param.password)
-        .map_err(to_js_err)?;
+    let ks_data: PasskeyKeystore = serde_json::from_str(&param.keystore_json).map_err(to_js_err)?;
+    let mnemonic = decrypt_mnemonic(
+        &ks_data.encrypted_mnemonic,
+        &ks_data.mnemonic_iv,
+        &param.prf_key,
+    )?;
+
+    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
 
     let derivation_path = param
         .derivation_path
@@ -91,10 +127,14 @@ pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
 pub fn sign_tx(param_json: &str) -> Result<String, JsValue> {
     let param: SignTxParam = serde_json::from_str(param_json).map_err(to_js_err)?;
 
-    let mut keystore = Keystore::from_json(&param.keystore_json).map_err(to_js_err)?;
-    keystore
-        .unlock_by_password(&param.password)
-        .map_err(to_js_err)?;
+    let ks_data: PasskeyKeystore = serde_json::from_str(&param.keystore_json).map_err(to_js_err)?;
+    let mnemonic = decrypt_mnemonic(
+        &ks_data.encrypted_mnemonic,
+        &ks_data.mnemonic_iv,
+        &param.prf_key,
+    )?;
+
+    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
 
     let derivation_path = param
         .derivation_path

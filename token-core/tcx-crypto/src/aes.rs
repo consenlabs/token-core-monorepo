@@ -33,6 +33,31 @@ pub mod ctr {
     }
 }
 
+pub mod ctr256 {
+    use crate::{Error, Result};
+    use aes::cipher::generic_array::GenericArray;
+    use aes::cipher::{KeyIvInit, StreamCipher};
+
+    type Aes256Ctr = ctr::Ctr128BE<aes::Aes256>;
+
+    pub fn encrypt_nopadding(data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
+        if key.len() != 32 || iv.len() != 16 {
+            return Err(Error::InvalidKeyIvLength.into());
+        }
+        let key = GenericArray::from_slice(key);
+        let iv = GenericArray::from_slice(iv);
+        let mut cipher = Aes256Ctr::new(key, iv);
+        let mut data_copy = vec![0; data.len()];
+        data_copy.copy_from_slice(data);
+        cipher.apply_keystream(&mut data_copy);
+        Ok(data_copy)
+    }
+
+    pub fn decrypt_nopadding(data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
+        encrypt_nopadding(data, key, iv)
+    }
+}
+
 pub mod cbc {
 
     use crate::{Error, Result};
@@ -75,6 +100,7 @@ mod tests {
 
     use crate::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
     use crate::aes::ctr::{decrypt_nopadding, encrypt_nopadding};
+    use crate::aes::ctr256;
     use tcx_common::{FromHex, ToHex};
 
     #[test]
@@ -138,5 +164,25 @@ mod tests {
         let wrong_len_iv = Vec::from_hex("010203040102030401020304").unwrap();
         let ret = encrypt_pkcs7(&data, &key, &wrong_len_iv);
         assert!(ret.is_err());
+    }
+
+    #[test]
+    fn test_aes256_ctr_roundtrip() {
+        let data = "TokenCoreX Passkey PRF".as_bytes();
+        let key = Vec::from_hex("0102030401020304010203040102030401020304010203040102030401020304")
+            .unwrap();
+        let iv = Vec::from_hex("01020304010203040102030401020304").unwrap();
+
+        let encrypted = ctr256::encrypt_nopadding(data, &key, &iv).unwrap();
+        let decrypted = ctr256::decrypt_nopadding(&encrypted, &key, &iv).unwrap();
+        assert_eq!(data, decrypted.as_slice());
+    }
+
+    #[test]
+    fn test_aes256_ctr_invalid_key_length() {
+        let data = "test".as_bytes();
+        let short_key = Vec::from_hex("01020304010203040102030401020304").unwrap();
+        let iv = Vec::from_hex("01020304010203040102030401020304").unwrap();
+        assert!(ctr256::encrypt_nopadding(data, &short_key, &iv).is_err());
     }
 }
