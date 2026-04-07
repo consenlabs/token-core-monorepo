@@ -27,6 +27,7 @@ pub struct PasskeyKeystore {
 pub struct DeriveAccountsParam {
     pub keystore_json: Option<String>,
     pub prf_key: String,
+    pub chain: Option<String>,
     pub derivation_path: Option<String>,
     pub chain_id: Option<String>,
     pub network: Option<String>,
@@ -46,8 +47,15 @@ pub struct AccountResponse {
 pub struct SignTxParam {
     pub keystore_json: Option<String>,
     pub prf_key: String,
+    pub chain: Option<String>,
     pub derivation_path: Option<String>,
-    pub input: EthTxInputJson,
+    pub input: serde_json::Value,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TronTxInputJson {
+    pub raw_data: String,
 }
 
 #[derive(Deserialize)]
@@ -71,11 +79,4 @@ pub struct EthTxInputJson {
 pub struct AccessListJson {
     pub address: String,
     pub storage_keys: Vec<String>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SignTxResult {
-    pub signature: String,
-    pub tx_hash: String,
 }

@@ -4840,6 +4840,7 @@ dependencies = [
  "tcx-eth",
  "tcx-keystore",
  "tcx-primitive",
+ "tcx-tron",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]

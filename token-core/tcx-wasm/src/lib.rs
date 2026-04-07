@@ -10,6 +10,8 @@ use tcx_eth::address::EthAddress;
 use tcx_eth::transaction::{AccessList as ProtoAccessList, EthTxInput, EthTxOutput};
 use tcx_keystore::{Keystore, Metadata, SignatureParameters, TransactionSigner};
 use tcx_primitive::{mnemonic_from_entropy, TypedPublicKey};
+use tcx_tron::transaction::{TronTxInput, TronTxOutput};
+use tcx_tron::TronAddress;
 
 use types::*;
 
@@ -133,13 +135,19 @@ pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
 
     let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
 
+    let chain = param.chain.as_deref().unwrap_or("ETHEREUM");
+    let (default_path, coin_name) = match chain {
+        "TRON" => ("m/44'/195'/0'/0/0", "TRON"),
+        _ => ("m/44'/60'/0'/0/0", "ETHEREUM"),
+    };
+
     let derivation_path = param
         .derivation_path
-        .unwrap_or_else(|| "m/44'/60'/0'/0/0".to_string());
+        .unwrap_or_else(|| default_path.to_string());
 
     let coin_info = tcx_constants::CoinInfo {
         chain_id: param.chain_id.unwrap_or_default(),
-        coin: "ETHEREUM".to_string(),
+        coin: coin_name.to_string(),
         derivation_path,
         curve: CurveType::SECP256k1,
         network: param.network.unwrap_or_else(|| "MAINNET".to_string()),
@@ -147,9 +155,14 @@ pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
         contract_code: "".to_string(),
     };
 
-    let account = keystore
-        .derive_coin::<EthAddress>(&coin_info)
-        .map_err(to_js_err)?;
+    let account = match chain {
+        "TRON" => keystore
+            .derive_coin::<TronAddress>(&coin_info)
+            .map_err(to_js_err)?,
+        _ => keystore
+            .derive_coin::<EthAddress>(&coin_info)
+            .map_err(to_js_err)?,
+    };
 
     let result = AccountResponse {
         address: account.address,
@@ -176,55 +189,75 @@ pub fn sign_tx(param_json: &str) -> Result<String, JsValue> {
 
     let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
 
+    let chain = param.chain.as_deref().unwrap_or("ETHEREUM");
+    let default_path = match chain {
+        "TRON" => "m/44'/195'/0'/0/0",
+        _ => "m/44'/60'/0'/0/0",
+    };
+
     let derivation_path = param
         .derivation_path
-        .unwrap_or_else(|| "m/44'/60'/0'/0/0".to_string());
+        .unwrap_or_else(|| default_path.to_string());
 
     let sign_params = SignatureParameters {
         curve: CurveType::SECP256k1,
         derivation_path,
-        chain_type: "ETHEREUM".to_string(),
+        chain_type: chain.to_string(),
         network: "".to_string(),
         seg_wit: "".to_string(),
     };
 
-    let access_list: Vec<ProtoAccessList> = param
-        .input
-        .access_list
-        .unwrap_or_default()
-        .into_iter()
-        .map(|item| ProtoAccessList {
-            address: item.address,
-            storage_keys: item.storage_keys,
-        })
-        .collect();
-
-    let eth_input = EthTxInput {
-        nonce: param.input.nonce,
-        gas_price: param.input.gas_price.unwrap_or_default(),
-        gas_limit: param.input.gas_limit,
-        to: param.input.to,
-        value: param.input.value,
-        data: param.input.data.unwrap_or_default(),
-        chain_id: param.input.chain_id,
-        tx_type: param.input.tx_type.unwrap_or_default(),
-        max_fee_per_gas: param.input.max_fee_per_gas.unwrap_or_default(),
-        max_priority_fee_per_gas: param.input.max_priority_fee_per_gas.unwrap_or_default(),
-        access_list,
+    let json_result = match chain {
+        "TRON" => {
+            let tron_input_json: TronTxInputJson =
+                serde_json::from_value(param.input).map_err(to_js_err)?;
+            let tron_input = TronTxInput {
+                raw_data: tron_input_json.raw_data,
+            };
+            let output: TronTxOutput = keystore
+                .sign_transaction(&sign_params, &tron_input)
+                .map_err(to_js_err)?;
+            serde_json::json!({ "signatures": output.signatures })
+        }
+        _ => {
+            let eth_input_json: EthTxInputJson =
+                serde_json::from_value(param.input).map_err(to_js_err)?;
+            let access_list: Vec<ProtoAccessList> = eth_input_json
+                .access_list
+                .unwrap_or_default()
+                .into_iter()
+                .map(|item| ProtoAccessList {
+                    address: item.address,
+                    storage_keys: item.storage_keys,
+                })
+                .collect();
+            let eth_input = EthTxInput {
+                nonce: eth_input_json.nonce,
+                gas_price: eth_input_json.gas_price.unwrap_or_default(),
+                gas_limit: eth_input_json.gas_limit,
+                to: eth_input_json.to,
+                value: eth_input_json.value,
+                data: eth_input_json.data.unwrap_or_default(),
+                chain_id: eth_input_json.chain_id,
+                tx_type: eth_input_json.tx_type.unwrap_or_default(),
+                max_fee_per_gas: eth_input_json.max_fee_per_gas.unwrap_or_default(),
+                max_priority_fee_per_gas: eth_input_json
+                    .max_priority_fee_per_gas
+                    .unwrap_or_default(),
+                access_list,
+            };
+            let output: EthTxOutput = keystore
+                .sign_transaction(&sign_params, &eth_input)
+                .map_err(to_js_err)?;
+            serde_json::json!({
+                "signature": output.signature,
+                "txHash": output.tx_hash,
+            })
+        }
     };
-
-    let output: EthTxOutput = keystore
-        .sign_transaction(&sign_params, &eth_input)
-        .map_err(to_js_err)?;
 
     keystore.lock();
-
-    let result = SignTxResult {
-        signature: output.signature,
-        tx_hash: output.tx_hash,
-    };
-
-    serde_json::to_string(&result).map_err(to_js_err)
+    serde_json::to_string(&json_result).map_err(to_js_err)
 }
 
 fn encode_public_key(pk: &TypedPublicKey) -> String {
