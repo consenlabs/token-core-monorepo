@@ -254,6 +254,10 @@ impl Keystore {
         )?))
     }
 
+    pub fn from_mnemonic_unlocked(mnemonic: &str) -> Result<Keystore> {
+        Ok(Keystore::Hd(HdKeystore::from_mnemonic_unlocked(mnemonic)?))
+    }
+
     pub fn id(&self) -> String {
         self.store().id.to_string()
     }

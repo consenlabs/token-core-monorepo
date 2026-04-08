@@ -8,7 +8,7 @@ use tcx_common::{random_u8_16, FromHex, ToHex};
 use tcx_constants::CurveType;
 use tcx_eth::address::EthAddress;
 use tcx_eth::transaction::{AccessList as ProtoAccessList, EthTxInput, EthTxOutput};
-use tcx_keystore::{Keystore, Metadata, SignatureParameters, TransactionSigner};
+use tcx_keystore::{Keystore, SignatureParameters, TransactionSigner};
 use tcx_primitive::{mnemonic_from_entropy, TypedPublicKey};
 use tcx_tron::transaction::{TronTxInput, TronTxOutput};
 use tcx_tron::TronAddress;
@@ -56,19 +56,7 @@ fn decrypt_mnemonic(
 }
 
 fn unlock_keystore_from_mnemonic(mnemonic: &str) -> Result<Keystore, JsValue> {
-    // todo: use a fake keystore struct
-    let temp_password = "prf_temp";
-    {
-        *tcx_crypto::KDF_ROUNDS.write() = 1;
-    }
-    let meta = Metadata::default();
-    let result = Keystore::from_mnemonic(mnemonic, temp_password, meta).map_err(to_js_err);
-    {
-        *tcx_crypto::KDF_ROUNDS.write() = 262144;
-    }
-    let mut ks = result?;
-    ks.unlock_by_password(temp_password).map_err(to_js_err)?;
-    Ok(ks)
+    Keystore::from_mnemonic_unlocked(mnemonic).map_err(to_js_err)
 }
 
 #[wasm_bindgen]

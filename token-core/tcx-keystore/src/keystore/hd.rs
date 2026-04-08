@@ -9,7 +9,7 @@ use std::collections::{hash_map::Entry, HashMap};
 
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::{coin_info::get_xpub_prefix, CoinInfo, CurveType};
-use tcx_crypto::{Crypto, Key};
+use tcx_crypto::{Crypto, EncPair, Key};
 use tcx_primitive::{
     generate_mnemonic, get_account_path, Bip32DeterministicPrivateKey, Derive,
     DeterministicPrivateKey, TypedDeterministicPrivateKey, TypedDeterministicPublicKey,
@@ -186,6 +186,29 @@ impl HdKeystore {
             },
 
             cache: None,
+        })
+    }
+
+    pub fn from_mnemonic_unlocked(mnemonic: &str) -> Result<HdKeystore> {
+        let valid_mnemonic = &mnemonic.split_whitespace().collect::<Vec<&str>>().join(" ");
+        let seed = mnemonic_to_seed(valid_mnemonic)?;
+        let fingerprint = fingerprint_from_seed(&seed)?;
+
+        Ok(HdKeystore {
+            store: Store {
+                source_fingerprint: fingerprint,
+                crypto: Crypto::default(),
+                id: Uuid::new_v4().as_hyphenated().to_string(),
+                version: Self::VERSION,
+                meta: Metadata::default(),
+                identity: Identity::default(),
+                curve: None,
+                enc_original: EncPair::default(),
+            },
+            cache: Some(Cache {
+                mnemonic: valid_mnemonic.to_string(),
+                keys: HashMap::new(),
+            }),
         })
     }
 
