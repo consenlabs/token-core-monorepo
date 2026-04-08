@@ -60,19 +60,28 @@ export default function Home() {
           credentialId: "test-credential",
           rpId: "localhost",
           mnemonic: TEST_MNEMONIC,
+          network: "MAINNET",
         })
       );
       const importedKs = JSON.parse(keystoreJson);
       if (!importedKs.encryptedMnemonic || !importedKs.mnemonicIv) {
         throw new Error(`Unexpected: ${keystoreJson}`);
       }
+      if (
+        !importedKs.identity?.identifier ||
+        !importedKs.identity?.ipfsId ||
+        !importedKs.identity?.encKey ||
+        !importedKs.identity?.encAuthKey
+      ) {
+        throw new Error(`Missing identity fields: ${keystoreJson}`);
+      }
       push({
         name: "Create Keystore (import)",
         status: "pass",
-        detail: `User: ${importedKs.userId} | Created: ${importedKs.createdAt}`,
+        detail: `Identifier: ${importedKs.identity.identifier} | IPFS: ${importedKs.identity.ipfsId}`,
       });
 
-      // 2. Create keystore (new — entropy from Web Crypto)
+      // 2. Create keystore (new — entropy from Web Crypto, testnet)
       push({ name: "Create Keystore (new via entropy)", status: "running" });
       const entropy = crypto.getRandomValues(new Uint8Array(16));
       const newKeystoreJson = create_keystore(
@@ -82,16 +91,20 @@ export default function Home() {
           credentialId: "test-credential-2",
           rpId: "localhost",
           entropy: toHex(entropy),
+          network: "TESTNET",
         })
       );
       const newKs = JSON.parse(newKeystoreJson);
       if (!newKs.encryptedMnemonic || !newKs.mnemonicIv) {
         throw new Error(`Unexpected: ${newKeystoreJson}`);
       }
+      if (!newKs.identity?.identifier || !newKs.identity?.ipfsId) {
+        throw new Error(`Missing identity: ${newKeystoreJson}`);
+      }
       push({
         name: "Create Keystore (new via entropy)",
         status: "pass",
-        detail: `User: ${newKs.userId} | Entropy: ${toHex(entropy).slice(0, 16)}...`,
+        detail: `Identifier: ${newKs.identity.identifier} | Network: TESTNET`,
       });
 
       // 3. Derive ETH account
