@@ -32,9 +32,9 @@ pub struct Identity {
 }
 
 impl Identity {
-    pub fn new(
+    fn create_identity(
         master_private_key: &[u8],
-        unlocker: &Unlocker,
+        derived_key: &[u8],
         network: &IdentityNetwork,
     ) -> Result<Self> {
         let (network_type, network_salt) = if network == &IdentityNetwork::Mainnet {
@@ -67,7 +67,6 @@ impl Identity {
         );
         let identifier = base58::check_encode_slice(Vec::from_hex(full_identifier)?.as_slice());
 
-        //gen enckey
         let enc_key_bytes = HMAC::mac("Encryption Key".as_bytes(), backup_key);
 
         let enc_private_key = PrivateKey::new_uncompressed(
@@ -77,7 +76,17 @@ impl Identity {
         let multihash =
             Code::Sha2_256.digest(enc_private_key.public_key(&secp).to_bytes().as_slice());
         let ipfs_id = base58::encode_slice(&multihash.to_bytes());
-        let enc_auth_key = unlocker.encrypt_with_random_iv(authentication_key.as_slice())?;
+
+        let iv = random_u8_16();
+        let ciphertext = tcx_crypto::aes::ctr::encrypt_nopadding(
+            authentication_key.as_slice(),
+            &derived_key[0..16],
+            &iv,
+        )?;
+        let enc_auth_key = EncPair {
+            enc_str: ciphertext.to_hex(),
+            nonce: iv.to_hex(),
+        };
 
         Ok(Identity {
             enc_auth_key,
@@ -85,6 +94,14 @@ impl Identity {
             identifier,
             ipfs_id,
         })
+    }
+
+    pub fn new(
+        master_private_key: &[u8],
+        unlocker: &Unlocker,
+        network: &IdentityNetwork,
+    ) -> Result<Self> {
+        Self::create_identity(master_private_key, unlocker.derived_key(), network)
     }
 
     pub fn from_seed(seed: &Seed, unlocker: &Unlocker, network: &IdentityNetwork) -> Result<Self> {
@@ -96,6 +113,21 @@ impl Identity {
 
         let master_key = ExtendedPrivKey::new_master(network_type, seed.as_ref())?;
         Self::new(&master_key.private_key.secret_bytes(), unlocker, network)
+    }
+
+    pub fn from_seed_with_raw_key(
+        seed: &Seed,
+        derived_key: &[u8],
+        network: &IdentityNetwork,
+    ) -> Result<Self> {
+        let network_type = if network == &IdentityNetwork::Mainnet {
+            Network::Bitcoin
+        } else {
+            Network::Testnet
+        };
+
+        let master_key = ExtendedPrivKey::new_master(network_type, seed.as_ref())?;
+        Self::create_identity(&master_key.private_key.secret_bytes(), derived_key, network)
     }
 
     pub fn from_private_key(

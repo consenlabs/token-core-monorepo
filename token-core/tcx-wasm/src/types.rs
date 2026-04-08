@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tcx_keystore::identity::Identity;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -9,6 +10,7 @@ pub struct CreateKeystoreParam {
     pub rp_id: String,
     pub mnemonic: Option<String>,
     pub entropy: Option<String>,
+    pub network: Option<String>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -20,6 +22,7 @@ pub struct PasskeyKeystore {
     pub encrypted_mnemonic: String,
     pub mnemonic_iv: String,
     pub created_at: i64,
+    pub identity: Identity,
 }
 
 #[derive(Deserialize)]

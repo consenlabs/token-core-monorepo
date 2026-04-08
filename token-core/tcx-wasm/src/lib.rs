@@ -8,7 +8,9 @@ use tcx_common::{random_u8_16, FromHex, ToHex};
 use tcx_constants::CurveType;
 use tcx_eth::address::EthAddress;
 use tcx_eth::transaction::{AccessList as ProtoAccessList, EthTxInput, EthTxOutput};
-use tcx_keystore::{Keystore, SignatureParameters, TransactionSigner};
+use tcx_keystore::identity::Identity;
+use tcx_keystore::keystore::IdentityNetwork;
+use tcx_keystore::{mnemonic_to_seed, Keystore, SignatureParameters, TransactionSigner};
 use tcx_primitive::{mnemonic_from_entropy, TypedPublicKey};
 use tcx_tron::transaction::{TronTxInput, TronTxOutput};
 use tcx_tron::TronAddress;
@@ -97,6 +99,14 @@ pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
     let encrypted = tcx_crypto::aes::ctr256::encrypt_nopadding(mnemonic.as_bytes(), &prf_key, &iv)
         .map_err(to_js_err)?;
 
+    let network = match param.network.as_deref() {
+        Some("TESTNET") => IdentityNetwork::Testnet,
+        _ => IdentityNetwork::Mainnet,
+    };
+    let seed = mnemonic_to_seed(&mnemonic).map_err(to_js_err)?;
+    let identity =
+        Identity::from_seed_with_raw_key(&seed, &prf_key, &network).map_err(to_js_err)?;
+
     let result = PasskeyKeystore {
         user_id: param.user_id,
         credential_id: param.credential_id,
@@ -104,6 +114,7 @@ pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
         encrypted_mnemonic: encrypted.to_hex(),
         mnemonic_iv: iv.to_hex(),
         created_at: now_timestamp(),
+        identity,
     };
 
     serde_json::to_string(&result).map_err(to_js_err)
