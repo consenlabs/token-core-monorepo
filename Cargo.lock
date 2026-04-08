@@ -4827,7 +4827,7 @@ dependencies = [
 
 [[package]]
 name = "tcx-wasm"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anyhow",
  "getrandom 0.2.9",
