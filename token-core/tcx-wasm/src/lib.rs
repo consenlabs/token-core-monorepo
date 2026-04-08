@@ -1,5 +1,6 @@
 use std::cell::RefCell;
 
+use secp256k1::SecretKey;
 use wasm_bindgen::prelude::*;
 
 mod nostr;
@@ -20,6 +21,7 @@ use types::*;
 
 thread_local! {
     static CACHED_KEYSTORE_JSON: RefCell<Option<String>> = const { RefCell::new(None) };
+    static CACHED_MESSAGE_SECRET_KEY: RefCell<Option<SecretKey>> = RefCell::new(None);
 }
 
 fn to_js_err(e: impl std::fmt::Display) -> JsValue {
@@ -62,8 +64,23 @@ fn unlock_keystore_from_mnemonic(mnemonic: &str) -> Result<Keystore, JsValue> {
     Keystore::from_mnemonic_unlocked(mnemonic).map_err(to_js_err)
 }
 
+fn clear_message_key_pair() {
+    CACHED_MESSAGE_SECRET_KEY.with(|cache| {
+        *cache.borrow_mut() = None;
+    });
+}
+
+fn get_cached_secret_key() -> Result<SecretKey, JsValue> {
+    CACHED_MESSAGE_SECRET_KEY.with(|cache| {
+        (*cache.borrow()).ok_or_else(|| {
+            JsValue::from_str("message key pair not derived, call deriveMessageKeyPair first")
+        })
+    })
+}
+
 #[wasm_bindgen]
 pub fn cache_keystore(keystore_json: &str) {
+    clear_message_key_pair();
     CACHED_KEYSTORE_JSON.with(|cache| {
         *cache.borrow_mut() = Some(keystore_json.to_string());
     });
@@ -71,6 +88,7 @@ pub fn cache_keystore(keystore_json: &str) {
 
 #[wasm_bindgen]
 pub fn clear_cached_keystore() {
+    clear_message_key_pair();
     CACHED_KEYSTORE_JSON.with(|cache| {
         *cache.borrow_mut() = None;
     });
@@ -282,6 +300,21 @@ fn derive_nostr_key(
 }
 
 #[wasm_bindgen]
+pub fn derive_message_key_pair(param_json: &str) -> Result<String, JsValue> {
+    let param: NostrGetPubkeyParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+    let secret_key = derive_nostr_key(
+        param.keystore_json,
+        &param.prf_key,
+        param.derivation_path.as_deref(),
+    )?;
+    let pubkey = nostr::get_xonly_pubkey(&secret_key);
+    CACHED_MESSAGE_SECRET_KEY.with(|cache| {
+        *cache.borrow_mut() = Some(secret_key);
+    });
+    serde_json::to_string(&serde_json::json!({ "pubkey": pubkey.to_string() })).map_err(to_js_err)
+}
+
+#[wasm_bindgen]
 pub fn nostr_get_public_key(param_json: &str) -> Result<String, JsValue> {
     let param: NostrGetPubkeyParam = serde_json::from_str(param_json).map_err(to_js_err)?;
     let secret_key = derive_nostr_key(
@@ -328,11 +361,7 @@ pub fn nostr_sign_event(param_json: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn nostr_nip44_encrypt(param_json: &str) -> Result<String, JsValue> {
     let param: NostrNip44EncryptParam = serde_json::from_str(param_json).map_err(to_js_err)?;
-    let secret_key = derive_nostr_key(
-        param.keystore_json,
-        &param.prf_key,
-        param.derivation_path.as_deref(),
-    )?;
+    let secret_key = get_cached_secret_key()?;
     let server_pubkey = nostr::parse_pubkey(nostr::SERVER_PUBKEY).map_err(to_js_err)?;
     let conversation_key = nostr::get_conversation_key(&secret_key, &server_pubkey);
     let encrypted = nostr::nip44_encrypt(&conversation_key, &param.plaintext).map_err(to_js_err)?;
@@ -342,11 +371,7 @@ pub fn nostr_nip44_encrypt(param_json: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn nostr_nip44_decrypt(param_json: &str) -> Result<String, JsValue> {
     let param: NostrNip44DecryptParam = serde_json::from_str(param_json).map_err(to_js_err)?;
-    let secret_key = derive_nostr_key(
-        param.keystore_json,
-        &param.prf_key,
-        param.derivation_path.as_deref(),
-    )?;
+    let secret_key = get_cached_secret_key()?;
     let server_pubkey = nostr::parse_pubkey(nostr::SERVER_PUBKEY).map_err(to_js_err)?;
     let conversation_key = nostr::get_conversation_key(&secret_key, &server_pubkey);
     let plaintext =

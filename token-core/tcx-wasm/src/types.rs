@@ -134,17 +134,11 @@ pub struct NostrSignedEvent {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NostrNip44EncryptParam {
-    pub keystore_json: Option<String>,
-    pub prf_key: String,
-    pub derivation_path: Option<String>,
     pub plaintext: String,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NostrNip44DecryptParam {
-    pub keystore_json: Option<String>,
-    pub prf_key: String,
-    pub derivation_path: Option<String>,
     pub encrypted_content: String,
 }
