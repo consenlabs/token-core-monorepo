@@ -2,6 +2,8 @@ import init, {
   create_keystore,
   derive_accounts,
   sign_tx,
+  cache_keystore,
+  clear_cached_keystore,
 } from "../pkg/tcx_wasm";
 
 let ready = false;
@@ -12,4 +14,10 @@ export async function initWasm(): Promise<void> {
   ready = true;
 }
 
-export { create_keystore, derive_accounts, sign_tx };
+export {
+  create_keystore,
+  derive_accounts,
+  sign_tx,
+  cache_keystore,
+  clear_cached_keystore,
+};

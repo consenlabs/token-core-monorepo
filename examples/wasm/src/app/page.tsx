@@ -6,6 +6,8 @@ import {
   create_keystore,
   derive_accounts,
   sign_tx,
+  cache_keystore,
+  clear_cached_keystore,
 } from "@/lib/wasm";
 
 interface TestResult {
@@ -78,7 +80,7 @@ export default function Home() {
       push({
         name: "Create Keystore (import)",
         status: "pass",
-        detail: `Identifier: ${importedKs.identity.identifier} | IPFS: ${importedKs.identity.ipfsId}`,
+        detail: JSON.stringify(importedKs, null, 2),
       });
 
       // 2. Create keystore (new — entropy from Web Crypto, testnet)
@@ -232,6 +234,32 @@ export default function Home() {
         status: "pass",
         detail: `Signature: ${tronTx.signatures[0].slice(0, 32)}...`,
       });
+
+      // 8. Cache keystore & derive without explicit keystoreJson
+      push({ name: "Cache Keystore + Derive", status: "running" });
+      cache_keystore(keystoreJson);
+      const cachedAcct = JSON.parse(
+        derive_accounts(
+          JSON.stringify({
+            prfKey: TEST_PRF_KEY,
+            chain: "ETHEREUM",
+            derivationPath: "m/44'/60'/0'/0/0",
+            chainId: "1",
+            network: "MAINNET",
+          })
+        )
+      );
+      if (cachedAcct.address !== acct.address) {
+        throw new Error(
+          `Cached derive mismatch: ${cachedAcct.address} !== ${acct.address}`
+        );
+      }
+      clear_cached_keystore();
+      push({
+        name: "Cache Keystore + Derive",
+        status: "pass",
+        detail: `Address matches: ${cachedAcct.address}`,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       push({
@@ -299,9 +327,9 @@ export default function Home() {
                     </span>
                   </div>
                   {r.detail && (
-                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 font-mono break-all pl-7">
+                    <pre className="mt-1 text-xs text-zinc-500 dark:text-zinc-400 font-mono break-all whitespace-pre-wrap pl-7">
                       {r.detail}
-                    </p>
+                    </pre>
                   )}
                   {r.error && (
                     <p className="mt-1 text-xs text-red-600 dark:text-red-400 font-mono break-all pl-7">
