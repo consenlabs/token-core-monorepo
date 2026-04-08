@@ -90,3 +90,63 @@ pub struct AccessListJson {
     pub address: String,
     pub storage_keys: Vec<String>,
 }
+
+// --- Nostr types ---
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NostrGetPubkeyParam {
+    pub keystore_json: Option<String>,
+    pub prf_key: String,
+    pub derivation_path: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NostrSignEventParam {
+    pub keystore_json: Option<String>,
+    pub prf_key: String,
+    pub derivation_path: Option<String>,
+    pub event: NostrUnsignedEvent,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NostrUnsignedEvent {
+    pub created_at: u64,
+    pub kind: u32,
+    pub tags: Vec<Vec<String>>,
+    pub content: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NostrSignedEvent {
+    pub id: String,
+    pub pubkey: String,
+    pub created_at: u64,
+    pub kind: u32,
+    pub tags: Vec<Vec<String>>,
+    pub content: String,
+    pub sig: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NostrNip44EncryptParam {
+    pub keystore_json: Option<String>,
+    pub prf_key: String,
+    pub derivation_path: Option<String>,
+    pub recipient_pubkey: String,
+    pub plaintext: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NostrNip44DecryptParam {
+    pub keystore_json: Option<String>,
+    pub prf_key: String,
+    pub derivation_path: Option<String>,
+    pub sender_pubkey: String,
+    pub encrypted_content: String,
+}

@@ -516,6 +516,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
+name = "chacha20"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c3613f74bd2eac03dad61bd53dbe620703d4371614fe0bc3b9f04dd36fe4e818"
+dependencies = [
+ "cfg-if",
+ "cipher",
+ "cpufeatures",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.31"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4830,10 +4841,17 @@ name = "tcx-wasm"
 version = "0.4.0"
 dependencies = [
  "anyhow",
+ "base64 0.13.1",
+ "bitcoin",
+ "chacha20",
  "getrandom 0.2.9",
+ "hkdf",
+ "hmac 0.12.1",
  "js-sys",
+ "secp256k1",
  "serde",
  "serde_json",
+ "sha2 0.10.6",
  "tcx-common",
  "tcx-constants",
  "tcx-crypto",

@@ -2,6 +2,7 @@ use std::cell::RefCell;
 
 use wasm_bindgen::prelude::*;
 
+mod nostr;
 mod types;
 
 use tcx_common::{random_u8_16, FromHex, ToHex};
@@ -18,7 +19,7 @@ use tcx_tron::TronAddress;
 use types::*;
 
 thread_local! {
-    static CACHED_KEYSTORE_JSON: RefCell<Option<String>> = RefCell::new(None);
+    static CACHED_KEYSTORE_JSON: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
 fn to_js_err(e: impl std::fmt::Display) -> JsValue {
@@ -266,4 +267,89 @@ pub fn sign_tx(param_json: &str) -> Result<String, JsValue> {
 
 fn encode_public_key(pk: &TypedPublicKey) -> String {
     pk.to_bytes().to_hex()
+}
+
+fn derive_nostr_key(
+    keystore_json: Option<String>,
+    prf_key: &str,
+    derivation_path: Option<&str>,
+) -> Result<secp256k1::SecretKey, JsValue> {
+    let ks_json = resolve_keystore_json(keystore_json)?;
+    let ks_data: PasskeyKeystore = serde_json::from_str(&ks_json).map_err(to_js_err)?;
+    let mnemonic = decrypt_mnemonic(&ks_data.encrypted_mnemonic, &ks_data.mnemonic_iv, prf_key)?;
+    let path = derivation_path.unwrap_or(nostr::DEFAULT_PATH);
+    nostr::derive_secret_key(&mnemonic, path).map_err(to_js_err)
+}
+
+#[wasm_bindgen]
+pub fn nostr_get_public_key(param_json: &str) -> Result<String, JsValue> {
+    let param: NostrGetPubkeyParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+    let secret_key = derive_nostr_key(
+        param.keystore_json,
+        &param.prf_key,
+        param.derivation_path.as_deref(),
+    )?;
+    let pubkey = nostr::get_xonly_pubkey(&secret_key);
+    serde_json::to_string(&serde_json::json!({ "pubkey": pubkey.to_string() })).map_err(to_js_err)
+}
+
+#[wasm_bindgen]
+pub fn nostr_sign_event(param_json: &str) -> Result<String, JsValue> {
+    let param: NostrSignEventParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+    let secret_key = derive_nostr_key(
+        param.keystore_json,
+        &param.prf_key,
+        param.derivation_path.as_deref(),
+    )?;
+    let pubkey = nostr::get_xonly_pubkey(&secret_key);
+    let pubkey_hex = pubkey.to_string();
+
+    let event_id = nostr::compute_event_id(
+        &pubkey_hex,
+        param.event.created_at,
+        param.event.kind,
+        &param.event.tags,
+        &param.event.content,
+    );
+    let sig = nostr::schnorr_sign(&secret_key, &event_id).map_err(to_js_err)?;
+
+    let result = NostrSignedEvent {
+        id: event_id.to_hex(),
+        pubkey: pubkey_hex,
+        created_at: param.event.created_at,
+        kind: param.event.kind,
+        tags: param.event.tags,
+        content: param.event.content,
+        sig: sig.to_hex(),
+    };
+    serde_json::to_string(&result).map_err(to_js_err)
+}
+
+#[wasm_bindgen]
+pub fn nostr_nip44_encrypt(param_json: &str) -> Result<String, JsValue> {
+    let param: NostrNip44EncryptParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+    let secret_key = derive_nostr_key(
+        param.keystore_json,
+        &param.prf_key,
+        param.derivation_path.as_deref(),
+    )?;
+    let recipient_pubkey = nostr::parse_pubkey(&param.recipient_pubkey).map_err(to_js_err)?;
+    let conversation_key = nostr::get_conversation_key(&secret_key, &recipient_pubkey);
+    let encrypted = nostr::nip44_encrypt(&conversation_key, &param.plaintext).map_err(to_js_err)?;
+    serde_json::to_string(&serde_json::json!({ "encryptedContent": encrypted })).map_err(to_js_err)
+}
+
+#[wasm_bindgen]
+pub fn nostr_nip44_decrypt(param_json: &str) -> Result<String, JsValue> {
+    let param: NostrNip44DecryptParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+    let secret_key = derive_nostr_key(
+        param.keystore_json,
+        &param.prf_key,
+        param.derivation_path.as_deref(),
+    )?;
+    let sender_pubkey = nostr::parse_pubkey(&param.sender_pubkey).map_err(to_js_err)?;
+    let conversation_key = nostr::get_conversation_key(&secret_key, &sender_pubkey);
+    let plaintext =
+        nostr::nip44_decrypt(&conversation_key, &param.encrypted_content).map_err(to_js_err)?;
+    serde_json::to_string(&serde_json::json!({ "plaintext": plaintext })).map_err(to_js_err)
 }

@@ -1,6 +1,6 @@
 # tcx-wasm Browser Example
 
-Next.js web app for testing the `tcx-wasm` crate in the browser, covering keystore creation, ETH account derivation, and transaction signing via WebAssembly.
+Next.js web app for testing the `tcx-wasm` crate in the browser, covering keystore creation, ETH account derivation, transaction signing, and Nostr (NIP-44 encryption + Schnorr signing) via WebAssembly.
 
 ## Prerequisites
 
@@ -42,3 +42,6 @@ npm run dev
 | EIP-1559 tx | Sign a type-2 (EIP-1559) transaction |
 | TRON tx | Sign a TRON transaction |
 | Cache keystore | Cache keystore and derive without explicit JSON |
+| Nostr pubkey | Derive Nostr x-only public key (NIP-06 path) |
+| Nostr sign event | Sign a Nostr event with Schnorr (BIP340) |
+| Nostr NIP-44 | NIP-44 v2 encrypt + decrypt roundtrip |

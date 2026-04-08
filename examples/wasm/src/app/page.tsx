@@ -8,6 +8,10 @@ import {
   sign_tx,
   cache_keystore,
   clear_cached_keystore,
+  nostr_get_public_key,
+  nostr_sign_event,
+  nostr_nip44_encrypt,
+  nostr_nip44_decrypt,
 } from "@/lib/wasm";
 
 interface TestResult {
@@ -285,6 +289,97 @@ export default function Home() {
         status: "pass",
         detail: `Address matches: ${cachedAccounts[0].address}`,
       });
+
+      // 9. Nostr: Get public key
+      push({ name: "Nostr: Get Public Key", status: "running" });
+      const nostrPubkey = JSON.parse(
+        nostr_get_public_key(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+          })
+        )
+      );
+      if (!nostrPubkey.pubkey || nostrPubkey.pubkey.length !== 64) {
+        throw new Error(`Bad Nostr pubkey: ${nostrPubkey.pubkey}`);
+      }
+      push({
+        name: "Nostr: Get Public Key",
+        status: "pass",
+        detail: `Pubkey: ${nostrPubkey.pubkey}`,
+      });
+
+      // 10. Nostr: Sign event
+      push({ name: "Nostr: Sign Event", status: "running" });
+      const now = Math.floor(Date.now() / 1000);
+      const signedEvent = JSON.parse(
+        nostr_sign_event(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            event: {
+              createdAt: now,
+              kind: 1,
+              tags: [],
+              content: "Hello from tcx-wasm Nostr test!",
+            },
+          })
+        )
+      );
+      if (
+        !signedEvent.id ||
+        !signedEvent.sig ||
+        signedEvent.id.length !== 64 ||
+        signedEvent.sig.length !== 128
+      ) {
+        throw new Error(`Bad signed event: ${JSON.stringify(signedEvent)}`);
+      }
+      if (signedEvent.pubkey !== nostrPubkey.pubkey) {
+        throw new Error("Signed event pubkey mismatch");
+      }
+      push({
+        name: "Nostr: Sign Event",
+        status: "pass",
+        detail: `ID: ${signedEvent.id}\nSig: ${signedEvent.sig.slice(0, 32)}...`,
+      });
+
+      // 11. Nostr: NIP-44 encrypt + decrypt roundtrip
+      push({ name: "Nostr: NIP-44 Encrypt/Decrypt", status: "running" });
+      const recipientPubkey = nostrPubkey.pubkey;
+      const plaintext = "Secret message for NIP-44 test";
+      const encrypted = JSON.parse(
+        nostr_nip44_encrypt(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            recipientPubkey,
+            plaintext,
+          })
+        )
+      );
+      if (!encrypted.encryptedContent) {
+        throw new Error("Missing encryptedContent");
+      }
+      const decrypted = JSON.parse(
+        nostr_nip44_decrypt(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            senderPubkey: recipientPubkey,
+            encryptedContent: encrypted.encryptedContent,
+          })
+        )
+      );
+      if (decrypted.plaintext !== plaintext) {
+        throw new Error(
+          `Decrypt mismatch: ${decrypted.plaintext} !== ${plaintext}`
+        );
+      }
+      push({
+        name: "Nostr: NIP-44 Encrypt/Decrypt",
+        status: "pass",
+        detail: `Encrypted: ${encrypted.encryptedContent.slice(0, 40)}...\nDecrypted: ${decrypted.plaintext}`,
+      });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       push({
@@ -307,8 +402,8 @@ export default function Home() {
           tcx-wasm Integration Tests
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
-          Browser-side WASM integration tests for keystore, account derivation &
-          ETH / TRON signing.
+          Browser-side WASM integration tests for keystore, account derivation,
+          ETH / TRON signing & Nostr (NIP-44).
         </p>
 
         <button
