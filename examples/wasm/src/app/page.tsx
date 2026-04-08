@@ -340,7 +340,7 @@ export default function Home() {
       push({
         name: "Nostr: Sign Event",
         status: "pass",
-        detail: `ID: ${signedEvent.id}\nSig: ${signedEvent.sig.slice(0, 32)}...`,
+        detail: JSON.stringify(signedEvent, null, 2),
       });
 
       // 11. Nostr: NIP-44 encrypt + decrypt roundtrip
