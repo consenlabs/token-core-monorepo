@@ -287,7 +287,7 @@ fn encode_public_key(pk: &TypedPublicKey) -> String {
     pk.to_bytes().to_hex()
 }
 
-fn derive_nostr_key(
+fn derive_message_key(
     keystore_json: Option<String>,
     prf_key: &str,
     derivation_path: Option<&str>,
@@ -301,8 +301,8 @@ fn derive_nostr_key(
 
 #[wasm_bindgen]
 pub fn derive_message_key_pair(param_json: &str) -> Result<String, JsValue> {
-    let param: NostrGetPubkeyParam = serde_json::from_str(param_json).map_err(to_js_err)?;
-    let secret_key = derive_nostr_key(
+    let param: MessageGetPubkeyParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+    let secret_key = derive_message_key(
         param.keystore_json,
         &param.prf_key,
         param.derivation_path.as_deref(),
@@ -315,9 +315,9 @@ pub fn derive_message_key_pair(param_json: &str) -> Result<String, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn nostr_get_public_key(param_json: &str) -> Result<String, JsValue> {
-    let param: NostrGetPubkeyParam = serde_json::from_str(param_json).map_err(to_js_err)?;
-    let secret_key = derive_nostr_key(
+pub fn get_message_public_key(param_json: &str) -> Result<String, JsValue> {
+    let param: MessageGetPubkeyParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+    let secret_key = derive_message_key(
         param.keystore_json,
         &param.prf_key,
         param.derivation_path.as_deref(),
@@ -327,9 +327,9 @@ pub fn nostr_get_public_key(param_json: &str) -> Result<String, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn nostr_sign_event(param_json: &str) -> Result<String, JsValue> {
-    let param: NostrSignEventParam = serde_json::from_str(param_json).map_err(to_js_err)?;
-    let secret_key = derive_nostr_key(
+pub fn sign_message_event(param_json: &str) -> Result<String, JsValue> {
+    let param: MessageSignEventParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+    let secret_key = derive_message_key(
         param.keystore_json,
         &param.prf_key,
         param.derivation_path.as_deref(),
@@ -346,7 +346,7 @@ pub fn nostr_sign_event(param_json: &str) -> Result<String, JsValue> {
     );
     let sig = nostr::schnorr_sign(&secret_key, &event_id).map_err(to_js_err)?;
 
-    let result = NostrSignedEvent {
+    let result = MessageSignedEvent {
         id: event_id.to_hex(),
         pubkey: pubkey_hex,
         created_at: param.event.created_at,
@@ -359,8 +359,8 @@ pub fn nostr_sign_event(param_json: &str) -> Result<String, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn nostr_nip44_encrypt(param_json: &str) -> Result<String, JsValue> {
-    let param: NostrNip44EncryptParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+pub fn encrypt_message(param_json: &str) -> Result<String, JsValue> {
+    let param: MessageEncryptParam = serde_json::from_str(param_json).map_err(to_js_err)?;
     let secret_key = get_cached_secret_key()?;
     let server_pubkey = nostr::parse_pubkey(nostr::SERVER_PUBKEY).map_err(to_js_err)?;
     let conversation_key = nostr::get_conversation_key(&secret_key, &server_pubkey);
@@ -369,8 +369,8 @@ pub fn nostr_nip44_encrypt(param_json: &str) -> Result<String, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn nostr_nip44_decrypt(param_json: &str) -> Result<String, JsValue> {
-    let param: NostrNip44DecryptParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+pub fn decrypt_message(param_json: &str) -> Result<String, JsValue> {
+    let param: MessageDecryptParam = serde_json::from_str(param_json).map_err(to_js_err)?;
     let secret_key = get_cached_secret_key()?;
     let server_pubkey = nostr::parse_pubkey(nostr::SERVER_PUBKEY).map_err(to_js_err)?;
     let conversation_key = nostr::get_conversation_key(&secret_key, &server_pubkey);

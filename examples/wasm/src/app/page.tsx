@@ -8,10 +8,11 @@ import {
   sign_tx,
   cache_keystore,
   clear_cached_keystore,
-  nostr_get_public_key,
-  nostr_sign_event,
-  nostr_nip44_encrypt,
-  nostr_nip44_decrypt,
+  derive_message_key_pair,
+  get_message_public_key,
+  sign_message_event,
+  encrypt_message,
+  decrypt_message,
 } from "@/lib/wasm";
 
 interface TestResult {
@@ -290,30 +291,59 @@ export default function Home() {
         detail: `Address matches: ${cachedAccounts[0].address}`,
       });
 
-      // 9. Nostr: Get public key
-      push({ name: "Nostr: Get Public Key", status: "running" });
-      const nostrPubkey = JSON.parse(
-        nostr_get_public_key(
+      // 9. Message: Get public key
+      push({ name: "Message: Get Public Key", status: "running" });
+      const messagePubkey = JSON.parse(
+        get_message_public_key(
           JSON.stringify({
             keystoreJson,
             prfKey: TEST_PRF_KEY,
           })
         )
       );
-      if (!nostrPubkey.pubkey || nostrPubkey.pubkey.length !== 64) {
-        throw new Error(`Bad Nostr pubkey: ${nostrPubkey.pubkey}`);
+      if (!messagePubkey.pubkey || messagePubkey.pubkey.length !== 64) {
+        throw new Error(`Bad message pubkey: ${messagePubkey.pubkey}`);
       }
       push({
-        name: "Nostr: Get Public Key",
+        name: "Message: Get Public Key",
         status: "pass",
-        detail: `Pubkey: ${nostrPubkey.pubkey}`,
+        detail: `Pubkey: ${messagePubkey.pubkey}`,
       });
 
-      // 10. Nostr: Sign event
-      push({ name: "Nostr: Sign Event", status: "running" });
+      // 10. Derive message key pair (caches secret key for encryption)
+      push({ name: "Message: Derive Key Pair", status: "running" });
+      const messageKeyPair = JSON.parse(
+        derive_message_key_pair(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+          })
+        )
+      );
+      if (!messageKeyPair.pubkey || messageKeyPair.pubkey.length !== 64) {
+        throw new Error(`Bad message pubkey: ${messageKeyPair.pubkey}`);
+      }
+      if (messageKeyPair.pubkey !== messagePubkey.pubkey) {
+        throw new Error("Message key pair pubkey should match get_public_key");
+      }
+      push({
+        name: "Message: Derive Key Pair",
+        status: "pass",
+        detail: `Pubkey: ${messageKeyPair.pubkey}`,
+      });
+
+      // 11. Message: Sign event with encrypted content
+      push({ name: "Message: Sign Event (encrypted)", status: "running" });
       const now = Math.floor(Date.now() / 1000);
+      const eventPlaintext = "Hello from tcx-wasm message test!";
+      const eventEncrypted = JSON.parse(
+        encrypt_message(JSON.stringify({ plaintext: eventPlaintext }))
+      );
+      if (!eventEncrypted.encryptedContent) {
+        throw new Error("Failed to encrypt event content");
+      }
       const signedEvent = JSON.parse(
-        nostr_sign_event(
+        sign_message_event(
           JSON.stringify({
             keystoreJson,
             prfKey: TEST_PRF_KEY,
@@ -321,7 +351,7 @@ export default function Home() {
               createdAt: now,
               kind: 1,
               tags: [],
-              content: "Hello from tcx-wasm Nostr test!",
+              content: eventEncrypted.encryptedContent,
             },
           })
         )
@@ -334,25 +364,31 @@ export default function Home() {
       ) {
         throw new Error(`Bad signed event: ${JSON.stringify(signedEvent)}`);
       }
-      if (signedEvent.pubkey !== nostrPubkey.pubkey) {
+      if (signedEvent.pubkey !== messagePubkey.pubkey) {
         throw new Error("Signed event pubkey mismatch");
       }
+      const eventDecrypted = JSON.parse(
+        decrypt_message(
+          JSON.stringify({ encryptedContent: signedEvent.content })
+        )
+      );
+      if (eventDecrypted.plaintext !== eventPlaintext) {
+        throw new Error(
+          `Event content decrypt mismatch: ${eventDecrypted.plaintext} !== ${eventPlaintext}`
+        );
+      }
       push({
-        name: "Nostr: Sign Event",
+        name: "Message: Sign Event (encrypted)",
         status: "pass",
         detail: JSON.stringify(signedEvent, null, 2),
       });
 
-      // 11. Nostr: NIP-44 encrypt + decrypt roundtrip
-      push({ name: "Nostr: NIP-44 Encrypt/Decrypt", status: "running" });
-      const recipientPubkey = nostrPubkey.pubkey;
-      const plaintext = "Secret message for NIP-44 test";
+      // 12. Message: Encrypt + decrypt standalone roundtrip
+      push({ name: "Message: Encrypt/Decrypt", status: "running" });
+      const plaintext = "Secret message for encryption test";
       const encrypted = JSON.parse(
-        nostr_nip44_encrypt(
+        encrypt_message(
           JSON.stringify({
-            keystoreJson,
-            prfKey: TEST_PRF_KEY,
-            recipientPubkey,
             plaintext,
           })
         )
@@ -361,11 +397,8 @@ export default function Home() {
         throw new Error("Missing encryptedContent");
       }
       const decrypted = JSON.parse(
-        nostr_nip44_decrypt(
+        decrypt_message(
           JSON.stringify({
-            keystoreJson,
-            prfKey: TEST_PRF_KEY,
-            senderPubkey: recipientPubkey,
             encryptedContent: encrypted.encryptedContent,
           })
         )
@@ -376,7 +409,7 @@ export default function Home() {
         );
       }
       push({
-        name: "Nostr: NIP-44 Encrypt/Decrypt",
+        name: "Message: Encrypt/Decrypt",
         status: "pass",
         detail: `Encrypted: ${encrypted.encryptedContent.slice(0, 40)}...\nDecrypted: ${decrypted.plaintext}`,
       });
@@ -403,7 +436,7 @@ export default function Home() {
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
           Browser-side WASM integration tests for keystore, account derivation,
-          ETH / TRON signing & Nostr (NIP-44).
+          ETH / TRON signing & message encryption.
         </p>
 
         <button

@@ -4,10 +4,11 @@ import init, {
   sign_tx,
   cache_keystore,
   clear_cached_keystore,
-  nostr_get_public_key,
-  nostr_sign_event,
-  nostr_nip44_encrypt,
-  nostr_nip44_decrypt,
+  derive_message_key_pair,
+  get_message_public_key,
+  sign_message_event,
+  encrypt_message,
+  decrypt_message,
 } from "../pkg/tcx_wasm";
 
 let ready = false;
@@ -24,8 +25,9 @@ export {
   sign_tx,
   cache_keystore,
   clear_cached_keystore,
-  nostr_get_public_key,
-  nostr_sign_event,
-  nostr_nip44_encrypt,
-  nostr_nip44_decrypt,
+  derive_message_key_pair,
+  get_message_public_key,
+  sign_message_event,
+  encrypt_message,
+  decrypt_message,
 };
