@@ -9,6 +9,7 @@ use sha2::Sha256;
 use tcx_common::FromHex;
 
 pub const DEFAULT_PATH: &str = "m/44'/1237'/0'/0/0";
+pub const SERVER_PUBKEY: &str = "d39eadac9f88ea1a77b034e8586191ed5435f44b01dea8f214f45fd7bd0b8e0f";
 
 const NIP44_SALT: &[u8] = b"nip44-v2";
 const NIP44_VERSION: u8 = 0x02;

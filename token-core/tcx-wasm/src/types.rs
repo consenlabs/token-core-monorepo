@@ -137,7 +137,6 @@ pub struct NostrNip44EncryptParam {
     pub keystore_json: Option<String>,
     pub prf_key: String,
     pub derivation_path: Option<String>,
-    pub recipient_pubkey: String,
     pub plaintext: String,
 }
 
@@ -147,6 +146,5 @@ pub struct NostrNip44DecryptParam {
     pub keystore_json: Option<String>,
     pub prf_key: String,
     pub derivation_path: Option<String>,
-    pub sender_pubkey: String,
     pub encrypted_content: String,
 }

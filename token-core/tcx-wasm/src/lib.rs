@@ -333,8 +333,8 @@ pub fn nostr_nip44_encrypt(param_json: &str) -> Result<String, JsValue> {
         &param.prf_key,
         param.derivation_path.as_deref(),
     )?;
-    let recipient_pubkey = nostr::parse_pubkey(&param.recipient_pubkey).map_err(to_js_err)?;
-    let conversation_key = nostr::get_conversation_key(&secret_key, &recipient_pubkey);
+    let server_pubkey = nostr::parse_pubkey(nostr::SERVER_PUBKEY).map_err(to_js_err)?;
+    let conversation_key = nostr::get_conversation_key(&secret_key, &server_pubkey);
     let encrypted = nostr::nip44_encrypt(&conversation_key, &param.plaintext).map_err(to_js_err)?;
     serde_json::to_string(&serde_json::json!({ "encryptedContent": encrypted })).map_err(to_js_err)
 }
@@ -347,8 +347,8 @@ pub fn nostr_nip44_decrypt(param_json: &str) -> Result<String, JsValue> {
         &param.prf_key,
         param.derivation_path.as_deref(),
     )?;
-    let sender_pubkey = nostr::parse_pubkey(&param.sender_pubkey).map_err(to_js_err)?;
-    let conversation_key = nostr::get_conversation_key(&secret_key, &sender_pubkey);
+    let server_pubkey = nostr::parse_pubkey(nostr::SERVER_PUBKEY).map_err(to_js_err)?;
+    let conversation_key = nostr::get_conversation_key(&secret_key, &server_pubkey);
     let plaintext =
         nostr::nip44_decrypt(&conversation_key, &param.encrypted_content).map_err(to_js_err)?;
     serde_json::to_string(&serde_json::json!({ "plaintext": plaintext })).map_err(to_js_err)
