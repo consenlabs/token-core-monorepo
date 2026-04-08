@@ -109,7 +109,34 @@ export default function Home() {
         detail: `Identifier: ${newKs.identity.identifier} | Network: TESTNET`,
       });
 
-      // 3. Derive ETH + TRON accounts in one call
+      // 3. Create keystore (random — no mnemonic or entropy)
+      push({ name: "Create Keystore (random)", status: "running" });
+      const randomKeystoreJson = create_keystore(
+        JSON.stringify({
+          prfKey: TEST_PRF_KEY,
+          userId: "test-user-3",
+          credentialId: "test-credential-3",
+          rpId: "localhost",
+          network: "MAINNET",
+        })
+      );
+      const randomKs = JSON.parse(randomKeystoreJson);
+      if (!randomKs.encryptedMnemonic || !randomKs.mnemonicIv) {
+        throw new Error(`Unexpected: ${randomKeystoreJson}`);
+      }
+      if (!randomKs.identity?.identifier || !randomKs.identity?.ipfsId) {
+        throw new Error(`Missing identity: ${randomKeystoreJson}`);
+      }
+      if (randomKs.encryptedMnemonic === importedKs.encryptedMnemonic) {
+        throw new Error("Random keystore should differ from imported one");
+      }
+      push({
+        name: "Create Keystore (random)",
+        status: "pass",
+        detail: `Identifier: ${randomKs.identity.identifier}`,
+      });
+
+      // 4. Derive ETH + TRON accounts in one call
       push({ name: "Derive Accounts (ETH + TRON)", status: "running" });
       const accounts = JSON.parse(
         derive_accounts(

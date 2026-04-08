@@ -86,13 +86,13 @@ pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
 
     let mnemonic = if let Some(m) = param.mnemonic {
         m
-    } else if let Some(entropy_hex) = param.entropy {
-        let entropy = Vec::from_hex(&entropy_hex).map_err(to_js_err)?;
-        mnemonic_from_entropy(&entropy).map_err(to_js_err)?
     } else {
-        return Err(JsValue::from_str(
-            "either mnemonic or entropy must be provided",
-        ));
+        let entropy = if let Some(entropy_hex) = param.entropy {
+            Vec::from_hex(&entropy_hex).map_err(to_js_err)?
+        } else {
+            random_u8_16().to_vec()
+        };
+        mnemonic_from_entropy(&entropy).map_err(to_js_err)?
     };
 
     let iv = random_u8_16();

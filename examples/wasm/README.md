@@ -35,7 +35,10 @@ npm run dev
 |-----------|-------------|
 | Init WASM | Load and initialize the WASM module |
 | Import mnemonic | Create keystore from a known mnemonic |
-| New mnemonic | Create keystore with auto-generated mnemonic |
-| Derive account | Derive an Ethereum address (m/44'/60'/0'/0/0) |
+| New via entropy | Create keystore from caller-supplied entropy |
+| Random | Create keystore with WASM-internal random entropy (Web Crypto) |
+| Derive accounts | Derive ETH + TRON addresses |
 | Legacy tx | Sign an EIP-155 legacy transaction |
 | EIP-1559 tx | Sign a type-2 (EIP-1559) transaction |
+| TRON tx | Sign a TRON transaction |
+| Cache keystore | Cache keystore and derive without explicit JSON |
