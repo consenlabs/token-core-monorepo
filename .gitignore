@@ -97,3 +97,6 @@ imkey-core/mobile-sdk/imKeyCoreX/imKeyCoreX/libconnector.a
 script/*-local.sh
 
 ios-*.zip
+
+# wasm-pack temp build output
+.wasm-pack-tmp/

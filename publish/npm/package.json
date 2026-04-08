@@ -1,0 +1,39 @@
+{
+  "name": "@consenlabs/tcx-wasm",
+  "version": "0.1.0",
+  "description": "WebAssembly build of TokenCore – multi-chain key management and transaction signing",
+  "type": "module",
+  "module": "tcx_wasm.js",
+  "types": "tcx_wasm.d.ts",
+  "files": [
+    "tcx_wasm_bg.wasm",
+    "tcx_wasm.js",
+    "tcx_wasm.d.ts",
+    "tcx_wasm_bg.wasm.d.ts",
+    "README.md"
+  ],
+  "sideEffects": [
+    "./tcx_wasm.js",
+    "./snippets/*"
+  ],
+  "keywords": [
+    "wasm",
+    "webassembly",
+    "crypto",
+    "ethereum",
+    "tron",
+    "keystore",
+    "signing",
+    "wallet",
+    "tokencore"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/consenlabs/token-core-monorepo.git",
+    "directory": "token-core/tcx-wasm"
+  },
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  }
+}
