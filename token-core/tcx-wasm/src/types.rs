@@ -30,8 +30,14 @@ pub struct PasskeyKeystore {
 pub struct DeriveAccountsParam {
     pub keystore_json: Option<String>,
     pub prf_key: String,
+    pub derivations: Vec<DerivationItem>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DerivationItem {
     pub chain: Option<String>,
-    pub derivation_path: Option<String>,
+    pub derivation_path: String,
     pub chain_id: Option<String>,
     pub network: Option<String>,
 }
@@ -40,6 +46,7 @@ pub struct DeriveAccountsParam {
 #[serde(rename_all = "camelCase")]
 pub struct AccountResponse {
     pub address: String,
+    pub chain: String,
     pub derivation_path: String,
     pub ext_pub_key: String,
     pub public_key: String,

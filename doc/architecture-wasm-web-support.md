@@ -68,7 +68,7 @@ TokenCore 最初作为移动端（iOS / Android）的跨链密钥管理与交易
 | 函数 | 功能 |
 |------|------|
 | `create_keystore(param_json)` | 创建 Passkey Keystore（支持导入助记词或由 entropy 生成新助记词） |
-| `derive_accounts(param_json)` | 从 keystore 派生区块链账户（地址、公钥、扩展公钥） |
+| `derive_accounts(param_json)` | 从 keystore 批量派生区块链账户（地址、公钥、扩展公钥），一次解锁派生多个账户 |
 | `sign_tx(param_json)` | 交易签名（ETH Legacy/EIP-1559, TRON） |
 | `cache_keystore(json)` | 缓存 keystore JSON 到 thread-local storage |
 | `clear_cached_keystore()` | 清除缓存的 keystore |

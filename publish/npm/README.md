@@ -40,20 +40,30 @@ const keystoreJson = create_keystore(
   })
 );
 
-// 3. Derive an account
-const account = JSON.parse(
+// 3. Derive accounts (batch — single keystore unlock)
+const accounts = JSON.parse(
   derive_accounts(
     JSON.stringify({
       keystoreJson,
       prfKey: "<prf-key>",
-      chain: "ETHEREUM", // or "TRON"
-      derivationPath: "m/44'/60'/0'/0/0",
-      chainId: "1",
-      network: "MAINNET",
+      derivations: [
+        {
+          chain: "ETHEREUM",
+          derivationPath: "m/44'/60'/0'/0/0",
+          chainId: "1",
+          network: "MAINNET",
+        },
+        {
+          chain: "TRON",
+          derivationPath: "m/44'/195'/0'/0/0",
+          network: "MAINNET",
+        },
+      ],
     })
   )
 );
-console.log(account.address);
+console.log(accounts[0].address); // ETH
+console.log(accounts[1].address); // TRON
 
 // 4. Sign a transaction
 const result = JSON.parse(
@@ -104,7 +114,7 @@ Creates an encrypted keystore JSON. Accepts a mnemonic or entropy for new wallet
 
 ### `derive_accounts(paramJson: string): string`
 
-Derives a blockchain account (address, public key, extended public key) from the keystore.
+Derives one or more blockchain accounts from the keystore in a single call. The keystore is decrypted and unlocked once, then each entry in the `derivations` array produces an account. Returns a JSON array of `{ chain, address, derivationPath, extPubKey, publicKey }`.
 
 ### `sign_tx(paramJson: string): string`
 

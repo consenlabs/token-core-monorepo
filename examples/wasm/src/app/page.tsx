@@ -109,47 +109,41 @@ export default function Home() {
         detail: `Identifier: ${newKs.identity.identifier} | Network: TESTNET`,
       });
 
-      // 3. Derive ETH account
-      push({ name: "Derive ETH Account", status: "running" });
-      const acct = JSON.parse(
+      // 3. Derive ETH + TRON accounts in one call
+      push({ name: "Derive Accounts (ETH + TRON)", status: "running" });
+      const accounts = JSON.parse(
         derive_accounts(
           JSON.stringify({
             keystoreJson,
             prfKey: TEST_PRF_KEY,
-            chain: "ETHEREUM",
-            derivationPath: "m/44'/60'/0'/0/0",
-            chainId: "1",
-            network: "MAINNET",
+            derivations: [
+              {
+                chain: "ETHEREUM",
+                derivationPath: "m/44'/60'/0'/0/0",
+                chainId: "1",
+                network: "MAINNET",
+              },
+              {
+                chain: "TRON",
+                derivationPath: "m/44'/195'/0'/0/0",
+                network: "MAINNET",
+              },
+            ],
           })
         )
       );
+      const acct = accounts[0];
+      const tronAcct = accounts[1];
       if (!acct.address?.startsWith("0x")) {
-        throw new Error(`Bad address: ${acct.address}`);
+        throw new Error(`Bad ETH address: ${acct.address}`);
       }
-      push({
-        name: "Derive ETH Account",
-        status: "pass",
-        detail: `Address: ${acct.address}`,
-      });
-
-      // 4. Derive TRON account
-      push({ name: "Derive TRON Account", status: "running" });
-      const tronAcct = JSON.parse(
-        derive_accounts(
-          JSON.stringify({
-            keystoreJson,
-            prfKey: TEST_PRF_KEY,
-            chain: "TRON",
-          })
-        )
-      );
       if (!tronAcct.address?.startsWith("T")) {
         throw new Error(`Bad TRON address: ${tronAcct.address}`);
       }
       push({
-        name: "Derive TRON Account",
+        name: "Derive Accounts (ETH + TRON)",
         status: "pass",
-        detail: `Address: ${tronAcct.address}`,
+        detail: `ETH: ${acct.address}\nTRON: ${tronAcct.address}`,
       });
 
       // 5. Sign legacy tx
@@ -238,27 +232,31 @@ export default function Home() {
       // 8. Cache keystore & derive without explicit keystoreJson
       push({ name: "Cache Keystore + Derive", status: "running" });
       cache_keystore(keystoreJson);
-      const cachedAcct = JSON.parse(
+      const cachedAccounts = JSON.parse(
         derive_accounts(
           JSON.stringify({
             prfKey: TEST_PRF_KEY,
-            chain: "ETHEREUM",
-            derivationPath: "m/44'/60'/0'/0/0",
-            chainId: "1",
-            network: "MAINNET",
+            derivations: [
+              {
+                chain: "ETHEREUM",
+                derivationPath: "m/44'/60'/0'/0/0",
+                chainId: "1",
+                network: "MAINNET",
+              },
+            ],
           })
         )
       );
-      if (cachedAcct.address !== acct.address) {
+      if (cachedAccounts[0].address !== acct.address) {
         throw new Error(
-          `Cached derive mismatch: ${cachedAcct.address} !== ${acct.address}`
+          `Cached derive mismatch: ${cachedAccounts[0].address} !== ${acct.address}`
         );
       }
       clear_cached_keystore();
       push({
         name: "Cache Keystore + Derive",
         status: "pass",
-        detail: `Address matches: ${cachedAcct.address}`,
+        detail: `Address matches: ${cachedAccounts[0].address}`,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

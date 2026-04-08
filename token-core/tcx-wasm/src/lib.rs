@@ -124,6 +124,10 @@ pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
 pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
     let param: DeriveAccountsParam = serde_json::from_str(param_json).map_err(to_js_err)?;
 
+    if param.derivations.is_empty() {
+        return Err(JsValue::from_str("derivations must not be empty"));
+    }
+
     let keystore_json = resolve_keystore_json(param.keystore_json)?;
     let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
     let mnemonic = decrypt_mnemonic(
@@ -134,44 +138,45 @@ pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
 
     let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
 
-    let chain = param.chain.as_deref().unwrap_or("ETHEREUM");
-    let (default_path, coin_name) = match chain {
-        "TRON" => ("m/44'/195'/0'/0/0", "TRON"),
-        _ => ("m/44'/60'/0'/0/0", "ETHEREUM"),
-    };
+    let mut results: Vec<AccountResponse> = Vec::with_capacity(param.derivations.len());
 
-    let derivation_path = param
-        .derivation_path
-        .unwrap_or_else(|| default_path.to_string());
+    for item in &param.derivations {
+        let chain = item.chain.as_deref().unwrap_or("ETHEREUM");
+        let coin_name = match chain {
+            "TRON" => "TRON",
+            _ => "ETHEREUM",
+        };
 
-    let coin_info = tcx_constants::CoinInfo {
-        chain_id: param.chain_id.unwrap_or_default(),
-        coin: coin_name.to_string(),
-        derivation_path,
-        curve: CurveType::SECP256k1,
-        network: param.network.unwrap_or_else(|| "MAINNET".to_string()),
-        seg_wit: "".to_string(),
-        contract_code: "".to_string(),
-    };
+        let coin_info = tcx_constants::CoinInfo {
+            chain_id: item.chain_id.clone().unwrap_or_default(),
+            coin: coin_name.to_string(),
+            derivation_path: item.derivation_path.clone(),
+            curve: CurveType::SECP256k1,
+            network: item.network.as_deref().unwrap_or("MAINNET").to_string(),
+            seg_wit: "".to_string(),
+            contract_code: "".to_string(),
+        };
 
-    let account = match chain {
-        "TRON" => keystore
-            .derive_coin::<TronAddress>(&coin_info)
-            .map_err(to_js_err)?,
-        _ => keystore
-            .derive_coin::<EthAddress>(&coin_info)
-            .map_err(to_js_err)?,
-    };
+        let account = match chain {
+            "TRON" => keystore
+                .derive_coin::<TronAddress>(&coin_info)
+                .map_err(to_js_err)?,
+            _ => keystore
+                .derive_coin::<EthAddress>(&coin_info)
+                .map_err(to_js_err)?,
+        };
 
-    let result = AccountResponse {
-        address: account.address,
-        derivation_path: account.derivation_path,
-        ext_pub_key: account.ext_pub_key,
-        public_key: encode_public_key(&account.public_key),
-    };
+        results.push(AccountResponse {
+            address: account.address,
+            chain: coin_name.to_string(),
+            derivation_path: account.derivation_path,
+            ext_pub_key: account.ext_pub_key,
+            public_key: encode_public_key(&account.public_key),
+        });
+    }
 
     keystore.lock();
-    serde_json::to_string(&result).map_err(to_js_err)
+    serde_json::to_string(&results).map_err(to_js_err)
 }
 
 #[wasm_bindgen]
