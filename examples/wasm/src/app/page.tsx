@@ -491,6 +491,48 @@ export default function Home() {
         detail: `Event ID:  ${signedEvent.id}\nPubkey:    ${signedEvent.pubkey}\nSignature: ${signedEvent.sig.slice(0, 32)}...`,
       });
 
+      // sign_message_event (seal+wrap): NIP-59 Gift Wrapping.
+      // When recipientPubkey is provided, returns a kind:1059 gift-wrapped event.
+      push({ name: "sign_message_event (seal+wrap)", status: "running" });
+      const wrappedEvent = JSON.parse(
+        sign_message_event(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            recipientPubkey: TEST_SERVER_PUBKEY,
+            event: {
+              createdAt: now,
+              kind: 1,
+              tags: [],
+              content: "secret message via gift wrap",
+            },
+          })
+        )
+      );
+      if (wrappedEvent.kind !== 1059) {
+        throw new Error(`Expected kind 1059, got ${wrappedEvent.kind}`);
+      }
+      if (
+        !wrappedEvent.id ||
+        !wrappedEvent.sig ||
+        wrappedEvent.id.length !== 64 ||
+        wrappedEvent.sig.length !== 128
+      ) {
+        throw new Error(`Bad wrapped event: ${JSON.stringify(wrappedEvent)}`);
+      }
+      if (wrappedEvent.pubkey === messageKeyPair.pubkey) {
+        throw new Error("Wrapped event pubkey should differ from sender (ephemeral key)");
+      }
+      const pTag = wrappedEvent.tags.find((t: string[]) => t[0] === "p");
+      if (!pTag || pTag[1] !== TEST_SERVER_PUBKEY) {
+        throw new Error("Wrapped event missing correct p-tag for recipient");
+      }
+      push({
+        name: "sign_message_event (seal+wrap)",
+        status: "pass",
+        detail: `Kind: ${wrappedEvent.kind}\nEphemeral pubkey: ${wrappedEvent.pubkey}\nRecipient p-tag:  ${pTag[1].slice(0, 16)}...`,
+      });
+
       // sign_message_event + decrypt: Verify the signed event's encrypted
       // content can be decrypted back, demonstrating the full roundtrip:
       // plaintext -> encrypt -> sign event -> decrypt content.

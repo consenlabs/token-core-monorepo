@@ -49,6 +49,7 @@ build-npm:
 	@if command -v wasm-opt >/dev/null 2>&1; then \
 		wasm-opt -Oz --all-features publish/npm/tcx_wasm_bg.wasm -o publish/npm/tcx_wasm_bg.wasm; \
 	fi
+	cp examples/wasm/README.md publish/npm/README.md
 	rm -rf .wasm-pack-tmp
 	@echo "NPM package built in publish/npm/"
 	@ls -lh publish/npm/tcx_wasm_bg.wasm

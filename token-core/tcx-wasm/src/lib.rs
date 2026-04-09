@@ -446,16 +446,73 @@ pub fn sign_message_event(param_json: &str) -> Result<String, JsValue> {
     );
     let sig = nostr::schnorr_sign(&secret_key, &event_id).map_err(to_js_err)?;
 
-    let result = MessageSignedEvent {
+    let rumor = MessageSignedEvent {
         id: event_id.to_hex(),
-        pubkey: pubkey_hex,
+        pubkey: pubkey_hex.clone(),
         created_at: param.event.created_at,
         kind: param.event.kind,
         tags: param.event.tags,
         content: param.event.content,
         sig: sig.to_hex(),
     };
-    serde_json::to_string(&result).map_err(to_js_err)
+
+    let recipient_pubkey = match param.recipient_pubkey {
+        Some(pk) if !pk.is_empty() => pk,
+        _ => return serde_json::to_string(&rumor).map_err(to_js_err),
+    };
+
+    // NIP-59 seal + wrap
+    let recipient_pk = nostr::parse_pubkey(&recipient_pubkey).map_err(to_js_err)?;
+    let now = param.event.created_at;
+    const TWO_DAYS: u64 = 2 * 24 * 60 * 60;
+
+    // Step 1: Seal (kind 13)
+    let rumor_json = serde_json::to_string(&rumor).map_err(to_js_err)?;
+    let seal_conv_key = nostr::get_conversation_key(&secret_key, &recipient_pk);
+    let seal_content = nostr::nip44_encrypt(&seal_conv_key, &rumor_json).map_err(to_js_err)?;
+    let seal_created_at = nostr::randomize_timestamp(now, TWO_DAYS);
+    let seal_tags: Vec<Vec<String>> = vec![];
+    let seal_event_id =
+        nostr::compute_event_id(&pubkey_hex, seal_created_at, 13, &seal_tags, &seal_content);
+    let seal_sig = nostr::schnorr_sign(&secret_key, &seal_event_id).map_err(to_js_err)?;
+    let seal = MessageSignedEvent {
+        id: seal_event_id.to_hex(),
+        pubkey: pubkey_hex,
+        created_at: seal_created_at,
+        kind: 13,
+        tags: seal_tags,
+        content: seal_content,
+        sig: seal_sig.to_hex(),
+    };
+
+    // Step 2: Wrap (kind 1059)
+    let seal_json = serde_json::to_string(&seal).map_err(to_js_err)?;
+    let ephemeral_sk = nostr::generate_random_secret_key().map_err(to_js_err)?;
+    let ephemeral_pk = nostr::get_xonly_pubkey(&ephemeral_sk);
+    let ephemeral_pk_hex = ephemeral_pk.to_string();
+    let wrap_conv_key = nostr::get_conversation_key(&ephemeral_sk, &recipient_pk);
+    let wrap_content = nostr::nip44_encrypt(&wrap_conv_key, &seal_json).map_err(to_js_err)?;
+    let wrap_created_at = nostr::randomize_timestamp(now, TWO_DAYS);
+    let wrap_tags = vec![vec!["p".to_string(), recipient_pubkey]];
+    let wrap_event_id = nostr::compute_event_id(
+        &ephemeral_pk_hex,
+        wrap_created_at,
+        1059,
+        &wrap_tags,
+        &wrap_content,
+    );
+    let wrap_sig = nostr::schnorr_sign(&ephemeral_sk, &wrap_event_id).map_err(to_js_err)?;
+    let wrap = MessageSignedEvent {
+        id: wrap_event_id.to_hex(),
+        pubkey: ephemeral_pk_hex,
+        created_at: wrap_created_at,
+        kind: 1059,
+        tags: wrap_tags,
+        content: wrap_content,
+        sig: wrap_sig.to_hex(),
+    };
+
+    serde_json::to_string(&wrap).map_err(to_js_err)
 }
 
 #[wasm_bindgen]

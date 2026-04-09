@@ -318,7 +318,10 @@ const keyPair = JSON.parse(derive_message_key_pair(JSON.stringify({
 
 Signs a Nostr event (NIP-01) with Schnorr/BIP-340. Derives the key from mnemonic each call (does **not** require cached key).
 
+When `recipientPubkey` is provided, performs **NIP-59 Gift Wrapping** (seal + wrap) and returns a `kind: 1059` gift-wrapped event instead of the plain signed event.
+
 ```ts
+// Basic signing (no seal/wrap)
 const signedEvent = JSON.parse(sign_message_event(JSON.stringify({
   keystoreJson: ks,
   prfKey: "0000...0001",
@@ -330,9 +333,23 @@ const signedEvent = JSON.parse(sign_message_event(JSON.stringify({
     content: "Hello Nostr!",
   },
 })));
+
+// With NIP-59 seal + wrap
+const wrappedEvent = JSON.parse(sign_message_event(JSON.stringify({
+  keystoreJson: ks,
+  prfKey: "0000...0001",
+  recipientPubkey: "64-char hex recipient x-only pubkey",
+  event: {
+    createdAt: Math.floor(Date.now() / 1000),
+    kind: 1,
+    tags: [],
+    content: "Private message",
+  },
+})));
+// => kind: 1059, pubkey is ephemeral, tags: [["p", recipientPubkey]]
 ```
 
-**Output:**
+**Output (basic):**
 
 ```json
 {
@@ -342,6 +359,20 @@ const signedEvent = JSON.parse(sign_message_event(JSON.stringify({
   "kind": 1,
   "tags": [],
   "content": "Hello Nostr!",
+  "sig": "128-char hex Schnorr signature"
+}
+```
+
+**Output (seal + wrap):**
+
+```json
+{
+  "id": "64-char hex event id",
+  "pubkey": "64-char hex ephemeral pubkey",
+  "createdAt": 1712599000,
+  "kind": 1059,
+  "tags": [["p", "64-char hex recipient pubkey"]],
+  "content": "base64 NIP-44 encrypted seal",
   "sig": "128-char hex Schnorr signature"
 }
 ```
@@ -396,4 +427,5 @@ const decrypted = JSON.parse(decrypt_message(JSON.stringify({
 | 14 | encrypt_message | `encrypt_message` | Encrypt plaintext with NIP-44 v2 |
 | 15 | decrypt_message | `decrypt_message` | Decrypt and verify roundtrip |
 | 16 | sign_message_event | `sign_message_event` | Sign Nostr event with Schnorr/BIP-340 |
-| 17 | sign + encrypt/decrypt roundtrip | All Message APIs | Full roundtrip: encrypt → sign event → decrypt |
+| 17 | sign_message_event (seal+wrap) | `sign_message_event` | NIP-59 Gift Wrapping: seal + wrap with recipientPubkey |
+| 18 | sign + encrypt/decrypt roundtrip | All Message APIs | Full roundtrip: encrypt → sign event → decrypt |

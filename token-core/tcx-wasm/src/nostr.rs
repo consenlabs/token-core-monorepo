@@ -45,6 +45,19 @@ pub fn get_xonly_pubkey(secret_key: &SecretKey) -> XOnlyPublicKey {
     keypair.x_only_public_key().0
 }
 
+pub fn generate_random_secret_key() -> Result<SecretKey, String> {
+    let mut bytes = [0u8; 32];
+    getrandom::getrandom(&mut bytes).map_err(|e| e.to_string())?;
+    SecretKey::from_slice(&bytes).map_err(|e| e.to_string())
+}
+
+pub fn randomize_timestamp(base: u64, window_secs: u64) -> u64 {
+    let mut buf = [0u8; 8];
+    let _ = getrandom::getrandom(&mut buf);
+    let offset = u64::from_le_bytes(buf) % (window_secs + 1);
+    base.saturating_sub(offset)
+}
+
 // --- Nostr event signing (NIP-01 + BIP340) ---
 
 pub fn compute_event_id(
@@ -309,5 +322,73 @@ mod tests {
         let encrypted = nip44_encrypt(&conv_key_1, plaintext).unwrap();
         let decrypted = nip44_decrypt(&conv_key_2, &encrypted).unwrap();
         assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_generate_random_secret_key() {
+        let sk1 = generate_random_secret_key().unwrap();
+        let sk2 = generate_random_secret_key().unwrap();
+        assert_ne!(sk1, sk2);
+        let pk = get_xonly_pubkey(&sk1);
+        assert_eq!(pk.to_string().len(), 64);
+    }
+
+    #[test]
+    fn test_randomize_timestamp() {
+        let base = 1_700_000_000u64;
+        let window = 2 * 24 * 60 * 60;
+        for _ in 0..100 {
+            let ts = randomize_timestamp(base, window);
+            assert!(ts <= base);
+            assert!(ts >= base - window);
+        }
+        for _ in 0..10 {
+            let ts = randomize_timestamp(100, 200);
+            assert!(ts <= 100);
+        }
+    }
+
+    #[test]
+    fn test_seal_wrap_roundtrip() {
+        let secp = Secp256k1::new();
+        let sender_sk = SecretKey::from_slice(
+            &Vec::from_hex("0000000000000000000000000000000000000000000000000000000000000001")
+                .unwrap(),
+        )
+        .unwrap();
+        let recipient_sk = SecretKey::from_slice(
+            &Vec::from_hex("0000000000000000000000000000000000000000000000000000000000000002")
+                .unwrap(),
+        )
+        .unwrap();
+        let recipient_pk = PublicKey::from_secret_key(&secp, &recipient_sk);
+        let sender_pk_hex = get_xonly_pubkey(&sender_sk).to_string();
+
+        let rumor_json = r#"{"id":"abc","pubkey":"def","content":"hello"}"#;
+
+        // Seal: sender encrypts rumor for recipient
+        let seal_conv_key = get_conversation_key(&sender_sk, &recipient_pk);
+        let seal_content = nip44_encrypt(&seal_conv_key, rumor_json).unwrap();
+
+        // Recipient can decrypt the seal
+        let sender_pk = PublicKey::from_secret_key(&secp, &sender_sk);
+        let recipient_conv_key = get_conversation_key(&recipient_sk, &sender_pk);
+        let decrypted_rumor = nip44_decrypt(&recipient_conv_key, &seal_content).unwrap();
+        assert_eq!(decrypted_rumor, rumor_json);
+
+        // Wrap: ephemeral key encrypts seal for recipient
+        let ephemeral_sk = generate_random_secret_key().unwrap();
+        let wrap_conv_key = get_conversation_key(&ephemeral_sk, &recipient_pk);
+        let seal_event_json = format!(
+            r#"{{"pubkey":"{}","content":"{}"}}"#,
+            sender_pk_hex, seal_content
+        );
+        let wrap_content = nip44_encrypt(&wrap_conv_key, &seal_event_json).unwrap();
+
+        // Recipient can decrypt the wrap
+        let ephemeral_pk = PublicKey::from_secret_key(&secp, &ephemeral_sk);
+        let recipient_wrap_conv_key = get_conversation_key(&recipient_sk, &ephemeral_pk);
+        let decrypted_seal = nip44_decrypt(&recipient_wrap_conv_key, &wrap_content).unwrap();
+        assert_eq!(decrypted_seal, seal_event_json);
     }
 }

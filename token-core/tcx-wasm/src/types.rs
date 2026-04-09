@@ -149,6 +149,7 @@ pub struct MessageSignEventParam {
     pub prf_key: String,
     pub derivation_path: Option<String>,
     pub event: MessageUnsignedEvent,
+    pub recipient_pubkey: Option<String>,
 }
 
 #[derive(Deserialize)]
