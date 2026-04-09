@@ -27,8 +27,8 @@ When you modify any `#[wasm_bindgen]` exported function or its parameter/return 
 | `sign_message(param_json)` | `keystoreJson?, prfKey, chain?, derivationPath?, input` | `{ signature }` | ETH PersonalSign/EcSign, TRON message |
 | `derive_message_key_pair(param_json)` | `keystoreJson?, prfKey, derivationPath?` | `{ pubkey }` (x-only 32-byte hex) | Caches secret key in WASM for encrypt/decrypt |
 | `sign_message_event(param_json)` | `keystoreJson?, prfKey, derivationPath?, event { createdAt, kind, tags, content }` | `{ id, pubkey, createdAt, kind, tags, content, sig }` | Schnorr/BIP-340 Nostr event signing |
-| `encrypt_message(param_json)` | `{ plaintext }` | `{ encryptedContent }` | NIP-44 v2, requires `derive_message_key_pair` first |
-| `decrypt_message(param_json)` | `{ encryptedContent }` | `{ plaintext }` | NIP-44 v2, requires `derive_message_key_pair` first |
+| `encrypt_message(param_json)` | `{ serverPubkey, plaintext }` | `{ encryptedContent }` | NIP-44 v2, requires `derive_message_key_pair` first |
+| `decrypt_message(param_json)` | `{ serverPubkey, encryptedContent }` | `{ plaintext }` | NIP-44 v2, requires `derive_message_key_pair` first |
 
 ## Chain-specific Input Shapes
 

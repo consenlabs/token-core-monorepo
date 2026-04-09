@@ -350,10 +350,11 @@ const signedEvent = JSON.parse(sign_message_event(JSON.stringify({
 
 ### `encrypt_message(param_json: string): string`
 
-Encrypts plaintext using NIP-44 v2 with the cached secret key and a hardcoded server public key. **Must call `derive_message_key_pair` first** to populate the cached key.
+Encrypts plaintext using NIP-44 v2 with the cached secret key and a caller-supplied server public key. **Must call `derive_message_key_pair` first** to populate the cached key.
 
 ```ts
 const encrypted = JSON.parse(encrypt_message(JSON.stringify({
+  serverPubkey: "d39eadac9f88ea1a77b034e8586191ed5435f44b01dea8f214f45fd7bd0b8e0f",
   plaintext: "secret message",
 })));
 // => { encryptedContent: "base64 NIP-44 payload" }
@@ -363,10 +364,11 @@ const encrypted = JSON.parse(encrypt_message(JSON.stringify({
 
 ### `decrypt_message(param_json: string): string`
 
-Decrypts a NIP-44 v2 payload back to plaintext. Uses the same cached secret key + server public key.
+Decrypts a NIP-44 v2 payload back to plaintext. Uses the same cached secret key + caller-supplied server public key.
 
 ```ts
 const decrypted = JSON.parse(decrypt_message(JSON.stringify({
+  serverPubkey: "d39eadac9f88ea1a77b034e8586191ed5435f44b01dea8f214f45fd7bd0b8e0f",
   encryptedContent: encrypted.encryptedContent,
 })));
 // => { plaintext: "secret message" }

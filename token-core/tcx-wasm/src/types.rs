@@ -175,11 +175,13 @@ pub struct MessageSignedEvent {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageEncryptParam {
+    pub server_pubkey: String,
     pub plaintext: String,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageDecryptParam {
+    pub server_pubkey: String,
     pub encrypted_content: String,
 }

@@ -27,6 +27,8 @@ const TEST_MNEMONIC =
   "inject kidney empty canal shadow pact comfort wife crush horse wife sketch";
 const TEST_PRF_KEY =
   "0000000000000000000000000000000000000000000000000000000000000001";
+const TEST_SERVER_PUBKEY =
+  "d39eadac9f88ea1a77b034e8586191ed5435f44b01dea8f214f45fd7bd0b8e0f";
 
 function toHex(bytes: Uint8Array): string {
   return Array.from(bytes)
@@ -413,14 +415,14 @@ export default function Home() {
       });
 
       // encrypt_message: Encrypts plaintext using NIP-44 v2 with the cached
-      // secret key and a hardcoded server public key. Must call
+      // secret key and a caller-supplied server public key. Must call
       // derive_message_key_pair first to populate the cached key.
-      // Input:  { plaintext: string }
+      // Input:  { serverPubkey: string, plaintext: string }
       // Output: { encryptedContent: string } (base64 NIP-44 payload)
       push({ name: "encrypt_message", status: "running" });
       const plaintext = "Hello from tcx-wasm message test!";
       const encrypted = JSON.parse(
-        encrypt_message(JSON.stringify({ plaintext }))
+        encrypt_message(JSON.stringify({ serverPubkey: TEST_SERVER_PUBKEY, plaintext }))
       );
       if (!encrypted.encryptedContent) {
         throw new Error("Missing encryptedContent");
@@ -432,13 +434,13 @@ export default function Home() {
       });
 
       // decrypt_message: Decrypts a NIP-44 v2 payload back to plaintext.
-      // Uses the same cached secret key + server public key.
-      // Input:  { encryptedContent: string }
+      // Uses the same cached secret key + caller-supplied server public key.
+      // Input:  { serverPubkey: string, encryptedContent: string }
       // Output: { plaintext: string }
       push({ name: "decrypt_message", status: "running" });
       const decrypted = JSON.parse(
         decrypt_message(
-          JSON.stringify({ encryptedContent: encrypted.encryptedContent })
+          JSON.stringify({ serverPubkey: TEST_SERVER_PUBKEY, encryptedContent: encrypted.encryptedContent })
         )
       );
       if (decrypted.plaintext !== plaintext) {
@@ -495,7 +497,7 @@ export default function Home() {
       push({ name: "sign + encrypt/decrypt roundtrip", status: "running" });
       const eventDecrypted = JSON.parse(
         decrypt_message(
-          JSON.stringify({ encryptedContent: signedEvent.content })
+          JSON.stringify({ serverPubkey: TEST_SERVER_PUBKEY, encryptedContent: signedEvent.content })
         )
       );
       if (eventDecrypted.plaintext !== plaintext) {

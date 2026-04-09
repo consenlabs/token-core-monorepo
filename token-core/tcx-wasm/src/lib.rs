@@ -462,7 +462,7 @@ pub fn sign_message_event(param_json: &str) -> Result<String, JsValue> {
 pub fn encrypt_message(param_json: &str) -> Result<String, JsValue> {
     let param: MessageEncryptParam = serde_json::from_str(param_json).map_err(to_js_err)?;
     let secret_key = get_cached_secret_key()?;
-    let server_pubkey = nostr::parse_pubkey(nostr::SERVER_PUBKEY).map_err(to_js_err)?;
+    let server_pubkey = nostr::parse_pubkey(&param.server_pubkey).map_err(to_js_err)?;
     let conversation_key = nostr::get_conversation_key(&secret_key, &server_pubkey);
     let encrypted = nostr::nip44_encrypt(&conversation_key, &param.plaintext).map_err(to_js_err)?;
     serde_json::to_string(&serde_json::json!({ "encryptedContent": encrypted })).map_err(to_js_err)
@@ -472,7 +472,7 @@ pub fn encrypt_message(param_json: &str) -> Result<String, JsValue> {
 pub fn decrypt_message(param_json: &str) -> Result<String, JsValue> {
     let param: MessageDecryptParam = serde_json::from_str(param_json).map_err(to_js_err)?;
     let secret_key = get_cached_secret_key()?;
-    let server_pubkey = nostr::parse_pubkey(nostr::SERVER_PUBKEY).map_err(to_js_err)?;
+    let server_pubkey = nostr::parse_pubkey(&param.server_pubkey).map_err(to_js_err)?;
     let conversation_key = nostr::get_conversation_key(&secret_key, &server_pubkey);
     let plaintext =
         nostr::nip44_decrypt(&conversation_key, &param.encrypted_content).map_err(to_js_err)?;
