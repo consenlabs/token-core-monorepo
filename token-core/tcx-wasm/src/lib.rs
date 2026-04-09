@@ -203,29 +203,18 @@ pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
     serde_json::to_string(&results).map_err(to_js_err)
 }
 
-#[wasm_bindgen]
-pub fn sign_tx(param_json: &str) -> Result<String, JsValue> {
-    let param: SignTxParam = serde_json::from_str(param_json).map_err(to_js_err)?;
-
-    let keystore_json = resolve_keystore_json(param.keystore_json)?;
-    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(
-        &ks_data.encrypted_mnemonic,
-        &ks_data.mnemonic_iv,
-        &param.prf_key,
-    )?;
-
-    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
-
-    let chain = param.chain.as_deref().unwrap_or("ETHEREUM");
+fn sign_single_tx(
+    keystore: &mut Keystore,
+    chain: &str,
+    derivation_path: Option<String>,
+    input: serde_json::Value,
+) -> Result<serde_json::Value, JsValue> {
     let default_path = match chain {
         "TRON" => "m/44'/195'/0'/0/0",
         _ => "m/44'/60'/0'/0/0",
     };
 
-    let derivation_path = param
-        .derivation_path
-        .unwrap_or_else(|| default_path.to_string());
+    let derivation_path = derivation_path.unwrap_or_else(|| default_path.to_string());
 
     let sign_params = SignatureParameters {
         curve: CurveType::SECP256k1,
@@ -235,21 +224,21 @@ pub fn sign_tx(param_json: &str) -> Result<String, JsValue> {
         seg_wit: "".to_string(),
     };
 
-    let json_result = match chain {
+    match chain {
         "TRON" => {
             let tron_input_json: TronTxInputJson =
-                serde_json::from_value(param.input).map_err(to_js_err)?;
+                serde_json::from_value(input).map_err(to_js_err)?;
             let tron_input = TronTxInput {
                 raw_data: tron_input_json.raw_data,
             };
             let output: TronTxOutput = keystore
                 .sign_transaction(&sign_params, &tron_input)
                 .map_err(to_js_err)?;
-            serde_json::json!({ "signatures": output.signatures })
+            Ok(serde_json::json!({ "signatures": output.signatures }))
         }
         _ => {
             let eth_input_json: EthTxInputJson =
-                serde_json::from_value(param.input).map_err(to_js_err)?;
+                serde_json::from_value(input).map_err(to_js_err)?;
             let access_list: Vec<ProtoAccessList> = eth_input_json
                 .access_list
                 .unwrap_or_default()
@@ -277,15 +266,61 @@ pub fn sign_tx(param_json: &str) -> Result<String, JsValue> {
             let output: EthTxOutput = keystore
                 .sign_transaction(&sign_params, &eth_input)
                 .map_err(to_js_err)?;
-            serde_json::json!({
+            Ok(serde_json::json!({
                 "signature": output.signature,
                 "txHash": output.tx_hash,
-            })
+            }))
         }
-    };
+    }
+}
+
+#[wasm_bindgen]
+pub fn sign_tx(param_json: &str) -> Result<String, JsValue> {
+    let param: SignTxParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+
+    let keystore_json = resolve_keystore_json(param.keystore_json)?;
+    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
+    let mnemonic = decrypt_mnemonic(
+        &ks_data.encrypted_mnemonic,
+        &ks_data.mnemonic_iv,
+        &param.prf_key,
+    )?;
+
+    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+    let chain = param.chain.as_deref().unwrap_or("ETHEREUM");
+    let json_result = sign_single_tx(&mut keystore, chain, param.derivation_path, param.input)?;
 
     keystore.lock();
     serde_json::to_string(&json_result).map_err(to_js_err)
+}
+
+#[wasm_bindgen]
+pub fn sign_txs(param_json: &str) -> Result<String, JsValue> {
+    let param: SignTxsParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+
+    if param.txs.is_empty() {
+        return Err(JsValue::from_str("txs must not be empty"));
+    }
+
+    let keystore_json = resolve_keystore_json(param.keystore_json)?;
+    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
+    let mnemonic = decrypt_mnemonic(
+        &ks_data.encrypted_mnemonic,
+        &ks_data.mnemonic_iv,
+        &param.prf_key,
+    )?;
+
+    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+
+    let mut results: Vec<serde_json::Value> = Vec::with_capacity(param.txs.len());
+    for tx in param.txs {
+        let chain = tx.chain.as_deref().unwrap_or("ETHEREUM");
+        let result = sign_single_tx(&mut keystore, chain, tx.derivation_path, tx.input)?;
+        results.push(result);
+    }
+
+    keystore.lock();
+    serde_json::to_string(&results).map_err(to_js_err)
 }
 
 #[wasm_bindgen]

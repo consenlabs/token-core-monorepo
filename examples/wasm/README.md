@@ -220,6 +220,47 @@ const result = JSON.parse(sign_tx(JSON.stringify({
 
 ---
 
+### `sign_txs(param_json: string): string`
+
+Batch-signs multiple transactions with a single keystore unlock. Only decrypts the mnemonic once, which is more efficient than calling `sign_tx` repeatedly.
+
+```ts
+const results = JSON.parse(sign_txs(JSON.stringify({
+  keystoreJson: ks,              // optional if cached
+  prfKey: "0000...0001",
+  txs: [
+    {
+      chain: "ETHEREUM",
+      derivationPath: "m/44'/60'/0'/0/0",
+      input: {
+        nonce: "0",
+        gasPrice: "20000000000",
+        gasLimit: "21000",
+        to: "0x3535353535353535353535353535353535353535",
+        value: "1000000000000000000",
+        chainId: "1",
+      },
+    },
+    {
+      chain: "TRON",
+      input: {
+        rawData: "0a0208312208b02efdc02638b61e40f083c3a7c92d5a65...",
+      },
+    },
+  ],
+})));
+// => [
+//   { signature: "0x...", txHash: "0x..." },   // ETH result
+//   { signatures: ["hex..."] },                 // TRON result
+// ]
+```
+
+**Input:** `{ keystoreJson?, prfKey, txs: [{ chain?, derivationPath?, input }] }`
+
+**Output:** `Array` — each element matches the corresponding `sign_tx` output for the given chain.
+
+---
+
 ### `sign_message(param_json: string): string`
 
 Signs a message. Supports ETH PersonalSign / EcSign and TRON message signing.
@@ -345,11 +386,12 @@ const decrypted = JSON.parse(decrypt_message(JSON.stringify({
 | 6 | Sign Legacy TX (EIP-155) | `sign_tx` | Sign a legacy ETH transaction |
 | 7 | Sign EIP-1559 TX | `sign_tx` | Sign a type-2 EIP-1559 transaction |
 | 8 | Sign TRON TX | `sign_tx` | Sign a TRON transaction |
-| 9 | Sign ETH Message (PersonalSign) | `sign_message` | Sign ETH personal message |
-| 10 | Sign TRON Message | `sign_message` | Sign TRON message (v2) |
-| 11 | Cache Keystore + Derive | `cache_keystore` / `derive_accounts` / `clear_cached_keystore` | Cache keystore, derive without explicit JSON |
-| 12 | derive_message_key_pair | `derive_message_key_pair` | Derive and cache NIP-44 key pair |
-| 13 | encrypt_message | `encrypt_message` | Encrypt plaintext with NIP-44 v2 |
-| 14 | decrypt_message | `decrypt_message` | Decrypt and verify roundtrip |
-| 15 | sign_message_event | `sign_message_event` | Sign Nostr event with Schnorr/BIP-340 |
-| 16 | sign + encrypt/decrypt roundtrip | All Message APIs | Full roundtrip: encrypt → sign event → decrypt |
+| 9 | Sign Batch TXs (ETH + TRON) | `sign_txs` | Batch-sign ETH + TRON in one call |
+| 10 | Sign ETH Message (PersonalSign) | `sign_message` | Sign ETH personal message |
+| 11 | Sign TRON Message | `sign_message` | Sign TRON message (v2) |
+| 12 | Cache Keystore + Derive | `cache_keystore` / `derive_accounts` / `clear_cached_keystore` | Cache keystore, derive without explicit JSON |
+| 13 | derive_message_key_pair | `derive_message_key_pair` | Derive and cache NIP-44 key pair |
+| 14 | encrypt_message | `encrypt_message` | Encrypt plaintext with NIP-44 v2 |
+| 15 | decrypt_message | `decrypt_message` | Decrypt and verify roundtrip |
+| 16 | sign_message_event | `sign_message_event` | Sign Nostr event with Schnorr/BIP-340 |
+| 17 | sign + encrypt/decrypt roundtrip | All Message APIs | Full roundtrip: encrypt → sign event → decrypt |

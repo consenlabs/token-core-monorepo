@@ -64,6 +64,22 @@ pub struct SignTxParam {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SignTxsParam {
+    pub keystore_json: Option<String>,
+    pub prf_key: String,
+    pub txs: Vec<SignTxItem>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignTxItem {
+    pub chain: Option<String>,
+    pub derivation_path: Option<String>,
+    pub input: serde_json::Value,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TronTxInputJson {
     pub raw_data: String,
 }

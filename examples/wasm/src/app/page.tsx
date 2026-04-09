@@ -6,6 +6,7 @@ import {
   create_keystore,
   derive_accounts,
   sign_tx,
+  sign_txs,
   sign_message,
   cache_keystore,
   clear_cached_keystore,
@@ -261,7 +262,53 @@ export default function Home() {
         detail: `Signature: ${tronTx.signatures[0].slice(0, 32)}...`,
       });
 
-      // 8. Sign ETH message (PersonalSign)
+      // 8. Batch sign (ETH + TRON)
+      push({ name: "Sign Batch TXs (ETH + TRON)", status: "running" });
+      const batchResults = JSON.parse(
+        sign_txs(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            txs: [
+              {
+                chain: "ETHEREUM",
+                derivationPath: "m/44'/60'/0'/0/0",
+                input: {
+                  nonce: "2",
+                  gasPrice: "20000000000",
+                  gasLimit: "21000",
+                  to: "0x3535353535353535353535353535353535353535",
+                  value: "1000000000000000000",
+                  chainId: "1",
+                },
+              },
+              {
+                chain: "TRON",
+                input: {
+                  rawData:
+                    "0a0208312208b02efdc02638b61e40f083c3a7c92d5a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a1541a1e81654258bf14f63feb2e8d1380075d45b0dac1215410b3e84ec677b3e63c99affcadb91a6b4e086798f186470a0bfbfa7c92d",
+                },
+              },
+            ],
+          })
+        )
+      );
+      if (!Array.isArray(batchResults) || batchResults.length !== 2) {
+        throw new Error(`Expected 2 results, got ${JSON.stringify(batchResults)}`);
+      }
+      if (!batchResults[0].signature || !batchResults[0].txHash) {
+        throw new Error("Missing ETH signature/txHash in batch result");
+      }
+      if (!batchResults[1].signatures || batchResults[1].signatures.length === 0) {
+        throw new Error("Missing TRON signatures in batch result");
+      }
+      push({
+        name: "Sign Batch TXs (ETH + TRON)",
+        status: "pass",
+        detail: `ETH Hash: ${batchResults[0].txHash}\nTRON Sig: ${batchResults[1].signatures[0].slice(0, 32)}...`,
+      });
+
+      // 9. Sign ETH message (PersonalSign)
       push({ name: "Sign ETH Message (PersonalSign)", status: "running" });
       const ethMsg = JSON.parse(
         sign_message(
