@@ -316,16 +316,13 @@ const keyPair = JSON.parse(derive_message_key_pair(JSON.stringify({
 
 ### `sign_message_event(param_json: string): string`
 
-Signs a Nostr event (NIP-01) with Schnorr/BIP-340. Derives the key from mnemonic each call (does **not** require cached key).
+Signs a Nostr event (NIP-01) with Schnorr/BIP-340. **Must call `derive_message_key_pair` first** — uses the cached secret key.
 
 When `recipientPubkey` is provided, performs **NIP-59 Gift Wrapping** (seal + wrap) and returns a `kind: 1059` gift-wrapped event instead of the plain signed event.
 
 ```ts
 // Basic signing (no seal/wrap)
 const signedEvent = JSON.parse(sign_message_event(JSON.stringify({
-  keystoreJson: ks,
-  prfKey: "0000...0001",
-  // derivationPath: "m/44'/1237'/0'/0/0",  // optional
   event: {
     createdAt: Math.floor(Date.now() / 1000),
     kind: 1,
@@ -336,8 +333,6 @@ const signedEvent = JSON.parse(sign_message_event(JSON.stringify({
 
 // With NIP-59 seal + wrap
 const wrappedEvent = JSON.parse(sign_message_event(JSON.stringify({
-  keystoreJson: ks,
-  prfKey: "0000...0001",
   recipientPubkey: "64-char hex recipient x-only pubkey",
   event: {
     createdAt: Math.floor(Date.now() / 1000),

@@ -455,16 +455,14 @@ export default function Home() {
       });
 
       // sign_message_event: Signs a Nostr event (NIP-01) with Schnorr/BIP-340.
-      // Derives the key from mnemonic each call (does NOT require cached key).
-      // Input:  { keystoreJson?, prfKey, derivationPath?, event: { createdAt, kind, tags, content } }
+      // Uses the cached secret key from derive_message_key_pair.
+      // Input:  { event: { createdAt, kind, tags, content }, recipientPubkey? }
       // Output: Full signed event { id, pubkey, createdAt, kind, tags, content, sig }
       push({ name: "sign_message_event", status: "running" });
       const now = Math.floor(Date.now() / 1000);
       const signedEvent = JSON.parse(
         sign_message_event(
           JSON.stringify({
-            keystoreJson,
-            prfKey: TEST_PRF_KEY,
             event: {
               createdAt: now,
               kind: 1,
@@ -497,8 +495,6 @@ export default function Home() {
       const wrappedEvent = JSON.parse(
         sign_message_event(
           JSON.stringify({
-            keystoreJson,
-            prfKey: TEST_PRF_KEY,
             recipientPubkey: TEST_SERVER_PUBKEY,
             event: {
               createdAt: now,

@@ -145,9 +145,6 @@ pub struct MessageGetPubkeyParam {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageSignEventParam {
-    pub keystore_json: Option<String>,
-    pub prf_key: String,
-    pub derivation_path: Option<String>,
     pub event: MessageUnsignedEvent,
     pub recipient_pubkey: Option<String>,
 }

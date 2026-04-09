@@ -429,11 +429,7 @@ pub fn derive_message_key_pair(param_json: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub fn sign_message_event(param_json: &str) -> Result<String, JsValue> {
     let param: MessageSignEventParam = serde_json::from_str(param_json).map_err(to_js_err)?;
-    let secret_key = derive_message_key(
-        param.keystore_json,
-        &param.prf_key,
-        param.derivation_path.as_deref(),
-    )?;
+    let secret_key = get_cached_secret_key()?;
     let pubkey = nostr::get_xonly_pubkey(&secret_key);
     let pubkey_hex = pubkey.to_string();
 
