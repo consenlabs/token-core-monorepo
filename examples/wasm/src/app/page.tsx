@@ -9,7 +9,6 @@ import {
   cache_keystore,
   clear_cached_keystore,
   derive_message_key_pair,
-  get_message_public_key,
   sign_message_event,
   encrypt_message,
   decrypt_message,
@@ -291,57 +290,76 @@ export default function Home() {
         detail: `Address matches: ${cachedAccounts[0].address}`,
       });
 
-      // 9. Message: Get public key
-      push({ name: "Message: Get Public Key", status: "running" });
-      const messagePubkey = JSON.parse(
-        get_message_public_key(
-          JSON.stringify({
-            keystoreJson,
-            prfKey: TEST_PRF_KEY,
-          })
-        )
-      );
-      if (!messagePubkey.pubkey || messagePubkey.pubkey.length !== 64) {
-        throw new Error(`Bad message pubkey: ${messagePubkey.pubkey}`);
-      }
-      push({
-        name: "Message: Get Public Key",
-        status: "pass",
-        detail: `Pubkey: ${messagePubkey.pubkey}`,
-      });
-
-      // 10. Derive message key pair (caches secret key for encryption)
-      push({ name: "Message: Derive Key Pair", status: "running" });
+      // ─── Message API ───
+      // derive_message_key_pair: Derives a NIP-44 key pair from the keystore
+      // mnemonic at path m/44'/1237'/0'/0/0 (Nostr BIP-44). Returns the
+      // x-only public key and caches the secret key in WASM memory for
+      // subsequent encrypt_message / decrypt_message calls.
+      push({ name: "derive_message_key_pair", status: "running" });
       const messageKeyPair = JSON.parse(
         derive_message_key_pair(
           JSON.stringify({
             keystoreJson,
             prfKey: TEST_PRF_KEY,
+            // derivationPath: "m/44'/1237'/0'/0/0", // optional, this is the default
           })
         )
       );
       if (!messageKeyPair.pubkey || messageKeyPair.pubkey.length !== 64) {
         throw new Error(`Bad message pubkey: ${messageKeyPair.pubkey}`);
       }
-      if (messageKeyPair.pubkey !== messagePubkey.pubkey) {
-        throw new Error("Message key pair pubkey should match get_public_key");
-      }
       push({
-        name: "Message: Derive Key Pair",
+        name: "derive_message_key_pair",
         status: "pass",
-        detail: `Pubkey: ${messageKeyPair.pubkey}`,
+        detail: `Pubkey (x-only, 32 bytes hex): ${messageKeyPair.pubkey}`,
       });
 
-      // 11. Message: Sign event with encrypted content
-      push({ name: "Message: Sign Event (encrypted)", status: "running" });
-      const now = Math.floor(Date.now() / 1000);
-      const eventPlaintext = "Hello from tcx-wasm message test!";
-      const eventEncrypted = JSON.parse(
-        encrypt_message(JSON.stringify({ plaintext: eventPlaintext }))
+      // encrypt_message: Encrypts plaintext using NIP-44 v2 with the cached
+      // secret key and a hardcoded server public key. Must call
+      // derive_message_key_pair first to populate the cached key.
+      // Input:  { plaintext: string }
+      // Output: { encryptedContent: string } (base64 NIP-44 payload)
+      push({ name: "encrypt_message", status: "running" });
+      const plaintext = "Hello from tcx-wasm message test!";
+      const encrypted = JSON.parse(
+        encrypt_message(JSON.stringify({ plaintext }))
       );
-      if (!eventEncrypted.encryptedContent) {
-        throw new Error("Failed to encrypt event content");
+      if (!encrypted.encryptedContent) {
+        throw new Error("Missing encryptedContent");
       }
+      push({
+        name: "encrypt_message",
+        status: "pass",
+        detail: `Input:  "${plaintext}"\nOutput: ${encrypted.encryptedContent.slice(0, 48)}...`,
+      });
+
+      // decrypt_message: Decrypts a NIP-44 v2 payload back to plaintext.
+      // Uses the same cached secret key + server public key.
+      // Input:  { encryptedContent: string }
+      // Output: { plaintext: string }
+      push({ name: "decrypt_message", status: "running" });
+      const decrypted = JSON.parse(
+        decrypt_message(
+          JSON.stringify({ encryptedContent: encrypted.encryptedContent })
+        )
+      );
+      if (decrypted.plaintext !== plaintext) {
+        throw new Error(
+          `Decrypt mismatch: ${decrypted.plaintext} !== ${plaintext}`
+        );
+      }
+      push({
+        name: "decrypt_message",
+        status: "pass",
+        detail: `Input:  ${encrypted.encryptedContent.slice(0, 48)}...\nOutput: "${decrypted.plaintext}"`,
+      });
+
+      // sign_message_event: Signs a Nostr event (NIP-01) with Schnorr/BIP-340.
+      // Derives the key from mnemonic each call (does NOT require cached key).
+      // Input:  { keystoreJson?, prfKey, derivationPath?, event: { createdAt, kind, tags, content } }
+      // Output: Full signed event { id, pubkey, createdAt, kind, tags, content, sig }
+      push({ name: "sign_message_event", status: "running" });
+      const now = Math.floor(Date.now() / 1000);
       const signedEvent = JSON.parse(
         sign_message_event(
           JSON.stringify({
@@ -351,7 +369,7 @@ export default function Home() {
               createdAt: now,
               kind: 1,
               tags: [],
-              content: eventEncrypted.encryptedContent,
+              content: encrypted.encryptedContent,
             },
           })
         )
@@ -364,54 +382,33 @@ export default function Home() {
       ) {
         throw new Error(`Bad signed event: ${JSON.stringify(signedEvent)}`);
       }
-      if (signedEvent.pubkey !== messagePubkey.pubkey) {
+      if (signedEvent.pubkey !== messageKeyPair.pubkey) {
         throw new Error("Signed event pubkey mismatch");
       }
+      push({
+        name: "sign_message_event",
+        status: "pass",
+        detail: `Event ID:  ${signedEvent.id}\nPubkey:    ${signedEvent.pubkey}\nSignature: ${signedEvent.sig.slice(0, 32)}...`,
+      });
+
+      // sign_message_event + decrypt: Verify the signed event's encrypted
+      // content can be decrypted back, demonstrating the full roundtrip:
+      // plaintext -> encrypt -> sign event -> decrypt content.
+      push({ name: "sign + encrypt/decrypt roundtrip", status: "running" });
       const eventDecrypted = JSON.parse(
         decrypt_message(
           JSON.stringify({ encryptedContent: signedEvent.content })
         )
       );
-      if (eventDecrypted.plaintext !== eventPlaintext) {
+      if (eventDecrypted.plaintext !== plaintext) {
         throw new Error(
-          `Event content decrypt mismatch: ${eventDecrypted.plaintext} !== ${eventPlaintext}`
+          `Event content decrypt mismatch: ${eventDecrypted.plaintext} !== ${plaintext}`
         );
       }
       push({
-        name: "Message: Sign Event (encrypted)",
+        name: "sign + encrypt/decrypt roundtrip",
         status: "pass",
-        detail: JSON.stringify(signedEvent, null, 2),
-      });
-
-      // 12. Message: Encrypt + decrypt standalone roundtrip
-      push({ name: "Message: Encrypt/Decrypt", status: "running" });
-      const plaintext = "Secret message for encryption test";
-      const encrypted = JSON.parse(
-        encrypt_message(
-          JSON.stringify({
-            plaintext,
-          })
-        )
-      );
-      if (!encrypted.encryptedContent) {
-        throw new Error("Missing encryptedContent");
-      }
-      const decrypted = JSON.parse(
-        decrypt_message(
-          JSON.stringify({
-            encryptedContent: encrypted.encryptedContent,
-          })
-        )
-      );
-      if (decrypted.plaintext !== plaintext) {
-        throw new Error(
-          `Decrypt mismatch: ${decrypted.plaintext} !== ${plaintext}`
-        );
-      }
-      push({
-        name: "Message: Encrypt/Decrypt",
-        status: "pass",
-        detail: `Encrypted: ${encrypted.encryptedContent.slice(0, 40)}...\nDecrypted: ${decrypted.plaintext}`,
+        detail: `Encrypted content in event decrypted back to: "${eventDecrypted.plaintext}"`,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -436,7 +433,8 @@ export default function Home() {
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
           Browser-side WASM integration tests for keystore, account derivation,
-          ETH / TRON signing & message encryption.
+          ETH / TRON signing & Message API (derive_message_key_pair,
+          encrypt_message, decrypt_message, sign_message_event).
         </p>
 
         <button

@@ -315,18 +315,6 @@ pub fn derive_message_key_pair(param_json: &str) -> Result<String, JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn get_message_public_key(param_json: &str) -> Result<String, JsValue> {
-    let param: MessageGetPubkeyParam = serde_json::from_str(param_json).map_err(to_js_err)?;
-    let secret_key = derive_message_key(
-        param.keystore_json,
-        &param.prf_key,
-        param.derivation_path.as_deref(),
-    )?;
-    let pubkey = nostr::get_xonly_pubkey(&secret_key);
-    serde_json::to_string(&serde_json::json!({ "pubkey": pubkey.to_string() })).map_err(to_js_err)
-}
-
-#[wasm_bindgen]
 pub fn sign_message_event(param_json: &str) -> Result<String, JsValue> {
     let param: MessageSignEventParam = serde_json::from_str(param_json).map_err(to_js_err)?;
     let secret_key = derive_message_key(
