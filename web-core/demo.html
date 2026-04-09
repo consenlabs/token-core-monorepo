@@ -160,9 +160,25 @@
       <div id="outDecrypted" class="output empty">—</div>
     </div>
 
-    <!-- 7. Google Drive Backup -->
+    <!-- 7. FIDO LargeBlob Storage -->
     <div class="card">
-      <h2><span class="num">7</span> Backup Ciphertext to Google Drive</h2>
+      <h2><span class="num">7</span> FIDO LargeBlob Storage</h2>
+      <p style="font-size:0.8rem;color:#666;margin-bottom:8px;">
+        Encrypt data with PRF key, store ciphertext in authenticator's largeBlob. Then read back and decrypt.
+      </p>
+      <label>Data to encrypt & store</label>
+      <input id="lbPlaintext" type="text" placeholder="text to encrypt and store in largeBlob" value="secret stored in largeBlob">
+      <div class="btn-group">
+        <button id="btnLbWrite" class="btn-primary btn-sm" disabled>Encrypt & Write to LargeBlob</button>
+        <button id="btnLbRead" class="btn-success btn-sm" disabled>Read & Decrypt from LargeBlob</button>
+      </div>
+      <label>Result</label>
+      <div id="outLbResult" class="output empty">register a credential with largeBlob support first</div>
+    </div>
+
+    <!-- 8. Google Drive Backup -->
+    <div class="card">
+      <h2><span class="num">8</span> Backup Ciphertext to Google Drive</h2>
       <div class="row">
         <div style="flex:3">
           <label>Google Cloud OAuth Client ID</label>
@@ -195,6 +211,8 @@
       secp256k1_verify,
       fido_register,
       fido_derive_prf_key,
+      fido_write_large_blob,
+      fido_read_large_blob,
       aes_cbc_encrypt,
       aes_cbc_decrypt,
     } from './pkg/web_core.js';
@@ -206,6 +224,7 @@
     let currentCredentialId = null;
     let lastMsgHash = null;
     let lastSigHex = null;
+    let largeBlobSupported = false;
     let gAccessToken = null;
 
     // ── Helpers ─────────────────────────────────────────────────────────────
@@ -352,16 +371,23 @@
         });
 
         currentCredentialId = result.credential_id;
+        largeBlobSupported = !!result.large_blob_supported;
         const lines = [
           `credential_id: ${result.credential_id}`,
           `attestation_object: ${result.attestation_object.substring(0, 60)}...`,
           `prf_supported: ${result.prf_supported}`,
+          `large_blob_supported: ${largeBlobSupported}`,
         ];
         setOutput('outFidoReg', lines.join('\n'));
         $('btnPrf').disabled = !result.prf_supported;
+        $('btnLbWrite').disabled = !largeBlobSupported;
+        $('btnLbRead').disabled = !largeBlobSupported;
 
         if (!result.prf_supported) {
           setOutput('outPrfKey', 'PRF not supported by this authenticator', 'empty');
+        }
+        if (!largeBlobSupported) {
+          setOutput('outLbResult', 'LargeBlob not supported by this authenticator', 'empty');
         }
       } catch (e) {
         setOutput('outFidoReg', 'Error: ' + (e.message || e));
@@ -445,7 +471,119 @@
       }
     });
 
-    // ── 7. Google Drive Backup ───────────────────────────────────────────────
+    // ── 7. FIDO LargeBlob Storage ──────────────────────────────────────────────
+
+    $('btnLbWrite').addEventListener('click', async () => {
+      if (!currentCredentialId) {
+        setOutput('outLbResult', 'Error: register a FIDO credential first');
+        return;
+      }
+      const aesKey = $('aesKey').value.trim();
+      if (!aesKey || aesKey.length !== 64) {
+        setOutput('outLbResult', 'Error: need a valid AES key (64 hex chars). Derive one via PRF first (section 5).');
+        return;
+      }
+
+      const plaintext = $('lbPlaintext').value;
+      if (!plaintext) {
+        setOutput('outLbResult', 'Error: enter some data to store');
+        return;
+      }
+
+      setOutput('outLbResult', 'Encrypting and writing to largeBlob...');
+      $('btnLbWrite').disabled = true;
+      $('btnLbRead').disabled = true;
+
+      try {
+        const iv = randomHex(16);
+        const plaintextHex = toHex(new TextEncoder().encode(plaintext));
+        const ciphertextHex = aes_cbc_encrypt(aesKey, iv, plaintextHex);
+
+        // Pack iv + ciphertext as a single hex blob to store
+        const blobHex = iv + ciphertextHex;
+
+        const rpId = $('fidoRpId').value.trim() || 'localhost';
+        const result = await fido_write_large_blob({
+          credential_id: currentCredentialId,
+          rp_id: rpId,
+          data: blobHex,
+        });
+
+        if (result.written) {
+          setOutput('outLbResult',
+            `Written to largeBlob successfully!\nIV: ${iv}\nCiphertext: ${ciphertextHex}\nTotal blob: ${blobHex.length / 2} bytes`);
+          $('outLbResult').style.color = '#155724';
+          $('outLbResult').style.background = '#d4edda';
+        } else {
+          setOutput('outLbResult', 'LargeBlob write was NOT confirmed by authenticator (written=false)');
+          $('outLbResult').style.color = '#721c24';
+          $('outLbResult').style.background = '#f8d7da';
+        }
+      } catch (e) {
+        setOutput('outLbResult', 'Error: ' + (e.message || e));
+        $('outLbResult').style.color = '#721c24';
+        $('outLbResult').style.background = '#f8d7da';
+      } finally {
+        $('btnLbWrite').disabled = false;
+        $('btnLbRead').disabled = false;
+      }
+    });
+
+    $('btnLbRead').addEventListener('click', async () => {
+      if (!currentCredentialId) {
+        setOutput('outLbResult', 'Error: register a FIDO credential first');
+        return;
+      }
+      const aesKey = $('aesKey').value.trim();
+      if (!aesKey || aesKey.length !== 64) {
+        setOutput('outLbResult', 'Error: need a valid AES key (64 hex chars). Derive one via PRF first (section 5).');
+        return;
+      }
+
+      setOutput('outLbResult', 'Reading from largeBlob...');
+      $('btnLbWrite').disabled = true;
+      $('btnLbRead').disabled = true;
+
+      try {
+        const rpId = $('fidoRpId').value.trim() || 'localhost';
+        const result = await fido_read_large_blob({
+          credential_id: currentCredentialId,
+          rp_id: rpId,
+        });
+
+        if (!result.data) {
+          setOutput('outLbResult', 'No data found in largeBlob for this credential');
+          return;
+        }
+
+        // First 32 hex chars = 16 bytes IV, rest = ciphertext
+        const blobHex = result.data;
+        if (blobHex.length < 34) {
+          setOutput('outLbResult', 'Error: blob data too short to contain IV + ciphertext');
+          return;
+        }
+        const iv = blobHex.substring(0, 32);
+        const ciphertextHex = blobHex.substring(32);
+
+        const ptHex = aes_cbc_decrypt(aesKey, iv, ciphertextHex);
+        const ptBytes = new Uint8Array(ptHex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+        const ptText = new TextDecoder().decode(ptBytes);
+
+        setOutput('outLbResult',
+          `Read from largeBlob and decrypted!\nBlob size: ${blobHex.length / 2} bytes\nIV: ${iv}\nCiphertext: ${ciphertextHex}\nDecrypted: ${ptText}`);
+        $('outLbResult').style.color = '#155724';
+        $('outLbResult').style.background = '#d4edda';
+      } catch (e) {
+        setOutput('outLbResult', 'Error: ' + (e.message || e));
+        $('outLbResult').style.color = '#721c24';
+        $('outLbResult').style.background = '#f8d7da';
+      } finally {
+        $('btnLbWrite').disabled = false;
+        $('btnLbRead').disabled = false;
+      }
+    });
+
+    // ── 8. Google Drive Backup ───────────────────────────────────────────────
 
     function getClientId() {
       const cid = $('gClientId').value.trim();

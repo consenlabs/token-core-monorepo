@@ -65,9 +65,12 @@ pub async fn fido_register(options: JsValue) -> Result<JsValue, JsError> {
     Reflect::set(&auth_selection, &"requireResidentKey".into(), &JsValue::TRUE).ok();
     Reflect::set(&auth_selection, &"userVerification".into(), &"preferred".into()).ok();
 
-    // extensions with PRF: { prf: {} }
+    // extensions: { prf: {}, largeBlob: { support: "preferred" } }
+    let large_blob_ext = Object::new();
+    Reflect::set(&large_blob_ext, &"support".into(), &"preferred".into()).ok();
     let extensions = Object::new();
     Reflect::set(&extensions, &"prf".into(), &Object::new().into()).ok();
+    Reflect::set(&extensions, &"largeBlob".into(), &large_blob_ext.into()).ok();
 
     let public_key = Object::new();
     Reflect::set(&public_key, &"rp".into(), &rp.into()).ok();
@@ -110,22 +113,34 @@ pub async fn fido_register(options: JsValue) -> Result<JsValue, JsError> {
         .map_err(|_| JsError::new("missing attestationObject"))?;
     let attestation_object = base64url_encode(&Uint8Array::new(&attestation_obj_buf).to_vec());
 
-    // Check PRF support from getClientExtensionResults()
+    // Check extension support from getClientExtensionResults()
     let get_ext_fn = Reflect::get(&js_cred, &"getClientExtensionResults".into()).ok();
-    let prf_supported = get_ext_fn
+    let (prf_supported, large_blob_supported) = get_ext_fn
         .and_then(|f| {
             let f: js_sys::Function = f.dyn_into().ok()?;
             let ext_results = f.call0(&js_cred).ok()?;
-            let prf = Reflect::get(&ext_results, &"prf".into()).ok()?;
-            let enabled = Reflect::get(&prf, &"enabled".into()).ok()?;
-            enabled.as_bool()
+
+            let prf = Reflect::get(&ext_results, &"prf".into())
+                .ok()
+                .and_then(|p| Reflect::get(&p, &"enabled".into()).ok())
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+
+            let lb = Reflect::get(&ext_results, &"largeBlob".into())
+                .ok()
+                .and_then(|p| Reflect::get(&p, &"supported".into()).ok())
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
+
+            Some((prf, lb))
         })
-        .unwrap_or(false);
+        .unwrap_or((false, false));
 
     let result = Object::new();
     Reflect::set(&result, &"credential_id".into(), &credential_id.into()).ok();
     Reflect::set(&result, &"attestation_object".into(), &attestation_object.into()).ok();
     Reflect::set(&result, &"prf_supported".into(), &JsValue::from_bool(prf_supported)).ok();
+    Reflect::set(&result, &"large_blob_supported".into(), &JsValue::from_bool(large_blob_supported)).ok();
     Ok(result.into())
 }
 
@@ -228,7 +243,162 @@ pub async fn fido_derive_prf_key(options: JsValue) -> Result<JsValue, JsError> {
     Ok(result.into())
 }
 
+// ── FIDO LargeBlob Write ────────────────────────────────────────────────────
+
+/// Write data to FIDO2 largeBlob storage via `navigator.credentials.get()`.
+///
+/// `options`: `{ credential_id (base64url), rp_id, data (hex) }`
+///
+/// Returns: `{ written: bool }`
+#[wasm_bindgen]
+pub async fn fido_write_large_blob(options: JsValue) -> Result<JsValue, JsError> {
+    let credential_id_b64 = get_string(&options, "credential_id")?;
+    let rp_id = get_string(&options, "rp_id")?;
+    let data_hex = get_string(&options, "data")?;
+
+    let cred_id_bytes = base64url_decode(&credential_id_b64)
+        .map_err(|e| JsError::new(&format!("invalid credential_id base64url: {e}")))?;
+    let data_bytes =
+        hex::decode(&data_hex).map_err(|e| JsError::new(&format!("invalid data hex: {e}")))?;
+
+    let challenge_bytes = random_challenge()?;
+
+    let (allow_list, _) = build_allow_credentials(&cred_id_bytes);
+
+    // extensions: { largeBlob: { write: Uint8Array(data) } }
+    let large_blob_ext = Object::new();
+    Reflect::set(
+        &large_blob_ext,
+        &"write".into(),
+        &Uint8Array::from(data_bytes.as_slice()).into(),
+    )
+    .ok();
+    let extensions = Object::new();
+    Reflect::set(&extensions, &"largeBlob".into(), &large_blob_ext.into()).ok();
+
+    let public_key = Object::new();
+    Reflect::set(&public_key, &"challenge".into(), &Uint8Array::from(challenge_bytes.as_slice()).into()).ok();
+    Reflect::set(&public_key, &"rpId".into(), &rp_id.into()).ok();
+    Reflect::set(&public_key, &"allowCredentials".into(), &allow_list.into()).ok();
+    Reflect::set(&public_key, &"extensions".into(), &extensions.into()).ok();
+
+    let get_opts = Object::new();
+    Reflect::set(&get_opts, &"publicKey".into(), &public_key.into()).ok();
+
+    let js_cred = call_credentials_get(&get_opts).await?;
+
+    // Check getClientExtensionResults().largeBlob.written
+    let written = get_extension_results(&js_cred)
+        .and_then(|ext| Reflect::get(&ext, &"largeBlob".into()).ok())
+        .and_then(|lb| Reflect::get(&lb, &"written".into()).ok())
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+
+    let result = Object::new();
+    Reflect::set(&result, &"written".into(), &JsValue::from_bool(written)).ok();
+    Ok(result.into())
+}
+
+// ── FIDO LargeBlob Read ─────────────────────────────────────────────────────
+
+/// Read data from FIDO2 largeBlob storage via `navigator.credentials.get()`.
+///
+/// `options`: `{ credential_id (base64url), rp_id }`
+///
+/// Returns: `{ data (hex) }` or `{ data: null }` if no blob stored
+#[wasm_bindgen]
+pub async fn fido_read_large_blob(options: JsValue) -> Result<JsValue, JsError> {
+    let credential_id_b64 = get_string(&options, "credential_id")?;
+    let rp_id = get_string(&options, "rp_id")?;
+
+    let cred_id_bytes = base64url_decode(&credential_id_b64)
+        .map_err(|e| JsError::new(&format!("invalid credential_id base64url: {e}")))?;
+
+    let challenge_bytes = random_challenge()?;
+
+    let (allow_list, _) = build_allow_credentials(&cred_id_bytes);
+
+    // extensions: { largeBlob: { read: true } }
+    let large_blob_ext = Object::new();
+    Reflect::set(&large_blob_ext, &"read".into(), &JsValue::TRUE).ok();
+    let extensions = Object::new();
+    Reflect::set(&extensions, &"largeBlob".into(), &large_blob_ext.into()).ok();
+
+    let public_key = Object::new();
+    Reflect::set(&public_key, &"challenge".into(), &Uint8Array::from(challenge_bytes.as_slice()).into()).ok();
+    Reflect::set(&public_key, &"rpId".into(), &rp_id.into()).ok();
+    Reflect::set(&public_key, &"allowCredentials".into(), &allow_list.into()).ok();
+    Reflect::set(&public_key, &"extensions".into(), &extensions.into()).ok();
+
+    let get_opts = Object::new();
+    Reflect::set(&get_opts, &"publicKey".into(), &public_key.into()).ok();
+
+    let js_cred = call_credentials_get(&get_opts).await?;
+
+    // Extract getClientExtensionResults().largeBlob.blob
+    let blob_val = get_extension_results(&js_cred)
+        .and_then(|ext| Reflect::get(&ext, &"largeBlob".into()).ok())
+        .and_then(|lb| Reflect::get(&lb, &"blob".into()).ok());
+
+    let result = Object::new();
+    match blob_val {
+        Some(ref v) if !v.is_undefined() && !v.is_null() => {
+            let blob_bytes = Uint8Array::new(v).to_vec();
+            Reflect::set(&result, &"data".into(), &hex::encode(&blob_bytes).into()).ok();
+        }
+        _ => {
+            Reflect::set(&result, &"data".into(), &JsValue::NULL).ok();
+        }
+    }
+    Ok(result.into())
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
+
+fn random_challenge() -> Result<Vec<u8>, JsError> {
+    let mut buf = [0u8; 32];
+    getrandom::getrandom(&mut buf).map_err(|e| JsError::new(&e.to_string()))?;
+    Ok(buf.to_vec())
+}
+
+fn build_allow_credentials(cred_id_bytes: &[u8]) -> (Array, Object) {
+    let cred_descriptor = Object::new();
+    Reflect::set(&cred_descriptor, &"type".into(), &"public-key".into()).ok();
+    Reflect::set(
+        &cred_descriptor,
+        &"id".into(),
+        &Uint8Array::from(cred_id_bytes).into(),
+    )
+    .ok();
+    let allow_list = Array::new();
+    allow_list.push(&cred_descriptor);
+    (allow_list, cred_descriptor)
+}
+
+async fn call_credentials_get(get_opts: &Object) -> Result<JsValue, JsError> {
+    let creds = navigator_credentials()?;
+    let get_fn = Reflect::get(&creds, &"get".into())
+        .map_err(|_| JsError::new("WebAuthnNotSupported: credentials.get not available"))?;
+    let get_fn: js_sys::Function = get_fn
+        .dyn_into()
+        .map_err(|_| JsError::new("WebAuthnNotSupported: credentials.get is not a function"))?;
+    let promise: Promise = get_fn
+        .call1(&creds, get_opts)
+        .map_err(|e| js_error_from_jsvalue("credentials.get failed", &e))?
+        .dyn_into()
+        .map_err(|_| JsError::new("credentials.get did not return a Promise"))?;
+    JsFuture::from(promise)
+        .await
+        .map_err(|e| js_error_from_jsvalue("UserCancelled", &e))
+}
+
+fn get_extension_results(js_cred: &JsValue) -> Option<JsValue> {
+    let f: js_sys::Function = Reflect::get(js_cred, &"getClientExtensionResults".into())
+        .ok()?
+        .dyn_into()
+        .ok()?;
+    f.call0(js_cred).ok()
+}
 
 fn get_string(obj: &JsValue, key: &str) -> Result<String, JsError> {
     Reflect::get(obj, &key.into())
