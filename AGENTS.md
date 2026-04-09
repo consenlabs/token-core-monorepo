@@ -44,6 +44,10 @@ This file provides working guidance for coding agents in `/Users/xyz/Code/token-
 - Include issue links and screenshots when they materially help review.
 - Complete platform-specific and security checklist items before merging.
 
+## WASM API Sync Convention
+- When modifying `#[wasm_bindgen]` exports in `token-core/tcx-wasm/src/lib.rs` or `types.rs`, **always** update the wasm example (`examples/wasm/`) and its `README.md` accordingly.
+- Detailed rules and the full API checklist are in `.cursor/rules/tcx-wasm-api-sync.mdc`.
+
 ## Security & Configuration Tips
 - Never commit secrets, private keys, mnemonic phrases, or keystores.
 - Treat signing, key management, serialization, and migration changes as security-sensitive.

@@ -9,12 +9,17 @@ mod types;
 use tcx_common::{random_u8_16, FromHex, ToHex};
 use tcx_constants::CurveType;
 use tcx_eth::address::EthAddress;
-use tcx_eth::transaction::{AccessList as ProtoAccessList, EthTxInput, EthTxOutput};
+use tcx_eth::transaction::{
+    AccessList as ProtoAccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput,
+    SignatureType,
+};
 use tcx_keystore::identity::Identity;
 use tcx_keystore::keystore::IdentityNetwork;
-use tcx_keystore::{mnemonic_to_seed, Keystore, SignatureParameters, TransactionSigner};
+use tcx_keystore::{
+    mnemonic_to_seed, Keystore, MessageSigner, SignatureParameters, TransactionSigner,
+};
 use tcx_primitive::{mnemonic_from_entropy, TypedPublicKey};
-use tcx_tron::transaction::{TronTxInput, TronTxOutput};
+use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 use tcx_tron::TronAddress;
 
 use types::*;
@@ -276,6 +281,78 @@ pub fn sign_tx(param_json: &str) -> Result<String, JsValue> {
                 "signature": output.signature,
                 "txHash": output.tx_hash,
             })
+        }
+    };
+
+    keystore.lock();
+    serde_json::to_string(&json_result).map_err(to_js_err)
+}
+
+#[wasm_bindgen]
+pub fn sign_message(param_json: &str) -> Result<String, JsValue> {
+    let param: SignMessageParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+
+    let keystore_json = resolve_keystore_json(param.keystore_json)?;
+    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
+    let mnemonic = decrypt_mnemonic(
+        &ks_data.encrypted_mnemonic,
+        &ks_data.mnemonic_iv,
+        &param.prf_key,
+    )?;
+
+    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+
+    let chain = param.chain.as_deref().unwrap_or("ETHEREUM");
+    let default_path = match chain {
+        "TRON" => "m/44'/195'/0'/0/0",
+        _ => "m/44'/60'/0'/0/0",
+    };
+
+    let derivation_path = param
+        .derivation_path
+        .unwrap_or_else(|| default_path.to_string());
+
+    let sign_params = SignatureParameters {
+        curve: CurveType::SECP256k1,
+        derivation_path,
+        chain_type: chain.to_string(),
+        network: "".to_string(),
+        seg_wit: "".to_string(),
+    };
+
+    let json_result = match chain {
+        "TRON" => {
+            let input_json: TronSignMessageInputJson =
+                serde_json::from_value(param.input).map_err(to_js_err)?;
+            let tron_input = TronMessageInput {
+                value: input_json.value,
+                header: input_json.header.unwrap_or_else(|| "TRON".to_string()),
+                version: input_json.version.unwrap_or(1),
+            };
+            let output: TronMessageOutput = keystore
+                .sign_message(&sign_params, &tron_input)
+                .map_err(to_js_err)?;
+            serde_json::json!({ "signature": output.signature })
+        }
+        _ => {
+            let input_json: EthSignMessageInputJson =
+                serde_json::from_value(param.input).map_err(to_js_err)?;
+            let signature_type = match input_json
+                .signature_type
+                .as_deref()
+                .unwrap_or("PersonalSign")
+            {
+                "EcSign" => SignatureType::EcSign as i32,
+                _ => SignatureType::PersonalSign as i32,
+            };
+            let eth_input = EthMessageInput {
+                message: input_json.message,
+                signature_type,
+            };
+            let output: EthMessageOutput = keystore
+                .sign_message(&sign_params, &eth_input)
+                .map_err(to_js_err)?;
+            serde_json::json!({ "signature": output.signature })
         }
     };
 

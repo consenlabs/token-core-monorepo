@@ -1,0 +1,71 @@
+---
+description: Sync wasm example and README when tcx-wasm API changes
+globs:
+  - token-core/tcx-wasm/src/lib.rs
+  - token-core/tcx-wasm/src/types.rs
+  - token-core/tcx-wasm/src/nostr.rs
+---
+
+# tcx-wasm API Sync Rule
+
+When you modify any `#[wasm_bindgen]` exported function or its parameter/return types, you **MUST** also update the following files before finishing:
+
+1. **`examples/wasm/src/lib/wasm.ts`** — Add/remove the re-exported function name.
+2. **`examples/wasm/src/app/page.tsx`** — Add/update a test case that calls the new/changed API with realistic parameters.
+3. **`examples/wasm/README.md`** — Update the "API Reference" section and "What It Tests" table.
+
+## Current Exported APIs (keep this list in sync)
+
+| Function | Input (JSON fields) | Output (JSON fields) | Notes |
+|----------|---------------------|----------------------|-------|
+| `cache_keystore(keystore_json)` | raw string | void | Caches keystore for subsequent calls |
+| `clear_cached_keystore()` | — | void | Clears cached keystore and message key |
+| `create_keystore(param_json)` | `prfKey, userId, credentialId, rpId, mnemonic?, entropy?, network?` | `PasskeyKeystore { userId, credentialId, rpId, encryptedMnemonic, mnemonicIv, createdAt, identity }` | Creates or imports a keystore |
+| `derive_accounts(param_json)` | `keystoreJson?, prfKey, derivations[{ chain?, derivationPath, chainId?, network? }]` | `AccountResponse[] { address, chain, derivationPath, extPubKey, publicKey }` | Supports ETHEREUM and TRON |
+| `sign_tx(param_json)` | `keystoreJson?, prfKey, chain?, derivationPath?, input` | ETH: `{ signature, txHash }` / TRON: `{ signatures[] }` | input shape varies by chain |
+| `sign_message(param_json)` | `keystoreJson?, prfKey, chain?, derivationPath?, input` | `{ signature }` | ETH PersonalSign/EcSign, TRON message |
+| `derive_message_key_pair(param_json)` | `keystoreJson?, prfKey, derivationPath?` | `{ pubkey }` (x-only 32-byte hex) | Caches secret key in WASM for encrypt/decrypt |
+| `sign_message_event(param_json)` | `keystoreJson?, prfKey, derivationPath?, event { createdAt, kind, tags, content }` | `{ id, pubkey, createdAt, kind, tags, content, sig }` | Schnorr/BIP-340 Nostr event signing |
+| `encrypt_message(param_json)` | `{ plaintext }` | `{ encryptedContent }` | NIP-44 v2, requires `derive_message_key_pair` first |
+| `decrypt_message(param_json)` | `{ encryptedContent }` | `{ plaintext }` | NIP-44 v2, requires `derive_message_key_pair` first |
+
+## Chain-specific Input Shapes
+
+### ETH Transaction (`sign_tx` with chain = "ETHEREUM")
+```json
+{
+  "nonce": "0",
+  "gasPrice": "20000000000",        // legacy only
+  "gasLimit": "21000",
+  "to": "0x...",
+  "value": "1000000000000000000",
+  "data": "0x...",                   // optional
+  "chainId": "1",
+  "txType": "02",                    // optional, "02" for EIP-1559
+  "maxFeePerGas": "30000000000",     // EIP-1559 only
+  "maxPriorityFeePerGas": "1000000000", // EIP-1559 only
+  "accessList": []                   // optional
+}
+```
+
+### TRON Transaction (`sign_tx` with chain = "TRON")
+```json
+{ "rawData": "<hex-encoded protobuf>" }
+```
+
+### ETH Message (`sign_message` with chain = "ETHEREUM")
+```json
+{ "message": "Hello", "signatureType": "PersonalSign" }
+```
+
+### TRON Message (`sign_message` with chain = "TRON")
+```json
+{ "value": "Hello", "header": "TRON", "version": 2 }
+```
+
+## Checklist
+
+- [ ] New function added to `wasm.ts` re-exports
+- [ ] New test case added to `page.tsx`
+- [ ] API table in `README.md` updated
+- [ ] Verified example runs: `make dev-wasm`, click "Run Tests", all pass

@@ -91,6 +91,31 @@ pub struct AccessListJson {
     pub storage_keys: Vec<String>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignMessageParam {
+    pub keystore_json: Option<String>,
+    pub prf_key: String,
+    pub chain: Option<String>,
+    pub derivation_path: Option<String>,
+    pub input: serde_json::Value,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EthSignMessageInputJson {
+    pub message: String,
+    pub signature_type: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TronSignMessageInputJson {
+    pub value: String,
+    pub header: Option<String>,
+    pub version: Option<u32>,
+}
+
 // --- Message types ---
 
 #[derive(Deserialize)]

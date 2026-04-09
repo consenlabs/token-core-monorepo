@@ -6,6 +6,7 @@ import {
   create_keystore,
   derive_accounts,
   sign_tx,
+  sign_message,
   cache_keystore,
   clear_cached_keystore,
   derive_message_key_pair,
@@ -260,7 +261,57 @@ export default function Home() {
         detail: `Signature: ${tronTx.signatures[0].slice(0, 32)}...`,
       });
 
-      // 8. Cache keystore & derive without explicit keystoreJson
+      // 8. Sign ETH message (PersonalSign)
+      push({ name: "Sign ETH Message (PersonalSign)", status: "running" });
+      const ethMsg = JSON.parse(
+        sign_message(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            chain: "ETHEREUM",
+            derivationPath: "m/44'/60'/0'/0/0",
+            input: {
+              message: "Hello from tcx-wasm!",
+              signatureType: "PersonalSign",
+            },
+          })
+        )
+      );
+      if (!ethMsg.signature?.startsWith("0x")) {
+        throw new Error(`Bad ETH message signature: ${ethMsg.signature}`);
+      }
+      push({
+        name: "Sign ETH Message (PersonalSign)",
+        status: "pass",
+        detail: `Signature: ${ethMsg.signature}`,
+      });
+
+      // 9. Sign TRON message
+      push({ name: "Sign TRON Message", status: "running" });
+      const tronMsg = JSON.parse(
+        sign_message(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            chain: "TRON",
+            input: {
+              value: "Hello from tcx-wasm!",
+              header: "TRON",
+              version: 2,
+            },
+          })
+        )
+      );
+      if (!tronMsg.signature?.startsWith("0x")) {
+        throw new Error(`Bad TRON message signature: ${tronMsg.signature}`);
+      }
+      push({
+        name: "Sign TRON Message",
+        status: "pass",
+        detail: `Signature: ${tronMsg.signature}`,
+      });
+
+      // 10. Cache keystore & derive without explicit keystoreJson
       push({ name: "Cache Keystore + Derive", status: "running" });
       cache_keystore(keystoreJson);
       const cachedAccounts = JSON.parse(
@@ -433,8 +484,9 @@ export default function Home() {
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
           Browser-side WASM integration tests for keystore, account derivation,
-          ETH / TRON signing & Message API (derive_message_key_pair,
-          encrypt_message, decrypt_message, sign_message_event).
+          ETH / TRON transaction & message signing, and Message API
+          (derive_message_key_pair, encrypt_message, decrypt_message,
+          sign_message_event).
         </p>
 
         <button
