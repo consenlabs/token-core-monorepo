@@ -1,5 +1,6 @@
 import init, {
   create_keystore,
+  export_mnemonic,
   derive_accounts,
   sign_tx,
   sign_txs,
@@ -22,6 +23,7 @@ export async function initWasm(): Promise<void> {
 
 export {
   create_keystore,
+  export_mnemonic,
   derive_accounts,
   sign_tx,
   sign_txs,

@@ -112,6 +112,28 @@ const ks3 = create_keystore(JSON.stringify({
 
 ---
 
+### `export_mnemonic(param_json: string): string`
+
+Exports (decrypts) the mnemonic from a passkey-protected keystore.
+
+```ts
+const result = JSON.parse(export_mnemonic(JSON.stringify({
+  keystoreJson: ks,              // optional if cached
+  prfKey: "0000...0001",
+})));
+// => { mnemonic: "inject kidney empty canal ..." }
+```
+
+**Output:**
+
+```json
+{
+  "mnemonic": "inject kidney empty canal shadow pact comfort wife crush horse wife sketch"
+}
+```
+
+---
+
 ### `derive_accounts(param_json: string): string`
 
 Derives one or more accounts from the keystore. Supports **ETHEREUM** and **TRON** chains.
@@ -410,17 +432,18 @@ const decrypted = JSON.parse(decrypt_message(JSON.stringify({
 | 2 | Create Keystore (import) | `create_keystore` | Import a known mnemonic, verify identity fields |
 | 3 | Create Keystore (new via entropy) | `create_keystore` | Create from caller-supplied entropy (TESTNET) |
 | 4 | Create Keystore (random) | `create_keystore` | Create with WASM-internal random entropy |
-| 5 | Derive Accounts (ETH + TRON) | `derive_accounts` | Derive ETH + TRON addresses in one call |
-| 6 | Sign Legacy TX (EIP-155) | `sign_tx` | Sign a legacy ETH transaction |
-| 7 | Sign EIP-1559 TX | `sign_tx` | Sign a type-2 EIP-1559 transaction |
-| 8 | Sign TRON TX | `sign_tx` | Sign a TRON transaction |
-| 9 | Sign Batch TXs (ETH + TRON) | `sign_txs` | Batch-sign ETH + TRON in one call |
-| 10 | Sign ETH Message (PersonalSign) | `sign_message` | Sign ETH personal message |
-| 11 | Sign TRON Message | `sign_message` | Sign TRON message (v2) |
-| 12 | Cache Keystore + Derive | `cache_keystore` / `derive_accounts` / `clear_cached_keystore` | Cache keystore, derive without explicit JSON |
-| 13 | derive_message_key_pair | `derive_message_key_pair` | Derive and cache NIP-44 key pair |
-| 14 | encrypt_message | `encrypt_message` | Encrypt plaintext with NIP-44 v2 |
-| 15 | decrypt_message | `decrypt_message` | Decrypt and verify roundtrip |
-| 16 | sign_message_event | `sign_message_event` | Sign Nostr event with Schnorr/BIP-340 |
-| 17 | sign_message_event (seal+wrap) | `sign_message_event` | NIP-59 Gift Wrapping: seal + wrap with recipientPubkey |
-| 18 | sign + encrypt/decrypt roundtrip | All Message APIs | Full roundtrip: encrypt → sign event → decrypt |
+| 5 | Export Mnemonic | `export_mnemonic` | Decrypt and export mnemonic from keystore |
+| 6 | Derive Accounts (ETH + TRON) | `derive_accounts` | Derive ETH + TRON addresses in one call |
+| 7 | Sign Legacy TX (EIP-155) | `sign_tx` | Sign a legacy ETH transaction |
+| 8 | Sign EIP-1559 TX | `sign_tx` | Sign a type-2 EIP-1559 transaction |
+| 9 | Sign TRON TX | `sign_tx` | Sign a TRON transaction |
+| 10 | Sign Batch TXs (ETH + TRON) | `sign_txs` | Batch-sign ETH + TRON in one call |
+| 11 | Sign ETH Message (PersonalSign) | `sign_message` | Sign ETH personal message |
+| 12 | Sign TRON Message | `sign_message` | Sign TRON message (v2) |
+| 13 | Cache Keystore + Derive | `cache_keystore` / `derive_accounts` / `clear_cached_keystore` | Cache keystore, derive without explicit JSON |
+| 14 | derive_message_key_pair | `derive_message_key_pair` | Derive and cache NIP-44 key pair |
+| 15 | encrypt_message | `encrypt_message` | Encrypt plaintext with NIP-44 v2 |
+| 16 | decrypt_message | `decrypt_message` | Decrypt and verify roundtrip |
+| 17 | sign_message_event | `sign_message_event` | Sign Nostr event with Schnorr/BIP-340 |
+| 18 | sign_message_event (seal+wrap) | `sign_message_event` | NIP-59 Gift Wrapping: seal + wrap with recipientPubkey |
+| 19 | sign + encrypt/decrypt roundtrip | All Message APIs | Full roundtrip: encrypt → sign event → decrypt |

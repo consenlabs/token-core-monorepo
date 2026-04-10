@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import {
   initWasm,
   create_keystore,
+  export_mnemonic,
   derive_accounts,
   sign_tx,
   sign_txs,
@@ -144,7 +145,28 @@ export default function Home() {
         detail: `Identifier: ${randomKs.identity.identifier}`,
       });
 
-      // 4. Derive ETH + TRON accounts in one call
+      // 4. Export mnemonic
+      push({ name: "Export Mnemonic", status: "running" });
+      const exported = JSON.parse(
+        export_mnemonic(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+          })
+        )
+      );
+      if (exported.mnemonic !== TEST_MNEMONIC) {
+        throw new Error(
+          `Mnemonic mismatch: ${exported.mnemonic} !== ${TEST_MNEMONIC}`
+        );
+      }
+      push({
+        name: "Export Mnemonic",
+        status: "pass",
+        detail: `Mnemonic: ${exported.mnemonic}`,
+      });
+
+      // 5. Derive ETH + TRON accounts in one call
       push({ name: "Derive Accounts (ETH + TRON)", status: "running" });
       const accounts = JSON.parse(
         derive_accounts(
@@ -486,7 +508,7 @@ export default function Home() {
       push({
         name: "sign_message_event",
         status: "pass",
-        detail: `Event ID:  ${signedEvent.id}\nPubkey:    ${signedEvent.pubkey}\nSignature: ${signedEvent.sig.slice(0, 32)}...`,
+        detail: JSON.stringify(signedEvent, null, 2),
       });
 
       // sign_message_event (seal+wrap): NIP-59 Gift Wrapping.
@@ -526,7 +548,7 @@ export default function Home() {
       push({
         name: "sign_message_event (seal+wrap)",
         status: "pass",
-        detail: `Kind: ${wrappedEvent.kind}\nEphemeral pubkey: ${wrappedEvent.pubkey}\nRecipient p-tag:  ${pTag[1].slice(0, 16)}...`,
+        detail: JSON.stringify(wrappedEvent, null, 2),
       });
 
       // sign_message_event + decrypt: Verify the signed event's encrypted

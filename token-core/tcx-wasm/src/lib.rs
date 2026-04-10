@@ -203,6 +203,21 @@ pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
     serde_json::to_string(&results).map_err(to_js_err)
 }
 
+#[wasm_bindgen]
+pub fn export_mnemonic(param_json: &str) -> Result<String, JsValue> {
+    let param: ExportMnemonicParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+
+    let keystore_json = resolve_keystore_json(param.keystore_json)?;
+    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
+    let mnemonic = decrypt_mnemonic(
+        &ks_data.encrypted_mnemonic,
+        &ks_data.mnemonic_iv,
+        &param.prf_key,
+    )?;
+
+    serde_json::to_string(&serde_json::json!({ "mnemonic": mnemonic })).map_err(to_js_err)
+}
+
 fn sign_single_tx(
     keystore: &mut Keystore,
     chain: &str,

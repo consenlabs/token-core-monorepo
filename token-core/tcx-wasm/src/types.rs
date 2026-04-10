@@ -132,6 +132,13 @@ pub struct TronSignMessageInputJson {
     pub version: Option<u32>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportMnemonicParam {
+    pub keystore_json: Option<String>,
+    pub prf_key: String,
+}
+
 // --- Message types ---
 
 #[derive(Deserialize)]

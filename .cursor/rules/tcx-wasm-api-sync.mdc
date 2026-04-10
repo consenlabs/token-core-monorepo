@@ -21,6 +21,7 @@ When you modify any `#[wasm_bindgen]` exported function or its parameter/return 
 | `cache_keystore(keystore_json)` | raw string | void | Caches keystore for subsequent calls |
 | `clear_cached_keystore()` | — | void | Clears cached keystore and message key |
 | `create_keystore(param_json)` | `prfKey, userId, credentialId, rpId, mnemonic?, entropy?, network?` | `PasskeyKeystore { userId, credentialId, rpId, encryptedMnemonic, mnemonicIv, createdAt, identity }` | Creates or imports a keystore |
+| `export_mnemonic(param_json)` | `keystoreJson?, prfKey` | `{ mnemonic }` | Decrypts and exports the mnemonic |
 | `derive_accounts(param_json)` | `keystoreJson?, prfKey, derivations[{ chain?, derivationPath, chainId?, network? }]` | `AccountResponse[] { address, chain, derivationPath, extPubKey, publicKey }` | Supports ETHEREUM and TRON |
 | `sign_tx(param_json)` | `keystoreJson?, prfKey, chain?, derivationPath?, input` | ETH: `{ signature, txHash }` / TRON: `{ signatures[] }` | input shape varies by chain |
 | `sign_txs(param_json)` | `keystoreJson?, prfKey, txs[{ chain?, derivationPath?, input }]` | `Array` of per-tx results (same as `sign_tx`) | Batch sign, single keystore unlock |

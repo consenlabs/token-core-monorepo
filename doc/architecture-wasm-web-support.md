@@ -32,25 +32,30 @@ TokenCore 最初作为移动端（iOS / Android）的跨链密钥管理与交易
 ### 变更后
 
 ```
-┌──────────────────────┐       ┌──────────────────────┐
-│  Mobile Applications │       │   Web Applications   │
-│  (iOS / Android)     │       │   (Browser)          │
-└──────────┬───────────┘       └──────────┬───────────┘
-           │ C FFI (protobuf)             │ wasm-bindgen (JSON)
-┌──────────▼───────────┐       ┌──────────▼───────────┐
-│  tcx (FFI handler)   │       │  tcx-wasm            │
-│  全量链支持          │       │  ETH + TRON          │
-│  password-based      │       │  passkey PRF-based   │
-└──────────┬───────────┘       └──────────┬───────────┘
-           │                              │
-┌──────────▼──────────────────────────────▼───────────┐
-│  共享核心层                                         │
-│  ├── tcx-keystore  (feature: substrate-crypto)      │
-│  ├── tcx-crypto    (新增 AES-256-CTR)               │
-│  ├── tcx-primitive (feature: substrate-crypto)      │
-│  ├── tcx-eth / tcx-tron                             │
-│  └── tcx-constants / tcx-common                     │
-└─────────────────────────────────────────────────────┘
+                                                        ┌──────────────┐
+                                                        │ Passkey 设备 │
+                                                        │ (FIDO2 硬件) │
+                                                        └──────┬───────┘
+                                                               │ WebAuthn PRF
+┌───────────┐  ┌──────────────────────┐       ┌────────────────▼─────┐
+│ imKey 硬件 │  │  Mobile Applications │       │   Web Applications   │
+│ (NFC/BLE)  │  │  (iOS / Android)     │       │   (Browser)          │
+└─────┬──────┘  └──────────┬───────────┘       └──────────┬───────────┘
+      │ APDU              │ C FFI (protobuf)             │ wasm-bindgen (JSON)
+┌─────▼──────┐  ┌──────────▼───────────┐       ┌──────────▼───────────┐
+│ imkey-core │  │  tcx (FFI handler)   │       │  tcx-wasm            │
+│ (ikc)      │  │  全量链支持          │       │  ETH + TRON          │
+│ transport  │  │  password-based      │       │  passkey PRF-based   │
+│ device     │  └──────────┬───────────┘       └──────────┬───────────┘
+│ coin-*     │             │                              │
+└────────────┘  ┌──────────▼──────────────────────────────▼───────────┐
+                │  共享核心层                                         │
+                │  ├── tcx-keystore  (feature: substrate-crypto)      │
+                │  ├── tcx-crypto    (新增 AES-256-CTR)               │
+                │  ├── tcx-primitive (feature: substrate-crypto)      │
+                │  ├── tcx-eth / tcx-tron                             │
+                │  └── tcx-constants / tcx-common                     │
+                └─────────────────────────────────────────────────────┘
 ```
 
 新增的 `tcx-wasm` crate 是面向 Web 端的入口层，与移动端的 `tcx` crate 并列。两者共享底层核心 crate，但通过 feature flag 和条件编译适配各自的目标平台。
