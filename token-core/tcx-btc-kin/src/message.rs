@@ -254,6 +254,7 @@ mod tests {
     use super::*;
     use crate::tests::{sample_hd_keystore, wif_keystore};
     use crate::BtcKinAddress;
+    use bitcoin::Transaction;
     use tcx_common::ToHex;
     use tcx_constants::{CoinInfo, CurveType};
     use tcx_keystore::{Address, MessageSigner};
@@ -646,5 +647,96 @@ mod tests {
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(flag >= 31 && flag <= 34);
+    }
+
+    fn derive_and_sign(
+        ks: &mut Keystore,
+        seg_wit: &str,
+        path: &str,
+        sig_type: BtcSignatureType,
+    ) -> String {
+        let coin_info = CoinInfo {
+            chain_id: "".to_string(),
+            coin: "BITCOIN".to_string(),
+            derivation_path: format!("{}/0/0", path),
+            curve: CurveType::SECP256k1,
+            network: "MAINNET".to_string(),
+            seg_wit: seg_wit.to_string(),
+            contract_code: "".to_string(),
+        };
+        let _ = ks.derive_coin::<BtcKinAddress>(&coin_info).unwrap();
+
+        let params = make_params(seg_wit, path);
+        ks.sign_message(
+            &params,
+            &BtcMessageInput {
+                message: "hello world".to_string(),
+                signature_type: sig_type as i32,
+            },
+        )
+        .unwrap()
+        .signature
+    }
+
+    #[test]
+    fn test_cross_validation_sign_message() {
+        let mut ks = sample_hd_keystore();
+
+        // ── Legacy (P2PKH) ──
+        // Standard and BIP-137 produce identical results for legacy addresses (flag 31-34)
+        let legacy_expected = "IMQsiVqUfCWA4lplLb8VJ32ZvpSP/OLM3BDt0HBca+LmZZ/fQ41SnSutgLjqYAgbfTBUa0+jAZfIS303iytBTM0=";
+        assert_eq!(
+            derive_and_sign(&mut ks, "NONE", "m/44'/0'/0'", BtcSignatureType::Standard),
+            legacy_expected
+        );
+        assert_eq!(
+            derive_and_sign(&mut ks, "NONE", "m/44'/0'/0'", BtcSignatureType::Bip137),
+            legacy_expected
+        );
+
+        // ── Nested SegWit (P2SH-P2WPKH) ──
+        // Standard uses legacy-compatible flag (27-30), BIP-137 uses nested segwit flag (35-38)
+        assert_eq!(
+            derive_and_sign(&mut ks, "P2WPKH", "m/49'/0'/0'", BtcSignatureType::Standard),
+            "H9vMHPmn2idEnSPXJGxdufLsusIMyiSl3OixtZKChxksbE0lp3QYONulcETq/tCOS171QF4aJnupvbCcGXRDxRo="
+        );
+        assert_eq!(
+            derive_and_sign(&mut ks, "P2WPKH", "m/49'/0'/0'", BtcSignatureType::Bip137),
+            "I9vMHPmn2idEnSPXJGxdufLsusIMyiSl3OixtZKChxksbE0lp3QYONulcETq/tCOS171QF4aJnupvbCcGXRDxRo="
+        );
+
+        // ── Native SegWit (P2WPKH) ──
+        // Standard uses legacy-compatible flag, BIP-137 uses native segwit flag (39-42)
+        assert_eq!(
+            derive_and_sign(&mut ks, "VERSION_0", "m/84'/0'/0'", BtcSignatureType::Standard),
+            "IAoVnrHx8t+bNFeX5bbPUMsR6Wud/2OLEsk7NUvnkG6wHA8RkmcNZzFOhuHFzKVEa3f7sfKphiqnGLIFM2aCp5c="
+        );
+        assert_eq!(
+            derive_and_sign(&mut ks, "VERSION_0", "m/84'/0'/0'", BtcSignatureType::Bip137),
+            "KAoVnrHx8t+bNFeX5bbPUMsR6Wud/2OLEsk7NUvnkG6wHA8RkmcNZzFOhuHFzKVEa3f7sfKphiqnGLIFM2aCp5c="
+        );
+        // BIP-322 Simple
+        assert_eq!(
+            derive_and_sign(&mut ks, "VERSION_0", "m/84'/0'/0'", BtcSignatureType::Bip322),
+            "AkgwRQIhAIaZgqlIItOUWUuHrV0dlriw6TtYgPPayR/Cr1O1bBIfAiBi1AyhrTFQPhtwSinfHE5+824+HBCCQ/xT6ESEBY0hJgEhAyR3j5NKIKnKBs7D+3F2zLwFQni51dfwoQd1gjZ6+S51"
+        );
+
+        // ── Taproot (P2TR) BIP-322 Full ──
+        // Schnorr signatures use random nonces (BIP-340), verify structure instead of exact bytes
+        let taproot_sig = derive_and_sign(
+            &mut ks,
+            "VERSION_1",
+            "m/86'/0'/0'",
+            BtcSignatureType::Bip322,
+        );
+        let decoded = base64::decode(&taproot_sig).unwrap();
+        let tx: Transaction =
+            bitcoin::consensus::deserialize(&decoded).expect("valid serialized tx");
+        assert_eq!(tx.version, 0);
+        assert_eq!(tx.input.len(), 1);
+        assert_eq!(tx.output.len(), 1);
+        assert!(!tx.input[0].witness.is_empty());
+        let schnorr_sig = &tx.input[0].witness.to_vec()[0];
+        assert_eq!(schnorr_sig.len(), 64);
     }
 }
