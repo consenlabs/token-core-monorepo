@@ -70,11 +70,20 @@ pub struct PsbtOutput {
     #[prost(string, tag = "1")]
     pub psbt: ::prost::alloc::string::String,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum BtcSignatureType {
+    Standard = 0,
+    Bip137 = 1,
+    Bip322 = 2,
+}
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct BtcMessageInput {
     #[prost(string, tag = "1")]
     pub message: ::prost::alloc::string::String,
+    #[prost(enumeration = "BtcSignatureType", tag = "2")]
+    pub signature_type: i32,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

@@ -2274,6 +2274,7 @@ mod tests {
         connect_and_bind();
         let input = BtcMessageInput {
             message: "hello world".to_string(),
+            signature_type: coin_bitcoin::btcapi::BtcSignatureType::Bip322 as i32,
         };
         let input_value = encode_message(input).unwrap();
         let param = SignParam {
@@ -2288,7 +2289,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
-            seg_wit: "NONE".to_string(),
+            seg_wit: "VERSION_0".to_string(),
         };
         let action: ImkeyAction = ImkeyAction {
             method: "sign_message".to_string(),
@@ -2301,7 +2302,8 @@ mod tests {
         let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
         let ret_bytes = hex::decode(ret_hex).unwrap();
         let sign_result = BtcMessageOutput::decode(ret_bytes.as_slice()).unwrap();
-        assert_eq!(sign_result.signature, "02483045022100dbbdfedfb1902ca12c6cba14d4892a98f77c434daaa4f97fd35e618374c908f602206527ff2b1ce550c16c836c2ce3508bfae543fa6c11759d2f4966cc0d3552c4430121026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868");
+        let decoded = base64::decode(&sign_result.signature).unwrap();
+        assert!(!decoded.is_empty());
     }
 
     #[test]

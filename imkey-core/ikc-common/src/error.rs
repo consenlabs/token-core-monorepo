@@ -100,4 +100,12 @@ pub enum CoinError {
     InvalidUtxo,
     #[error("missing_signature")]
     MissingSignature,
+    #[error("bip322_not_supported_for_address_type")]
+    Bip322NotSupportedForAddressType,
+    #[error("bip137_not_supported_for_taproot")]
+    Bip137NotSupportedForTaproot,
+    #[error("bip137_requires_applet_upgrade")]
+    Bip137RequiresAppletUpgrade,
+    #[error("invalid_signature_type")]
+    InvalidSignatureType,
 }

@@ -28,7 +28,9 @@ use tcx::api::{
 
 use tcx::handler::encode_message;
 use tcx::handler::get_derived_key;
-use tcx_btc_kin::transaction::{BtcKinTxInput, BtcMessageInput, BtcMessageOutput};
+use tcx_btc_kin::transaction::{
+    BtcKinTxInput, BtcMessageInput, BtcMessageOutput, BtcSignatureType,
+};
 use tcx_btc_kin::Utxo;
 use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
 use tcx_constants::{sample_key, CurveType};
@@ -739,23 +741,22 @@ fn test_tron_sign_message_v2() {
 
 #[test]
 #[serial]
-fn test_bitcoin_sign_message() {
+fn test_bitcoin_sign_message_bip322_base64() {
     run_test(|| {
         let wallet = import_default_wallet();
 
-        let input_expects = vec![
-            (BtcMessageInput{
-                message: "hello world".to_string(),
-            }, "02473044022062775640116afb7f17d23c222b0a6904fdaf2aea0d76e550d75c8fd362b80dcb022067c299fde774aaab689f8a53ebd0956395ff45b7ff6b7e99569d0abec85110c80121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc"),
-            (BtcMessageInput{
-                message: "test1".to_string(),
-            }, "02483045022100b805ccd16f1a664ae394bf292962ea6d76e0ddd5beb0b050cca4a1aa9ababc9a02201503132e39dc600957ec8f33663b10ab0cff0c4e37cab2811619152be8d919300121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc"),
-            (BtcMessageInput{
-                message: "test2".to_string(),
-            }, "02483045022100e96bfdb41b3562a1ff5a4c816da2620e82bcc8d702843ae1cec506666d4569c302206477d7d93c082cb42d462200a136e6aef7edde053722008a206ab8b9b356f0380121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc"),
+        let messages = vec!["hello world", "test1", "test2"];
+        let old_hex_sigs = vec![
+            "02473044022062775640116afb7f17d23c222b0a6904fdaf2aea0d76e550d75c8fd362b80dcb022067c299fde774aaab689f8a53ebd0956395ff45b7ff6b7e99569d0abec85110c80121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc",
+            "02483045022100b805ccd16f1a664ae394bf292962ea6d76e0ddd5beb0b050cca4a1aa9ababc9a02201503132e39dc600957ec8f33663b10ab0cff0c4e37cab2811619152be8d919300121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc",
+            "02483045022100e96bfdb41b3562a1ff5a4c816da2620e82bcc8d702843ae1cec506666d4569c302206477d7d93c082cb42d462200a136e6aef7edde053722008a206ab8b9b356f0380121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc",
         ];
 
-        for (input, expected) in input_expects {
+        for (msg, old_hex) in messages.iter().zip(old_hex_sigs.iter()) {
+            let input = BtcMessageInput {
+                message: msg.to_string(),
+                signature_type: BtcSignatureType::Bip322 as i32,
+            };
             let tx = SignParam {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
@@ -772,8 +773,118 @@ fn test_bitcoin_sign_message() {
 
             let sign_result = call_api("sign_msg", tx).unwrap();
             let ret: BtcMessageOutput = BtcMessageOutput::decode(sign_result.as_slice()).unwrap();
-            assert_eq!(expected, ret.signature);
+            println!("sign_result: {:?}", ret.signature);
+            let decoded = base64::decode(&ret.signature).unwrap();
+            let expected_bytes = Vec::<u8>::from_hex(old_hex).unwrap();
+            assert_eq!(
+                decoded, expected_bytes,
+                "BIP-322 Base64 output mismatch for '{}'",
+                msg
+            );
         }
+    });
+}
+
+#[test]
+#[serial]
+fn test_bitcoin_sign_message_standard() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let input = BtcMessageInput {
+            message: "hello world".to_string(),
+            signature_type: BtcSignatureType::Standard as i32,
+        };
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "BITCOIN".to_string(),
+            path: "m/49'/1'/0'".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "TESTNET".to_string(),
+            seg_wit: "VERSION_0".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: encode_message(input).unwrap(),
+            }),
+        };
+
+        let sign_result = call_api("sign_msg", tx).unwrap();
+        let ret: BtcMessageOutput = BtcMessageOutput::decode(sign_result.as_slice()).unwrap();
+        let sig_bytes = base64::decode(&ret.signature).unwrap();
+        assert_eq!(sig_bytes.len(), 65);
+        let flag = sig_bytes[0];
+        assert!(
+            flag >= 31 && flag <= 34,
+            "Standard flag {} not in 31-34",
+            flag
+        );
+    });
+}
+
+#[test]
+#[serial]
+fn test_bitcoin_sign_message_bip137() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let input = BtcMessageInput {
+            message: "hello world".to_string(),
+            signature_type: BtcSignatureType::Bip137 as i32,
+        };
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "BITCOIN".to_string(),
+            path: "m/49'/1'/0'".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "TESTNET".to_string(),
+            seg_wit: "VERSION_0".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: encode_message(input).unwrap(),
+            }),
+        };
+
+        let sign_result = call_api("sign_msg", tx).unwrap();
+        let ret: BtcMessageOutput = BtcMessageOutput::decode(sign_result.as_slice()).unwrap();
+        let sig_bytes = base64::decode(&ret.signature).unwrap();
+        assert_eq!(sig_bytes.len(), 65);
+        let flag = sig_bytes[0];
+        assert!(
+            flag >= 39 && flag <= 42,
+            "BIP-137 VERSION_0 flag {} not in 39-42",
+            flag
+        );
+    });
+}
+
+#[test]
+#[serial]
+fn test_bitcoin_sign_message_incompatible() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let input = BtcMessageInput {
+            message: "hello world".to_string(),
+            signature_type: BtcSignatureType::Bip322 as i32,
+        };
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "BITCOIN".to_string(),
+            path: "m/44'/1'/0'".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "TESTNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: encode_message(input).unwrap(),
+            }),
+        };
+
+        let sign_result = call_api("sign_msg", tx);
+        assert!(sign_result.is_err());
     });
 }
 
