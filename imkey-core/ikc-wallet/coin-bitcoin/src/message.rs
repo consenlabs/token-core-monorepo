@@ -38,12 +38,12 @@ fn bip137_message_hash(message: &[u8]) -> Vec<u8> {
     sha256_hash(&sha256_hash(&data))
 }
 
-fn flag_base_for_bip137(seg_wit: &str) -> u8 {
+fn flag_base_for_bip137(seg_wit: &str) -> Result<u8> {
     match seg_wit {
-        "NONE" => 31,
-        "P2WPKH" => 35,
-        "VERSION_0" => 39,
-        _ => 31,
+        "NONE" => Ok(31),
+        "P2WPKH" => Ok(35),
+        "VERSION_0" => Ok(39),
+        _ => Err(CoinError::Bip137NotSupportedForTaproot.into()),
     }
 }
 
@@ -144,7 +144,7 @@ impl MessageSinger {
         let flag_base = if is_standard {
             31
         } else {
-            flag_base_for_bip137(&self.seg_wit)
+            flag_base_for_bip137(&self.seg_wit)?
         };
 
         let mut result_sig = vec![flag_base + final_v];

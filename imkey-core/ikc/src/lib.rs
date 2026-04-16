@@ -2333,8 +2333,17 @@ mod tests {
         assert_eq!(sig, "AkgwRQIhAIaZgqlIItOUWUuHrV0dlriw6TtYgPPayR/Cr1O1bBIfAiBi1AyhrTFQPhtwSinfHE5+824+HBCCQ/xT6ESEBY0hJgEhAyR3j5NKIKnKBs7D+3F2zLwFQni51dfwoQd1gjZ6+S51");
 
         // Taproot (P2TR) - BIP-322 Full
+        // Schnorr signatures use random nonces (BIP-340), verify structure only
         let sig = call_sign_message("VERSION_1", "m/86'/0'/0'", BtcSignatureType::Bip322);
-        assert_eq!(sig, "AAAAAAABAczSwBCDu6Jmuz0RzlKsvgYht4HbLmNYGWOU1F3dBwQgAAAAAAAAAAAAAQAAAAAAAAAAAWoBQN91jHu/JV/mFg3Cjpz2zUNUY1NLTl5pKF7rr3YoncgGjTd5/u8IOo0Lc7K3gosLupeGa4Xdt38+TzQLpy6teFwAAAAA");
+        let decoded = base64::decode(&sig).unwrap();
+        let tx: bitcoin::Transaction =
+            bitcoin::consensus::deserialize(&decoded).expect("valid serialized tx");
+        assert_eq!(tx.version, 0);
+        assert_eq!(tx.input.len(), 1);
+        assert_eq!(tx.output.len(), 1);
+        assert!(!tx.input[0].witness.is_empty());
+        let schnorr_sig = &tx.input[0].witness.to_vec()[0];
+        assert_eq!(schnorr_sig.len(), 64);
     }
 
     #[test]
