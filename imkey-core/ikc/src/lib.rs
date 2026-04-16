@@ -2073,7 +2073,7 @@ mod tests {
         let bind_result: BindCheckRes = BindCheckRes::decode(ret_bytes.as_slice()).unwrap();
         if "bound_other".eq(&bind_result.bind_status) {
             let param = BindAcquireReq {
-                bind_code: "CM3SH5QE".to_string(),
+                bind_code: "6MFDC64F".to_string(),
             };
             let action: ImkeyAction = ImkeyAction {
                 method: "bind_acquire".to_string(),
@@ -2272,38 +2272,69 @@ mod tests {
     #[test]
     fn test_btc_sign_message() {
         connect_and_bind();
-        let input = BtcMessageInput {
-            message: "hello world".to_string(),
-            signature_type: coin_bitcoin::btcapi::BtcSignatureType::Bip322 as i32,
-        };
-        let input_value = encode_message(input).unwrap();
-        let param = SignParam {
-            chain_type: "BITCOIN".to_string(),
-            path: "m/44'/0'/0'".to_string(),
-            network: "MAINNET".to_string(),
-            input: Some(::prost_types::Any {
-                type_url: "imkey".to_string(),
-                value: input_value.clone(),
-            }),
-            payment: "".to_string(),
-            receiver: "".to_string(),
-            sender: "".to_string(),
-            fee: "".to_string(),
-            seg_wit: "VERSION_0".to_string(),
-        };
-        let action: ImkeyAction = ImkeyAction {
-            method: "sign_message".to_string(),
-            param: Some(::prost_types::Any {
-                type_url: "signapi.sign_message".to_string(),
-                value: encode_message(param).unwrap(),
-            }),
-        };
-        let action = hex::encode(encode_message(action).unwrap());
-        let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
-        let ret_bytes = hex::decode(ret_hex).unwrap();
-        let sign_result = BtcMessageOutput::decode(ret_bytes.as_slice()).unwrap();
-        let decoded = base64::decode(&sign_result.signature).unwrap();
-        assert!(!decoded.is_empty());
+
+        fn call_sign_message(
+            seg_wit: &str,
+            path: &str,
+            sig_type: coin_bitcoin::btcapi::BtcSignatureType,
+        ) -> String {
+            let input = BtcMessageInput {
+                message: "hello world".to_string(),
+                signature_type: sig_type as i32,
+            };
+            let param = SignParam {
+                chain_type: "BITCOIN".to_string(),
+                path: path.to_string(),
+                network: "MAINNET".to_string(),
+                input: Some(::prost_types::Any {
+                    type_url: "imkey".to_string(),
+                    value: encode_message(input).unwrap(),
+                }),
+                payment: "".to_string(),
+                receiver: "".to_string(),
+                sender: "".to_string(),
+                fee: "".to_string(),
+                seg_wit: seg_wit.to_string(),
+            };
+            let action: ImkeyAction = ImkeyAction {
+                method: "sign_message".to_string(),
+                param: Some(::prost_types::Any {
+                    type_url: "signapi.sign_message".to_string(),
+                    value: encode_message(param).unwrap(),
+                }),
+            };
+            let action_hex = hex::encode(encode_message(action).unwrap());
+            let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action_hex.as_str()))) };
+            let ret_bytes = hex::decode(ret_hex).unwrap();
+            let output = BtcMessageOutput::decode(ret_bytes.as_slice()).unwrap();
+            output.signature
+        }
+
+        use coin_bitcoin::btcapi::BtcSignatureType;
+
+        // Legacy (P2PKH) - Standard & BIP-137
+        let sig = call_sign_message("NONE", "m/44'/0'/0'", BtcSignatureType::Standard);
+        assert_eq!(sig, "IMQsiVqUfCWA4lplLb8VJ32ZvpSP/OLM3BDt0HBca+LmZZ/fQ41SnSutgLjqYAgbfTBUa0+jAZfIS303iytBTM0=");
+        let sig = call_sign_message("NONE", "m/44'/0'/0'", BtcSignatureType::Bip137);
+        assert_eq!(sig, "IMQsiVqUfCWA4lplLb8VJ32ZvpSP/OLM3BDt0HBca+LmZZ/fQ41SnSutgLjqYAgbfTBUa0+jAZfIS303iytBTM0=");
+
+        // Nested SegWit (P2SH-P2WPKH) - Standard & BIP-137
+        let sig = call_sign_message("P2WPKH", "m/49'/0'/0'", BtcSignatureType::Standard);
+        assert_eq!(sig, "H9vMHPmn2idEnSPXJGxdufLsusIMyiSl3OixtZKChxksbE0lp3QYONulcETq/tCOS171QF4aJnupvbCcGXRDxRo=");
+        let sig = call_sign_message("P2WPKH", "m/49'/0'/0'", BtcSignatureType::Bip137);
+        assert_eq!(sig, "I9vMHPmn2idEnSPXJGxdufLsusIMyiSl3OixtZKChxksbE0lp3QYONulcETq/tCOS171QF4aJnupvbCcGXRDxRo=");
+
+        // Native SegWit (P2WPKH) - Standard, BIP-137 & BIP-322
+        let sig = call_sign_message("VERSION_0", "m/84'/0'/0'", BtcSignatureType::Standard);
+        assert_eq!(sig, "IAoVnrHx8t+bNFeX5bbPUMsR6Wud/2OLEsk7NUvnkG6wHA8RkmcNZzFOhuHFzKVEa3f7sfKphiqnGLIFM2aCp5c=");
+        let sig = call_sign_message("VERSION_0", "m/84'/0'/0'", BtcSignatureType::Bip137);
+        assert_eq!(sig, "KAoVnrHx8t+bNFeX5bbPUMsR6Wud/2OLEsk7NUvnkG6wHA8RkmcNZzFOhuHFzKVEa3f7sfKphiqnGLIFM2aCp5c=");
+        let sig = call_sign_message("VERSION_0", "m/84'/0'/0'", BtcSignatureType::Bip322);
+        assert_eq!(sig, "AkgwRQIhAIaZgqlIItOUWUuHrV0dlriw6TtYgPPayR/Cr1O1bBIfAiBi1AyhrTFQPhtwSinfHE5+824+HBCCQ/xT6ESEBY0hJgEhAyR3j5NKIKnKBs7D+3F2zLwFQni51dfwoQd1gjZ6+S51");
+
+        // Taproot (P2TR) - BIP-322 Full
+        let sig = call_sign_message("VERSION_1", "m/86'/0'/0'", BtcSignatureType::Bip322);
+        assert_eq!(sig, "AAAAAAABAczSwBCDu6Jmuz0RzlKsvgYht4HbLmNYGWOU1F3dBwQgAAAAAAAAAAAAAQAAAAAAAAAAAWoBQN91jHu/JV/mFg3Cjpz2zUNUY1NLTl5pKF7rr3YoncgGjTd5/u8IOo0Lc7K3gosLupeGa4Xdt38+TzQLpy6teFwAAAAA");
     }
 
     #[test]

@@ -9,8 +9,16 @@ use bitcoin::{
     Address, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn, TxOut, Txid, Witness,
 };
 use hex::FromHex;
-use ikc_common::error::CoinError;
-use ikc_common::utility::{network_convert, sha256_hash, utf8_or_hex_to_bytes};
+use ikc_common::apdu::{ApduCheck, BtcApdu};
+use ikc_common::constants::TIMEOUT_LONG;
+use ikc_common::error::{CoinError, CommonError};
+use ikc_common::utility::{
+    hex_to_bytes, network_convert, secp256k1_sign, sha256_hash, utf8_or_hex_to_bytes,
+};
+use ikc_device::device_binding::KEY_MANAGER;
+use ikc_device::device_manager::get_btc_apple_version;
+use ikc_transport::message::{send_apdu, send_apdu_timeout};
+use secp256k1::ecdsa::Signature as EcdsaSignature;
 use std::str::FromStr;
 
 pub struct MessageSinger {
@@ -18,6 +26,25 @@ pub struct MessageSinger {
     pub chain_type: String,
     pub network: String,
     pub seg_wit: String,
+}
+
+fn bip137_message_hash(message: &[u8]) -> Vec<u8> {
+    let prefix = b"\x18Bitcoin Signed Message:\n";
+    let varint = bitcoin::VarInt(message.len() as u64);
+    let mut data = Vec::new();
+    data.extend_from_slice(prefix);
+    bitcoin::consensus::encode::Encodable::consensus_encode(&varint, &mut data).unwrap();
+    data.extend_from_slice(message);
+    sha256_hash(&sha256_hash(&data))
+}
+
+fn flag_base_for_bip137(seg_wit: &str) -> u8 {
+    match seg_wit {
+        "NONE" => 31,
+        "P2WPKH" => 35,
+        "VERSION_0" => 39,
+        _ => 31,
+    }
 }
 
 impl MessageSinger {
@@ -31,7 +58,8 @@ impl MessageSinger {
                 if seg_wit == "VERSION_1" {
                     return Err(CoinError::Bip137NotSupportedForTaproot.into());
                 }
-                return Err(CoinError::Bip137RequiresAppletUpgrade.into());
+                let is_standard = t == BtcSignatureType::Standard as i32;
+                self.sign_message_bip137(&data, is_standard)?
             }
             t if t == BtcSignatureType::Bip322 as i32 => match seg_wit {
                 "NONE" | "P2WPKH" => {
@@ -47,6 +75,82 @@ impl MessageSinger {
         };
 
         Ok(BtcMessageOutput { signature })
+    }
+
+    fn sign_message_bip137(&self, data: &[u8], is_standard: bool) -> Result<String> {
+        let btc_version = get_btc_apple_version()?;
+        if btc_version.as_str() < "1.6.11" {
+            return Err(CommonError::UpgradeApplet.into());
+        }
+
+        let msg_hash = bip137_message_hash(data);
+        let path = format!("{}/0/0", self.derivation_path);
+
+        select_btc_applet()?;
+
+        // Build inner TLV: [0x01][0x20][32-byte-hash]
+        let mut hash_tlv = vec![0x01, 0x20];
+        hash_tlv.extend_from_slice(&msg_hash);
+
+        // Sign inner TLV with host key
+        let key_manager_obj = KEY_MANAGER.lock();
+        let mut prep_data = secp256k1_sign(&key_manager_obj.pri_key, &hash_tlv)?;
+        drop(key_manager_obj);
+
+        // Wrap signature: [0x00][sig_len][DER_sig]
+        prep_data.insert(0, prep_data.len() as u8);
+        prep_data.insert(0, 0x00);
+        // Append inner TLV
+        prep_data.extend_from_slice(&hash_tlv);
+
+        // Send prep APDUs (INS 0x51); last chunk triggers user confirmation
+        let prep_apdus = BtcApdu::btc_prepare(0x51, 0x00, &prep_data);
+        let apdu_count = prep_apdus.len();
+        for (i, apdu) in prep_apdus.into_iter().enumerate() {
+            if i == apdu_count - 1 {
+                ApduCheck::check_response(&send_apdu_timeout(apdu, TIMEOUT_LONG)?)?;
+            } else {
+                ApduCheck::check_response(&send_apdu(apdu)?)?;
+            }
+        }
+
+        // Send sign APDU (INS 0x52) with BIP32 path
+        let sign_apdu = BtcApdu::btc_msg_sign(&path);
+        let sign_result = send_apdu(sign_apdu)?;
+        ApduCheck::check_response(&sign_result)?;
+
+        // Parse response: skip length byte (2 hex chars), strip SW (4 hex chars)
+        // Remaining 65 bytes = R(32) + S(32) + V(1)
+        let sign_bytes = hex_to_bytes(&sign_result[2..(sign_result.len() - 4)])?;
+        if sign_bytes.len() != 65 {
+            return Err(CoinError::MissingSignature.into());
+        }
+
+        let r = &sign_bytes[0..32];
+        let s = &sign_bytes[32..64];
+        let v = sign_bytes[64];
+
+        // BIP-62 low-S normalization
+        let mut compact = [0u8; 64];
+        compact[..32].copy_from_slice(r);
+        compact[32..].copy_from_slice(s);
+        let mut sig = EcdsaSignature::from_compact(&compact)?;
+        sig.normalize_s();
+        let final_compact = sig.serialize_compact();
+        let s_changed = final_compact[32..] != compact[32..];
+        let final_v = if s_changed { 1 - v } else { v };
+
+        // Standard format always uses legacy-compatible flag base (31)
+        let flag_base = if is_standard {
+            31
+        } else {
+            flag_base_for_bip137(&self.seg_wit)
+        };
+
+        let mut result_sig = vec![flag_base + final_v];
+        result_sig.extend_from_slice(&final_compact);
+
+        Ok(base64::encode(&result_sig))
     }
 
     fn sign_message_bip322_simple(&self, data: &[u8]) -> Result<String> {
@@ -189,130 +293,120 @@ mod tests {
     use crate::message::MessageSinger;
     use ikc_device::device_binding::bind_test;
 
-    #[test]
-    fn test_bip322_p2wpkh_base64() {
-        bind_test();
-
-        let singer = MessageSinger {
-            derivation_path: "m/44'/0'/0'".to_string(),
+    fn make_signer(seg_wit: &str, path: &str) -> MessageSinger {
+        MessageSinger {
+            derivation_path: path.to_string(),
             chain_type: "BITCOIN".to_string(),
             network: "MAINNET".to_string(),
-            seg_wit: "VERSION_0".to_string(),
-        };
-        let input = BtcMessageInput {
-            message: "hello world".to_string(),
-            signature_type: BtcSignatureType::Bip322 as i32,
-        };
-        let output = singer.sign_message(input).unwrap();
-        let decoded = base64::decode(&output.signature).unwrap();
-        assert!(!decoded.is_empty());
+            seg_wit: seg_wit.to_string(),
+        }
     }
 
-    #[test]
-    fn test_bip322_p2tr_full() {
-        bind_test();
-
-        let singer = MessageSinger {
-            derivation_path: "m/86'/0'/0'".to_string(),
-            chain_type: "BITCOIN".to_string(),
-            network: "MAINNET".to_string(),
-            seg_wit: "VERSION_1".to_string(),
-        };
-        let input = BtcMessageInput {
-            message: "Sign this message to log in to https://www.subber.xyz // 200323342"
-                .to_string(),
-            signature_type: BtcSignatureType::Bip322 as i32,
-        };
-        let output = singer.sign_message(input).unwrap();
-        let decoded = base64::decode(&output.signature).unwrap();
-        assert!(!decoded.is_empty());
+    fn sign(signer: &MessageSinger, sig_type: BtcSignatureType) -> String {
+        signer
+            .sign_message(BtcMessageInput {
+                message: "hello world".to_string(),
+                signature_type: sig_type as i32,
+            })
+            .unwrap()
+            .signature
     }
 
-    #[test]
-    fn test_bip137_returns_applet_upgrade_error() {
-        bind_test();
-
-        let singer = MessageSinger {
-            derivation_path: "m/44'/0'/0'".to_string(),
-            chain_type: "BITCOIN".to_string(),
-            network: "MAINNET".to_string(),
-            seg_wit: "NONE".to_string(),
-        };
-        let input = BtcMessageInput {
-            message: "hello world".to_string(),
-            signature_type: BtcSignatureType::Bip137 as i32,
-        };
-        let result = singer.sign_message(input);
-        assert!(result.is_err());
-        assert!(result
+    fn sign_err(signer: &MessageSinger, sig_type: BtcSignatureType) -> String {
+        signer
+            .sign_message(BtcMessageInput {
+                message: "hello world".to_string(),
+                signature_type: sig_type as i32,
+            })
             .unwrap_err()
             .to_string()
-            .contains("bip137_requires_applet_upgrade"));
     }
 
     #[test]
-    fn test_standard_returns_applet_upgrade_error() {
+    fn test_incompatible_combinations() {
         bind_test();
 
-        let singer = MessageSinger {
-            derivation_path: "m/44'/0'/0'".to_string(),
-            chain_type: "BITCOIN".to_string(),
-            network: "MAINNET".to_string(),
-            seg_wit: "NONE".to_string(),
-        };
-        let input = BtcMessageInput {
-            message: "hello world".to_string(),
-            signature_type: BtcSignatureType::Standard as i32,
-        };
-        let result = singer.sign_message(input);
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("bip137_requires_applet_upgrade"));
+        // BIP-322 not supported for Legacy
+        assert!(sign_err(
+            &make_signer("NONE", "m/44'/0'/0'"),
+            BtcSignatureType::Bip322
+        )
+        .contains("bip322_not_supported"));
+
+        // BIP-322 not supported for Nested SegWit
+        assert!(sign_err(
+            &make_signer("P2WPKH", "m/49'/0'/0'"),
+            BtcSignatureType::Bip322
+        )
+        .contains("bip322_not_supported"));
+
+        // BIP-137 not supported for Taproot
+        assert!(sign_err(
+            &make_signer("VERSION_1", "m/86'/0'/0'"),
+            BtcSignatureType::Bip137
+        )
+        .contains("bip137_not_supported_for_taproot"));
+
+        // Standard not supported for Taproot
+        assert!(sign_err(
+            &make_signer("VERSION_1", "m/86'/0'/0'"),
+            BtcSignatureType::Standard
+        )
+        .contains("bip137_not_supported_for_taproot"));
     }
 
+    // Cross-validation test: expected values are identical to token-core because
+    // both use the same mnemonic. BIP-137/Standard signatures are deterministic
+    // (ECDSA RFC 6979). BIP-322 Native SegWit (ECDSA) is also deterministic.
+    // Taproot BIP-322 Full uses Schnorr (BIP-340) with random nonces, so only
+    // structural correctness is verified.
     #[test]
-    fn test_bip322_not_supported_for_legacy() {
+    fn test_cross_validation_sign_message() {
         bind_test();
 
-        let singer = MessageSinger {
-            derivation_path: "m/44'/0'/0'".to_string(),
-            chain_type: "BITCOIN".to_string(),
-            network: "MAINNET".to_string(),
-            seg_wit: "NONE".to_string(),
-        };
-        let input = BtcMessageInput {
-            message: "hello world".to_string(),
-            signature_type: BtcSignatureType::Bip322 as i32,
-        };
-        let result = singer.sign_message(input);
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("bip322_not_supported"));
-    }
+        // ── Legacy (P2PKH) ──
+        let legacy = make_signer("NONE", "m/44'/0'/0'");
+        let legacy_expected = "IMQsiVqUfCWA4lplLb8VJ32ZvpSP/OLM3BDt0HBca+LmZZ/fQ41SnSutgLjqYAgbfTBUa0+jAZfIS303iytBTM0=";
+        assert_eq!(sign(&legacy, BtcSignatureType::Standard), legacy_expected);
+        assert_eq!(sign(&legacy, BtcSignatureType::Bip137), legacy_expected);
 
-    #[test]
-    fn test_bip137_not_supported_for_taproot() {
-        bind_test();
+        // ── Nested SegWit (P2SH-P2WPKH) ──
+        let nested = make_signer("P2WPKH", "m/49'/0'/0'");
+        assert_eq!(
+            sign(&nested, BtcSignatureType::Standard),
+            "H9vMHPmn2idEnSPXJGxdufLsusIMyiSl3OixtZKChxksbE0lp3QYONulcETq/tCOS171QF4aJnupvbCcGXRDxRo="
+        );
+        assert_eq!(
+            sign(&nested, BtcSignatureType::Bip137),
+            "I9vMHPmn2idEnSPXJGxdufLsusIMyiSl3OixtZKChxksbE0lp3QYONulcETq/tCOS171QF4aJnupvbCcGXRDxRo="
+        );
 
-        let singer = MessageSinger {
-            derivation_path: "m/86'/0'/0'".to_string(),
-            chain_type: "BITCOIN".to_string(),
-            network: "MAINNET".to_string(),
-            seg_wit: "VERSION_1".to_string(),
-        };
-        let input = BtcMessageInput {
-            message: "hello world".to_string(),
-            signature_type: BtcSignatureType::Bip137 as i32,
-        };
-        let result = singer.sign_message(input);
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("bip137_not_supported_for_taproot"));
+        // ── Native SegWit (P2WPKH) ──
+        let native = make_signer("VERSION_0", "m/84'/0'/0'");
+        assert_eq!(
+            sign(&native, BtcSignatureType::Standard),
+            "IAoVnrHx8t+bNFeX5bbPUMsR6Wud/2OLEsk7NUvnkG6wHA8RkmcNZzFOhuHFzKVEa3f7sfKphiqnGLIFM2aCp5c="
+        );
+        assert_eq!(
+            sign(&native, BtcSignatureType::Bip137),
+            "KAoVnrHx8t+bNFeX5bbPUMsR6Wud/2OLEsk7NUvnkG6wHA8RkmcNZzFOhuHFzKVEa3f7sfKphiqnGLIFM2aCp5c="
+        );
+        assert_eq!(
+            sign(&native, BtcSignatureType::Bip322),
+            "AkgwRQIhAIaZgqlIItOUWUuHrV0dlriw6TtYgPPayR/Cr1O1bBIfAiBi1AyhrTFQPhtwSinfHE5+824+HBCCQ/xT6ESEBY0hJgEhAyR3j5NKIKnKBs7D+3F2zLwFQni51dfwoQd1gjZ6+S51"
+        );
+
+        // ── Taproot (P2TR) BIP-322 Full ──
+        let taproot = make_signer("VERSION_1", "m/86'/0'/0'");
+        let bip322_sig = sign(&taproot, BtcSignatureType::Bip322);
+        let decoded = base64::decode(&bip322_sig).unwrap();
+        let tx: bitcoin::Transaction =
+            bitcoin::consensus::deserialize(&decoded).expect("valid serialized tx");
+        assert_eq!(tx.version, 0);
+        assert_eq!(tx.input.len(), 1);
+        assert_eq!(tx.output.len(), 1);
+        assert!(!tx.input[0].witness.is_empty());
+        let schnorr_sig = &tx.input[0].witness.to_vec()[0];
+        assert_eq!(schnorr_sig.len(), 64);
     }
 }

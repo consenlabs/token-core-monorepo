@@ -18,6 +18,7 @@ const DEV_VID: u16 = 0x096e;
 const DEV_PID: u16 = 0x0891;
 
 pub fn hid_send(apdu: &String, timeout: i32) -> Result<String> {
+    // println!("hid_send: {:?}", apdu.clone());
     //get hid_device obj
     let hid_device_obj: &Vec<HidDevice> = &HID_DEVICE.lock();
     if hid_device_obj.is_empty() {
@@ -29,6 +30,7 @@ pub fn hid_send(apdu: &String, timeout: i32) -> Result<String> {
     )?;
     let return_data = read_device_response(&hid_device_obj.get(0).unwrap(), timeout)?;
     let apdu_response = hex::encode_upper(return_data);
+    // println!("apdu_response: {:?}", apdu_response.clone());
     Ok(apdu_response)
 }
 
@@ -161,7 +163,7 @@ mod test {
         match connect_result {
             Ok(()) => {
                 assert!(send_apdu("00A4040000".to_string()).is_ok());
-                assert!(send_apdu("00A404007500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100".to_string()).is_ok())
+                assert!(send_apdu("00A4040005695F62746300".to_string()).is_ok())
             }
             Err(err) => println!("{}", err),
         }
