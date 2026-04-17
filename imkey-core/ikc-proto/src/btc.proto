@@ -42,8 +42,15 @@ message PsbtOutput {
     string psbt = 1;
 }
 
+enum BtcSignatureType {
+    Standard = 0;
+    Bip137   = 1;
+    Bip322   = 2;
+}
+
 message BtcMessageInput {
     string message = 1;
+    BtcSignatureType signatureType = 2;
 }
 
 message BtcMessageOutput {
