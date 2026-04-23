@@ -1,6 +1,6 @@
 {
   "name": "@consenlabs/tcx-wasm",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "WebAssembly build of TokenCore – multi-chain key management and transaction signing",
   "type": "module",
   "module": "tcx_wasm.js",
