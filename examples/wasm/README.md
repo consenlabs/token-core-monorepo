@@ -1,6 +1,6 @@
 # tcx-wasm Browser Example
 
-Next.js web app for testing the `tcx-wasm` crate in the browser, covering keystore creation, account derivation, ETH / TRON transaction & message signing, and Message API (NIP-44 encryption + Schnorr/Nostr event signing) via WebAssembly.
+Next.js web app for testing the `tcx-wasm` crate in the browser, covering keystore creation, account derivation, ETH / TRON / BTC transaction, message & PSBT signing, and Message API (NIP-44 encryption + Schnorr/Nostr event signing) via WebAssembly.
 
 ## Prerequisites
 
@@ -136,7 +136,16 @@ const result = JSON.parse(export_mnemonic(JSON.stringify({
 
 ### `derive_accounts(param_json: string): string`
 
-Derives one or more accounts from the keystore. Supports **ETHEREUM** and **TRON** chains.
+Derives one or more accounts from the keystore. Supports **ETHEREUM**, **TRON** and **BITCOIN**.
+
+For `BITCOIN`, `segWit` selects the address type:
+
+| `segWit`    | Default BIP path        | Address prefix (MAINNET) |
+|-------------|-------------------------|--------------------------|
+| `NONE`      | `m/44'/0'/0'/0/0`       | `1...` (P2PKH)           |
+| `P2WPKH`    | `m/49'/0'/0'/0/0`       | `3...` (P2SH-P2WPKH)     |
+| `VERSION_0` | `m/84'/0'/0'/0/0`       | `bc1q...` (Native SegWit)|
+| `VERSION_1` | `m/86'/0'/0'/0/0`       | `bc1p...` (Taproot)      |
 
 ```ts
 const accounts = JSON.parse(derive_accounts(JSON.stringify({
@@ -153,6 +162,12 @@ const accounts = JSON.parse(derive_accounts(JSON.stringify({
       chain: "TRON",
       derivationPath: "m/44'/195'/0'/0/0",
       network: "MAINNET",
+    },
+    {
+      chain: "BITCOIN",
+      derivationPath: "m/84'/0'/0'/0/0",
+      network: "MAINNET",
+      segWit: "VERSION_0",
     },
   ],
 })));
@@ -175,6 +190,13 @@ const accounts = JSON.parse(derive_accounts(JSON.stringify({
     "derivationPath": "m/44'/195'/0'/0/0",
     "extPubKey": "xpub...",
     "publicKey": "hex..."
+  },
+  {
+    "address": "bc1q...",
+    "chain": "BITCOIN",
+    "derivationPath": "m/84'/0'/0'/0/0",
+    "extPubKey": "xpub...",
+    "publicKey": "hex..."
   }
 ]
 ```
@@ -183,7 +205,7 @@ const accounts = JSON.parse(derive_accounts(JSON.stringify({
 
 ### `sign_tx(param_json: string): string`
 
-Signs a transaction. Supports ETH legacy (EIP-155), EIP-1559, and TRON.
+Signs a transaction. Supports ETH legacy (EIP-155), EIP-1559, TRON, and BITCOIN (UTXO-based).
 
 #### ETH Legacy Transaction
 
@@ -240,6 +262,36 @@ const result = JSON.parse(sign_tx(JSON.stringify({
 // => { signatures: ["hex..."] }
 ```
 
+#### BITCOIN Transaction (UTXO)
+
+```ts
+const result = JSON.parse(sign_tx(JSON.stringify({
+  keystoreJson: ks,
+  prfKey: "0000...0001",
+  chain: "BITCOIN",
+  network: "TESTNET",                 // "MAINNET" | "TESTNET"
+  segWit: "VERSION_0",                // "NONE" | "P2WPKH" | "VERSION_0" | "VERSION_1"
+  derivationPath: "m/84'/1'/0'/0/0",  // full address-level path
+  input: {
+    inputs: [
+      {
+        txHash: "cebc5c2b4f5533428ad0cca94e9bfefa6410a270ed1d7116e2ee8592494c66bd",
+        vout: 1,
+        amount: 100000,               // satoshis
+        address: "tb1qrfaf3g4elgykshfgahktyaqj2r593qkrae5v95",
+        derivedPath: "m/84'/1'/0'/0/0",
+      },
+    ],
+    to: "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4",
+    amount: 50000,
+    fee: 20000,
+    changeAddressIndex: 53,           // optional
+    opReturn: undefined,              // optional hex
+  },
+})));
+// => { rawTx: "hex...", txHash: "hex...", wtxHash: "hex..." }
+```
+
 ---
 
 ### `sign_txs(param_json: string): string`
@@ -285,7 +337,7 @@ const results = JSON.parse(sign_txs(JSON.stringify({
 
 ### `sign_message(param_json: string): string`
 
-Signs a message. Supports ETH PersonalSign / EcSign and TRON message signing.
+Signs a message. Supports ETH PersonalSign / EcSign, TRON message, and BTC BIP-322 signing.
 
 #### ETH PersonalSign
 
@@ -317,6 +369,61 @@ const result = JSON.parse(sign_message(JSON.stringify({
   },
 })));
 // => { signature: "0x..." }
+```
+
+#### BITCOIN Message (BIP-322)
+
+```ts
+const result = JSON.parse(sign_message(JSON.stringify({
+  keystoreJson: ks,
+  prfKey: "0000...0001",
+  chain: "BITCOIN",
+  network: "MAINNET",                 // "MAINNET" | "TESTNET"
+  segWit: "VERSION_0",                // same enum as derive_accounts
+  derivationPath: "m/84'/0'/0'",      // account-level; a full /0/0 path is accepted and auto-trimmed
+  input: { message: "hello world" },
+})));
+// => { signature: "hex..." }
+```
+
+---
+
+### `sign_psbt(param_json: string): string`
+
+Signs a single BITCOIN PSBT (Partially Signed Bitcoin Transaction) and optionally finalizes it.
+
+```ts
+const result = JSON.parse(sign_psbt(JSON.stringify({
+  keystoreJson: ks,
+  prfKey: "0000...0001",
+  chain: "BITCOIN",                   // optional, default "BITCOIN"
+  derivationPath: "m/86'/1'/0'",      // account-level; full /0/0 path also accepted
+  input: {
+    psbt: "70736274ff01...",          // hex-encoded PSBT
+    autoFinalize: true,
+  },
+})));
+// => { psbt: "hex..." }
+```
+
+---
+
+### `sign_psbts(param_json: string): string`
+
+Batch-signs multiple PSBTs with a single keystore unlock.
+
+```ts
+const result = JSON.parse(sign_psbts(JSON.stringify({
+  keystoreJson: ks,
+  prfKey: "0000...0001",
+  chain: "BITCOIN",
+  derivationPath: "m/86'/1'/0'",
+  input: {
+    psbts: ["70736274ff01...", "70736274ff01..."],
+    autoFinalize: true,
+  },
+})));
+// => { psbts: ["hex...", "hex..."] }
 ```
 
 ---
@@ -440,10 +547,15 @@ const decrypted = JSON.parse(decrypt_message(JSON.stringify({
 | 10 | Sign Batch TXs (ETH + TRON) | `sign_txs` | Batch-sign ETH + TRON in one call |
 | 11 | Sign ETH Message (PersonalSign) | `sign_message` | Sign ETH personal message |
 | 12 | Sign TRON Message | `sign_message` | Sign TRON message (v2) |
-| 13 | Cache Keystore + Derive | `cache_keystore` / `derive_accounts` / `clear_cached_keystore` | Cache keystore, derive without explicit JSON |
-| 14 | derive_message_key_pair | `derive_message_key_pair` | Derive and cache NIP-44 key pair |
-| 15 | encrypt_message | `encrypt_message` | Encrypt plaintext with NIP-44 v2 |
-| 16 | decrypt_message | `decrypt_message` | Decrypt and verify roundtrip |
-| 17 | sign_message_event | `sign_message_event` | Sign Nostr event with Schnorr/BIP-340 |
-| 18 | sign_message_event (seal+wrap) | `sign_message_event` | NIP-59 Gift Wrapping: seal + wrap with recipientPubkey |
-| 19 | sign + encrypt/decrypt roundtrip | All Message APIs | Full roundtrip: encrypt → sign event → decrypt |
+| 13 | Derive BTC Accounts (4 types) | `derive_accounts` | Derive P2PKH / P2SH-P2WPKH / Native SegWit / Taproot addresses |
+| 14 | Sign BTC TX (P2WPKH TESTNET) | `sign_tx` | Sign a native-SegWit testnet transaction |
+| 15 | Sign BTC Message (BIP-322) | `sign_message` | Sign a BIP-322 message with Native SegWit |
+| 16 | Sign PSBT (Taproot TESTNET) | `sign_psbt` | Sign and auto-finalize a Taproot PSBT |
+| 17 | Sign PSBTs (batch) | `sign_psbts` | Batch-sign PSBTs with one keystore unlock |
+| 18 | Cache Keystore + Derive | `cache_keystore` / `derive_accounts` / `clear_cached_keystore` | Cache keystore, derive without explicit JSON |
+| 19 | derive_message_key_pair | `derive_message_key_pair` | Derive and cache NIP-44 key pair |
+| 20 | encrypt_message | `encrypt_message` | Encrypt plaintext with NIP-44 v2 |
+| 21 | decrypt_message | `decrypt_message` | Decrypt and verify roundtrip |
+| 22 | sign_message_event | `sign_message_event` | Sign Nostr event with Schnorr/BIP-340 |
+| 23 | sign_message_event (seal+wrap) | `sign_message_event` | NIP-59 Gift Wrapping: seal + wrap with recipientPubkey |
+| 24 | sign + encrypt/decrypt roundtrip | All Message APIs | Full roundtrip: encrypt → sign event → decrypt |

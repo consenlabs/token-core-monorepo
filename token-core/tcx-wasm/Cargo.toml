@@ -10,6 +10,7 @@ crate-type = ["cdylib", "rlib"]
 tcx-keystore = { path = "../tcx-keystore", default-features = false }
 tcx-eth = { path = "../tcx-eth", default-features = false }
 tcx-tron = { path = "../tcx-tron", default-features = false }
+tcx-btc-kin = { path = "../tcx-btc-kin" }
 tcx-constants = { path = "../tcx-constants" }
 tcx-primitive = { path = "../tcx-primitive", default-features = false }
 tcx-common = { path = "../tcx-common" }

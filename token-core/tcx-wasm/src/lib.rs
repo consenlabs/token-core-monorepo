@@ -6,6 +6,11 @@ use wasm_bindgen::prelude::*;
 mod nostr;
 mod types;
 
+use tcx_btc_kin::transaction::{
+    BtcKinTxInput, BtcKinTxOutput, BtcMessageInput, BtcMessageOutput, PsbtInput, PsbtOutput,
+    PsbtsInput, PsbtsOutput, Utxo as BtcUtxo,
+};
+use tcx_btc_kin::{sign_psbt as btc_sign_psbt, sign_psbts as btc_sign_psbts, BtcKinAddress};
 use tcx_common::{random_u8_16, FromHex, ToHex};
 use tcx_constants::CurveType;
 use tcx_eth::address::EthAddress;
@@ -67,6 +72,24 @@ fn decrypt_mnemonic(
 
 fn unlock_keystore_from_mnemonic(mnemonic: &str) -> Result<Keystore, JsValue> {
     Keystore::from_mnemonic_unlocked(mnemonic).map_err(to_js_err)
+}
+
+fn default_btc_full_path(seg_wit: &str) -> &'static str {
+    match seg_wit {
+        "P2WPKH" => "m/49'/0'/0'/0/0",
+        "VERSION_0" => "m/84'/0'/0'/0/0",
+        "VERSION_1" => "m/86'/0'/0'/0/0",
+        _ => "m/44'/0'/0'/0/0",
+    }
+}
+
+fn btc_account_path(path: &str) -> String {
+    let parts: Vec<&str> = path.split('/').collect();
+    if parts.len() > 2 {
+        parts[..parts.len() - 2].join("/")
+    } else {
+        path.to_string()
+    }
 }
 
 fn clear_message_key_pair() {
@@ -168,6 +191,7 @@ pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
         let chain = item.chain.as_deref().unwrap_or("ETHEREUM");
         let coin_name = match chain {
             "TRON" => "TRON",
+            "BITCOIN" => "BITCOIN",
             _ => "ETHEREUM",
         };
 
@@ -177,13 +201,16 @@ pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
             derivation_path: item.derivation_path.clone(),
             curve: CurveType::SECP256k1,
             network: item.network.as_deref().unwrap_or("MAINNET").to_string(),
-            seg_wit: "".to_string(),
+            seg_wit: item.seg_wit.clone().unwrap_or_default(),
             contract_code: "".to_string(),
         };
 
         let account = match chain {
             "TRON" => keystore
                 .derive_coin::<TronAddress>(&coin_info)
+                .map_err(to_js_err)?,
+            "BITCOIN" => keystore
+                .derive_coin::<BtcKinAddress>(&coin_info)
                 .map_err(to_js_err)?,
             _ => keystore
                 .derive_coin::<EthAddress>(&coin_info)
@@ -222,10 +249,14 @@ fn sign_single_tx(
     keystore: &mut Keystore,
     chain: &str,
     derivation_path: Option<String>,
+    network: Option<String>,
+    seg_wit: Option<String>,
     input: serde_json::Value,
 ) -> Result<serde_json::Value, JsValue> {
+    let seg_wit = seg_wit.unwrap_or_default();
     let default_path = match chain {
         "TRON" => "m/44'/195'/0'/0/0",
+        "BITCOIN" => default_btc_full_path(&seg_wit),
         _ => "m/44'/60'/0'/0/0",
     };
 
@@ -235,8 +266,8 @@ fn sign_single_tx(
         curve: CurveType::SECP256k1,
         derivation_path,
         chain_type: chain.to_string(),
-        network: "".to_string(),
-        seg_wit: "".to_string(),
+        network: network.unwrap_or_else(|| "MAINNET".to_string()),
+        seg_wit: seg_wit.clone(),
     };
 
     match chain {
@@ -250,6 +281,36 @@ fn sign_single_tx(
                 .sign_transaction(&sign_params, &tron_input)
                 .map_err(to_js_err)?;
             Ok(serde_json::json!({ "signatures": output.signatures }))
+        }
+        "BITCOIN" => {
+            let btc_input_json: BtcTxInputJson =
+                serde_json::from_value(input).map_err(to_js_err)?;
+            let btc_input = BtcKinTxInput {
+                inputs: btc_input_json
+                    .inputs
+                    .into_iter()
+                    .map(|u| BtcUtxo {
+                        tx_hash: u.tx_hash,
+                        vout: u.vout,
+                        amount: u.amount,
+                        address: u.address,
+                        derived_path: u.derived_path,
+                    })
+                    .collect(),
+                to: btc_input_json.to,
+                amount: btc_input_json.amount,
+                fee: btc_input_json.fee,
+                op_return: btc_input_json.op_return,
+                change_address_index: btc_input_json.change_address_index,
+            };
+            let output: BtcKinTxOutput = keystore
+                .sign_transaction(&sign_params, &btc_input)
+                .map_err(to_js_err)?;
+            Ok(serde_json::json!({
+                "rawTx": output.raw_tx,
+                "txHash": output.tx_hash,
+                "wtxHash": output.wtx_hash,
+            }))
         }
         _ => {
             let eth_input_json: EthTxInputJson =
@@ -303,7 +364,14 @@ pub fn sign_tx(param_json: &str) -> Result<String, JsValue> {
 
     let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
     let chain = param.chain.as_deref().unwrap_or("ETHEREUM");
-    let json_result = sign_single_tx(&mut keystore, chain, param.derivation_path, param.input)?;
+    let json_result = sign_single_tx(
+        &mut keystore,
+        chain,
+        param.derivation_path,
+        param.network,
+        param.seg_wit,
+        param.input,
+    )?;
 
     keystore.lock();
     serde_json::to_string(&json_result).map_err(to_js_err)
@@ -330,7 +398,14 @@ pub fn sign_txs(param_json: &str) -> Result<String, JsValue> {
     let mut results: Vec<serde_json::Value> = Vec::with_capacity(param.txs.len());
     for tx in param.txs {
         let chain = tx.chain.as_deref().unwrap_or("ETHEREUM");
-        let result = sign_single_tx(&mut keystore, chain, tx.derivation_path, tx.input)?;
+        let result = sign_single_tx(
+            &mut keystore,
+            chain,
+            tx.derivation_path,
+            tx.network,
+            tx.seg_wit,
+            tx.input,
+        )?;
         results.push(result);
     }
 
@@ -353,24 +428,39 @@ pub fn sign_message(param_json: &str) -> Result<String, JsValue> {
     let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
 
     let chain = param.chain.as_deref().unwrap_or("ETHEREUM");
+    let seg_wit = param.seg_wit.clone().unwrap_or_default();
     let default_path = match chain {
-        "TRON" => "m/44'/195'/0'/0/0",
-        _ => "m/44'/60'/0'/0/0",
+        "TRON" => "m/44'/195'/0'/0/0".to_string(),
+        "BITCOIN" => btc_account_path(default_btc_full_path(&seg_wit)),
+        _ => "m/44'/60'/0'/0/0".to_string(),
     };
 
-    let derivation_path = param
-        .derivation_path
-        .unwrap_or_else(|| default_path.to_string());
+    let derivation_path = match (chain, param.derivation_path) {
+        ("BITCOIN", Some(p)) => btc_account_path(&p),
+        (_, Some(p)) => p,
+        (_, None) => default_path,
+    };
 
     let sign_params = SignatureParameters {
         curve: CurveType::SECP256k1,
         derivation_path,
         chain_type: chain.to_string(),
-        network: "".to_string(),
-        seg_wit: "".to_string(),
+        network: param.network.unwrap_or_else(|| "MAINNET".to_string()),
+        seg_wit: seg_wit.clone(),
     };
 
     let json_result = match chain {
+        "BITCOIN" => {
+            let input_json: BtcSignMessageInputJson =
+                serde_json::from_value(param.input).map_err(to_js_err)?;
+            let btc_input = BtcMessageInput {
+                message: input_json.message,
+            };
+            let output: BtcMessageOutput = keystore
+                .sign_message(&sign_params, &btc_input)
+                .map_err(to_js_err)?;
+            serde_json::json!({ "signature": output.signature })
+        }
         "TRON" => {
             let input_json: TronSignMessageInputJson =
                 serde_json::from_value(param.input).map_err(to_js_err)?;
@@ -408,6 +498,62 @@ pub fn sign_message(param_json: &str) -> Result<String, JsValue> {
 
     keystore.lock();
     serde_json::to_string(&json_result).map_err(to_js_err)
+}
+
+#[wasm_bindgen]
+pub fn sign_psbt(param_json: &str) -> Result<String, JsValue> {
+    let param: SignPsbtParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+
+    let keystore_json = resolve_keystore_json(param.keystore_json)?;
+    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
+    let mnemonic = decrypt_mnemonic(
+        &ks_data.encrypted_mnemonic,
+        &ks_data.mnemonic_iv,
+        &param.prf_key,
+    )?;
+
+    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+
+    let chain = param.chain.as_deref().unwrap_or("BITCOIN");
+    let derivation_path = btc_account_path(&param.derivation_path);
+
+    let psbt_input = PsbtInput {
+        psbt: param.input.psbt,
+        auto_finalize: param.input.auto_finalize,
+    };
+    let output: PsbtOutput =
+        btc_sign_psbt(chain, &derivation_path, &mut keystore, psbt_input).map_err(to_js_err)?;
+
+    keystore.lock();
+    serde_json::to_string(&serde_json::json!({ "psbt": output.psbt })).map_err(to_js_err)
+}
+
+#[wasm_bindgen]
+pub fn sign_psbts(param_json: &str) -> Result<String, JsValue> {
+    let param: SignPsbtsParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+
+    let keystore_json = resolve_keystore_json(param.keystore_json)?;
+    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
+    let mnemonic = decrypt_mnemonic(
+        &ks_data.encrypted_mnemonic,
+        &ks_data.mnemonic_iv,
+        &param.prf_key,
+    )?;
+
+    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+
+    let chain = param.chain.as_deref().unwrap_or("BITCOIN");
+    let derivation_path = btc_account_path(&param.derivation_path);
+
+    let psbts_input = PsbtsInput {
+        psbts: param.input.psbts,
+        auto_finalize: param.input.auto_finalize,
+    };
+    let output: PsbtsOutput =
+        btc_sign_psbts(chain, &derivation_path, &mut keystore, psbts_input).map_err(to_js_err)?;
+
+    keystore.lock();
+    serde_json::to_string(&serde_json::json!({ "psbts": output.psbts })).map_err(to_js_err)
 }
 
 fn encode_public_key(pk: &TypedPublicKey) -> String {

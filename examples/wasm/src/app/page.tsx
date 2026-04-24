@@ -9,6 +9,8 @@ import {
   sign_tx,
   sign_txs,
   sign_message,
+  sign_psbt,
+  sign_psbts,
   cache_keystore,
   clear_cached_keystore,
   derive_message_key_pair,
@@ -382,6 +384,180 @@ export default function Home() {
         detail: `Signature: ${tronMsg.signature}`,
       });
 
+      // ─── BTC ───
+      // Derive all 4 BTC address types in a single call.
+      push({ name: "Derive BTC Accounts (4 types)", status: "running" });
+      const btcAccounts = JSON.parse(
+        derive_accounts(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            derivations: [
+              {
+                chain: "BITCOIN",
+                derivationPath: "m/44'/0'/0'/0/0",
+                network: "MAINNET",
+                segWit: "NONE",
+              },
+              {
+                chain: "BITCOIN",
+                derivationPath: "m/49'/0'/0'/0/0",
+                network: "MAINNET",
+                segWit: "P2WPKH",
+              },
+              {
+                chain: "BITCOIN",
+                derivationPath: "m/84'/0'/0'/0/0",
+                network: "MAINNET",
+                segWit: "VERSION_0",
+              },
+              {
+                chain: "BITCOIN",
+                derivationPath: "m/86'/0'/0'/0/0",
+                network: "MAINNET",
+                segWit: "VERSION_1",
+              },
+            ],
+          })
+        )
+      );
+      const [btcLegacy, btcNested, btcNative, btcTaproot] = btcAccounts;
+      if (!btcLegacy.address?.startsWith("1")) {
+        throw new Error(`Bad P2PKH address: ${btcLegacy.address}`);
+      }
+      if (!btcNested.address?.startsWith("3")) {
+        throw new Error(`Bad P2SH-P2WPKH address: ${btcNested.address}`);
+      }
+      if (!btcNative.address?.startsWith("bc1q")) {
+        throw new Error(`Bad native segwit address: ${btcNative.address}`);
+      }
+      if (!btcTaproot.address?.startsWith("bc1p")) {
+        throw new Error(`Bad taproot address: ${btcTaproot.address}`);
+      }
+      push({
+        name: "Derive BTC Accounts (4 types)",
+        status: "pass",
+        detail: [
+          `P2PKH:     ${btcLegacy.address}`,
+          `P2SH-WPKH: ${btcNested.address}`,
+          `Native:    ${btcNative.address}`,
+          `Taproot:   ${btcTaproot.address}`,
+        ].join("\n"),
+      });
+
+      // Sign a BTC testnet transaction (P2WPKH native segwit).
+      push({ name: "Sign BTC TX (P2WPKH TESTNET)", status: "running" });
+      const btcTx = JSON.parse(
+        sign_tx(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            chain: "BITCOIN",
+            network: "TESTNET",
+            segWit: "VERSION_0",
+            derivationPath: "m/84'/1'/0'/0/0",
+            input: {
+              inputs: [
+                {
+                  txHash:
+                    "cebc5c2b4f5533428ad0cca94e9bfefa6410a270ed1d7116e2ee8592494c66bd",
+                  vout: 1,
+                  amount: 100000,
+                  address: "tb1qrfaf3g4elgykshfgahktyaqj2r593qkrae5v95",
+                  derivedPath: "m/84'/1'/0'/0/0",
+                },
+              ],
+              to: "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4",
+              amount: 50000,
+              fee: 20000,
+              changeAddressIndex: 53,
+            },
+          })
+        )
+      );
+      if (!btcTx.rawTx || !btcTx.txHash) {
+        throw new Error(`Bad BTC tx result: ${JSON.stringify(btcTx)}`);
+      }
+      push({
+        name: "Sign BTC TX (P2WPKH TESTNET)",
+        status: "pass",
+        detail: `txHash: ${btcTx.txHash}\nrawTx:  ${btcTx.rawTx.slice(0, 64)}...`,
+      });
+
+      // Sign a BIP-322 message using Native SegWit.
+      push({ name: "Sign BTC Message (BIP-322)", status: "running" });
+      const btcMsg = JSON.parse(
+        sign_message(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            chain: "BITCOIN",
+            network: "MAINNET",
+            segWit: "VERSION_0",
+            derivationPath: "m/84'/0'/0'",
+            input: { message: "hello world" },
+          })
+        )
+      );
+      if (!btcMsg.signature) {
+        throw new Error(`Missing BTC message signature: ${JSON.stringify(btcMsg)}`);
+      }
+      push({
+        name: "Sign BTC Message (BIP-322)",
+        status: "pass",
+        detail: `Signature: ${btcMsg.signature.slice(0, 64)}...`,
+      });
+
+      // Sign a Taproot PSBT on testnet and auto-finalize it.
+      push({ name: "Sign PSBT (Taproot TESTNET)", status: "running" });
+      const psbtHex =
+        "70736274ff0100db0200000001fa4c8d58b9b6c56ed0b03f78115246c99eb70f99b837d7b4162911d1016cda340200000000fdffffff0350c30000000000002251202114eda66db694d87ff15ddd5d3c4e77306b6e6dd5720cbd90cd96e81016c2b30000000000000000496a47626274340066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229ec20acf33c17e5a6c92cced9f1d530cccab7aa3e53400456202f02fac95e9c481fa00d47b1700000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233d80f03000001012be3bf1d00000000002251208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c23301172066f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e00000000";
+      const psbtResult = JSON.parse(
+        sign_psbt(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            chain: "BITCOIN",
+            derivationPath: "m/86'/1'/0'",
+            input: { psbt: psbtHex, autoFinalize: true },
+          })
+        )
+      );
+      if (!psbtResult.psbt || psbtResult.psbt === psbtHex) {
+        throw new Error(`PSBT not signed: ${JSON.stringify(psbtResult)}`);
+      }
+      push({
+        name: "Sign PSBT (Taproot TESTNET)",
+        status: "pass",
+        detail: `Signed PSBT: ${psbtResult.psbt.slice(0, 96)}...`,
+      });
+
+      // Batch-sign the same PSBT via sign_psbts.
+      push({ name: "Sign PSBTs (batch)", status: "running" });
+      const psbtsResult = JSON.parse(
+        sign_psbts(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+            chain: "BITCOIN",
+            derivationPath: "m/86'/1'/0'",
+            input: { psbts: [psbtHex], autoFinalize: true },
+          })
+        )
+      );
+      if (
+        !Array.isArray(psbtsResult.psbts) ||
+        psbtsResult.psbts.length !== 1 ||
+        psbtsResult.psbts[0] === psbtHex
+      ) {
+        throw new Error(`Bad batch PSBT result: ${JSON.stringify(psbtsResult)}`);
+      }
+      push({
+        name: "Sign PSBTs (batch)",
+        status: "pass",
+        detail: `Returned ${psbtsResult.psbts.length} signed PSBT(s)`,
+      });
+
       // 10. Cache keystore & derive without explicit keystoreJson
       push({ name: "Cache Keystore + Derive", status: "running" });
       cache_keystore(keystoreJson);
@@ -593,7 +769,7 @@ export default function Home() {
         </h1>
         <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
           Browser-side WASM integration tests for keystore, account derivation,
-          ETH / TRON transaction & message signing, and Message API
+          ETH / TRON / BTC transaction, message & PSBT signing, and Message API
           (derive_message_key_pair, encrypt_message, decrypt_message,
           sign_message_event).
         </p>

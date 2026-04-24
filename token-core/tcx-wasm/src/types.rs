@@ -40,6 +40,7 @@ pub struct DerivationItem {
     pub derivation_path: String,
     pub chain_id: Option<String>,
     pub network: Option<String>,
+    pub seg_wit: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -59,6 +60,8 @@ pub struct SignTxParam {
     pub prf_key: String,
     pub chain: Option<String>,
     pub derivation_path: Option<String>,
+    pub network: Option<String>,
+    pub seg_wit: Option<String>,
     pub input: serde_json::Value,
 }
 
@@ -75,6 +78,8 @@ pub struct SignTxsParam {
 pub struct SignTxItem {
     pub chain: Option<String>,
     pub derivation_path: Option<String>,
+    pub network: Option<String>,
+    pub seg_wit: Option<String>,
     pub input: serde_json::Value,
 }
 
@@ -114,6 +119,8 @@ pub struct SignMessageParam {
     pub prf_key: String,
     pub chain: Option<String>,
     pub derivation_path: Option<String>,
+    pub network: Option<String>,
+    pub seg_wit: Option<String>,
     pub input: serde_json::Value,
 }
 
@@ -130,6 +137,67 @@ pub struct TronSignMessageInputJson {
     pub value: String,
     pub header: Option<String>,
     pub version: Option<u32>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BtcUtxoJson {
+    pub tx_hash: String,
+    pub vout: u32,
+    pub amount: u64,
+    pub address: String,
+    pub derived_path: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BtcTxInputJson {
+    pub inputs: Vec<BtcUtxoJson>,
+    pub to: String,
+    pub amount: u64,
+    pub fee: u64,
+    pub op_return: Option<String>,
+    pub change_address_index: Option<u32>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BtcSignMessageInputJson {
+    pub message: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BtcPsbtInputJson {
+    pub psbt: String,
+    pub auto_finalize: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BtcPsbtsInputJson {
+    pub psbts: Vec<String>,
+    pub auto_finalize: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignPsbtParam {
+    pub keystore_json: Option<String>,
+    pub prf_key: String,
+    pub chain: Option<String>,
+    pub derivation_path: String,
+    pub input: BtcPsbtInputJson,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SignPsbtsParam {
+    pub keystore_json: Option<String>,
+    pub prf_key: String,
+    pub chain: Option<String>,
+    pub derivation_path: String,
+    pub input: BtcPsbtsInputJson,
 }
 
 #[derive(Deserialize)]
