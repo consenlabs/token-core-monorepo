@@ -1,6 +1,9 @@
 use common::run_test;
 use serial_test::serial;
-use tcx::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult};
+use tcx::api::{
+    eth_batch_sign_tx_param, EthBatchPersonalSignParam, EthBatchPersonalSignResult,
+    EthBatchSignTxItem, EthBatchSignTxParam, EthBatchSignTxResult,
+};
 
 mod common;
 use api::sign_param::Key;
@@ -1576,4 +1579,370 @@ pub fn test_sign_ton_tx() {
 
         remove_created_wallet(&wallet.id);
     })
+}
+
+// ---- eth_batch_sign_tx end-to-end tests --------------------------------
+//
+// The known-good `tx_hash` / `signature` fixtures used below are taken
+// verbatim from the existing single-tx tests:
+//   * `test_sign_ethereum_legacy_tx`        (legacy EIP-155)
+//   * `test_sign_ethereum_eip1559_tx`       (EIP-1559, no access list)
+//   * `test_sign_ethereum_eip1559_tx2`      (EIP-1559 + access list)
+// All three sign with the default test wallet at `m/44'/60'/0'/0/0`, so we
+// can drop them straight into a single batch and assert the per-item output
+// matches the historical single-tx output byte-for-byte.
+
+const ETH_BATCH_PATH: &str = "m/44'/60'/0'/0/0";
+
+// Inputs ------------------------------------------------------------------
+
+fn legacy_eth_tx_input() -> EthTxInput {
+    EthTxInput {
+        nonce: "8".to_string(),
+        gas_price: "20000000008".to_string(),
+        gas_limit: "189000".to_string(),
+        to: "0x3535353535353535353535353535353535353535".to_string(),
+        value: "512".to_string(),
+        data: "".to_string(),
+        chain_id: "1".to_string(),
+        tx_type: "".to_string(),
+        max_fee_per_gas: "".to_string(),
+        max_priority_fee_per_gas: "".to_string(),
+        access_list: vec![],
+    }
+}
+
+fn eip1559_eth_tx_input() -> EthTxInput {
+    EthTxInput {
+        nonce: "8".to_string(),
+        gas_price: "".to_string(),
+        gas_limit: "4286".to_string(),
+        to: "0x3535353535353535353535353535353535353535".to_string(),
+        value: "3490361".to_string(),
+        data: "0x200184c0486d5f082a27".to_string(),
+        chain_id: "1".to_string(),
+        tx_type: "02".to_string(),
+        max_fee_per_gas: "1076634600920".to_string(),
+        max_priority_fee_per_gas: "226".to_string(),
+        access_list: vec![],
+    }
+}
+
+fn eip1559_with_access_list_eth_tx_input() -> EthTxInput {
+    let access_list = vec![
+        AccessList {
+            address: "0x019fda53b3198867b8aae65320c9c55d74de1938".to_string(),
+            storage_keys: vec![],
+        },
+        AccessList {
+            address: "0x1b976cdbc43cfcbeaad2623c95523981ea1e664a".to_string(),
+            storage_keys: vec![
+                "0xd259410e74fa5c0227f688cc1f79b4d2bee3e9b7342c4c61342e8906a63406a2".to_string(),
+            ],
+        },
+        AccessList {
+            address: "0xf1946eba70f89687d67493d8106f56c90ecba943".to_string(),
+            storage_keys: vec![
+                "0xb3838dedffc33c62f8abfc590b41717a6dd70c3cab5a6900efae846d9060a2b9".to_string(),
+                "0x6a6c4d1ab264204fb2cdd7f55307ca3a0040855aa9c4a749a605a02b43374b82".to_string(),
+                "0x0c38e901d0d95fbf8f05157c68a89393a86aa1e821279e4cce78f827dccb2064".to_string(),
+            ],
+        },
+    ];
+    EthTxInput {
+        nonce: "8".to_string(),
+        gas_price: "".to_string(),
+        gas_limit: "4286".to_string(),
+        to: "0x3535353535353535353535353535353535353535".to_string(),
+        value: "3490361".to_string(),
+        data: "0x200184c0486d5f082a27".to_string(),
+        chain_id: "1".to_string(),
+        tx_type: "02".to_string(),
+        max_fee_per_gas: "1076634600920".to_string(),
+        max_priority_fee_per_gas: "226".to_string(),
+        access_list,
+    }
+}
+
+// Expected outputs --------------------------------------------------------
+
+const LEGACY_TX_HASH: &str =
+    "0xa0a52398c499ccb09095148188eb027b463de3229f87bfebb8f944606047fd81";
+const LEGACY_SIGNATURE: &str = "f867088504a817c8088302e2489435353535353535353535353535353535353535358202008025a06dfc00d1a38acf17137ca1524964ae7e596196703971c6a4d35ada8b09227305a061b8424f251f8724c335fc6df6088db863ee0ea05ebf68ca73a3622aafa19e94";
+
+const EIP1559_TX_HASH: &str =
+    "0x9a427f295369171f686d83a05b92d8849b822f1fa1c9ccb853e81de545f4625b";
+const EIP1559_SIGNATURE: &str = "02f875010881e285faac6c45d88210be943535353535353535353535353535353535353535833542398a200184c0486d5f082a27c001a0602501c9cfedf145810f9b54558de6cf866a89b7a65890ccde19dd6cec1fe32ca02769f3382ee526a372241238922da39f6283a9613215fd98c8ce37a0d03fa3bb";
+
+const EIP1559_AL_TX_HASH: &str =
+    "0x2c20edff7e496c1f8d8370fc3d70f3f02b4c63008bb2586d507ddb88d68cea7d";
+const EIP1559_AL_SIGNATURE: &str = "02f90141010881e285faac6c45d88210be943535353535353535353535353535353535353535833542398a200184c0486d5f082a27f8cbd694019fda53b3198867b8aae65320c9c55d74de1938c0f7941b976cdbc43cfcbeaad2623c95523981ea1e664ae1a0d259410e74fa5c0227f688cc1f79b4d2bee3e9b7342c4c61342e8906a63406a2f87a94f1946eba70f89687d67493d8106f56c90ecba943f863a0b3838dedffc33c62f8abfc590b41717a6dd70c3cab5a6900efae846d9060a2b9a06a6c4d1ab264204fb2cdd7f55307ca3a0040855aa9c4a749a605a02b43374b82a00c38e901d0d95fbf8f05157c68a89393a86aa1e821279e4cce78f827dccb206480a0d95cb4d82912b2fed0510dd44cce5c0b177af6e7ed991f1dbe5b8e34303bf84ca04e0896caf07d9644e2728d919a84f7af46cb2421a0ce7bb814cce782d921e672";
+
+// Helpers -----------------------------------------------------------------
+
+fn make_sign_param(wallet_id: &str, path: &str, eth_tx_input: EthTxInput) -> SignParam {
+    SignParam {
+        id: wallet_id.to_string(),
+        chain_type: "ETHEREUM".to_string(),
+        path: path.to_string(),
+        curve: "secp256k1".to_string(),
+        network: "".to_string(),
+        seg_wit: "".to_string(),
+        input: Some(::prost_types::Any {
+            type_url: "imtoken".to_string(),
+            value: encode_message(eth_tx_input).unwrap(),
+        }),
+        key: Some(sign_param::Key::Password(TEST_PASSWORD.to_string())),
+    }
+}
+
+fn make_batch_item(eth_tx_input: EthTxInput, per_item_path: &str) -> EthBatchSignTxItem {
+    EthBatchSignTxItem {
+        input: encode_message(eth_tx_input).unwrap(),
+        path: per_item_path.to_string(),
+    }
+}
+
+#[test]
+#[serial]
+pub fn test_eth_batch_sign_tx_basic() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        // Pack the three known-good single-tx fixtures into one batch and
+        // assert each per-item output equals the historical signature/hash
+        // produced by the single sign_tx path. This is the strongest
+        // possible end-to-end check: it pins batch output to values that
+        // were already validated against the on-chain canonical encoding
+        // by the existing `test_sign_ethereum_*` tests.
+        let param = EthBatchSignTxParam {
+            id: wallet.id.to_string(),
+            key: Some(eth_batch_sign_tx_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+            chain_type: "ETHEREUM".to_string(),
+            path: ETH_BATCH_PATH.to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items: vec![
+                make_batch_item(legacy_eth_tx_input(), ""),
+                make_batch_item(eip1559_eth_tx_input(), ""),
+                make_batch_item(eip1559_with_access_list_eth_tx_input(), ""),
+            ],
+        };
+        let batch_ret = call_api("eth_batch_sign_tx", param).unwrap();
+        let batch_result = EthBatchSignTxResult::decode(batch_ret.as_slice()).unwrap();
+
+        assert_eq!(batch_result.outputs.len(), 3);
+        assert_eq!(batch_result.outputs[0].tx_hash, LEGACY_TX_HASH);
+        assert_eq!(batch_result.outputs[0].signature, LEGACY_SIGNATURE);
+        assert_eq!(batch_result.outputs[1].tx_hash, EIP1559_TX_HASH);
+        assert_eq!(batch_result.outputs[1].signature, EIP1559_SIGNATURE);
+        assert_eq!(batch_result.outputs[2].tx_hash, EIP1559_AL_TX_HASH);
+        assert_eq!(batch_result.outputs[2].signature, EIP1559_AL_SIGNATURE);
+
+        remove_created_wallet(&wallet.id);
+    });
+}
+
+#[test]
+#[serial]
+pub fn test_eth_batch_sign_tx_per_item_path() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+        let path1 = "m/44'/60'/0'/0/1";
+        let path2 = "m/44'/60'/0'/0/2";
+
+        // Use the known-good legacy fixture as input for all three items;
+        // only the *effective derivation path* changes per item. Item 0
+        // inherits the outer path → must reproduce the on-chain canonical
+        // legacy signature; items 1 and 2 use per-item paths → cross-check
+        // against the single sign_tx output at the same path.
+        let tx = legacy_eth_tx_input();
+
+        let single_path1: EthTxOutput = EthTxOutput::decode(
+            call_api("sign_tx", make_sign_param(&wallet.id, path1, tx.clone()))
+                .unwrap()
+                .as_slice(),
+        )
+        .unwrap();
+        let single_path2: EthTxOutput = EthTxOutput::decode(
+            call_api("sign_tx", make_sign_param(&wallet.id, path2, tx.clone()))
+                .unwrap()
+                .as_slice(),
+        )
+        .unwrap();
+
+        let param = EthBatchSignTxParam {
+            id: wallet.id.to_string(),
+            key: Some(eth_batch_sign_tx_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+            chain_type: "ETHEREUM".to_string(),
+            path: ETH_BATCH_PATH.to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items: vec![
+                // empty path -> inherit outer ETH_BATCH_PATH
+                make_batch_item(tx.clone(), ""),
+                // explicit per-item path overrides the outer default
+                make_batch_item(tx.clone(), path1),
+                make_batch_item(tx, path2),
+            ],
+        };
+        let batch_ret = call_api("eth_batch_sign_tx", param).unwrap();
+        let batch_result = EthBatchSignTxResult::decode(batch_ret.as_slice()).unwrap();
+
+        assert_eq!(batch_result.outputs.len(), 3);
+
+        // Item 0 (inherited outer path) must hit the canonical legacy fixture.
+        assert_eq!(batch_result.outputs[0].tx_hash, LEGACY_TX_HASH);
+        assert_eq!(batch_result.outputs[0].signature, LEGACY_SIGNATURE);
+
+        // Items 1 and 2 (explicit per-item paths) must equal the single
+        // sign_tx output at the same path — proving the override actually
+        // routed through to keystore.sign_transaction.
+        assert_eq!(batch_result.outputs[1].tx_hash, single_path1.tx_hash);
+        assert_eq!(batch_result.outputs[1].signature, single_path1.signature);
+        assert_eq!(batch_result.outputs[2].tx_hash, single_path2.tx_hash);
+        assert_eq!(batch_result.outputs[2].signature, single_path2.signature);
+
+        // Distinct paths must yield distinct signed transactions even when
+        // the EthTxInput payload is identical.
+        assert_ne!(batch_result.outputs[0].tx_hash, batch_result.outputs[1].tx_hash);
+        assert_ne!(batch_result.outputs[1].tx_hash, batch_result.outputs[2].tx_hash);
+        assert_ne!(batch_result.outputs[0].tx_hash, batch_result.outputs[2].tx_hash);
+
+        remove_created_wallet(&wallet.id);
+    });
+}
+
+#[test]
+#[serial]
+pub fn test_eth_batch_sign_tx_empty_rejected() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let param = EthBatchSignTxParam {
+            id: wallet.id.to_string(),
+            key: Some(eth_batch_sign_tx_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+            chain_type: "ETHEREUM".to_string(),
+            path: "m/44'/60'/0'/0/0".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items: vec![],
+        };
+        let err = call_api("eth_batch_sign_tx", param)
+            .expect_err("empty batch must be rejected");
+        assert!(
+            err.to_string().contains("batch is empty"),
+            "expected empty-batch error, got: {err}"
+        );
+
+        remove_created_wallet(&wallet.id);
+    });
+}
+
+#[test]
+#[serial]
+pub fn test_eth_batch_sign_tx_size_limit_rejected() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        // 2049 items > ETH_MAX_BATCH_SIZE (2048). Use the same fixture for
+        // every slot — the handler must reject before doing any signing work,
+        // so encoding cost is what dominates here.
+        let item = make_batch_item(legacy_eth_tx_input(), "");
+        let items = vec![item; 2049];
+
+        let param = EthBatchSignTxParam {
+            id: wallet.id.to_string(),
+            key: Some(eth_batch_sign_tx_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+            chain_type: "ETHEREUM".to_string(),
+            path: "m/44'/60'/0'/0/0".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items,
+        };
+        let err = call_api("eth_batch_sign_tx", param)
+            .expect_err("over-limit batch must be rejected");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("exceeds max size of 2048"),
+            "expected size-limit error mentioning 2048, got: {msg}"
+        );
+
+        remove_created_wallet(&wallet.id);
+    });
+}
+
+#[test]
+#[serial]
+pub fn test_eth_batch_sign_tx_aborts_on_bad_to_with_index() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let mut bad = legacy_eth_tx_input();
+        // Non-hex `to` makes the per-item Transaction::try_from fail; the
+        // handler must propagate the wrapped error and not return any
+        // partial signature.
+        bad.to = "0xZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ".to_string();
+
+        let param = EthBatchSignTxParam {
+            id: wallet.id.to_string(),
+            key: Some(eth_batch_sign_tx_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+            chain_type: "ETHEREUM".to_string(),
+            path: ETH_BATCH_PATH.to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items: vec![
+                make_batch_item(legacy_eth_tx_input(), ""),
+                make_batch_item(bad, ""),
+            ],
+        };
+        let err = call_api("eth_batch_sign_tx", param)
+            .expect_err("bad `to` must abort the batch");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("eth_batch_sign_tx failed at index 1"),
+            "expected failing-index error, got: {msg}"
+        );
+
+        remove_created_wallet(&wallet.id);
+    });
+}
+
+#[test]
+#[serial]
+pub fn test_eth_batch_sign_tx_wrong_password_rejected() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let param = EthBatchSignTxParam {
+            id: wallet.id.to_string(),
+            key: Some(eth_batch_sign_tx_param::Key::Password(
+                "this_is_definitely_not_the_test_password".to_string(),
+            )),
+            chain_type: "ETHEREUM".to_string(),
+            path: ETH_BATCH_PATH.to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items: vec![make_batch_item(legacy_eth_tx_input(), "")],
+        };
+        let err = call_api("eth_batch_sign_tx", param)
+            .expect_err("wrong password must reject the batch");
+        // Same authentication error string the single sign_tx returns.
+        assert!(
+            !err.to_string().is_empty(),
+            "expected an authentication error, got empty"
+        );
+
+        remove_created_wallet(&wallet.id);
+    });
 }

@@ -43,7 +43,10 @@ use crate::api::{
     SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
     SignHashesResult, WalletKeyParam,
 };
-use crate::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult};
+use crate::api::{
+    eth_batch_sign_tx_result, EthBatchPersonalSignParam, EthBatchPersonalSignResult,
+    EthBatchSignTxParam, EthBatchSignTxResult,
+};
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
 use crate::filemanager::{
@@ -63,7 +66,10 @@ use tcx_constants::coin_info::coin_info_from_param;
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::KDF_ROUNDS;
-use tcx_eth::signer::batch_personal_sign;
+use tcx_eth::signer::{
+    batch_personal_sign, batch_sign_transaction, BatchSignTxItem, ETH_MAX_BATCH_SIZE,
+};
+use tcx_eth::transaction::EthTxInput;
 use tcx_keystore::{MessageSigner, TransactionSigner};
 
 use tcx_primitive::Ss58Codec;
@@ -1689,6 +1695,68 @@ pub(crate) fn eth_batch_personal_sign(data: &[u8]) -> Result<Vec<u8>> {
     let signatures = batch_personal_sign(keystore.keystore_mut(), param.data, &param.path)?;
 
     encode_message(EthBatchPersonalSignResult { signatures })
+}
+
+impl_to_key!(crate::api::eth_batch_sign_tx_param::Key);
+pub(crate) fn eth_batch_sign_tx(data: &[u8]) -> Result<Vec<u8>> {
+    let param: EthBatchSignTxParam = EthBatchSignTxParam::decode(data)?;
+
+    if param.items.is_empty() {
+        return Err(anyhow!("eth_batch_sign_tx batch is empty"));
+    }
+    if param.items.len() > ETH_MAX_BATCH_SIZE {
+        return Err(anyhow!(
+            "eth_batch_sign_tx batch exceeds max size of {}",
+            ETH_MAX_BATCH_SIZE
+        ));
+    }
+
+    let mut items: Vec<BatchSignTxItem> = Vec::with_capacity(param.items.len());
+    for (index, raw) in param.items.iter().enumerate() {
+        let input = EthTxInput::decode(raw.input.as_slice()).map_err(|err| {
+            anyhow!(
+                "eth_batch_sign_tx failed at index {}: invalid EthTxInput: {}",
+                index,
+                err
+            )
+        })?;
+        let effective_path = if raw.path.is_empty() {
+            param.path.clone()
+        } else {
+            raw.path.clone()
+        };
+        items.push(BatchSignTxItem {
+            input,
+            path: effective_path,
+        });
+    }
+
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
+    }?;
+
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
+
+    let signed = batch_sign_transaction(guard.keystore_mut(), &items)?;
+
+    let outputs = signed
+        .into_iter()
+        .map(|out| eth_batch_sign_tx_result::Output {
+            signature: out.signature,
+            tx_hash: out.tx_hash,
+        })
+        .collect();
+
+    encode_message(EthBatchSignTxResult { outputs })
 }
 
 pub(crate) fn private_key_to_account_dynamic(

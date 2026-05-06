@@ -145,3 +145,40 @@ message EthBatchPersonalSignResult {
     repeated string signatures = 1;
 }
 
+// FUNCTION: eth_batch_sign_tx(EthBatchSignTxParam): EthBatchSignTxResult
+//
+// Sign a batch of Ethereum transactions in a single SDK call. The keystore is
+// unlocked exactly once for the whole batch. Up to ETH_MAX_BATCH_SIZE (2048)
+// items per call. All-or-nothing: any per-item failure aborts the batch and
+// returns an error of the form "eth_batch_sign_tx failed at index {i}: {source}".
+message EthBatchSignTxParam {
+    string id = 1;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
+    string chainType = 4;            // must be "ETHEREUM"
+    string path = 5;                 // outer default HD derivation path
+    string network = 6;
+    string segWit = 7;
+    repeated EthBatchSignTxItem items = 8;
+}
+
+message EthBatchSignTxItem {
+    // Prost-encoded transaction.EthTxInput. Hosts encode an EthTxInput
+    // (defined in eth.proto) and place the bytes here.
+    bytes input = 1;
+    // Optional per-item HD derivation path; empty string means inherit
+    // EthBatchSignTxParam.path.
+    string path = 2;
+}
+
+message EthBatchSignTxResult {
+    message Output {
+        string signature = 1;
+        string txHash = 2;
+    }
+    // One Output per input, in input order.
+    repeated Output outputs = 1;
+}
+
