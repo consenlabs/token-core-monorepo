@@ -1,0 +1,52 @@
+name: TCX CLI — Quality Checks
+
+on:
+  pull_request:
+    paths:
+      - "token-core/tcx-examples/cli/**"
+  push:
+    branches: ["main"]
+    paths:
+      - "token-core/tcx-examples/cli/**"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: token-core/tcx-examples/cli
+
+jobs:
+  quality:
+    name: Quality Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: token-core/tcx-examples/cli/package-lock.json
+
+      - name: Install dependencies from lockfile
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm run test:unit
+
+      - name: CLI integration tests
+        run: npm run test:cli
+
+      - name: Chain compatibility smoke tests
+        run: npm run test:smoke:chains
+
+      - name: UI build
+        run: npm run build:ui
