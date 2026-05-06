@@ -24,11 +24,11 @@ use std::result;
 use crate::error_handling::{landingpad, LAST_ERROR};
 use crate::handler::{
     create_keystore, decrypt_data_from_ipfs, delete_keystore, derive_accounts, derive_sub_accounts,
-    encode_message, encrypt_data_to_ipfs, eth_batch_personal_sign, exists_json, exists_mnemonic,
-    exists_private_key, export_json, export_mnemonic, export_private_key, get_derived_key,
-    get_extended_public_keys, get_public_keys, import_json, import_mnemonic, import_private_key,
-    mnemonic_to_public, scan_keystores, sign_authentication_message, sign_hashes, sign_message,
-    sign_psbt, sign_psbts, sign_tx, unlock_then_crash, verify_password,
+    encode_message, encrypt_data_to_ipfs, eth_batch_personal_sign, eth_batch_sign_tx, exists_json,
+    exists_mnemonic, exists_private_key, export_json, export_mnemonic, export_private_key,
+    get_derived_key, get_extended_public_keys, get_public_keys, import_json, import_mnemonic,
+    import_private_key, mnemonic_to_public, scan_keystores, sign_authentication_message,
+    sign_hashes, sign_message, sign_psbt, sign_psbts, sign_tx, unlock_then_crash, verify_password,
 };
 use crate::migration::{migrate_keystore, scan_legacy_keystores};
 
@@ -131,6 +131,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "eth_batch_personal_sign" => {
             landingpad(|| eth_batch_personal_sign(&action.param.unwrap().value))
         }
+        "eth_batch_sign_tx" => landingpad(|| eth_batch_sign_tx(&action.param.unwrap().value)),
         "mark_identity_wallets" => {
             landingpad(|| mark_identity_wallets(&action.param.unwrap().value))
         }

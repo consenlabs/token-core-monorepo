@@ -5,10 +5,19 @@ use crate::transaction::{
 };
 use crate::transaction_types::{Signature, Transaction, TransactionType};
 use crate::Result;
+use anyhow::anyhow;
 use ethereum_types::{Address, H256};
 use std::str::FromStr;
 use tcx_common::{keccak256, parse_u256, parse_u64, utf8_or_hex_to_bytes, FromHex, Hash256, ToHex};
+use tcx_constants::CurveType;
 use tcx_keystore::{Keystore, MessageSigner, SignatureParameters, Signer, TransactionSigner};
+
+/// Maximum number of transactions accepted by a single `eth_batch_sign_tx` call
+/// in token-core. The bound is enforced by the handler before unlocking the
+/// keystore, so an over-sized batch never charges an unlock or any signing work.
+/// See `openspec/changes/add-eth-batch-tx-signing/specs/eth-batch-tx-signing/spec.md`
+/// requirement "不同引擎不同的批量上限" for the rationale.
+pub const ETH_MAX_BATCH_SIZE: usize = 2048;
 
 fn hash_message<T: AsRef<[u8]>>(message: T) -> Hash256 {
     const PREFIX: &str = "\x19Ethereum Signed Message:\n";
@@ -144,6 +153,53 @@ pub fn batch_personal_sign(
         signatures.push(signature.to_0x_hex());
     }
     Ok(signatures)
+}
+
+/// One item in a batch ETH transaction signing request.
+///
+/// `path` is the *effective* HD derivation path for this item — the handler is
+/// responsible for folding the per-item `path` and the outer default `path`
+/// before calling [`batch_sign_transaction`], so this function does not need to
+/// know about the outer default.
+#[derive(Clone, Debug)]
+pub struct BatchSignTxItem {
+    pub input: EthTxInput,
+    pub path: String,
+}
+
+/// Sign a batch of ETH transactions inside an already-unlocked keystore.
+///
+/// The keystore must be unlocked by the caller. Items are signed sequentially
+/// in input order; each per-item signature is byte-equivalent to calling the
+/// single-tx [`Keystore::sign_transaction`] with the same `EthTxInput` and the
+/// same effective derivation path.
+///
+/// Per-item failures are wrapped as
+/// `"eth_batch_sign_tx failed at index {i}: {source}"` and the entire batch
+/// aborts on the first error (no partial output is returned). The caller is
+/// responsible for enforcing [`ETH_MAX_BATCH_SIZE`] before invoking this
+/// function.
+pub fn batch_sign_transaction(
+    keystore: &mut Keystore,
+    items: &[BatchSignTxItem],
+) -> Result<Vec<EthTxOutput>> {
+    let mut outputs = Vec::with_capacity(items.len());
+    for (index, item) in items.iter().enumerate() {
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: item.path.clone(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        };
+        let output = keystore
+            .sign_transaction(&params, &item.input)
+            .map_err(|err| {
+                anyhow!("eth_batch_sign_tx failed at index {}: {}", index, err)
+            })?;
+        outputs.push(output);
+    }
+    Ok(outputs)
 }
 
 #[cfg(test)]
@@ -750,5 +806,205 @@ mod test {
         let result = batch_personal_sign(&mut keystore, test_data, "").unwrap();
         assert_eq!(result[0], "0x1be38ff0ab0e6d97cba73cf61421f0641628be8ee91dcb2f73315e7fdf4d0e2770b0cb3cc7350426798d43f0fb05602664a28bb2c9fcf46a07fa1c8c4e322ec01b".to_string());
         assert_eq!(result[1], "0xb12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b".to_string());
+    }
+
+    use crate::signer::{batch_sign_transaction, BatchSignTxItem, ETH_MAX_BATCH_SIZE};
+
+    fn legacy_eip155_input() -> EthTxInput {
+        EthTxInput {
+            nonce: "33738".to_string(),
+            gas_price: "5000000000".to_string(),
+            gas_limit: "50000".to_string(),
+            to: "0x6031564e7b2f5cc33737807b2e58daff870b590b".to_string(),
+            value: "607001513671985".to_string(),
+            data: "".to_string(),
+            chain_id: "42".to_string(),
+            tx_type: "00".to_string(),
+            max_fee_per_gas: "".to_string(),
+            max_priority_fee_per_gas: "".to_string(),
+            access_list: vec![],
+        }
+    }
+
+    fn eip1559_input() -> EthTxInput {
+        EthTxInput {
+            nonce: "549".to_string(),
+            gas_price: "".to_string(),
+            gas_limit: "21000".to_string(),
+            to: "0x03e2B0f5369297a2E7A13d6F8e6d4BFbB9cf7dC7".to_string(),
+            value: "500000000000000".to_string(),
+            data: "".to_string(),
+            chain_id: "42".to_string(),
+            tx_type: "02".to_string(),
+            max_fee_per_gas: "2000000000".to_string(),
+            max_priority_fee_per_gas: "2000000000".to_string(),
+            access_list: vec![],
+        }
+    }
+
+    fn eip1559_with_access_list_input() -> EthTxInput {
+        EthTxInput {
+            nonce: "4".to_string(),
+            gas_price: "".to_string(),
+            gas_limit: "54".to_string(),
+            to: "0xd5539a0e4d27ebf74515fc4acb38adcc3c513f25".to_string(),
+            value: "64".to_string(),
+            data: "0xf579eebd8a5295c6f9c86e".to_string(),
+            chain_id: "276".to_string(),
+            tx_type: "02".to_string(),
+            max_fee_per_gas: "963240322143".to_string(),
+            max_priority_fee_per_gas: "28710".to_string(),
+            access_list: vec![AccessList {
+                address: "0x70b361fc3a4001e4f8e4e946700272b51fe4f0c4".to_string(),
+                storage_keys: vec![
+                    "0x8419643489566e30b68ce5bc642e166f86e844454c99a03ed4a3d4a2b9a96f63".to_string(),
+                    "0x8a2a020581b8f3142a9751344796fb1681a8cde503b6662d43b8333f863fb4d3".to_string(),
+                    "0x897544db13bf6cd166ce52498d894fe6ce5a8d2096269628e7f971e818bf9ab9".to_string(),
+                ],
+            }],
+        }
+    }
+
+    fn default_signature_params() -> SignatureParameters {
+        SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: "m/44'/60'/0'/0/0".to_string(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_batch_sign_matches_single_call_legacy_and_eip1559() {
+        let mut keystore =
+            private_key_store("cce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2");
+
+        let inputs = vec![
+            legacy_eip155_input(),
+            eip1559_input(),
+            eip1559_with_access_list_input(),
+        ];
+        let params = default_signature_params();
+
+        let single_outputs: Vec<EthTxOutput> = inputs
+            .iter()
+            .map(|input| keystore.sign_transaction(&params, input).unwrap())
+            .collect();
+
+        let items: Vec<BatchSignTxItem> = inputs
+            .iter()
+            .map(|input| BatchSignTxItem {
+                input: input.clone(),
+                path: params.derivation_path.clone(),
+            })
+            .collect();
+        let batch_outputs = batch_sign_transaction(&mut keystore, &items).unwrap();
+
+        assert_eq!(single_outputs.len(), batch_outputs.len());
+        for (idx, (single, batch)) in single_outputs.iter().zip(batch_outputs.iter()).enumerate() {
+            assert_eq!(
+                single.signature, batch.signature,
+                "signature mismatch at index {}",
+                idx
+            );
+            assert_eq!(
+                single.tx_hash, batch.tx_hash,
+                "tx_hash mismatch at index {}",
+                idx
+            );
+        }
+    }
+
+    #[test]
+    fn test_batch_sign_per_item_path() {
+        let mut keystore =
+            Keystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, Metadata::default()).unwrap();
+        keystore.unlock_by_password(&TEST_PASSWORD).unwrap();
+
+        let path0 = "m/44'/60'/0'/0/0";
+        let path1 = "m/44'/60'/0'/0/1";
+        let path2 = "m/44'/60'/0'/0/2";
+
+        let input = legacy_eip155_input();
+
+        let mk_params = |p: &str| SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: p.to_string(),
+            chain_type: "ETHEREUM".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+        };
+
+        let single_at = |ks: &mut Keystore, p: &str| ks.sign_transaction(&mk_params(p), &input).unwrap();
+        let single0 = single_at(&mut keystore, path0);
+        let single1 = single_at(&mut keystore, path1);
+        let single2 = single_at(&mut keystore, path2);
+
+        let items = vec![
+            BatchSignTxItem {
+                input: input.clone(),
+                path: path0.to_string(),
+            },
+            BatchSignTxItem {
+                input: input.clone(),
+                path: path1.to_string(),
+            },
+            BatchSignTxItem {
+                input: input.clone(),
+                path: path2.to_string(),
+            },
+        ];
+        let batch = batch_sign_transaction(&mut keystore, &items).unwrap();
+
+        assert_eq!(batch.len(), 3);
+        assert_eq!(batch[0].signature, single0.signature);
+        assert_eq!(batch[0].tx_hash, single0.tx_hash);
+        assert_eq!(batch[1].signature, single1.signature);
+        assert_eq!(batch[1].tx_hash, single1.tx_hash);
+        assert_eq!(batch[2].signature, single2.signature);
+        assert_eq!(batch[2].tx_hash, single2.tx_hash);
+
+        // Different derivation paths must yield different signed transactions
+        // even when the input EthTxInput is identical.
+        assert_ne!(batch[0].tx_hash, batch[1].tx_hash);
+        assert_ne!(batch[1].tx_hash, batch[2].tx_hash);
+    }
+
+    #[test]
+    fn test_batch_sign_aborts_on_bad_to_with_index() {
+        let mut keystore =
+            private_key_store("cce64585e3b15a0e4ee601a467e050c9504a0db69a559d7ec416fa25ad3410c2");
+
+        let mut bad_input = legacy_eip155_input();
+        // Non-hex character makes from_hex_auto fail before any signing happens
+        // for this item, but the first item still has to succeed first.
+        bad_input.to = "0xZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ".to_string();
+
+        let items = vec![
+            BatchSignTxItem {
+                input: legacy_eip155_input(),
+                path: "m/44'/60'/0'/0/0".to_string(),
+            },
+            BatchSignTxItem {
+                input: bad_input,
+                path: "m/44'/60'/0'/0/0".to_string(),
+            },
+        ];
+
+        let err = batch_sign_transaction(&mut keystore, &items)
+            .err()
+            .expect("expected the batch to abort on bad `to`");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("eth_batch_sign_tx failed at index 1"),
+            "error message did not mention the failing index: {msg}"
+        );
+    }
+
+    #[test]
+    fn test_batch_sign_constant_is_2048() {
+        // Locks down the spec'd batch limit so accidental tweaks fail loudly.
+        assert_eq!(ETH_MAX_BATCH_SIZE, 2048);
     }
 }

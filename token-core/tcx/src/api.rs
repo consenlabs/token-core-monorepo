@@ -258,6 +258,73 @@ pub struct EthBatchPersonalSignResult {
     #[prost(string, repeated, tag = "1")]
     pub signatures: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
+/// FUNCTION: eth_batch_sign_tx(EthBatchSignTxParam): EthBatchSignTxResult
+///
+/// Sign a batch of Ethereum transactions in a single SDK call. The keystore is
+/// unlocked exactly once for the whole batch. Up to ETH_MAX_BATCH_SIZE (2048)
+/// items per call. All-or-nothing: any per-item failure aborts the batch and
+/// returns an error of the form "eth_batch_sign_tx failed at index {i}: {source}".
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EthBatchSignTxParam {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    /// must be "ETHEREUM"
+    #[prost(string, tag = "4")]
+    pub chain_type: ::prost::alloc::string::String,
+    /// outer default HD derivation path
+    #[prost(string, tag = "5")]
+    pub path: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub network: ::prost::alloc::string::String,
+    #[prost(string, tag = "7")]
+    pub seg_wit: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "8")]
+    pub items: ::prost::alloc::vec::Vec<EthBatchSignTxItem>,
+    #[prost(oneof = "eth_batch_sign_tx_param::Key", tags = "2, 3")]
+    pub key: ::core::option::Option<eth_batch_sign_tx_param::Key>,
+}
+/// Nested message and enum types in `EthBatchSignTxParam`.
+pub mod eth_batch_sign_tx_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "2")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "3")]
+        DerivedKey(::prost::alloc::string::String),
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EthBatchSignTxItem {
+    /// Prost-encoded transaction.EthTxInput. Hosts encode an EthTxInput
+    /// (defined in eth.proto) and place the bytes here.
+    #[prost(bytes = "vec", tag = "1")]
+    pub input: ::prost::alloc::vec::Vec<u8>,
+    /// Optional per-item HD derivation path; empty string means inherit
+    /// EthBatchSignTxParam.path.
+    #[prost(string, tag = "2")]
+    pub path: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EthBatchSignTxResult {
+    /// One Output per input, in input order.
+    #[prost(message, repeated, tag = "1")]
+    pub outputs: ::prost::alloc::vec::Vec<eth_batch_sign_tx_result::Output>,
+}
+/// Nested message and enum types in `EthBatchSignTxResult`.
+pub mod eth_batch_sign_tx_result {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct Output {
+        #[prost(string, tag = "1")]
+        pub signature: ::prost::alloc::string::String,
+        #[prost(string, tag = "2")]
+        pub tx_hash: ::prost::alloc::string::String,
+    }
+}
 /// FUNCTION: create_keystore(CreateKeystoreParam): KeystoreResult
 ///
 /// create a new hd keystore
