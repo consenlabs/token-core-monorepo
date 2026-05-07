@@ -2,11 +2,11 @@
 
 ### Requirement: ETH 交易批量签名入口
 
-两个签名引擎 SHALL 各自暴露一个 SDK 动作，接受任意 N 笔（其中 N ≥ 1）有序的 ETH 交易输入列表，并按相同顺序返回对应的已签名交易。N 的合法上界由各引擎的批量上限 Requirement 单独约束，不限定具体业务场景：N 既可以是少量（如 staking 流程的 prepay + stake 两笔、合约批量 approve 数笔），也可以是数十乃至上百笔（如批量空投、归集出账、dApp 一次性下发的多笔 meta-tx）。该动作 SHALL 在 `call_tcx_api`（token-core）与 `call_imkey_api`（imkey-core）中均命名为 `eth_batch_sign_tx`。
+两个签名引擎 SHALL 各自暴露一个 SDK 动作，接受任意 N 笔（其中 N ≥ 1）有序的 ETH 交易输入列表，并按相同顺序返回对应的已签名交易。N 的合法上界由各引擎的批量上限 Requirement 单独约束，不限定具体业务场景：N 既可以是少量（如 staking 流程的 prepay + stake 两笔、合约批量 approve 数笔），也可以是数十乃至上百笔（如批量空投、归集出账、dApp 一次性下发的多笔 meta-tx）。该动作 SHALL 在 `call_tcx_api`（token-core）与 `call_imkey_api`（imkey-core）中均命名为 `batch_sign_tx`。
 
 #### Scenario: token-core 在一次解锁内完成 N 笔批量签名
 
-- **WHEN** host 通过 `call_tcx_api` 以 `eth_batch_sign_tx` 方法发送一个包含合法 keystore `id`、`password`（或 `derivedKey`）、外层 HD `path`、`chainType` 为 `ETHEREUM`、以及 N 个 `EthBatchSignTxItem`（N 取自 `{1, 2, 50, 256, 2048}` 这一组覆盖少量 / 中量 / 上限的代表值；item.path 均为空；item 内交易的 `tx_type` 可同可不同，例如混合 legacy 与 EIP-1559）的请求
+- **WHEN** host 通过 `call_tcx_api` 以 `batch_sign_tx` 方法发送一个包含合法 keystore `id`、`password`（或 `derivedKey`）、外层 HD `path`、`chainType` 为 `ETHEREUM`、以及 N 个 `EthBatchSignTxItem`（N 取自 `{1, 2, 50, 256, 2048}` 这一组覆盖少量 / 中量 / 上限的代表值；item.path 均为空；item 内交易的 `tx_type` 可同可不同，例如混合 legacy 与 EIP-1559）的请求
 - **THEN** 响应 SHALL 按相同顺序包含恰好 N 个 `EthTxOutput`，每个 `signature` 解码后为有效的已签名以太坊交易，每个 `tx_hash` 与该交易规范编码的 keccak256 一致
 - **AND** keystore SHALL 在整批执行过程中至多解锁一次
 
@@ -19,13 +19,13 @@
 
 #### Scenario: imkey-core 通过对每个 item 复用单笔 sign 流程完成 N 笔批量签名
 
-- **WHEN** host 通过 `call_imkey_api` 以 `eth_batch_sign_tx` 方法发送一个包含 `chainType` 为 `ETHEREUM`、外层 `SignParam.path`、以及 N 个 `EthBatchTxItem`（N 取自 `{1, 2, 10, 50, 100}` 这一组覆盖少量到上限的代表值）的请求，且每笔交易随附其 `payment`、`receiver`、`sender`、`fee` 显示字符串
+- **WHEN** host 通过 `call_imkey_api` 以 `batch_sign_tx` 方法发送一个包含 `chainType` 为 `ETHEREUM`、外层 `SignParam.path`、以及 N 个 `EthBatchTxItem`（N 取自 `{1, 2, 10, 50, 100}` 这一组覆盖少量到上限的代表值）的请求，且每笔交易随附其 `payment`、`receiver`、`sender`、`fee` 显示字符串
 - **THEN** 响应 SHALL 按输入顺序包含恰好 N 个 `EthTxOutput`，其 `signature` 解码后为有效的已签名以太坊交易、`tx_hash` 与该交易的规范哈希一致
 - **AND** 对每个 item，批量动作的执行 SHALL 等价于以该 item 的有效 path（item.path 非空时优先；否则回落到外层 `SignParam.path`）与该 item 的 `payment` / `receiver` / `sender` / `fee` 调用一次现有单笔 `sign_tx`：完整的 `select_applet` / `prepare_sign` / `get_xpub` / 地址校验 / `sign_digest` / 用户在设备屏上的物理确认 SHALL 对每笔输入交易各发生一次（不假设固件改造，不在批量层做任何 device-session 优化）
 
 #### Scenario: imkey-core 批量每笔输出与单笔 sign_tx 在相同上下文下逐字节相同
 
-- **WHEN** 用 `eth_batch_sign_tx` 对一个含 N 个 item 的请求成功完成签名
+- **WHEN** 用 `batch_sign_tx` 对一个含 N 个 item 的请求成功完成签名
 - **AND** 在相同设备绑定、相同 ETH applet 状态、相同 path 与显示字符串下分别对每个 item 调用一次现有单笔 `sign_tx`
 - **THEN** 两条路径在每个下标位置上得到的 `EthTxOutput.signature` 与 `EthTxOutput.tx_hash` SHALL 完全相等
 
@@ -35,7 +35,7 @@
 
 #### Scenario: legacy 与 EIP-1559 混合批量与逐笔调用结果一致
 
-- **WHEN** 通过 `eth_batch_sign_tx` 对 `[legacy_tx, eip1559_tx]` 进行批量签名
+- **WHEN** 通过 `batch_sign_tx` 对 `[legacy_tx, eip1559_tx]` 进行批量签名
 - **AND** 在相同 keystore、相同密码、相同派生路径下分别用 `sign_tx` 各签一次
 - **THEN** 两条路径在每个下标位置上得到的 `signature` 与 `tx_hash` SHALL 完全相等
 
@@ -68,7 +68,7 @@
 
 ### Requirement: 全成功或全失败的原子语义与错误下标
 
-批量动作 SHALL 采用 all-or-nothing 语义。若任意一笔输入在校验、派生或签名阶段失败，该动作 SHALL 中止整批、不返回任何部分签名结果，并通过与 `sign_tx` / `eth_batch_personal_sign` 相同的字符串错误返回路径抛出错误。该错误信息 SHALL 形如 `"eth_batch_sign_tx failed at index {i}: {source}"`，其中 `{i}` 为失败 item 的零基下标，`{source}` 为底层错误原文。
+批量动作 SHALL 采用 all-or-nothing 语义。若任意一笔输入在校验、派生或签名阶段失败，该动作 SHALL 中止整批、不返回任何部分签名结果，并通过与 `sign_tx` / `eth_batch_personal_sign` 相同的字符串错误返回路径抛出错误。该错误信息 SHALL 形如 `"batch_sign_tx failed at index {i}: {source}"`，其中 `{i}` 为失败 item 的零基下标，`{source}` 为底层错误原文。
 
 #### Scenario: 非法 `to` 导致整批中止
 
@@ -113,7 +113,7 @@ token-core 批量动作 SHALL 接受与现有单笔 `sign_tx` 和 `eth_batch_per
 
 #### Scenario: 未绑定的 imKey 拒绝批量
 
-- **WHEN** 在设备未绑定的状态下调用 imkey-core 的 `eth_batch_sign_tx`
+- **WHEN** 在设备未绑定的状态下调用 imkey-core 的 `batch_sign_tx`
 - **THEN** 该动作 SHALL 返回与单笔 `sign_tx` 相同的设备绑定错误
 
 ### Requirement: imKey 每笔 payment/receiver/sender/fee 由 host 提供

@@ -38,7 +38,9 @@ message EthMessageOutput {
 // Batch ETH transaction signing.
 //
 // `EthBatchTxInput` is the body wrapped in `SignParam.input` for the
-// `eth_batch_sign_tx` action: a single FFI call signs N ETH transactions,
+// `batch_sign_tx` action (chain-neutral name; the dispatcher uses
+// `SignParam.chain_type == "ETHEREUM"` to route here): a single FFI call
+// signs N ETH transactions,
 // each item carrying its own per-tx display strings (payment / receiver /
 // fee), expected sender for address verification, and an optional path
 // override (empty string falls back to the outer `SignParam.path`).
