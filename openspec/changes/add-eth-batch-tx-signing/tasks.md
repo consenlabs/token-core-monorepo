@@ -16,12 +16,19 @@
 
 ## 3. imkey-core (ikc) 实现
 
-- [ ] 3.1 在 `imkey-core/ikc-wallet/coin-ethereum/src/transaction.rs` 新增 `pub fn batch_sign(items: &[EthBatchTxItem], default_path: &str, chain_id: Option<u64>) -> EthResult<Vec<EthTxOutput>>`。重构 `Transaction::sign` 内部，让逐笔工作（折叠有效 path → TLV 打包 → `prepare_sign` → `get_xpub` 校验 sender → `sign_digest` → 拼装）成为可复用的 helper（建议命名 `sign_one_in_batch`）。
-- [ ] 3.2 在 `batch_sign` 中对整批只调一次 `EthApdu::select_applet()`；用一个 `Option<(String, String)>`（path → checksummed address）做缓存：连续多笔使用同一有效 path 时复用上一次 `get_xpub` 结果，不同时则重新派生。每个 item 都断言 `address_checksummed == item.sender`（大小写不敏感比较）。
-- [ ] 3.3 在新函数旁定义 `pub const ETH_MAX_BATCH_SIZE: usize = 10;`。
-- [ ] 3.4 在 `imkey-core/ikc/src/ethereum_signer.rs` 新增 `pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>>`，结构对齐 `sign_eth_transaction`（`imkey-core/ikc/src/ethereum_signer.rs:14`）。解码 `EthBatchTxInput`，校验大小、空批量、每个 item.path（非空时）的 BIP-32 合法性、每个 item.sender 非空，构建逐笔 `Transaction`，调用 `Transaction::batch_sign(items, &sign_param.path, chain_id)`，编码 `EthBatchTxOutput`。
-- [ ] 3.5 把每笔错误用 `"eth_batch_sign_tx failed at index {i}: {source}"` 包裹。
-- [ ] 3.6 在 `imkey-core/ikc/src/lib.rs` 紧邻 `"sign_tx"` 处注册 dispatcher 分支 `"eth_batch_sign_tx"`：解码 `SignParam`，要求 `chain_type == "ETHEREUM"`，否则返回 `Err(anyhow!("eth_batch_sign_tx unsupported_chain"))`，然后调用 `ethereum_signer::sign_eth_batch_transaction`。
+核心约束：**`imkey-core/ikc-wallet/coin-ethereum/src/transaction.rs` 不动**——单笔 `Transaction::sign` 不重构、不抽 helper、不新增 `batch_sign`。批量层是 `imkey-core/ikc/src/ethereum_signer.rs` 内的薄循环，每笔 item 直接调用现有单笔 `Transaction::sign`，确保单笔路径零回归、所有现有用例无需重新校准。
+
+- [ ] 3.1 在 `imkey-core/ikc/src/ethereum_signer.rs` 顶部定义 `pub const ETH_MAX_BATCH_SIZE: usize = 100;`。
+- [ ] 3.2（可选重构，不修改语义）把现有 `sign_eth_transaction` 内部把 `EthTxInput` 解析为 `Transaction` + `chain_id` 的逻辑（`imkey-core/ikc/src/ethereum_signer.rs:14-89`）抽成私有 helper `fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)>`，让单笔与批量两条路径共用同一段解析。`sign_eth_transaction` 改为 `let (eth_tx, chain_id) = build_eth_transaction(&input)?; eth_tx.sign(Some(chain_id), ...)`，行为完全不变。
+- [ ] 3.3 在 `imkey-core/ikc/src/ethereum_signer.rs` 新增 `pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>>`：
+  1. 解码 `EthBatchTxInput`；做整批前置校验：`items.is_empty()` / `items.len() <= ETH_MAX_BATCH_SIZE` / 外层 `sign_param.path` 与每个 item.path（非空时）的 BIP-32 合法性（`check_path_validity`）/ 每个 item.sender 非空。任一失败 SHALL 在触达设备会话之前以 `"eth_batch_sign_tx failed at index {i}: {source}"` 形式返回（整批级失败下标可置 0 或省略下标）。
+  2. 顺序遍历 items，对每个 item：
+     - 折叠出有效 path：`if item.path.is_empty() { sign_param.path } else { item.path }`。
+     - 调用 `build_eth_transaction(&item.tx)?` 得到 `(eth_tx, chain_id)`。
+     - 直接调用现有 `eth_tx.sign(Some(chain_id), &effective_path, &item.payment, &item.receiver, &item.sender, &item.fee)?` 拿到 `EthTxOutput`。
+     - 把 `Result::Err` 用 `"eth_batch_sign_tx failed at index {i}: {source}"` 包装后短路返回，**不**返回任何部分结果。
+  3. 把所有 outputs 装进 `EthBatchTxOutput { outputs }` 并 `encode_message` 返回。
+- [ ] 3.4 在 `imkey-core/ikc/src/lib.rs` 紧邻 `"sign_tx"` 处注册 dispatcher 分支 `"eth_batch_sign_tx"`：解码 `SignParam`，**不做 `chain_type` 分支匹配**——动作名本身已锁定为 ETH（单币种入口，与 `sign_tx` 的多币种 dispatch 不同）；直接调用 `ethereum_signer::sign_eth_batch_transaction(&sign_param.input.as_ref().unwrap().value, &sign_param)`。host 若误将非 ETH `chain_type` 传入，由内层的 `Transaction::sign` 统一拒绝，避免在 dispatcher 维护一份重复的 ETH-only 白名单。
 
 ## 4. 测试
 
@@ -37,13 +44,18 @@
   - 共享 path 的 prepay + stake 组合；
   - per-item path 的跨地址批量；
   - 错误密码反例。
-- [ ] 4.3 在 `imkey-core/ikc/src/ethereum_signer.rs` 添加由 `bind_test()` 守护的测试，复用既有 fixture（`test_sign_eth_transaction_eip1559`、`..._legacy`、`..._multi_access_list`）封装为批量，断言每个 item 的输出与单笔一致；并加 1 个 11 笔批量被拒的反例。
-- [ ] 4.4 抽出非 APDU 的辅助函数（例如 `Transaction::pack_apdu_payload`），增加一个不依赖绑定设备就能跑的单元测试，覆盖批量场景下的 TLV / RLP 打包逻辑（含 per-item 不同 `payment` / `receiver` / `fee` 字符串）。
+- [ ] 4.3 在 `imkey-core/ikc/src/ethereum_signer.rs` 添加由 `bind_test()` 守护的批量端到端测试：复用现有 fixture（`test_sign_eth_transaction_eip1559`、`..._legacy`、`..._multi_access_list`）作为 item，分别构造 N=1 / N=2 / N=3（混合 legacy + EIP-1559 + access-list）的批量请求；对每个 item 同时跑一次现有单笔 `sign_eth_transaction`，断言批量 `outputs[i]` 与单笔输出 `signature` / `tx_hash` 逐字节相同。
+- [ ] 4.4 在 `imkey-core/ikc/src/ethereum_signer.rs` 添加无设备依赖的批量 wrapper 单测（不需要 `bind_test()`，因为以下分支都在 `select_applet` 之前返回）：
+  - 空批量：`items` 为空时返回错误，错误信息匹配 `invalid_param`。
+  - 超限批量：101 笔（哑数据即可）时返回错误，错误信息含上限 100。
+  - 非法 item.path：某个 item 的 path 不符合 BIP-32 时整批被拒，错误信息含 `failed at index N`。
+  - 缺失 tx 字段：item.tx 为 `None` 时整批被拒，错误信息含失败下标。
+  - sender 为空：item.sender 为空字符串时整批被拒（与单笔 `sign_tx` 在该字段缺失时的行为对齐），错误信息含失败下标。
 
 ## 5. 文档
 
 - [ ] 5.1 更新 `token-core/tcx-docs`（markdown / mdbook）：新动作的请求/响应、共享 path 与 per-item path 用法、批量上限 2048、错误格式（`"eth_batch_sign_tx failed at index {i}: {source}"`），以及 stake 流程的完整调用样例。
-- [ ] 5.2 同步更新 `imkey-core/ikc-docs`：新动作的请求/响应、`EthBatchTxItem` 中 `payment` / `receiver` / `sender` / `fee` 由 host 提供的契约、共享 path 与 per-item path 用法、批量上限 10，并明确注明本次变更不修改固件——imKey 设备仍要求逐笔确认。
+- [ ] 5.2 同步更新 `imkey-core/ikc-docs`：新动作的请求/响应、`EthBatchTxItem` 中 `payment` / `receiver` / `sender` / `fee` 由 host 提供的契约、共享 path 与 per-item path 用法、批量上限 100，并明确注明本次变更不修改固件——imKey 设备仍要求逐笔在物理键上确认（host UX 应据此提示用户准备按 N 次确认，并自行评估业务可接受的最大笔数）。
 - [ ] 5.3 在既有 `eth_batch_personal_sign` 文档段落处交叉链接到新动作，便于调用方一并发现两类批量入口。
 
 ## 6. 校验与签收

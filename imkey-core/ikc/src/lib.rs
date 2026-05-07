@@ -232,6 +232,15 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
             }
         }),
 
+        "eth_batch_sign_tx" => landingpad(|| {
+            let param: SignParam = SignParam::decode(action.param.unwrap().value.as_slice())
+                .expect("eth_batch_sign_tx unpack error");
+            ethereum_signer::sign_eth_batch_transaction(
+                &param.clone().input.unwrap().value,
+                &param,
+            )
+        }),
+
         "sign_message" => landingpad(|| {
             let param: SignParam = SignParam::decode(action.param.unwrap().value.as_slice())
                 .expect("unpack sign_message param error");

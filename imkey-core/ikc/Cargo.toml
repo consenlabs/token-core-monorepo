@@ -39,7 +39,8 @@ parking_lot = "=0.12.1"
 
 [lib]
 name="connector"
-crate-type=["staticlib","cdylib"]
+crate-type=["staticlib","cdylib","rlib"]
+
 #
 #[target.aarch64-linux-android.dependencies]
 #openssl = { version = "*", features = ["vendored"] }
