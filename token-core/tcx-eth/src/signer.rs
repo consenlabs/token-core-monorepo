@@ -12,7 +12,7 @@ use tcx_common::{keccak256, parse_u256, parse_u64, utf8_or_hex_to_bytes, FromHex
 use tcx_constants::CurveType;
 use tcx_keystore::{Keystore, MessageSigner, SignatureParameters, Signer, TransactionSigner};
 
-/// Maximum number of transactions accepted by a single `eth_batch_sign_tx` call
+/// Maximum number of transactions accepted by a single `batch_sign_tx` call
 /// in token-core. The bound is enforced by the handler before unlocking the
 /// keystore, so an over-sized batch never charges an unlock or any signing work.
 /// See `openspec/changes/add-eth-batch-tx-signing/specs/eth-batch-tx-signing/spec.md`
@@ -175,7 +175,7 @@ pub struct BatchSignTxItem {
 /// same effective derivation path.
 ///
 /// Per-item failures are wrapped as
-/// `"eth_batch_sign_tx failed at index {i}: {source}"` and the entire batch
+/// `"batch_sign_tx failed at index {i}: {source}"` and the entire batch
 /// aborts on the first error (no partial output is returned). The caller is
 /// responsible for enforcing [`ETH_MAX_BATCH_SIZE`] before invoking this
 /// function.
@@ -195,7 +195,7 @@ pub fn batch_sign_transaction(
         let output = keystore
             .sign_transaction(&params, &item.input)
             .map_err(|err| {
-                anyhow!("eth_batch_sign_tx failed at index {}: {}", index, err)
+                anyhow!("batch_sign_tx failed at index {}: {}", index, err)
             })?;
         outputs.push(output);
     }
@@ -997,7 +997,7 @@ mod test {
             .expect("expected the batch to abort on bad `to`");
         let msg = err.to_string();
         assert!(
-            msg.contains("eth_batch_sign_tx failed at index 1"),
+            msg.contains("batch_sign_tx failed at index 1"),
             "error message did not mention the failing index: {msg}"
         );
     }

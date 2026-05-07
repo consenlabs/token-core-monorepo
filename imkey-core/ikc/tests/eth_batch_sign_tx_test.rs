@@ -17,7 +17,7 @@
 //! is deliberate: it keeps each test file readable and lets future
 //! per-feature E2E suites live here without dragging C-ABI
 //! envelope plumbing through every assertion. The dispatcher branch
-//! itself (`"eth_batch_sign_tx" =>` in `lib.rs`) is a one-liner —
+//! itself (`"batch_sign_tx" =>` in `lib.rs`) is a one-liner —
 //! a simple smoke test elsewhere is cheap enough; the heavy lifting
 //! belongs at the function level.
 //!

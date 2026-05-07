@@ -1702,11 +1702,11 @@ pub(crate) fn eth_batch_sign_tx(data: &[u8]) -> Result<Vec<u8>> {
     let param: EthBatchSignTxParam = EthBatchSignTxParam::decode(data)?;
 
     if param.items.is_empty() {
-        return Err(anyhow!("eth_batch_sign_tx batch is empty"));
+        return Err(anyhow!("batch_sign_tx batch is empty"));
     }
     if param.items.len() > ETH_MAX_BATCH_SIZE {
         return Err(anyhow!(
-            "eth_batch_sign_tx batch exceeds max size of {}",
+            "batch_sign_tx batch exceeds max size of {}",
             ETH_MAX_BATCH_SIZE
         ));
     }
@@ -1715,7 +1715,7 @@ pub(crate) fn eth_batch_sign_tx(data: &[u8]) -> Result<Vec<u8>> {
     for (index, raw) in param.items.iter().enumerate() {
         let input = EthTxInput::decode(raw.input.as_slice()).map_err(|err| {
             anyhow!(
-                "eth_batch_sign_tx failed at index {}: invalid EthTxInput: {}",
+                "batch_sign_tx failed at index {}: invalid EthTxInput: {}",
                 index,
                 err
             )

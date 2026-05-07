@@ -13,7 +13,7 @@ use prost::Message;
 use std::str::FromStr;
 
 /// Hard upper bound for the number of items in a single
-/// `eth_batch_sign_tx` request. Each item still triggers a full
+/// `batch_sign_tx` request. Each item still triggers a full
 /// single-tx flow on the device (one user button press, one
 /// `select_applet` / `prepare_sign` / `get_xpub` / `sign_digest`),
 /// so the practical UX-acceptable batch size is much smaller than
@@ -29,11 +29,25 @@ pub const ETH_MAX_BATCH_SIZE: usize = 100;
 /// parsing — any drift between the two paths would manifest as a
 /// silent signature divergence.
 fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
-    let data_vec = if input.data.starts_with("0x") {
-        hex::decode(&input.data[2..]).unwrap()
+    // Surface every host-data parse failure as a structured `Err`
+    // rather than a panic. The single-tx path historically relied
+    // on `landingpad` to catch the unwrap-panics, which worked but
+    // produced opaque "called `Result::unwrap()` on an `Err` value"
+    // messages with no field context. More importantly, batch
+    // signing wraps per-item errors with `failed at index {i}` —
+    // panics bypass that wrapper entirely (they don't flow through
+    // `Result::Err`), so the index contract documented in the spec
+    // would silently break the moment any item carried malformed
+    // hex / address / chain_id. Returning `Err` here lets the
+    // batch loop's existing `.map_err(|e| anyhow!("...failed at
+    // index {}: {}", i, e))` do its job uniformly.
+    let data_hex = if input.data.starts_with("0x") {
+        &input.data[2..]
     } else {
-        hex::decode(&input.data).unwrap()
+        &input.data[..]
     };
+    let data_vec = hex::decode(data_hex)
+        .map_err(|e| anyhow!("invalid `data` hex: {}", e))?;
 
     let to = if input.to.is_empty() || input.to == "0x" {
         "0000000000000000000000000000000000000000"
@@ -42,6 +56,8 @@ fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
     } else {
         &input.to
     };
+    let to_addr =
+        Address::from_str(&to).map_err(|e| anyhow!("invalid `to` address: {}", e))?;
 
     let eth_tx = if input.r#type.to_lowercase() == "0x02"
         || input.r#type.to_lowercase() == "0x2"
@@ -51,7 +67,7 @@ fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
             nonce: parse_eth_argument(&input.nonce)?,
             gas_price: U256::from(0),
             gas_limit: parse_eth_argument(&input.gas_limit)?,
-            to: Action::Call(Address::from_str(&to).unwrap()),
+            to: Action::Call(to_addr),
             value: parse_eth_argument(&input.value)?,
             data: Vec::from(data_vec.as_slice()),
             tx_type: ETH_TRANSACTION_TYPE_EIP1559.to_string(),
@@ -61,7 +77,9 @@ fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
                 let mut access_list: Vec<AccessListItem> = Vec::new();
                 for access in &input.access_list {
                     let item = AccessListItem {
-                        address: Address::from_str(remove_0x(&access.address)).unwrap(),
+                        address: Address::from_str(remove_0x(&access.address)).map_err(
+                            |e| anyhow!("invalid access_list address: {}", e),
+                        )?,
                         storage_keys: {
                             let mut storage_keys: Vec<H256> = Vec::new();
                             for key in &access.storage_keys {
@@ -81,7 +99,7 @@ fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
             nonce: parse_eth_argument(&input.nonce)?,
             gas_price: parse_eth_argument(&input.gas_price)?,
             gas_limit: parse_eth_argument(&input.gas_limit)?,
-            to: Action::Call(Address::from_str(&to).unwrap()),
+            to: Action::Call(to_addr),
             value: parse_eth_argument(&input.value)?,
             data: Vec::from(data_vec.as_slice()),
             tx_type: input.r#type.clone(),
@@ -95,11 +113,18 @@ fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
     let chain_id = match chain_id_parsed {
         Ok(id) => id,
         Err(_error) => {
+            // Preserve the prior branching exactly — the only
+            // behavioural change here is panic → structured `Err`.
+            // Note that `trim_start_matches("0x")` is case-sensitive
+            // by design (matches the legacy single-tx path); any
+            // case-folding fix belongs in a separate change.
             if input.chain_id.to_lowercase().starts_with("0x") {
-                let without_prefix = &input.chain_id.trim_start_matches("0x");
-                u64::from_str_radix(without_prefix, 16).unwrap()
+                let without_prefix = input.chain_id.trim_start_matches("0x");
+                u64::from_str_radix(without_prefix, 16)
+                    .map_err(|e| anyhow!("invalid `chain_id` hex: {}", e))?
             } else {
-                u64::from_str_radix(&input.chain_id, 16).unwrap()
+                u64::from_str_radix(&input.chain_id, 16)
+                    .map_err(|e| anyhow!("invalid `chain_id` hex: {}", e))?
             }
         }
     };
@@ -128,12 +153,12 @@ pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result
 
     if input.items.is_empty() {
         return Err(anyhow!(
-            "eth_batch_sign_tx failed at index 0: invalid_param"
+            "batch_sign_tx failed at index 0: invalid_param"
         ));
     }
     if input.items.len() > ETH_MAX_BATCH_SIZE {
         return Err(anyhow!(
-            "eth_batch_sign_tx failed at index 0: batch size {} exceeds limit {}",
+            "batch_sign_tx failed at index 0: batch size {} exceeds limit {}",
             input.items.len(),
             ETH_MAX_BATCH_SIZE
         ));
@@ -141,12 +166,12 @@ pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result
 
     if !sign_param.path.is_empty() {
         check_path_validity(&sign_param.path)
-            .map_err(|e| anyhow!("eth_batch_sign_tx failed at index 0: {}", e))?;
+            .map_err(|e| anyhow!("batch_sign_tx failed at index 0: {}", e))?;
     }
     for (i, item) in input.items.iter().enumerate() {
         if item.tx.is_none() {
             return Err(anyhow!(
-                "eth_batch_sign_tx failed at index {}: missing tx",
+                "batch_sign_tx failed at index {}: missing tx",
                 i
             ));
         }
@@ -156,13 +181,13 @@ pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result
         // to the missing-tx case, which the host already special-cases.
         if item.sender.is_empty() {
             return Err(anyhow!(
-                "eth_batch_sign_tx failed at index {}: missing sender",
+                "batch_sign_tx failed at index {}: missing sender",
                 i
             ));
         }
         if !item.path.is_empty() {
             check_path_validity(&item.path)
-                .map_err(|e| anyhow!("eth_batch_sign_tx failed at index {}: {}", i, e))?;
+                .map_err(|e| anyhow!("batch_sign_tx failed at index {}: {}", i, e))?;
         }
     }
 
@@ -171,7 +196,7 @@ pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result
         // `is_none()` already short-circuited above, so unwrap is safe.
         let tx_input = item.tx.as_ref().unwrap();
         let (eth_tx, chain_id) = build_eth_transaction(tx_input)
-            .map_err(|e| anyhow!("eth_batch_sign_tx failed at index {}: {}", i, e))?;
+            .map_err(|e| anyhow!("batch_sign_tx failed at index {}: {}", i, e))?;
 
         let effective_path: &str = if item.path.is_empty() {
             &sign_param.path
@@ -191,7 +216,7 @@ pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result
                 &item.sender,
                 &item.fee,
             )
-            .map_err(|e| anyhow!("eth_batch_sign_tx failed at index {}: {}", i, e))?;
+            .map_err(|e| anyhow!("batch_sign_tx failed at index {}: {}", i, e))?;
         outputs.push(out);
     }
 

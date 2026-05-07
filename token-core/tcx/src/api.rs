@@ -258,12 +258,15 @@ pub struct EthBatchPersonalSignResult {
     #[prost(string, repeated, tag = "1")]
     pub signatures: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
-/// FUNCTION: eth_batch_sign_tx(EthBatchSignTxParam): EthBatchSignTxResult
+/// FUNCTION: batch_sign_tx(EthBatchSignTxParam): EthBatchSignTxResult
 ///
-/// Sign a batch of Ethereum transactions in a single SDK call. The keystore is
-/// unlocked exactly once for the whole batch. Up to ETH_MAX_BATCH_SIZE (2048)
-/// items per call. All-or-nothing: any per-item failure aborts the batch and
-/// returns an error of the form "eth_batch_sign_tx failed at index {i}: {source}".
+/// Sign a batch of Ethereum transactions in a single SDK call. The action name
+/// is intentionally chain-neutral (`batch_sign_tx`, not `eth_batch_sign_tx`) so
+/// future per-chain batch backends can plug in via `chainType` without an
+/// additional dispatcher entry. The keystore is unlocked exactly once for the
+/// whole batch. Up to ETH_MAX_BATCH_SIZE (2048) items per call. All-or-nothing:
+/// any per-item failure aborts the batch and returns an error of the form
+/// "batch_sign_tx failed at index {i}: {source}".
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct EthBatchSignTxParam {

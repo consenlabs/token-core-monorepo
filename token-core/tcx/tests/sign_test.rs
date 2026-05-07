@@ -1581,7 +1581,7 @@ pub fn test_sign_ton_tx() {
     })
 }
 
-// ---- eth_batch_sign_tx end-to-end tests --------------------------------
+// ---- batch_sign_tx end-to-end tests -----------------------------------
 //
 // The known-good `tx_hash` / `signature` fixtures used below are taken
 // verbatim from the existing single-tx tests:
@@ -1730,7 +1730,7 @@ pub fn test_eth_batch_sign_tx_basic() {
                 make_batch_item(eip1559_with_access_list_eth_tx_input(), ""),
             ],
         };
-        let batch_ret = call_api("eth_batch_sign_tx", param).unwrap();
+        let batch_ret = call_api("batch_sign_tx", param).unwrap();
         let batch_result = EthBatchSignTxResult::decode(batch_ret.as_slice()).unwrap();
 
         assert_eq!(batch_result.outputs.len(), 3);
@@ -1790,7 +1790,7 @@ pub fn test_eth_batch_sign_tx_per_item_path() {
                 make_batch_item(tx, path2),
             ],
         };
-        let batch_ret = call_api("eth_batch_sign_tx", param).unwrap();
+        let batch_ret = call_api("batch_sign_tx", param).unwrap();
         let batch_result = EthBatchSignTxResult::decode(batch_ret.as_slice()).unwrap();
 
         assert_eq!(batch_result.outputs.len(), 3);
@@ -1834,7 +1834,7 @@ pub fn test_eth_batch_sign_tx_empty_rejected() {
             seg_wit: "".to_string(),
             items: vec![],
         };
-        let err = call_api("eth_batch_sign_tx", param)
+        let err = call_api("batch_sign_tx", param)
             .expect_err("empty batch must be rejected");
         assert!(
             err.to_string().contains("batch is empty"),
@@ -1868,7 +1868,7 @@ pub fn test_eth_batch_sign_tx_size_limit_rejected() {
             seg_wit: "".to_string(),
             items,
         };
-        let err = call_api("eth_batch_sign_tx", param)
+        let err = call_api("batch_sign_tx", param)
             .expect_err("over-limit batch must be rejected");
         let msg = err.to_string();
         assert!(
@@ -1906,11 +1906,11 @@ pub fn test_eth_batch_sign_tx_aborts_on_bad_to_with_index() {
                 make_batch_item(bad, ""),
             ],
         };
-        let err = call_api("eth_batch_sign_tx", param)
+        let err = call_api("batch_sign_tx", param)
             .expect_err("bad `to` must abort the batch");
         let msg = err.to_string();
         assert!(
-            msg.contains("eth_batch_sign_tx failed at index 1"),
+            msg.contains("batch_sign_tx failed at index 1"),
             "expected failing-index error, got: {msg}"
         );
 
@@ -1935,7 +1935,7 @@ pub fn test_eth_batch_sign_tx_wrong_password_rejected() {
             seg_wit: "".to_string(),
             items: vec![make_batch_item(legacy_eth_tx_input(), "")],
         };
-        let err = call_api("eth_batch_sign_tx", param)
+        let err = call_api("batch_sign_tx", param)
             .expect_err("wrong password must reject the batch");
         // Same authentication error string the single sign_tx returns.
         assert!(

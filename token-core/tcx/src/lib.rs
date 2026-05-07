@@ -131,7 +131,7 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "eth_batch_personal_sign" => {
             landingpad(|| eth_batch_personal_sign(&action.param.unwrap().value))
         }
-        "eth_batch_sign_tx" => landingpad(|| eth_batch_sign_tx(&action.param.unwrap().value)),
+        "batch_sign_tx" => landingpad(|| eth_batch_sign_tx(&action.param.unwrap().value)),
         "mark_identity_wallets" => {
             landingpad(|| mark_identity_wallets(&action.param.unwrap().value))
         }
