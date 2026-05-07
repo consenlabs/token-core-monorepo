@@ -4,10 +4,11 @@ use tcx_keystore::identity::Identity;
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreateKeystoreParam {
-    pub prf_key: String,
-    pub user_id: String,
-    pub credential_id: String,
-    pub rp_id: String,
+    pub prf_key: Option<String>,
+    pub password: Option<String>,
+    pub user_id: Option<String>,
+    pub credential_id: Option<String>,
+    pub rp_id: Option<String>,
     pub mnemonic: Option<String>,
     pub entropy: Option<String>,
     pub network: Option<String>,
@@ -29,7 +30,8 @@ pub struct PasskeyKeystore {
 #[serde(rename_all = "camelCase")]
 pub struct DeriveAccountsParam {
     pub keystore_json: Option<String>,
-    pub prf_key: String,
+    pub key: Option<String>,
+    pub prf_key: Option<String>,
     pub derivations: Vec<DerivationItem>,
 }
 
@@ -57,7 +59,8 @@ pub struct AccountResponse {
 #[serde(rename_all = "camelCase")]
 pub struct SignTxParam {
     pub keystore_json: Option<String>,
-    pub prf_key: String,
+    pub key: Option<String>,
+    pub prf_key: Option<String>,
     pub chain: Option<String>,
     pub derivation_path: Option<String>,
     pub network: Option<String>,
@@ -69,7 +72,8 @@ pub struct SignTxParam {
 #[serde(rename_all = "camelCase")]
 pub struct SignTxsParam {
     pub keystore_json: Option<String>,
-    pub prf_key: String,
+    pub key: Option<String>,
+    pub prf_key: Option<String>,
     pub txs: Vec<SignTxItem>,
 }
 
@@ -116,7 +120,8 @@ pub struct AccessListJson {
 #[serde(rename_all = "camelCase")]
 pub struct SignMessageParam {
     pub keystore_json: Option<String>,
-    pub prf_key: String,
+    pub key: Option<String>,
+    pub prf_key: Option<String>,
     pub chain: Option<String>,
     pub derivation_path: Option<String>,
     pub network: Option<String>,
@@ -184,7 +189,8 @@ pub struct BtcPsbtsInputJson {
 #[serde(rename_all = "camelCase")]
 pub struct SignPsbtParam {
     pub keystore_json: Option<String>,
-    pub prf_key: String,
+    pub key: Option<String>,
+    pub prf_key: Option<String>,
     pub chain: Option<String>,
     pub derivation_path: String,
     pub input: BtcPsbtInputJson,
@@ -194,7 +200,8 @@ pub struct SignPsbtParam {
 #[serde(rename_all = "camelCase")]
 pub struct SignPsbtsParam {
     pub keystore_json: Option<String>,
-    pub prf_key: String,
+    pub key: Option<String>,
+    pub prf_key: Option<String>,
     pub chain: Option<String>,
     pub derivation_path: String,
     pub input: BtcPsbtsInputJson,
@@ -204,7 +211,8 @@ pub struct SignPsbtsParam {
 #[serde(rename_all = "camelCase")]
 pub struct ExportMnemonicParam {
     pub keystore_json: Option<String>,
-    pub prf_key: String,
+    pub key: Option<String>,
+    pub prf_key: Option<String>,
 }
 
 // --- Message types ---
@@ -213,7 +221,8 @@ pub struct ExportMnemonicParam {
 #[serde(rename_all = "camelCase")]
 pub struct MessageGetPubkeyParam {
     pub keystore_json: Option<String>,
-    pub prf_key: String,
+    pub key: Option<String>,
+    pub prf_key: Option<String>,
     pub derivation_path: Option<String>,
 }
 

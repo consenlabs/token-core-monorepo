@@ -30,6 +30,7 @@ const TEST_MNEMONIC =
   "inject kidney empty canal shadow pact comfort wife crush horse wife sketch";
 const TEST_PRF_KEY =
   "0000000000000000000000000000000000000000000000000000000000000001";
+const TEST_PASSWORD = "correct horse battery staple";
 const TEST_SERVER_PUBKEY =
   "d39eadac9f88ea1a77b034e8586191ed5435f44b01dea8f214f45fd7bd0b8e0f";
 
@@ -147,13 +148,38 @@ export default function Home() {
         detail: `Identifier: ${randomKs.identity.identifier}`,
       });
 
-      // 4. Export mnemonic
+      // 4. Create password keystore
+      push({ name: "Create Password Keystore", status: "running" });
+      const passwordKeystoreJson = create_keystore(
+        JSON.stringify({
+          password: TEST_PASSWORD,
+          mnemonic: TEST_MNEMONIC,
+          network: "MAINNET",
+        })
+      );
+      const passwordKs = JSON.parse(passwordKeystoreJson);
+      if (passwordKs.version !== 12000) {
+        throw new Error(`Unexpected password keystore version: ${passwordKs.version}`);
+      }
+      if (
+        passwordKs.crypto?.kdf !== "pbkdf2" ||
+        passwordKs.crypto?.kdfparams?.c !== 262144
+      ) {
+        throw new Error(`Unexpected password crypto: ${passwordKeystoreJson}`);
+      }
+      push({
+        name: "Create Password Keystore",
+        status: "pass",
+        detail: `KDF: ${passwordKs.crypto.kdf} / rounds: ${passwordKs.crypto.kdfparams.c}`,
+      });
+
+      // 5. Export mnemonic
       push({ name: "Export Mnemonic", status: "running" });
       const exported = JSON.parse(
         export_mnemonic(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
           })
         )
       );
@@ -168,13 +194,69 @@ export default function Home() {
         detail: `Mnemonic: ${exported.mnemonic}`,
       });
 
-      // 5. Derive ETH + TRON accounts in one call
+      // 6. Export mnemonic with legacy prfKey field
+      push({ name: "Export Mnemonic (legacy prfKey)", status: "running" });
+      const legacyExported = JSON.parse(
+        export_mnemonic(
+          JSON.stringify({
+            keystoreJson,
+            prfKey: TEST_PRF_KEY,
+          })
+        )
+      );
+      if (legacyExported.mnemonic !== TEST_MNEMONIC) {
+        throw new Error(
+          `Legacy mnemonic mismatch: ${legacyExported.mnemonic} !== ${TEST_MNEMONIC}`
+        );
+      }
+      push({
+        name: "Export Mnemonic (legacy prfKey)",
+        status: "pass",
+        detail: "Legacy prfKey alias accepted",
+      });
+
+      // 7. Export password mnemonic and reject wrong password
+      push({ name: "Password Export + Wrong Password", status: "running" });
+      const passwordExported = JSON.parse(
+        export_mnemonic(
+          JSON.stringify({
+            keystoreJson: passwordKeystoreJson,
+            key: TEST_PASSWORD,
+          })
+        )
+      );
+      if (passwordExported.mnemonic !== TEST_MNEMONIC) {
+        throw new Error(
+          `Password mnemonic mismatch: ${passwordExported.mnemonic} !== ${TEST_MNEMONIC}`
+        );
+      }
+      let wrongPasswordRejected = false;
+      try {
+        export_mnemonic(
+          JSON.stringify({
+            keystoreJson: passwordKeystoreJson,
+            key: "wrong password",
+          })
+        );
+      } catch {
+        wrongPasswordRejected = true;
+      }
+      if (!wrongPasswordRejected) {
+        throw new Error("Wrong password should be rejected");
+      }
+      push({
+        name: "Password Export + Wrong Password",
+        status: "pass",
+        detail: "Password export succeeded; wrong password rejected",
+      });
+
+      // 8. Derive ETH + TRON accounts in one call
       push({ name: "Derive Accounts (ETH + TRON)", status: "running" });
       const accounts = JSON.parse(
         derive_accounts(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             derivations: [
               {
                 chain: "ETHEREUM",
@@ -205,13 +287,52 @@ export default function Home() {
         detail: `ETH: ${acct.address}\nTRON: ${tronAcct.address}`,
       });
 
-      // 5. Sign legacy tx
+      // 9. Derive password accounts
+      push({ name: "Password Derive Accounts", status: "running" });
+      const passwordAccounts = JSON.parse(
+        derive_accounts(
+          JSON.stringify({
+            keystoreJson: passwordKeystoreJson,
+            key: TEST_PASSWORD,
+            derivations: [
+              {
+                chain: "ETHEREUM",
+                derivationPath: "m/44'/60'/0'/0/0",
+                chainId: "1",
+                network: "MAINNET",
+              },
+              {
+                chain: "TRON",
+                derivationPath: "m/44'/195'/0'/0/0",
+                network: "MAINNET",
+              },
+            ],
+          })
+        )
+      );
+      if (passwordAccounts[0].address !== acct.address) {
+        throw new Error(
+          `Password ETH mismatch: ${passwordAccounts[0].address} !== ${acct.address}`
+        );
+      }
+      if (passwordAccounts[1].address !== tronAcct.address) {
+        throw new Error(
+          `Password TRON mismatch: ${passwordAccounts[1].address} !== ${tronAcct.address}`
+        );
+      }
+      push({
+        name: "Password Derive Accounts",
+        status: "pass",
+        detail: `ETH: ${passwordAccounts[0].address}\nTRON: ${passwordAccounts[1].address}`,
+      });
+
+      // 10. Sign legacy tx
       push({ name: "Sign Legacy TX (EIP-155)", status: "running" });
       const legacyTx = JSON.parse(
         sign_tx(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             derivationPath: "m/44'/60'/0'/0/0",
             input: {
               nonce: "0",
@@ -233,13 +354,44 @@ export default function Home() {
         detail: `Hash: ${legacyTx.txHash}`,
       });
 
+      // 11. Sign legacy tx with password keystore
+      push({ name: "Password Sign Legacy TX", status: "running" });
+      const passwordLegacyTx = JSON.parse(
+        sign_tx(
+          JSON.stringify({
+            keystoreJson: passwordKeystoreJson,
+            key: TEST_PASSWORD,
+            derivationPath: "m/44'/60'/0'/0/0",
+            input: {
+              nonce: "0",
+              gasPrice: "20000000000",
+              gasLimit: "21000",
+              to: "0x3535353535353535353535353535353535353535",
+              value: "1000000000000000000",
+              chainId: "1",
+            },
+          })
+        )
+      );
+      if (
+        passwordLegacyTx.signature !== legacyTx.signature ||
+        passwordLegacyTx.txHash !== legacyTx.txHash
+      ) {
+        throw new Error("Password signature should match passkey signature");
+      }
+      push({
+        name: "Password Sign Legacy TX",
+        status: "pass",
+        detail: `Hash: ${passwordLegacyTx.txHash}`,
+      });
+
       // 6. Sign EIP-1559 tx
       push({ name: "Sign EIP-1559 TX", status: "running" });
       const eip1559Tx = JSON.parse(
         sign_tx(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             derivationPath: "m/44'/60'/0'/0/0",
             input: {
               nonce: "1",
@@ -270,7 +422,7 @@ export default function Home() {
         sign_tx(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             chain: "TRON",
             input: {
               rawData:
@@ -294,7 +446,7 @@ export default function Home() {
         sign_txs(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             txs: [
               {
                 chain: "ETHEREUM",
@@ -340,7 +492,7 @@ export default function Home() {
         sign_message(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             chain: "ETHEREUM",
             derivationPath: "m/44'/60'/0'/0/0",
             input: {
@@ -365,7 +517,7 @@ export default function Home() {
         sign_message(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             chain: "TRON",
             input: {
               value: "Hello from tcx-wasm!",
@@ -391,7 +543,7 @@ export default function Home() {
         derive_accounts(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             derivations: [
               {
                 chain: "BITCOIN",
@@ -451,7 +603,7 @@ export default function Home() {
         sign_tx(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             chain: "BITCOIN",
             network: "TESTNET",
             segWit: "VERSION_0",
@@ -490,7 +642,7 @@ export default function Home() {
         sign_message(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             chain: "BITCOIN",
             network: "MAINNET",
             segWit: "VERSION_0",
@@ -516,7 +668,7 @@ export default function Home() {
         sign_psbt(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             chain: "BITCOIN",
             derivationPath: "m/86'/1'/0'",
             input: { psbt: psbtHex, autoFinalize: true },
@@ -538,7 +690,7 @@ export default function Home() {
         sign_psbts(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             chain: "BITCOIN",
             derivationPath: "m/86'/1'/0'",
             input: { psbts: [psbtHex], autoFinalize: true },
@@ -564,7 +716,7 @@ export default function Home() {
       const cachedAccounts = JSON.parse(
         derive_accounts(
           JSON.stringify({
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             derivations: [
               {
                 chain: "ETHEREUM",
@@ -598,7 +750,7 @@ export default function Home() {
         derive_message_key_pair(
           JSON.stringify({
             keystoreJson,
-            prfKey: TEST_PRF_KEY,
+            key: TEST_PRF_KEY,
             // derivationPath: "m/44'/1237'/0'/0/0", // optional, this is the default
           })
         )

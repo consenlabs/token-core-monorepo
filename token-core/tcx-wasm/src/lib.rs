@@ -19,7 +19,7 @@ use tcx_eth::transaction::{
     SignatureType,
 };
 use tcx_keystore::identity::Identity;
-use tcx_keystore::keystore::IdentityNetwork;
+use tcx_keystore::keystore::{IdentityNetwork, Metadata};
 use tcx_keystore::{
     mnemonic_to_seed, Keystore, MessageSigner, SignatureParameters, TransactionSigner,
 };
@@ -31,7 +31,7 @@ use types::*;
 
 thread_local! {
     static CACHED_KEYSTORE_JSON: RefCell<Option<String>> = const { RefCell::new(None) };
-    static CACHED_MESSAGE_SECRET_KEY: RefCell<Option<SecretKey>> = RefCell::new(None);
+    static CACHED_MESSAGE_SECRET_KEY: RefCell<Option<SecretKey>> = const { RefCell::new(None) };
 }
 
 fn to_js_err(e: impl std::fmt::Display) -> JsValue {
@@ -72,6 +72,37 @@ fn decrypt_mnemonic(
 
 fn unlock_keystore_from_mnemonic(mnemonic: &str) -> Result<Keystore, JsValue> {
     Keystore::from_mnemonic_unlocked(mnemonic).map_err(to_js_err)
+}
+
+fn resolve_key(key: Option<String>, legacy_prf_key: Option<String>) -> Result<String, String> {
+    match (key, legacy_prf_key) {
+        (Some(_), Some(_)) => Err("key and prfKey are ambiguous; use key".to_string()),
+        (Some(key), None) | (None, Some(key)) if !key.is_empty() => Ok(key),
+        _ => Err("key must be provided".to_string()),
+    }
+}
+
+fn has_native_crypto(keystore_json: &str) -> Result<bool, JsValue> {
+    let value: serde_json::Value = serde_json::from_str(keystore_json).map_err(to_js_err)?;
+    if value.get("crypto").is_some() {
+        return Ok(true);
+    }
+    if value.get("encryptedMnemonic").is_some() && value.get("mnemonicIv").is_some() {
+        return Ok(false);
+    }
+    Err(JsValue::from_str("unsupported keystore format"))
+}
+
+fn unlock_keystore_with_key(keystore_json: String, key: String) -> Result<Keystore, JsValue> {
+    if has_native_crypto(&keystore_json)? {
+        let mut keystore = Keystore::from_json(&keystore_json).map_err(to_js_err)?;
+        keystore.unlock_by_password(&key).map_err(to_js_err)?;
+        return Ok(keystore);
+    }
+
+    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
+    let mnemonic = decrypt_mnemonic(&ks_data.encrypted_mnemonic, &ks_data.mnemonic_iv, &key)?;
+    unlock_keystore_from_mnemonic(&mnemonic)
 }
 
 fn default_btc_full_path(seg_wit: &str) -> &'static str {
@@ -126,11 +157,6 @@ pub fn clear_cached_keystore() {
 pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
     let param: CreateKeystoreParam = serde_json::from_str(param_json).map_err(to_js_err)?;
 
-    let prf_key = Vec::from_hex(&param.prf_key).map_err(to_js_err)?;
-    if prf_key.len() != 32 {
-        return Err(JsValue::from_str("PRF key must be 32 bytes"));
-    }
-
     let mnemonic = if let Some(m) = param.mnemonic {
         m
     } else {
@@ -142,29 +168,62 @@ pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
         mnemonic_from_entropy(&entropy).map_err(to_js_err)?
     };
 
-    let iv = random_u8_16();
-    let encrypted = tcx_crypto::aes::ctr256::encrypt_nopadding(mnemonic.as_bytes(), &prf_key, &iv)
-        .map_err(to_js_err)?;
-
     let network = match param.network.as_deref() {
         Some("TESTNET") => IdentityNetwork::Testnet,
         _ => IdentityNetwork::Mainnet,
     };
-    let seed = mnemonic_to_seed(&mnemonic).map_err(to_js_err)?;
-    let identity =
-        Identity::from_seed_with_raw_key(&seed, &prf_key, &network).map_err(to_js_err)?;
 
-    let result = PasskeyKeystore {
-        user_id: param.user_id,
-        credential_id: param.credential_id,
-        rp_id: param.rp_id,
-        encrypted_mnemonic: encrypted.to_hex(),
-        mnemonic_iv: iv.to_hex(),
-        created_at: now_timestamp(),
-        identity,
-    };
+    match (param.prf_key, param.password) {
+        (Some(_), Some(_)) | (None, None) => Err(JsValue::from_str(
+            "exactly one of prfKey or password must be provided",
+        )),
+        (Some(prf_key_hex), None) => {
+            let prf_key = Vec::from_hex(&prf_key_hex).map_err(to_js_err)?;
+            if prf_key.len() != 32 {
+                return Err(JsValue::from_str("PRF key must be 32 bytes"));
+            }
 
-    serde_json::to_string(&result).map_err(to_js_err)
+            let iv = random_u8_16();
+            let encrypted =
+                tcx_crypto::aes::ctr256::encrypt_nopadding(mnemonic.as_bytes(), &prf_key, &iv)
+                    .map_err(to_js_err)?;
+
+            let seed = mnemonic_to_seed(&mnemonic).map_err(to_js_err)?;
+            let identity =
+                Identity::from_seed_with_raw_key(&seed, &prf_key, &network).map_err(to_js_err)?;
+
+            let result = PasskeyKeystore {
+                user_id: param
+                    .user_id
+                    .ok_or_else(|| JsValue::from_str("userId must be provided for prfKey"))?,
+                credential_id: param
+                    .credential_id
+                    .ok_or_else(|| JsValue::from_str("credentialId must be provided for prfKey"))?,
+                rp_id: param
+                    .rp_id
+                    .ok_or_else(|| JsValue::from_str("rpId must be provided for prfKey"))?,
+                encrypted_mnemonic: encrypted.to_hex(),
+                mnemonic_iv: iv.to_hex(),
+                created_at: now_timestamp(),
+                identity,
+            };
+
+            serde_json::to_string(&result).map_err(to_js_err)
+        }
+        (None, Some(password)) => {
+            if password.is_empty() {
+                return Err(JsValue::from_str("password must be provided"));
+            }
+
+            let metadata = Metadata {
+                network,
+                ..Metadata::default()
+            };
+            let keystore =
+                Keystore::from_mnemonic(&mnemonic, &password, metadata).map_err(to_js_err)?;
+            Ok(keystore.to_json())
+        }
+    }
 }
 
 #[wasm_bindgen]
@@ -175,15 +234,9 @@ pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
         return Err(JsValue::from_str("derivations must not be empty"));
     }
 
+    let key = resolve_key(param.key, param.prf_key).map_err(to_js_err)?;
     let keystore_json = resolve_keystore_json(param.keystore_json)?;
-    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(
-        &ks_data.encrypted_mnemonic,
-        &ks_data.mnemonic_iv,
-        &param.prf_key,
-    )?;
-
-    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+    let mut keystore = unlock_keystore_with_key(keystore_json, key)?;
 
     let mut results: Vec<AccountResponse> = Vec::with_capacity(param.derivations.len());
 
@@ -234,14 +287,11 @@ pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
 pub fn export_mnemonic(param_json: &str) -> Result<String, JsValue> {
     let param: ExportMnemonicParam = serde_json::from_str(param_json).map_err(to_js_err)?;
 
+    let key = resolve_key(param.key, param.prf_key).map_err(to_js_err)?;
     let keystore_json = resolve_keystore_json(param.keystore_json)?;
-    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(
-        &ks_data.encrypted_mnemonic,
-        &ks_data.mnemonic_iv,
-        &param.prf_key,
-    )?;
-
+    let mut keystore = unlock_keystore_with_key(keystore_json, key)?;
+    let mnemonic = keystore.export().map_err(to_js_err)?;
+    keystore.lock();
     serde_json::to_string(&serde_json::json!({ "mnemonic": mnemonic })).map_err(to_js_err)
 }
 
@@ -354,15 +404,9 @@ fn sign_single_tx(
 pub fn sign_tx(param_json: &str) -> Result<String, JsValue> {
     let param: SignTxParam = serde_json::from_str(param_json).map_err(to_js_err)?;
 
+    let key = resolve_key(param.key, param.prf_key).map_err(to_js_err)?;
     let keystore_json = resolve_keystore_json(param.keystore_json)?;
-    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(
-        &ks_data.encrypted_mnemonic,
-        &ks_data.mnemonic_iv,
-        &param.prf_key,
-    )?;
-
-    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+    let mut keystore = unlock_keystore_with_key(keystore_json, key)?;
     let chain = param.chain.as_deref().unwrap_or("ETHEREUM");
     let json_result = sign_single_tx(
         &mut keystore,
@@ -385,15 +429,9 @@ pub fn sign_txs(param_json: &str) -> Result<String, JsValue> {
         return Err(JsValue::from_str("txs must not be empty"));
     }
 
+    let key = resolve_key(param.key, param.prf_key).map_err(to_js_err)?;
     let keystore_json = resolve_keystore_json(param.keystore_json)?;
-    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(
-        &ks_data.encrypted_mnemonic,
-        &ks_data.mnemonic_iv,
-        &param.prf_key,
-    )?;
-
-    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+    let mut keystore = unlock_keystore_with_key(keystore_json, key)?;
 
     let mut results: Vec<serde_json::Value> = Vec::with_capacity(param.txs.len());
     for tx in param.txs {
@@ -417,15 +455,9 @@ pub fn sign_txs(param_json: &str) -> Result<String, JsValue> {
 pub fn sign_message(param_json: &str) -> Result<String, JsValue> {
     let param: SignMessageParam = serde_json::from_str(param_json).map_err(to_js_err)?;
 
+    let key = resolve_key(param.key, param.prf_key).map_err(to_js_err)?;
     let keystore_json = resolve_keystore_json(param.keystore_json)?;
-    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(
-        &ks_data.encrypted_mnemonic,
-        &ks_data.mnemonic_iv,
-        &param.prf_key,
-    )?;
-
-    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+    let mut keystore = unlock_keystore_with_key(keystore_json, key)?;
 
     let chain = param.chain.as_deref().unwrap_or("ETHEREUM");
     let seg_wit = param.seg_wit.clone().unwrap_or_default();
@@ -504,15 +536,9 @@ pub fn sign_message(param_json: &str) -> Result<String, JsValue> {
 pub fn sign_psbt(param_json: &str) -> Result<String, JsValue> {
     let param: SignPsbtParam = serde_json::from_str(param_json).map_err(to_js_err)?;
 
+    let key = resolve_key(param.key, param.prf_key).map_err(to_js_err)?;
     let keystore_json = resolve_keystore_json(param.keystore_json)?;
-    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(
-        &ks_data.encrypted_mnemonic,
-        &ks_data.mnemonic_iv,
-        &param.prf_key,
-    )?;
-
-    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+    let mut keystore = unlock_keystore_with_key(keystore_json, key)?;
 
     let chain = param.chain.as_deref().unwrap_or("BITCOIN");
     let derivation_path = btc_account_path(&param.derivation_path);
@@ -532,15 +558,9 @@ pub fn sign_psbt(param_json: &str) -> Result<String, JsValue> {
 pub fn sign_psbts(param_json: &str) -> Result<String, JsValue> {
     let param: SignPsbtsParam = serde_json::from_str(param_json).map_err(to_js_err)?;
 
+    let key = resolve_key(param.key, param.prf_key).map_err(to_js_err)?;
     let keystore_json = resolve_keystore_json(param.keystore_json)?;
-    let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(
-        &ks_data.encrypted_mnemonic,
-        &ks_data.mnemonic_iv,
-        &param.prf_key,
-    )?;
-
-    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+    let mut keystore = unlock_keystore_with_key(keystore_json, key)?;
 
     let chain = param.chain.as_deref().unwrap_or("BITCOIN");
     let derivation_path = btc_account_path(&param.derivation_path);
@@ -562,12 +582,13 @@ fn encode_public_key(pk: &TypedPublicKey) -> String {
 
 fn derive_message_key(
     keystore_json: Option<String>,
-    prf_key: &str,
+    key: String,
     derivation_path: Option<&str>,
 ) -> Result<secp256k1::SecretKey, JsValue> {
     let ks_json = resolve_keystore_json(keystore_json)?;
-    let ks_data: PasskeyKeystore = serde_json::from_str(&ks_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(&ks_data.encrypted_mnemonic, &ks_data.mnemonic_iv, prf_key)?;
+    let mut keystore = unlock_keystore_with_key(ks_json, key)?;
+    let mnemonic = keystore.export().map_err(to_js_err)?;
+    keystore.lock();
     let path = derivation_path.unwrap_or(nostr::DEFAULT_PATH);
     nostr::derive_secret_key(&mnemonic, path).map_err(to_js_err)
 }
@@ -575,11 +596,9 @@ fn derive_message_key(
 #[wasm_bindgen]
 pub fn derive_message_key_pair(param_json: &str) -> Result<String, JsValue> {
     let param: MessageGetPubkeyParam = serde_json::from_str(param_json).map_err(to_js_err)?;
-    let secret_key = derive_message_key(
-        param.keystore_json,
-        &param.prf_key,
-        param.derivation_path.as_deref(),
-    )?;
+    let key = resolve_key(param.key, param.prf_key).map_err(to_js_err)?;
+    let secret_key =
+        derive_message_key(param.keystore_json, key, param.derivation_path.as_deref())?;
     let pubkey = nostr::get_xonly_pubkey(&secret_key);
     CACHED_MESSAGE_SECRET_KEY.with(|cache| {
         *cache.borrow_mut() = Some(secret_key);
@@ -691,4 +710,100 @@ pub fn decrypt_message(param_json: &str) -> Result<String, JsValue> {
     let plaintext =
         nostr::nip44_decrypt(&conversation_key, &param.encrypted_content).map_err(to_js_err)?;
     serde_json::to_string(&serde_json::json!({ "plaintext": plaintext })).map_err(to_js_err)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const TEST_MNEMONIC: &str =
+        "inject kidney empty canal shadow pact comfort wife crush horse wife sketch";
+    const TEST_PRF_KEY: &str = "0000000000000000000000000000000000000000000000000000000000000001";
+    const TEST_PASSWORD: &str = "correct horse battery staple";
+
+    #[test]
+    fn resolve_key_rejects_missing_or_ambiguous_inputs() {
+        assert!(resolve_key(None, None).is_err());
+        assert!(resolve_key(Some("new-key".to_string()), Some("legacy-key".to_string())).is_err());
+        assert_eq!(
+            resolve_key(Some("new-key".to_string()), None).unwrap(),
+            "new-key"
+        );
+        assert_eq!(
+            resolve_key(None, Some("legacy-key".to_string())).unwrap(),
+            "legacy-key"
+        );
+    }
+
+    #[test]
+    fn create_keystore_with_password_returns_native_hd_keystore() {
+        let keystore_json = create_keystore(
+            &serde_json::json!({
+                "password": TEST_PASSWORD,
+                "mnemonic": TEST_MNEMONIC,
+                "network": "MAINNET"
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let value: serde_json::Value = serde_json::from_str(&keystore_json).unwrap();
+
+        assert_eq!(value["version"], 12000);
+        assert_eq!(value["crypto"]["kdf"], "pbkdf2");
+        assert_eq!(value["crypto"]["kdfparams"]["c"], 262144);
+        assert_eq!(value["imTokenMeta"]["network"], "MAINNET");
+    }
+
+    #[test]
+    fn export_mnemonic_unlocks_password_keystore_with_key() {
+        let keystore_json = create_keystore(
+            &serde_json::json!({
+                "password": TEST_PASSWORD,
+                "mnemonic": TEST_MNEMONIC
+            })
+            .to_string(),
+        )
+        .unwrap();
+
+        let exported = export_mnemonic(
+            &serde_json::json!({
+                "keystoreJson": keystore_json,
+                "key": TEST_PASSWORD
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let value: serde_json::Value = serde_json::from_str(&exported).unwrap();
+        assert_eq!(value["mnemonic"], TEST_MNEMONIC);
+    }
+
+    #[test]
+    fn export_mnemonic_unlocks_passkey_keystore_with_key() {
+        let prf_key = Vec::from_hex(TEST_PRF_KEY).unwrap();
+        let iv = [0u8; 16];
+        let encrypted =
+            tcx_crypto::aes::ctr256::encrypt_nopadding(TEST_MNEMONIC.as_bytes(), &prf_key, &iv)
+                .unwrap();
+        let passkey_keystore = PasskeyKeystore {
+            user_id: "test-user".to_string(),
+            credential_id: "test-credential".to_string(),
+            rp_id: "localhost".to_string(),
+            encrypted_mnemonic: encrypted.to_hex(),
+            mnemonic_iv: iv.to_hex(),
+            created_at: 1,
+            identity: Identity::default(),
+        };
+        let keystore_json = serde_json::to_string(&passkey_keystore).unwrap();
+
+        let exported = export_mnemonic(
+            &serde_json::json!({
+                "keystoreJson": keystore_json,
+                "key": TEST_PRF_KEY
+            })
+            .to_string(),
+        )
+        .unwrap();
+        let value: serde_json::Value = serde_json::from_str(&exported).unwrap();
+        assert_eq!(value["mnemonic"], TEST_MNEMONIC);
+    }
 }
