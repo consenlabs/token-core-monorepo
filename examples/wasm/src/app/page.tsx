@@ -150,6 +150,7 @@ export default function Home() {
 
       // 4. Create password keystore
       push({ name: "Create Password Keystore", status: "running" });
+      const passwordKeystoreStart = performance.now();
       const passwordKeystoreJson = create_keystore(
         JSON.stringify({
           password: TEST_PASSWORD,
@@ -157,20 +158,21 @@ export default function Home() {
           network: "MAINNET",
         })
       );
+      const passwordKeystoreElapsedMs = performance.now() - passwordKeystoreStart;
       const passwordKs = JSON.parse(passwordKeystoreJson);
       if (passwordKs.version !== 12000) {
         throw new Error(`Unexpected password keystore version: ${passwordKs.version}`);
       }
       if (
         passwordKs.crypto?.kdf !== "pbkdf2" ||
-        passwordKs.crypto?.kdfparams?.c !== 262144
+        passwordKs.crypto?.kdfparams?.c !== 600000
       ) {
         throw new Error(`Unexpected password crypto: ${passwordKeystoreJson}`);
       }
       push({
         name: "Create Password Keystore",
         status: "pass",
-        detail: `KDF: ${passwordKs.crypto.kdf} / rounds: ${passwordKs.crypto.kdfparams.c}`,
+        detail: `Elapsed: ${passwordKeystoreElapsedMs.toFixed(1)} ms (KDF: ${passwordKs.crypto.kdf}, rounds: ${passwordKs.crypto.kdfparams.c})\n${JSON.stringify(passwordKs, null, 2)}`,
       });
 
       // 5. Export mnemonic

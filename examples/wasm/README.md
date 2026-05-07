@@ -123,7 +123,7 @@ const passwordKs = create_keystore(JSON.stringify({
 }
 ```
 
-**Password output:** native HD keystore JSON with `version: 12000`, `crypto.kdf: "pbkdf2"`, `crypto.kdfparams.c: 262144`, and MAC/cipher params stored under `crypto`.
+**Password output:** native HD keystore JSON with `version: 12000`, `crypto.kdf: "pbkdf2"`, `crypto.kdfparams.c: 600000`, and MAC/cipher params stored under `crypto`.
 
 ---
 
@@ -554,7 +554,7 @@ const decrypted = JSON.parse(decrypt_message(JSON.stringify({
 | 2 | Create Keystore (import) | `create_keystore` | Import a known mnemonic, verify identity fields |
 | 3 | Create Keystore (new via entropy) | `create_keystore` | Create from caller-supplied entropy (TESTNET) |
 | 4 | Create Keystore (random) | `create_keystore` | Create with WASM-internal random entropy |
-| 5 | Create Password Keystore | `create_keystore` | Create native HD keystore with PBKDF2 262144 rounds |
+| 5 | Create Password Keystore | `create_keystore` | Create native HD keystore with PBKDF2 600000 rounds |
 | 6 | Export Mnemonic | `export_mnemonic` | Decrypt and export mnemonic with `key` |
 | 7 | Export Mnemonic (legacy prfKey) | `export_mnemonic` | Verify legacy `prfKey` alias still works |
 | 8 | Password Export + Wrong Password | `export_mnemonic` | Export with password and reject a wrong password |

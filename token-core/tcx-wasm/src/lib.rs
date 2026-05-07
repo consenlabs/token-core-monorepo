@@ -29,6 +29,13 @@ use tcx_tron::TronAddress;
 
 use types::*;
 
+const PBKDF2_ROUNDS: i32 = 600_000;
+
+fn set_pbkdf2_rounds() {
+    let mut rounds = tcx_crypto::KDF_ROUNDS.write();
+    *rounds = PBKDF2_ROUNDS;
+}
+
 thread_local! {
     static CACHED_KEYSTORE_JSON: RefCell<Option<String>> = const { RefCell::new(None) };
     static CACHED_MESSAGE_SECRET_KEY: RefCell<Option<SecretKey>> = const { RefCell::new(None) };
@@ -214,6 +221,8 @@ pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
             if password.is_empty() {
                 return Err(JsValue::from_str("password must be provided"));
             }
+
+            set_pbkdf2_rounds();
 
             let metadata = Metadata {
                 network,
@@ -750,7 +759,7 @@ mod tests {
 
         assert_eq!(value["version"], 12000);
         assert_eq!(value["crypto"]["kdf"], "pbkdf2");
-        assert_eq!(value["crypto"]["kdfparams"]["c"], 262144);
+        assert_eq!(value["crypto"]["kdfparams"]["c"], 600_000);
         assert_eq!(value["imTokenMeta"]["network"], "MAINNET");
     }
 
