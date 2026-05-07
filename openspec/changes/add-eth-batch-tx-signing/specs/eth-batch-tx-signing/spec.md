@@ -17,12 +17,17 @@
 - **AND** 解码后第 i 个交易（0 ≤ i < 100）的 nonce SHALL 等于第 i 个输入的 nonce
 - **AND** keystore SHALL 在整批执行过程中只解锁 1 次
 
-#### Scenario: imkey-core 在一次 applet 选择内完成 N 笔批量签名
+#### Scenario: imkey-core 通过对每个 item 复用单笔 sign 流程完成 N 笔批量签名
 
-- **WHEN** host 通过 `call_imkey_api` 以 `eth_batch_sign_tx` 方法发送一个包含 `chainType` 为 `ETHEREUM`、外层 `SignParam.path`、以及 N 个 `EthBatchTxItem`（N 取自 `{1, 2, 5, 10}` 这一组覆盖少量到上限的代表值）的请求，且每笔交易随附其 `payment`、`receiver`、`sender`、`fee` 显示字符串
-- **THEN** imKey ETH applet SHALL 在整批执行中只被 select 一次
-- **AND** 响应 SHALL 按输入顺序包含恰好 N 个 `EthTxOutput`，其 `signature` 解码后为有效的已签名以太坊交易、`tx_hash` 与该交易的规范哈希一致
-- **AND** 设备确认步骤（`prepare_sign` + `sign_digest`）SHALL 对每笔输入交易各执行一次（不假设固件改造）
+- **WHEN** host 通过 `call_imkey_api` 以 `eth_batch_sign_tx` 方法发送一个包含 `chainType` 为 `ETHEREUM`、外层 `SignParam.path`、以及 N 个 `EthBatchTxItem`（N 取自 `{1, 2, 10, 50, 100}` 这一组覆盖少量到上限的代表值）的请求，且每笔交易随附其 `payment`、`receiver`、`sender`、`fee` 显示字符串
+- **THEN** 响应 SHALL 按输入顺序包含恰好 N 个 `EthTxOutput`，其 `signature` 解码后为有效的已签名以太坊交易、`tx_hash` 与该交易的规范哈希一致
+- **AND** 对每个 item，批量动作的执行 SHALL 等价于以该 item 的有效 path（item.path 非空时优先；否则回落到外层 `SignParam.path`）与该 item 的 `payment` / `receiver` / `sender` / `fee` 调用一次现有单笔 `sign_tx`：完整的 `select_applet` / `prepare_sign` / `get_xpub` / 地址校验 / `sign_digest` / 用户在设备屏上的物理确认 SHALL 对每笔输入交易各发生一次（不假设固件改造，不在批量层做任何 device-session 优化）
+
+#### Scenario: imkey-core 批量每笔输出与单笔 sign_tx 在相同上下文下逐字节相同
+
+- **WHEN** 用 `eth_batch_sign_tx` 对一个含 N 个 item 的请求成功完成签名
+- **AND** 在相同设备绑定、相同 ETH applet 状态、相同 path 与显示字符串下分别对每个 item 调用一次现有单笔 `sign_tx`
+- **THEN** 两条路径在每个下标位置上得到的 `EthTxOutput.signature` 与 `EthTxOutput.tx_hash` SHALL 完全相等
 
 ### Requirement: 与单笔 sign_tx 的输入对等
 
@@ -80,7 +85,7 @@
 
 ### Requirement: 不同引擎不同的批量上限
 
-每个引擎 SHALL 根据自身资源约束设置批量上限：`token-core` 的上限 SHALL 为 2048（软件签名，仅受内存与单次 FFI 时长约束）；`imkey-core` 的上限 SHALL 为 10（硬件签名，受设备 BLE/USB 会话时长与用户逐笔确认体验约束）。每个上限 SHALL 以单一具名常量定义在对应引擎的 handler 同位置，便于在不变更协议的前提下调整。任何超过对应引擎上限的请求 SHALL 在解锁 / 选择 applet 之前被拒绝。
+每个引擎 SHALL 根据自身资源约束设置批量上限：`token-core` 的上限 SHALL 为 2048（软件签名，仅受内存与单次 FFI 时长约束）；`imkey-core` 的上限 SHALL 为 100（硬件签名，每笔仍需用户在设备上按确认；100 为协议层硬上限，旨在为 stake / 合约批量 approve 等典型业务流留出余量，host 业务层应根据具体 UX 进一步收紧实际允许的笔数）。每个上限 SHALL 以单一具名常量定义在对应引擎的 handler 同位置，便于在不变更协议的前提下调整。任何超过对应引擎上限的请求 SHALL 在解锁 / 选择 applet 之前被拒绝。
 
 #### Scenario: token-core 接受 2048 笔但拒绝 2049 笔
 
@@ -90,10 +95,10 @@
 - **THEN** 该动作 SHALL 返回错误，提示批量超过上限 2048
 - **AND** keystore SHALL 不被解锁
 
-#### Scenario: imkey-core 接受 10 笔但拒绝 11 笔
+#### Scenario: imkey-core 接受 100 笔但拒绝 101 笔
 
-- **WHEN** 在 imkey-core 上提交 11 笔批量请求
-- **THEN** 该动作 SHALL 返回错误，提示批量超过上限 10
+- **WHEN** 在 imkey-core 上提交 101 笔批量请求
+- **THEN** 该动作 SHALL 返回错误，提示批量超过上限 100
 - **AND** imKey ETH applet SHALL 不被 select
 
 ### Requirement: 与单笔 sign_tx 的鉴权对等

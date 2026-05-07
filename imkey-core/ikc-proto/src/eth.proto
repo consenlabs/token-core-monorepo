@@ -33,3 +33,39 @@ message EthMessageInput {
 message EthMessageOutput {
     string signature = 1;
 }
+
+// ----------------------------------------------------------------------
+// Batch ETH transaction signing.
+//
+// `EthBatchTxInput` is the body wrapped in `SignParam.input` for the
+// `eth_batch_sign_tx` action: a single FFI call signs N ETH transactions,
+// each item carrying its own per-tx display strings (payment / receiver /
+// fee), expected sender for address verification, and an optional path
+// override (empty string falls back to the outer `SignParam.path`).
+//
+// Per-item processing is a thin loop over the existing single-tx
+// `Transaction::sign` flow — every device session action (select_applet
+// / prepare_sign / get_xpub / sign_digest / user button confirm) still
+// happens N times exactly as it would for N individual sign_tx calls.
+// The batch wrapper only adds: 1 FFI call instead of N, ordered
+// execution, all-or-nothing semantics, index-prefixed errors.
+// ----------------------------------------------------------------------
+
+message EthBatchTxInput {
+    repeated EthBatchTxItem items = 1;
+}
+
+message EthBatchTxItem {
+    EthTxInput tx = 1;
+    string payment = 2;
+    string receiver = 3;
+    string sender = 4;
+    string fee = 5;
+    // Per-item HD path override. Empty string falls back to
+    // `SignParam.path` (the outer batch-shared default).
+    string path = 6;
+}
+
+message EthBatchTxOutput {
+    repeated EthTxOutput outputs = 1;
+}

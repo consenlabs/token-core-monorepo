@@ -1,18 +1,34 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use anyhow::anyhow;
-use coin_ethereum::ethapi::{EthMessageInput, EthTxInput};
+use coin_ethereum::ethapi::{EthBatchTxInput, EthBatchTxOutput, EthMessageInput, EthTxInput};
 use coin_ethereum::transaction::{AccessListItem, Transaction};
 use coin_ethereum::types::Action;
 use ethereum_types::{Address, H256, U256};
 use hex;
 use ikc_common::constants::ETH_TRANSACTION_TYPE_EIP1559;
+use ikc_common::path::check_path_validity;
 use ikc_common::SignParam;
 use prost::Message;
 use std::str::FromStr;
 
-pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: EthTxInput = EthTxInput::decode(data).expect("imkey_illegal_param");
+/// Hard upper bound for the number of items in a single
+/// `eth_batch_sign_tx` request. Each item still triggers a full
+/// single-tx flow on the device (one user button press, one
+/// `select_applet` / `prepare_sign` / `get_xpub` / `sign_digest`),
+/// so the practical UX-acceptable batch size is much smaller than
+/// this; 100 only exists as a defensive cap to keep the protocol
+/// from being abused as a "sign N hundreds at once" vehicle (host
+/// SDKs needing larger throughput should use the software signer).
+pub const ETH_MAX_BATCH_SIZE: usize = 100;
+
+/// Parse a host-supplied `EthTxInput` into the imKey-side
+/// `coin_ethereum::transaction::Transaction` plus its decoded
+/// `chain_id`. Centralised here so single-tx (`sign_eth_transaction`)
+/// and batch (`sign_eth_batch_transaction`) share the exact same
+/// parsing — any drift between the two paths would manifest as a
+/// silent signature divergence.
+fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
     let data_vec = if input.data.starts_with("0x") {
         hex::decode(&input.data[2..]).unwrap()
     } else {
@@ -43,14 +59,14 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
             max_priority_fee_per_gas: Some(parse_eth_argument(&input.max_priority_fee_per_gas)?),
             access_list: {
                 let mut access_list: Vec<AccessListItem> = Vec::new();
-                for access in input.access_list {
+                for access in &input.access_list {
                     let item = AccessListItem {
                         address: Address::from_str(remove_0x(&access.address)).unwrap(),
                         storage_keys: {
                             let mut storage_keys: Vec<H256> = Vec::new();
-                            for key in access.storage_keys {
+                            for key in &access.storage_keys {
                                 storage_keys
-                                    .push(Transaction::hexstring_to_hex256(remove_0x(&key)));
+                                    .push(Transaction::hexstring_to_hex256(remove_0x(key)));
                             }
                             storage_keys
                         },
@@ -68,7 +84,7 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
             to: Action::Call(Address::from_str(&to).unwrap()),
             value: parse_eth_argument(&input.value)?,
             data: Vec::from(data_vec.as_slice()),
-            tx_type: input.r#type,
+            tx_type: input.r#type.clone(),
             max_fee_per_gas: None,
             max_priority_fee_per_gas: None,
             access_list: vec![],
@@ -88,6 +104,13 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
         }
     };
 
+    Ok((eth_tx, chain_id))
+}
+
+pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
+    let input: EthTxInput = EthTxInput::decode(data).expect("imkey_illegal_param");
+    let (eth_tx, chain_id) = build_eth_transaction(&input)?;
+
     let tx_out = eth_tx.sign(
         Some(chain_id),
         &sign_param.path,
@@ -97,6 +120,82 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
         &sign_param.fee,
     )?;
     encode_message(tx_out)
+}
+
+pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
+    let input: EthBatchTxInput =
+        EthBatchTxInput::decode(data).expect("imkey_illegal_param");
+
+    if input.items.is_empty() {
+        return Err(anyhow!(
+            "eth_batch_sign_tx failed at index 0: invalid_param"
+        ));
+    }
+    if input.items.len() > ETH_MAX_BATCH_SIZE {
+        return Err(anyhow!(
+            "eth_batch_sign_tx failed at index 0: batch size {} exceeds limit {}",
+            input.items.len(),
+            ETH_MAX_BATCH_SIZE
+        ));
+    }
+
+    if !sign_param.path.is_empty() {
+        check_path_validity(&sign_param.path)
+            .map_err(|e| anyhow!("eth_batch_sign_tx failed at index 0: {}", e))?;
+    }
+    for (i, item) in input.items.iter().enumerate() {
+        if item.tx.is_none() {
+            return Err(anyhow!(
+                "eth_batch_sign_tx failed at index {}: missing tx",
+                i
+            ));
+        }
+        // `sender` is required for the device-side address
+        // verification step inside `Transaction::sign`. Catching it
+        // here keeps the failure ordering (and error message) parallel
+        // to the missing-tx case, which the host already special-cases.
+        if item.sender.is_empty() {
+            return Err(anyhow!(
+                "eth_batch_sign_tx failed at index {}: missing sender",
+                i
+            ));
+        }
+        if !item.path.is_empty() {
+            check_path_validity(&item.path)
+                .map_err(|e| anyhow!("eth_batch_sign_tx failed at index {}: {}", i, e))?;
+        }
+    }
+
+    let mut outputs = Vec::with_capacity(input.items.len());
+    for (i, item) in input.items.iter().enumerate() {
+        // `is_none()` already short-circuited above, so unwrap is safe.
+        let tx_input = item.tx.as_ref().unwrap();
+        let (eth_tx, chain_id) = build_eth_transaction(tx_input)
+            .map_err(|e| anyhow!("eth_batch_sign_tx failed at index {}: {}", i, e))?;
+
+        let effective_path: &str = if item.path.is_empty() {
+            &sign_param.path
+        } else {
+            &item.path
+        };
+
+        // Direct call to the existing single-tx sign — `coin-ethereum`
+        // has no notion of "batch". Every device session APDU happens
+        // here, exactly as it would for a standalone `sign_tx`.
+        let out = eth_tx
+            .sign(
+                Some(chain_id),
+                effective_path,
+                &item.payment,
+                &item.receiver,
+                &item.sender,
+                &item.fee,
+            )
+            .map_err(|e| anyhow!("eth_batch_sign_tx failed at index {}: {}", i, e))?;
+        outputs.push(out);
+    }
+
+    encode_message(EthBatchTxOutput { outputs })
 }
 
 fn parse_eth_argument(str: &str) -> Result<U256> {
@@ -493,4 +592,5 @@ mod tests {
             "0x09fa41c4d6b92482506c8c56f65b217cc3398821caec7695683110997426db01".to_string()
         );
     }
+
 }

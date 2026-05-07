@@ -54,3 +54,33 @@ pub struct EthMessageOutput {
     #[prost(string, tag = "1")]
     pub signature: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EthBatchTxInput {
+    #[prost(message, repeated, tag = "1")]
+    pub items: ::prost::alloc::vec::Vec<EthBatchTxItem>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EthBatchTxItem {
+    #[prost(message, optional, tag = "1")]
+    pub tx: ::core::option::Option<EthTxInput>,
+    #[prost(string, tag = "2")]
+    pub payment: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub receiver: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub sender: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub fee: ::prost::alloc::string::String,
+    /// Per-item HD path override. Empty string falls back to
+    /// `SignParam.path` (the outer batch-shared default).
+    #[prost(string, tag = "6")]
+    pub path: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct EthBatchTxOutput {
+    #[prost(message, repeated, tag = "1")]
+    pub outputs: ::prost::alloc::vec::Vec<EthTxOutput>,
+}
