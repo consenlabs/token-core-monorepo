@@ -17,7 +17,7 @@ use tcx_keystore::{Keystore, MessageSigner, SignatureParameters, Signer, Transac
 /// keystore, so an over-sized batch never charges an unlock or any signing work.
 /// See `openspec/changes/add-eth-batch-tx-signing/specs/eth-batch-tx-signing/spec.md`
 /// requirement "不同引擎不同的批量上限" for the rationale.
-pub const ETH_MAX_BATCH_SIZE: usize = 2048;
+pub const ETH_MAX_BATCH_SIZE: usize = 204800;
 
 fn hash_message<T: AsRef<[u8]>>(message: T) -> Hash256 {
     const PREFIX: &str = "\x19Ethereum Signed Message:\n";
