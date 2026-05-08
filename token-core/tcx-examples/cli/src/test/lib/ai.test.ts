@@ -117,13 +117,14 @@ describe("generateAiSummary — waterfall logic", () => {
   });
 
   it("returns groq result when Gemini key is absent (no fetch for Gemini)", async () => {
-    // Gemini key not set → generateGeminiSummary returns undefined immediately, no fetch call.
-    // import.meta.env VITE_GEMINI_API_KEY may still be present from .env;
-    // handle by having its first fetch (if any) return 503.
+    // vi.stubEnv only patches process.env; import.meta.env may still carry a real Gemini key
+    // baked in by Vite from the local .env file, causing Gemini to call fetch in dev/local runs.
+    // Using mockResolvedValue (not Once) makes every fetch return a Groq-shaped response:
+    //   - If Gemini calls fetch: finds no `candidates` → returns undefined (harmless)
+    //   - Groq calls fetch: finds `choices` → returns the summary ✓
+    // This makes the test deterministic regardless of local .env contents or CI environment.
     vi.stubEnv("VITE_GROQ_API_KEY", "groq-key");
-    vi.mocked(fetch)
-      .mockResolvedValueOnce(errorResponse(503) as unknown as Response) // Gemini (if key leaked) → skip
-      .mockResolvedValueOnce(groqOk(goodText) as unknown as Response); // Groq ok
+    vi.mocked(fetch).mockResolvedValue(groqOk(goodText) as unknown as Response);
 
     const result = await generateAiSummary(mockAnalysis);
     expect(result?.provider).toBe("groq");
