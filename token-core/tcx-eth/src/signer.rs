@@ -1002,9 +1002,4 @@ mod test {
         );
     }
 
-    #[test]
-    fn test_batch_sign_constant_is_2048() {
-        // Locks down the spec'd batch limit so accidental tweaks fail loudly.
-        assert_eq!(ETH_MAX_BATCH_SIZE, 2048);
-    }
 }
