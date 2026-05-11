@@ -21,6 +21,23 @@ use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::ecdsa::Signature as EcdsaSignature;
 use std::str::FromStr;
 
+/// INS byte for the BTC message signing single-instruction protocol.
+///
+/// All chunks of the wire payload share this INS; phases are distinguished by
+/// the P2 byte (`0x00` to stage, `0x80` to commit + sign).
+const BTC_MSG_SIGN_INS: u8 = 0x51;
+
+/// Outer TLV tags carried in the prep payload.
+const TAG_SIGNATURE: u8 = 0x00;
+const TAG_RAW_DATA: u8 = 0x01;
+
+/// Inner sub-TLV tags carried inside the Raw Data TLV value.
+///
+/// The applet covers both sub-TLVs under the host ECDSA signature so the BIP32
+/// path is bound to the request alongside the message digest.
+const PRE_TAG_TXHASH: u8 = 0xA6;
+const PRE_TAG_PATH: u8 = 0xA7;
+
 pub struct MessageSinger {
     pub derivation_path: String,
     pub chain_type: String,
@@ -85,42 +102,66 @@ impl MessageSinger {
 
         let msg_hash = bip137_message_hash(data);
         let path = format!("{}/0/0", self.derivation_path);
+        let path_bytes = path.as_bytes();
+
+        // Inner sub-TLVs carried inside the Raw Data TLV value. Putting the BIP32
+        // path here (rather than on a separate sign APDU as legacy BTC sign flows
+        // do) pulls it under the host ECDSA signature, closing the path-swap
+        // window between prepare and sign APDUs.
+        //
+        //   [PRE_TAG_TXHASH(0xA6) | 0x20 | 32-byte BIP-137 digest]
+        //   [PRE_TAG_PATH(0xA7)   | path_len | path bytes]
+        let mut raw_data_value = Vec::with_capacity(2 + msg_hash.len() + 2 + path_bytes.len());
+        raw_data_value.push(PRE_TAG_TXHASH);
+        raw_data_value.push(msg_hash.len() as u8);
+        raw_data_value.extend_from_slice(&msg_hash);
+        raw_data_value.push(PRE_TAG_PATH);
+        raw_data_value.push(path_bytes.len() as u8);
+        raw_data_value.extend_from_slice(path_bytes);
+
+        // Raw Data TLV: [tag=0x01][len][raw_data_value]
+        let mut raw_data_tlv = Vec::with_capacity(2 + raw_data_value.len());
+        raw_data_tlv.push(TAG_RAW_DATA);
+        raw_data_tlv.push(raw_data_value.len() as u8);
+        raw_data_tlv.extend_from_slice(&raw_data_value);
+
+        // Host signs the full Raw Data TLV bytes (tag | len | value); the applet
+        // verifies the resulting DER signature against the same byte range,
+        // binding both the message hash and the derivation path to this request.
+        let key_manager_obj = KEY_MANAGER.lock();
+        let host_sig = secp256k1_sign(&key_manager_obj.pri_key, &raw_data_tlv)?;
+        drop(key_manager_obj);
+
+        // Final wire payload: [Signature TLV: 0x00 | len | DER_sig] || [Raw Data TLV]
+        let mut prep_data = Vec::with_capacity(2 + host_sig.len() + raw_data_tlv.len());
+        prep_data.push(TAG_SIGNATURE);
+        prep_data.push(host_sig.len() as u8);
+        prep_data.extend_from_slice(&host_sig);
+        prep_data.extend_from_slice(&raw_data_tlv);
 
         select_btc_applet()?;
 
-        // Build inner TLV: [0x01][0x20][32-byte-hash]
-        let mut hash_tlv = vec![0x01, 0x20];
-        hash_tlv.extend_from_slice(&msg_hash);
-
-        // Sign inner TLV with host key
-        let key_manager_obj = KEY_MANAGER.lock();
-        let mut prep_data = secp256k1_sign(&key_manager_obj.pri_key, &hash_tlv)?;
-        drop(key_manager_obj);
-
-        // Wrap signature: [0x00][sig_len][DER_sig]
-        prep_data.insert(0, prep_data.len() as u8);
-        prep_data.insert(0, 0x00);
-        // Append inner TLV
-        prep_data.extend_from_slice(&hash_tlv);
-
-        // Send prep APDUs (INS 0x51); last chunk triggers user confirmation
-        let prep_apdus = BtcApdu::btc_prepare(0x51, 0x00, &prep_data);
-        let apdu_count = prep_apdus.len();
-        for (i, apdu) in prep_apdus.into_iter().enumerate() {
-            if i == apdu_count - 1 {
-                ApduCheck::check_response(&send_apdu_timeout(apdu, TIMEOUT_LONG)?)?;
+        // Single-INS protocol: all chunks share INS=BTC_MSG_SIGN (0x51), P1=0x00.
+        //   P2=0x00 → buffer chunk and return SW=9000
+        //   P2=0x80 → append final chunk, then in the same APDU the applet runs
+        //             host-sig verify → inner TLV parse → user confirmation →
+        //             RFC-6979 ECDSA sign → return 66-byte [len|R|S|V] result.
+        //
+        // btc_prepare already emits the 0x00.../0x80 sequence for us; the final
+        // APDU response carries the signature, so no follow-up sign APDU is sent.
+        let apdus = BtcApdu::btc_prepare(BTC_MSG_SIGN_INS, 0x00, &prep_data);
+        let last_idx = apdus.len() - 1;
+        let mut sign_result = String::new();
+        for (i, apdu) in apdus.into_iter().enumerate() {
+            if i == last_idx {
+                sign_result = send_apdu_timeout(apdu, TIMEOUT_LONG)?;
+                ApduCheck::check_response(&sign_result)?;
             } else {
                 ApduCheck::check_response(&send_apdu(apdu)?)?;
             }
         }
 
-        // Send sign APDU (INS 0x52) with BIP32 path
-        let sign_apdu = BtcApdu::btc_msg_sign(&path);
-        let sign_result = send_apdu(sign_apdu)?;
-        ApduCheck::check_response(&sign_result)?;
-
-        // Parse response: skip length byte (2 hex chars), strip SW (4 hex chars)
-        // Remaining 65 bytes = R(32) + S(32) + V(1)
+        // Response wire format: [length_byte(1) | R(32) | S(32) | V(1)] + SW(2)
         let sign_bytes = hex_to_bytes(&sign_result[2..(sign_result.len() - 4)])?;
         if sign_bytes.len() != 65 {
             return Err(CoinError::MissingSignature.into());

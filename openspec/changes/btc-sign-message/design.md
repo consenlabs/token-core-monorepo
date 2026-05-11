@@ -77,18 +77,51 @@ imKey 硬件钱包路径在 `imkey-core/ikc-wallet/coin-bitcoin/src/message.rs` 
 
 **理由**：未设置 `signatureType` 的现有调用方将获得兼容性最广的格式。这是一个安全的默认值，适用于所有传统验证器。
 
+### 决策 7：imKey BIP-137 / Standard 走单 INS APDU 协议，BIP32 path 嵌入 prepare TLV
+
+**选择**：imKey BTC applet 在 `>=1.6.11` 版本提供消息签名能力时采用**单一 INS（`BTC_MSG_SIGN = 0x51`）+ P2 分阶段**的协议形态，host 端按下述方式打包请求：
+
+```
+[Signature TLV: tag=0x00 | len | host_ecdsa_signature(DER)]
+[Raw Data TLV:  tag=0x01 | len |
+    [PRE_TAG_TXHASH(0xA6) | 0x20 | 32-byte BIP-137 digest]
+    [PRE_TAG_PATH(0xA7)   | path_len | BIP32 path bytes]
+]
+```
+
+- 所有 APDU 共享 `INS=0x51`、`P1=0x00`
+- 中间块 `P2=0x00`：applet 仅缓冲数据并立即返回 `SW=9000`
+- 最终块 `P2=0x80`：applet 在同一条 APDU 内串行完成 host 签名验证 → 内层 TLV 解析 → 用户屏幕确认 → RFC-6979 ECDSA 签名，并把 66 字节签名结果（`len | R | S | V`）作为响应返回；host 端不再发送独立的 sign APDU
+- Host 对 Raw Data TLV 的完整字节（`tag | len | value`）做 ECDSA 签名；applet 用 app pubkey 校验，**hash 与 path 同时受 host 签名保护**
+
+**理由**：
+- **关闭 path 替换攻击面**：BTC applet 既有所有交易签名流程都把 BIP32 path 放在 sign APDU CDATA 中单独传，path 不在 host 签名覆盖范围内。在消息签名场景下，设备屏幕只展示通用 "Sign Message" 提示（无金额/地址等上下文可辨别），如果沿用"prepare + sign 双 INS、path 走 sign APDU"的旧式拆分，攻击者可以在两条 APDU 之间替换 path 而不被察觉。把 path 内嵌进 prepare TLV 并纳入 host 签名覆盖，从协议层堵住这条路径
+- **消除跨 APDU 状态机**：单 INS 把"用户确认 → 签名输出"绑定在同一条 APDU 的状态转换中，applet 无需在两条独立 INS 之间维护 `confStat` 之类的跨 APDU 状态，host 也无法在 confirm 与 sign 之间插入额外 APDU
+- **简化 host SDK**：host 端从"两条 INS 串行 + 两次响应解析"简化为"一条 INS 的分块循环 + 末块响应即签名"
+
+**实现层面要点**：
+- 复用既有 `BtcApdu::btc_prepare(0x51, 0x00, &prep_data)`：该 helper 已经按 LC_MAX 切分输出 `P2=0x00 ... 0x00 ... 0x80` 的 APDU 序列
+- 旧的 `BtcApdu::btc_msg_sign(path)`（对应历史 INS `0x52`）已移除；INS `0x52` 在适配后保持为未分配值
+- 末块 APDU 必须使用 `TIMEOUT_LONG`（120s），因为它在 applet 内部触发用户按键确认
+- Applet 的响应已经是裸 `len(1) | R(32) | S(32) | V(1) | SW(2)`，host 端按既有格式解析并继续执行 BIP-62 low-S 归一化与 flag byte 拼装
+
+**否决的方案 A**：沿用 prep + sign 双 INS（INS `0x51` + INS `0x52`，path 走第二条 APDU）。否决原因：path 不受 host 签名保护，存在 path 替换攻击面；并且依赖跨 APDU 状态机，攻击窗口更大。
+
+**否决的方案 B**：把 path 加入 host 签名输入但仍保留双 INS。否决原因：需要 host 与 applet 双方都额外维护"已签名的 path"与"sign APDU 携带的 path"是否一致的校验逻辑，比直接把 path 内嵌进 TLV 复杂，收益相同。
+
 ## 风险 / 权衡
 
 **[输出编码的破坏性变更]** → 现有消费 `BtcMessageOutput.signature` 为 hex 格式的调用方会受影响。缓解措施：与前端团队协调更新解析逻辑。proto 字段语义变更应在发布说明中记录。
 
 **[BIP-137 标志字节约定在各钱包间有差异]** → 部分钱包使用略有不同的标志范围。缓解措施：严格遵循 BIP-137 规范（31-34 用于 P2PKH 压缩公钥，35-38 用于 P2SH-P2WPKH）。Standard 格式（始终 31-34）作为最大兼容性的备选方案。
 
-**[imKey 硬件钱包可能不支持 BIP-137 APDU]** → 当前 imKey 固件可能没有专用的 BIP-137 签名命令。缓解措施：检查现有的 `personal_sign` 或通用 ECDSA 签名 APDU 是否可与预计算的 BIP-137 消息哈希配合使用。如不行，需要修改bitcoin applet，增加message签名指令支持。
+**[imKey 硬件钱包可能不支持 BIP-137 APDU]** → 当前 imKey 固件可能没有专用的 BIP-137 签名命令。**已解决**：BTC applet `>=1.6.11` 已实现单 INS（`BTC_MSG_SIGN = 0x51`）消息签名能力，host 端按"Signature TLV + Raw Data TLV（内含 hash/path 子 TLV）"格式打包；host 在调用前通过 `get_btc_apple_version()` 检查版本，低版本返回 `UpgradeApplet` 错误提示。
 
 **[Taproot 的 BIP-322 Full 增加签名体积]** → Full 格式包含完整交易而非仅 witness，数据量更大。缓解措施：这是 BIP-322 规范和 PRD 的要求。增量约 100-200 字节，可接受。
 
 ## 已确认事项
 
 1. **Native SegWit（P2WPKH）需要支持全部三种签名格式**：Standard（标志位 31-34）、BIP-137（标志位 39-42）、BIP-322（Simple）。
-2. **imKey 固件已支持 ECDSA 可恢复签名能力**，可用于 BIP-137 签名流程，无需额外验证 APDU 能力。但 Bitcoin Applet 需要新增 message 签名专用接口。
+2. **imKey BTC applet `>=1.6.11` 已交付消息签名指令**：采用单 INS（`BTC_MSG_SIGN = 0x51`）+ P2 分阶段（`0x00` 暂存 / `0x80` 触发完整流程）协议，BIP32 path 嵌入 prepare TLV 并由 host 签名覆盖；host 端通过 `get_btc_apple_version()` 做版本门控，低于 `1.6.11` 返回 `UpgradeApplet` 错误。
 3. **BIP-137 签名支持十六进制消息输入**（`0x` 前缀），与现有 `utf8_or_hex_to_bytes` 行为一致。
+4. **签名响应来自最终 P2=0x80 APDU**：host 不再发送独立的 sign APDU；末块响应直接携带 66 字节 `len | R | S | V` 签名结果，host 完成 BIP-62 low-S 归一化与 flag byte 拼装后输出 Base64。

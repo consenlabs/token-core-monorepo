@@ -155,14 +155,6 @@ impl BtcApdu {
         Apdu::register_address(0x37, &data)
     }
 
-    pub fn btc_msg_sign(path: &str) -> String {
-        let path_bytes = path.as_bytes();
-        let mut apdu = ApduHeader::new(0x80, 0x52, 0x00, 0x00, path_bytes.len() as u8).to_array();
-        apdu.extend(path_bytes.iter());
-        apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
-    }
-
     pub fn btc_single_utxo_sign_prepare(ins: u8, data: &Vec<u8>) -> Vec<String> {
         let mut apdu_vec = Vec::new();
         let apdu_number = (data.len() - 1) / LC_MAX as usize + 1;
