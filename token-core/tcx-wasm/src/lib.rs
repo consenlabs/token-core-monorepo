@@ -44,7 +44,7 @@ use tcx_tron::TronAddress;
 
 use types::*;
 
-const PBKDF2_ROUNDS: i32 = 600_000;
+const PBKDF2_ROUNDS: i32 = 65_535;
 
 fn set_pbkdf2_rounds() {
     let mut rounds = tcx_crypto::KDF_ROUNDS.write();
