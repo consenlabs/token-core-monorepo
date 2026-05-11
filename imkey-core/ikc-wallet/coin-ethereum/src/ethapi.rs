@@ -56,13 +56,13 @@ pub struct EthMessageOutput {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EthBatchTxInput {
+pub struct SignTxsInput {
     #[prost(message, repeated, tag = "1")]
-    pub items: ::prost::alloc::vec::Vec<EthBatchTxItem>,
+    pub items: ::prost::alloc::vec::Vec<SignTxsItem>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EthBatchTxItem {
+pub struct SignTxsItem {
     #[prost(message, optional, tag = "1")]
     pub tx: ::core::option::Option<EthTxInput>,
     #[prost(string, tag = "2")]
@@ -80,7 +80,7 @@ pub struct EthBatchTxItem {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EthBatchTxOutput {
+pub struct SignTxsOutput {
     #[prost(message, repeated, tag = "1")]
     pub outputs: ::prost::alloc::vec::Vec<EthTxOutput>,
 }

@@ -12,7 +12,7 @@ use tcx_common::{keccak256, parse_u256, parse_u64, utf8_or_hex_to_bytes, FromHex
 use tcx_constants::CurveType;
 use tcx_keystore::{Keystore, MessageSigner, SignatureParameters, Signer, TransactionSigner};
 
-/// Maximum number of transactions accepted by a single `batch_sign_tx` call
+/// Maximum number of transactions accepted by a single `sign_txs` call
 /// in token-core. The bound is enforced by the handler before unlocking the
 /// keystore, so an over-sized batch never charges an unlock or any signing work.
 /// See `openspec/changes/add-eth-batch-tx-signing/specs/eth-batch-tx-signing/spec.md`
@@ -159,10 +159,10 @@ pub fn batch_personal_sign(
 ///
 /// `path` is the *effective* HD derivation path for this item — the handler is
 /// responsible for folding the per-item `path` and the outer default `path`
-/// before calling [`batch_sign_transaction`], so this function does not need to
-/// know about the outer default.
+/// before calling [`sign_txs`], so this function does not need to know about
+/// the outer default.
 #[derive(Clone, Debug)]
-pub struct BatchSignTxItem {
+pub struct SignTxsItem {
     pub input: EthTxInput,
     pub path: String,
 }
@@ -175,13 +175,13 @@ pub struct BatchSignTxItem {
 /// same effective derivation path.
 ///
 /// Per-item failures are wrapped as
-/// `"batch_sign_tx failed at index {i}: {source}"` and the entire batch
+/// `"sign_txs failed at index {i}: {source}"` and the entire batch
 /// aborts on the first error (no partial output is returned). The caller is
 /// responsible for enforcing [`ETH_MAX_BATCH_SIZE`] before invoking this
 /// function.
-pub fn batch_sign_transaction(
+pub fn sign_txs(
     keystore: &mut Keystore,
-    items: &[BatchSignTxItem],
+    items: &[SignTxsItem],
 ) -> Result<Vec<EthTxOutput>> {
     let mut outputs = Vec::with_capacity(items.len());
     for (index, item) in items.iter().enumerate() {
@@ -195,7 +195,7 @@ pub fn batch_sign_transaction(
         let output = keystore
             .sign_transaction(&params, &item.input)
             .map_err(|err| {
-                anyhow!("batch_sign_tx failed at index {}: {}", index, err)
+                anyhow!("sign_txs failed at index {}: {}", index, err)
             })?;
         outputs.push(output);
     }
@@ -808,7 +808,7 @@ mod test {
         assert_eq!(result[1], "0xb12a1c9d3a7bb722d952366b06bd48cb35bdf69065dee92351504c3716a782493c697de7b5e59579bdcc624aa277f8be5e7f42dc65fe7fcd4cc68fef29ff28c21b".to_string());
     }
 
-    use crate::signer::{batch_sign_transaction, BatchSignTxItem, ETH_MAX_BATCH_SIZE};
+    use crate::signer::{sign_txs, SignTxsItem, ETH_MAX_BATCH_SIZE};
 
     fn legacy_eip155_input() -> EthTxInput {
         EthTxInput {
@@ -892,14 +892,14 @@ mod test {
             .map(|input| keystore.sign_transaction(&params, input).unwrap())
             .collect();
 
-        let items: Vec<BatchSignTxItem> = inputs
+        let items: Vec<SignTxsItem> = inputs
             .iter()
-            .map(|input| BatchSignTxItem {
+            .map(|input| SignTxsItem {
                 input: input.clone(),
                 path: params.derivation_path.clone(),
             })
             .collect();
-        let batch_outputs = batch_sign_transaction(&mut keystore, &items).unwrap();
+        let batch_outputs = sign_txs(&mut keystore, &items).unwrap();
 
         assert_eq!(single_outputs.len(), batch_outputs.len());
         for (idx, (single, batch)) in single_outputs.iter().zip(batch_outputs.iter()).enumerate() {
@@ -942,20 +942,20 @@ mod test {
         let single2 = single_at(&mut keystore, path2);
 
         let items = vec![
-            BatchSignTxItem {
+            SignTxsItem {
                 input: input.clone(),
                 path: path0.to_string(),
             },
-            BatchSignTxItem {
+            SignTxsItem {
                 input: input.clone(),
                 path: path1.to_string(),
             },
-            BatchSignTxItem {
+            SignTxsItem {
                 input: input.clone(),
                 path: path2.to_string(),
             },
         ];
-        let batch = batch_sign_transaction(&mut keystore, &items).unwrap();
+        let batch = sign_txs(&mut keystore, &items).unwrap();
 
         assert_eq!(batch.len(), 3);
         assert_eq!(batch[0].signature, single0.signature);
@@ -982,22 +982,22 @@ mod test {
         bad_input.to = "0xZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ".to_string();
 
         let items = vec![
-            BatchSignTxItem {
+            SignTxsItem {
                 input: legacy_eip155_input(),
                 path: "m/44'/60'/0'/0/0".to_string(),
             },
-            BatchSignTxItem {
+            SignTxsItem {
                 input: bad_input,
                 path: "m/44'/60'/0'/0/0".to_string(),
             },
         ];
 
-        let err = batch_sign_transaction(&mut keystore, &items)
+        let err = sign_txs(&mut keystore, &items)
             .err()
             .expect("expected the batch to abort on bad `to`");
         let msg = err.to_string();
         assert!(
-            msg.contains("batch_sign_tx failed at index 1"),
+            msg.contains("sign_txs failed at index 1"),
             "error message did not mention the failing index: {msg}"
         );
     }

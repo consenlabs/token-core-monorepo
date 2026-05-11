@@ -1,7 +1,7 @@
 //! End-to-end tests for the new ETH batch transaction signing path.
 //!
-//! These tests call `connector::ethereum_signer::sign_eth_batch_transaction`
-//! directly, exercising:
+//! These tests call `connector::ethereum_signer::sign_txs` directly,
+//! exercising:
 //!
 //!   - the pre-flight validation branches (size limit / empty /
 //!     invalid path / missing tx / missing sender), which return
@@ -17,7 +17,7 @@
 //! is deliberate: it keeps each test file readable and lets future
 //! per-feature E2E suites live here without dragging C-ABI
 //! envelope plumbing through every assertion. The dispatcher branch
-//! itself (`"batch_sign_tx" =>` in `lib.rs`) is a one-liner —
+//! itself (`"sign_txs" =>` in `lib.rs`) is a one-liner —
 //! a simple smoke test elsewhere is cheap enough; the heavy lifting
 //! belongs at the function level.
 //!
@@ -39,9 +39,9 @@
 use prost::Message;
 
 use coin_ethereum::ethapi::{
-    AccessList, EthBatchTxInput, EthBatchTxItem, EthBatchTxOutput, EthTxInput,
+    AccessList, EthTxInput, SignTxsInput, SignTxsItem, SignTxsOutput,
 };
-use connector::ethereum_signer::sign_eth_batch_transaction;
+use connector::ethereum_signer::sign_txs;
 use ikc_common::constants::ETH_TRANSACTION_TYPE_EIP1559;
 use ikc_common::SignParam;
 use ikc_device::device_binding::bind_test;
@@ -64,7 +64,7 @@ const FEE: &str = "0.0032 ether";
 
 /// Minimal `SignParam` carrying just the outer batch-shared HD path.
 /// `input` is unused for the batch path — the function takes the
-/// encoded `EthBatchTxInput` as its first argument.
+/// encoded `SignTxsInput` as its first argument.
 fn make_sign_param(path: &str) -> SignParam {
     SignParam {
         chain_type: "ETHEREUM".to_string(),
@@ -79,13 +79,13 @@ fn make_sign_param(path: &str) -> SignParam {
     }
 }
 
-/// Build a structurally-valid `EthBatchTxItem` carrying a placeholder
+/// Build a structurally-valid `SignTxsItem` carrying a placeholder
 /// legacy tx. Used by pre-flight tests where the goal is to trip a
 /// validation branch before the device is touched. Caller mutates
 /// fields after construction to express the specific failure path
 /// each test wants.
-fn make_valid_item() -> EthBatchTxItem {
-    EthBatchTxItem {
+fn make_valid_item() -> SignTxsItem {
+    SignTxsItem {
         tx: Some(EthTxInput {
             nonce: "1".to_string(),
             gas_price: "20000000008".to_string(),
@@ -108,8 +108,8 @@ fn make_valid_item() -> EthBatchTxItem {
 }
 
 // Mirrors `test_sign_eth_transaction_legacy` in `ethereum_signer.rs`.
-fn legacy_item() -> EthBatchTxItem {
-    EthBatchTxItem {
+fn legacy_item() -> SignTxsItem {
+    SignTxsItem {
         tx: Some(EthTxInput {
             nonce: "8".to_string(),
             gas_price: "20000000008".to_string(),
@@ -132,8 +132,8 @@ fn legacy_item() -> EthBatchTxItem {
 }
 
 // Mirrors `test_sign_eth_transaction_eip1559_no_access_list`.
-fn eip1559_no_access_list_item() -> EthBatchTxItem {
-    EthBatchTxItem {
+fn eip1559_no_access_list_item() -> SignTxsItem {
+    SignTxsItem {
         tx: Some(EthTxInput {
             nonce: "8".to_string(),
             gas_price: "".to_string(),
@@ -156,8 +156,8 @@ fn eip1559_no_access_list_item() -> EthBatchTxItem {
 }
 
 // Mirrors `test_sign_eth_transaction_eip1559_multi_access_list`.
-fn eip1559_multi_access_list_item() -> EthBatchTxItem {
-    EthBatchTxItem {
+fn eip1559_multi_access_list_item() -> SignTxsItem {
+    SignTxsItem {
         tx: Some(EthTxInput {
             nonce: "1".to_string(),
             gas_price: "".to_string(),
@@ -199,8 +199,8 @@ fn eip1559_multi_access_list_item() -> EthBatchTxItem {
 }
 
 // Mirrors `test_sign_eth_transaction_eip1559` (single access list).
-fn eip1559_with_access_list_item() -> EthBatchTxItem {
-    EthBatchTxItem {
+fn eip1559_with_access_list_item() -> SignTxsItem {
+    SignTxsItem {
         tx: Some(EthTxInput {
             nonce: "4".to_string(),
             gas_price: "".to_string(),
@@ -253,15 +253,15 @@ const EIP1559_AL_TX_HASH: &str =
 // ===========================================================================
 // Pre-flight rejection tests. NO DEVICE REQUIRED.
 //
-// Each of these produces an error inside `sign_eth_batch_transaction`
+// Each of these produces an error inside `sign_txs`
 // before any per-item `Transaction::sign` runs, so `select_applet`
 // is never called. They run in CI without an attached imKey.
 // ===========================================================================
 
 #[test]
-fn test_eth_batch_sign_tx_empty_rejected() {
-    let data = EthBatchTxInput { items: vec![] }.encode_to_vec();
-    let err = sign_eth_batch_transaction(&data, &make_sign_param(ETH_PATH))
+fn test_sign_txs_empty_rejected() {
+    let data = SignTxsInput { items: vec![] }.encode_to_vec();
+    let err = sign_txs(&data, &make_sign_param(ETH_PATH))
         .expect_err("empty batch must be rejected pre-flight");
     let msg = err.to_string();
     assert!(
@@ -272,12 +272,12 @@ fn test_eth_batch_sign_tx_empty_rejected() {
 }
 
 #[test]
-fn test_eth_batch_sign_tx_size_limit_rejected() {
+fn test_sign_txs_size_limit_rejected() {
     // 101 dummy items > ETH_MAX_BATCH_SIZE (100). Items don't have
     // to be valid — pre-flight rejects before any signing work.
-    let items: Vec<EthBatchTxItem> = (0..101).map(|_| make_valid_item()).collect();
-    let data = EthBatchTxInput { items }.encode_to_vec();
-    let err = sign_eth_batch_transaction(&data, &make_sign_param(ETH_PATH))
+    let items: Vec<SignTxsItem> = (0..101).map(|_| make_valid_item()).collect();
+    let data = SignTxsInput { items }.encode_to_vec();
+    let err = sign_txs(&data, &make_sign_param(ETH_PATH))
         .expect_err("over-limit batch must be rejected pre-flight");
     let msg = err.to_string();
     assert!(
@@ -288,15 +288,15 @@ fn test_eth_batch_sign_tx_size_limit_rejected() {
 }
 
 #[test]
-fn test_eth_batch_sign_tx_invalid_path_rejected() {
+fn test_sign_txs_invalid_path_rejected() {
     let mut items = vec![make_valid_item(), make_valid_item(), make_valid_item()];
     // Depth < 3 trips `check_path_validity`. Pin the bad path on
     // index 1 so the assertion locks in the index-propagation
     // contract: errors must point at the offending item.
     items[1].path = "m/44'".to_string();
 
-    let data = EthBatchTxInput { items }.encode_to_vec();
-    let err = sign_eth_batch_transaction(&data, &make_sign_param(ETH_PATH))
+    let data = SignTxsInput { items }.encode_to_vec();
+    let err = sign_txs(&data, &make_sign_param(ETH_PATH))
         .expect_err("invalid item path must be rejected pre-flight");
     let msg = err.to_string();
     assert!(
@@ -307,12 +307,12 @@ fn test_eth_batch_sign_tx_invalid_path_rejected() {
 }
 
 #[test]
-fn test_eth_batch_sign_tx_missing_tx_rejected() {
+fn test_sign_txs_missing_tx_rejected() {
     let mut items = vec![make_valid_item(), make_valid_item()];
     items[1].tx = None;
 
-    let data = EthBatchTxInput { items }.encode_to_vec();
-    let err = sign_eth_batch_transaction(&data, &make_sign_param(ETH_PATH))
+    let data = SignTxsInput { items }.encode_to_vec();
+    let err = sign_txs(&data, &make_sign_param(ETH_PATH))
         .expect_err("missing item.tx must be rejected pre-flight");
     let msg = err.to_string();
     assert!(
@@ -323,12 +323,12 @@ fn test_eth_batch_sign_tx_missing_tx_rejected() {
 }
 
 #[test]
-fn test_eth_batch_sign_tx_missing_sender_rejected() {
+fn test_sign_txs_missing_sender_rejected() {
     let mut items = vec![make_valid_item(), make_valid_item()];
     items[0].sender = "".to_string();
 
-    let data = EthBatchTxInput { items }.encode_to_vec();
-    let err = sign_eth_batch_transaction(&data, &make_sign_param(ETH_PATH))
+    let data = SignTxsInput { items }.encode_to_vec();
+    let err = sign_txs(&data, &make_sign_param(ETH_PATH))
         .expect_err("missing item.sender must be rejected pre-flight");
     let msg = err.to_string();
     assert!(
@@ -339,15 +339,15 @@ fn test_eth_batch_sign_tx_missing_sender_rejected() {
 }
 
 #[test]
-fn test_eth_batch_sign_tx_legacy_single_item_e2e() {
+fn test_sign_txs_legacy_single_item_e2e() {
     bind_test();
 
-    let data = EthBatchTxInput {
+    let data = SignTxsInput {
         items: vec![legacy_item()],
     }
     .encode_to_vec();
-    let res = sign_eth_batch_transaction(&data, &make_sign_param(ETH_PATH)).unwrap();
-    let output = EthBatchTxOutput::decode(res.as_slice()).unwrap();
+    let res = sign_txs(&data, &make_sign_param(ETH_PATH)).unwrap();
+    let output = SignTxsOutput::decode(res.as_slice()).unwrap();
 
     assert_eq!(output.outputs.len(), 1);
     assert_eq!(output.outputs[0].signature, LEGACY_SIGNATURE);
@@ -355,15 +355,15 @@ fn test_eth_batch_sign_tx_legacy_single_item_e2e() {
 }
 
 #[test]
-fn test_eth_batch_sign_tx_eip1559_single_item_e2e() {
+fn test_sign_txs_eip1559_single_item_e2e() {
     bind_test();
 
-    let data = EthBatchTxInput {
+    let data = SignTxsInput {
         items: vec![eip1559_with_access_list_item()],
     }
     .encode_to_vec();
-    let res = sign_eth_batch_transaction(&data, &make_sign_param(ETH_PATH)).unwrap();
-    let output = EthBatchTxOutput::decode(res.as_slice()).unwrap();
+    let res = sign_txs(&data, &make_sign_param(ETH_PATH)).unwrap();
+    let output = SignTxsOutput::decode(res.as_slice()).unwrap();
 
     assert_eq!(output.outputs.len(), 1);
     assert_eq!(output.outputs[0].signature, EIP1559_AL_SIGNATURE);
@@ -371,7 +371,7 @@ fn test_eth_batch_sign_tx_eip1559_single_item_e2e() {
 }
 
 #[test]
-fn test_eth_batch_sign_tx_mixed_three_items_e2e() {
+fn test_sign_txs_mixed_three_items_e2e() {
     bind_test();
 
     // Item 1 explicitly sets the per-item path; the resolved path
@@ -381,12 +381,12 @@ fn test_eth_batch_sign_tx_mixed_three_items_e2e() {
     let mut item1 = eip1559_no_access_list_item();
     item1.path = ETH_PATH.to_string();
 
-    let data = EthBatchTxInput {
+    let data = SignTxsInput {
         items: vec![legacy_item(), item1, eip1559_multi_access_list_item()],
     }
     .encode_to_vec();
-    let res = sign_eth_batch_transaction(&data, &make_sign_param(ETH_PATH)).unwrap();
-    let output = EthBatchTxOutput::decode(res.as_slice()).unwrap();
+    let res = sign_txs(&data, &make_sign_param(ETH_PATH)).unwrap();
+    let output = SignTxsOutput::decode(res.as_slice()).unwrap();
 
     assert_eq!(output.outputs.len(), 3);
 
