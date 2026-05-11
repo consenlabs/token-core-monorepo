@@ -13,16 +13,16 @@
 - **中量批次**（几十笔）：dApp 一次性下发的多笔 meta-tx、复合 DeFi 策略一键执行。
 - **大量批次**（上百乃至上千笔）：批量空投、批量归集出账、企业财务批处理、链上分析与回放工具。
 
-本提案在 SDK 边界一次性把 N 笔交易统一签完，N 由各引擎的批量上限约束（`tcx` 至 2048，`ikc` 至 100）。所有上述场景共用同一个 `batch_sign_tx` 入口，在 host 侧不需要再为不同业务场景做差异化处理。
+本提案在 SDK 边界一次性把 N 笔交易统一签完，N 由各引擎的批量上限约束（`tcx` 至 2048，`ikc` 至 100）。所有上述场景共用同一个 `sign_txs` 入口，在 host 侧不需要再为不同业务场景做差异化处理。
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- 在 `call_tcx_api` 与 `call_imkey_api` 上同时新增 SDK 动作 `batch_sign_tx`，接受有序的 item 列表（每个 item 包含一个 `EthTxInput` 加可选的 per-item path）并返回有序的 `EthTxOutput` 列表。
+- 在 `call_tcx_api` 与 `call_imkey_api` 上同时新增 SDK 动作 `sign_txs`，接受有序的 item 列表（每个 item 包含一个 `EthTxInput` 加可选的 per-item path）并返回有序的 `EthTxOutput` 列表。
 - 单次 FFI 完成整批签名，输入与现有 `sign_tx` 完全等价（legacy / EIP-1559 / access list、十六进制或十进制数值串、十六进制 chain id 都支持）。
 - token-core 整批共用一次解锁（仅一次密码 / derived-key 校验）；imkey-core **不在批量层引入任何 device-session 优化**——每个 item 在 FFI handler 内薄循环里复用现有 `Transaction::sign` 单笔流程（`select_applet` / `prepare_sign` / `get_xpub` / `sign_digest` / 设备确认逐笔重新发生），以最大化代码复用并保证单笔路径零回归。
-- 全成功或全失败的批量语义，错误以与现有 `sign_tx` / `eth_batch_personal_sign` 相同的字符串错误返回路径抛出，错误信息形如 `"batch_sign_tx failed at index {i}: {source}"`。
+- 全成功或全失败的批量语义，错误以与现有 `sign_tx` / `eth_batch_personal_sign` 相同的字符串错误返回路径抛出，错误信息形如 `"sign_txs failed at index {i}: {source}"`。
 - 不同引擎设定不同上限：`tcx` 上限 2048（软件签名，仅受内存与单次 FFI 时长约束）、`ikc` 上限 100（硬件每笔仍由用户在设备上按确认；100 已显著超出 stake 等典型业务的笔数需要，再大对 UX 与 BLE/USB 会话稳定性收益有限）。
 - 在 `tcx-eth`、`coin-ethereum` 添加单元测试，并在 `tcx/tests/sign_test.rs` 添加端到端测试，覆盖等价性、原子性、上限拒绝、空批量、共享 path 与 per-item path 覆盖。
 
@@ -44,7 +44,7 @@
 - token-core（`token-core/tcx-proto/src/api.proto`）：
 
   ```proto
-  message EthBatchSignTxParam {
+  message SignTxsParam {
     string id = 1;
     oneof key {
       string password = 2;
@@ -54,15 +54,15 @@
     string path = 5;          // 整批共享的默认 HD 派生路径
     string network = 6;       // 可选，与 SignParam 对齐
     string segWit = 7;        // ETH 不使用，但保留以对齐参数
-    repeated EthBatchSignTxItem items = 8;
+    repeated SignTxsItem items = 8;
   }
 
-  message EthBatchSignTxItem {
+  message SignTxsItem {
     transaction.EthTxInput tx = 1;
     string path = 2;          // 可选；空字符串表示回落到外层 path
   }
 
-  message EthBatchSignTxResult {
+  message SignTxsResult {
     repeated transaction.EthTxOutput outputs = 1;
   }
   ```
@@ -70,11 +70,11 @@
 - imkey-core（`imkey-core/ikc-proto/src/eth.proto`）：
 
   ```proto
-  message EthBatchTxInput {
-    repeated EthBatchTxItem items = 1;
+  message SignTxsInput {
+    repeated SignTxsItem items = 1;
   }
 
-  message EthBatchTxItem {
+  message SignTxsItem {
     EthTxInput tx = 1;
     string payment = 2;     // 设备上每笔的展示字符串
     string receiver = 3;    // 设备上每笔的展示字符串
@@ -83,12 +83,12 @@
     string path = 6;        // 可选；空字符串表示回落到 SignParam.path
   }
 
-  message EthBatchTxOutput {
+  message SignTxsOutput {
     repeated EthTxOutput outputs = 1;
   }
   ```
 
-  imkey-core 的 dispatcher 从 `SignParam.input`（即现有的 `google.protobuf.Any` 信封）中读取 `EthBatchTxInput`，因此外层 `SignParam` 仍负责承载 `chainType` 与默认 `path`。每笔的 `payment` / `receiver` / `sender` / `fee` 放在每个 item 中，因为设备的提示是逐笔的；同时每笔可选的 `path` 让"跨地址批量"成为协议层一等公民。
+  imkey-core 的 dispatcher 从 `SignParam.input`（即现有的 `google.protobuf.Any` 信封）中读取 `SignTxsInput`，因此外层 `SignParam` 仍负责承载 `chainType` 与默认 `path`。每笔的 `payment` / `receiver` / `sender` / `fee` 放在每个 item 中，因为设备的提示是逐笔的；同时每笔可选的 `path` 让"跨地址批量"成为协议层一等公民。
 
 #### 设计依据
 
@@ -100,10 +100,10 @@
 
 #### token-core
 
-- 在 `tcx-eth/src/signer.rs` 新增函数 `pub fn batch_sign_transaction(keystore: &mut Keystore, items: &[(EthTxInput, String)], default_path: &str) -> Result<Vec<EthTxOutput>>`（item.path 在调用前已和 default_path 折叠为生效 path）。内部循环复用现有的 `Transaction::try_from(&EthTxInput)` 和 `keystore.secp256k1_ecdsa_sign_recoverable(&tx.sighash(), effective_path)`。`Keystore` 内部的 HD 派生缓存让重复 path 的派生开销极低；不重复的 path 也只是普通 secp256k1 派生，对 2048 笔的开销可接受。
-- 在 `tcx/src/handler.rs` 新增 handler `pub(crate) fn batch_sign_tx(data: &[u8])`，参考 `eth_batch_personal_sign`（`token-core/tcx/src/handler.rs:1671`）的结构。在解锁前先做 `items.is_empty()` 与 `items.len() <= ETH_MAX_BATCH_SIZE` 检查；执行单次 `KeystoreGuard::unlock`；折叠每个 item 的有效 path（item.path 非空则用 item.path，否则用外层 path）；调用 `batch_sign_transaction`；编码 `EthBatchSignTxResult`。
-- 新增 `impl_to_key!(crate::api::batch_sign_tx_param::Key);`，让新 param 的 `oneof key` 与 `tcx-crypto::Key` 对接。
-- 在 `token-core/tcx/src/lib.rs:74` 注册 dispatcher 分支 `"batch_sign_tx" => landingpad(|| batch_sign_tx(&action.param.unwrap().value))`（紧邻 `"eth_batch_personal_sign"`，约第 131 行），并在 `use` 块（约第 27 行）引入新 handler。
+- 在 `tcx-eth/src/signer.rs` 新增函数 `pub fn sign_txs(keystore: &mut Keystore, items: &[(EthTxInput, String)], default_path: &str) -> Result<Vec<EthTxOutput>>`（item.path 在调用前已和 default_path 折叠为生效 path）。内部循环复用现有的 `Transaction::try_from(&EthTxInput)` 和 `keystore.secp256k1_ecdsa_sign_recoverable(&tx.sighash(), effective_path)`。`Keystore` 内部的 HD 派生缓存让重复 path 的派生开销极低；不重复的 path 也只是普通 secp256k1 派生，对 2048 笔的开销可接受。
+- 在 `tcx/src/handler.rs` 新增 handler `pub(crate) fn sign_txs(data: &[u8])`，参考 `eth_batch_personal_sign`（`token-core/tcx/src/handler.rs:1671`）的结构。在解锁前先做 `items.is_empty()` 与 `items.len() <= ETH_MAX_BATCH_SIZE` 检查；执行单次 `KeystoreGuard::unlock`；折叠每个 item 的有效 path（item.path 非空则用 item.path，否则用外层 path）；调用 `sign_txs`；编码 `SignTxsResult`。
+- 新增 `impl_to_key!(crate::api::sign_txs_param::Key);`，让新 param 的 `oneof key` 与 `tcx-crypto::Key` 对接。
+- 在 `token-core/tcx/src/lib.rs:74` 注册 dispatcher 分支 `"sign_txs" => landingpad(|| sign_txs(&action.param.unwrap().value))`（紧邻 `"eth_batch_personal_sign"`，约第 131 行），并在 `use` 块（约第 27 行）引入新 handler。
 - 与 handler 同位置定义常量 `pub const ETH_MAX_BATCH_SIZE: usize = 2048;`。
 
 #### imkey-core
@@ -113,15 +113,15 @@
 - 在 `imkey-core/ikc/src/ethereum_signer.rs` 新增：
   - 常量 `pub const ETH_MAX_BATCH_SIZE: usize = 100;`（与 handler 同位置定义，可在不改协议的情况下调整）。
   - （可选重构）把现有 `sign_eth_transaction` 内部那段 `EthTxInput → Transaction + chain_id` 的解析提取为私有 helper（`fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)>`），让单笔 / 批量两条路径共用同一段解析；语义零变化，仅是为了避免 batch 内重复 inline 同一段几十行的 RLP / access list 解析。这一步是 nice-to-have，**不是**对 `Transaction::sign` 本身的重构。
-  - `pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>>`，做法是：
-    1. 解码 `EthBatchTxInput`，前置同步校验：`items.is_empty()` / `items.len() <= ETH_MAX_BATCH_SIZE` / 外层 `sign_param.path` 与每个 item.path（非空时）的 BIP-32 合法性 / 每个 item.sender 非空。任一失败即在触达设备会话之前返回错误（错误信息携带触发失败的 item 下标）。
+  - `pub fn sign_txs(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>>`，做法是：
+    1. 解码 `SignTxsInput`，前置同步校验：`items.is_empty()` / `items.len() <= ETH_MAX_BATCH_SIZE` / 外层 `sign_param.path` 与每个 item.path（非空时）的 BIP-32 合法性 / 每个 item.sender 非空。任一失败即在触达设备会话之前返回错误（错误信息携带触发失败的 item 下标）。
     2. 顺序遍历 items；对每个 item：
        - 折叠出有效 path：`item.path` 非空则用 item.path，否则用 `sign_param.path`。
        - 调用 `build_eth_transaction(&item.tx)` 得到 `(eth_tx, chain_id)`。
        - 直接调用现有单笔 `eth_tx.sign(Some(chain_id), &effective_path, &item.payment, &item.receiver, &item.sender, &item.fee)` 拿到 `EthTxOutput`——这一步和今天 `sign_eth_transaction` 调用的是同一个 `Transaction::sign`，所以包括 `select_applet` / `prepare_sign` / `get_xpub` / 地址校验 / `sign_digest` / 拼装在内的整套设备会话动作都被原样执行一次。
        - 按下标聚合到 `outputs`。
-    3. 任意一笔出错立即中止整批，错误用 `"batch_sign_tx failed at index {i}: {source}"` 形式包装并向上传递；不返回任何部分签名。
-- 在 `imkey-core/ikc/src/lib.rs` 紧邻 `"sign_tx"` 处注册 dispatcher 分支 `"batch_sign_tx"`：解码 `SignParam`，分支判断 `chain_type == "ETHEREUM"`，否则返回 `Err(anyhow!("batch_sign_tx unsupported_chain"))`，再调用 `ethereum_signer::sign_eth_batch_transaction`。
+    3. 任意一笔出错立即中止整批，错误用 `"sign_txs failed at index {i}: {source}"` 形式包装并向上传递；不返回任何部分签名。
+- 在 `imkey-core/ikc/src/lib.rs` 紧邻 `"sign_tx"` 处注册 dispatcher 分支 `"sign_txs"`：解码 `SignParam`，分支判断 `chain_type == "ETHEREUM"`，否则返回 `Err(anyhow!("sign_txs unsupported_chain"))`，再调用 `ethereum_signer::sign_txs`。
 
 显式的 **非目标**：
 - 不在批量层做 `select_applet` 一次化、`get_xpub` 缓存、TLV 复用等任何 device-session 优化。这些优化要求把单笔 `Transaction::sign` 拆开，与本设计"不动单笔实现"的约束相冲突。如未来 stake / 长批量场景的实测延迟成为问题，可以另起独立提案做 device-session 优化（届时已有对应的 perf benchmark 可作为 baseline）。
@@ -130,7 +130,7 @@
 ### 3. 全成功或全失败的错误语义
 
 - 校验分两阶段：先做一次同步校验（批量大小、空列表、每个 item.path 是否符合 BIP-32 派生格式、`to` 解析、chain id 解析、`sender` 非空），任何失败都在解锁 / 选择 applet 之前发生；之后才在循环中执行逐笔签名。
-- 签名期间发生错误立即中止，并以 `"batch_sign_tx failed at index {i}: {source}"` 形式包装。永远不返回部分 `EthBatchSignTxResult`。
+- 签名期间发生错误立即中止，并以 `"sign_txs failed at index {i}: {source}"` 形式包装。永远不返回部分 `SignTxsResult`。
 - 错误返回路径与现有 `sign_tx` / `eth_batch_personal_sign` 完全一致——通过 `landingpad` + `LAST_ERROR` + `get_last_err_message()`（`tcx`）/ `imkey_get_last_err_message()`（`ikc`）抛出。host 通过同样的 API 拿到字符串，只需 parse `"failed at index (\d+)"` 即可定位失败下标。
 - 该策略让 host SDK 的错误处理与今天的 `sign_tx` 一致（一次错误 → 一种失败模式），同时为定位提供精确诊断。
 
@@ -143,7 +143,7 @@
 ### 5. 向后兼容
 
 - 纯增量。`sign_tx`、`EthTxInput`、`EthTxOutput`、`eth_batch_personal_sign` 全部保持不变。proto 字段编号不重新编排。
-- `batch_sign_tx` 是一个新的 dispatcher key，旧版 host SDK 仍可继续按旧方式调用 `sign_tx`。
+- `sign_txs` 是一个新的 dispatcher key，旧版 host SDK 仍可继续按旧方式调用 `sign_tx`。
 - proto 改动在文件层面是 append-only，不会让既有生成的 Rust 类型字段编号发生变化。
 
 ### 6. 测试策略
@@ -160,7 +160,7 @@
 
 ### 7. 文档
 
-- 在 `token-core/tcx-docs` 与 `imkey-core/ikc-docs` 增加新动作的说明：请求/响应形态、共享 path 与 per-item path 的两种用法、不同引擎的批量上限（2048 vs 100）、错误信息格式（`"batch_sign_tx failed at index {i}: {source}"`）、以及 imKey 路径仍需逐笔确认的提示，避免 host UX 误以为只需一次确认。
+- 在 `token-core/tcx-docs` 与 `imkey-core/ikc-docs` 增加新动作的说明：请求/响应形态、共享 path 与 per-item path 的两种用法、不同引擎的批量上限（2048 vs 100）、错误信息格式（`"sign_txs failed at index {i}: {source}"`）、以及 imKey 路径仍需逐笔确认的提示，避免 host UX 误以为只需一次确认。
 
 ## Risks / Trade-offs
 
@@ -168,7 +168,7 @@
 - **批量过程中设备掉线（BLE/USB）**。同样的缓解：错误体里带 `index`（字符串中），host 可以以剩余尾段为新的批量、调整 nonce 后重发。
 - **per-item path 不引入额外复杂度**。批量层只在调用 `Transaction::sign` 之前折叠出每个 item 的有效 path，然后把它当作"独立的一次单笔签名"传进去——每笔仍执行各自的 `get_xpub`，没有缓存逻辑，自然也就没有缓存命中 / 失效的边界条件需要 reason about。代价是同一 path 在 N 笔中重复派生 N 次（每次约一个 USB 往返），实测开销由 perf benchmark 衡量；典型 stake (2 笔) 场景的增量可忽略。
 - **`tcx` 上限 2048 的内存与时延**。2048 笔在内存中存放 raw + signed 两份字节切片估算 < 10MB，可接受；FFI 单次返回的 protobuf 序列化也在亚秒级。如果未来发现 host 在更小批量上就遇到性能问题，可以下调该常量而无需改协议。
-- **错误下标走字符串**。host 需要 parse 字符串才能拿到下标。考虑到与既有 `sign_tx` / `eth_batch_personal_sign` 的错误模型必须保持一致，结构化错误会让此 API 成为整个 SDK 的孤例，反而造成更高的维护成本。我们用稳定的固定字符串模板（`"batch_sign_tx failed at index {i}: ..."`）以正则可靠提取下标。
+- **错误下标走字符串**。host 需要 parse 字符串才能拿到下标。考虑到与既有 `sign_tx` / `eth_batch_personal_sign` 的错误模型必须保持一致，结构化错误会让此 API 成为整个 SDK 的孤例，反而造成更高的维护成本。我们用稳定的固定字符串模板（`"sign_txs failed at index {i}: ..."`）以正则可靠提取下标。
 - **测试覆盖（硬件路径）**。imkey 大部分测试需要绑定测试设备才能运行。本提案的薄循环架构让这件事比较自然：`Transaction::sign` 这一层的所有现有 fixture（无论 `bind_test()` 守护与否）都直接覆盖了批量"每一笔"的等价路径；批量 wrapper 上新增的逻辑（前置校验、错误下标包装、path 折叠、上限拒绝）都在 `select_applet` 之前，能在无设备环境下做覆盖（详见 §6 测试）。
-- **主动放弃 imkey 设备会话优化**。我们没有把 `select_applet` 拉到批量循环外、也没有缓存 `get_xpub`，因此 N 笔批量在 USB / BLE 上的总耗时近似 N × 单笔耗时。这是为了保证 `Transaction::sign` 的实现完全不动、单笔路径零回归。如果 stake 这类小批量（≤ 5 笔）的实测延迟在产品 UX 上仍可接受，这个 trade-off 就是合理的；否则后续可以另起独立提案，把 device-session 优化作为下一步演进，届时已有的 `batch_sign_tx` perf benchmark 可作为 baseline 量化收益。
+- **主动放弃 imkey 设备会话优化**。我们没有把 `select_applet` 拉到批量循环外、也没有缓存 `get_xpub`，因此 N 笔批量在 USB / BLE 上的总耗时近似 N × 单笔耗时。这是为了保证 `Transaction::sign` 的实现完全不动、单笔路径零回归。如果 stake 这类小批量（≤ 5 笔）的实测延迟在产品 UX 上仍可接受，这个 trade-off 就是合理的；否则后续可以另起独立提案，把 device-session 优化作为下一步演进，届时已有的 `sign_txs` perf benchmark 可作为 baseline 量化收益。
 - **proto 重新生成的扰动**。在 `tcx-proto` 与 `ikc-proto` 中新增消息会触发两个 crate 的 Rust 代码重新生成。缓解：本次改动是 append-only，diff 体量小、便于 review。

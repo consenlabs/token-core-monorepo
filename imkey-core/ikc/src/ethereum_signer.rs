@@ -1,7 +1,7 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use anyhow::anyhow;
-use coin_ethereum::ethapi::{EthBatchTxInput, EthBatchTxOutput, EthMessageInput, EthTxInput};
+use coin_ethereum::ethapi::{EthMessageInput, EthTxInput, SignTxsInput, SignTxsOutput};
 use coin_ethereum::transaction::{AccessListItem, Transaction};
 use coin_ethereum::types::Action;
 use ethereum_types::{Address, H256, U256};
@@ -13,7 +13,7 @@ use prost::Message;
 use std::str::FromStr;
 
 /// Hard upper bound for the number of items in a single
-/// `batch_sign_tx` request. Each item still triggers a full
+/// `sign_txs` request. Each item still triggers a full
 /// single-tx flow on the device (one user button press, one
 /// `select_applet` / `prepare_sign` / `get_xpub` / `sign_digest`),
 /// so the practical UX-acceptable batch size is much smaller than
@@ -25,9 +25,9 @@ pub const ETH_MAX_BATCH_SIZE: usize = 100;
 /// Parse a host-supplied `EthTxInput` into the imKey-side
 /// `coin_ethereum::transaction::Transaction` plus its decoded
 /// `chain_id`. Centralised here so single-tx (`sign_eth_transaction`)
-/// and batch (`sign_eth_batch_transaction`) share the exact same
-/// parsing — any drift between the two paths would manifest as a
-/// silent signature divergence.
+/// and batch (`sign_txs`) share the exact same parsing — any drift
+/// between the two paths would manifest as a silent signature
+/// divergence.
 fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
     // Surface every host-data parse failure as a structured `Err`
     // rather than a panic. The single-tx path historically relied
@@ -147,18 +147,18 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
     encode_message(tx_out)
 }
 
-pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: EthBatchTxInput =
-        EthBatchTxInput::decode(data).expect("imkey_illegal_param");
+pub fn sign_txs(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
+    let input: SignTxsInput =
+        SignTxsInput::decode(data).expect("imkey_illegal_param");
 
     if input.items.is_empty() {
         return Err(anyhow!(
-            "batch_sign_tx failed at index 0: invalid_param"
+            "sign_txs failed at index 0: invalid_param"
         ));
     }
     if input.items.len() > ETH_MAX_BATCH_SIZE {
         return Err(anyhow!(
-            "batch_sign_tx failed at index 0: batch size {} exceeds limit {}",
+            "sign_txs failed at index 0: batch size {} exceeds limit {}",
             input.items.len(),
             ETH_MAX_BATCH_SIZE
         ));
@@ -166,12 +166,12 @@ pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result
 
     if !sign_param.path.is_empty() {
         check_path_validity(&sign_param.path)
-            .map_err(|e| anyhow!("batch_sign_tx failed at index 0: {}", e))?;
+            .map_err(|e| anyhow!("sign_txs failed at index 0: {}", e))?;
     }
     for (i, item) in input.items.iter().enumerate() {
         if item.tx.is_none() {
             return Err(anyhow!(
-                "batch_sign_tx failed at index {}: missing tx",
+                "sign_txs failed at index {}: missing tx",
                 i
             ));
         }
@@ -181,13 +181,13 @@ pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result
         // to the missing-tx case, which the host already special-cases.
         if item.sender.is_empty() {
             return Err(anyhow!(
-                "batch_sign_tx failed at index {}: missing sender",
+                "sign_txs failed at index {}: missing sender",
                 i
             ));
         }
         if !item.path.is_empty() {
             check_path_validity(&item.path)
-                .map_err(|e| anyhow!("batch_sign_tx failed at index {}: {}", i, e))?;
+                .map_err(|e| anyhow!("sign_txs failed at index {}: {}", i, e))?;
         }
     }
 
@@ -196,7 +196,7 @@ pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result
         // `is_none()` already short-circuited above, so unwrap is safe.
         let tx_input = item.tx.as_ref().unwrap();
         let (eth_tx, chain_id) = build_eth_transaction(tx_input)
-            .map_err(|e| anyhow!("batch_sign_tx failed at index {}: {}", i, e))?;
+            .map_err(|e| anyhow!("sign_txs failed at index {}: {}", i, e))?;
 
         let effective_path: &str = if item.path.is_empty() {
             &sign_param.path
@@ -216,11 +216,11 @@ pub fn sign_eth_batch_transaction(data: &[u8], sign_param: &SignParam) -> Result
                 &item.sender,
                 &item.fee,
             )
-            .map_err(|e| anyhow!("batch_sign_tx failed at index {}: {}", i, e))?;
+            .map_err(|e| anyhow!("sign_txs failed at index {}: {}", i, e))?;
         outputs.push(out);
     }
 
-    encode_message(EthBatchTxOutput { outputs })
+    encode_message(SignTxsOutput { outputs })
 }
 
 fn parse_eth_argument(str: &str) -> Result<U256> {

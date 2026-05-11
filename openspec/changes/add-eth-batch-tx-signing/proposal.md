@@ -13,9 +13,9 @@
 
 结果是 N 次独立的鉴权时刻、N 倍的 FFI 流量，以及一个非原子的 UX 窗口——用户可以在任意两笔之间退出、丢失 nonce 顺序，或最终只广播了前缀的若干笔。host SDK 还要自行处理 nonce 排序、部分失败恢复、以及在中途重新提示用户。
 
-本提案把"任意 N 笔 ETH 交易"放到**一次** `batch_sign_tx` 调用中签名（N 由各引擎的批量上限约束：`tcx` 至 2048，`ikc` 至 100）。两个引擎各自的收益（以 N 笔为例）对照如下：
+本提案把"任意 N 笔 ETH 交易"放到**一次** `sign_txs` 调用中签名（N 由各引擎的批量上限约束：`tcx` 至 2048，`ikc` 至 100）。两个引擎各自的收益（以 N 笔为例）对照如下：
 
-| 维度 | 现状（单笔 `sign_tx` × N） | 本提案后（`batch_sign_tx` × 1） |
+| 维度 | 现状（单笔 `sign_tx` × N） | 本提案后（`sign_txs` × 1） |
 |---|---|---|
 | FFI 调用次数 | N | **1** |
 | `tcx`：keystore 解锁 / 密码弹窗 | N 次 | **1 次** |
@@ -31,13 +31,13 @@
 
 ## What Changes
 
-- 新增 SDK 动作 `batch_sign_tx`，通过现有的 `call_tcx_api` / `call_imkey_api` dispatcher 同时在两个引擎上暴露。
+- 新增 SDK 动作 `sign_txs`，通过现有的 `call_tcx_api` / `call_imkey_api` dispatcher 同时在两个引擎上暴露。
 - 在 `token-core/tcx-proto/src/api.proto` 与 `imkey-core/ikc-proto/src/eth.proto` 中新增 protobuf 消息：
-  - `tcx`：`EthBatchSignTxParam` / `EthBatchSignTxResult`，并引入 `EthBatchSignTxItem { EthTxInput tx; string path; }`，让每笔交易可选择性地覆盖外层共享 `path`。
-  - `ikc`：`EthBatchTxInput` / `EthBatchTxItem` / `EthBatchTxOutput`，每个 item 与现有 `SignParam` 一一对应地携带 `payment` / `receiver` / `sender` / `fee` 显示字符串，并新增可选 `path` 字段以覆盖 `SignParam.path`。
-- `tcx` 侧：在 `tcx_eth::signer` 实现 `batch_sign_transaction`，使用单次 `KeystoreGuard::unlock`，按 item 各自的有效 `path`（item.path 优先，回落到外层 `path`）调用 `keystore.secp256k1_ecdsa_sign_recoverable`；通过 `handler::batch_sign_tx` 串起整条链路，并注册到 dispatcher。
-- `ikc` 侧：在 `imkey-core/ikc/src/ethereum_signer.rs` 新增 `sign_eth_batch_transaction`：解码 `EthBatchTxInput`，做整批前置校验（大小 / 空批量 / 每个 item.path 的 BIP-32 合法性），然后 **薄循环** 对每个 item 直接调用现有的单笔 `Transaction::sign(chain_id, &effective_path, &item.payment, &item.receiver, &item.sender, &item.fee)`——`coin-ethereum/src/transaction.rs` 不新增 `batch_sign`，单笔路径完全不动；通过 `call_imkey_api` dispatcher 串接。批量层面的增量价值是：单次 FFI、严格有序、原子错误、统一上限校验。
-- 明确并文档化"全成功或全失败"语义（任何一笔失败则整批中止，错误信息形如 `"batch_sign_tx failed at index {i}: {source}"`，与现有 `sign_tx` / `eth_batch_personal_sign` 走相同的字符串错误返回路径）。
+  - `tcx`：`SignTxsParam` / `SignTxsResult`，并引入 `SignTxsItem { EthTxInput tx; string path; }`，让每笔交易可选择性地覆盖外层共享 `path`。
+  - `ikc`：`SignTxsInput` / `SignTxsItem` / `SignTxsOutput`，每个 item 与现有 `SignParam` 一一对应地携带 `payment` / `receiver` / `sender` / `fee` 显示字符串，并新增可选 `path` 字段以覆盖 `SignParam.path`。
+- `tcx` 侧：在 `tcx_eth::signer` 实现 `sign_txs`，使用单次 `KeystoreGuard::unlock`，按 item 各自的有效 `path`（item.path 优先，回落到外层 `path`）调用 `keystore.secp256k1_ecdsa_sign_recoverable`；通过 `handler::sign_txs` 串起整条链路，并注册到 dispatcher。
+- `ikc` 侧：在 `imkey-core/ikc/src/ethereum_signer.rs` 新增 `sign_txs`：解码 `SignTxsInput`，做整批前置校验（大小 / 空批量 / 每个 item.path 的 BIP-32 合法性），然后 **薄循环** 对每个 item 直接调用现有的单笔 `Transaction::sign(chain_id, &effective_path, &item.payment, &item.receiver, &item.sender, &item.fee)`——`coin-ethereum/src/transaction.rs` 不新增 `batch_sign`，单笔路径完全不动；通过 `call_imkey_api` dispatcher 串接。批量层面的增量价值是：单次 FFI、严格有序、原子错误、统一上限校验。
+- 明确并文档化"全成功或全失败"语义（任何一笔失败则整批中止，错误信息形如 `"sign_txs failed at index {i}: {source}"`，与现有 `sign_tx` / `eth_batch_personal_sign` 走相同的字符串错误返回路径）。
 - 设定不同的批量上限：**`tcx` 上限为 2048**（软件签名无设备瓶颈，给链上分析、批量归集等场景留足余量），**`ikc` 上限为 100**（硬件每笔仍需用户在设备上按确认，100 已显著超出 stake 等典型场景需要的笔数，更大的批量在 UX 与 BLE/USB 会话稳定性上意义有限——业务层应根据用户体验自行收紧）。两端各以单独命名常量定义。
 - 在 `tcx-eth` 与 `imkey-core/ikc` 添加单元测试，并在 `token-core/tcx/tests/sign_test.rs` 添加端到端测试，覆盖：等价性（与逐笔 `sign_tx` byte-equal）、原子性（错误下标）、上限拒绝、空批量、共享 path 与 per-item path 覆盖。
 
@@ -56,13 +56,13 @@
 ## Impact
 
 - **受影响的 crate / 模块**：
-  - `token-core/tcx-proto/src/api.proto`（新增 `EthBatchSignTxParam` / `EthBatchSignTxItem` / `EthBatchSignTxResult`），重新生成 `token-core/tcx/src/api.rs`。
-  - `token-core/tcx-eth/src/signer.rs`（新增 `batch_sign_transaction`，常量 `ETH_MAX_BATCH_SIZE: usize = 2048`）。
+  - `token-core/tcx-proto/src/api.proto`（新增 `SignTxsParam` / `SignTxsItem` / `SignTxsResult`），重新生成 `token-core/tcx/src/api.rs`。
+  - `token-core/tcx-eth/src/signer.rs`（新增 `sign_txs`，常量 `ETH_MAX_BATCH_SIZE: usize = 2048`）。
   - `token-core/tcx/src/handler.rs` 与 `token-core/tcx/src/lib.rs`（新增 handler + dispatcher 入口）。
-  - `imkey-core/ikc-proto/src/eth.proto`（新增 `EthBatchTxInput` / `EthBatchTxItem` / `EthBatchTxOutput`，每个 item 含可选 `path`），重新生成 `imkey-core/ikc-wallet/coin-ethereum/src/ethapi.rs`。
+  - `imkey-core/ikc-proto/src/eth.proto`（新增 `SignTxsInput` / `SignTxsItem` / `SignTxsOutput`，每个 item 含可选 `path`），重新生成 `imkey-core/ikc-wallet/coin-ethereum/src/ethapi.rs`。
   - `imkey-core/ikc-wallet/coin-ethereum/src/transaction.rs`：**不修改**。新提案的批量层完全在 FFI handler 内薄循环复用现有 `Transaction::sign`，避免对单笔路径产生回归风险。
-  - `imkey-core/ikc/src/ethereum_signer.rs`（新增 `sign_eth_batch_transaction` + 常量 `pub const ETH_MAX_BATCH_SIZE: usize = 100`；可选地把现有 `sign_eth_transaction` 内部的 `EthTxInput → Transaction + chain_id` 解析提取为私有 helper 以便循环复用）。
-  - `imkey-core/ikc/src/lib.rs`（新增 `batch_sign_tx` dispatcher 分支）。
+  - `imkey-core/ikc/src/ethereum_signer.rs`（新增 `sign_txs` + 常量 `pub const ETH_MAX_BATCH_SIZE: usize = 100`；可选地把现有 `sign_eth_transaction` 内部的 `EthTxInput → Transaction + chain_id` 解析提取为私有 helper 以便循环复用）。
+  - `imkey-core/ikc/src/lib.rs`（新增 `sign_txs` dispatcher 分支）。
 - **API 影响面**：纯增量。现有 `sign_tx` 的形态与行为完全不变，对当前调用方零破坏；`coin_ethereum::transaction::Transaction::sign` 的实现也不动。
 - **硬件影响（imKey）**：不修改固件，每笔 item 在设备会话上等价于一次独立的单笔 `sign_tx` 调用——`select_applet` / `prepare_sign` / `get_xpub` / `sign_digest` / 用户按确认这一整套 N 次发生。本提案带来的收益在于一次 FFI、严格有序执行、原子错误反馈。文档会明确说明这一点，避免 host SDK / UX 误以为有任何"批量加速"。
 - **依赖**：无新增依赖。

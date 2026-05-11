@@ -37,8 +37,8 @@ message EthMessageOutput {
 // ----------------------------------------------------------------------
 // Batch ETH transaction signing.
 //
-// `EthBatchTxInput` is the body wrapped in `SignParam.input` for the
-// `batch_sign_tx` action (chain-neutral name; the dispatcher uses
+// `SignTxsInput` is the body wrapped in `SignParam.input` for the
+// `sign_txs` action (chain-neutral name; the dispatcher uses
 // `SignParam.chain_type == "ETHEREUM"` to route here): a single FFI call
 // signs N ETH transactions,
 // each item carrying its own per-tx display strings (payment / receiver /
@@ -53,11 +53,11 @@ message EthMessageOutput {
 // execution, all-or-nothing semantics, index-prefixed errors.
 // ----------------------------------------------------------------------
 
-message EthBatchTxInput {
-    repeated EthBatchTxItem items = 1;
+message SignTxsInput {
+    repeated SignTxsItem items = 1;
 }
 
-message EthBatchTxItem {
+message SignTxsItem {
     EthTxInput tx = 1;
     string payment = 2;
     string receiver = 3;
@@ -68,6 +68,6 @@ message EthBatchTxItem {
     string path = 6;
 }
 
-message EthBatchTxOutput {
+message SignTxsOutput {
     repeated EthTxOutput outputs = 1;
 }
