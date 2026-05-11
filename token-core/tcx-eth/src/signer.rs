@@ -179,10 +179,7 @@ pub struct SignTxsItem {
 /// aborts on the first error (no partial output is returned). The caller is
 /// responsible for enforcing [`ETH_MAX_BATCH_SIZE`] before invoking this
 /// function.
-pub fn sign_txs(
-    keystore: &mut Keystore,
-    items: &[SignTxsItem],
-) -> Result<Vec<EthTxOutput>> {
+pub fn sign_txs(keystore: &mut Keystore, items: &[SignTxsItem]) -> Result<Vec<EthTxOutput>> {
     let mut outputs = Vec::with_capacity(items.len());
     for (index, item) in items.iter().enumerate() {
         let params = SignatureParameters {
@@ -194,9 +191,7 @@ pub fn sign_txs(
         };
         let output = keystore
             .sign_transaction(&params, &item.input)
-            .map_err(|err| {
-                anyhow!("sign_txs failed at index {}: {}", index, err)
-            })?;
+            .map_err(|err| anyhow!("sign_txs failed at index {}: {}", index, err))?;
         outputs.push(output);
     }
     Ok(outputs)
@@ -857,9 +852,12 @@ mod test {
             access_list: vec![AccessList {
                 address: "0x70b361fc3a4001e4f8e4e946700272b51fe4f0c4".to_string(),
                 storage_keys: vec![
-                    "0x8419643489566e30b68ce5bc642e166f86e844454c99a03ed4a3d4a2b9a96f63".to_string(),
-                    "0x8a2a020581b8f3142a9751344796fb1681a8cde503b6662d43b8333f863fb4d3".to_string(),
-                    "0x897544db13bf6cd166ce52498d894fe6ce5a8d2096269628e7f971e818bf9ab9".to_string(),
+                    "0x8419643489566e30b68ce5bc642e166f86e844454c99a03ed4a3d4a2b9a96f63"
+                        .to_string(),
+                    "0x8a2a020581b8f3142a9751344796fb1681a8cde503b6662d43b8333f863fb4d3"
+                        .to_string(),
+                    "0x897544db13bf6cd166ce52498d894fe6ce5a8d2096269628e7f971e818bf9ab9"
+                        .to_string(),
                 ],
             }],
         }
@@ -936,7 +934,8 @@ mod test {
             seg_wit: "".to_string(),
         };
 
-        let single_at = |ks: &mut Keystore, p: &str| ks.sign_transaction(&mk_params(p), &input).unwrap();
+        let single_at =
+            |ks: &mut Keystore, p: &str| ks.sign_transaction(&mk_params(p), &input).unwrap();
         let single0 = single_at(&mut keystore, path0);
         let single1 = single_at(&mut keystore, path1);
         let single2 = single_at(&mut keystore, path2);
@@ -1001,5 +1000,4 @@ mod test {
             "error message did not mention the failing index: {msg}"
         );
     }
-
 }

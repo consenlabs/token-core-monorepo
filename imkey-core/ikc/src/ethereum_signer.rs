@@ -46,8 +46,7 @@ fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
     } else {
         &input.data[..]
     };
-    let data_vec = hex::decode(data_hex)
-        .map_err(|e| anyhow!("invalid `data` hex: {}", e))?;
+    let data_vec = hex::decode(data_hex).map_err(|e| anyhow!("invalid `data` hex: {}", e))?;
 
     let to = if input.to.is_empty() || input.to == "0x" {
         "0000000000000000000000000000000000000000"
@@ -56,8 +55,7 @@ fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
     } else {
         &input.to
     };
-    let to_addr =
-        Address::from_str(&to).map_err(|e| anyhow!("invalid `to` address: {}", e))?;
+    let to_addr = Address::from_str(&to).map_err(|e| anyhow!("invalid `to` address: {}", e))?;
 
     let eth_tx = if input.r#type.to_lowercase() == "0x02"
         || input.r#type.to_lowercase() == "0x2"
@@ -77,14 +75,12 @@ fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
                 let mut access_list: Vec<AccessListItem> = Vec::new();
                 for access in &input.access_list {
                     let item = AccessListItem {
-                        address: Address::from_str(remove_0x(&access.address)).map_err(
-                            |e| anyhow!("invalid access_list address: {}", e),
-                        )?,
+                        address: Address::from_str(remove_0x(&access.address))
+                            .map_err(|e| anyhow!("invalid access_list address: {}", e))?,
                         storage_keys: {
                             let mut storage_keys: Vec<H256> = Vec::new();
                             for key in &access.storage_keys {
-                                storage_keys
-                                    .push(Transaction::hexstring_to_hex256(remove_0x(key)));
+                                storage_keys.push(Transaction::hexstring_to_hex256(remove_0x(key)));
                             }
                             storage_keys
                         },
@@ -148,13 +144,10 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
 }
 
 pub fn sign_txs(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: SignTxsInput =
-        SignTxsInput::decode(data).expect("imkey_illegal_param");
+    let input: SignTxsInput = SignTxsInput::decode(data).expect("imkey_illegal_param");
 
     if input.items.is_empty() {
-        return Err(anyhow!(
-            "sign_txs failed at index 0: invalid_param"
-        ));
+        return Err(anyhow!("sign_txs failed at index 0: invalid_param"));
     }
     if input.items.len() > ETH_MAX_BATCH_SIZE {
         return Err(anyhow!(
@@ -170,20 +163,14 @@ pub fn sign_txs(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
     }
     for (i, item) in input.items.iter().enumerate() {
         if item.tx.is_none() {
-            return Err(anyhow!(
-                "sign_txs failed at index {}: missing tx",
-                i
-            ));
+            return Err(anyhow!("sign_txs failed at index {}: missing tx", i));
         }
         // `sender` is required for the device-side address
         // verification step inside `Transaction::sign`. Catching it
         // here keeps the failure ordering (and error message) parallel
         // to the missing-tx case, which the host already special-cases.
         if item.sender.is_empty() {
-            return Err(anyhow!(
-                "sign_txs failed at index {}: missing sender",
-                i
-            ));
+            return Err(anyhow!("sign_txs failed at index {}: missing sender", i));
         }
         if !item.path.is_empty() {
             check_path_validity(&item.path)
@@ -617,5 +604,4 @@ mod tests {
             "0x09fa41c4d6b92482506c8c56f65b217cc3398821caec7695683110997426db01".to_string()
         );
     }
-
 }

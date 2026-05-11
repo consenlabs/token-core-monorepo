@@ -1,8 +1,8 @@
 use common::run_test;
 use serial_test::serial;
 use tcx::api::{
-    sign_txs_param, EthBatchPersonalSignParam, EthBatchPersonalSignResult,
-    SignTxsItem, SignTxsParam, SignTxsResult,
+    sign_txs_param, EthBatchPersonalSignParam, EthBatchPersonalSignResult, SignTxsItem,
+    SignTxsParam, SignTxsResult,
 };
 
 mod common;
@@ -1666,12 +1666,10 @@ fn eip1559_with_access_list_eth_tx_input() -> EthTxInput {
 
 // Expected outputs --------------------------------------------------------
 
-const LEGACY_TX_HASH: &str =
-    "0xa0a52398c499ccb09095148188eb027b463de3229f87bfebb8f944606047fd81";
+const LEGACY_TX_HASH: &str = "0xa0a52398c499ccb09095148188eb027b463de3229f87bfebb8f944606047fd81";
 const LEGACY_SIGNATURE: &str = "f867088504a817c8088302e2489435353535353535353535353535353535353535358202008025a06dfc00d1a38acf17137ca1524964ae7e596196703971c6a4d35ada8b09227305a061b8424f251f8724c335fc6df6088db863ee0ea05ebf68ca73a3622aafa19e94";
 
-const EIP1559_TX_HASH: &str =
-    "0x9a427f295369171f686d83a05b92d8849b822f1fa1c9ccb853e81de545f4625b";
+const EIP1559_TX_HASH: &str = "0x9a427f295369171f686d83a05b92d8849b822f1fa1c9ccb853e81de545f4625b";
 const EIP1559_SIGNATURE: &str = "02f875010881e285faac6c45d88210be943535353535353535353535353535353535353535833542398a200184c0486d5f082a27c001a0602501c9cfedf145810f9b54558de6cf866a89b7a65890ccde19dd6cec1fe32ca02769f3382ee526a372241238922da39f6283a9613215fd98c8ce37a0d03fa3bb";
 
 const EIP1559_AL_TX_HASH: &str =
@@ -1717,9 +1715,7 @@ pub fn test_sign_txs_basic() {
         // by the existing `test_sign_ethereum_*` tests.
         let param = SignTxsParam {
             id: wallet.id.to_string(),
-            key: Some(sign_txs_param::Key::Password(
-                TEST_PASSWORD.to_string(),
-            )),
+            key: Some(sign_txs_param::Key::Password(TEST_PASSWORD.to_string())),
             chain_type: "ETHEREUM".to_string(),
             path: ETH_BATCH_PATH.to_string(),
             network: "".to_string(),
@@ -1775,9 +1771,7 @@ pub fn test_sign_txs_per_item_path() {
 
         let param = SignTxsParam {
             id: wallet.id.to_string(),
-            key: Some(sign_txs_param::Key::Password(
-                TEST_PASSWORD.to_string(),
-            )),
+            key: Some(sign_txs_param::Key::Password(TEST_PASSWORD.to_string())),
             chain_type: "ETHEREUM".to_string(),
             path: ETH_BATCH_PATH.to_string(),
             network: "".to_string(),
@@ -1809,9 +1803,18 @@ pub fn test_sign_txs_per_item_path() {
 
         // Distinct paths must yield distinct signed transactions even when
         // the EthTxInput payload is identical.
-        assert_ne!(batch_result.outputs[0].tx_hash, batch_result.outputs[1].tx_hash);
-        assert_ne!(batch_result.outputs[1].tx_hash, batch_result.outputs[2].tx_hash);
-        assert_ne!(batch_result.outputs[0].tx_hash, batch_result.outputs[2].tx_hash);
+        assert_ne!(
+            batch_result.outputs[0].tx_hash,
+            batch_result.outputs[1].tx_hash
+        );
+        assert_ne!(
+            batch_result.outputs[1].tx_hash,
+            batch_result.outputs[2].tx_hash
+        );
+        assert_ne!(
+            batch_result.outputs[0].tx_hash,
+            batch_result.outputs[2].tx_hash
+        );
 
         remove_created_wallet(&wallet.id);
     });
@@ -1825,17 +1828,14 @@ pub fn test_sign_txs_empty_rejected() {
 
         let param = SignTxsParam {
             id: wallet.id.to_string(),
-            key: Some(sign_txs_param::Key::Password(
-                TEST_PASSWORD.to_string(),
-            )),
+            key: Some(sign_txs_param::Key::Password(TEST_PASSWORD.to_string())),
             chain_type: "ETHEREUM".to_string(),
             path: "m/44'/60'/0'/0/0".to_string(),
             network: "".to_string(),
             seg_wit: "".to_string(),
             items: vec![],
         };
-        let err = call_api("sign_txs", param)
-            .expect_err("empty batch must be rejected");
+        let err = call_api("sign_txs", param).expect_err("empty batch must be rejected");
         assert!(
             err.to_string().contains("batch is empty"),
             "expected empty-batch error, got: {err}"
@@ -1859,17 +1859,14 @@ pub fn test_sign_txs_size_limit_rejected() {
 
         let param = SignTxsParam {
             id: wallet.id.to_string(),
-            key: Some(sign_txs_param::Key::Password(
-                TEST_PASSWORD.to_string(),
-            )),
+            key: Some(sign_txs_param::Key::Password(TEST_PASSWORD.to_string())),
             chain_type: "ETHEREUM".to_string(),
             path: "m/44'/60'/0'/0/0".to_string(),
             network: "".to_string(),
             seg_wit: "".to_string(),
             items,
         };
-        let err = call_api("sign_txs", param)
-            .expect_err("over-limit batch must be rejected");
+        let err = call_api("sign_txs", param).expect_err("over-limit batch must be rejected");
         let msg = err.to_string();
         assert!(
             msg.contains("exceeds max size of 2048"),
@@ -1894,9 +1891,7 @@ pub fn test_sign_txs_aborts_on_bad_to_with_index() {
 
         let param = SignTxsParam {
             id: wallet.id.to_string(),
-            key: Some(sign_txs_param::Key::Password(
-                TEST_PASSWORD.to_string(),
-            )),
+            key: Some(sign_txs_param::Key::Password(TEST_PASSWORD.to_string())),
             chain_type: "ETHEREUM".to_string(),
             path: ETH_BATCH_PATH.to_string(),
             network: "".to_string(),
@@ -1906,8 +1901,7 @@ pub fn test_sign_txs_aborts_on_bad_to_with_index() {
                 make_batch_item(bad, ""),
             ],
         };
-        let err = call_api("sign_txs", param)
-            .expect_err("bad `to` must abort the batch");
+        let err = call_api("sign_txs", param).expect_err("bad `to` must abort the batch");
         let msg = err.to_string();
         assert!(
             msg.contains("sign_txs failed at index 1"),
@@ -1935,8 +1929,7 @@ pub fn test_sign_txs_wrong_password_rejected() {
             seg_wit: "".to_string(),
             items: vec![make_batch_item(legacy_eth_tx_input(), "")],
         };
-        let err = call_api("sign_txs", param)
-            .expect_err("wrong password must reject the batch");
+        let err = call_api("sign_txs", param).expect_err("wrong password must reject the batch");
         // Same authentication error string the single sign_tx returns.
         assert!(
             !err.to_string().is_empty(),

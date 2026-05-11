@@ -38,9 +38,7 @@
 
 use prost::Message;
 
-use coin_ethereum::ethapi::{
-    AccessList, EthTxInput, SignTxsInput, SignTxsItem, SignTxsOutput,
-};
+use coin_ethereum::ethapi::{AccessList, EthTxInput, SignTxsInput, SignTxsItem, SignTxsOutput};
 use connector::ethereum_signer::sign_txs;
 use ikc_common::constants::ETH_TRANSACTION_TYPE_EIP1559;
 use ikc_common::SignParam;
@@ -177,15 +175,19 @@ fn eip1559_multi_access_list_item() -> SignTxsItem {
                 AccessList {
                     address: "1b976cdbc43cfcbeaad2623c95523981ea1e664a".to_string(),
                     storage_keys: vec![
-                        "d259410e74fa5c0227f688cc1f79b4d2bee3e9b7342c4c61342e8906a63406a2".to_string(),
+                        "d259410e74fa5c0227f688cc1f79b4d2bee3e9b7342c4c61342e8906a63406a2"
+                            .to_string(),
                     ],
                 },
                 AccessList {
                     address: "f1946eba70f89687d67493d8106f56c90ecba943".to_string(),
                     storage_keys: vec![
-                        "b3838dedffc33c62f8abfc590b41717a6dd70c3cab5a6900efae846d9060a2b9".to_string(),
-                        "6a6c4d1ab264204fb2cdd7f55307ca3a0040855aa9c4a749a605a02b43374b82".to_string(),
-                        "0c38e901d0d95fbf8f05157c68a89393a86aa1e821279e4cce78f827dccb2064".to_string(),
+                        "b3838dedffc33c62f8abfc590b41717a6dd70c3cab5a6900efae846d9060a2b9"
+                            .to_string(),
+                        "6a6c4d1ab264204fb2cdd7f55307ca3a0040855aa9c4a749a605a02b43374b82"
+                            .to_string(),
+                        "0c38e901d0d95fbf8f05157c68a89393a86aa1e821279e4cce78f827dccb2064"
+                            .to_string(),
                     ],
                 },
             ],
@@ -235,8 +237,7 @@ fn eip1559_with_access_list_item() -> SignTxsItem {
 // which validates them against the canonical encoding.
 // ---------------------------------------------------------------------------
 const LEGACY_SIGNATURE: &str = "f867088504a817c8088302e248943535353535353535353535353535353535353535820200805ba03aa62abb45b77418caf139dda0179aea802c99967b3d690b87d586a87bc805afa02b5ce94f40dc865ca63403e0e5e723e1523884f001573677cd8cec11c7ca332f";
-const LEGACY_TX_HASH: &str =
-    "0x09fa41c4d6b92482506c8c56f65b217cc3398821caec7695683110997426db01";
+const LEGACY_TX_HASH: &str = "0x09fa41c4d6b92482506c8c56f65b217cc3398821caec7695683110997426db01";
 
 const EIP1559_NO_AL_SIGNATURE: &str = "02f86a8182084585c61d4f61a883da2d8394ef970655297d1234174bcfe31ee803aaa97ad0ca0b81eec001a043b16ce6f245f8ec1d145e8b1f36bb9f6e7a7fd9030139a8143c3e0e9ccb6e9ca04020e1ae4920cfbf7c88e7be6a73751bb28d9bc8e6ecf3c5c989310c5871de8a";
 const EIP1559_NO_AL_TX_HASH: &str =
