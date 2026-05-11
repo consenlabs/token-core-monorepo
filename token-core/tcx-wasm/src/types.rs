@@ -43,6 +43,9 @@ pub struct DerivationItem {
     pub chain_id: Option<String>,
     pub network: Option<String>,
     pub seg_wit: Option<String>,
+    #[allow(dead_code)]
+    pub curve: Option<String>,
+    pub contract_code: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -65,6 +68,7 @@ pub struct SignTxParam {
     pub derivation_path: Option<String>,
     pub network: Option<String>,
     pub seg_wit: Option<String>,
+    pub chain_id: Option<String>,
     pub input: serde_json::Value,
 }
 
@@ -84,6 +88,7 @@ pub struct SignTxItem {
     pub derivation_path: Option<String>,
     pub network: Option<String>,
     pub seg_wit: Option<String>,
+    pub chain_id: Option<String>,
     pub input: serde_json::Value,
 }
 
@@ -126,6 +131,8 @@ pub struct SignMessageParam {
     pub derivation_path: Option<String>,
     pub network: Option<String>,
     pub seg_wit: Option<String>,
+    #[allow(dead_code)]
+    pub chain_id: Option<String>,
     pub input: serde_json::Value,
 }
 
@@ -163,6 +170,101 @@ pub struct BtcTxInputJson {
     pub fee: u64,
     pub op_return: Option<String>,
     pub change_address_index: Option<u32>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OmniTxInputJson {
+    pub inputs: Vec<BtcUtxoJson>,
+    pub to: String,
+    pub amount: u64,
+    pub fee: u64,
+    pub property_id: u32,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AtomTxInputJson {
+    pub raw_data: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EosTxInputJson {
+    pub chain_id: String,
+    pub tx_hexs: Vec<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EosSignMessageInputJson {
+    pub data: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TezosTxInputJson {
+    pub raw_data: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TonTxInputJson {
+    pub hash: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CkbOutPointJson {
+    pub tx_hash: String,
+    pub index: i32,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CkbScriptJson {
+    pub args: String,
+    pub code_hash: String,
+    pub hash_type: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CkbCellInputJson {
+    pub previous_output: Option<CkbOutPointJson>,
+    pub since: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CkbWitnessJson {
+    pub lock: String,
+    pub input_type: String,
+    pub output_type: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CkbCachedCellJson {
+    pub capacity: i64,
+    pub lock: Option<CkbScriptJson>,
+    pub out_point: Option<CkbOutPointJson>,
+    pub derived_path: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CkbTxInputJson {
+    pub inputs: Vec<CkbCellInputJson>,
+    pub witnesses: Vec<CkbWitnessJson>,
+    pub cached_cells: Vec<CkbCachedCellJson>,
+    pub tx_hash: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubstrateTxInputJson {
+    pub raw_data: String,
 }
 
 #[derive(Deserialize)]

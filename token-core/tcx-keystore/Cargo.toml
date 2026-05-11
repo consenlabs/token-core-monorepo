@@ -42,5 +42,7 @@ features = ["precommit-hook", "run-cargo-fmt"]
 
 [features]
 default = ["substrate-crypto"]
-substrate-crypto = ["tcx-primitive/substrate-crypto"]
+bls = ["tcx-primitive/bls"]
+substrate = ["tcx-primitive/substrate"]
+substrate-crypto = ["bls", "substrate", "tcx-primitive/substrate-crypto"]
 cache_dk = []

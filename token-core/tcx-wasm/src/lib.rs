@@ -6,24 +6,39 @@ use wasm_bindgen::prelude::*;
 mod nostr;
 mod types;
 
+use tcx_atom::address::AtomAddress;
+use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
 use tcx_btc_kin::transaction::{
-    BtcKinTxInput, BtcKinTxOutput, BtcMessageInput, BtcMessageOutput, PsbtInput, PsbtOutput,
-    PsbtsInput, PsbtsOutput, Utxo as BtcUtxo,
+    BtcKinTxInput, BtcKinTxOutput, BtcMessageInput, BtcMessageOutput, OmniTxInput, PsbtInput,
+    PsbtOutput, PsbtsInput, PsbtsOutput, Utxo as BtcUtxo,
 };
-use tcx_btc_kin::{sign_psbt as btc_sign_psbt, sign_psbts as btc_sign_psbts, BtcKinAddress};
+use tcx_btc_kin::{
+    sign_psbt as btc_sign_psbt, sign_psbts as btc_sign_psbts, BchAddress, BtcKinAddress,
+};
+use tcx_ckb::{
+    CachedCell as CkbCachedCell, CellInput as CkbCellInput, CkbAddress, CkbTxInput, CkbTxOutput,
+    OutPoint as CkbOutPoint, Script as CkbScript, Witness as CkbWitness,
+};
 use tcx_common::{random_u8_16, FromHex, ToHex};
 use tcx_constants::CurveType;
+use tcx_eos::address::{EosAddress, EosPublicKeyEncoder};
+use tcx_eos::transaction::{EosMessageInput, EosMessageOutput, EosTxInput, EosTxOutput};
 use tcx_eth::address::EthAddress;
 use tcx_eth::transaction::{
     AccessList as ProtoAccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput,
     SignatureType,
 };
 use tcx_keystore::identity::Identity;
-use tcx_keystore::keystore::{IdentityNetwork, Metadata};
+use tcx_keystore::keystore::{IdentityNetwork, Metadata, PublicKeyEncoder};
 use tcx_keystore::{
     mnemonic_to_seed, Keystore, MessageSigner, SignatureParameters, TransactionSigner,
 };
 use tcx_primitive::{mnemonic_from_entropy, TypedPublicKey};
+use tcx_substrate::{SubstrateAddress, SubstrateRawTxIn, SubstrateTxOut};
+use tcx_tezos::address::TezosAddress;
+use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
+use tcx_ton::address::TonAddress;
+use tcx_ton::transaction::{TonRawTxIn, TonTxOut};
 use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 use tcx_tron::TronAddress;
 
@@ -121,12 +136,73 @@ fn default_btc_full_path(seg_wit: &str) -> &'static str {
     }
 }
 
+fn default_ltc_full_path(seg_wit: &str) -> &'static str {
+    match seg_wit {
+        "P2WPKH" => "m/49'/2'/0'/0/0",
+        _ => "m/44'/2'/0'/0/0",
+    }
+}
+
+fn default_doge_full_path(seg_wit: &str) -> &'static str {
+    match seg_wit {
+        "P2WPKH" => "m/49'/3'/0'/0/0",
+        "VERSION_0" => "m/84'/3'/0'/0/0",
+        "VERSION_1" => "m/86'/3'/0'/0/0",
+        _ => "m/44'/3'/0'/0/0",
+    }
+}
+
+fn default_full_path_for_chain(chain: &str, seg_wit: &str) -> &'static str {
+    match chain {
+        "TRON" => "m/44'/195'/0'/0/0",
+        "BITCOIN" | "OMNI" => default_btc_full_path(seg_wit),
+        "BITCOINCASH" => "m/44'/145'/0'/0/0",
+        "LITECOIN" => default_ltc_full_path(seg_wit),
+        "DOGECOIN" => default_doge_full_path(seg_wit),
+        "COSMOS" => "m/44'/118'/0'/0/0",
+        "EOS" => "m/44'/194'/0'/0/0",
+        "TEZOS" => "m/44'/1729'/0'/0'",
+        "TON" => "m/44'/607'/0'",
+        "NERVOS" => "m/44'/309'/0'/0/0",
+        "POLKADOT" => "//imToken//polkadot/0",
+        "KUSAMA" => "//imToken//kusama/0",
+        _ => "m/44'/60'/0'/0/0",
+    }
+}
+
 fn btc_account_path(path: &str) -> String {
     let parts: Vec<&str> = path.split('/').collect();
     if parts.len() > 2 {
         parts[..parts.len() - 2].join("/")
     } else {
         path.to_string()
+    }
+}
+
+fn coin_name_for_chain(chain: &str) -> &'static str {
+    match chain {
+        "TRON" => "TRON",
+        "BITCOIN" => "BITCOIN",
+        "BITCOINCASH" => "BITCOINCASH",
+        "LITECOIN" => "LITECOIN",
+        "DOGECOIN" => "DOGECOIN",
+        "OMNI" => "OMNI",
+        "COSMOS" => "COSMOS",
+        "EOS" => "EOS",
+        "TEZOS" => "TEZOS",
+        "TON" => "TON",
+        "NERVOS" => "NERVOS",
+        "POLKADOT" => "POLKADOT",
+        "KUSAMA" => "KUSAMA",
+        _ => "ETHEREUM",
+    }
+}
+
+fn curve_for_chain(chain: &str) -> CurveType {
+    match chain {
+        "TEZOS" | "TON" => CurveType::ED25519,
+        "POLKADOT" | "KUSAMA" => CurveType::SR25519,
+        _ => CurveType::SECP256k1,
     }
 }
 
@@ -251,36 +327,59 @@ pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
 
     for item in &param.derivations {
         let chain = item.chain.as_deref().unwrap_or("ETHEREUM");
-        let coin_name = match chain {
-            "TRON" => "TRON",
-            "BITCOIN" => "BITCOIN",
-            _ => "ETHEREUM",
-        };
+        let coin_name = coin_name_for_chain(chain);
 
         let coin_info = tcx_constants::CoinInfo {
             chain_id: item.chain_id.clone().unwrap_or_default(),
             coin: coin_name.to_string(),
             derivation_path: item.derivation_path.clone(),
-            curve: CurveType::SECP256k1,
+            curve: curve_for_chain(chain),
             network: item.network.as_deref().unwrap_or("MAINNET").to_string(),
             seg_wit: item.seg_wit.clone().unwrap_or_default(),
-            contract_code: "".to_string(),
+            contract_code: item.contract_code.clone().unwrap_or_default(),
         };
 
         let account = match chain {
             "TRON" => keystore
                 .derive_coin::<TronAddress>(&coin_info)
                 .map_err(to_js_err)?,
-            "BITCOIN" => keystore
+            "BITCOIN" | "LITECOIN" | "DOGECOIN" | "OMNI" => keystore
                 .derive_coin::<BtcKinAddress>(&coin_info)
+                .map_err(to_js_err)?,
+            "BITCOINCASH" => keystore
+                .derive_coin::<BchAddress>(&coin_info)
+                .map_err(to_js_err)?,
+            "COSMOS" => keystore
+                .derive_coin::<AtomAddress>(&coin_info)
+                .map_err(to_js_err)?,
+            "EOS" => keystore
+                .derive_coin::<EosAddress>(&coin_info)
+                .map_err(to_js_err)?,
+            "TEZOS" => keystore
+                .derive_coin::<TezosAddress>(&coin_info)
+                .map_err(to_js_err)?,
+            "TON" => keystore
+                .derive_coin::<TonAddress>(&coin_info)
+                .map_err(to_js_err)?,
+            "NERVOS" => keystore
+                .derive_coin::<CkbAddress>(&coin_info)
+                .map_err(to_js_err)?,
+            "POLKADOT" | "KUSAMA" => keystore
+                .derive_coin::<SubstrateAddress>(&coin_info)
                 .map_err(to_js_err)?,
             _ => keystore
                 .derive_coin::<EthAddress>(&coin_info)
                 .map_err(to_js_err)?,
         };
 
+        let address = if chain == "EOS" {
+            EosPublicKeyEncoder::encode(&account.public_key, &coin_info).map_err(to_js_err)?
+        } else {
+            account.address
+        };
+
         results.push(AccountResponse {
-            address: account.address,
+            address,
             chain: coin_name.to_string(),
             derivation_path: account.derivation_path,
             ext_pub_key: account.ext_pub_key,
@@ -310,19 +409,15 @@ fn sign_single_tx(
     derivation_path: Option<String>,
     network: Option<String>,
     seg_wit: Option<String>,
+    _chain_id: Option<String>,
     input: serde_json::Value,
 ) -> Result<serde_json::Value, JsValue> {
     let seg_wit = seg_wit.unwrap_or_default();
-    let default_path = match chain {
-        "TRON" => "m/44'/195'/0'/0/0",
-        "BITCOIN" => default_btc_full_path(&seg_wit),
-        _ => "m/44'/60'/0'/0/0",
-    };
-
-    let derivation_path = derivation_path.unwrap_or_else(|| default_path.to_string());
+    let derivation_path =
+        derivation_path.unwrap_or_else(|| default_full_path_for_chain(chain, &seg_wit).to_string());
 
     let sign_params = SignatureParameters {
-        curve: CurveType::SECP256k1,
+        curve: curve_for_chain(chain),
         derivation_path,
         chain_type: chain.to_string(),
         network: network.unwrap_or_else(|| "MAINNET".to_string()),
@@ -341,7 +436,7 @@ fn sign_single_tx(
                 .map_err(to_js_err)?;
             Ok(serde_json::json!({ "signatures": output.signatures }))
         }
-        "BITCOIN" => {
+        "BITCOIN" | "BITCOINCASH" | "LITECOIN" | "DOGECOIN" => {
             let btc_input_json: BtcTxInputJson =
                 serde_json::from_value(input).map_err(to_js_err)?;
             let btc_input = BtcKinTxInput {
@@ -369,6 +464,151 @@ fn sign_single_tx(
                 "rawTx": output.raw_tx,
                 "txHash": output.tx_hash,
                 "wtxHash": output.wtx_hash,
+            }))
+        }
+        "OMNI" => {
+            let omni_input_json: OmniTxInputJson =
+                serde_json::from_value(input).map_err(to_js_err)?;
+            let omni_input = OmniTxInput {
+                inputs: omni_input_json
+                    .inputs
+                    .into_iter()
+                    .map(|u| BtcUtxo {
+                        tx_hash: u.tx_hash,
+                        vout: u.vout,
+                        amount: u.amount,
+                        address: u.address,
+                        derived_path: u.derived_path,
+                    })
+                    .collect(),
+                to: omni_input_json.to,
+                amount: omni_input_json.amount,
+                fee: omni_input_json.fee,
+                property_id: omni_input_json.property_id,
+            };
+            let output: BtcKinTxOutput = keystore
+                .sign_transaction(&sign_params, &omni_input)
+                .map_err(to_js_err)?;
+            Ok(serde_json::json!({
+                "rawTx": output.raw_tx,
+                "txHash": output.tx_hash,
+                "wtxHash": output.wtx_hash,
+            }))
+        }
+        "COSMOS" => {
+            let atom_input_json: AtomTxInputJson =
+                serde_json::from_value(input).map_err(to_js_err)?;
+            let atom_input = AtomTxInput {
+                raw_data: atom_input_json.raw_data,
+            };
+            let output: AtomTxOutput = keystore
+                .sign_transaction(&sign_params, &atom_input)
+                .map_err(to_js_err)?;
+            Ok(serde_json::json!({ "signature": output.signature }))
+        }
+        "EOS" => {
+            let eos_input_json: EosTxInputJson =
+                serde_json::from_value(input).map_err(to_js_err)?;
+            let eos_input = EosTxInput {
+                chain_id: eos_input_json.chain_id,
+                tx_hexs: eos_input_json.tx_hexs,
+            };
+            let output: EosTxOutput = keystore
+                .sign_transaction(&sign_params, &eos_input)
+                .map_err(to_js_err)?;
+            let sig_data: Vec<serde_json::Value> = output
+                .sig_data
+                .into_iter()
+                .map(|s| serde_json::json!({ "signature": s.signature, "hash": s.hash }))
+                .collect();
+            Ok(serde_json::json!({ "sigData": sig_data }))
+        }
+        "TEZOS" => {
+            let tezos_input_json: TezosTxInputJson =
+                serde_json::from_value(input).map_err(to_js_err)?;
+            let tezos_input = TezosRawTxIn {
+                raw_data: tezos_input_json.raw_data,
+            };
+            let output: TezosTxOut = keystore
+                .sign_transaction(&sign_params, &tezos_input)
+                .map_err(to_js_err)?;
+            Ok(serde_json::json!({
+                "signature": output.signature,
+                "edsig": output.edsig,
+                "sbytes": output.sbytes,
+            }))
+        }
+        "TON" => {
+            let ton_input_json: TonTxInputJson =
+                serde_json::from_value(input).map_err(to_js_err)?;
+            let ton_input = TonRawTxIn {
+                hash: ton_input_json.hash,
+            };
+            let output: TonTxOut = keystore
+                .sign_transaction(&sign_params, &ton_input)
+                .map_err(to_js_err)?;
+            Ok(serde_json::json!({ "signature": output.signature }))
+        }
+        "POLKADOT" | "KUSAMA" => {
+            let sub_input_json: SubstrateTxInputJson =
+                serde_json::from_value(input).map_err(to_js_err)?;
+            let sub_input = SubstrateRawTxIn {
+                raw_data: sub_input_json.raw_data,
+            };
+            let output: SubstrateTxOut = keystore
+                .sign_transaction(&sign_params, &sub_input)
+                .map_err(to_js_err)?;
+            Ok(serde_json::json!({ "signature": output.signature }))
+        }
+        "NERVOS" => {
+            let ckb_input_json: CkbTxInputJson =
+                serde_json::from_value(input).map_err(to_js_err)?;
+            let ckb_input = CkbTxInput {
+                inputs: ckb_input_json
+                    .inputs
+                    .into_iter()
+                    .map(|i| CkbCellInput {
+                        previous_output: i.previous_output.map(|p| CkbOutPoint {
+                            tx_hash: p.tx_hash,
+                            index: p.index,
+                        }),
+                        since: i.since,
+                    })
+                    .collect(),
+                witnesses: ckb_input_json
+                    .witnesses
+                    .into_iter()
+                    .map(|w| CkbWitness {
+                        lock: w.lock,
+                        input_type: w.input_type,
+                        output_type: w.output_type,
+                    })
+                    .collect(),
+                cached_cells: ckb_input_json
+                    .cached_cells
+                    .into_iter()
+                    .map(|c| CkbCachedCell {
+                        capacity: c.capacity,
+                        lock: c.lock.map(|s| CkbScript {
+                            args: s.args,
+                            code_hash: s.code_hash,
+                            hash_type: s.hash_type,
+                        }),
+                        out_point: c.out_point.map(|p| CkbOutPoint {
+                            tx_hash: p.tx_hash,
+                            index: p.index,
+                        }),
+                        derived_path: c.derived_path,
+                    })
+                    .collect(),
+                tx_hash: ckb_input_json.tx_hash,
+            };
+            let output: CkbTxOutput = keystore
+                .sign_transaction(&sign_params, &ckb_input)
+                .map_err(to_js_err)?;
+            Ok(serde_json::json!({
+                "txHash": output.tx_hash,
+                "witnesses": output.witnesses,
             }))
         }
         _ => {
@@ -423,6 +663,7 @@ pub fn sign_tx(param_json: &str) -> Result<String, JsValue> {
         param.derivation_path,
         param.network,
         param.seg_wit,
+        param.chain_id,
         param.input,
     )?;
 
@@ -451,6 +692,7 @@ pub fn sign_txs(param_json: &str) -> Result<String, JsValue> {
             tx.derivation_path,
             tx.network,
             tx.seg_wit,
+            tx.chain_id,
             tx.input,
         )?;
         results.push(result);
@@ -470,14 +712,20 @@ pub fn sign_message(param_json: &str) -> Result<String, JsValue> {
 
     let chain = param.chain.as_deref().unwrap_or("ETHEREUM");
     let seg_wit = param.seg_wit.clone().unwrap_or_default();
+    let full_default_path = default_full_path_for_chain(chain, &seg_wit).to_string();
     let default_path = match chain {
-        "TRON" => "m/44'/195'/0'/0/0".to_string(),
-        "BITCOIN" => btc_account_path(default_btc_full_path(&seg_wit)),
-        _ => "m/44'/60'/0'/0/0".to_string(),
+        "BITCOIN" | "BITCOINCASH" | "LITECOIN" | "DOGECOIN" | "OMNI" => {
+            btc_account_path(&full_default_path)
+        }
+        _ => full_default_path,
     };
 
     let derivation_path = match (chain, param.derivation_path) {
-        ("BITCOIN", Some(p)) => btc_account_path(&p),
+        ("BITCOIN", Some(p))
+        | ("BITCOINCASH", Some(p))
+        | ("LITECOIN", Some(p))
+        | ("DOGECOIN", Some(p))
+        | ("OMNI", Some(p)) => btc_account_path(&p),
         (_, Some(p)) => p,
         (_, None) => default_path,
     };
@@ -491,7 +739,7 @@ pub fn sign_message(param_json: &str) -> Result<String, JsValue> {
     };
 
     let json_result = match chain {
-        "BITCOIN" => {
+        "BITCOIN" | "BITCOINCASH" | "LITECOIN" | "DOGECOIN" => {
             let input_json: BtcSignMessageInputJson =
                 serde_json::from_value(param.input).map_err(to_js_err)?;
             let btc_input = BtcMessageInput {
@@ -512,6 +760,17 @@ pub fn sign_message(param_json: &str) -> Result<String, JsValue> {
             };
             let output: TronMessageOutput = keystore
                 .sign_message(&sign_params, &tron_input)
+                .map_err(to_js_err)?;
+            serde_json::json!({ "signature": output.signature })
+        }
+        "EOS" => {
+            let input_json: EosSignMessageInputJson =
+                serde_json::from_value(param.input).map_err(to_js_err)?;
+            let eos_input = EosMessageInput {
+                data: input_json.data,
+            };
+            let output: EosMessageOutput = keystore
+                .sign_message(&sign_params, &eos_input)
                 .map_err(to_js_err)?;
             serde_json::json!({ "signature": output.signature })
         }

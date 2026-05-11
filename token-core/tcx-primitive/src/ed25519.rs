@@ -1,32 +1,29 @@
 use crate::ecc::{KeyError, PrivateKey as TraitPrivateKey, PublicKey as TraitPublicKey};
+use crate::Result;
+use ed25519_dalek::{Signer, SigningKey, VerifyingKey, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH};
 use tcx_common::{FromHex, ToHex};
 
-use crate::Result;
-use sp_core::ed25519::{Pair, Public};
-use sp_core::Pair as TraitPair;
-use std::convert::TryFrom;
-
 #[derive(Clone, Debug, PartialEq)]
-pub struct Ed25519PublicKey(pub Public);
+pub struct Ed25519PublicKey(pub VerifyingKey);
 
 #[derive(Clone)]
-pub struct Ed25519PrivateKey(pub Pair);
+pub struct Ed25519PrivateKey(pub SigningKey);
 
-impl From<Public> for Ed25519PublicKey {
-    fn from(pk: Public) -> Self {
+impl From<VerifyingKey> for Ed25519PublicKey {
+    fn from(pk: VerifyingKey) -> Self {
         Ed25519PublicKey(pk)
     }
 }
 
-impl From<Pair> for Ed25519PrivateKey {
-    fn from(sk: Pair) -> Self {
+impl From<SigningKey> for Ed25519PrivateKey {
+    fn from(sk: SigningKey) -> Self {
         Ed25519PrivateKey(sk)
     }
 }
 
 impl Ed25519PrivateKey {
     pub fn sign(&self, data: &[u8]) -> Result<Vec<u8>> {
-        Ok(self.0.sign(data).0.to_vec())
+        Ok(self.0.sign(data).to_bytes().to_vec())
     }
 }
 
@@ -34,51 +31,55 @@ impl TraitPrivateKey for Ed25519PrivateKey {
     type PublicKey = Ed25519PublicKey;
 
     fn from_slice(data: &[u8]) -> Result<Self> {
-        if data.len() != 32 {
+        if data.len() != SECRET_KEY_LENGTH {
             return Err(KeyError::InvalidEd25519Key.into());
         }
-        let pair = Pair::from_seed_slice(data).map_err(|_| KeyError::InvalidEd25519Key)?;
-        Ok(Ed25519PrivateKey(pair))
+        let mut seed = [0u8; SECRET_KEY_LENGTH];
+        seed.copy_from_slice(data);
+        Ok(Ed25519PrivateKey(SigningKey::from_bytes(&seed)))
     }
 
     fn public_key(&self) -> Self::PublicKey {
-        Ed25519PublicKey(self.0.public())
+        Ed25519PublicKey(self.0.verifying_key())
     }
 
     fn to_bytes(&self) -> Vec<u8> {
-        self.0.to_raw_vec()
+        self.0.to_bytes().to_vec()
     }
 }
 
 impl std::fmt::Display for Ed25519PublicKey {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        self.0.fmt(f)
+        write!(f, "{}", self.to_hex())
     }
 }
 
 impl TraitPublicKey for Ed25519PublicKey {
     fn from_slice(data: &[u8]) -> Result<Self> {
-        Ok(Ed25519PublicKey(
-            Public::try_from(data).expect("gen ed25519 public key error"),
-        ))
+        if data.len() != PUBLIC_KEY_LENGTH {
+            return Err(KeyError::InvalidEd25519Key.into());
+        }
+        let mut bytes = [0u8; PUBLIC_KEY_LENGTH];
+        bytes.copy_from_slice(data);
+        let vk = VerifyingKey::from_bytes(&bytes).map_err(|_| KeyError::InvalidEd25519Key)?;
+        Ok(Ed25519PublicKey(vk))
     }
 
     fn to_bytes(&self) -> Vec<u8> {
-        self.0.to_vec()
+        self.0.to_bytes().to_vec()
     }
 }
 
 impl ToHex for Ed25519PublicKey {
     fn to_hex(&self) -> String {
-        self.0 .0.to_hex()
+        self.0.to_bytes().to_hex()
     }
 }
 
 impl FromHex for Ed25519PublicKey {
     fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self> {
         let bytes = Vec::from_hex(hex)?;
-        let pk = Ed25519PublicKey::from_slice(bytes.as_slice())?;
-        Ok(pk)
+        Self::from_slice(&bytes)
     }
 }
 
@@ -88,8 +89,9 @@ mod test {
     use crate::ed25519::{Ed25519PrivateKey, Ed25519PublicKey};
     use crate::{PrivateKey, PublicKey};
     use blake2b_simd::Params;
-    use sp_core::ed25519::Pair;
+    use ed25519_dalek::SigningKey;
     use tcx_common::{FromHex, ToHex};
+
     #[test]
     fn from_slice_test() {
         let pk_bytes: Vec<u8> =
@@ -127,23 +129,22 @@ mod test {
         let mut params = Params::new();
         params.hash_length(32);
         let generic_hash = params.hash(&msg[..]);
-        let sign_result = sk.sign(&generic_hash.as_bytes()).unwrap();
-        //        println!("sign result ： {}", hex::encode(sign_result));
+        let sign_result = sk.sign(generic_hash.as_bytes()).unwrap();
         let expected_val = "eaab7f4066217b072b79609a9f76cdfadd93f8dde41763887e131c02324f18c8e41b1009e334baf87f9d2e917bf4c0e73165622e5522409a0c5817234a48cc02";
         assert_eq!(sign_result.to_hex(), expected_val);
     }
 
     #[test]
     fn tezos_test() {
-        //        let s = "edskRoRrqsGXLTjMwAtzLSx8G7s9ipibZQh6ponFhZYSReSwxwPo7qJCkPJoRjdUhz8Hj7uZhZaFp7F5yftHUYBpJwF2ZY6vAc";
-        //        Ed25519PrivateKey::from_ss58check_with_version(s);
-        //2bf64e07 5740dedadb610333de66ef2db2d91fd648fcbe419dff766f921ae97d536f94ce 4e26dfbb48117c6f3b3cab5049eee4d68cbef0fc0a8176e7ebb36123a28bda84
         let pk_bytes: Vec<u8> =
             Vec::from_hex("5740dedadb610333de66ef2db2d91fd648fcbe419dff766f921ae97d536f94ce")
                 .unwrap();
         let sk_result = Ed25519PrivateKey::from_slice(&pk_bytes).unwrap();
         let pk = sk_result.public_key().to_hex();
-        println!("{}", pk);
+        assert_eq!(
+            pk,
+            "4e26dfbb48117c6f3b3cab5049eee4d68cbef0fc0a8176e7ebb36123a28bda84"
+        );
     }
 
     #[test]
@@ -158,20 +159,20 @@ mod test {
             KeyError::InvalidEd25519Key.to_string()
         );
 
-        let pair: Pair/* Type */ = sp_core::Pair::from_seed(b"12345678901234567890123456789012");
-        let ed25519_private_key = Ed25519PrivateKey::from(pair);
+        let signing_key = SigningKey::from_bytes(b"12345678901234567890123456789012");
+        let ed25519_private_key = Ed25519PrivateKey::from(signing_key);
         let signature = ed25519_private_key
             .sign(b"12345678901234567890123456789012")
             .unwrap();
         assert_eq!(signature.to_hex(), "23e1797e5d729e7bb21cd8a37d8c5be7171fb7626c9e45e7bd17e74bfab3a6255fb60f95e0042406b3a67d41cc65f7fc193c4ca161df9be3c8d0accf4c30cf03");
 
-        let public_key = ed25519_private_key.public_key().0;
+        let verifying_key = ed25519_private_key.public_key().0;
         assert_eq!(
-            public_key.to_hex(),
+            verifying_key.to_bytes().to_hex(),
             "2f8c6129d816cf51c374bc7f08c3e63ed156cf78aefb4a6550d97b87997977ee"
         );
 
-        let ed25519_public_key = Ed25519PublicKey::from(public_key);
+        let ed25519_public_key = Ed25519PublicKey::from(verifying_key);
         assert_eq!(
             ed25519_public_key.to_hex(),
             "2f8c6129d816cf51c374bc7f08c3e63ed156cf78aefb4a6550d97b87997977ee"

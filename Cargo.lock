@@ -4468,7 +4468,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bech32 0.9.1",
- "blake2b-rs",
+ "blake2b_simd 1.0.1",
  "byteorder 1.4.3",
  "bytes",
  "hex",
@@ -4838,7 +4838,7 @@ dependencies = [
 
 [[package]]
 name = "tcx-wasm"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
@@ -4852,13 +4852,19 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.6",
+ "tcx-atom",
  "tcx-btc-kin",
+ "tcx-ckb",
  "tcx-common",
  "tcx-constants",
  "tcx-crypto",
+ "tcx-eos",
  "tcx-eth",
  "tcx-keystore",
  "tcx-primitive",
+ "tcx-substrate",
+ "tcx-tezos",
+ "tcx-ton",
  "tcx-tron",
  "wasm-bindgen",
  "wasm-bindgen-test",
