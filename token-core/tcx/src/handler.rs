@@ -67,7 +67,8 @@ use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::KDF_ROUNDS;
 use tcx_eth::signer::{
-    batch_personal_sign, sign_txs as eth_sign_txs, SignTxsItem as EthSignTxsItem, ETH_MAX_BATCH_SIZE,
+    batch_personal_sign, sign_txs as eth_sign_txs, SignTxsItem as EthSignTxsItem,
+    ETH_MAX_BATCH_SIZE,
 };
 use tcx_eth::transaction::EthTxInput;
 use tcx_keystore::{MessageSigner, TransactionSigner};

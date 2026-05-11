@@ -244,10 +244,9 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
             // per-chain batch backends can plug in here without an
             // additional dispatcher entry.
             match param.chain_type.as_str() {
-                "ETHEREUM" => ethereum_signer::sign_txs(
-                    &param.clone().input.unwrap().value,
-                    &param,
-                ),
+                "ETHEREUM" => {
+                    ethereum_signer::sign_txs(&param.clone().input.unwrap().value, &param)
+                }
                 _ => Err(anyhow!("sign_txs unsupported_chain")),
             }
         }),
