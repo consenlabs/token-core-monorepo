@@ -1,4 +1,4 @@
-use crate::address::pubkey_to_address;
+use crate::address::{pubkey_to_address, EthAddress};
 use crate::transaction::{
     EthMessageInput, EthMessageOutput, EthRecoverAddressInput, EthRecoverAddressOutput, EthTxInput,
     EthTxOutput, SignatureType,
@@ -9,8 +9,10 @@ use anyhow::anyhow;
 use ethereum_types::{Address, H256};
 use std::str::FromStr;
 use tcx_common::{keccak256, parse_u256, parse_u64, utf8_or_hex_to_bytes, FromHex, Hash256, ToHex};
-use tcx_constants::CurveType;
-use tcx_keystore::{Keystore, MessageSigner, SignatureParameters, Signer, TransactionSigner};
+use tcx_constants::{CoinInfo, CurveType};
+use tcx_keystore::{
+    Address as _, Keystore, MessageSigner, SignatureParameters, Signer, TransactionSigner,
+};
 
 /// Maximum number of transactions accepted by a single `sign_txs` call
 /// in token-core. The bound is enforced by the handler before unlocking the
@@ -167,6 +169,33 @@ pub struct SignTxsItem {
     pub path: String,
 }
 
+/// Per-item result returned by [`sign_txs`].
+///
+/// `from_address` is the SDK-derived from-address for the effective path used
+/// to sign this item. It is intended for hosts to cross-check the
+/// `{path → from_address}` mapping after the batch returns. See the security
+/// review H-3 follow-up.
+#[derive(Clone, Debug)]
+pub struct SignedTx {
+    pub output: EthTxOutput,
+    pub from_address: String,
+}
+
+/// Coin-info shim used when deriving the from-address for batch signing. Only
+/// `curve` is consulted by `EthAddress::from_public_key`; the other fields are
+/// filler.
+fn eth_coin_info() -> CoinInfo {
+    CoinInfo {
+        chain_id: "".to_string(),
+        coin: "ETHEREUM".to_string(),
+        derivation_path: "".to_string(),
+        curve: CurveType::SECP256k1,
+        network: "".to_string(),
+        seg_wit: "".to_string(),
+        contract_code: "".to_string(),
+    }
+}
+
 /// Sign a batch of ETH transactions inside an already-unlocked keystore.
 ///
 /// The keystore must be unlocked by the caller. Items are signed sequentially
@@ -179,7 +208,12 @@ pub struct SignTxsItem {
 /// aborts on the first error (no partial output is returned). The caller is
 /// responsible for enforcing [`ETH_MAX_BATCH_SIZE`] before invoking this
 /// function.
-pub fn sign_txs(keystore: &mut Keystore, items: &[SignTxsItem]) -> Result<Vec<EthTxOutput>> {
+///
+/// Each result also carries the SDK-derived `from_address` for the effective
+/// path so the caller can cross-check the `{path → from_address}` mapping
+/// without re-deriving locally.
+pub fn sign_txs(keystore: &mut Keystore, items: &[SignTxsItem]) -> Result<Vec<SignedTx>> {
+    let coin_info = eth_coin_info();
     let mut outputs = Vec::with_capacity(items.len());
     for (index, item) in items.iter().enumerate() {
         let params = SignatureParameters {
@@ -192,7 +226,21 @@ pub fn sign_txs(keystore: &mut Keystore, items: &[SignTxsItem]) -> Result<Vec<Et
         let output = keystore
             .sign_transaction(&params, &item.input)
             .map_err(|err| anyhow!("sign_txs failed at index {}: {}", index, err))?;
-        outputs.push(output);
+        // Derive the from-address from the *same* effective path we just
+        // signed with. `get_public_key` is cheap (key derivation only, no
+        // signing work) and reuses the already-unlocked keystore. The
+        // resulting address is what hosts cross-check against the
+        // user-intended account.
+        let pub_key = keystore
+            .get_public_key(CurveType::SECP256k1, &item.path)
+            .map_err(|err| anyhow!("sign_txs failed at index {}: {}", index, err))?;
+        let from_address = EthAddress::from_public_key(&pub_key, &coin_info)
+            .map_err(|err| anyhow!("sign_txs failed at index {}: {}", index, err))?
+            .to_string();
+        outputs.push(SignedTx {
+            output,
+            from_address,
+        });
     }
     Ok(outputs)
 }
@@ -205,8 +253,10 @@ mod test {
     };
 
     use crate::signer::batch_personal_sign;
-    use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
-    use tcx_keystore::{Keystore, MessageSigner, Metadata, SignatureParameters, TransactionSigner};
+    use tcx_constants::{CoinInfo, CurveType, TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_keystore::{
+        Address as _, Keystore, MessageSigner, Metadata, SignatureParameters, TransactionSigner,
+    };
 
     fn private_key_store(key: &str) -> Keystore {
         let mut ks = Keystore::from_private_key(
@@ -902,14 +952,24 @@ mod test {
         assert_eq!(single_outputs.len(), batch_outputs.len());
         for (idx, (single, batch)) in single_outputs.iter().zip(batch_outputs.iter()).enumerate() {
             assert_eq!(
-                single.signature, batch.signature,
+                single.signature, batch.output.signature,
                 "signature mismatch at index {}",
                 idx
             );
             assert_eq!(
-                single.tx_hash, batch.tx_hash,
+                single.tx_hash, batch.output.tx_hash,
                 "tx_hash mismatch at index {}",
                 idx
+            );
+            // Every batch entry must surface a 0x-prefixed 42-char hex
+            // address. We assert structural correctness here; an exact-value
+            // assertion lives in `test_batch_sign_per_item_path` below where
+            // we also have the per-path derivation under test.
+            assert!(
+                batch.from_address.starts_with("0x") && batch.from_address.len() == 42,
+                "from_address shape mismatch at index {}: {}",
+                idx,
+                batch.from_address
             );
         }
     }
@@ -957,17 +1017,42 @@ mod test {
         let batch = sign_txs(&mut keystore, &items).unwrap();
 
         assert_eq!(batch.len(), 3);
-        assert_eq!(batch[0].signature, single0.signature);
-        assert_eq!(batch[0].tx_hash, single0.tx_hash);
-        assert_eq!(batch[1].signature, single1.signature);
-        assert_eq!(batch[1].tx_hash, single1.tx_hash);
-        assert_eq!(batch[2].signature, single2.signature);
-        assert_eq!(batch[2].tx_hash, single2.tx_hash);
+        assert_eq!(batch[0].output.signature, single0.signature);
+        assert_eq!(batch[0].output.tx_hash, single0.tx_hash);
+        assert_eq!(batch[1].output.signature, single1.signature);
+        assert_eq!(batch[1].output.tx_hash, single1.tx_hash);
+        assert_eq!(batch[2].output.signature, single2.signature);
+        assert_eq!(batch[2].output.tx_hash, single2.tx_hash);
 
         // Different derivation paths must yield different signed transactions
         // even when the input EthTxInput is identical.
-        assert_ne!(batch[0].tx_hash, batch[1].tx_hash);
-        assert_ne!(batch[1].tx_hash, batch[2].tx_hash);
+        assert_ne!(batch[0].output.tx_hash, batch[1].output.tx_hash);
+        assert_ne!(batch[1].output.tx_hash, batch[2].output.tx_hash);
+
+        // H-3 contract: from_address must (a) round-trip the path-specific
+        // derivation and (b) be distinct across distinct paths. This is the
+        // anchor a host UI cross-checks against the user-intended account.
+        assert_ne!(batch[0].from_address, batch[1].from_address);
+        assert_ne!(batch[1].from_address, batch[2].from_address);
+        // Sanity: index 0 must equal the address derived ad-hoc from the
+        // same path on the same keystore, locking in the same code path the
+        // host would use as a cross-check.
+        let pub_key0 = keystore
+            .get_public_key(CurveType::SECP256k1, path0)
+            .unwrap();
+        let coin_info = CoinInfo {
+            chain_id: "".to_string(),
+            coin: "ETHEREUM".to_string(),
+            derivation_path: "".to_string(),
+            curve: CurveType::SECP256k1,
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            contract_code: "".to_string(),
+        };
+        let expected0 = crate::address::EthAddress::from_public_key(&pub_key0, &coin_info)
+            .unwrap()
+            .to_string();
+        assert_eq!(batch[0].from_address, expected0);
     }
 
     #[test]

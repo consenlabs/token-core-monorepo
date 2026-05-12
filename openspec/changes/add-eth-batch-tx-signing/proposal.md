@@ -40,8 +40,12 @@
 - 明确并文档化"全成功或全失败"语义（任何一笔失败则整批中止，错误信息形如 `"sign_txs failed at index {i}: {source}"`，与现有 `sign_tx` / `eth_batch_personal_sign` 走相同的字符串错误返回路径）。
 - 设定不同的批量上限：**`tcx` 上限为 2048**（软件签名无设备瓶颈，给链上分析、批量归集等场景留足余量），**`ikc` 上限为 100**（硬件每笔仍需用户在设备上按确认，100 已显著超出 stake 等典型场景需要的笔数，更大的批量在 UX 与 BLE/USB 会话稳定性上意义有限——业务层应根据用户体验自行收紧）。两端各以单独命名常量定义。
 - 在 `tcx-eth` 与 `imkey-core/ikc` 添加单元测试，并在 `token-core/tcx/tests/sign_test.rs` 添加端到端测试，覆盖：等价性（与逐笔 `sign_tx` byte-equal）、原子性（错误下标）、上限拒绝、空批量、共享 path 与 per-item path 覆盖。
+- 根据安全团队评审 [infrastructure#312](https://github.com/consenlabs/infrastructure/issues/312) 落实 3 项加固（详见 design.md §8）：
+  - **H-1**：`tcx::handler::sign_txs` 增加 `chain_type == "ETHEREUM"` 校验，与 `imkey-core` 已有的拒绝行为对齐，非 ETH 返回 `unsupported_chain` 而非走 ETH 流程"不可预测地失败"。
+  - **H-2**：tcx 与 ikc 在折叠 effective path 之后立刻校验非空。空 path 在 HD keystore 上会回退到 BIP-32 master `m` 并签出 `from = master-key 地址` 的"合法但非预期"交易；在 ikc 上则会在 `select_applet` 之后才被 `Transaction::sign` 内部拒绝，UX 不友好。统一前移到解锁/选 applet **之前** 拒绝，错误信息携带失败 item 下标。
+  - **H-3**：两个引擎的 per-item 输出新增 `from_address` 字段——tcx 由 SDK 用相同 effective path 走 `Keystore::get_public_key` + `EthAddress::from_public_key` 派生；ikc 等于 `SignTxsItem.sender`（该相等关系由 `Transaction::sign` 内部的"设备派生地址 ≟ sender"校验强制保证）。host 拿到结果即可对 `{path → from_address}` 集合做一次断言式 cross-check，无需再做 ec-recover / 本地 HD 派生。ikc 侧因此把输出 `repeated EthTxOutput` 包成 `repeated SignTxsItemOutput { EthTxOutput tx; string from_address; }`，避免污染单笔 `sign_tx` 的 `EthTxOutput` schema。
 
-明确不在本提案范围内的事项（在 design.md 的 Non-Goals 中再次强调）：imKey 设备端"一次确认 N 笔"的固件改造、EIP-712 批量签名、以及非以太坊链（TRON、Cosmos 等）的批量交易签名（如有需要可在后续独立提案中处理）。
+明确不在本提案范围内的事项（在 design.md 的 Non-Goals 中再次强调）：imKey 设备端"一次确认 N 笔"的固件改造、EIP-712 批量签名、以及非以太坊链（TRON、Cosmos 等）的批量交易签名（如有需要可在后续独立提案中处理）。同样不在范围内的还有 H-1 / H-2 在单笔 `sign_tx` 上的对称收敛——本提案仅在 `sign_txs` 入口收紧，单笔的同名 footgun 应作为单独 PR 处理。
 
 ## Capabilities
 

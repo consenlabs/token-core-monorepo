@@ -1702,6 +1702,16 @@ impl_to_key!(crate::api::sign_txs_param::Key);
 pub(crate) fn sign_txs(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignTxsParam = SignTxsParam::decode(data)?;
 
+    // Reject anything that isn't ETHEREUM up-front. The proto comment promises
+    // `chain_type == "ETHEREUM"` and the underlying signer hard-codes the
+    // chain type, but without this guard a host that mis-fills `chain_type`
+    // would silently route through the ETH path. This also matches imkey-core's
+    // `call_imkey_api`'s `"sign_txs"` branch, which already returns
+    // `unsupported_chain` for non-ETH. See security review H-1.
+    if param.chain_type != "ETHEREUM" {
+        return Err(anyhow!("sign_txs unsupported_chain"));
+    }
+
     if param.items.is_empty() {
         return Err(anyhow!("sign_txs batch is empty"));
     }
@@ -1726,6 +1736,17 @@ pub(crate) fn sign_txs(data: &[u8]) -> Result<Vec<u8>> {
         } else {
             raw.path.clone()
         };
+        // Reject empty effective path before unlocking. HD keystores would
+        // otherwise silently fall back to the BIP-32 master key `m`, producing
+        // a signed tx whose `from` is the master-key address — almost never
+        // what the host meant. Fail fast (and with an index) instead of
+        // emitting a "valid but unwanted" signature. See security review H-2.
+        if effective_path.is_empty() {
+            return Err(anyhow!(
+                "sign_txs failed at index {}: empty derivation path",
+                index
+            ));
+        }
         items.push(EthSignTxsItem {
             input,
             path: effective_path,
@@ -1751,9 +1772,10 @@ pub(crate) fn sign_txs(data: &[u8]) -> Result<Vec<u8>> {
 
     let outputs = signed
         .into_iter()
-        .map(|out| sign_txs_result::Output {
-            signature: out.signature,
-            tx_hash: out.tx_hash,
+        .map(|signed| sign_txs_result::Output {
+            signature: signed.output.signature,
+            tx_hash: signed.output.tx_hash,
+            from_address: signed.from_address,
         })
         .collect();
 

@@ -326,6 +326,15 @@ pub mod sign_txs_result {
         pub signature: ::prost::alloc::string::String,
         #[prost(string, tag = "2")]
         pub tx_hash: ::prost::alloc::string::String,
+        /// The from address derived from the *effective* HD path (after merging
+        /// SignTxsParam.path with SignTxsItem.path) used to sign this item.
+        /// Hosts SHOULD cross-check this against the user-intended account
+        /// before treating the signed transaction as authorised — this turns
+        /// the "host UI shows correct from-address" property from an implicit
+        /// host responsibility into an SDK-supplied contract. See security
+        /// review H-3.
+        #[prost(string, tag = "3")]
+        pub from_address: ::prost::alloc::string::String,
     }
 }
 /// FUNCTION: create_keystore(CreateKeystoreParam): KeystoreResult
