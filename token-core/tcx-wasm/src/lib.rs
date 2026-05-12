@@ -989,6 +989,12 @@ mod tests {
     const TEST_PRF_KEY: &str = "0000000000000000000000000000000000000000000000000000000000000001";
     const TEST_PASSWORD: &str = "correct horse battery staple";
 
+    fn expected_kdf_rounds() -> u32 {
+        std::env::var("KDF_ROUNDS")
+            .map(|v| v.parse::<u32>().unwrap())
+            .unwrap_or(PBKDF2_ROUNDS as u32)
+    }
+
     #[test]
     fn resolve_key_rejects_missing_or_ambiguous_inputs() {
         assert!(resolve_key(None, None).is_err());
@@ -1018,7 +1024,10 @@ mod tests {
 
         assert_eq!(value["version"], 12000);
         assert_eq!(value["crypto"]["kdf"], "pbkdf2");
-        assert_eq!(value["crypto"]["kdfparams"]["c"], 600_000);
+        assert_eq!(
+            value["crypto"]["kdfparams"]["c"],
+            serde_json::json!(expected_kdf_rounds())
+        );
         assert_eq!(value["imTokenMeta"]["network"], "MAINNET");
     }
 
