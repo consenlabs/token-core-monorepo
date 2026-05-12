@@ -1939,3 +1939,122 @@ pub fn test_sign_txs_wrong_password_rejected() {
         remove_created_wallet(&wallet.id);
     });
 }
+
+// ---------------------------------------------------------------------------
+// Security-review-driven tests (issue consenlabs/infrastructure#312).
+//
+// H-1: handler must reject non-ETHEREUM `chain_type` symmetrically with
+//      imkey-core, even though the underlying signer hard-codes ETHEREUM
+//      and `sign_txs` is intentionally chain-neutral on the action name.
+//
+// H-2: an empty *effective* path (outer empty + per-item empty) must be
+//      rejected before unlocking, instead of silently signing with the
+//      BIP-32 master key `m`.
+//
+// H-3: `SignTxsResult.Output.from_address` must be (a) populated,
+//      (b) shaped as a 0x-prefixed 42-char hex string, and (c) actually
+//      reflect the path used to sign (so distinct paths produce distinct
+//      from-addresses).
+// ---------------------------------------------------------------------------
+
+#[test]
+#[serial]
+pub fn test_sign_txs_unsupported_chain_rejected() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let param = SignTxsParam {
+            id: wallet.id.to_string(),
+            key: Some(sign_txs_param::Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "BITCOIN".to_string(),
+            path: ETH_BATCH_PATH.to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items: vec![make_batch_item(legacy_eth_tx_input(), "")],
+        };
+        let err =
+            call_api("sign_txs", param).expect_err("non-ETHEREUM chain_type must be rejected");
+        assert!(
+            err.to_string().contains("unsupported_chain"),
+            "expected `unsupported_chain` error, got: {err}"
+        );
+
+        remove_created_wallet(&wallet.id);
+    });
+}
+
+#[test]
+#[serial]
+pub fn test_sign_txs_empty_effective_path_rejected() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        // Both the outer batch path and the per-item path are empty. Without
+        // the H-2 guard the keystore would derive at `m` and sign a tx whose
+        // `from` is the master-key address — a value the host almost
+        // certainly didn't intend.
+        let param = SignTxsParam {
+            id: wallet.id.to_string(),
+            key: Some(sign_txs_param::Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "ETHEREUM".to_string(),
+            path: "".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items: vec![make_batch_item(legacy_eth_tx_input(), "")],
+        };
+        let err = call_api("sign_txs", param).expect_err("empty effective path must be rejected");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("empty derivation path") && msg.contains("failed at index 0"),
+            "expected empty-path error with index, got: {msg}"
+        );
+
+        remove_created_wallet(&wallet.id);
+    });
+}
+
+#[test]
+#[serial]
+pub fn test_sign_txs_from_address_populated() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        // Build a batch where item 0 inherits the outer path and item 1 uses
+        // an explicit per-item path. The two derived from-addresses must
+        // differ (different paths -> different accounts) and item 0's
+        // from-address must match the well-known account address for the
+        // canonical test mnemonic.
+        let other_path = "m/44'/60'/0'/0/1";
+        let param = SignTxsParam {
+            id: wallet.id.to_string(),
+            key: Some(sign_txs_param::Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "ETHEREUM".to_string(),
+            path: ETH_BATCH_PATH.to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items: vec![
+                make_batch_item(legacy_eth_tx_input(), ""),
+                make_batch_item(legacy_eth_tx_input(), other_path),
+            ],
+        };
+        let batch_ret = call_api("sign_txs", param).unwrap();
+        let batch_result = SignTxsResult::decode(batch_ret.as_slice()).unwrap();
+
+        assert_eq!(batch_result.outputs.len(), 2);
+        for (i, out) in batch_result.outputs.iter().enumerate() {
+            assert!(
+                out.from_address.starts_with("0x") && out.from_address.len() == 42,
+                "from_address at index {} has wrong shape: {}",
+                i,
+                out.from_address
+            );
+        }
+        // Distinct effective paths must produce distinct from-addresses.
+        assert_ne!(
+            batch_result.outputs[0].from_address, batch_result.outputs[1].from_address,
+            "from_address must differ across distinct effective paths"
+        );
+
+        remove_created_wallet(&wallet.id);
+    });
+}

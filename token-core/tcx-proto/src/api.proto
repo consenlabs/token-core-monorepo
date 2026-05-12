@@ -180,6 +180,14 @@ message SignTxsResult {
     message Output {
         string signature = 1;
         string txHash = 2;
+        // The from address derived from the *effective* HD path (after merging
+        // SignTxsParam.path with SignTxsItem.path) used to sign this item.
+        // Hosts SHOULD cross-check this against the user-intended account
+        // before treating the signed transaction as authorised — this turns
+        // the "host UI shows correct from-address" property from an implicit
+        // host responsibility into an SDK-supplied contract. See security
+        // review H-3.
+        string fromAddress = 3;
     }
     // One Output per input, in input order.
     repeated Output outputs = 1;

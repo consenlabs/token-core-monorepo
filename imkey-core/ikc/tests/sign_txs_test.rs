@@ -339,6 +339,18 @@ fn test_sign_txs_missing_sender_rejected() {
     );
 }
 
+/// Per-item batch outputs are now wrapped as `SignTxsItemOutput { tx, from_address }`.
+/// This helper centralises the unwrap so the on-chain canonical assertions stay
+/// readable.
+fn expect_tx(
+    item_out: &coin_ethereum::ethapi::SignTxsItemOutput,
+) -> &coin_ethereum::ethapi::EthTxOutput {
+    item_out
+        .tx
+        .as_ref()
+        .expect("SignTxsItemOutput.tx must be populated on success")
+}
+
 #[test]
 fn test_sign_txs_legacy_single_item_e2e() {
     bind_test();
@@ -351,8 +363,12 @@ fn test_sign_txs_legacy_single_item_e2e() {
     let output = SignTxsOutput::decode(res.as_slice()).unwrap();
 
     assert_eq!(output.outputs.len(), 1);
-    assert_eq!(output.outputs[0].signature, LEGACY_SIGNATURE);
-    assert_eq!(output.outputs[0].tx_hash, LEGACY_TX_HASH);
+    let tx0 = expect_tx(&output.outputs[0]);
+    assert_eq!(tx0.signature, LEGACY_SIGNATURE);
+    assert_eq!(tx0.tx_hash, LEGACY_TX_HASH);
+    // H-3: from_address must equal the device-verified sender (echoed
+    // after Transaction::sign confirms `derived == item.sender`).
+    assert_eq!(output.outputs[0].from_address, SENDER);
 }
 
 #[test]
@@ -367,8 +383,10 @@ fn test_sign_txs_eip1559_single_item_e2e() {
     let output = SignTxsOutput::decode(res.as_slice()).unwrap();
 
     assert_eq!(output.outputs.len(), 1);
-    assert_eq!(output.outputs[0].signature, EIP1559_AL_SIGNATURE);
-    assert_eq!(output.outputs[0].tx_hash, EIP1559_AL_TX_HASH);
+    let tx0 = expect_tx(&output.outputs[0]);
+    assert_eq!(tx0.signature, EIP1559_AL_SIGNATURE);
+    assert_eq!(tx0.tx_hash, EIP1559_AL_TX_HASH);
+    assert_eq!(output.outputs[0].from_address, SENDER);
 }
 
 #[test]
@@ -391,12 +409,53 @@ fn test_sign_txs_mixed_three_items_e2e() {
 
     assert_eq!(output.outputs.len(), 3);
 
-    assert_eq!(output.outputs[0].signature, LEGACY_SIGNATURE);
-    assert_eq!(output.outputs[0].tx_hash, LEGACY_TX_HASH);
+    let tx0 = expect_tx(&output.outputs[0]);
+    assert_eq!(tx0.signature, LEGACY_SIGNATURE);
+    assert_eq!(tx0.tx_hash, LEGACY_TX_HASH);
 
-    assert_eq!(output.outputs[1].signature, EIP1559_NO_AL_SIGNATURE);
-    assert_eq!(output.outputs[1].tx_hash, EIP1559_NO_AL_TX_HASH);
+    let tx1 = expect_tx(&output.outputs[1]);
+    assert_eq!(tx1.signature, EIP1559_NO_AL_SIGNATURE);
+    assert_eq!(tx1.tx_hash, EIP1559_NO_AL_TX_HASH);
 
-    assert_eq!(output.outputs[2].signature, EIP1559_MULTI_AL_SIGNATURE);
-    assert_eq!(output.outputs[2].tx_hash, EIP1559_MULTI_AL_TX_HASH);
+    let tx2 = expect_tx(&output.outputs[2]);
+    assert_eq!(tx2.signature, EIP1559_MULTI_AL_SIGNATURE);
+    assert_eq!(tx2.tx_hash, EIP1559_MULTI_AL_TX_HASH);
+
+    // H-3: every entry must carry the device-verified from-address.
+    for (i, item_out) in output.outputs.iter().enumerate() {
+        assert_eq!(
+            item_out.from_address, SENDER,
+            "from_address at index {} did not echo the device-verified sender",
+            i
+        );
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Security-review-driven preflight tests (issue consenlabs/infrastructure#312).
+// No device required: all of these fail before `select_applet`.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn test_sign_txs_empty_effective_path_rejected() {
+    // Outer SignParam.path empty, every item.path also empty → effective
+    // path resolves to "". Without the H-2 guard the request would reach
+    // `Transaction::sign`, fail `check_path_validity`, and only then return —
+    // *after* the user already saw a confusing device prompt. The guard
+    // rejects in preflight, before any device session.
+    let mut sign_param = make_sign_param("");
+    sign_param.path = "".to_string();
+
+    let data = SignTxsInput {
+        items: vec![make_valid_item(), make_valid_item()],
+    }
+    .encode_to_vec();
+    let err =
+        sign_txs(&data, &sign_param).expect_err("empty effective path must be rejected pre-flight");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("empty derivation path") && msg.contains("failed at index 0"),
+        "expected empty-path error with index, got: {}",
+        msg
+    );
 }

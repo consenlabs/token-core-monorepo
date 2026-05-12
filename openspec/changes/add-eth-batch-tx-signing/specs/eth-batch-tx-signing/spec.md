@@ -154,3 +154,60 @@ imkey-core 路径下，每个 `SignTxsItem` SHALL 由 host 显式提供 `payment
 
 - **WHEN** 仅了解 `sign_tx` 的旧版 host 在批量动作上线后仍调用 `sign_tx`
 - **THEN** 行为、编码与输出 SHALL 与本次变更前逐字节一致
+
+### Requirement: chain_type 与单笔 sign_tx 对齐的拒绝行为
+
+token-core 与 imkey-core 的 `sign_txs` 动作 SHALL 在解码 `SignTxsParam` / `SignParam` 之后、解锁 keystore 或 select applet 之前，校验 `chain_type` 字段，仅当其值为 `"ETHEREUM"` 时进入 ETH 批量签名路径，其他值 SHALL 立即返回 `"sign_txs unsupported_chain"` 错误。该要求来自安全评估报告 H-1（infrastructure#312）：proto 注释虽明确批量动作仅支持 `"ETHEREUM"`，但 host 误填 `chain_type` 时 SDK 不应让请求"走 ETH 流程但失败模式不可预测"。两端 SHALL 行为对称，避免单笔与批量、`tcx` 与 `ikc` 之间出现行为分裂。
+
+#### Scenario: tcx 拒绝非 ETHEREUM 的 chain_type
+
+- **WHEN** host 通过 `call_tcx_api` 以 `sign_txs` 方法发送一个 `chain_type` 为 `"BITCOIN"` 的合法批量请求
+- **THEN** 该动作 SHALL 返回错误信息包含 `"unsupported_chain"`
+- **AND** keystore SHALL NOT 被解锁
+- **AND** SHALL NOT 返回任何 `EthTxOutput`
+
+#### Scenario: imkey-core 拒绝非 ETHEREUM 的 chain_type
+
+- **WHEN** host 通过 `call_imkey_api` 以 `sign_txs` 方法发送一个 `chain_type` 为 `"BITCOIN"` 的合法批量请求
+- **THEN** 该动作 SHALL 返回错误信息包含 `"unsupported_chain"`
+- **AND** imKey ETH applet SHALL NOT 被 select
+
+### Requirement: 空 effective path 在签名前被拒
+
+token-core 与 imkey-core 的 `sign_txs` 动作 SHALL 在折叠 effective path（item.path 非空时优先，否则回落到外层 `path`）之后立即校验其非空。当某 item 的 effective path 为空字符串时，该动作 SHALL 返回 `"sign_txs failed at index {i}: empty derivation path"` 错误，且 SHALL 在解锁 keystore（tcx）/ select applet（ikc）之前完成此校验。该要求来自安全评估报告 H-2（infrastructure#312）：HD 钱包在 `derivation_path == ""` 时会回退到 BIP-32 master key `m` 并签出一笔 `from` 为 master-key 地址的交易，几乎一定不是 host 的本意；批量场景下这把同一 footgun 复制了 N 份，因此需要在 SDK 层显式拦截。
+
+#### Scenario: 外层 path 与 item.path 均为空时被拒
+
+- **WHEN** 提交一个外层 `path` 为 `""`、单个 item 的 `path` 亦为 `""` 的批量请求
+- **THEN** 该动作 SHALL 返回错误，错误信息 SHALL 同时包含 `"failed at index 0"` 与 `"empty derivation path"`
+- **AND** tcx keystore SHALL NOT 被解锁；ikc ETH applet SHALL NOT 被 select
+- **AND** SHALL NOT 返回任何已签名交易
+
+#### Scenario: 个别 item 的 effective path 为空时按下标拒绝
+
+- **WHEN** 提交一个外层 `path` 为 `""`、含三个 item 的批量请求，其中 item 0 与 item 2 自带合法 `path`、item 1 自带 `path` 为空
+- **THEN** 该动作 SHALL 返回错误，错误信息中的下标 SHALL 为 `1`
+- **AND** SHALL NOT 返回任何已签名交易
+
+### Requirement: 输出每笔附带 from_address 以供 host 交叉核对
+
+`sign_txs` 的输出 SHALL 在每个 item 上携带一个 `from_address` 字段，与已签名交易的 `signature` / `tx_hash` 并列返回。该字段在两个引擎上的语义如下：
+
+- **token-core**：SDK 使用与本次签名相同的 effective path 调用 `Keystore::get_public_key`，再通过 `EthAddress::from_public_key` 派生出 EIP-55 校验和形式的地址。
+- **imkey-core**：等于 `SignTxsItem.sender`。这一相等关系由 `Transaction::sign` 内部的"设备派生地址 ≟ sender"校验强制保证（不一致时返回 `ImkeyAddressMismatchWithPath` 中止整批），因此该字段对调用方而言是"设备已确认"的 from 地址，而非 host 单方面声明的字符串。
+
+该要求来自安全评估报告 H-3（infrastructure#312）：批量 + per-item path 的组合允许"一次密码授权多账户签名"；如果 host UI 未能逐笔展示每个 effective path 对应的 from 地址，用户可能在不知情下授权非常用账户的交易。把 `{path → from_address}` 的核对契约从"靠 host 自行 recover / 派生"前移到"SDK 直接给"，可让 host UI 在密码弹框前精确展示所有涉及的 from 地址；这也使 host 在拿到批量结果后可对 SDK 输出再做一次断言式 cross-check。
+
+#### Scenario: tcx 批量输出按 effective path 派生 from_address
+
+- **WHEN** 提交一个含三个 item 的批量请求，外层 `path` 为 `m/44'/60'/0'/0/0`，三个 item 的 `path` 分别为 `""`、`m/44'/60'/0'/0/1`、`m/44'/60'/0'/0/2`
+- **THEN** 响应的三个 Output SHALL 各自携带一个 `from_address` 字符串
+- **AND** 每个 `from_address` SHALL 形如 `0x` + 40 个十六进制字符
+- **AND** item 0 的 `from_address` SHALL 等于由该 keystore 在 `m/44'/60'/0'/0/0` 上派生公钥后经 `EthAddress::from_public_key` 推出的地址
+- **AND** 三个 `from_address` 两两不相等
+
+#### Scenario: imkey-core 批量输出 from_address 回显设备校验后的 sender
+
+- **WHEN** 提交一个含 N 个 item 的批量请求，每个 item 的 `sender` 字段都与其有效 path 在设备上派生出的地址一致
+- **THEN** `SignTxsItemOutput.tx` SHALL 携带本笔签名结果，`SignTxsItemOutput.from_address` SHALL 等于该 item 输入的 `sender` 字段
+- **AND** 不会出现 `from_address` 与 `sender` 不一致的输出（若不一致则 `Transaction::sign` 已在该 item 处中止整批，不会有任何输出返回）

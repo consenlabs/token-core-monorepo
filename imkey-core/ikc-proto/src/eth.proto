@@ -68,6 +68,18 @@ message SignTxsItem {
     string path = 6;
 }
 
+// `SignTxsItemOutput.from_address` is the device-verified from address for
+// this item: `Transaction::sign` rejects with `ImkeyAddressMismatchWithPath`
+// when the on-device derived address differs from `SignTxsItem.sender`, so a
+// returned `from_address` is, by construction, the address the device
+// confirmed (matches `SignTxsItem.sender`). Surfacing it explicitly lets the
+// host re-verify the {path → from_address} mapping for every item without
+// having to re-derive locally — see security review H-3.
+message SignTxsItemOutput {
+    EthTxOutput tx = 1;
+    string from_address = 2;
+}
+
 message SignTxsOutput {
-    repeated EthTxOutput outputs = 1;
+    repeated SignTxsItemOutput outputs = 1;
 }

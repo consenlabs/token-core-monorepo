@@ -1,7 +1,9 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use anyhow::anyhow;
-use coin_ethereum::ethapi::{EthMessageInput, EthTxInput, SignTxsInput, SignTxsOutput};
+use coin_ethereum::ethapi::{
+    EthMessageInput, EthTxInput, SignTxsInput, SignTxsItemOutput, SignTxsOutput,
+};
 use coin_ethereum::transaction::{AccessListItem, Transaction};
 use coin_ethereum::types::Action;
 use ethereum_types::{Address, H256, U256};
@@ -161,6 +163,17 @@ pub fn sign_txs(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
         check_path_validity(&sign_param.path)
             .map_err(|e| anyhow!("sign_txs failed at index 0: {}", e))?;
     }
+    // Fold effective path per item in the preflight pass. Two reasons:
+    //   1. `Transaction::sign` already rejects an empty path internally, but
+    //      only *after* `select_applet` + APDU staging. If the host accidentally
+    //      sent every item with an empty path (or sent an empty outer
+    //      `sign_param.path` and empty per-item path), the user would still see
+    //      a confusing device prompt before the rejection. We catch it before
+    //      any device session.
+    //   2. The single-tx imkey path doesn't have this footgun (path is always
+    //      taken from `sign_param.path`); but the batch path multiplies the
+    //      surface by N, so it's worth explicitly checking. See security review
+    //      H-2.
     for (i, item) in input.items.iter().enumerate() {
         if item.tx.is_none() {
             return Err(anyhow!("sign_txs failed at index {}: missing tx", i));
@@ -175,6 +188,17 @@ pub fn sign_txs(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
         if !item.path.is_empty() {
             check_path_validity(&item.path)
                 .map_err(|e| anyhow!("sign_txs failed at index {}: {}", i, e))?;
+        }
+        let effective_path = if item.path.is_empty() {
+            sign_param.path.as_str()
+        } else {
+            item.path.as_str()
+        };
+        if effective_path.is_empty() {
+            return Err(anyhow!(
+                "sign_txs failed at index {}: empty derivation path",
+                i
+            ));
         }
     }
 
@@ -194,7 +218,13 @@ pub fn sign_txs(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
         // Direct call to the existing single-tx sign — `coin-ethereum`
         // has no notion of "batch". Every device session APDU happens
         // here, exactly as it would for a standalone `sign_tx`.
-        let out = eth_tx
+        //
+        // `Transaction::sign` verifies the on-device derived address against
+        // `item.sender` and aborts on mismatch. If it returns successfully we
+        // know the device confirmed `item.sender` matches the address for
+        // `effective_path`, so echoing `item.sender` back as `from_address`
+        // below is the device-verified value, not a host-supplied claim.
+        let tx_out = eth_tx
             .sign(
                 Some(chain_id),
                 effective_path,
@@ -204,7 +234,10 @@ pub fn sign_txs(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
                 &item.fee,
             )
             .map_err(|e| anyhow!("sign_txs failed at index {}: {}", i, e))?;
-        outputs.push(out);
+        outputs.push(SignTxsItemOutput {
+            tx: Some(tx_out),
+            from_address: item.sender.clone(),
+        });
     }
 
     encode_message(SignTxsOutput { outputs })

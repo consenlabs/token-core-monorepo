@@ -162,6 +162,54 @@
 
 - 在 `token-core/tcx-docs` 与 `imkey-core/ikc-docs` 增加新动作的说明：请求/响应形态、共享 path 与 per-item path 的两种用法、不同引擎的批量上限（2048 vs 100）、错误信息格式（`"sign_txs failed at index {i}: {source}"`）、以及 imKey 路径仍需逐笔确认的提示，避免 host UX 误以为只需一次确认。
 
+### 8. 安全加固（来自 infrastructure#312 评审）
+
+安全团队在评审报告 [PR #175 安全风险评估报告](https://github.com/consenlabs/infrastructure/issues/312) 中提出 3 项健壮性建议（H-1 / H-2 / H-3）。报告结论"不阻塞合入"，但建议在合入前完成 H-1 / H-2（每个 ≤ 3 行）、随后用单独 PR 跟进 H-3。本提案将三项一并落实，并在 §6 测试中补充对应的端到端 / 单元 / 预检测试。
+
+#### H-1：`chain_type` 严格校验（解锁前）
+
+**事实**：`tcx::handler::sign_txs` 原先不校验 `param.chain_type`；proto 注释虽写 `// must be "ETHEREUM"`，但 host 误填 `chain_type: "BITCOIN"` 仍走 ETH 流程，与 `imkey-core` 的 `"sign_txs"` 分支（已显式返回 `unsupported_chain`）行为不对称。
+
+**决定**：在 `tcx::handler::sign_txs` 顶部、解码 `SignTxsParam` 之后、`KEYSTORE_MAP.write()` 之前补一段：
+
+```rust
+if param.chain_type != "ETHEREUM" {
+    return Err(anyhow!("sign_txs unsupported_chain"));
+}
+```
+
+这把 tcx 与 ikc 两侧的拒绝行为统一为"非 ETHEREUM 即 unsupported_chain"。报告指出这"不扩大攻击面"——`sign_txs` 这个 action name 已表明 ETH-only 意图——但消除了"不可预测的失败模式"。
+
+#### H-2：空 effective path 在签名前被拒
+
+**事实**：tcx 与 ikc 均在 effective path 折叠后允许 `""`；下游 HD keystore 在 `derivation_path == ""` 时回退到 BIP-32 master `m`，从而签出一笔 `from` 是 master-key 地址的交易。`ikc` 的 `Transaction::sign` 内部 `check_path_validity("")` 虽会失败，但这发生在 `select_applet` 与若干 APDU 之后，用户已看到一次令人困惑的设备 prompt。报告指出该 footgun 已存在于单笔 `sign_tx`，批量场景下被复制了 N 份。
+
+**决定**：
+
+- **tcx**：在 handler 折叠出 `effective_path` 后立即追加：
+
+  ```rust
+  if effective_path.is_empty() {
+      return Err(anyhow!("sign_txs failed at index {}: empty derivation path", index));
+  }
+  ```
+
+- **ikc**：在预检循环里同样折叠 effective path 并 reject 空串。`Transaction::sign` 内部仍保留 `check_path_validity` 作为最后一道防线，但批量 SDK 层会在 `select_applet` 之前把这类错误吃掉。
+
+#### H-3：每笔输出附带 `from_address`
+
+**事实**：批量 + per-item path 允许"一次密码授权 / 一次设备绑定签出 N 个不同 from 地址的交易"。安全契约依赖 host UI 在密码弹框前展示完整的 `{path → from_address}` 集合；若 host UI 实现错误，用户可能在不知情下授权了非常用账户的交易。报告把这判定为"设计性、需 host 配合"——非可利用漏洞——但建议把"让 host 拿到 from_address"的契约从"靠 host 自行 recover"前移到"SDK 直接给"，作为 follow-up PR。
+
+**决定**：在两个引擎的 per-item 输出中新增 `from_address` 字段：
+
+- **token-core**：`SignTxsResult.Output` 新增 `string fromAddress = 3;`。`tcx-eth::sign_txs` 的内部循环用与本次签名相同的 effective path 调一次 `Keystore::get_public_key`（HD 派生，无签名工作量），再走 `EthAddress::from_public_key` 拿到 EIP-55 校验和形式。`Keystore::get_public_key` 复用已解锁的 keystore，不会触发额外的 KDF 解锁开销。
+- **imkey-core**：`SignTxsOutput` 的 `outputs` 元素类型从 `EthTxOutput` 改为新增的包装结构 `SignTxsItemOutput { EthTxOutput tx = 1; string from_address = 2; }`。`from_address` 等于 `SignTxsItem.sender` —— 这一相等关系由 `Transaction::sign` 内部的"设备派生地址 ≟ sender"校验强制保证，因此该字段对调用方而言是"设备已确认"的 from 地址。这里采用包装结构而非"直接把 `from_address` 加到 `EthTxOutput`"，避免污染单笔 `sign_tx` 的输出 schema。
+
+#### 与单笔 `sign_tx` 的关系
+
+- H-1 / H-2 的 footgun 在单笔 `sign_tx` 中同样存在；本次只在批量入口收紧。原因：单笔 sign_tx 的 schema / 行为不在本提案的修改范围；统一收敛是单独 PR 的事（见 §6 测试中保留的兼容性断言）。
+- H-3 的 `from_address` 字段仅出现在 `SignTxs*` 输出中；单笔 `sign_tx` 的 `EthTxOutput` 不变。host 升级到批量 API 时即"免费"获得 cross-check 能力，单笔旧调用方零回归。
+
 ## Risks / Trade-offs
 
 - **硬件路径上的"半批" UX**。我们刻意不动固件，因此当 imKey 用户在第二次确认时拒绝，第一笔签名实际上已经在我们内存里产生——但 host 还没有拿到（我们会中止整批并丢弃部分结果）。钱包 UX 必须清楚提示"需要确认全部交易"，否则用户会困惑。我们之所以选择 all-or-nothing 而不是返回部分结果，是为了避免 host 只广播第 1 笔而没有第 2 笔——而这正是本提案要消除的故障模式。
