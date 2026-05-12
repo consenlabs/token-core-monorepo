@@ -36,13 +36,15 @@
 
 ## 二、前置環境
 
-| 工具    | 版本要求 | 確認指令        |
-| ------- | -------- | --------------- |
-| Node.js | ≥ 18     | `node -v`       |
-| npm     | ≥ 9      | `npm -v`        |
-| Git     | 任意版本 | `git --version` |
+| 工具    | 版本要求              | 確認指令        |
+| ------- | --------------------- | --------------- |
+| Node.js | ≥ 20.19（或 ≥ 22.12） | `node -v`       |
+| npm     | ≥ 9                   | `npm -v`        |
+| Git     | 任意版本              | `git --version` |
 
 使用 Homebrew 快速安裝（macOS）：
+
+> 注意：本專案使用 Vite 8，Node.js 需符合 `20.19+` 或 `22.12+`。
 
 ```bash
 # 安裝 Homebrew：https://brew.sh
@@ -64,6 +66,7 @@ git clone --branch demo/token-core-cli https://github.com/consenlabs/token-core-
 
 # 安裝依賴並設定環境變數
 cd token-core-monorepo/token-core/tcx-examples/cli/
+# 建議開發時使用 npm install；若發生版本不相容或環境報錯，請改用 npm ci 以確保與鎖定檔完全一致
 npm install
 cp .env.example .env   # 複製範本後填入所需 API Key
 
