@@ -712,6 +712,277 @@ export default function Home() {
         detail: `Returned ${psbtsResult.psbts.length} signed PSBT(s)`,
       });
 
+      // ─── BCH / LTC / DOGE / OMNI / COSMOS / EOS ───
+      // Derive accounts for the additional secp256k1 chains in one call.
+      push({ name: "Derive Accounts (multi-chain)", status: "running" });
+      const multiAccounts = JSON.parse(
+        derive_accounts(
+          JSON.stringify({
+            keystoreJson,
+            key: TEST_PRF_KEY,
+            derivations: [
+              { chain: "BITCOINCASH", derivationPath: "m/44'/145'/0'/0/0", network: "MAINNET" },
+              { chain: "LITECOIN", derivationPath: "m/44'/2'/0'/0/0", network: "MAINNET", segWit: "NONE" },
+              { chain: "DOGECOIN", derivationPath: "m/44'/3'/0'/0/0", network: "MAINNET", segWit: "NONE" },
+              { chain: "OMNI", derivationPath: "m/44'/0'/0'/0/0", network: "MAINNET", segWit: "NONE" },
+              { chain: "COSMOS", derivationPath: "m/44'/118'/0'/0/0", chainId: "cosmoshub-4", network: "MAINNET" },
+              { chain: "EOS", derivationPath: "m/44'/194'/0'/0/0", network: "MAINNET" },
+            ],
+          })
+        )
+      );
+      const [bchAcct, ltcAcct, dogeAcct, omniAcct, cosmosAcct, eosAcct] = multiAccounts;
+      if (!bchAcct.address?.startsWith("bitcoincash:")) {
+        throw new Error(`Bad BCH address: ${bchAcct.address}`);
+      }
+      if (!ltcAcct.address?.startsWith("L")) {
+        throw new Error(`Bad LTC address: ${ltcAcct.address}`);
+      }
+      if (!dogeAcct.address?.startsWith("D")) {
+        throw new Error(`Bad DOGE address: ${dogeAcct.address}`);
+      }
+      if (!omniAcct.address?.startsWith("1")) {
+        throw new Error(`Bad OMNI address: ${omniAcct.address}`);
+      }
+      if (!cosmosAcct.address?.startsWith("cosmos1")) {
+        throw new Error(`Bad COSMOS address: ${cosmosAcct.address}`);
+      }
+      if (!eosAcct.address?.startsWith("EOS")) {
+        throw new Error(`Bad EOS address: ${eosAcct.address}`);
+      }
+      push({
+        name: "Derive Accounts (multi-chain)",
+        status: "pass",
+        detail: [
+          `BCH:    ${bchAcct.address}`,
+          `LTC:    ${ltcAcct.address}`,
+          `DOGE:   ${dogeAcct.address}`,
+          `OMNI:   ${omniAcct.address}`,
+          `COSMOS: ${cosmosAcct.address}`,
+          `EOS:    ${eosAcct.address}`,
+        ].join("\n"),
+      });
+
+      // Sign a Cosmos transaction (sha256 → secp256k1 ECDSA, base64-encoded).
+      push({ name: "Sign COSMOS TX", status: "running" });
+      const cosmosTx = JSON.parse(
+        sign_tx(
+          JSON.stringify({
+            keystoreJson,
+            key: TEST_PRF_KEY,
+            chain: "COSMOS",
+            derivationPath: "m/44'/118'/0'/0/0",
+            input: {
+              rawData:
+                "0a91010a8e010a1c2f636f736d6f732e62616e6b2e763162657461312e4d736753656e64126e0a2d636f736d6f733175616d6e346b74706d657332656664663671666837386d356365646b66637467617436657661122d636f736d6f73316a30636c726371727a636135326c6167707a3237687774713734776c327265353438346177681a0e0a057561746f6d1205313030303012680a510a460a1f2f636f736d6f732e63727970746f2e736563703235366b312e5075624b657912230a210232c1ef21d73c19531b0aa4e863cf397c2b982b2f958f60cdb62969824c096d6512040a02080118930312130a0d0a057561746f6d12043230303410b1f2041a0b636f736d6f736875622d34208cb201",
+            },
+          })
+        )
+      );
+      if (!cosmosTx.signature) {
+        throw new Error(`Missing COSMOS signature: ${JSON.stringify(cosmosTx)}`);
+      }
+      push({
+        name: "Sign COSMOS TX",
+        status: "pass",
+        detail: `Signature (base64): ${cosmosTx.signature}`,
+      });
+
+      // Sign EOS transactions (canonical secp256k1 with K1 base58 encoding).
+      push({ name: "Sign EOS TX", status: "running" });
+      const eosTx = JSON.parse(
+        sign_tx(
+          JSON.stringify({
+            keystoreJson,
+            key: TEST_PRF_KEY,
+            chain: "EOS",
+            derivationPath: "m/44'/194'/0'/0/0",
+            input: {
+              chainId:
+                "aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906",
+              txHexs: [
+                "2b03b26547b625edc1c6000000000100a6823403ea3055000000572d3ccdcd0130069b34b2a9a48b00000000a8ed32322130069b34b2a9a48b10425e79aa47b374640000000000000004454f53000000000000",
+              ],
+            },
+          })
+        )
+      );
+      if (
+        !eosTx.sigData ||
+        eosTx.sigData.length !== 1 ||
+        !eosTx.sigData[0].signature?.startsWith("SIG_K1_")
+      ) {
+        throw new Error(`Bad EOS tx result: ${JSON.stringify(eosTx)}`);
+      }
+      push({
+        name: "Sign EOS TX",
+        status: "pass",
+        detail: `${eosTx.sigData[0].signature}\nhash: ${eosTx.sigData[0].hash}`,
+      });
+
+      // Sign an EOS message (sha256 over data, then canonical secp256k1).
+      push({ name: "Sign EOS Message", status: "running" });
+      const eosMsg = JSON.parse(
+        sign_message(
+          JSON.stringify({
+            keystoreJson,
+            key: TEST_PRF_KEY,
+            chain: "EOS",
+            derivationPath: "m/44'/194'/0'/0/0",
+            input: { data: "Hello from tcx-wasm EOS!" },
+          })
+        )
+      );
+      if (!eosMsg.signature?.startsWith("SIG_K1_")) {
+        throw new Error(`Bad EOS msg signature: ${eosMsg.signature}`);
+      }
+      push({
+        name: "Sign EOS Message",
+        status: "pass",
+        detail: `Signature: ${eosMsg.signature}`,
+      });
+
+      // ─── TEZOS / TON (Ed25519 chains) ───
+      // V5R1 wallet code, used by TON to derive the wallet contract address.
+      const TON_V5R1_CODE =
+        "te6ccgECFAEAAoEAART/APSkE/S88sgLAQIBIAIDAgFIBAUBAvIOAtzQINdJwSCRW49jINcLHyCCEGV4dG69IYIQc2ludL2wkl8D4IIQZXh0brqOtIAg1yEB0HTXIfpAMPpE+Cj6RDBYvZFb4O1E0IEBQdch9AWDB/QOb6ExkTDhgEDXIXB/2zzgMSDXSYECgLmRMOBw4hAPAgEgBgcCASAICQAZvl8PaiaECAoOuQ+gLAIBbgoLAgFIDA0AGa3OdqJoQCDrkOuF/8AAGa8d9qJoQBDrkOuFj8AAF7Ml+1E0HHXIdcLH4AARsmL7UTQ1woAgAR4g1wsfghBzaWduuvLgin8PAeaO8O2i7fshgwjXIgKDCNcjIIAg1yHTH9Mf0x/tRNDSANMfINMf0//XCgAK+QFAzPkQmiiUXwrbMeHywIffArNQB7Dy0IRRJbry4IVQNrry4Ib4I7vy0IgikvgA3gGkf8jKAMsfAc8Wye1UIJL4D95w2zzYEAP27aLt+wL0BCFukmwhjkwCIdc5MHCUIccAs44tAdcoIHYeQ2wg10nACPLgkyDXSsAC8uCTINcdBscSwgBSMLDy0InXTNc5MAGk6GwShAe78uCT10rAAPLgk+1V4tIAAcAAkVvg69csCBQgkXCWAdcsCBwS4lIQseMPINdKERITAJYB+kAB+kT4KPpEMFi68uCR7UTQgQFB1xj0BQSdf8jKAEAEgwf0U/Lgi44UA4MH9Fvy4Iwi1woAIW4Bs7Dy0JDiyFADzxYS9ADJ7VQAcjDXLAgkji0h8uCS0gDtRNDSAFETuvLQj1RQMJExnAGBAUDXIdcKAPLgjuLIygBYzxbJ7VST8sCN4gAQk1vbMeHXTNA=";
+
+      // Derive Tezos (tz1...) and TON (mainnet base64-url, V5R1) accounts.
+      push({ name: "Derive TEZOS + TON Accounts", status: "running" });
+      const ed25519Accounts = JSON.parse(
+        derive_accounts(
+          JSON.stringify({
+            keystoreJson,
+            key: TEST_PRF_KEY,
+            derivations: [
+              { chain: "TEZOS", derivationPath: "m/44'/1729'/0'/0'", network: "MAINNET" },
+              {
+                chain: "TON",
+                derivationPath: "m/44'/607'/0'",
+                network: "MAINNET",
+                contractCode: TON_V5R1_CODE,
+              },
+            ],
+          })
+        )
+      );
+      const [tezosAcct, tonAcct] = ed25519Accounts;
+      if (!tezosAcct.address?.startsWith("tz1")) {
+        throw new Error(`Bad TEZOS address: ${tezosAcct.address}`);
+      }
+      if (!tonAcct.address || tonAcct.address.length === 0) {
+        throw new Error(`Bad TON address: ${tonAcct.address}`);
+      }
+      push({
+        name: "Derive TEZOS + TON Accounts",
+        status: "pass",
+        detail: `TEZOS: ${tezosAcct.address}\nTON:   ${tonAcct.address}`,
+      });
+
+      // Sign a TEZOS transaction (Ed25519 over Blake2b watermark|raw_data).
+      push({ name: "Sign TEZOS TX", status: "running" });
+      const tezosTx = JSON.parse(
+        sign_tx(
+          JSON.stringify({
+            keystoreJson,
+            key: TEST_PRF_KEY,
+            chain: "TEZOS",
+            derivationPath: "m/44'/1729'/0'/0'",
+            input: {
+              rawData:
+                "1234798e6f1d4ee9bf65bdf6803a4ec59b7d83373b39e8e4e7d5b8f56a8002ee6c00aff7f8a3a301a8b1ee5e2bcd0ec7c4d61c4d6f6502b903bcd105d10764000001976e6c0a0c8d8d8a8e89d8c0e0e62b8c5d6c6e7c7e6f6e1c4c8c4f7e6c4c8e7e6c4c5c6e7c7c8c9c0c1c2c3c4c5c6c7",
+            },
+          })
+        )
+      );
+      if (!tezosTx.signature || !tezosTx.edsig?.startsWith("edsig")) {
+        throw new Error(`Bad TEZOS tx result: ${JSON.stringify(tezosTx)}`);
+      }
+      push({
+        name: "Sign TEZOS TX",
+        status: "pass",
+        detail: `edsig:  ${tezosTx.edsig}\nsbytes: ${tezosTx.sbytes.slice(0, 64)}...`,
+      });
+
+      // ─── POLKADOT / KUSAMA (sr25519, sp-core ss58) ───
+      push({ name: "Derive POLKADOT + KUSAMA Accounts", status: "running" });
+      const substrateAccounts = JSON.parse(
+        derive_accounts(
+          JSON.stringify({
+            keystoreJson,
+            key: TEST_PRF_KEY,
+            derivations: [
+              { chain: "POLKADOT", derivationPath: "//imToken//polkadot/0", network: "MAINNET" },
+              { chain: "KUSAMA", derivationPath: "//imToken//kusama/0", network: "MAINNET" },
+            ],
+          })
+        )
+      );
+      const [polkadotAcct, kusamaAcct] = substrateAccounts;
+      if (!polkadotAcct.address || polkadotAcct.address.length === 0) {
+        throw new Error(`Bad POLKADOT address: ${polkadotAcct.address}`);
+      }
+      if (!kusamaAcct.address || kusamaAcct.address.length === 0) {
+        throw new Error(`Bad KUSAMA address: ${kusamaAcct.address}`);
+      }
+      push({
+        name: "Derive POLKADOT + KUSAMA Accounts",
+        status: "pass",
+        detail: `POLKADOT: ${polkadotAcct.address}\nKUSAMA:   ${kusamaAcct.address}`,
+      });
+
+      // ─── NERVOS / CKB ───
+      // Derive a CKB account.
+      push({ name: "Derive NERVOS Account", status: "running" });
+      const ckbAccounts = JSON.parse(
+        derive_accounts(
+          JSON.stringify({
+            keystoreJson,
+            key: TEST_PRF_KEY,
+            derivations: [
+              {
+                chain: "NERVOS",
+                derivationPath: "m/44'/309'/0'/0/0",
+                network: "MAINNET",
+              },
+            ],
+          })
+        )
+      );
+      const [ckbAcct] = ckbAccounts;
+      if (!ckbAcct.address?.startsWith("ckb")) {
+        throw new Error(`Bad NERVOS address: ${ckbAcct.address}`);
+      }
+      push({
+        name: "Derive NERVOS Account",
+        status: "pass",
+        detail: `NERVOS: ${ckbAcct.address}`,
+      });
+
+      // Sign a TON transaction (Ed25519 over the raw 32-byte hash).
+      push({ name: "Sign TON TX", status: "running" });
+      const tonTx = JSON.parse(
+        sign_tx(
+          JSON.stringify({
+            keystoreJson,
+            key: TEST_PRF_KEY,
+            chain: "TON",
+            derivationPath: "m/44'/607'/0'",
+            input: {
+              hash: "0xd356774c21d6a6e2c651a5255f3f876fa973f1cfb7dce941c14ecabc2b1511d0",
+            },
+          })
+        )
+      );
+      if (!tonTx.signature?.startsWith("0x") || tonTx.signature.length !== 130) {
+        throw new Error(`Bad TON signature: ${tonTx.signature}`);
+      }
+      push({
+        name: "Sign TON TX",
+        status: "pass",
+        detail: `Signature: ${tonTx.signature}`,
+      });
+
       // 10. Cache keystore & derive without explicit keystoreJson
       push({ name: "Cache Keystore + Derive", status: "running" });
       cache_keystore(keystoreJson);

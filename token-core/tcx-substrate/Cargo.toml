@@ -8,8 +8,8 @@ edition = "2021"
 
 [dependencies]
 tcx-crypto = { path = "../tcx-crypto" }
-tcx-keystore = { path = "../tcx-keystore" }
-tcx-primitive = { path = "../tcx-primitive" }
+tcx-keystore = { path = "../tcx-keystore", default-features = false, features = ["substrate"] }
+tcx-primitive = { path = "../tcx-primitive", default-features = false, features = ["substrate"] }
 tcx-constants = { path = "../tcx-constants" }
 tcx-common = { path = "../tcx-common" }
 

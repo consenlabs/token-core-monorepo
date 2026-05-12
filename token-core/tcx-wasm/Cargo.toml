@@ -7,12 +7,18 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-tcx-keystore = { path = "../tcx-keystore", default-features = false }
+tcx-keystore = { path = "../tcx-keystore", default-features = false, features = ["substrate"] }
 tcx-eth = { path = "../tcx-eth", default-features = false }
 tcx-tron = { path = "../tcx-tron", default-features = false }
 tcx-btc-kin = { path = "../tcx-btc-kin" }
+tcx-atom = { path = "../tcx-atom" }
+tcx-eos = { path = "../tcx-eos" }
+tcx-tezos = { path = "../tcx-tezos" }
+tcx-ton = { path = "../tcx-ton" }
+tcx-ckb = { path = "../tcx-ckb" }
+tcx-substrate = { path = "../tcx-substrate" }
 tcx-constants = { path = "../tcx-constants" }
-tcx-primitive = { path = "../tcx-primitive", default-features = false }
+tcx-primitive = { path = "../tcx-primitive", default-features = false, features = ["substrate"] }
 tcx-common = { path = "../tcx-common" }
 
 getrandom = { version = "0.2", features = ["js"] }

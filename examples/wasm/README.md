@@ -1,6 +1,6 @@
 # tcx-wasm Browser Example
 
-Next.js web app for testing the `tcx-wasm` crate in the browser, covering keystore creation, account derivation, ETH / TRON / BTC transaction, message & PSBT signing, and Message API (NIP-44 encryption + Schnorr/Nostr event signing) via WebAssembly.
+Next.js web app for testing the `tcx-wasm` crate in the browser, covering keystore creation, account derivation, multi-chain transaction / message / PSBT signing (BTC, BCH, LTC, DOGE, OMNI, ETH, TRON, COSMOS, EOS, TEZOS, TON), and the Message API (NIP-44 encryption + Schnorr/Nostr event signing) via WebAssembly.
 
 ## Prerequisites
 
@@ -151,16 +151,38 @@ const result = JSON.parse(export_mnemonic(JSON.stringify({
 
 ### `derive_accounts(param_json: string): string`
 
-Derives one or more accounts from the keystore. Supports **ETHEREUM**, **TRON** and **BITCOIN**.
+Derives one or more accounts from the keystore. Supported chains:
 
-For `BITCOIN`, `segWit` selects the address type:
+| `chain`        | Curve       | Default path             | Address sample          |
+|----------------|-------------|--------------------------|-------------------------|
+| `ETHEREUM`     | secp256k1   | `m/44'/60'/0'/0/0`       | `0x...`                 |
+| `TRON`         | secp256k1   | `m/44'/195'/0'/0/0`      | `T...`                  |
+| `BITCOIN`      | secp256k1   | varies by `segWit`       | `1.../3.../bc1.../bc1p..` |
+| `BITCOINCASH`  | secp256k1   | `m/44'/145'/0'/0/0`      | `bitcoincash:...`       |
+| `LITECOIN`     | secp256k1   | `m/44'/2'/0'/0/0`        | `L...` / `M...` / `ltc1...` |
+| `DOGECOIN`     | secp256k1   | `m/44'/3'/0'/0/0`        | `D...`                  |
+| `OMNI`         | secp256k1   | `m/44'/0'/0'/0/0`        | `1...` (BTC base)       |
+| `COSMOS`       | secp256k1   | `m/44'/118'/0'/0/0`      | `cosmos1...` / `dydx1...` etc. — needs `chainId` to select bech32 HRP |
+| `EOS`          | secp256k1   | `m/44'/194'/0'/0/0`      | `EOS...` (encoded public key) |
+| `TEZOS`        | ed25519     | `m/44'/1729'/0'/0'`      | `tz1...`                |
+| `TON`          | ed25519     | `m/44'/607'/0'`          | base64-url; needs `contractCode` for the wallet contract |
+| `NERVOS`       | secp256k1   | `m/44'/309'/0'/0/0`      | `ckb1...` / `ckt1...`   |
+| `POLKADOT`     | sr25519     | `//imToken//polkadot/0`  | SS58 (Polkadot)         |
+| `KUSAMA`       | sr25519     | `//imToken//kusama/0`    | SS58 (Kusama)           |
 
-| `segWit`    | Default BIP path        | Address prefix (MAINNET) |
-|-------------|-------------------------|--------------------------|
-| `NONE`      | `m/44'/0'/0'/0/0`       | `1...` (P2PKH)           |
-| `P2WPKH`    | `m/49'/0'/0'/0/0`       | `3...` (P2SH-P2WPKH)     |
-| `VERSION_0` | `m/84'/0'/0'/0/0`       | `bc1q...` (Native SegWit)|
-| `VERSION_1` | `m/86'/0'/0'/0/0`       | `bc1p...` (Taproot)      |
+> **Excluded chains** (BLS-based, fundamentally incompatible with `wasm32-unknown-unknown`):
+> `ETHEREUM2` (BLS-12-381 via `blst` C bindings) and `FILECOIN` (`forest_crypto` unconditionally pulls in
+> `bls-signatures`, which only ships `blst` or the heavy `paired` pairing backend). They remain supported
+> by the native `tcx` crate.
+
+For `BITCOIN`, `LITECOIN` and `DOGECOIN`, `segWit` selects the address type (defaults to NONE / P2PKH):
+
+| `segWit`    | BTC path                | LTC path             | DOGE path            | Address prefix (MAINNET BTC) |
+|-------------|-------------------------|----------------------|----------------------|------------------------------|
+| `NONE`      | `m/44'/0'/0'/0/0`       | `m/44'/2'/0'/0/0`    | `m/44'/3'/0'/0/0`    | `1...` (P2PKH)               |
+| `P2WPKH`    | `m/49'/0'/0'/0/0`       | `m/49'/2'/0'/0/0`    | `m/49'/3'/0'/0/0`    | `3...` (P2SH-P2WPKH)         |
+| `VERSION_0` | `m/84'/0'/0'/0/0`       | —                    | `m/84'/3'/0'/0/0`    | `bc1q...` (Native SegWit)    |
+| `VERSION_1` | `m/86'/0'/0'/0/0`       | —                    | `m/86'/3'/0'/0/0`    | `bc1p...` (Taproot)          |
 
 ```ts
 const accounts = JSON.parse(derive_accounts(JSON.stringify({
@@ -220,7 +242,7 @@ const accounts = JSON.parse(derive_accounts(JSON.stringify({
 
 ### `sign_tx(param_json: string): string`
 
-Signs a transaction. Supports ETH legacy (EIP-155), EIP-1559, TRON, and BITCOIN (UTXO-based).
+Signs a transaction. Supports ETH legacy (EIP-155), EIP-1559, TRON, BITCOIN-kin UTXO chains (BTC / BCH / LTC / DOGE), OMNI (USDT-Omni), COSMOS, EOS, TEZOS, and TON.
 
 #### ETH Legacy Transaction
 
@@ -277,13 +299,13 @@ const result = JSON.parse(sign_tx(JSON.stringify({
 // => { signatures: ["hex..."] }
 ```
 
-#### BITCOIN Transaction (UTXO)
+#### BITCOIN-kin Transaction (UTXO) — `BITCOIN` / `BITCOINCASH` / `LITECOIN` / `DOGECOIN`
 
 ```ts
 const result = JSON.parse(sign_tx(JSON.stringify({
   keystoreJson: ks,
   key: "0000...0001",
-  chain: "BITCOIN",
+  chain: "BITCOIN",                   // or "BITCOINCASH" | "LITECOIN" | "DOGECOIN"
   network: "TESTNET",                 // "MAINNET" | "TESTNET"
   segWit: "VERSION_0",                // "NONE" | "P2WPKH" | "VERSION_0" | "VERSION_1"
   derivationPath: "m/84'/1'/0'/0/0",  // full address-level path
@@ -305,6 +327,139 @@ const result = JSON.parse(sign_tx(JSON.stringify({
   },
 })));
 // => { rawTx: "hex...", txHash: "hex...", wtxHash: "hex..." }
+```
+
+#### OMNI Transaction (USDT-Omni layer atop BTC)
+
+```ts
+const result = JSON.parse(sign_tx(JSON.stringify({
+  keystoreJson: ks,
+  key: "0000...0001",
+  chain: "OMNI",
+  network: "MAINNET",
+  segWit: "NONE",
+  derivationPath: "m/44'/0'/0'/0/0",
+  input: {
+    inputs: [
+      { txHash: "...", vout: 0, amount: 100000, address: "1...", derivedPath: "m/44'/0'/0'/0/0" },
+    ],
+    to: "1...",
+    amount: 50000,
+    fee: 20000,
+    propertyId: 31,                   // 31 = USDT
+  },
+})));
+// => { rawTx: "hex...", txHash: "hex...", wtxHash: "hex..." }
+```
+
+#### COSMOS Transaction
+
+```ts
+const result = JSON.parse(sign_tx(JSON.stringify({
+  keystoreJson: ks,
+  key: "0000...0001",
+  chain: "COSMOS",
+  derivationPath: "m/44'/118'/0'/0/0",
+  input: {
+    rawData: "<hex-encoded sign-doc bytes>",
+  },
+})));
+// => { signature: "<base64-encoded 64-byte ECDSA signature>" }
+```
+
+#### EOS Transaction
+
+```ts
+const result = JSON.parse(sign_tx(JSON.stringify({
+  keystoreJson: ks,
+  key: "0000...0001",
+  chain: "EOS",
+  derivationPath: "m/44'/194'/0'/0/0",
+  input: {
+    chainId: "aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906",
+    txHexs: [
+      "<hex>",
+      "<hex>",
+    ],
+  },
+})));
+// => { sigData: [{ signature: "SIG_K1_...", hash: "0x..." }, ...] }
+```
+
+#### TEZOS Transaction
+
+Signs raw forge bytes via Ed25519 over `Blake2b(0x03 || raw_data)`. Path must include `1729'`.
+
+```ts
+const result = JSON.parse(sign_tx(JSON.stringify({
+  keystoreJson: ks,
+  key: "0000...0001",
+  chain: "TEZOS",
+  derivationPath: "m/44'/1729'/0'/0'",
+  input: {
+    rawData: "<hex of forged operation bytes>",
+  },
+})));
+// => { signature: "<128-char hex>", edsig: "edsig...", sbytes: "<rawData||signature hex>" }
+```
+
+#### TON Transaction
+
+Signs the supplied 32-byte hash via Ed25519. Path must include `607'`.
+
+```ts
+const result = JSON.parse(sign_tx(JSON.stringify({
+  keystoreJson: ks,
+  key: "0000...0001",
+  chain: "TON",
+  derivationPath: "m/44'/607'/0'",
+  input: {
+    hash: "0x<32-byte hash hex>",
+  },
+})));
+// => { signature: "0x<128-char hex>" }
+```
+
+#### POLKADOT / KUSAMA Transaction
+
+Signs SCALE-encoded extrinsic payload via Sr25519. Uses subkey-style derivation paths.
+
+```ts
+const result = JSON.parse(sign_tx(JSON.stringify({
+  keystoreJson: ks,
+  key: "0000...0001",
+  chain: "POLKADOT",                  // or "KUSAMA"
+  derivationPath: "//imToken//polkadot/0",
+  input: { rawData: "<hex of SCALE-encoded payload>" },
+})));
+// => { signature: "<hex Sr25519 signature>" }
+```
+
+#### NERVOS (CKB) Transaction
+
+Signs the assembled CKB transaction structure. Inputs / witnesses / cached_cells follow the protobuf shape of `CkbTxInput`.
+
+```ts
+const result = JSON.parse(sign_tx(JSON.stringify({
+  keystoreJson: ks,
+  key: "0000...0001",
+  chain: "NERVOS",
+  derivationPath: "m/44'/309'/0'/0/0",
+  input: {
+    txHash: "0x<sighash all>",
+    inputs: [{ previousOutput: { txHash: "0x...", index: 0 }, since: "0x0" }],
+    witnesses: [{ lock: "", inputType: "", outputType: "" }],
+    cachedCells: [
+      {
+        capacity: 200000000,
+        lock: { args: "0x...", codeHash: "0x...", hashType: "type" },
+        outPoint: { txHash: "0x...", index: 0 },
+        derivedPath: "0/0",
+      },
+    ],
+  },
+})));
+// => { txHash: "0x...", witnesses: ["0x...", ...] }
 ```
 
 ---
@@ -352,7 +507,7 @@ const results = JSON.parse(sign_txs(JSON.stringify({
 
 ### `sign_message(param_json: string): string`
 
-Signs a message. Supports ETH PersonalSign / EcSign, TRON message, and BTC BIP-322 signing.
+Signs a message. Supports ETH PersonalSign / EcSign, TRON message, BTC-kin BIP-322 signing (BTC / BCH / LTC / DOGE), and EOS canonical signing.
 
 #### ETH PersonalSign
 
@@ -386,7 +541,7 @@ const result = JSON.parse(sign_message(JSON.stringify({
 // => { signature: "0x..." }
 ```
 
-#### BITCOIN Message (BIP-322)
+#### BITCOIN-kin Message (BIP-322) — `BITCOIN` / `BITCOINCASH` / `LITECOIN` / `DOGECOIN`
 
 ```ts
 const result = JSON.parse(sign_message(JSON.stringify({
@@ -399,6 +554,19 @@ const result = JSON.parse(sign_message(JSON.stringify({
   input: { message: "hello world" },
 })));
 // => { signature: "hex..." }
+```
+
+#### EOS Message
+
+```ts
+const result = JSON.parse(sign_message(JSON.stringify({
+  keystoreJson: ks,
+  key: "0000...0001",
+  chain: "EOS",
+  derivationPath: "m/44'/194'/0'/0/0",
+  input: { data: "Hello from tcx-wasm EOS!" },
+})));
+// => { signature: "SIG_K1_..." }
 ```
 
 ---
@@ -572,10 +740,17 @@ const decrypted = JSON.parse(decrypt_message(JSON.stringify({
 | 20 | Sign BTC Message (BIP-322) | `sign_message` | Sign a BIP-322 message with Native SegWit |
 | 21 | Sign PSBT (Taproot TESTNET) | `sign_psbt` | Sign and auto-finalize a Taproot PSBT |
 | 22 | Sign PSBTs (batch) | `sign_psbts` | Batch-sign PSBTs with one keystore unlock |
-| 23 | Cache Keystore + Derive | `cache_keystore` / `derive_accounts` / `clear_cached_keystore` | Cache keystore, derive without explicit JSON |
-| 24 | derive_message_key_pair | `derive_message_key_pair` | Derive and cache NIP-44 key pair |
-| 25 | encrypt_message | `encrypt_message` | Encrypt plaintext with NIP-44 v2 |
-| 26 | decrypt_message | `decrypt_message` | Decrypt and verify roundtrip |
-| 27 | sign_message_event | `sign_message_event` | Sign Nostr event with Schnorr/BIP-340 |
-| 28 | sign_message_event (seal+wrap) | `sign_message_event` | NIP-59 Gift Wrapping: seal + wrap with recipientPubkey |
-| 29 | sign + encrypt/decrypt roundtrip | All Message APIs | Full roundtrip: encrypt, sign event, decrypt |
+| 23 | Derive Accounts (multi-chain) | `derive_accounts` | Derive BCH / LTC / DOGE / OMNI / COSMOS / EOS in one call |
+| 24 | Sign COSMOS TX | `sign_tx` | Sign Cosmos SignDoc bytes (sha256 → secp256k1, base64) |
+| 25 | Sign EOS TX | `sign_tx` | Sign EOS transaction with canonical secp256k1 (`SIG_K1_...`) |
+| 26 | Sign EOS Message | `sign_message` | Sign an EOS message |
+| 27 | Derive TEZOS + TON Accounts | `derive_accounts` | Derive Ed25519 accounts (`tz1...`, TON V5R1 base64-url) |
+| 28 | Sign TEZOS TX | `sign_tx` | Ed25519 signature over `Blake2b(0x03 \|\| raw_data)` |
+| 29 | Sign TON TX | `sign_tx` | Ed25519 signature over a 32-byte hash |
+| 30 | Cache Keystore + Derive | `cache_keystore` / `derive_accounts` / `clear_cached_keystore` | Cache keystore, derive without explicit JSON |
+| 31 | derive_message_key_pair | `derive_message_key_pair` | Derive and cache NIP-44 key pair |
+| 32 | encrypt_message | `encrypt_message` | Encrypt plaintext with NIP-44 v2 |
+| 33 | decrypt_message | `decrypt_message` | Decrypt and verify roundtrip |
+| 34 | sign_message_event | `sign_message_event` | Sign Nostr event with Schnorr/BIP-340 |
+| 35 | sign_message_event (seal+wrap) | `sign_message_event` | NIP-59 Gift Wrapping: seal + wrap with recipientPubkey |
+| 36 | sign + encrypt/decrypt roundtrip | All Message APIs | Full roundtrip: encrypt, sign event, decrypt |

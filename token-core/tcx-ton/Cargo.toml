@@ -6,9 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tcx-keystore = { path = "../tcx-keystore" }
+tcx-keystore = { path = "../tcx-keystore", default-features = false }
 tcx-constants = { path = "../tcx-constants" }
-tcx-primitive = { path = "../tcx-primitive" }
+tcx-primitive = { path = "../tcx-primitive", default-features = false }
 tcx-crypto = { path = "../tcx-crypto" }
 tcx-common = { path = "../tcx-common" }
 tonlib-core = { path = "../tcx-libs/tonlib-core" }

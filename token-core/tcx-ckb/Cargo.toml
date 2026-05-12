@@ -8,14 +8,14 @@ edition = "2021"
 
 [dependencies]
 tcx-crypto = { path = "../tcx-crypto" }
-tcx-keystore = { path = "../tcx-keystore" }
-tcx-primitive = { path = "../tcx-primitive" }
+tcx-keystore = { path = "../tcx-keystore", default-features = false }
+tcx-primitive = { path = "../tcx-primitive", default-features = false }
 tcx-constants = { path = "../tcx-constants" }
 tcx-common = { path = "../tcx-common"}
 
 prost = "=0.11.2"
 bytes = "=1.4.0"
-blake2b-rs = "=0.2.0"
+blake2b_simd = "=1.0.1"
 anyhow = { version = "=1.0.79", features = [] }
 byteorder = "=1.4.3"
 bech32 = "=0.9.1"

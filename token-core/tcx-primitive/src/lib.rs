@@ -1,27 +1,23 @@
 mod bip32;
-#[cfg(feature = "substrate-crypto")]
+#[cfg(feature = "bls")]
 mod bls;
-#[cfg(not(feature = "substrate-crypto"))]
+#[cfg(not(feature = "bls"))]
 #[path = "bls_stub.rs"]
 mod bls;
 mod bls_derive;
 mod constant;
 mod derive;
 mod ecc;
-#[cfg(feature = "substrate-crypto")]
-mod ed25519;
-#[cfg(not(feature = "substrate-crypto"))]
-#[path = "ed25519_stub.rs"]
 mod ed25519;
 mod ed25519_bip32;
 mod rand;
 mod secp256k1;
-#[cfg(feature = "substrate-crypto")]
+#[cfg(feature = "substrate")]
 mod sr25519;
-#[cfg(not(feature = "substrate-crypto"))]
+#[cfg(not(feature = "substrate"))]
 #[path = "sr25519_stub.rs"]
 mod sr25519;
-#[cfg(feature = "substrate-crypto")]
+#[cfg(feature = "substrate")]
 mod subkey;
 use core::result;
 

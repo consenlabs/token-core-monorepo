@@ -22,10 +22,10 @@ When you modify any `#[wasm_bindgen]` exported function or its parameter/return 
 | `clear_cached_keystore()` | — | void | Clears cached keystore and message key |
 | `create_keystore(param_json)` | `prfKey` or `password`, `userId?`, `credentialId?`, `rpId?`, `mnemonic?`, `entropy?`, `network?` | Passkey: `PasskeyKeystore { userId, credentialId, rpId, encryptedMnemonic, mnemonicIv, createdAt, identity }`; Password: native HD keystore JSON with `crypto` | Creates or imports a keystore |
 | `export_mnemonic(param_json)` | `keystoreJson?, key` (`prfKey` legacy alias) | `{ mnemonic }` | Decrypts and exports the mnemonic |
-| `derive_accounts(param_json)` | `keystoreJson?, key, derivations[{ chain?, derivationPath, chainId?, network?, segWit? }]` | `AccountResponse[] { address, chain, derivationPath, extPubKey, publicKey }` | Supports ETHEREUM, TRON, BITCOIN; `segWit` selects BTC address type |
-| `sign_tx(param_json)` | `keystoreJson?, key, chain?, derivationPath?, network?, segWit?, input` | ETH: `{ signature, txHash }` / TRON: `{ signatures[] }` / BTC: `{ rawTx, txHash, wtxHash }` | input shape varies by chain |
-| `sign_txs(param_json)` | `keystoreJson?, key, txs[{ chain?, derivationPath?, network?, segWit?, input }]` | `Array` of per-tx results (same as `sign_tx`) | Batch sign, single keystore unlock |
-| `sign_message(param_json)` | `keystoreJson?, key, chain?, derivationPath?, network?, segWit?, input` | `{ signature }` | ETH PersonalSign/EcSign, TRON message, BTC BIP-322 |
+| `derive_accounts(param_json)` | `keystoreJson?, key, derivations[{ chain?, derivationPath, chainId?, network?, segWit?, contractCode? }]` | `AccountResponse[] { address, chain, derivationPath, extPubKey, publicKey }` | Supports ETHEREUM, TRON, BITCOIN, BITCOINCASH, LITECOIN, DOGECOIN, OMNI, COSMOS, EOS, TEZOS, TON, NERVOS, POLKADOT, KUSAMA. `segWit` selects BTC-kin address type, `chainId` selects bech32 HRP for COSMOS, `contractCode` selects TON wallet contract version |
+| `sign_tx(param_json)` | `keystoreJson?, key, chain?, derivationPath?, network?, segWit?, chainId?, input` | ETH: `{ signature, txHash }` / TRON: `{ signatures[] }` / BTC-kin & OMNI: `{ rawTx, txHash, wtxHash }` / COSMOS: `{ signature }` / EOS: `{ sigData[{ signature, hash }] }` / TEZOS: `{ signature, edsig, sbytes }` / TON: `{ signature }` / NERVOS: `{ txHash, witnesses[] }` / POLKADOT/KUSAMA: `{ signature }` | input shape varies by chain |
+| `sign_txs(param_json)` | `keystoreJson?, key, txs[{ chain?, derivationPath?, network?, segWit?, chainId?, input }]` | `Array` of per-tx results (same as `sign_tx`) | Batch sign, single keystore unlock |
+| `sign_message(param_json)` | `keystoreJson?, key, chain?, derivationPath?, network?, segWit?, chainId?, input` | `{ signature }` | ETH PersonalSign/EcSign, TRON message, BTC-kin BIP-322 (BTC/BCH/LTC/DOGE), EOS canonical signing |
 | `sign_psbt(param_json)` | `keystoreJson?, key, chain?, derivationPath, input { psbt, autoFinalize }` | `{ psbt }` | BTC PSBT signing; `derivationPath` is account-level |
 | `sign_psbts(param_json)` | `keystoreJson?, key, chain?, derivationPath, input { psbts[], autoFinalize }` | `{ psbts[] }` | BTC batch PSBT signing |
 | `derive_message_key_pair(param_json)` | `keystoreJson?, key, derivationPath?` | `{ pubkey }` (x-only 32-byte hex) | Caches secret key in WASM for encrypt/decrypt |
@@ -93,6 +93,63 @@ Top-level `derivationPath` is account-level (e.g. `m/86'/1'/0'`); full /0/0 path
 ```json
 { "psbt": "70736274ff01...", "autoFinalize": true }
 ```
+
+### BCH / LTC / DOGE Transaction (`sign_tx` with chain = "BITCOINCASH" | "LITECOIN" | "DOGECOIN")
+Same shape as BTC `BtcKinTxInput` — uses `BtcKinTxInputJson` on the wasm side.
+
+### OMNI Transaction (`sign_tx` with chain = "OMNI")
+```json
+{
+  "inputs": [{ "txHash": "...", "vout": 0, "amount": 100000, "address": "...", "derivedPath": "..." }],
+  "to": "...",
+  "amount": 50000,
+  "fee": 20000,
+  "propertyId": 31
+}
+```
+
+### COSMOS Transaction (`sign_tx` with chain = "COSMOS")
+```json
+{ "rawData": "<hex of SignDoc bytes>" }
+```
+
+### EOS Transaction (`sign_tx` with chain = "EOS")
+```json
+{ "chainId": "<hex>", "txHexs": ["<hex>"] }
+```
+
+### EOS Message (`sign_message` with chain = "EOS")
+```json
+{ "data": "Hello" }
+```
+
+### TEZOS Transaction (`sign_tx` with chain = "TEZOS")
+```json
+{ "rawData": "<hex of forged operation bytes>" }
+```
+
+### TON Transaction (`sign_tx` with chain = "TON")
+```json
+{ "hash": "0x<32-byte hash hex>" }
+```
+
+### POLKADOT / KUSAMA Transaction (`sign_tx` with chain = "POLKADOT" | "KUSAMA")
+```json
+{ "rawData": "<hex of SCALE-encoded payload>" }
+```
+
+### NERVOS (CKB) Transaction (`sign_tx` with chain = "NERVOS")
+```json
+{
+  "txHash": "0x<sighash all>",
+  "inputs": [{ "previousOutput": { "txHash": "0x...", "index": 0 }, "since": "0x0" }],
+  "witnesses": [{ "lock": "", "inputType": "", "outputType": "" }],
+  "cachedCells": [{ "capacity": 200000000, "lock": { "args": "0x...", "codeHash": "0x...", "hashType": "type" }, "outPoint": { "txHash": "0x...", "index": 0 }, "derivedPath": "0/0" }]
+}
+```
+
+### Excluded from wasm
+`ETHEREUM2` (BLS12-381 via `blst` C bindings) and `FILECOIN` (`forest_crypto` unconditionally pulls in `bls-signatures`, only ships `blst` or heavy `paired` pairing). Stay supported by native `tcx`.
 
 ## Checklist
 

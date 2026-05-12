@@ -39,4 +39,6 @@ thiserror = "=1.0.56"
 
 [features]
 default = ["substrate-crypto"]
-substrate-crypto = ["dep:blst", "dep:sp-core", "dep:schnorrkel"]
+bls = ["dep:blst"]
+substrate = ["dep:sp-core", "dep:schnorrkel"]
+substrate-crypto = ["bls", "substrate"]
