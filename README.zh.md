@@ -1,4 +1,4 @@
-# TokenCore Monorepo
+# Token Core Monorepo
 
 <p align="center">
   <a href="https://10.token.im/">
@@ -7,12 +7,17 @@
 </p>
 
 <p align="center">
+  🎉
   <a href="https://10.token.im/">imToken 十周年邀请你参与 AI 共创：你的钱包，由你掌控</a>
   <br>
+  🛠️
   <a href="https://github.com/consenlabs/token-core-monorepo/tree/tenth-anniversary/token-core/tcx-wasm">使用 tcx-wasm 构建你的钱包</a>
 </p>
 
-[English](./README.md)
+<p align="center">
+  🌐
+  <a href="./README.md">English README</a>
+</p>
 
 本仓库是 imToken 与 imKey 钱包核心库的 Rust workspace。它将 `token-core` 与 `imkey-core` 统一到同一个 Rust 工具链和依赖图中，避免由不同 Rust 版本编译出的库文件在移动端集成时产生冲突。
 

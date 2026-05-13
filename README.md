@@ -1,4 +1,4 @@
-# TokenCore Monorepo
+# Token Core Monorepo
 
 <p align="center">
   <a href="https://10.token.im/">
@@ -9,12 +9,17 @@
 
 
 <p align="center">
+  🎉
   <a href="https://10.token.im/">imToken 10th Anniversary invites you to AI co-create: your wallet, under your control</a>
   <br>
+  🛠️
   <a href="https://github.com/consenlabs/token-core-monorepo/tree/tenth-anniversary/token-core/tcx-wasm">Build your wallet with tcx-wasm</a>
 </p>
 
-[中文](./README.zh.md)
+<p align="center">
+  🌐
+  <a href="./README.zh.md">中文 README</a>
+</p>
 
 This repository is a Rust workspace for imToken and imKey wallet core libraries. It keeps `token-core` and `imkey-core` on one Rust toolchain and one dependency graph, so their generated libraries can be integrated into mobile clients without Rust version conflicts.
 
