@@ -16,6 +16,7 @@
   <a href="https://github.com/consenlabs/token-core-monorepo/tree/tenth-anniversary/token-core/tcx-wasm">Build your wallet with tcx-wasm</a>
 </p>
 
+---  
 <p align="center">
   🌐
   <a href="./README.zh.md">中文 README</a>
