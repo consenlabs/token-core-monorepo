@@ -1,4 +1,4 @@
-# TokenCore CLI
+# Token Core CLI Demo
 
 同時提供 **CLI**（命令列）與 **CLI UI Tools**（React + Vite）的 EVM 交易理解 Demo。
 目標是讓不熟悉區塊鏈的使用者，也能看懂一筆交易在做什麼、有哪些風險、模擬結果如何，以及是否要送上鏈。
@@ -29,10 +29,10 @@
 
 ### CLI UI Tools 功能概覽
 
-- **建立 TokenCore 帳號**：瀏覽器端建立錢包，可下載 CLI UI Tools / CLI 共用錢包檔
+- **建立 Token Core 帳號**：瀏覽器端建立錢包，可下載 CLI UI Tools / CLI 共用錢包檔
 - **建立常見交易模板**：ETH 轉帳、ERC-20 transfer / approve、WETH、自訂 calldata
 - **Decode 與模擬**：合約驗證、風險提示、繁中 AI 摘要、policy 結果、Tenderly 資產變化
-- **送上鏈**：TokenCore 路徑 — 簽名後廣播 signed raw tx
+- **送上鏈**：Token Core 路徑 — 簽名後廣播 signed raw tx
 
 ## 二、前置環境
 
@@ -236,13 +236,13 @@ npm run cli -- wallet import --chain eth-sepolia --wallet ./demo.wallet.json --n
 
 CLI UI Tools 提供五個互動區塊，從設定 policy 到送上鏈，逐步引導完整交易流程。
 
-| 區塊                  | 功能                                                |
-| --------------------- | --------------------------------------------------- |
-| 區塊 1：Policy 規則   | 載入或貼上 Policy JSON，設定允許條件                |
-| 區塊 2：建立帳號      | TokenCore 錢包建立、匯入與瀏覽器端暫存              |
-| 區塊 3：建立交易模板  | ETH、ERC-20、WETH、自訂 calldata                    |
-| 區塊 4：Decode 與模擬 | 合約驗證、風險摘要、policy 結果、Tenderly 模擬      |
-| 區塊 5：送上鏈        | TokenCore 簽名後廣播，顯示 receipt 與 explorer 連結 |
+| 區塊                  | 功能                                                 |
+| --------------------- | ---------------------------------------------------- |
+| 區塊 1：Policy 規則   | 載入或貼上 Policy JSON，設定允許條件                 |
+| 區塊 2：建立帳號      | Token Core 錢包建立、匯入與瀏覽器端暫存              |
+| 區塊 3：建立交易模板  | ETH、ERC-20、WETH、自訂 calldata                     |
+| 區塊 4：Decode 與模擬 | 合約驗證、風險摘要、policy 結果、Tenderly 模擬       |
+| 區塊 5：送上鏈        | Token Core 簽名後廣播，顯示 receipt 與 explorer 連結 |
 
 CLI UI Tools 與 CLI 共用核心 decode、模擬與 policy 邏輯；CLI UI Tools 下載的錢包檔可直接交給 CLI 使用。
 
@@ -276,7 +276,7 @@ npm run audit:high      # npm 供應鏈安全掃描（high severity gate）
 ### 主要技術參考
 
 - [Viem](https://viem.sh)
-- [TokenCore WASM (`@consenlabs/tcx-wasm`)](https://www.npmjs.com/package/@consenlabs/tcx-wasm)
+- [Token Core WASM (`@consenlabs/tcx-wasm`)](https://www.npmjs.com/package/@consenlabs/tcx-wasm)
 - [Etherscan V2 API](https://docs.etherscan.io/api-reference/endpoint/getsourcecode)
 - [Sourcify API](https://docs.sourcify.dev/docs/api/)
 - [4byte Directory](https://www.4byte.directory/docs/)
