@@ -17,6 +17,8 @@ message TronTxOutput {
 // - version = 3: TIP-712 format with header "\x19\x01"
 //
 // TIP-712 (EIP-712) Structured Data Signing:
+// Version = 3 requires header "TRON" (ASCII, case-insensitive). Other header
+// values are rejected.
 // When using version = 3 (header = "TRON"), the `message` field MUST be the
 // 64-byte concatenation of `domainSeparator` and `hashStruct(message)`,
 // i.e. the pre-image (without the "\x19\x01" prefix). The signer will
@@ -46,10 +48,10 @@ message TronMessageInput {
     //   Do NOT pre-hash this value.
     string message = 1;
     
-    // Header type: "TRON", "ETH", or "NONE"
+    // Header type: "TRON", "ETH", or "NONE" (version = 3 requires TRON)
     string header = 2;
     
-    // Version: 1 (V1), 2 (V2), or 3 (TIP-712)
+    // Version: 1 (V1), 2 (V2), or 3 (TIP-712; header must be TRON)
     uint32 version = 3;
 }
 

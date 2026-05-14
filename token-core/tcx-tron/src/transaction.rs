@@ -24,6 +24,8 @@ pub struct TronTxOutput {
 /// - version = 3: TIP-712 format with header "\x19\x01"
 ///
 /// TIP-712 (EIP-712) Structured Data Signing:
+/// Version = 3 requires header "TRON" (ASCII, case-insensitive). Other header
+/// values are rejected.
 /// When using version = 3 (header = "TRON"), the `value` field MUST be the
 /// 64-byte concatenation of `domainSeparator` and `hashStruct(message)`,
 /// i.e. the pre-image (without the "\x19\x01" prefix). The signer will
@@ -56,12 +58,12 @@ pub struct TronMessageInput {
     #[prost(string, tag = "1")]
     pub value: ::prost::alloc::string::String,
     /// Header type: "TRON", "ETH", or "NONE"
-    /// - "TRON": Use TRON-specific message prefix
+    /// - "TRON": Use TRON-specific message prefix (required when version = 3)
     /// - "ETH": Use Ethereum message prefix
     /// - "NONE": Use Ethereum message prefix
     #[prost(string, tag = "2")]
     pub header: ::prost::alloc::string::String,
-    /// Version: 1 (V1), 2 (V2), or 3 (TIP-712)
+    /// Version: 1 (V1), 2 (V2), or 3 (TIP-712; header must be TRON)
     #[prost(uint32, tag = "3")]
     pub version: u32,
 }

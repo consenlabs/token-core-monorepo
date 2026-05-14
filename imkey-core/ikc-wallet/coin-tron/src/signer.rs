@@ -24,6 +24,10 @@ impl TronSigner {
     ) -> Result<TronMessageOutput> {
         check_path_validity(&sign_param.path).unwrap();
 
+        if input.version == 3 && input.header.to_uppercase() != "TRON" {
+            return Err(anyhow!("tip712_header_must_be_tron"));
+        }
+
         let message = if input.message.to_lowercase().starts_with("0x") {
             Vec::from_hex_auto(&input.message)?
         } else {
@@ -299,6 +303,31 @@ mod tests {
                 .to_string()
                 .contains("tip712_message_invalid_length"));
         }
+
+        let bad_header = TronMessageInput {
+            message: "0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090fc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e"
+                .to_string(),
+            header: "ETH".to_string(),
+            version: 3,
+        };
+        let result = TronSigner::sign_message(bad_header, &sign_param);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("tip712_header_must_be_tron"));
+
+        let lower_tron = TronMessageInput {
+            message: "0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090fc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e"
+                .to_string(),
+            header: "tron".to_string(),
+            version: 3,
+        };
+        let res = TronSigner::sign_message(lower_tron, &sign_param).unwrap();
+        assert_eq!(
+            "90125790eae4cb484dbb7470f9a9aafcb95c166843ae319d9876399481e5d350738a86b971532c51b2cf74108e43b32a1ed8658031869471c0e0414fd5aa3cd81b",
+            &res.signature
+        );
     }
 
     #[test]
