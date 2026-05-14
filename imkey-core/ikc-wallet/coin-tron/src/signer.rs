@@ -351,10 +351,4 @@ mod tests {
         let res = TronSigner::sign_transaction(input, &sign_param).unwrap();
         assert_eq!("c65b4bde808f7fcfab7b0ef9c1e3946c83311f8ac0a5e95be2d8b6d2400cfe8b5e24dc8f0883132513e422f2aaad8a4ecc14438eae84b2683eefa626e3adffc61c", &res.signature);
     }
-
-    #[test]
-    fn ttt() {
-        let a = "abdcef".to_string().into_bytes();
-        println!("{}", hex::encode(a));
-    }
 }
