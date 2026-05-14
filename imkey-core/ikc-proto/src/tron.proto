@@ -17,15 +17,19 @@ message TronTxOutput {
 // - version = 3: TIP-712 format with header "\x19\x01"
 //
 // TIP-712 (EIP-712) Structured Data Signing:
-// When using version = 3 for TIP-712 structured data signing, the `message` field
-// must be the pre-computed 32-byte digest (64 hex characters). The caller is
-// responsible for computing:
-//   digest = keccak256(domainSeparator || hashStruct(message))
-// 
-// The signature is computed as:
-//   sign(keccak256("\x19\x01" || digest))
+// When using version = 3 (header = "TRON"), the `message` field MUST be the
+// 64-byte concatenation of `domainSeparator` and `hashStruct(message)`,
+// i.e. the pre-image (without the "\x19\x01" prefix). The signer will
+// internally:
+//   1. Prepend the "\x19\x01" prefix
+//   2. Compute keccak256("\x19\x01" || domainSeparator || hashStruct(message))
+//   3. ECDSA-sign the resulting 32-byte digest
 //
-// Example TIP-712 input:
+// In other words, the caller is responsible for computing
+// `domainSeparator` and `hashStruct(message)` (each 32 bytes) and passing
+// their raw concatenation. The caller MUST NOT pre-hash this value.
+//
+// Example TIP-712 input (message length = 0x prefix + 128 hex chars = 64 bytes):
 // {
 //   "message": "0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090fc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e",
 //   "header": "TRON",
@@ -36,7 +40,10 @@ message TronTxOutput {
 message TronMessageInput {
     // The message to sign
     // - For version 1/2: Raw message string or hex string (with 0x prefix)
-    // - For version 3 (TIP-712): MUST be 32-byte hex string (64 hex chars with 0x prefix)
+    // - For version 3 (TIP-712): MUST be a 64-byte hex string
+    //   (128 hex chars with 0x prefix), formed by
+    //   `domainSeparator (32 bytes) || hashStruct(message) (32 bytes)`.
+    //   Do NOT pre-hash this value.
     string message = 1;
     
     // Header type: "TRON", "ETH", or "NONE"

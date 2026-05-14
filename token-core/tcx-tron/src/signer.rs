@@ -77,11 +77,11 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
             message.value.as_bytes().to_vec()
         };
 
-        // TIP-712 typically uses 32-byte digest (64 hex chars), but we allow variable length
-        // The message should be the pre-computed keccak256(domainSeparator || hashStruct)
-        // which is always 32 bytes. However, we accept any valid hex to maintain flexibility.
-        if message.version == 3 && data.is_empty() {
-            return Err(anyhow!("tip712_message_cannot_be_empty"));
+        // TIP-712 expects `domainSeparator (32 bytes) || hashStruct(message) (32 bytes)`,
+        // i.e. exactly 64 bytes of pre-image. The signer prepends "\x19\x01", then
+        // keccak256-hashes and signs. The caller MUST NOT pre-hash this value.
+        if message.version == 3 && data.len() != 64 {
+            return Err(anyhow!("tip712_message_invalid_length"));
         }
 
         let header = match message.header.to_uppercase().as_str() {
@@ -225,15 +225,26 @@ mod tests {
         let signed = keystore.sign_message(&params, &message).unwrap();
         assert_eq!("0x90125790eae4cb484dbb7470f9a9aafcb95c166843ae319d9876399481e5d350738a86b971532c51b2cf74108e43b32a1ed8658031869471c0e0414fd5aa3cd81b", &signed.signature);
 
-        // Test TIP-712 empty message validation
-        let message_empty = TronMessageInput {
-            value: "0x".to_string(), // Empty hex
-            header: "TRON".to_string(),
-            version: 3,
-        };
-        let result = keystore.sign_message(&params, &message_empty);
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("tip712_message_cannot_be_empty"));
+        // TIP-712 length validation: must be exactly 64 bytes
+        // (domainSeparator || hashStruct(message))
+        let invalid_inputs = [
+            "0x",  // empty
+            "0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090f", // 32 bytes
+            "0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090fc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e00", // 65 bytes
+        ];
+        for invalid in invalid_inputs.iter() {
+            let invalid_input = TronMessageInput {
+                value: invalid.to_string(),
+                header: "TRON".to_string(),
+                version: 3,
+            };
+            let result = keystore.sign_message(&params, &invalid_input);
+            assert!(result.is_err());
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("tip712_message_invalid_length"));
+        }
     }
 
     #[test]
