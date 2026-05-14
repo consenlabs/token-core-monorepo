@@ -509,6 +509,25 @@ const results = JSON.parse(sign_txs(JSON.stringify({
 
 Signs a message. Supports ETH PersonalSign / EcSign, TRON message, BTC-kin BIP-322 signing (BTC / BCH / LTC / DOGE), and EOS canonical signing.
 
+#### ETH Typed Data / EIP-712 warning
+
+`sign_message` does not accept structured Typed Data and does not run the EIP-712 `hashDomain` / `hashStruct` flow. For ETH `signatureType: "EcSign"`, `tcx-wasm` converts `input.message` to bytes and applies `keccak256` before signing.
+
+Do not pass `viem.hashTypedData(...)` or another SDK's final EIP-712 digest into `sign_message`; that digest has already been produced from `hashDomain` and `hashStruct`, so `tcx-wasm` will hash it again.
+
+AI / Vibe Coding guardrail:
+
+```ts
+// Avoid: this double-hashes the EIP-712 digest.
+const digest = hashTypedData({ domain, types, primaryType, message });
+sign_message(JSON.stringify({
+  chain: "ETHEREUM",
+  input: { message: digest, signatureType: "EcSign" },
+}));
+```
+
+Use or add a dedicated Typed Data signing API if EIP-712-compatible signatures are required.
+
 #### ETH PersonalSign
 
 ```ts

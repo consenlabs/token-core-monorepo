@@ -193,6 +193,33 @@ const result = JSON.parse(sign_tx(JSON.stringify({
 - `BITCOIN`、`BITCOINCASH`、`LITECOIN` 和 `DOGECOIN`：BIP-322 风格的消息签名。
 - `EOS`：EOS message signing。
 
+#### ETH Typed Data / EIP-712 注意事项
+
+`sign_message` 不接收结构化 Typed Data，也不会执行 EIP-712 的
+`hashDomain` / `hashStruct` 流程。`ETHEREUM` 使用
+`signatureType: "EcSign"` 时，`tcx-wasm` 会先将 `input.message` 转成字节，
+然后再做一次 `keccak256` 并签名。
+
+不要把 `viem.hashTypedData(...)` 等 SDK helper 的返回值直接传给
+`sign_message`。`viem.hashTypedData(...)` 已经执行了 `hashDomain` 和
+`hashStruct`，返回的是最终 EIP-712 digest；再传给 `sign_message` 会被
+`tcx-wasm` 再 hash 一次，生成的签名无法通过常规 EIP-712 校验。
+
+AI / Vibe Coding 防误用规则：
+
+```ts
+// 避免：这会对 EIP-712 digest 重复 hash。
+const digest = hashTypedData({ domain, types, primaryType, message });
+sign_message(JSON.stringify({
+  chain: "ETHEREUM",
+  input: { message: digest, signatureType: "EcSign" },
+}));
+```
+
+如果需要兼容 EIP-712 的 Typed Data 签名，请使用或新增专用的 Typed Data
+签名 API：只执行一次 `hashDomain` / `hashStruct`，并且对最终 digest 直接签名，
+不要再次 hash。
+
 ### `sign_psbt(paramJson)` 和 `sign_psbts(paramJson)`
 
 签名单个或多个 BTC 系 PSBT。`derivationPath` 可以是账户级路径；传入完整地址路径时，
@@ -249,4 +276,3 @@ event，也就是 `kind: 1059` 的事件。
 
 参考 [`examples/wasm`](../../examples/wasm)。该 Next.js 浏览器集成示例覆盖
 keystore 创建、账户派生、交易签名、消息签名、PSBT 签名和 Message API。
-

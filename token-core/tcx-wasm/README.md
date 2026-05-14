@@ -197,6 +197,34 @@ Signs messages for:
   signing.
 - `EOS`: EOS message signing.
 
+#### ETH Typed Data / EIP-712 warning
+
+`sign_message` does not accept structured Typed Data and does not run the
+EIP-712 `hashDomain` / `hashStruct` flow. For `ETHEREUM` with
+`signatureType: "EcSign"`, `tcx-wasm` converts `input.message` to bytes and
+then applies `keccak256` before signing.
+
+Do not pass the result of SDK helpers such as `viem.hashTypedData(...)` into
+`sign_message`. `viem.hashTypedData(...)` already returns the final EIP-712
+digest after `hashDomain` and `hashStruct`; passing that digest to
+`sign_message` makes `tcx-wasm` hash the digest again and produces a signature
+that will not match normal EIP-712 verification.
+
+AI / Vibe Coding guardrail:
+
+```ts
+// Avoid: this double-hashes the EIP-712 digest.
+const digest = hashTypedData({ domain, types, primaryType, message });
+sign_message(JSON.stringify({
+  chain: "ETHEREUM",
+  input: { message: digest, signatureType: "EcSign" },
+}));
+```
+
+If you need EIP-712-compatible Typed Data signatures, use or add a dedicated
+Typed Data signing API that performs `hashDomain` / `hashStruct` exactly once
+and signs the resulting digest without hashing it again.
+
 ### `sign_psbt(paramJson)` and `sign_psbts(paramJson)`
 
 Signs one or more BTC-family PSBTs. `derivationPath` may be an account-level
