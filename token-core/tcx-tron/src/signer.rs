@@ -77,9 +77,21 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
             message.value.as_bytes().to_vec()
         };
 
+        if message.version == 3 && message.header.to_uppercase() != "TRON" {
+            return Err(anyhow!("tip712_header_must_be_tron"));
+        }
+
+        // TIP-712 expects `domainSeparator (32 bytes) || hashStruct(message) (32 bytes)`,
+        // i.e. exactly 64 bytes of pre-image. The signer prepends "\x19\x01", then
+        // keccak256-hashes and signs. The caller MUST NOT pre-hash this value.
+        if message.version == 3 && data.len() != 64 {
+            return Err(anyhow!("tip712_message_invalid_length"));
+        }
+
         let header = match message.header.to_uppercase().as_str() {
             "TRON" => match message.version {
                 2 => "\x19TRON Signed Message:\n".as_bytes(),
+                3 => "\x19\x01".as_bytes(),
                 _ => "\x19TRON Signed Message:\n32".as_bytes(),
             },
             "ETH" => "\x19Ethereum Signed Message:\n32".as_bytes(),
@@ -208,6 +220,61 @@ mod tests {
         };
         let signed = keystore.sign_message(&params, &message).unwrap();
         assert_eq!("0x8686cc3cf49e772d96d3a8147a59eb3df2659c172775f3611648bfbe7e3c48c11859b873d9d2185567a4f64a14fa38ce78dc385a7364af55109c5b6426e4c0f61b", &signed.signature);
+
+        let message = TronMessageInput {
+            value: "0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090fc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e".to_string(),
+            header: "TRON".to_string(),
+            version: 3,
+        };
+        let signed = keystore.sign_message(&params, &message).unwrap();
+        assert_eq!("0x90125790eae4cb484dbb7470f9a9aafcb95c166843ae319d9876399481e5d350738a86b971532c51b2cf74108e43b32a1ed8658031869471c0e0414fd5aa3cd81b", &signed.signature);
+
+        // TIP-712 length validation: must be exactly 64 bytes
+        // (domainSeparator || hashStruct(message))
+        let invalid_inputs = [
+            "0x",  // empty
+            "0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090f", // 32 bytes
+            "0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090fc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e00", // 65 bytes
+        ];
+        for invalid in invalid_inputs.iter() {
+            let invalid_input = TronMessageInput {
+                value: invalid.to_string(),
+                header: "TRON".to_string(),
+                version: 3,
+            };
+            let result = keystore.sign_message(&params, &invalid_input);
+            assert!(result.is_err());
+            assert!(result
+                .unwrap_err()
+                .to_string()
+                .contains("tip712_message_invalid_length"));
+        }
+
+        // TIP-712 (v3) requires header TRON (case-insensitive)
+        let bad_header = TronMessageInput {
+            value: "0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090fc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e"
+                .to_string(),
+            header: "ETH".to_string(),
+            version: 3,
+        };
+        let result = keystore.sign_message(&params, &bad_header);
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("tip712_header_must_be_tron"));
+
+        let lower_tron = TronMessageInput {
+            value: "0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090fc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e"
+                .to_string(),
+            header: "tron".to_string(),
+            version: 3,
+        };
+        let signed = keystore.sign_message(&params, &lower_tron).unwrap();
+        assert_eq!(
+            "0x90125790eae4cb484dbb7470f9a9aafcb95c166843ae319d9876399481e5d350738a86b971532c51b2cf74108e43b32a1ed8658031869471c0e0414fd5aa3cd81b",
+            &signed.signature
+        );
     }
 
     #[test]
