@@ -145,3 +145,51 @@ message EthBatchPersonalSignResult {
     repeated string signatures = 1;
 }
 
+// FUNCTION: sign_txs(SignTxsParam): SignTxsResult
+//
+// Sign a batch of Ethereum transactions in a single SDK call. The action name
+// `sign_txs` is intentionally chain-neutral so future per-chain batch backends
+// can plug in via `chainType` without an additional dispatcher entry. The
+// keystore is unlocked exactly once for the whole batch. Up to
+// ETH_MAX_BATCH_SIZE (2048) items per call. All-or-nothing: any per-item
+// failure aborts the batch and returns an error of the form
+// "sign_txs failed at index {i}: {source}".
+message SignTxsParam {
+    string id = 1;
+    oneof key {
+        string password = 2;
+        string derivedKey = 3;
+    }
+    string chainType = 4;            // must be "ETHEREUM"
+    string path = 5;                 // outer default HD derivation path
+    string network = 6;
+    string segWit = 7;
+    repeated SignTxsItem items = 8;
+}
+
+message SignTxsItem {
+    // Prost-encoded transaction.EthTxInput. Hosts encode an EthTxInput
+    // (defined in eth.proto) and place the bytes here.
+    bytes input = 1;
+    // Optional per-item HD derivation path; empty string means inherit
+    // SignTxsParam.path.
+    string path = 2;
+}
+
+message SignTxsResult {
+    message Output {
+        string signature = 1;
+        string txHash = 2;
+        // The from address derived from the *effective* HD path (after merging
+        // SignTxsParam.path with SignTxsItem.path) used to sign this item.
+        // Hosts SHOULD cross-check this against the user-intended account
+        // before treating the signed transaction as authorised — this turns
+        // the "host UI shows correct from-address" property from an implicit
+        // host responsibility into an SDK-supplied contract. See security
+        // review H-3.
+        string fromAddress = 3;
+    }
+    // One Output per input, in input order.
+    repeated Output outputs = 1;
+}
+

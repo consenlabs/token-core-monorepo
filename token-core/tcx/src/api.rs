@@ -258,6 +258,85 @@ pub struct EthBatchPersonalSignResult {
     #[prost(string, repeated, tag = "1")]
     pub signatures: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
+/// FUNCTION: sign_txs(SignTxsParam): SignTxsResult
+///
+/// Sign a batch of Ethereum transactions in a single SDK call. The action name
+/// `sign_txs` is intentionally chain-neutral so future per-chain batch backends
+/// can plug in via `chainType` without an additional dispatcher entry. The
+/// keystore is unlocked exactly once for the whole batch. Up to
+/// ETH_MAX_BATCH_SIZE (2048) items per call. All-or-nothing: any per-item
+/// failure aborts the batch and returns an error of the form
+/// "sign_txs failed at index {i}: {source}".
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignTxsParam {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    /// must be "ETHEREUM"
+    #[prost(string, tag = "4")]
+    pub chain_type: ::prost::alloc::string::String,
+    /// outer default HD derivation path
+    #[prost(string, tag = "5")]
+    pub path: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub network: ::prost::alloc::string::String,
+    #[prost(string, tag = "7")]
+    pub seg_wit: ::prost::alloc::string::String,
+    #[prost(message, repeated, tag = "8")]
+    pub items: ::prost::alloc::vec::Vec<SignTxsItem>,
+    #[prost(oneof = "sign_txs_param::Key", tags = "2, 3")]
+    pub key: ::core::option::Option<sign_txs_param::Key>,
+}
+/// Nested message and enum types in `SignTxsParam`.
+pub mod sign_txs_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "2")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "3")]
+        DerivedKey(::prost::alloc::string::String),
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignTxsItem {
+    /// Prost-encoded transaction.EthTxInput. Hosts encode an EthTxInput
+    /// (defined in eth.proto) and place the bytes here.
+    #[prost(bytes = "vec", tag = "1")]
+    pub input: ::prost::alloc::vec::Vec<u8>,
+    /// Optional per-item HD derivation path; empty string means inherit
+    /// SignTxsParam.path.
+    #[prost(string, tag = "2")]
+    pub path: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignTxsResult {
+    /// One Output per input, in input order.
+    #[prost(message, repeated, tag = "1")]
+    pub outputs: ::prost::alloc::vec::Vec<sign_txs_result::Output>,
+}
+/// Nested message and enum types in `SignTxsResult`.
+pub mod sign_txs_result {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct Output {
+        #[prost(string, tag = "1")]
+        pub signature: ::prost::alloc::string::String,
+        #[prost(string, tag = "2")]
+        pub tx_hash: ::prost::alloc::string::String,
+        /// The from address derived from the *effective* HD path (after merging
+        /// SignTxsParam.path with SignTxsItem.path) used to sign this item.
+        /// Hosts SHOULD cross-check this against the user-intended account
+        /// before treating the signed transaction as authorised — this turns
+        /// the "host UI shows correct from-address" property from an implicit
+        /// host responsibility into an SDK-supplied contract. See security
+        /// review H-3.
+        #[prost(string, tag = "3")]
+        pub from_address: ::prost::alloc::string::String,
+    }
+}
 /// FUNCTION: create_keystore(CreateKeystoreParam): KeystoreResult
 ///
 /// create a new hd keystore

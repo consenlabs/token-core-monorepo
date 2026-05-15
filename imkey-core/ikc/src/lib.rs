@@ -232,6 +232,25 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
             }
         }),
 
+        "sign_txs" => landingpad(|| {
+            let param: SignParam = SignParam::decode(action.param.unwrap().value.as_slice())
+                .expect("sign_txs unpack error");
+            // Mirror the `sign_tx` branch's chain dispatch. Today
+            // only ETHEREUM is wired up; other coins are rejected
+            // here with the same shape of error `sign_tx` returns
+            // so host code paths can use a single
+            // "unsupported_chain" handler for both. The action name
+            // `sign_txs` is intentionally chain-neutral so future
+            // per-chain batch backends can plug in here without an
+            // additional dispatcher entry.
+            match param.chain_type.as_str() {
+                "ETHEREUM" => {
+                    ethereum_signer::sign_txs(&param.clone().input.unwrap().value, &param)
+                }
+                _ => Err(anyhow!("sign_txs unsupported_chain")),
+            }
+        }),
+
         "sign_message" => landingpad(|| {
             let param: SignParam = SignParam::decode(action.param.unwrap().value.as_slice())
                 .expect("unpack sign_message param error");

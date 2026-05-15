@@ -1,23 +1,54 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use anyhow::anyhow;
-use coin_ethereum::ethapi::{EthMessageInput, EthTxInput};
+use coin_ethereum::ethapi::{
+    EthMessageInput, EthTxInput, SignTxsInput, SignTxsItemOutput, SignTxsOutput,
+};
 use coin_ethereum::transaction::{AccessListItem, Transaction};
 use coin_ethereum::types::Action;
 use ethereum_types::{Address, H256, U256};
 use hex;
 use ikc_common::constants::ETH_TRANSACTION_TYPE_EIP1559;
+use ikc_common::path::check_path_validity;
 use ikc_common::SignParam;
 use prost::Message;
 use std::str::FromStr;
 
-pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: EthTxInput = EthTxInput::decode(data).expect("imkey_illegal_param");
-    let data_vec = if input.data.starts_with("0x") {
-        hex::decode(&input.data[2..]).unwrap()
+/// Hard upper bound for the number of items in a single
+/// `sign_txs` request. Each item still triggers a full
+/// single-tx flow on the device (one user button press, one
+/// `select_applet` / `prepare_sign` / `get_xpub` / `sign_digest`),
+/// so the practical UX-acceptable batch size is much smaller than
+/// this; 100 only exists as a defensive cap to keep the protocol
+/// from being abused as a "sign N hundreds at once" vehicle (host
+/// SDKs needing larger throughput should use the software signer).
+pub const ETH_MAX_BATCH_SIZE: usize = 100;
+
+/// Parse a host-supplied `EthTxInput` into the imKey-side
+/// `coin_ethereum::transaction::Transaction` plus its decoded
+/// `chain_id`. Centralised here so single-tx (`sign_eth_transaction`)
+/// and batch (`sign_txs`) share the exact same parsing — any drift
+/// between the two paths would manifest as a silent signature
+/// divergence.
+fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
+    // Surface every host-data parse failure as a structured `Err`
+    // rather than a panic. The single-tx path historically relied
+    // on `landingpad` to catch the unwrap-panics, which worked but
+    // produced opaque "called `Result::unwrap()` on an `Err` value"
+    // messages with no field context. More importantly, batch
+    // signing wraps per-item errors with `failed at index {i}` —
+    // panics bypass that wrapper entirely (they don't flow through
+    // `Result::Err`), so the index contract documented in the spec
+    // would silently break the moment any item carried malformed
+    // hex / address / chain_id. Returning `Err` here lets the
+    // batch loop's existing `.map_err(|e| anyhow!("...failed at
+    // index {}: {}", i, e))` do its job uniformly.
+    let data_hex = if input.data.starts_with("0x") {
+        &input.data[2..]
     } else {
-        hex::decode(&input.data).unwrap()
+        &input.data[..]
     };
+    let data_vec = hex::decode(data_hex).map_err(|e| anyhow!("invalid `data` hex: {}", e))?;
 
     let to = if input.to.is_empty() || input.to == "0x" {
         "0000000000000000000000000000000000000000"
@@ -26,6 +57,7 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
     } else {
         &input.to
     };
+    let to_addr = Address::from_str(&to).map_err(|e| anyhow!("invalid `to` address: {}", e))?;
 
     let eth_tx = if input.r#type.to_lowercase() == "0x02"
         || input.r#type.to_lowercase() == "0x2"
@@ -35,7 +67,7 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
             nonce: parse_eth_argument(&input.nonce)?,
             gas_price: U256::from(0),
             gas_limit: parse_eth_argument(&input.gas_limit)?,
-            to: Action::Call(Address::from_str(&to).unwrap()),
+            to: Action::Call(to_addr),
             value: parse_eth_argument(&input.value)?,
             data: Vec::from(data_vec.as_slice()),
             tx_type: ETH_TRANSACTION_TYPE_EIP1559.to_string(),
@@ -43,14 +75,14 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
             max_priority_fee_per_gas: Some(parse_eth_argument(&input.max_priority_fee_per_gas)?),
             access_list: {
                 let mut access_list: Vec<AccessListItem> = Vec::new();
-                for access in input.access_list {
+                for access in &input.access_list {
                     let item = AccessListItem {
-                        address: Address::from_str(remove_0x(&access.address)).unwrap(),
+                        address: Address::from_str(remove_0x(&access.address))
+                            .map_err(|e| anyhow!("invalid access_list address: {}", e))?,
                         storage_keys: {
                             let mut storage_keys: Vec<H256> = Vec::new();
-                            for key in access.storage_keys {
-                                storage_keys
-                                    .push(Transaction::hexstring_to_hex256(remove_0x(&key)));
+                            for key in &access.storage_keys {
+                                storage_keys.push(Transaction::hexstring_to_hex256(remove_0x(key)));
                             }
                             storage_keys
                         },
@@ -65,10 +97,10 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
             nonce: parse_eth_argument(&input.nonce)?,
             gas_price: parse_eth_argument(&input.gas_price)?,
             gas_limit: parse_eth_argument(&input.gas_limit)?,
-            to: Action::Call(Address::from_str(&to).unwrap()),
+            to: Action::Call(to_addr),
             value: parse_eth_argument(&input.value)?,
             data: Vec::from(data_vec.as_slice()),
-            tx_type: input.r#type,
+            tx_type: input.r#type.clone(),
             max_fee_per_gas: None,
             max_priority_fee_per_gas: None,
             access_list: vec![],
@@ -79,14 +111,28 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
     let chain_id = match chain_id_parsed {
         Ok(id) => id,
         Err(_error) => {
+            // Preserve the prior branching exactly — the only
+            // behavioural change here is panic → structured `Err`.
+            // Note that `trim_start_matches("0x")` is case-sensitive
+            // by design (matches the legacy single-tx path); any
+            // case-folding fix belongs in a separate change.
             if input.chain_id.to_lowercase().starts_with("0x") {
-                let without_prefix = &input.chain_id.trim_start_matches("0x");
-                u64::from_str_radix(without_prefix, 16).unwrap()
+                let without_prefix = input.chain_id.trim_start_matches("0x");
+                u64::from_str_radix(without_prefix, 16)
+                    .map_err(|e| anyhow!("invalid `chain_id` hex: {}", e))?
             } else {
-                u64::from_str_radix(&input.chain_id, 16).unwrap()
+                u64::from_str_radix(&input.chain_id, 16)
+                    .map_err(|e| anyhow!("invalid `chain_id` hex: {}", e))?
             }
         }
     };
+
+    Ok((eth_tx, chain_id))
+}
+
+pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
+    let input: EthTxInput = EthTxInput::decode(data).expect("imkey_illegal_param");
+    let (eth_tx, chain_id) = build_eth_transaction(&input)?;
 
     let tx_out = eth_tx.sign(
         Some(chain_id),
@@ -97,6 +143,104 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
         &sign_param.fee,
     )?;
     encode_message(tx_out)
+}
+
+pub fn sign_txs(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
+    let input: SignTxsInput = SignTxsInput::decode(data).expect("imkey_illegal_param");
+
+    if input.items.is_empty() {
+        return Err(anyhow!("sign_txs failed at index 0: invalid_param"));
+    }
+    if input.items.len() > ETH_MAX_BATCH_SIZE {
+        return Err(anyhow!(
+            "sign_txs failed at index 0: batch size {} exceeds limit {}",
+            input.items.len(),
+            ETH_MAX_BATCH_SIZE
+        ));
+    }
+
+    if !sign_param.path.is_empty() {
+        check_path_validity(&sign_param.path)
+            .map_err(|e| anyhow!("sign_txs failed at index 0: {}", e))?;
+    }
+    // Fold effective path per item in the preflight pass. Two reasons:
+    //   1. `Transaction::sign` already rejects an empty path internally, but
+    //      only *after* `select_applet` + APDU staging. If the host accidentally
+    //      sent every item with an empty path (or sent an empty outer
+    //      `sign_param.path` and empty per-item path), the user would still see
+    //      a confusing device prompt before the rejection. We catch it before
+    //      any device session.
+    //   2. The single-tx imkey path doesn't have this footgun (path is always
+    //      taken from `sign_param.path`); but the batch path multiplies the
+    //      surface by N, so it's worth explicitly checking. See security review
+    //      H-2.
+    for (i, item) in input.items.iter().enumerate() {
+        if item.tx.is_none() {
+            return Err(anyhow!("sign_txs failed at index {}: missing tx", i));
+        }
+        // `sender` is required for the device-side address
+        // verification step inside `Transaction::sign`. Catching it
+        // here keeps the failure ordering (and error message) parallel
+        // to the missing-tx case, which the host already special-cases.
+        if item.sender.is_empty() {
+            return Err(anyhow!("sign_txs failed at index {}: missing sender", i));
+        }
+        if !item.path.is_empty() {
+            check_path_validity(&item.path)
+                .map_err(|e| anyhow!("sign_txs failed at index {}: {}", i, e))?;
+        }
+        let effective_path = if item.path.is_empty() {
+            sign_param.path.as_str()
+        } else {
+            item.path.as_str()
+        };
+        if effective_path.is_empty() {
+            return Err(anyhow!(
+                "sign_txs failed at index {}: empty derivation path",
+                i
+            ));
+        }
+    }
+
+    let mut outputs = Vec::with_capacity(input.items.len());
+    for (i, item) in input.items.iter().enumerate() {
+        // `is_none()` already short-circuited above, so unwrap is safe.
+        let tx_input = item.tx.as_ref().unwrap();
+        let (eth_tx, chain_id) = build_eth_transaction(tx_input)
+            .map_err(|e| anyhow!("sign_txs failed at index {}: {}", i, e))?;
+
+        let effective_path: &str = if item.path.is_empty() {
+            &sign_param.path
+        } else {
+            &item.path
+        };
+
+        // Direct call to the existing single-tx sign — `coin-ethereum`
+        // has no notion of "batch". Every device session APDU happens
+        // here, exactly as it would for a standalone `sign_tx`.
+        //
+        // `Transaction::sign` verifies the on-device derived address against
+        // `item.sender` and aborts on mismatch. If it returns successfully we
+        // know the device confirmed `item.sender` matches the address for
+        // `effective_path`, so echoing `item.sender` back as `from_address`
+        // below is the device-verified value, not a host-supplied claim.
+        let tx_out = eth_tx
+            .sign(
+                Some(chain_id),
+                effective_path,
+                &item.payment,
+                &item.receiver,
+                &item.sender,
+                &item.fee,
+            )
+            .map_err(|e| anyhow!("sign_txs failed at index {}: {}", i, e))?;
+        outputs.push(SignTxsItemOutput {
+            tx: Some(tx_out),
+            from_address: item.sender.clone(),
+        });
+    }
+
+    encode_message(SignTxsOutput { outputs })
 }
 
 fn parse_eth_argument(str: &str) -> Result<U256> {
