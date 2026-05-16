@@ -30,30 +30,34 @@ function stringifyWithBigInt(value: unknown) {
 }
 
 /**
- * Strip fields that are large but semantically useless for the AI prompt:
+ * Build a lean data object for the AI prompt by explicitly picking only
+ * the semantically meaningful fields. This avoids sending:
  * - simulation.raw: full Tenderly API response (can be 1.5 MB+ of contract bytecode/ABI data)
  * - verification.abi: full contract ABI array (not needed for risk narration)
- * - simulation URL / gas fee fields: machine-readable numbers; the AI should not invent conclusions from them
+ * - URL / gas fee fields: machine-readable numbers the AI should not synthesise conclusions from
  */
 function buildAiPromptData(analysis: AnalysisResult) {
-  const { simulation, verification, ...rest } = analysis;
-  const {
-    raw: _raw,
-    simulationUrl: _su,
-    publicSimulationUrl: _psu,
-    publicSimulationMessage: _psm,
-    preparedGas: _pg,
-    preparedMaxFeePerGas: _pmf,
-    preparedMaxPriorityFeePerGas: _pmpf,
-    gasEstimate: _ge,
-    ...simulationCore
-  } = simulation;
-  const { abi: _abi, ...verificationCore } =
-    verification as typeof verification & { abi?: unknown };
   return {
-    ...rest,
-    verification: verificationCore,
-    simulation: simulationCore,
+    chainKey: analysis.chainKey,
+    chainLabel: analysis.chainLabel,
+    action: analysis.action,
+    verification: {
+      verified: analysis.verification.verified,
+      source: analysis.verification.source,
+      contractName: analysis.verification.contractName,
+      message: analysis.verification.message,
+    },
+    risks: analysis.risks,
+    policyViolations: analysis.policyViolations,
+    simulation: {
+      success: analysis.simulation.success,
+      source: analysis.simulation.source,
+      summary: analysis.simulation.summary,
+      resultPreview: analysis.simulation.resultPreview,
+      errorMessage: analysis.simulation.errorMessage,
+      tokenChanges: analysis.simulation.tokenChanges,
+    },
+    zhTwSummary: analysis.zhTwSummary,
   };
 }
 
