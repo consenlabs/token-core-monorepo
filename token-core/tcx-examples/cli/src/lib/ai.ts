@@ -29,6 +29,34 @@ function stringifyWithBigInt(value: unknown) {
   );
 }
 
+/**
+ * Strip fields that are large but semantically useless for the AI prompt:
+ * - simulation.raw: full Tenderly API response (can be 1.5 MB+ of contract bytecode/ABI data)
+ * - verification.abi: full contract ABI array (not needed for risk narration)
+ * - simulation URL / gas fee fields: machine-readable numbers; the AI should not invent conclusions from them
+ */
+function buildAiPromptData(analysis: AnalysisResult) {
+  const { simulation, verification, ...rest } = analysis;
+  const {
+    raw: _raw,
+    simulationUrl: _su,
+    publicSimulationUrl: _psu,
+    publicSimulationMessage: _psm,
+    preparedGas: _pg,
+    preparedMaxFeePerGas: _pmf,
+    preparedMaxPriorityFeePerGas: _pmpf,
+    gasEstimate: _ge,
+    ...simulationCore
+  } = simulation;
+  const { abi: _abi, ...verificationCore } =
+    verification as typeof verification & { abi?: unknown };
+  return {
+    ...rest,
+    verification: verificationCore,
+    simulation: simulationCore,
+  };
+}
+
 function buildAiPrompt(analysis: AnalysisResult): string {
   return [
     "角色：你是繁體中文（Traditional Chinese）的資深鏈上交易風險分析師，專門向完全不懂區塊鏈的新手解釋交易。",
@@ -38,7 +66,7 @@ function buildAiPrompt(analysis: AnalysisResult): string {
     "內容要求：必須明確交代 1. 這筆交易在做什麼 2. 最大風險是什麼 3. 合約是否已驗證 4. 模擬結果代表什麼 5. 使用者下一步該如何確認。",
     "限制：不要只重述網路名稱或函式名稱；要有具體風險判讀與建議。不要杜撰 analysis JSON 沒提供的資訊。",
     "長度：請控制在 180 到 260 字之間，使用 3 到 5 句完整句子。",
-    stringifyWithBigInt(analysis),
+    stringifyWithBigInt(buildAiPromptData(analysis)),
   ].join("\n\n");
 }
 
@@ -167,7 +195,7 @@ async function generateGroqSummary(
               // llama-3.3-70b-versatile: best Traditional Chinese quality, 1000 RPD free
               // switch to "llama-3.1-8b-instant" if you need 14400 RPD at lower quality
               model: "llama-3.3-70b-versatile",
-              max_tokens: 320,
+              max_completion_tokens: 320,
               messages: [{ role: "user", content: buildAiPrompt(analysis) }],
             }),
           }),
