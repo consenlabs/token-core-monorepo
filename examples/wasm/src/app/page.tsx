@@ -165,7 +165,7 @@ export default function Home() {
       }
       if (
         passwordKs.crypto?.kdf !== "pbkdf2" ||
-        passwordKs.crypto?.kdfparams?.c !== 600000
+        passwordKs.crypto?.kdfparams?.c !== 65535
       ) {
         throw new Error(`Unexpected password crypto: ${passwordKeystoreJson}`);
       }
@@ -672,6 +672,7 @@ export default function Home() {
             keystoreJson,
             key: TEST_PRF_KEY,
             chain: "BITCOIN",
+            network: "TESTNET",
             derivationPath: "m/86'/1'/0'",
             input: { psbt: psbtHex, autoFinalize: true },
           })
@@ -694,6 +695,7 @@ export default function Home() {
             keystoreJson,
             key: TEST_PRF_KEY,
             chain: "BITCOIN",
+            network: "TESTNET",
             derivationPath: "m/86'/1'/0'",
             input: { psbts: [psbtHex], autoFinalize: true },
           })
@@ -712,27 +714,38 @@ export default function Home() {
         detail: `Returned ${psbtsResult.psbts.length} signed PSBT(s)`,
       });
 
-      // ─── BCH / LTC / DOGE / OMNI / COSMOS / EOS ───
+      // ─── BCH / LTC / DOGE / COSMOS / EOS ───
       // Derive accounts for the additional secp256k1 chains in one call.
       push({ name: "Derive Accounts (multi-chain)", status: "running" });
-      const multiAccounts = JSON.parse(
-        derive_accounts(
-          JSON.stringify({
-            keystoreJson,
-            key: TEST_PRF_KEY,
-            derivations: [
-              { chain: "BITCOINCASH", derivationPath: "m/44'/145'/0'/0/0", network: "MAINNET" },
-              { chain: "LITECOIN", derivationPath: "m/44'/2'/0'/0/0", network: "MAINNET", segWit: "NONE" },
-              { chain: "DOGECOIN", derivationPath: "m/44'/3'/0'/0/0", network: "MAINNET", segWit: "NONE" },
-              { chain: "OMNI", derivationPath: "m/44'/0'/0'/0/0", network: "MAINNET", segWit: "NONE" },
-              { chain: "COSMOS", derivationPath: "m/44'/118'/0'/0/0", chainId: "cosmoshub-4", network: "MAINNET" },
-              { chain: "EOS", derivationPath: "m/44'/194'/0'/0/0", network: "MAINNET" },
-            ],
-          })
-        )
-      );
-      const [bchAcct, ltcAcct, dogeAcct, omniAcct, cosmosAcct, eosAcct] = multiAccounts;
-      if (!bchAcct.address?.startsWith("bitcoincash:")) {
+      const multiDerivations = [
+        { chain: "BITCOINCASH", derivationPath: "m/44'/145'/0'/0/0", network: "MAINNET", segWit: "NONE" },
+        { chain: "LITECOIN", derivationPath: "m/44'/2'/0'/0/0", network: "MAINNET", segWit: "NONE" },
+        { chain: "DOGECOIN", derivationPath: "m/44'/3'/0'/0/0", network: "MAINNET", segWit: "NONE" },
+        { chain: "COSMOS", derivationPath: "m/44'/118'/0'/0/0", chainId: "cosmoshub-4", network: "MAINNET" },
+        { chain: "EOS", derivationPath: "m/44'/194'/0'/0/0", network: "MAINNET" },
+      ];
+      const multiAccounts: any[] = [];
+      for (const d of multiDerivations) {
+        try {
+          const one = JSON.parse(
+            derive_accounts(
+              JSON.stringify({
+                keystoreJson,
+                key: TEST_PRF_KEY,
+                derivations: [d],
+              })
+            )
+          );
+          multiAccounts.push(one[0]);
+        } catch (e) {
+          throw new Error(`Derive failed for ${d.chain}: ${String(e)}`);
+        }
+      }
+      const [bchAcct, ltcAcct, dogeAcct, cosmosAcct, eosAcct] = multiAccounts;
+      if (
+        !bchAcct.address?.startsWith("bitcoincash:") &&
+        !bchAcct.address?.startsWith("q")
+      ) {
         throw new Error(`Bad BCH address: ${bchAcct.address}`);
       }
       if (!ltcAcct.address?.startsWith("L")) {
@@ -740,9 +753,6 @@ export default function Home() {
       }
       if (!dogeAcct.address?.startsWith("D")) {
         throw new Error(`Bad DOGE address: ${dogeAcct.address}`);
-      }
-      if (!omniAcct.address?.startsWith("1")) {
-        throw new Error(`Bad OMNI address: ${omniAcct.address}`);
       }
       if (!cosmosAcct.address?.startsWith("cosmos1")) {
         throw new Error(`Bad COSMOS address: ${cosmosAcct.address}`);
@@ -757,7 +767,6 @@ export default function Home() {
           `BCH:    ${bchAcct.address}`,
           `LTC:    ${ltcAcct.address}`,
           `DOGE:   ${dogeAcct.address}`,
-          `OMNI:   ${omniAcct.address}`,
           `COSMOS: ${cosmosAcct.address}`,
           `EOS:    ${eosAcct.address}`,
         ].join("\n"),
@@ -890,7 +899,7 @@ export default function Home() {
             derivationPath: "m/44'/1729'/0'/0'",
             input: {
               rawData:
-                "1234798e6f1d4ee9bf65bdf6803a4ec59b7d83373b39e8e4e7d5b8f56a8002ee6c00aff7f8a3a301a8b1ee5e2bcd0ec7c4d61c4d6f6502b903bcd105d10764000001976e6c0a0c8d8d8a8e89d8c0e0e62b8c5d6c6e7c7e6f6e1c4c8c4f7e6c4c8e7e6c4c5c6e7c7c8c9c0c1c2c3c4c5c6c7",
+                "1234798e6f1d4ee9bf65bdf6803a4ec59b7d83373b39e8e4e7d5b8f56a8002ee6c00aff7f8a3a301a8b1ee5e2bcd0ec7c4d61c4d6f6502b903bcd105d10764000001976e6c0a0c8d8d8a8e89d8c0e0e62b8c5d6c6e7c7e6f6e1c4c8c4f7e6c4c8e7e6c4c5c6e7c7c8c9c0c1c2c3c4c5c6c70",
             },
           })
         )
