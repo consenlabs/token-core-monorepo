@@ -62,6 +62,15 @@ pub enum Error {
 
     #[error("missing_signature")]
     MissingSignature,
+
+    #[error("bip322_not_supported_for_address_type# seg_wit: {0}")]
+    Bip322NotSupportedForAddressType(String),
+
+    #[error("bip137_not_supported_for_taproot")]
+    Bip137NotSupportedForTaproot,
+
+    #[error("invalid_signature_type# value: {0}")]
+    InvalidSignatureType(i32),
 }
 
 pub mod bitcoin {
