@@ -133,6 +133,7 @@ mod test {
             curve: CurveType::SECP256k1,
             network: "testnet".to_string(),
             seg_wit: "".to_string(),
+            contract_code: "".to_string(),
         };
         let address = EthAddress::from_public_key(&typed_public_key, &coin_info).unwrap();
         assert_eq!(
@@ -214,6 +215,7 @@ mod test {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "NONE".to_string(),
+            contract_code: "".to_string(),
         };
         let address = EthAddress::from_public_key(&pub_key, &coin_info)
             .unwrap()

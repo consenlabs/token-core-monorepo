@@ -23,6 +23,7 @@
     "e2e:android": "npm run e2e:build:android && npm run e2e:test:android"
   },
   "dependencies": {
+    "@babel/traverse": "7.23.2",
     "buffer": "^5.4.3",
     "protobufjs": "^6.8.8",
     "react": "16.9.0",

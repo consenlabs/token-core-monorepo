@@ -75,6 +75,7 @@ message DeriveAccountsParam {
     string segWit = 4;
     string chainId = 5;
     string curve = 6;
+    string contractCode = 7;
   }
   repeated Derivation derivations = 4;
 }
@@ -236,6 +237,25 @@ message MigrateKeystoreResult {
 message ScanKeystoresResult {
   repeated KeystoreResult hdKeystores = 1;
   repeated ImportPrivateKeyResult privateKeyKeystores = 2;
+}
+
+message ScannedKeystoresResult {
+  repeated ScannedKeystore keystores = 1;
+}
+
+message ScannedKeystore {
+  string id = 1;
+  string name = 2;
+  string identifier = 3;
+  string ipfsId = 4;
+  string source = 5;
+  int64 createdAt = 6;
+  repeated AccountResponse accounts = 7;
+  string migration_status = 8;// This field can have one of three values: "migrated", "unmigrated", or "new".
+  repeated string identifiedChainTypes = 9;
+  string identifiedNetwork = 10;
+  string identifiedCurve = 11;
+  string sourceFingerprint = 12;
 }
 
 message LegacyKeystoreResult {

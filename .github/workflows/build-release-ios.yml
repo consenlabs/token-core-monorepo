@@ -14,7 +14,7 @@ jobs:
   build:
     name: Build iOS Release
     if: github.event.review.state == 'approved'
-    runs-on: macos-13
+    runs-on: macos-14
     steps:
       - name: Get the latest commit SHA
         id: sha
@@ -37,7 +37,7 @@ jobs:
           fetch-depth: 5
 
       - name: Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -52,12 +52,11 @@ jobs:
 
       - name: Install Rust
         run: |
-          rustup toolchain install nightly-2022-10-31
-          rustup default nightly-2022-10-31-x86_64-apple-darwin
-          rustup target add aarch64-apple-ios x86_64-apple-ios
+          rustup toolchain install nightly-2023-06-15
+          rustup default nightly-2023-06-15-aarch64-apple-darwin
+          rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
           rustup show
-          cargo install cargo-lipo
-          cargo install cbindgen
+          cargo install cbindgen --version 0.26.0 --locked
           brew install protobuf
 
       - name: Read VERSION file
@@ -77,25 +76,43 @@ jobs:
       - name: Build And Publish
         id: build
         run: |
+          # Build ikc (imKeyCore) for all iOS targets
           pushd ./imkey-core/ikc
-          cargo lipo --release --targets aarch64-apple-ios x86_64-apple-ios
+          # Build for device (arm64)
+          cargo build --release --target aarch64-apple-ios
+          # Build for simulator (arm64)
+          cargo build --release --target aarch64-apple-ios-sim
+          # Build for simulator (x86_64)
+          cargo build --release --target x86_64-apple-ios
+          # Create simulator universal binary (arm64 + x86_64)
+          mkdir -p ${{github.workspace}}/target/universal/release
+          lipo -create -output ${{github.workspace}}/target/universal/release/libconnector-sim.a \
+            ${{github.workspace}}/target/aarch64-apple-ios-sim/release/libconnector.a \
+            ${{github.workspace}}/target/x86_64-apple-ios/release/libconnector.a
           cbindgen ./src/lib.rs -l c > ${{github.workspace}}/target/connector.h
           popd
 
+          # Build tcx (TokenCore) for all iOS targets
           pushd ./token-core/tcx
-          cargo lipo --release --targets aarch64-apple-ios x86_64-apple-ios
+          # Build for device (arm64)
+          cargo build --release --target aarch64-apple-ios
+          # Build for simulator (arm64)
+          cargo build --release --target aarch64-apple-ios-sim
+          # Build for simulator (x86_64)
+          cargo build --release --target x86_64-apple-ios
+          # Create simulator universal binary (arm64 + x86_64)
+          mkdir -p ${{github.workspace}}/target/universal/release
+          lipo -create -output ${{github.workspace}}/target/universal/release/libtcx-sim.a \
+            ${{github.workspace}}/target/aarch64-apple-ios-sim/release/libtcx.a \
+            ${{github.workspace}}/target/x86_64-apple-ios/release/libtcx.a
           cbindgen ./src/lib.rs -l c > ${{github.workspace}}/target/tcx.h
           popd
 
-          LIBS_IKC=./imkey-core/mobile-sdk/imKeyCoreX/imKeyCoreX
-          LIBS_TCX=./token-core/tcx-examples/TokenCoreX/TokenCoreX
-          cp ./target/universal/release/libconnector.a $LIBS_IKC/libconnector.a
-          cp ./target/universal/release/libtcx.a $LIBS_TCX/libtcx.a
-          cp ./target/connector.h $LIBS_IKC/connector.h
-          cp ./target/tcx.h $LIBS_TCX/tcx.h
+          # Prepare directories
           if [ -d "./ios-release" ]; then
             rm -rf ./ios-release
           fi
+          mkdir -p ./ios-release/device ./ios-release/simulator
 
           BUILD_DIR=./Products
           BUILD_ROOT=./Products
@@ -105,48 +122,86 @@ jobs:
           PROJECT_NAME_IKC=imKeyCoreX
           PROJECT_NAME_TCX=TokenCoreX
 
+          # Build imKeyCoreX Device Framework
           pushd ./imkey-core/mobile-sdk/imKeyCoreX        
           mkdir -p $BUILD_DIR
-          UNIVERSAL_OUTPUTFOLDER=$BUILD_DIR/$CONFIGURATION-Universal
-          mkdir -p $UNIVERSAL_OUTPUTFOLDER
-
+          
+          # Copy device library (arm64 only)
+          cp ${{github.workspace}}/target/aarch64-apple-ios/release/libconnector.a ./imKeyCoreX/libconnector.a
+          cp ${{github.workspace}}/target/connector.h ./imKeyCoreX/connector.h
+          
+          # Build device framework
           xcodebuild -target $PROJECT_NAME_IKC ONLY_ACTIVE_ARCH=NO -configuration $CONFIGURATION -sdk iphoneos BUILD_DIR=$BUILD_DIR BUILD_ROOT=$BUILD_ROOT build
-          xcodebuild -target $PROJECT_NAME_IKC -configuration Debug -sdk iphonesimulator ONLY_ACTIVE_ARCH=NO BUILD_DIR=$BUILD_DIR BUILD_ROOT=$BUILD_ROOT EXCLUDED_ARCHS=arm64 build      
-          cp -R $BUILD_DIR/$CONFIGURATION-iphoneos/$PROJECT_NAME_IKC.framework $UNIVERSAL_OUTPUTFOLDER/
-          lipo -create -output $UNIVERSAL_OUTPUTFOLDER/$PROJECT_NAME_IKC.framework/$PROJECT_NAME_IKC $BUILD_PRODUCTS/Debug-iphonesimulator/$PROJECT_NAME_IKC.framework/$PROJECT_NAME_IKC $BUILD_DIR/$CONFIGURATION-iphoneos/$PROJECT_NAME_IKC.framework/$PROJECT_NAME_IKC
-
-          cp -R $UNIVERSAL_OUTPUTFOLDER/ ../../ios-release
-          rm -rf $UNIVERSAL_OUTPUTFOLDER 
+          
+          # Save device framework (keep original name)
+          cp -R $BUILD_DIR/$CONFIGURATION-iphoneos/$PROJECT_NAME_IKC.framework ${{github.workspace}}/ios-release/device/
+          
+          # Build imKeyCoreX Simulator Framework
+          # Copy simulator library (arm64 + x86_64)
+          cp ${{github.workspace}}/target/universal/release/libconnector-sim.a ./imKeyCoreX/libconnector.a
+          
+          # Build simulator framework
+          xcodebuild -target $PROJECT_NAME_IKC -configuration Debug -sdk iphonesimulator ONLY_ACTIVE_ARCH=NO BUILD_DIR=$BUILD_DIR BUILD_ROOT=$BUILD_ROOT build      
+          
+          # Save simulator framework (keep original name)
+          cp -R $BUILD_DIR/Debug-iphonesimulator/$PROJECT_NAME_IKC.framework ${{github.workspace}}/ios-release/simulator/
+          
           popd
 
-          pushd ./imkey-core/ios-release
+          # Create imKeyCoreX XCFramework
+          pushd ${{github.workspace}}/ios-release
+          xcodebuild -create-xcframework \
+            -framework device/$PROJECT_NAME_IKC.framework \
+            -framework simulator/$PROJECT_NAME_IKC.framework \
+            -output $PROJECT_NAME_IKC.xcframework
+          
+          # Package
           PACKAGE_NAME=ios-ikc-${{ steps.getversion.outputs.version }}.zip
-          zip -q -r $PACKAGE_NAME .
+          zip -q -r $PACKAGE_NAME ${PROJECT_NAME_IKC}.xcframework
           echo "imkeycorex_sha256=$(shasum -a 256 $PACKAGE_NAME | awk '{ print $1 }')" >> $GITHUB_OUTPUT
           echo "imKeyCoreX sha256: $(shasum -a 256 $PACKAGE_NAME | awk '{ print $1 }')"
-          cp $PACKAGE_NAME ../../
+          cp $PACKAGE_NAME ../
           popd
 
+          # Build TokenCoreX Device Framework
           pushd ./token-core/tcx-examples/TokenCoreX       
           mkdir -p $BUILD_DIR
-          UNIVERSAL_OUTPUTFOLDER=$BUILD_DIR/$CONFIGURATION-Universal
-          mkdir -p $UNIVERSAL_OUTPUTFOLDER
-
+          
+          # Copy device library (arm64 only)
+          cp ${{github.workspace}}/target/aarch64-apple-ios/release/libtcx.a ./TokenCoreX/libtcx.a
+          cp ${{github.workspace}}/target/tcx.h ./TokenCoreX/tcx.h
+          
+          # Build device framework
           xcodebuild -target $PROJECT_NAME_TCX ONLY_ACTIVE_ARCH=NO -configuration $CONFIGURATION -sdk iphoneos BUILD_DIR=$BUILD_DIR BUILD_ROOT=$BUILD_ROOT build
-          xcodebuild -target $PROJECT_NAME_TCX -configuration Debug -sdk iphonesimulator ONLY_ACTIVE_ARCH=NO BUILD_DIR=$BUILD_DIR BUILD_ROOT=$BUILD_ROOT EXCLUDED_ARCHS=arm64 build      
-          cp -R $BUILD_DIR/$CONFIGURATION-iphoneos/$PROJECT_NAME_TCX.framework $UNIVERSAL_OUTPUTFOLDER/
-          lipo -create -output $UNIVERSAL_OUTPUTFOLDER/$PROJECT_NAME_TCX.framework/$PROJECT_NAME_TCX $BUILD_PRODUCTS/Debug-iphonesimulator/$PROJECT_NAME_TCX.framework/$PROJECT_NAME_TCX $BUILD_DIR/$CONFIGURATION-iphoneos/$PROJECT_NAME_TCX.framework/$PROJECT_NAME_TCX
-
-          cp -R $UNIVERSAL_OUTPUTFOLDER/ ../../ios-release
-          rm -rf $UNIVERSAL_OUTPUTFOLDER 
+          
+          # Save device framework (keep original name)
+          cp -R $BUILD_DIR/$CONFIGURATION-iphoneos/$PROJECT_NAME_TCX.framework ${{github.workspace}}/ios-release/device/
+          
+          # Build TokenCoreX Simulator Framework
+          # Copy simulator library (arm64 + x86_64)
+          cp ${{github.workspace}}/target/universal/release/libtcx-sim.a ./TokenCoreX/libtcx.a
+          
+          # Build simulator framework
+          xcodebuild -target $PROJECT_NAME_TCX -configuration Debug -sdk iphonesimulator ONLY_ACTIVE_ARCH=NO BUILD_DIR=$BUILD_DIR BUILD_ROOT=$BUILD_ROOT build      
+          
+          # Save simulator framework (keep original name)
+          cp -R $BUILD_DIR/Debug-iphonesimulator/$PROJECT_NAME_TCX.framework ${{github.workspace}}/ios-release/simulator/
+          
           popd
 
-          pushd ./token-core/ios-release
+          # Create TokenCoreX XCFramework
+          pushd ${{github.workspace}}/ios-release
+          xcodebuild -create-xcframework \
+            -framework device/$PROJECT_NAME_TCX.framework \
+            -framework simulator/$PROJECT_NAME_TCX.framework \
+            -output $PROJECT_NAME_TCX.xcframework
+          
+          # Package
           PACKAGE_NAME=ios-tcx-${{ steps.getversion.outputs.version }}.zip
-          zip -q -r $PACKAGE_NAME .
+          zip -q -r $PACKAGE_NAME ${PROJECT_NAME_TCX}.xcframework
           echo "tokencorex_sha256=$(shasum -a 256 $PACKAGE_NAME | awk '{ print $1 }')" >> $GITHUB_OUTPUT
           echo "TokenCoreX sha256: $(shasum -a 256 $PACKAGE_NAME | awk '{ print $1 }')"
-          cp $PACKAGE_NAME ../../
+          cp $PACKAGE_NAME ../
           popd
 
       - name: Release

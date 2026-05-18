@@ -13,9 +13,9 @@ buildscript {
 }
 
 plugins {
-    id("io.github.gradle-nexus.publish-plugin") version "1.3.0"
     id("maven-publish")
     id("signing")
+    id("org.jreleaser") version "1.18.0"
 }
 
 version System.getenv("VERSION") ?: project['version']
@@ -32,6 +32,7 @@ afterEvaluate {
                 version this.version
 
                 pom {
+                    packaging = 'aar'
                     name = "token-core"
                     description = "a android library for web3"
                     url = "https://github.com/consenlabs/token-core-monorepo"
@@ -54,42 +55,69 @@ afterEvaluate {
                         url = "https://github.com/consenlabs/token-core-monorepo"
                     }
                 }
-
+            }
+        }
+        
+        repositories {
+            maven {
+                name = 'staging'
+                url = layout.buildDirectory.dir('staging-deploy')
             }
         }
     }
 
     signing {
-        //make signing required unless for SNAPSHOT releases or if signing is explicitly skipped
-        required { !project.version.endsWith("-SNAPSHOT") && !project.hasProperty("skipSigning") }
-
-        //look for property 'signingKey'
-        if (project.findProperty("signingKey")) {
-            //If required, read a sub-key specified by its ID in property signingKeyId
-            //def signingKeyId = findProperty("signingKeyId")
-            //read property 'signingKey'
-            def signingKey = findProperty("signingKey")
-            //read property 'signingPassword'
-            def signingPassword = findProperty("signingPassword")
-            //Select to use in-memory ascii-armored keys
-            useInMemoryPgpKeys(signingKey, signingPassword)
-            //Only if also using signingKeyId
-            //useInMemoryPgpKeys(signingKeyId, signingKey, signingPassword)
-
-            //Apply signing to publication identity 'publishing.publications.maven'
-            sign publishing.publications.Production
-        } else {
-            sign publishing.publications.Production
-            // println 'WARNING: No property \'signingKey\' found. Artifact signing will be skipped.'
-        }
+        // Completely disable Gradle signing - JReleaser will handle all signing
+        required { false }
     }
 }
 
-nexusPublishing {
-    repositories {
-        sonatype {  //only for users registered in Sonatype after 24 Feb 2021
-            nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
-            snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
+jreleaser {
+    gitRootSearch = true
+    dryrun = false
+
+    project {
+        name = 'token-core'
+        description = 'A secure and efficient Android library for Web3 wallet management, supporting multiple blockchains and token standards'
+        website = 'https://github.com/consenlabs/token-core-monorepo'
+        license = 'Apache-2.0'
+        java {
+            groupId = this.group
+            version = this.version
+        }
+    }
+
+    release {
+        github {
+            enabled = false
+            skipTag = true
+            skipRelease = true
+        }
+    }
+
+    signing {
+        active = 'ALWAYS'
+        armored = true
+    }
+    
+    deploy {
+        maven {
+            mavenCentral {
+                sonatype {
+                    active = 'ALWAYS'
+                    url = 'https://central.sonatype.com/api/v1/publisher'
+                    stagingRepository('build/staging-deploy')
+                    
+                    // 专门为AAR包装类型配置artifact覆盖
+                    artifactOverride {
+                        groupId = this.group
+                        artifactId = 'token-core'
+                        verifyPom = false
+                        sourceJar = false
+                        javadocJar = false
+                    }
+                }
+            }
         }
     }
 }

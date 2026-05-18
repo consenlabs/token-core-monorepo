@@ -56,8 +56,15 @@ message PsbtsOutput {
     repeated string psbts = 1;
 }
 
+enum BtcSignatureType {
+    STANDARD = 0;
+    BIP137   = 1;
+    BIP322   = 2;
+}
+
 message BtcMessageInput {
     string message = 1;
+    BtcSignatureType signatureType = 2;
 }
 
 message BtcMessageOutput {

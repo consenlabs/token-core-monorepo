@@ -10,6 +10,8 @@ pub enum CommonError {
     InvalidBase58,
     #[error("missing_network")]
     MissingNetwork,
+    #[error("upgrade_applet")]
+    UpgradeApplet,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]
@@ -42,8 +44,10 @@ pub enum ApduError {
     ImkeyInMenuPage,
     #[error("imkey_pin_not_verified")]
     ImkeyPinNotVerified,
-    #[error("imkey_mnemonic_check_fail")]
-    ImkeyMnemonicCheckFail,
+    #[error("imkey_mnemonic_check_failed")]
+    ImkeyMnemonicCheckFailed,
+    #[error("imkey_cancel_mnemonic_check")]
+    ImkeyCancelMnemonicCheck,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]
@@ -96,4 +100,10 @@ pub enum CoinError {
     InvalidUtxo,
     #[error("missing_signature")]
     MissingSignature,
+    #[error("bip322_not_supported_for_address_type")]
+    Bip322NotSupportedForAddressType,
+    #[error("bip137_not_supported_for_taproot")]
+    Bip137NotSupportedForTaproot,
+    #[error("invalid_signature_type")]
+    InvalidSignatureType,
 }

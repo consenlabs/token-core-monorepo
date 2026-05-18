@@ -380,6 +380,8 @@ pub mod derive_accounts_param {
         pub chain_id: ::prost::alloc::string::String,
         #[prost(string, tag = "6")]
         pub curve: ::prost::alloc::string::String,
+        #[prost(string, tag = "7")]
+        pub contract_code: ::prost::alloc::string::String,
     }
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
@@ -669,6 +671,41 @@ pub struct ScanKeystoresResult {
     pub hd_keystores: ::prost::alloc::vec::Vec<KeystoreResult>,
     #[prost(message, repeated, tag = "2")]
     pub private_key_keystores: ::prost::alloc::vec::Vec<ImportPrivateKeyResult>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ScannedKeystoresResult {
+    #[prost(message, repeated, tag = "1")]
+    pub keystores: ::prost::alloc::vec::Vec<ScannedKeystore>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ScannedKeystore {
+    #[prost(string, tag = "1")]
+    pub id: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub name: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub identifier: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub ipfs_id: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub source: ::prost::alloc::string::String,
+    #[prost(int64, tag = "6")]
+    pub created_at: i64,
+    #[prost(message, repeated, tag = "7")]
+    pub accounts: ::prost::alloc::vec::Vec<AccountResponse>,
+    /// This field can have one of three values: "migrated", "unmigrated", or "new".
+    #[prost(string, tag = "8")]
+    pub migration_status: ::prost::alloc::string::String,
+    #[prost(string, repeated, tag = "9")]
+    pub identified_chain_types: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
+    #[prost(string, tag = "10")]
+    pub identified_network: ::prost::alloc::string::String,
+    #[prost(string, tag = "11")]
+    pub identified_curve: ::prost::alloc::string::String,
+    #[prost(string, tag = "12")]
+    pub source_fingerprint: ::prost::alloc::string::String,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

@@ -21,17 +21,20 @@ use sp_runtime::traits::Verify;
 
 use tcx::api::{
     sign_param, DeriveAccountsParam, DeriveAccountsResult, DerivedKeyResult, GeneralResult,
-    GetPublicKeysParam, GetPublicKeysResult, ImportMnemonicParam, KeystoreResult,
-    PublicKeyDerivation, SignHashesParam, SignHashesResult, SignParam, WalletKeyParam,
+    GetPublicKeysParam, GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam,
+    ImportPrivateKeyResult, KeystoreResult, PublicKeyDerivation, SignHashesParam, SignHashesResult,
+    SignParam, WalletKeyParam,
 };
 
 use tcx::handler::encode_message;
 use tcx::handler::get_derived_key;
-use tcx_btc_kin::transaction::{BtcKinTxInput, BtcMessageInput, BtcMessageOutput};
+use tcx_btc_kin::transaction::{
+    BtcKinTxInput, BtcMessageInput, BtcMessageOutput, BtcSignatureType,
+};
 use tcx_btc_kin::Utxo;
 use tcx_ckb::{CachedCell, CellInput, CkbTxInput, CkbTxOutput, OutPoint, Script, Witness};
 use tcx_constants::{sample_key, CurveType};
-use tcx_constants::{OTHER_MNEMONIC, TEST_PASSWORD};
+use tcx_constants::{OTHER_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY};
 use tcx_keystore::Keystore;
 
 use tcx_common::hex::FromHex;
@@ -41,6 +44,7 @@ use tcx_eth::transaction::{
 use tcx_filecoin::{SignedMessage, UnsignedMessage};
 use tcx_substrate::{SubstrateRawTxIn, SubstrateTxOut};
 use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
+use tcx_ton::transaction::{TonRawTxIn, TonTxOut};
 use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 
 #[test]
@@ -174,13 +178,68 @@ pub fn test_sign_tron_tx() {
             id: wallet.id.to_string(),
             key: Some(Key::Password(TEST_PASSWORD.to_string())),
             chain_type: "TRON".to_string(),
+            path: "m/44'/195'".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+
+        let ret = call_api("sign_tx", tx);
+        assert!(ret.is_err());
+        assert_eq!(format!("{}", ret.err().unwrap()), "invalid_sign_path");
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TRON".to_string(),
+            path: "m/44'/19X'/0'/0/0".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+
+        let ret = call_api("sign_tx", tx);
+        assert!(ret.is_err());
+        assert_eq!(format!("{}", ret.err().unwrap()), "invalid_sign_path");
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TRON".to_string(),
+            path: "".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+
+        let ret = call_api("sign_tx", tx).unwrap();
+        let output: TronTxOutput = TronTxOutput::decode(ret.as_slice()).unwrap();
+        let expected_sign = "61a3b1c7bf099696193d7a71da1be12aead5acb5821d4e7d705f70762993c6a65713e55d7ec5f08e8fc47441ca810428b4bb40ee5fde84a3a8c726220e17375601";
+        assert_eq!(expected_sign, output.signatures[0]);
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TRON".to_string(),
             path: "m/44'/195'/0'/0/0".to_string(),
             curve: "secp256k1".to_string(),
             network: "".to_string(),
             seg_wit: "".to_string(),
             input: Some(::prost_types::Any {
                 type_url: "imtoken".to_string(),
-                value: input_value,
+                value: input_value.clone(),
             }),
         };
 
@@ -188,6 +247,48 @@ pub fn test_sign_tron_tx() {
         let output: TronTxOutput = TronTxOutput::decode(ret.as_slice()).unwrap();
         let expected_sign = "bbf5ce0549490613a26c3ac4fc8574e748eabda05662b2e49cea818216b9da18691e78cd6379000e9c8a35c13dfbf620f269be90a078b58799b56dc20da3bdf200";
         assert_eq!(expected_sign, output.signatures[0]);
+        remove_created_wallet(&wallet.id);
+    })
+}
+
+#[test]
+#[serial]
+fn test_sign_tron_tx_by_pk_keystore() {
+    run_test(|| {
+        let param = ImportPrivateKeyParam {
+            password: TEST_PASSWORD.to_string(),
+            private_key: TEST_PRIVATE_KEY.to_string(),
+            name: "hex pk".to_string(),
+            password_hint: "".to_string(),
+            network: "".to_string(),
+            overwrite_id: "".to_string(),
+        };
+        let ret = call_api("import_private_key", param).unwrap();
+        let wallet: ImportPrivateKeyResult =
+            ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
+
+        let raw_data = "0a0202a22208e216e254e43ee10840c8cbe4e3df2d5a67080112630a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412320a15415c68cc82c87446f602f019e5fd797437f5b79cc212154156a6076cd1537fa317c2606e4edfa4acd3e8e92e18a08d06709084e1e3df2d".to_string();
+        let input = TronTxInput { raw_data };
+        let input_value = encode_message(input).unwrap();
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TRON".to_string(),
+            path: "".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+
+        let ret = call_api("sign_tx", tx).unwrap();
+        let output: TronTxOutput = TronTxOutput::decode(ret.as_slice()).unwrap();
+        let expected_sign = "86f10764b421a0320de5d5ffee8c3d50d532f863dbb2b62788ccda1d1db426765d8629519909b360534b2602ba469b65826fc5cca2ef04998ba11c5b3753e45e00";
+        assert_eq!(expected_sign, output.signatures[0]);
+
         remove_created_wallet(&wallet.id);
     })
 }
@@ -236,6 +337,61 @@ pub fn test_sign_cosmos_tx() {
         let ret = call_api("sign_tx", tx);
         assert!(ret.is_err());
         assert_eq!(format!("{}", ret.err().unwrap()), "unsupported_chain");
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "COSMOS".to_string(),
+            path: "m/44'/118'".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+
+        let ret = call_api("sign_tx", tx);
+        assert!(ret.is_err());
+        assert_eq!(format!("{}", ret.err().unwrap()), "invalid_sign_path");
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "COSMOS".to_string(),
+            path: "m/44'/11X'/0'/0/0".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+
+        let ret = call_api("sign_tx", tx);
+        assert!(ret.is_err());
+        assert_eq!(format!("{}", ret.err().unwrap()), "invalid_sign_path");
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "COSMOS".to_string(),
+            path: "".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+
+        let ret = call_api("sign_tx", tx).unwrap();
+        let output: AtomTxOutput = AtomTxOutput::decode(ret.as_slice()).unwrap();
+        let expected_sig = "WWtybAdm9+hC63B/XeBfWz/CLiXjD2YzIsEpMdIho7Q/nuTjWL3+s3aBD6y+OQwSDPCjW6Fwc3BlDQZ8vW5q+w==";
+        assert_eq!(expected_sig, output.signature);
 
         let tx = SignParam {
             id: wallet.id.to_string(),
@@ -321,6 +477,7 @@ pub fn test_sign_tron_tx_by_pk() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
+            contract_code: "".to_string(),
         };
         let param = DeriveAccountsParam {
             id: import_result.id.to_string(),
@@ -584,23 +741,22 @@ fn test_tron_sign_message_v2() {
 
 #[test]
 #[serial]
-fn test_bitcoin_sign_message() {
+fn test_bitcoin_sign_message_bip322_base64() {
     run_test(|| {
         let wallet = import_default_wallet();
 
-        let input_expects = vec![
-            (BtcMessageInput{
-                message: "hello world".to_string(),
-            }, "02473044022062775640116afb7f17d23c222b0a6904fdaf2aea0d76e550d75c8fd362b80dcb022067c299fde774aaab689f8a53ebd0956395ff45b7ff6b7e99569d0abec85110c80121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc"),
-            (BtcMessageInput{
-                message: "test1".to_string(),
-            }, "02483045022100b805ccd16f1a664ae394bf292962ea6d76e0ddd5beb0b050cca4a1aa9ababc9a02201503132e39dc600957ec8f33663b10ab0cff0c4e37cab2811619152be8d919300121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc"),
-            (BtcMessageInput{
-                message: "test2".to_string(),
-            }, "02483045022100e96bfdb41b3562a1ff5a4c816da2620e82bcc8d702843ae1cec506666d4569c302206477d7d93c082cb42d462200a136e6aef7edde053722008a206ab8b9b356f0380121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc"),
+        let messages = vec!["hello world", "test1", "test2"];
+        let old_hex_sigs = vec![
+            "02473044022062775640116afb7f17d23c222b0a6904fdaf2aea0d76e550d75c8fd362b80dcb022067c299fde774aaab689f8a53ebd0956395ff45b7ff6b7e99569d0abec85110c80121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc",
+            "02483045022100b805ccd16f1a664ae394bf292962ea6d76e0ddd5beb0b050cca4a1aa9ababc9a02201503132e39dc600957ec8f33663b10ab0cff0c4e37cab2811619152be8d919300121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc",
+            "02483045022100e96bfdb41b3562a1ff5a4c816da2620e82bcc8d702843ae1cec506666d4569c302206477d7d93c082cb42d462200a136e6aef7edde053722008a206ab8b9b356f0380121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc",
         ];
 
-        for (input, expected) in input_expects {
+        for (msg, old_hex) in messages.iter().zip(old_hex_sigs.iter()) {
+            let input = BtcMessageInput {
+                message: msg.to_string(),
+                signature_type: BtcSignatureType::Bip322 as i32,
+            };
             let tx = SignParam {
                 id: wallet.id.to_string(),
                 key: Some(Key::Password(TEST_PASSWORD.to_string())),
@@ -617,8 +773,118 @@ fn test_bitcoin_sign_message() {
 
             let sign_result = call_api("sign_msg", tx).unwrap();
             let ret: BtcMessageOutput = BtcMessageOutput::decode(sign_result.as_slice()).unwrap();
-            assert_eq!(expected, ret.signature);
+            println!("sign_result: {:?}", ret.signature);
+            let decoded = base64::decode(&ret.signature).unwrap();
+            let expected_bytes = Vec::<u8>::from_hex(old_hex).unwrap();
+            assert_eq!(
+                decoded, expected_bytes,
+                "BIP-322 Base64 output mismatch for '{}'",
+                msg
+            );
         }
+    });
+}
+
+#[test]
+#[serial]
+fn test_bitcoin_sign_message_standard() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let input = BtcMessageInput {
+            message: "hello world".to_string(),
+            signature_type: BtcSignatureType::Standard as i32,
+        };
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "BITCOIN".to_string(),
+            path: "m/49'/1'/0'".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "TESTNET".to_string(),
+            seg_wit: "VERSION_0".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: encode_message(input).unwrap(),
+            }),
+        };
+
+        let sign_result = call_api("sign_msg", tx).unwrap();
+        let ret: BtcMessageOutput = BtcMessageOutput::decode(sign_result.as_slice()).unwrap();
+        let sig_bytes = base64::decode(&ret.signature).unwrap();
+        assert_eq!(sig_bytes.len(), 65);
+        let flag = sig_bytes[0];
+        assert!(
+            flag >= 31 && flag <= 34,
+            "Standard flag {} not in 31-34",
+            flag
+        );
+    });
+}
+
+#[test]
+#[serial]
+fn test_bitcoin_sign_message_bip137() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let input = BtcMessageInput {
+            message: "hello world".to_string(),
+            signature_type: BtcSignatureType::Bip137 as i32,
+        };
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "BITCOIN".to_string(),
+            path: "m/49'/1'/0'".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "TESTNET".to_string(),
+            seg_wit: "VERSION_0".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: encode_message(input).unwrap(),
+            }),
+        };
+
+        let sign_result = call_api("sign_msg", tx).unwrap();
+        let ret: BtcMessageOutput = BtcMessageOutput::decode(sign_result.as_slice()).unwrap();
+        let sig_bytes = base64::decode(&ret.signature).unwrap();
+        assert_eq!(sig_bytes.len(), 65);
+        let flag = sig_bytes[0];
+        assert!(
+            flag >= 39 && flag <= 42,
+            "BIP-137 VERSION_0 flag {} not in 39-42",
+            flag
+        );
+    });
+}
+
+#[test]
+#[serial]
+fn test_bitcoin_sign_message_incompatible() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let input = BtcMessageInput {
+            message: "hello world".to_string(),
+            signature_type: BtcSignatureType::Bip322 as i32,
+        };
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "BITCOIN".to_string(),
+            path: "m/44'/1'/0'".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "TESTNET".to_string(),
+            seg_wit: "NONE".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: encode_message(input).unwrap(),
+            }),
+        };
+
+        let sign_result = call_api("sign_msg", tx);
+        assert!(sign_result.is_err());
     });
 }
 
@@ -743,6 +1009,7 @@ pub fn test_lock_after_sign() {
             seg_wit: "".to_string(),
             chain_id: "".to_string(),
             curve: "".to_string(),
+            contract_code: "".to_string(),
         };
 
         let (wallet, _acc_rsp) = import_and_derive(derivation);
@@ -854,6 +1121,61 @@ pub fn test_sign_tezos_tx() {
         assert!(ret.is_err());
         assert_eq!(format!("{}", ret.err().unwrap()), "unsupported_chain");
 
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TEZOS".to_string(),
+            path: "m/44'/172X'/0'/0'".to_string(),
+            curve: "ed25519".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+
+        let ret = call_api("sign_tx", tx);
+        assert!(ret.is_err());
+        assert_eq!(format!("{}", ret.err().unwrap()), "invalid_sign_path");
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TEZOS".to_string(),
+            path: "m/44'/1729'".to_string(),
+            curve: "ed25519".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+
+        let ret = call_api("sign_tx", tx);
+        assert!(ret.is_err());
+        assert_eq!(format!("{}", ret.err().unwrap()), "invalid_sign_path");
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TEZOS".to_string(),
+            path: "".to_string(),
+            curve: "ed25519".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+
+        let ret = call_api("sign_tx", tx).unwrap();
+        let output: TezosTxOut = TezosTxOut::decode(ret.as_slice()).unwrap();
+        let expected_sign = "3abd5e7d121517bb1fe7fbaaaf95fecabce651484f4da1304f1f05819d29cc0e130bfee9e8f5a861e6ba10e2576a253990d894b7aaccb7c5733dd39a1434de09";
+        assert_eq!(expected_sign, output.signature.as_str());
+
         let mut tx = SignParam {
             id: wallet.id.to_string(),
             key: Some(Key::Password(TEST_PASSWORD.to_string())),
@@ -952,6 +1274,7 @@ pub fn test_sign_ethereum_legacy_tx() {
             seg_wit: "".to_string(),
             chain_id: "1".to_string(),
             curve: "secp256k1".to_string(),
+            contract_code: "".to_string(),
         };
 
         let (wallet, acc_rsp) = import_and_derive(derivation);
@@ -1261,4 +1584,107 @@ Issued At: 2024-02-27T06:45:12.725Z".to_string(),
             EthBatchPersonalSignResult::decode(sign_result.as_slice()).unwrap();
         assert_eq!(ret.signatures[0], "0xa30a252dd84370a22035b1bdd43e594bb54c3e874f3cee2b4c12e16392feb3c13d4589d3f2b006fcad20426a4cb2b16c3523cc82705d1e447a9926cb1e2398481c".to_string());
     });
+}
+
+#[test]
+#[serial]
+pub fn test_sign_ton_tx() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let hash = "0xd356774c21d6a6e2c651a5255f3f876fa973f1cfb7dce941c14ecabc2b1511d0".to_string();
+        let input = TonRawTxIn { hash };
+        let input_value = encode_message(input).unwrap();
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TON1".to_string(),
+            path: "m/44'/607'/0'".to_string(),
+            curve: "ed25519".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+        let ret = call_api("sign_tx", tx);
+        assert!(ret.is_err());
+        assert_eq!(format!("{}", ret.err().unwrap()), "unsupported_chain");
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TON".to_string(),
+            path: "m/44'/607'".to_string(),
+            curve: "ed25519".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+        let ret = call_api("sign_tx", tx);
+        assert!(ret.is_err());
+        assert_eq!(format!("{}", ret.err().unwrap()), "invalid_sign_path");
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TON".to_string(),
+            path: "m/44'/60X'/0'".to_string(),
+            curve: "ed25519".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+        let ret = call_api("sign_tx", tx);
+        assert!(ret.is_err());
+        assert_eq!(format!("{}", ret.err().unwrap()), "invalid_sign_path");
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TON".to_string(),
+            path: "".to_string(),
+            curve: "ed25519".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value.clone(),
+            }),
+        };
+        let ret = call_api("sign_tx", tx.clone()).unwrap();
+        let output: TonTxOut = TonTxOut::decode(ret.as_slice()).unwrap();
+        let expected_sign = "0xb286c2915bed8eed513080d797b7304ae8b2e5116b1382bd03ba19815fcb15ecfd90d862763f6cc5b1035dfd297ce7ff8a8a62111d381a2ef7ac9c160a67b60c";
+        assert_eq!(expected_sign, output.signature.as_str());
+
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TON".to_string(),
+            path: "m/44'/607'/0'".to_string(),
+            curve: "ed25519".to_string(),
+            network: "MAINNET".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: input_value,
+            }),
+        };
+
+        let ret = call_api("sign_tx", tx.clone()).unwrap();
+
+        let output: TonTxOut = TonTxOut::decode(ret.as_slice()).unwrap();
+        let expected_sign = "0x9771c1bf4c69630b69cc0f0ae38db635f4ff1d161badc0f70b257b5a8f6a387cd75b72361ebf67fc5803feccdbb22ade85d053d766ed3b7c7029509363990c02";
+        assert_eq!(expected_sign, output.signature.as_str());
+
+        remove_created_wallet(&wallet.id);
+    })
 }

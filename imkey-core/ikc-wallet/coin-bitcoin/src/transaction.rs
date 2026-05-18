@@ -120,7 +120,7 @@ impl BtcTransaction {
             for utxo in self.unspents.iter() {
                 let script = Script::from_str(&utxo.script_pubkey)?;
                 if !script.is_p2pkh() && !script.is_p2sh() {
-                    return Err(CoinError::InvalidUtxo.into());
+                    return Err(CommonError::UpgradeApplet.into());
                 }
             }
             let address_version =
@@ -140,7 +140,7 @@ impl BtcTransaction {
                     self.sign_p2pkh_inputs(&utxo_pub_key_vec, &mut tx_to_sign)?;
                 }
             } else {
-                return Err(CoinError::InvalidAddress.into());
+                return Err(CommonError::UpgradeApplet.into());
             }
         }
 
@@ -662,8 +662,12 @@ impl BtcTransaction {
         output_pareper_data.insert(0, output_pareper_data.len() as u8);
         output_pareper_data.insert(0, 0x00);
         output_pareper_data.extend(output_serialize_data.iter());
-
-        let btc_prepare_apdu_vec = BtcApdu::btc_prepare(0x41, 0x00, &output_pareper_data);
+        let ins = if "dogecoin".eq_ignore_ascii_case(&self.chain_type) {
+            0x4E
+        } else {
+            0x41
+        };
+        let btc_prepare_apdu_vec = BtcApdu::btc_prepare(ins, 0x00, &output_pareper_data);
         for temp_str in btc_prepare_apdu_vec {
             ApduCheck::check_response(&send_apdu_timeout(temp_str, TIMEOUT_LONG)?)?;
         }
@@ -788,7 +792,7 @@ mod tests {
             amount: 799988000,
             unspents: utxos,
             fee: 10000,
-            chain_type: "DOGECOIN".to_string(),
+            chain_type: "BITCOIN".to_string(),
         };
         let sign_result = transaction.sign_transaction(
             "TESTNET",

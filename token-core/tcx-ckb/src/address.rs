@@ -105,6 +105,7 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: network.to_string(),
                 seg_wit: "".to_string(),
+                contract_code: "".to_string(),
             };
 
             let pub_key = TypedPublicKey::from_slice(
@@ -134,6 +135,7 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: network.to_string(),
                 seg_wit: "".to_string(),
+                contract_code: "".to_string(),
             };
             assert!(CkbAddress::is_valid(address, &coin_info));
         }
@@ -150,6 +152,7 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: network.to_string(),
                 seg_wit: "".to_string(),
+                contract_code: "".to_string(),
             };
             assert!(!CkbAddress::is_valid(address, &coin_info));
         }
@@ -171,6 +174,7 @@ mod tests {
                 curve: CurveType::SECP256k1,
                 network: "TESTNET".to_string(),
                 seg_wit: "".to_string(),
+                contract_code: "".to_string(),
             };
             assert!(!CkbAddress::is_valid(invalid_address, &coin_info));
         }
@@ -197,6 +201,7 @@ mod tests {
             curve: CurveType::SECP256k1,
             network: "MAINNET".to_string(),
             seg_wit: "".to_string(),
+            contract_code: "".to_string(),
         };
         let address = CkbAddress::from_public_key(&pub_key, &coin_info)
             .unwrap()

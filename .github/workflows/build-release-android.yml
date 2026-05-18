@@ -6,16 +6,18 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  ORG_GRADLE_PROJECT_sonatypeUsername: ${{ secrets.OSSRH_USERNAME }}
-  ORG_GRADLE_PROJECT_sonatypePassword: ${{ secrets.OSSRH_PASSWORD }}
-  ORG_GRADLE_PROJECT_signingKey: ${{ secrets.SIGNING_KEY }}
-  ORG_GRADLE_PROJECT_signingPassword: ${{ secrets.SIGNING_SECRET }}
+  JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  JRELEASER_GPG_PASSPHRASE: ${{ secrets.SIGNING_SECRET_JRELEASER }}
+  JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
+  JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+  JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.MAVENCENTRAL_USERNAME }}
+  JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.MAVENCENTRAL_PASSWORD }}
 
 jobs:
   build:
     name: Build Android Release
     if: github.event.review.state == 'approved'
-    runs-on: macos-13
+    runs-on: macos-14
     steps:
       - name: Get the latest commit SHA
         id: sha
@@ -38,7 +40,7 @@ jobs:
           fetch-depth: 5
 
       - name: Cache
-        uses: actions/cache@v2
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
@@ -50,7 +52,7 @@ jobs:
       - name: Install Rust
         run: |
           rustup toolchain install nightly-2022-10-31
-          rustup default nightly-2022-10-31-x86_64-apple-darwin
+          rustup default nightly-2022-10-31-aarch64-apple-darwin
           rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
           rustup show
 
@@ -74,15 +76,19 @@ jobs:
           echo '[target.armv7-linux-androideabi]' >> ~/.cargo/config
           echo 'ar = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"' >> ~/.cargo/config
           echo 'linker = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/armv7a-linux-androideabi22-clang"' >> ~/.cargo/config
+          echo 'rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]' >> ~/.cargo/config
           echo '[target.aarch64-linux-android]' >> ~/.cargo/config
           echo 'ar = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"' >> ~/.cargo/config
           echo 'linker = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/aarch64-linux-android29-clang"' >> ~/.cargo/config
+          echo 'rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]' >> ~/.cargo/config
           echo '[target.i686-linux-android]' >> ~/.cargo/config
           echo 'ar = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"' >> ~/.cargo/config
           echo 'linker = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/i686-linux-android29-clang"' >> ~/.cargo/config
+          echo 'rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]' >> ~/.cargo/config
           echo '[target.x86_64-linux-android]' >> ~/.cargo/config
           echo 'ar = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"' >> ~/.cargo/config
           echo 'linker = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/x86_64-linux-android29-clang"' >> ~/.cargo/config
+          echo 'rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]' >> ~/.cargo/config
           cat ~/.cargo/config
 
       - name: Build TCX And IKC
@@ -90,6 +96,12 @@ jobs:
           pushd ${{github.workspace}}/script
           ./build-android.sh
           popd
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
@@ -107,17 +119,41 @@ jobs:
           OUTPUT="$(git log -n 5 --pretty=format:"%s")"
           echo ::set-output name=commits::"${OUTPUT}"
 
-      - name: Publish
-        id: publish
+      - name: Build AAR
+        id: build
         run: |
-          export JAVA_HOME=$JAVA_HOME_17_X64
-          export PATH="$JAVA_HOME:$PATH" 
           pushd ${{github.workspace}}/publish/android
           ./gradlew assemble
           echo "tokencore_sha256=$(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')" >> $GITHUB_OUTPUT
           echo "tokencore-release.aar sha256: $(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')"
-          VERSION=${{steps.getversion.outputs.version}} ./gradlew publishToSonatype closeSonatypeStagingRepository
           popd
+
+      - name: Publish to staging
+        run: |
+          pushd ${{github.workspace}}/publish/android
+          VERSION=${{steps.getversion.outputs.version}} ./gradlew publishProductionPublicationToStagingRepository
+          popd
+
+      - name: Publish with JReleaser
+        id: publish
+        run: |
+          pushd ${{github.workspace}}
+          VERSION=${{steps.getversion.outputs.version}} ./publish/android/gradlew -p publish/android jreleaserDeploy
+          popd
+
+      - name: JReleaser output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jreleaser-output
+          path: |
+            ${{github.workspace}}/publish/android/build/jreleaser/trace.log
+            ${{github.workspace}}/publish/android/build/jreleaser/output.properties
+
+      - name: Get GPG key SHA256 hash
+        id: gpg_info
+        run: |
+          echo "gpg_sha256=$(echo '${{ secrets.GPG_PUBLIC_KEY }}' | shasum -a 256 | awk '{print $1}')" >> $GITHUB_OUTPUT
 
       - name: Send custom JSON data to Slack workflow
         id: slack
@@ -126,13 +162,13 @@ jobs:
           # For posting a rich message using Block Kit
           payload: |
             {
-              "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.publish.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}",
+              "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.build.outputs.tokencore_sha256 }}\nGPG Key SHA256: ${{ steps.gpg_info.outputs.gpg_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}\n@Brian Shi @xyz @xiaoguang Please review the build results.",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.publish.outputs.tokencore_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}"
+                    "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.build.outputs.tokencore_sha256 }}\nGPG Key SHA256: ${{ steps.gpg_info.outputs.gpg_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}\n@Brian Shi @xyz @xiaoguang Please review the build results."
                   }
                 }
               ]
