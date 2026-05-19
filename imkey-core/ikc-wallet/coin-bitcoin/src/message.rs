@@ -14,6 +14,7 @@ use ikc_common::constants::TIMEOUT_LONG;
 use ikc_common::error::{CoinError, CommonError};
 use ikc_common::utility::{
     hex_to_bytes, network_convert, secp256k1_sign, sha256_hash, utf8_or_hex_to_bytes,
+    version_at_least,
 };
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_device::device_manager::get_btc_apple_version;
@@ -96,7 +97,7 @@ impl MessageSinger {
 
     fn sign_message_bip137(&self, data: &[u8], is_standard: bool) -> Result<String> {
         let btc_version = get_btc_apple_version()?;
-        if btc_version.as_str() < "1.6.11" {
+        if !version_at_least(&btc_version, (1, 6, 11)) {
             return Err(CommonError::UpgradeApplet.into());
         }
 

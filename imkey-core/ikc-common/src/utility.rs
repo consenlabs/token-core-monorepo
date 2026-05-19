@@ -220,6 +220,23 @@ pub fn utf8_or_hex_to_bytes(value: &str) -> Result<Vec<u8>> {
     }
 }
 
+pub fn version_at_least(version: &str, minimum: (u64, u64, u64)) -> bool {
+    let parts = version
+        .split('.')
+        .take(3)
+        .map(str::parse::<u64>)
+        .collect::<std::result::Result<Vec<_>, _>>();
+
+    let Ok(parts) = parts else {
+        return false;
+    };
+    if parts.len() != 3 {
+        return false;
+    }
+
+    (parts[0], parts[1], parts[2]) >= minimum
+}
+
 #[cfg(test)]
 mod tests {
     use crate::utility;
@@ -241,6 +258,17 @@ mod tests {
             vec![0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72],
             utility::hex_to_bytes("0x666f6f626172").unwrap_or_default()
         );
+    }
+
+    #[test]
+    fn version_at_least_uses_numeric_comparison() {
+        assert!(!utility::version_at_least("1.6.9", (1, 6, 11)));
+        assert!(!utility::version_at_least("1.6.10", (1, 6, 11)));
+        assert!(utility::version_at_least("1.6.11", (1, 6, 11)));
+        assert!(utility::version_at_least("1.7.0", (1, 6, 11)));
+        assert!(utility::version_at_least("2.0.0", (1, 6, 11)));
+        assert!(!utility::version_at_least("1.6", (1, 6, 11)));
+        assert!(!utility::version_at_least("1.6.beta", (1, 6, 11)));
     }
 
     #[test]

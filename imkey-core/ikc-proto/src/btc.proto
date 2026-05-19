@@ -43,9 +43,9 @@ message PsbtOutput {
 }
 
 enum BtcSignatureType {
-    Standard = 0;
-    Bip137   = 1;
-    Bip322   = 2;
+    STANDARD = 0;
+    BIP137   = 1;
+    BIP322   = 2;
 }
 
 message BtcMessageInput {

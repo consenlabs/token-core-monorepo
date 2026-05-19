@@ -98,9 +98,9 @@ impl BtcSignatureType {
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            BtcSignatureType::Standard => "Standard",
-            BtcSignatureType::Bip137 => "Bip137",
-            BtcSignatureType::Bip322 => "Bip322",
+            BtcSignatureType::Standard => "STANDARD",
+            BtcSignatureType::Bip137 => "BIP137",
+            BtcSignatureType::Bip322 => "BIP322",
         }
     }
 }
