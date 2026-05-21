@@ -1,0 +1,290 @@
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+}
+
+.hero-panel,
+.panel,
+.card {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.hero-panel {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+  padding: 28px;
+}
+
+.eyebrow,
+.step-label {
+  margin: 0 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.hero-copy {
+  max-width: 760px;
+}
+
+.hero-meta {
+  display: grid;
+  gap: 12px;
+}
+
+.hero-meta div,
+.info-box {
+  background: var(--surface-bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.hero-meta span,
+.small-text {
+  font-size: 14px;
+  color: var(--text-soft);
+}
+
+.hero-meta strong {
+  display: block;
+  margin-top: 6px;
+}
+
+.panel {
+  padding: 22px;
+  text-align: left;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.toggle-group,
+.wallet-list {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.wallet-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.toggle-group button,
+.wallet-chip,
+button {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-bg);
+  color: var(--text-h);
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+
+button {
+  padding: 10px 14px;
+}
+
+button:hover,
+.wallet-chip:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent-border);
+}
+
+.toggle-group .active,
+.wallet-chip.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+
+.wallet-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 180px;
+  padding: 12px;
+  text-align: left;
+}
+
+.danger-button {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.grid-two,
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.analysis-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.card {
+  padding: 18px;
+  overflow: hidden;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.full-span {
+  grid-column: 1 / -1;
+}
+
+.address-field {
+  grid-column: 1 / -1;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+input,
+select,
+textarea,
+pre {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface-bg);
+  color: var(--text-h);
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  padding: 12px;
+}
+
+.address-control {
+  font-family:
+    ui-monospace, SFMono-Regular, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+}
+
+textarea {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.cli-json-output {
+  min-height: 84px;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  font-family:
+    ui-monospace, SFMono-Regular, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+}
+
+.copy-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+pre {
+  padding: 12px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.status-text {
+  color: var(--text-h);
+  font-weight: 500;
+}
+
+.info-box {
+  display: grid;
+  gap: 6px;
+}
+
+.warning-box {
+  border-color: #f59e0b;
+}
+
+/* P6-e: policy violation block — high-contrast red border + tinted background */
+.policy-violation-box {
+  border-color: #ef4444;
+  background: color-mix(in srgb, #ef4444 8%, var(--panel-bg));
+}
+
+/* P6-e: each policy violation list item */
+.policy-violation-item {
+  color: #dc2626;
+}
+
+/* P6-e: policy violation count summary text */
+.policy-violation-summary {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.accent-box {
+  border-color: var(--accent);
+}
+
+ul {
+  padding-left: 18px;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 980px) {
+  .hero-panel,
+  .grid-two,
+  .analysis-grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .app-shell {
+    padding: 16px;
+  }
+}

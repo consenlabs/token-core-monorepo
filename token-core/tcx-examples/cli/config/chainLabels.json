@@ -1,0 +1,341 @@
+{
+  "1": {
+    "chainLabel": "eth-mainnet"
+  },
+  "10": {
+    "chainLabel": "opt-mainnet"
+  },
+  "30": {
+    "chainLabel": "rootstock-mainnet"
+  },
+  "31": {
+    "chainLabel": "rootstock-testnet"
+  },
+  "56": {
+    "chainLabel": "bnb-mainnet"
+  },
+  "97": {
+    "chainLabel": "bnb-testnet"
+  },
+  "100": {
+    "chainLabel": "gnosis-mainnet"
+  },
+  "130": {
+    "chainLabel": "unichain-mainnet"
+  },
+  "137": {
+    "chainLabel": "polygon-mainnet"
+  },
+  "143": {
+    "chainLabel": "monad-mainnet"
+  },
+  "146": {
+    "chainLabel": "sonic-mainnet"
+  },
+  "232": {
+    "chainLabel": "lens-mainnet"
+  },
+  "252": {
+    "chainLabel": "frax-mainnet"
+  },
+  "288": {
+    "chainLabel": "boba-mainnet"
+  },
+  "300": {
+    "chainLabel": "zksync-sepolia"
+  },
+  "324": {
+    "chainLabel": "zksync-mainnet"
+  },
+  "360": {
+    "chainLabel": "shape-mainnet"
+  },
+  "480": {
+    "chainLabel": "worldchain-mainnet"
+  },
+  "510": {
+    "chainLabel": "synd-mainnet"
+  },
+  "545": {
+    "chainLabel": "flow-testnet"
+  },
+  "592": {
+    "chainLabel": "astar-mainnet"
+  },
+  "747": {
+    "chainLabel": "flow-mainnet"
+  },
+  "869": {
+    "chainLabel": "worldmobilechain-mainnet"
+  },
+  "919": {
+    "chainLabel": "mode-sepolia"
+  },
+  "998": {
+    "chainLabel": "hyperliquid-testnet"
+  },
+  "999": {
+    "chainLabel": "hyperliquid-mainnet"
+  },
+  "1088": {
+    "chainLabel": "metis-mainnet"
+  },
+  "1101": {
+    "chainLabel": "polygonzkevm-mainnet"
+  },
+  "1284": {
+    "chainLabel": "moonbeam-mainnet"
+  },
+  "1301": {
+    "chainLabel": "unichain-sepolia"
+  },
+  "1315": {
+    "chainLabel": "story-aeneid"
+  },
+  "1329": {
+    "chainLabel": "sei-mainnet"
+  },
+  "1514": {
+    "chainLabel": "story-mainnet"
+  },
+  "1868": {
+    "chainLabel": "soneium-mainnet"
+  },
+  "1946": {
+    "chainLabel": "soneium-minato"
+  },
+  "2020": {
+    "chainLabel": "ronin-mainnet"
+  },
+  "2201": {
+    "chainLabel": "stable-testnet"
+  },
+  "2442": {
+    "chainLabel": "polygonzkevm-cardona"
+  },
+  "3636": {
+    "chainLabel": "botanix-testnet"
+  },
+  "3637": {
+    "chainLabel": "botanix-mainnet"
+  },
+  "4114": {
+    "chainLabel": "citrea-mainnet"
+  },
+  "4157": {
+    "chainLabel": "crossfi-testnet"
+  },
+  "4158": {
+    "chainLabel": "crossfi-mainnet"
+  },
+  "4217": {
+    "chainLabel": "tempo-mainnet"
+  },
+  "4326": {
+    "chainLabel": "megaeth-mainnet"
+  },
+  "4801": {
+    "chainLabel": "worldchain-sepolia"
+  },
+  "5000": {
+    "chainLabel": "mantle-mainnet"
+  },
+  "5003": {
+    "chainLabel": "mantle-sepolia"
+  },
+  "5115": {
+    "chainLabel": "citrea-testnet"
+  },
+  "5330": {
+    "chainLabel": "superseed-mainnet"
+  },
+  "5371": {
+    "chainLabel": "settlus-mainnet"
+  },
+  "5373": {
+    "chainLabel": "settlus-septestnet"
+  },
+  "5611": {
+    "chainLabel": "opbnb-testnet"
+  },
+  "6343": {
+    "chainLabel": "megaeth-testnet"
+  },
+  "6900": {
+    "chainLabel": "anime-sepolia"
+  },
+  "7000": {
+    "chainLabel": "zetachain-mainnet"
+  },
+  "7001": {
+    "chainLabel": "zetachain-testnet"
+  },
+  "8453": {
+    "chainLabel": "base-mainnet"
+  },
+  "9745": {
+    "chainLabel": "plasma-mainnet"
+  },
+  "9746": {
+    "chainLabel": "plasma-testnet"
+  },
+  "10143": {
+    "chainLabel": "monad-testnet"
+  },
+  "10200": {
+    "chainLabel": "gnosis-chiado"
+  },
+  "11011": {
+    "chainLabel": "shape-sepolia"
+  },
+  "14601": {
+    "chainLabel": "sonic-testnet"
+  },
+  "28882": {
+    "chainLabel": "boba-sepolia"
+  },
+  "33111": {
+    "chainLabel": "apechain-curtis"
+  },
+  "34443": {
+    "chainLabel": "mode-mainnet"
+  },
+  "36900": {
+    "chainLabel": "adi-mainnet"
+  },
+  "37111": {
+    "chainLabel": "lens-sepolia"
+  },
+  "42018": {
+    "chainLabel": "mythos-mainnet"
+  },
+  "42161": {
+    "chainLabel": "arb-mainnet"
+  },
+  "42220": {
+    "chainLabel": "celo-mainnet"
+  },
+  "42431": {
+    "chainLabel": "tempo-moderato"
+  },
+  "43113": {
+    "chainLabel": "avax-fuji"
+  },
+  "43114": {
+    "chainLabel": "avax-mainnet"
+  },
+  "51014": {
+    "chainLabel": "risa-testnet"
+  },
+  "53302": {
+    "chainLabel": "superseed-sepolia"
+  },
+  "57054": {
+    "chainLabel": "sonic-blaze"
+  },
+  "57073": {
+    "chainLabel": "ink-mainnet"
+  },
+  "59141": {
+    "chainLabel": "linea-sepolia"
+  },
+  "59144": {
+    "chainLabel": "linea-mainnet"
+  },
+  "60808": {
+    "chainLabel": "bob-mainnet"
+  },
+  "69000": {
+    "chainLabel": "anime-mainnet"
+  },
+  "80002": {
+    "chainLabel": "polygon-amoy"
+  },
+  "80069": {
+    "chainLabel": "berachain-bepolia"
+  },
+  "80094": {
+    "chainLabel": "berachain-mainnet"
+  },
+  "81457": {
+    "chainLabel": "blast-mainnet"
+  },
+  "84532": {
+    "chainLabel": "base-sepolia"
+  },
+  "99999": {
+    "chainLabel": "adi-testnet"
+  },
+  "202601": {
+    "chainLabel": "ronin-saigon"
+  },
+  "323432": {
+    "chainLabel": "worldmobile-testnet"
+  },
+  "421614": {
+    "chainLabel": "arb-sepolia"
+  },
+  "510525": {
+    "chainLabel": "clankermon-mainnet"
+  },
+  "534352": {
+    "chainLabel": "scroll-mainnet"
+  },
+  "560048": {
+    "chainLabel": "eth-hoodi"
+  },
+  "613419": {
+    "chainLabel": "galactica-mainnet"
+  },
+  "685685": {
+    "chainLabel": "gensyn-testnet"
+  },
+  "763373": {
+    "chainLabel": "ink-sepolia"
+  },
+  "808813": {
+    "chainLabel": "bob-sepolia"
+  },
+  "843843": {
+    "chainLabel": "galactica-cassiopeia"
+  },
+  "5042002": {
+    "chainLabel": "arc-testnet"
+  },
+  "6985385": {
+    "chainLabel": "humanity-mainnet"
+  },
+  "7080969": {
+    "chainLabel": "humanity-testnet"
+  },
+  "7777777": {
+    "chainLabel": "zora-mainnet"
+  },
+  "11142220": {
+    "chainLabel": "celo-sepolia"
+  },
+  "11155111": {
+    "chainLabel": "eth-sepolia"
+  },
+  "11155420": {
+    "chainLabel": "opt-sepolia"
+  },
+  "11155931": {
+    "chainLabel": "rise-testnet"
+  },
+  "168587773": {
+    "chainLabel": "blast-sepolia"
+  },
+  "666666666": {
+    "chainLabel": "degen-mainnet"
+  },
+  "728126428": {
+    "chainLabel": "tron-mainnet"
+  },
+  "999999999": {
+    "chainLabel": "zora-sepolia"
+  },
+  "3448148188": {
+    "chainLabel": "tron-testnet"
+  }
+}

@@ -1,0 +1,60 @@
+name: TCX CLI — Security Checks
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "token-core/tcx-examples/cli/**"
+  pull_request:
+    paths:
+      - "token-core/tcx-examples/cli/**"
+
+permissions:
+  contents: read
+  security-events: write
+
+defaults:
+  run:
+    working-directory: token-core/tcx-examples/cli
+
+jobs:
+  supply-chain:
+    name: Supply Chain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: token-core/tcx-examples/cli/package-lock.json
+
+      - name: Ensure lockfile exists
+        run: test -f package-lock.json
+
+      - name: Install dependencies from lockfile
+        run: npm ci
+
+      - name: Run high severity audit gate
+        run: npm run audit:high
+
+  codeql:
+    name: CodeQL SAST
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          config: |
+            paths:
+              - token-core/tcx-examples/cli/src
+
+      - name: Analyze
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"

@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "name": "預設交易風險 Policy",
+  "description": "供 Web UI 與未來 CLI 共用的預設風險規則。",
+  "policies": [
+    {
+      "id": "verified-contract-required",
+      "name": "直接互動合約必須已驗證",
+      "type": "requireVerifiedContract",
+      "level": "high",
+      "description": "若 explorer 查不到已驗證原始碼，則視為不符合 policy。"
+    },
+    {
+      "id": "max-eth-out",
+      "name": "ETH 轉出上限 0.1",
+      "type": "maxAssetOut",
+      "assetKind": "native",
+      "symbol": "ETH",
+      "decimals": 18,
+      "max": "0.1",
+      "level": "high"
+    },
+    {
+      "id": "max-usdc-out",
+      "name": "USDC 轉出上限 10",
+      "type": "maxAssetOut",
+      "assetKind": "erc20",
+      "symbol": "USDC",
+      "decimals": 6,
+      "max": "10",
+      "level": "high",
+      "tokenAddressByChain": {
+        "sepolia": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+        "baseSepolia": "0x036CbD53842c5426634e7929541eC2318f3dCF7e"
+      }
+    },
+    {
+      "id": "max-eurc-out",
+      "name": "EURC 轉出上限 10",
+      "type": "maxAssetOut",
+      "assetKind": "erc20",
+      "symbol": "EURC",
+      "decimals": 6,
+      "max": "10",
+      "level": "high",
+      "tokenAddressByChain": {
+        "sepolia": "0x08210F9170F89Ab7658F0B5E3fF39b0E03C594D4",
+        "baseSepolia": "0x808456652fdb597867f38412077A9182bf77359F"
+      }
+    },
+    {
+      "id": "simulation-must-pass",
+      "name": "模擬必須成功",
+      "type": "requireSimulationSuccess",
+      "level": "high",
+      "description": "若 Tenderly / RPC 模擬顯示交易可能失敗，則列為違規。"
+    },
+    {
+      "id": "unknown-function-forbidden",
+      "name": "不允許未知函式交易",
+      "type": "forbidUnknownFunction",
+      "level": "high",
+      "description": "若交易 selector 無法完整識別，則列為違規。"
+    },
+    {
+      "id": "unlimited-approval-forbidden",
+      "name": "不允許近乎無限 approve",
+      "type": "forbidUnlimitedApproval",
+      "level": "high",
+      "description": "若 approve 額度接近 uint256 最大值，則列為違規。"
+    },
+    {
+      "id": "swap-min-output-required",
+      "name": "swap 必須設定最小輸出量",
+      "type": "requireSwapMinimumOutput",
+      "level": "medium",
+      "description": "若 amountOutMinimum 為 0，代表滑點保護過弱。"
+    }
+  ]
+}
