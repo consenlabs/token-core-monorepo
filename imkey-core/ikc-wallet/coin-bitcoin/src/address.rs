@@ -1,16 +1,17 @@
 use crate::common::get_xpub_data;
 use crate::Result;
-use bitcoin::network::constants::Network;
-use bitcoin::schnorr::UntweakedPublicKey;
-use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
-use bitcoin::{Address, PublicKey};
+use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
+use bitcoin::key::UntweakedPublicKey;
+use bitcoin::secp256k1::{PublicKey as Secp256k1PublicKey, Secp256k1};
+use bitcoin::Network;
+use bitcoin::{Address, CompressedPublicKey, PublicKey};
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::constants;
 use ikc_common::error::CommonError;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::hex_to_bytes;
 use ikc_transport::message::send_apdu;
-use secp256k1::{PublicKey as Secp256k1PublicKey, Secp256k1};
+use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
 
 pub struct BtcAddress();
@@ -34,9 +35,10 @@ impl BtcAddress {
 
         let pub_key_obj = Secp256k1PublicKey::from_str(pub_key)?;
 
-        let chain_code_obj = ChainCode::from(hex::decode(chain_code).unwrap().as_slice());
-        let parent_ext_pub_key = ExtendedPubKey {
-            network,
+        let chain_code_bytes: [u8; 32] = hex::decode(chain_code).unwrap()[..32].try_into().unwrap();
+        let chain_code_obj = ChainCode::from(chain_code_bytes);
+        let parent_ext_pub_key = Xpub {
+            network: network.into(),
             depth: 0u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
@@ -46,10 +48,12 @@ impl BtcAddress {
         let fingerprint_obj = parent_ext_pub_key.fingerprint();
 
         //build extend public key obj
-        let chain_code_obj = ChainCode::from(hex::decode(chain_code).unwrap().as_slice());
+        let chain_code_bytes2: [u8; 32] =
+            hex::decode(chain_code).unwrap()[..32].try_into().unwrap();
+        let chain_code_obj = ChainCode::from(chain_code_bytes2);
         let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
-        let extend_public_key = ExtendedPubKey {
-            network,
+        let extend_public_key = Xpub {
+            network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
             child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
@@ -73,7 +77,7 @@ impl BtcAddress {
         let mut pub_key_obj = PublicKey::from_str(pub_key)?;
         pub_key_obj.compressed = true;
 
-        Ok(Address::p2pkh(&pub_key_obj, network).to_string())
+        Ok(Address::p2pkh(pub_key_obj, network).to_string())
     }
 
     /**
@@ -87,10 +91,10 @@ impl BtcAddress {
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
 
-        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
-        pub_key_obj.compressed = true;
+        let pub_key_obj = PublicKey::from_str(pub_key)?;
+        let compressed = CompressedPublicKey::try_from(pub_key_obj)?;
 
-        Ok(Address::p2shwpkh(&pub_key_obj, network)?.to_string())
+        Ok(Address::p2shwpkh(&compressed, network).to_string())
     }
 
     pub fn p2wpkh(network: Network, path: &str) -> Result<String> {
@@ -98,10 +102,10 @@ impl BtcAddress {
 
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
-        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
-        pub_key_obj.compressed = true;
+        let pub_key_obj = PublicKey::from_str(pub_key)?;
+        let compressed = CompressedPublicKey::try_from(pub_key_obj)?;
 
-        Ok(Address::p2wpkh(&pub_key_obj, network)?.to_string())
+        Ok(Address::p2wpkh(&compressed, network).to_string())
     }
 
     pub fn p2tr(network: Network, path: &str) -> Result<String> {
@@ -109,8 +113,9 @@ impl BtcAddress {
 
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
-        let untweak_pub_key =
-            UntweakedPublicKey::from(secp256k1::PublicKey::from_slice(&hex_to_bytes(&pub_key)?)?);
+        let public_key = Secp256k1PublicKey::from_slice(&hex_to_bytes(&pub_key)?)?;
+        let (x_only, _) = public_key.x_only_public_key();
+        let untweak_pub_key = UntweakedPublicKey::from(x_only);
 
         let secp256k1 = Secp256k1::new();
         Ok(Address::p2tr(&secp256k1, untweak_pub_key, None, network).to_string())
@@ -159,23 +164,24 @@ impl BtcAddress {
     }
 
     pub fn from_public_key(public_key: &str, network: Network, seg_wit: &str) -> Result<String> {
-        let mut pub_key_obj = PublicKey::from_str(public_key)?;
-        pub_key_obj.compressed = true;
+        let pub_key_obj = PublicKey::from_str(public_key)?;
         let address = match seg_wit {
             constants::BTC_SEG_WIT_TYPE_P2WPKH => {
-                Address::p2shwpkh(&pub_key_obj, network)?.to_string()
+                let compressed = CompressedPublicKey::try_from(pub_key_obj)?;
+                Address::p2shwpkh(&compressed, network).to_string()
             }
             constants::BTC_SEG_WIT_TYPE_VERSION_0 => {
-                Address::p2wpkh(&pub_key_obj, network)?.to_string()
+                let compressed = CompressedPublicKey::try_from(pub_key_obj)?;
+                Address::p2wpkh(&compressed, network).to_string()
             }
             constants::BTC_SEG_WIT_TYPE_VERSION_1 => {
-                let untweak_pub_key = UntweakedPublicKey::from(secp256k1::PublicKey::from_slice(
-                    &hex_to_bytes(&public_key)?,
-                )?);
+                let public_key = Secp256k1PublicKey::from_slice(&hex_to_bytes(&public_key)?)?;
+                let (x_only, _) = public_key.x_only_public_key();
+                let untweak_pub_key = UntweakedPublicKey::from(x_only);
                 let secp256k1 = Secp256k1::new();
                 Address::p2tr(&secp256k1, untweak_pub_key, None, network).to_string()
             }
-            _ => Address::p2pkh(&pub_key_obj, network).to_string(),
+            _ => Address::p2pkh(pub_key_obj, network).to_string(),
         };
 
         Ok(address)

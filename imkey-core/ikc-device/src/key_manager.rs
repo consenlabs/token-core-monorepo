@@ -3,7 +3,7 @@ use crate::Result;
 use base64::{decode, encode};
 use ikc_common::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
 use ikc_common::utility::{is_valid_hex, sha256_hash};
-use secp256k1::rand::rngs::OsRng;
+use secp256k1::rand;
 use secp256k1::Secp256k1;
 use std::fs;
 use std::fs::{File, OpenOptions};
@@ -151,7 +151,7 @@ impl KeyManager {
     */
     pub fn gen_local_keys(&mut self) -> Result<()> {
         let secp = Secp256k1::new();
-        let (sk, pk) = secp.generate_keypair(&mut OsRng);
+        let (sk, pk) = secp.generate_keypair(&mut rand::rng());
         self.pri_key = sk.secret_bytes().to_vec();
         self.pub_key = pk.serialize_uncompressed().to_vec();
         Ok(())

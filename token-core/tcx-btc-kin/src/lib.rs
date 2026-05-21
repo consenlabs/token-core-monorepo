@@ -1,5 +1,3 @@
-#![feature(let_chains)]
-
 pub mod address;
 pub mod bch_address;
 mod bch_sighash;

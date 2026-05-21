@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use core::str::FromStr;
 
 use crate::hrps::CHAIN_ID_HRP_MAP;
-use bech32::{FromBase32, ToBase32, Variant};
+use bech32::{Bech32, Hrp};
 use tcx_common::{ripemd160, sha256};
 use tcx_constants::CoinInfo;
 use tcx_keystore::{Address, Result};
@@ -33,18 +33,16 @@ impl Address for AtomAddress {
         bytes.copy_from_slice(&pub_key_hash[..LENGTH]);
         let hrp = find_hrp(&coin.chain_id)?;
 
-        Ok(AtomAddress(bech32::encode(
-            &hrp,
-            bytes.to_base32(),
-            Variant::Bech32,
+        Ok(AtomAddress(bech32::encode::<Bech32>(
+            Hrp::parse(&hrp)?,
+            &bytes,
         )?))
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {
         let ret = bech32::decode(address);
         if let Ok(val) = ret {
-            let (hrp, data, _) = val;
-            let data = Vec::from_base32(&data).unwrap();
+            let (_hrp, data) = val;
 
             if data.len() != 20 {
                 return false;

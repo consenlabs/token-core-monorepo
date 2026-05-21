@@ -3,20 +3,19 @@ use std::marker::PhantomData;
 use std::str::FromStr;
 
 use bitcoin::blockdata::script::Builder;
+use bitcoin::blockdata::script::PushBytesBuf;
 use bitcoin::consensus::serialize;
-use bitcoin::psbt::Prevouts;
-use bitcoin::schnorr::TapTweak;
-use bitcoin::util::sighash::SighashCache;
+use bitcoin::hashes::{hash160, Hash};
+use bitcoin::key::{TapTweak, UntweakedKeypair};
+use bitcoin::secp256k1::{Message, Secp256k1};
+use bitcoin::sighash::{Prevouts, SighashCache};
 use bitcoin::{
-    EcdsaSighashType, OutPoint, PackedLockTime, SchnorrSighashType, Script, Sequence, Transaction,
-    TxIn, TxOut, WPubkeyHash, Witness,
+    absolute::LockTime, transaction::Version, Amount, EcdsaSighashType, OutPoint,
+    ScriptBuf as Script, Sequence, TapSighashType, Transaction, TxIn, TxOut, Txid, WPubkeyHash,
+    Witness,
 };
-use bitcoin_hashes::hash160;
-use bitcoin_hashes::hex::FromHex as HashFromHex;
-use bitcoin_hashes::hex::ToHex as HashToHex;
-use bitcoin_hashes::Hash;
 use byteorder::{BigEndian, WriteBytesExt};
-use secp256k1::{Message, Secp256k1};
+use tcx_common::{FromHex, ToHex};
 use tcx_constants::{CoinInfo, CurveType};
 
 use tcx_keystore::{Address, SignatureParameters};
@@ -57,7 +56,7 @@ impl TxSigner {
         let hash = self.sighash_cache.legacy_hash(
             index,
             &prevout.script_pubkey,
-            prevout.value,
+            prevout.value.to_sat(),
             EcdsaSighashType::All.to_u32(),
         )?;
         let sig = key.sign(&hash)?;
@@ -73,14 +72,14 @@ impl TxSigner {
         let pubkey = &key.public_key();
         let mut pubkey_vec = pubkey.to_compressed();
 
-        let address_hash = prevout.script_pubkey[3..23].to_vec();
-        if self.hash160(&pubkey_vec).to_vec() != address_hash {
+        let address_hash = prevout.script_pubkey.as_bytes()[3..23].to_vec();
+        if self.hash160(&pubkey_vec).to_byte_array().to_vec() != address_hash {
             pubkey_vec = pubkey.to_uncompressed();
         }
 
         self.tx.input[index].script_sig = Builder::new()
-            .push_slice(&sig)
-            .push_slice(&pubkey_vec)
+            .push_slice(PushBytesBuf::try_from(sig).unwrap())
+            .push_slice(PushBytesBuf::try_from(pubkey_vec).unwrap())
             .into_script();
 
         Ok(())
@@ -91,14 +90,14 @@ impl TxSigner {
         let key = &self.private_keys[index];
         let pub_key = key.public_key();
 
-        let script = Script::new_v0_p2wpkh(&WPubkeyHash::from_hash(
+        let script = Script::new_p2wpkh(&WPubkeyHash::from_raw_hash(
             self.hash160(&pub_key.to_compressed()),
         ));
 
         let hash = self.sighash_cache.segwit_hash(
             index,
             &script.p2wpkh_script_code().expect("must be v0_p2wpkh"),
-            prevout.value,
+            prevout.value.to_sat(),
             EcdsaSighashType::All,
         )?;
         let sig = key.sign(&hash)?;
@@ -115,7 +114,9 @@ impl TxSigner {
 
         tx_input.witness.push(sig);
         tx_input.witness.push(pub_key.to_bytes());
-        tx_input.script_sig = Builder::new().push_slice(&script.to_bytes()).into_script();
+        tx_input.script_sig = Builder::new()
+            .push_slice(PushBytesBuf::try_from(script.to_bytes()).unwrap())
+            .into_script();
 
         Ok(())
     }
@@ -130,7 +131,7 @@ impl TxSigner {
                 .script_pubkey
                 .p2wpkh_script_code()
                 .expect("must be v0_p2wpkh"),
-            prevout.value,
+            prevout.value.to_sat(),
             EcdsaSighashType::All,
         )?;
         let sig = key.sign(&hash)?;
@@ -155,19 +156,18 @@ impl TxSigner {
         let secp = Secp256k1::new();
 
         let key_pair =
-            bitcoin::schnorr::UntweakedKeyPair::from_seckey_slice(&secp, &key.to_bytes())?
-                .tap_tweak(&secp, None);
+            UntweakedKeypair::from_seckey_slice(&secp, &key.to_bytes())?.tap_tweak(&secp, None);
 
         let hash = self.sighash_cache.taproot_hash(
             index,
             &Prevouts::All(&self.prevouts.clone()),
             None,
             None,
-            SchnorrSighashType::Default,
+            TapSighashType::Default,
         )?;
 
         let msg = Message::from_slice(&hash[..])?;
-        let sig = secp.sign_schnorr(&msg, &key_pair.to_inner());
+        let sig = secp.sign_schnorr_no_aux_rand(&msg, &key_pair.to_keypair());
 
         let tx_input = &mut self.tx.input[index];
 
@@ -184,9 +184,9 @@ impl TxSigner {
                 self.sign_p2pkh_input(idx)?;
             } else if prevout.script_pubkey.is_p2sh() {
                 self.sign_p2sh_nested_p2wpkh_input(idx)?;
-            } else if prevout.script_pubkey.is_v0_p2wpkh() {
+            } else if prevout.script_pubkey.is_p2wpkh() {
                 self.sign_p2wpkh_input(idx)?;
-            } else if prevout.script_pubkey.is_v1_p2tr() {
+            } else if prevout.script_pubkey.is_p2tr() {
                 self.sign_p2tr_input(idx)?;
             }
         }
@@ -224,7 +224,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
         let to = T::from_str(&self.to)?.script_pubkey();
 
         tx_outs.push(TxOut {
-            value: self.amount,
+            value: Amount::from_sat(self.amount),
             script_pubkey: to,
         });
 
@@ -232,15 +232,17 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
 
         if change_amount >= MIN_TX_FEE {
             tx_outs.push(TxOut {
-                value: change_amount,
+                value: Amount::from_sat(change_amount),
                 script_pubkey: change_script,
             });
         }
 
         if let Some(op_return) = &self.op_return {
             tx_outs.push(TxOut {
-                value: 0,
-                script_pubkey: Script::new_op_return(&Vec::from_hex(op_return)?),
+                value: Amount::from_sat(0),
+                script_pubkey: Script::new_op_return(
+                    PushBytesBuf::try_from(Vec::from_hex(op_return)?).unwrap(),
+                ),
             });
         }
 
@@ -269,16 +271,20 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
             contract_code: "".to_string(),
         };
 
-        let change_script = if let Some(change_address_index) = self.change_address_index && keystore.derivable() {
-            let account_path = get_account_path(&params.derivation_path)?;
-            let dpk = keystore.get_deterministic_public_key(params.curve, &account_path)?;
-            let pub_key = dpk
-                .derive(format!("1/{}", change_address_index).as_str())?
-                .public_key();
+        let change_script = if let Some(change_address_index) = self.change_address_index {
+            if keystore.derivable() {
+                let account_path = get_account_path(&params.derivation_path)?;
+                let dpk = keystore.get_deterministic_public_key(params.curve, &account_path)?;
+                let pub_key = dpk
+                    .derive(format!("1/{}", change_address_index).as_str())?
+                    .public_key();
 
-           T::from_public_key(&pub_key, &coin_info)?.script_pubkey()
+                T::from_public_key(&pub_key, &coin_info)?.script_pubkey()
+            } else {
+                T::from_str(&self.inputs[0].address)?.script_pubkey()
+            }
         } else {
-           T::from_str(&self.inputs[0].address)?.script_pubkey()
+            T::from_str(&self.inputs[0].address)?.script_pubkey()
         };
 
         let mut sks = vec![];
@@ -293,13 +299,13 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
             }
 
             prevouts.push(TxOut {
-                value: x.amount,
+                value: Amount::from_sat(x.amount),
                 script_pubkey: script_pubkey.clone(),
             });
 
             tx_inputs.push(TxIn {
                 previous_output: OutPoint {
-                    txid: bitcoin::hash_types::Txid::from_hex(&x.tx_hash)?,
+                    txid: Txid::from_str(&x.tx_hash)?,
                     vout: x.vout,
                 },
                 script_sig: Script::new(),
@@ -338,16 +344,16 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
         let tx_outs = self.tx_outs(change_script)?;
 
         let tx = Transaction {
-            version,
-            lock_time: PackedLockTime::ZERO,
+            version: Version(version),
+            lock_time: LockTime::ZERO,
             input: tx_inputs.clone(),
             output: tx_outs.clone(),
         };
 
         //Only for txsighash
         let tx_clone = Transaction {
-            version,
-            lock_time: PackedLockTime::ZERO,
+            version: Version(version),
+            lock_time: LockTime::ZERO,
             input: tx_inputs,
             output: tx_outs,
         };
@@ -369,8 +375,8 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
 
         let tx = singer.tx;
         let tx_bytes = serialize(&tx);
-        let tx_hash = tx.txid().to_hex();
-        let wtx_hash = tx.wtxid().to_hex();
+        let tx_hash = tx.compute_txid().to_string();
+        let wtx_hash = tx.compute_wtxid().to_string();
 
         Ok(BtcKinTxOutput {
             raw_tx: tx_bytes.to_hex(),
@@ -626,9 +632,10 @@ mod tests {
     mod btc {
         use super::*;
         use crate::tests::{sample_hd_keystore, sample_wif_keystore, wif_keystore};
-        use bitcoin::psbt::serialize::Deserialize;
-        use secp256k1::schnorr::Signature;
-        use secp256k1::XOnlyPublicKey;
+        use bitcoin::consensus::deserialize;
+        use bitcoin::secp256k1::schnorr::Signature;
+        use bitcoin::secp256k1::Secp256k1;
+        use bitcoin::secp256k1::XOnlyPublicKey;
 
         #[test]
         fn test_uncompressed_wif_on_testnet() {
@@ -815,7 +822,8 @@ mod tests {
 
             let actual = ks.sign_transaction(&params, &tx_input).unwrap();
 
-            let tx = Transaction::deserialize(&Vec::from_hex(&actual.raw_tx).unwrap()).unwrap();
+            let tx: Transaction = deserialize(&Vec::from_hex(&actual.raw_tx).unwrap()).unwrap();
+            let secp = Secp256k1::verification_only();
 
             let msg = Message::from_slice(
                 &Vec::from_hex("f01ba76b329132e48188ad10d00791647ee6d2f7fee5ef397f3481993c898de3")
@@ -828,7 +836,7 @@ mod tests {
                     .unwrap(),
             )
             .unwrap();
-            assert!(sig.verify(&msg, &pub_key).is_ok());
+            assert!(secp.verify_schnorr(&sig, &msg, &pub_key).is_ok());
 
             let msg = Message::from_slice(
                 &Vec::from_hex("d0691b5ac1b338b9341790ea69417cb454cf346a718342fb4a846dbb8ae142e8")
@@ -841,7 +849,7 @@ mod tests {
                     .unwrap(),
             )
             .unwrap();
-            assert!(sig.verify(&msg, &pub_key).is_ok());
+            assert!(secp.verify_schnorr(&sig, &msg, &pub_key).is_ok());
 
             assert_eq!(tx.input[2].witness.to_vec()[0].to_hex(), "3044022022c2feaa4a225496fc6789c969fb776da7378f44c588ad812a7e1227ebe69b6302204fc7bf5107c6d02021fe4833629bc7ab71cefe354026ebd0d9c0da7d4f335f9401");
             assert_eq!(

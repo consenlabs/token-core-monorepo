@@ -1,16 +1,14 @@
 use crate::common::get_xpub_data;
 use crate::network::BtcKinNetwork;
 use crate::Result;
-use bitcoin::hash_types::PubkeyHash as PubkeyHashType;
-use bitcoin::hash_types::ScriptHash as ScriptHashType;
-use bitcoin::network::constants::Network;
-use bitcoin::schnorr::UntweakedPublicKey;
-use bitcoin::util::address::Payload;
-use bitcoin::util::address::{Error as LibAddressError, WitnessVersion};
-use bitcoin::util::base58;
-use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
-use bitcoin::{Address as LibAddress, PublicKey, Script};
-use bitcoin_hashes::Hash;
+use bitcoin::base58;
+use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bitcoin::hashes::Hash;
+use bitcoin::key::{TapTweak, UntweakedPublicKey};
+use bitcoin::secp256k1::{PublicKey as Secp256k1PublicKey, Secp256k1};
+use bitcoin::Network;
+use bitcoin::{Address as LibAddress, PublicKey, ScriptBuf as Script};
+use bitcoin::{CompressedPublicKey, PubkeyHash, ScriptHash, WitnessVersion};
 use core::result;
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::coin_info::CoinInfo;
@@ -20,8 +18,7 @@ use ikc_common::path::check_path_validity;
 use ikc_common::path::get_parent_path;
 use ikc_common::utility::hex_to_bytes;
 use ikc_transport::message::send_apdu;
-use secp256k1::{PublicKey as Secp256k1PublicKey, Secp256k1};
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -42,7 +39,17 @@ pub trait ScriptPubkey {
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct BtcKinAddress {
     pub network: BtcKinNetwork,
-    pub payload: Payload,
+    pub payload: BtcKinPayload,
+}
+
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum BtcKinPayload {
+    PubkeyHash(PubkeyHash),
+    ScriptHash(ScriptHash),
+    WitnessProgram {
+        version: WitnessVersion,
+        program: Vec<u8>,
+    },
 }
 
 impl AddressTrait for BtcKinAddress {
@@ -56,25 +63,41 @@ impl AddressTrait for BtcKinAddress {
 
         let address = match seg_wit {
             constants::BTC_SEG_WIT_TYPE_P2WPKH => {
-                LibAddress::p2shwpkh(&pub_key_obj, Network::Bitcoin)?
+                let compressed = CompressedPublicKey::try_from(pub_key_obj)?;
+                BtcKinAddress::from_lib_address(
+                    LibAddress::p2shwpkh(&compressed, Network::Bitcoin),
+                    network,
+                )?
             }
             constants::BTC_SEG_WIT_TYPE_VERSION_0 => {
-                LibAddress::p2wpkh(&pub_key_obj, Network::Bitcoin)?
+                let compressed = CompressedPublicKey::try_from(pub_key_obj)?;
+                BtcKinAddress::from_lib_address(
+                    LibAddress::p2wpkh(&compressed, Network::Bitcoin),
+                    network,
+                )?
             }
             constants::BTC_SEG_WIT_TYPE_VERSION_1 => {
-                let untweak_pub_key = UntweakedPublicKey::from(secp256k1::PublicKey::from_slice(
-                    &hex_to_bytes(&public_key)?,
-                )?);
-                let secp256k1 = Secp256k1::new();
-                LibAddress::p2tr(&secp256k1, untweak_pub_key, None, Network::Bitcoin)
+                let public_key =
+                    bitcoin::secp256k1::PublicKey::from_slice(&hex_to_bytes(&public_key)?)?;
+                let (x_only, _) = public_key.x_only_public_key();
+                let untweak_pub_key = UntweakedPublicKey::from(x_only);
+                let secp = Secp256k1::new();
+                let output_key = untweak_pub_key.tap_tweak(&secp, None).0;
+                BtcKinAddress {
+                    payload: BtcKinPayload::WitnessProgram {
+                        version: WitnessVersion::V1,
+                        program: output_key.serialize().to_vec(),
+                    },
+                    network: network.clone(),
+                }
             }
-            _ => LibAddress::p2pkh(&pub_key_obj, Network::Bitcoin),
+            _ => BtcKinAddress::from_lib_address(
+                LibAddress::p2pkh(&pub_key_obj, Network::Bitcoin),
+                network,
+            )?,
         };
 
-        Ok(BtcKinAddress {
-            payload: address.payload,
-            network: network.clone(),
-        })
+        Ok(address)
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {
@@ -95,12 +118,8 @@ impl BtcKinAddress {
 
         let mut pub_key_obj = PublicKey::from_str(pub_key)?;
         pub_key_obj.compressed = true;
-        let addr = LibAddress::p2pkh(&pub_key_obj, Network::Bitcoin);
 
-        Ok(BtcKinAddress {
-            payload: addr.payload,
-            network: network.clone(),
-        })
+        BtcKinAddress::from_lib_address(LibAddress::p2pkh(&pub_key_obj, Network::Bitcoin), network)
     }
 
     pub fn p2shwpkh(network: &BtcKinNetwork, path: &str) -> Result<BtcKinAddress> {
@@ -111,12 +130,11 @@ impl BtcKinAddress {
         let mut pub_key_obj = PublicKey::from_str(pub_key)?;
         pub_key_obj.compressed = true;
 
-        let address = LibAddress::p2shwpkh(&pub_key_obj, Network::Bitcoin)?;
-
-        Ok(BtcKinAddress {
-            payload: address.payload,
-            network: network.clone(),
-        })
+        let compressed = CompressedPublicKey::try_from(pub_key_obj)?;
+        BtcKinAddress::from_lib_address(
+            LibAddress::p2shwpkh(&compressed, Network::Bitcoin),
+            network,
+        )
     }
 
     pub fn p2wpkh(network: &BtcKinNetwork, path: &str) -> Result<BtcKinAddress> {
@@ -126,24 +144,24 @@ impl BtcKinAddress {
 
         let mut pub_key_obj = PublicKey::from_str(pub_key)?;
         pub_key_obj.compressed = true;
-        let addr = LibAddress::p2wpkh(&pub_key_obj, Network::Bitcoin)?;
-        Ok(BtcKinAddress {
-            payload: addr.payload,
-            network: network.clone(),
-        })
+        let compressed = CompressedPublicKey::try_from(pub_key_obj)?;
+        BtcKinAddress::from_lib_address(LibAddress::p2wpkh(&compressed, Network::Bitcoin), network)
     }
 
     pub fn p2tr(network: &BtcKinNetwork, path: &str) -> Result<BtcKinAddress> {
         check_path_validity(path)?;
 
         let pub_key = &get_xpub_data(path, true)?[..130];
-        let untweak_pub_key =
-            UntweakedPublicKey::from(secp256k1::PublicKey::from_slice(&hex_to_bytes(&pub_key)?)?);
-
-        let secp256k1 = Secp256k1::new();
-        let addr = LibAddress::p2tr(&secp256k1, untweak_pub_key, None, Network::Bitcoin);
+        let public_key = bitcoin::secp256k1::PublicKey::from_slice(&hex_to_bytes(&pub_key)?)?;
+        let (x_only, _) = public_key.x_only_public_key();
+        let untweak_pub_key = UntweakedPublicKey::from(x_only);
+        let secp = Secp256k1::new();
+        let output_key = untweak_pub_key.tap_tweak(&secp, None).0;
         Ok(BtcKinAddress {
-            payload: addr.payload,
+            payload: BtcKinPayload::WitnessProgram {
+                version: WitnessVersion::V1,
+                program: output_key.serialize().to_vec(),
+            },
             network: network.clone(),
         })
     }
@@ -164,7 +182,36 @@ impl BtcKinAddress {
     }
 
     pub fn script_pubkey(&self) -> Script {
-        self.payload.script_pubkey()
+        match &self.payload {
+            BtcKinPayload::PubkeyHash(hash) => Script::new_p2pkh(hash),
+            BtcKinPayload::ScriptHash(hash) => Script::new_p2sh(hash),
+            BtcKinPayload::WitnessProgram { version, program } => {
+                let witness_program =
+                    bitcoin::WitnessProgram::new(*version, program).expect("valid witness program");
+                Script::new_witness_program(&witness_program)
+            }
+        }
+    }
+
+    fn from_lib_address(address: LibAddress, network: &BtcKinNetwork) -> Result<BtcKinAddress> {
+        let script = address.script_pubkey();
+        let payload = if script.is_p2pkh() {
+            BtcKinPayload::PubkeyHash(address.pubkey_hash().ok_or(CoinError::InvalidAddress)?)
+        } else if script.is_p2sh() {
+            BtcKinPayload::ScriptHash(address.script_hash().ok_or(CoinError::InvalidAddress)?)
+        } else if script.is_p2wpkh() || script.is_p2wsh() || script.is_p2tr() {
+            let witness_program = address.witness_program().ok_or(CoinError::InvalidAddress)?;
+            BtcKinPayload::WitnessProgram {
+                version: witness_program.version(),
+                program: witness_program.program().as_bytes().to_vec(),
+            }
+        } else {
+            return Err(CoinError::InvalidAddress.into());
+        };
+        Ok(BtcKinAddress {
+            payload,
+            network: network.clone(),
+        })
     }
 }
 
@@ -182,35 +229,15 @@ impl FromStr for BtcKinAddress {
         let bech32_network = bech32_network(s);
         if let Some(network) = bech32_network {
             // decode as bech32
-            let (_, payload, _) = bech32::decode(s)?;
-            if payload.is_empty() {
-                return Err(LibAddressError::EmptyBech32Payload.into());
+            let (_, version, program) = bech32::segwit::decode(s)?;
+            if program.is_empty() {
+                return Err(CoinError::InvalidAddress.into());
             }
-
-            // Get the script version and program (converted from 5-bit to 8-bit)
-            let (version, program): (bech32::u5, Vec<u8>) = {
-                let (v, p5) = payload.split_at(1);
-                (v[0], bech32::FromBase32::from_base32(p5)?)
-            };
-
-            // Generic segwit checks.
-            if version.to_u8() > 16 {
-                return Err(LibAddressError::InvalidWitnessVersion(version.to_u8()).into());
-            }
-            if program.len() < 2 || program.len() > 40 {
-                return Err(LibAddressError::InvalidWitnessProgramLength(program.len()).into());
-            }
-
-            // Specific segwit v0 check.
-            if version.to_u8() == 0 && (program.len() != 20 && program.len() != 32) {
-                return Err(LibAddressError::InvalidSegwitV0ProgramLength(program.len()).into());
-            }
-            let payload = Payload::WitnessProgram {
-                version: WitnessVersion::try_from(version.to_u8())?,
-                program,
-            };
             return Ok(BtcKinAddress {
-                payload,
+                payload: BtcKinPayload::WitnessProgram {
+                    version: WitnessVersion::try_from(version.to_u8())?,
+                    program,
+                },
                 network: network.clone(),
             });
         }
@@ -220,46 +247,46 @@ impl FromStr for BtcKinAddress {
             if network.p2pkh_prefix == data[0] {
                 return Ok(BtcKinAddress {
                     network: network.clone(),
-                    payload: Payload::PubkeyHash(PubkeyHashType::from_slice(&data[1..]).unwrap()),
+                    payload: BtcKinPayload::PubkeyHash(PubkeyHash::from_byte_array(
+                        data[1..].try_into().unwrap(),
+                    )),
                 });
             } else if network.p2sh_prefix == data[0] {
                 return Ok(BtcKinAddress {
                     network: network.clone(),
-                    payload: Payload::ScriptHash(ScriptHashType::from_slice(&data[1..]).unwrap()),
+                    payload: BtcKinPayload::ScriptHash(ScriptHash::from_byte_array(
+                        data[1..].try_into().unwrap(),
+                    )),
                 });
             }
         }
 
-        Err(LibAddressError::UnrecognizedScript.into())
+        Err(CoinError::InvalidAddress.into())
     }
 }
 
 impl Display for BtcKinAddress {
     fn fmt(&self, fmt: &mut Formatter) -> core::fmt::Result {
         match self.payload {
-            Payload::PubkeyHash(ref hash) => {
+            BtcKinPayload::PubkeyHash(ref hash) => {
                 let mut prefixed = [0; 21];
                 prefixed[0] = self.network.p2pkh_prefix;
                 prefixed[1..].copy_from_slice(&hash[..]);
-                base58::check_encode_slice_to_fmt(fmt, &prefixed[..])
+                base58::encode_check_to_fmt(fmt, &prefixed[..])
             }
-            Payload::ScriptHash(ref hash) => {
+            BtcKinPayload::ScriptHash(ref hash) => {
                 let mut prefixed = [0; 21];
                 prefixed[0] = self.network.p2sh_prefix;
                 prefixed[1..].copy_from_slice(&hash[..]);
-                base58::check_encode_slice_to_fmt(fmt, &prefixed[..])
+                base58::encode_check_to_fmt(fmt, &prefixed[..])
             }
-            Payload::WitnessProgram {
+            BtcKinPayload::WitnessProgram {
                 version,
                 program: ref prog,
             } => {
-                let mut bech32_writer = bech32::Bech32Writer::new(
-                    self.network.bech32_hrp,
-                    version.bech32_variant(),
-                    fmt,
-                )?;
-                bech32::WriteBase32::write_u5(&mut bech32_writer, version.into())?;
-                bech32::ToBase32::write_base32(&prog, &mut bech32_writer)
+                let hrp =
+                    bech32::Hrp::parse(self.network.bech32_hrp).map_err(|_| core::fmt::Error)?;
+                bech32::segwit::encode_to_fmt_unchecked(fmt, hrp, version.to_fe(), prog)
             }
         }
     }
@@ -277,18 +304,14 @@ fn bech32_network(bech32: &str) -> Option<&BtcKinNetwork> {
     return None;
 }
 
-fn decode_base58(addr: &str) -> result::Result<Vec<u8>, LibAddressError> {
+fn decode_base58(addr: &str) -> result::Result<Vec<u8>, CoinError> {
     // Base58
     if addr.len() > 50 {
-        return Err(LibAddressError::Base58(base58::Error::InvalidLength(
-            addr.len() * 11 / 15,
-        )));
+        return Err(CoinError::InvalidAddress);
     }
-    let data = base58::from_check(addr)?;
+    let data = base58::decode_check(addr).map_err(|_| CoinError::InvalidAddress)?;
     if data.len() != 21 {
-        Err(LibAddressError::Base58(base58::Error::InvalidLength(
-            data.len(),
-        )))
+        Err(CoinError::InvalidAddress)
     } else {
         Ok(data)
     }
@@ -312,9 +335,9 @@ impl ImkeyPublicKey {
 
         let pub_key_obj = Secp256k1PublicKey::from_str(pub_key)?;
 
-        let chain_code_obj = ChainCode::from(hex::decode(chain_code).unwrap().as_slice());
+        let chain_code_obj = ChainCode::try_from(hex::decode(chain_code)?.as_slice())?;
         let parent_ext_pub_key = ExtendedPubKey {
-            network,
+            network: network.into(),
             depth: 0u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
@@ -324,10 +347,10 @@ impl ImkeyPublicKey {
         let fingerprint_obj = parent_ext_pub_key.fingerprint();
 
         //build extend public key obj
-        let chain_code_obj = ChainCode::from(hex::decode(chain_code).unwrap().as_slice());
+        let chain_code_obj = ChainCode::try_from(hex::decode(chain_code)?.as_slice())?;
         let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
         let extend_public_key = ExtendedPubKey {
-            network,
+            network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
             child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),

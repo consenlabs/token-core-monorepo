@@ -128,6 +128,7 @@ mod test {
             receiver: "12pWV6LvG4iAfNpFNTvvkWy3H9H8wtCkjiXupAzo2BCmPViM".to_string(),
             sender: "147mvrDYhFpZzvFASKBDNVcxoyz8XCVNyyFKSZcpbQxN33TT".to_string(),
             fee: "15.4000 milli DOT".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let input = SubstrateRawTxIn{
@@ -162,6 +163,7 @@ mod test {
             receiver: "12pWV6LvG4iAfNpFNTvvkWy3H9H8wtCkjiXupAzo2BCmPViM".to_string(),
             sender: "147mvrDYhFpZzvFASKBDNVcxoyz8XCVNyyFKSZcpbQxN33TT".to_string(),
             fee: "15.4000 milli DOT".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let input = SubstrateRawTxIn{

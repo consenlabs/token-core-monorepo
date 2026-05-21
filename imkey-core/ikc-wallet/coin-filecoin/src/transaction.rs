@@ -135,7 +135,7 @@ impl Transaction {
 
         let mut data_arr = [0; 65];
         data_arr[0..64].copy_from_slice(&normalizes_sig_vec[0..64]);
-        data_arr[64] = rec_id.to_i32() as u8;
+        data_arr[64] = i32::from(rec_id) as u8;
 
         let forest_sig = forest_crypto::Signature::new_secp256k1(data_arr.to_vec());
         let forest_signed_msg = forest_message::SignedMessage {

@@ -1,12 +1,12 @@
 use crate::transaction::Utxo;
 use crate::Result;
-use bitcoin::util::base58;
+use bitcoin::base58;
+use bitcoin::secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use bitcoin::{Network, PublicKey};
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
 use ikc_common::utility::sha256_hash;
 use ikc_transport::message::send_apdu;
-use secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use std::str::FromStr;
 
 /**
@@ -77,7 +77,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
                 || address.starts_with('D')
                 || address.starts_with('A')
             {
-                let address_bytes = base58::from(address)?;
+                let address_bytes = base58::decode(address)?;
                 address_bytes.as_slice()[0]
             } else if address.starts_with("bc1") {
                 'b' as u8
@@ -87,7 +87,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
         }
         Network::Testnet => {
             if address.starts_with('m') || address.starts_with('n') || address.starts_with('2') {
-                let address_bytes = base58::from(address)?;
+                let address_bytes = base58::decode(address)?;
                 address_bytes.as_slice()[0]
             } else if address.starts_with("tb1") {
                 't' as u8

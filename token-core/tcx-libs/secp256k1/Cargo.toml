@@ -19,7 +19,7 @@ links = "secp256k1"
 features = [ "rand", "serde", "recovery", "endomorphism" ]
 
 [build-dependencies]
-cc = ">= 1.0.28"
+cc = "=1.2.62"
 
 [lib]
 name = "secp256k1"
@@ -36,17 +36,17 @@ endomorphism = []
 lowmemory = []
 
 [dev-dependencies]
-rand = "=0.8.5"
-rand_core = "0.6.4"
-serde_test = "1.0"
+rand = "=0.8.6"
+rand_core = "=0.6.4"
+serde_test = "=1.0.177"
 
 [dependencies.rand]
-version = "0.6"
+version = "=0.6.5"
 optional = true
 default-features = false
 
 [dependencies.serde]
-version = "1.0"
+version = "=1.0.228"
 optional = true
 default-features = false
 

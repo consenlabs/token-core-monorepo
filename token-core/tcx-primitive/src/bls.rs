@@ -79,9 +79,8 @@ mod tests {
     use crate::bls::BLSPrivateKey;
     use crate::ecc::KeyError;
     use crate::{PrivateKey, PublicKey};
-    use bitcoin_hashes::hex::ToHex;
     use blst::min_pk::SecretKey;
-    use tcx_common::FromHex;
+    use tcx_common::{FromHex, ToHex};
 
     use super::BLSPublicKey;
 

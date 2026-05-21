@@ -1,8 +1,8 @@
 use crate::cosmosapi::CosmosTxOutput;
 use crate::Result;
-use bitcoin_hashes::hex::ToHex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu};
 use ikc_common::constants;
+use ikc_common::hex::ToHex;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{hex_to_bytes, secp256k1_sign, sha256_hash};
 use ikc_device::device_binding::KEY_MANAGER;
@@ -67,7 +67,7 @@ impl CosmosTransaction {
         let mut signature_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
         signature_obj.normalize_s();
         let normalizes_sig_vec = signature_obj.serialize_compact();
-        let signature = base64::encode(&normalizes_sig_vec.as_ref());
+        let signature = base64::encode(normalizes_sig_vec.as_slice());
 
         let output = CosmosTxOutput { signature };
         Ok(output)

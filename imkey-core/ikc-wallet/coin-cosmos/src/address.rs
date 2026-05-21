@@ -1,8 +1,8 @@
 use crate::Result;
-use bech32::{encode, ToBase32, Variant};
-use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bech32::{Bech32, Hrp};
+use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
-use bitcoin_hashes::hex::{FromHex, ToHex};
 use bitcoin_hashes::{hash160, Hash};
 use hex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu};
@@ -12,7 +12,7 @@ use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::utility;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
-use secp256k1::PublicKey;
+use std::convert::TryFrom;
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -53,9 +53,9 @@ impl CosmosAddress {
             utility::uncompress_pubkey_2_compress(&CosmosAddress::get_pub_key(path)?);
         //hash160
         let pub_key_bytes = hex::decode(compress_pubkey).unwrap();
-        let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).to_hex();
-        let hh = Vec::from_hex(&pub_key_hash).unwrap();
-        let address = encode("cosmos", hh.to_base32(), Variant::Bech32)?;
+        let pub_key_hash = hash160::Hash::hash(&pub_key_bytes);
+        let address =
+            bech32::encode::<Bech32>(Hrp::parse("cosmos")?, pub_key_hash.as_byte_array())?;
         Ok(address)
     }
 
@@ -88,9 +88,9 @@ impl CosmosAddress {
         let parent_pub_key_obj = PublicKey::from_str(parent_pub_key)?;
 
         //get parent public key fingerprint
-        let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
+        let parent_chain_code = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
         let parent_ext_pub_key = ExtendedPubKey {
-            network: Network::Bitcoin,
+            network: Network::Bitcoin.into(),
             depth: 0 as u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
@@ -100,11 +100,11 @@ impl CosmosAddress {
         let fingerprint_obj = parent_ext_pub_key.fingerprint();
 
         //build extend public key obj
-        let sub_chain_code_obj = ChainCode::from(hex::decode(sub_chain_code)?.as_slice());
+        let sub_chain_code_obj = ChainCode::try_from(hex::decode(sub_chain_code)?.as_slice())?;
 
         let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
         let extend_public_key = ExtendedPubKey {
-            network: Network::Bitcoin,
+            network: Network::Bitcoin.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
             child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
@@ -118,8 +118,9 @@ impl CosmosAddress {
     pub fn from_pub_key(pub_key: Vec<u8>) -> Result<String> {
         let public_key = PublicKey::from_slice(pub_key.as_slice())?;
         let compressed_pubkey = public_key.serialize();
-        let pub_key_hash = hash160::Hash::hash(&compressed_pubkey).to_vec();
-        let address = encode("cosmos", pub_key_hash.to_base32(), Variant::Bech32)?;
+        let pub_key_hash = hash160::Hash::hash(&compressed_pubkey);
+        let address =
+            bech32::encode::<Bech32>(Hrp::parse("cosmos")?, pub_key_hash.as_byte_array())?;
         Ok(address)
     }
 }
@@ -127,7 +128,7 @@ impl CosmosAddress {
 #[cfg(test)]
 mod tests {
     use crate::address::CosmosAddress;
-    use bech32::{ToBase32, Variant};
+    use bech32::{Bech32, Hrp};
     use ikc_common::constants;
     use ikc_device::device_binding::bind_test;
 
@@ -159,11 +160,7 @@ mod tests {
 
     #[test]
     fn test_bech32() {
-        let b32 = bech32::encode(
-            "bech32",
-            vec![0x00, 0x01, 0x02].to_base32(),
-            Variant::Bech32,
-        );
+        let b32 = bech32::encode::<Bech32>(Hrp::parse("bech32").unwrap(), &[0x00, 0x01, 0x02]);
         let address = match b32 {
             Ok(s) => s,
             Err(_e) => return,

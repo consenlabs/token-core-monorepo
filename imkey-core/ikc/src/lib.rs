@@ -2338,7 +2338,7 @@ mod tests {
         let decoded = base64::decode(&sig).unwrap();
         let tx: bitcoin::Transaction =
             bitcoin::consensus::deserialize(&decoded).expect("valid serialized tx");
-        assert_eq!(tx.version, 0);
+        assert_eq!(tx.version, bitcoin::transaction::Version(0));
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 1);
         assert!(!tx.input[0].witness.is_empty());

@@ -2,19 +2,18 @@ use crate::keystore::IdentityNetwork;
 use crate::Error;
 use crate::Result;
 use bip39::Seed;
+use bitcoin::base58;
+use bitcoin::bip32::ExtendedPrivKey;
 use bitcoin::blockdata::constants::PUBKEY_ADDRESS_PREFIX_MAIN;
 use bitcoin::blockdata::constants::PUBKEY_ADDRESS_PREFIX_TEST;
 use bitcoin::consensus::{Decodable, Encodable};
-use bitcoin::network::constants::Network;
-use bitcoin::util::base58;
-use bitcoin::util::bip32::ExtendedPrivKey;
-use bitcoin::util::key::PrivateKey;
-use bitcoin::VarInt;
+use bitcoin::secp256k1 as bitcoin_secp256k1;
+use bitcoin::{Network, PrivateKey, VarInt};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use hmac_sha256::HMAC;
-use multihash::{Code, MultihashDigest};
+use multihash_codetable::{Code, MultihashDigest};
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
-use secp256k1::{Message, PublicKey, Secp256k1};
+use secp256k1::{Message, PublicKey, Secp256k1 as DirectSecp256k1};
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Write};
 use tcx_common::{keccak256, merkle_hash, random_u8_16, unix_timestamp, FromHex, ToHex};
@@ -50,7 +49,7 @@ impl Identity {
         let authentication_key = HMAC::mac("Authentication Key".as_bytes(), backup_key);
 
         let auth_private_key = PrivateKey::from_slice(authentication_key.as_ref(), network_type)?;
-        let secp = Secp256k1::new();
+        let secp = bitcoin_secp256k1::Secp256k1::new();
         let auth_pubkey_hash = auth_private_key.public_key(&secp).pubkey_hash();
 
         let network_header = if network == &IdentityNetwork::Mainnet {
@@ -65,18 +64,18 @@ impl Identity {
             "{}{:02x}{:02x}{:02x}",
             magic_hex, network_header, version, auth_pubkey_hash
         );
-        let identifier = base58::check_encode_slice(Vec::from_hex(full_identifier)?.as_slice());
+        let identifier = base58::encode_check(Vec::from_hex(full_identifier)?.as_slice());
 
         //gen enckey
         let enc_key_bytes = HMAC::mac("Encryption Key".as_bytes(), backup_key);
 
         let enc_private_key = PrivateKey::new_uncompressed(
-            secp256k1::SecretKey::from_slice(enc_key_bytes.as_ref())?,
+            bitcoin_secp256k1::SecretKey::from_slice(enc_key_bytes.as_ref())?,
             network_type,
         );
         let multihash =
             Code::Sha2_256.digest(enc_private_key.public_key(&secp).to_bytes().as_slice());
-        let ipfs_id = base58::encode_slice(&multihash.to_bytes());
+        let ipfs_id = base58::encode(&multihash.to_bytes());
         let enc_auth_key = unlocker.encrypt_with_random_iv(authentication_key.as_slice())?;
 
         Ok(Identity {
@@ -109,7 +108,7 @@ impl Identity {
 
     pub fn calculate_ipfs_id(pub_key: &PublicKey) -> String {
         let multihash = Code::Sha2_256.digest(&pub_key.serialize_uncompressed());
-        base58::encode_slice(&multihash.to_bytes())
+        base58::encode(&multihash.to_bytes())
     }
 
     pub fn encrypt_ipfs(&self, plaintext: &str) -> Result<String> {
@@ -156,7 +155,7 @@ pub fn decrypt_ipfs_with_enc_key(ciphertext: &str, ipfs_id: &str, enc_key: &str)
     header.write_all(&iv)?;
 
     let var_len = VarInt::consensus_decode(&mut rdr)?;
-    if var_len.0 as usize != ciphertext.len() - 21 - 65 - var_len.len() {
+    if var_len.0 as usize != ciphertext.len() - 21 - 65 - var_len.size() {
         return Err(Error::InvalidEncryptionData.into());
     }
 
@@ -166,7 +165,7 @@ pub fn decrypt_ipfs_with_enc_key(ciphertext: &str, ipfs_id: &str, enc_key: &str)
     let mut signature = [0u8; 64];
     rdr.read_exact(&mut signature)?;
 
-    let recover_id = RecoveryId::from_i32(rdr.read_u8()? as i32 - 27)?;
+    let recover_id = RecoveryId::try_from(rdr.read_u8()? as i32 - 27)?;
 
     let hash = keccak256(
         [header, merkle_hash(&enc_data).to_vec()]
@@ -176,7 +175,7 @@ pub fn decrypt_ipfs_with_enc_key(ciphertext: &str, ipfs_id: &str, enc_key: &str)
 
     let message = Message::from_slice(&hash)?;
     let sig = RecoverableSignature::from_compact(&signature, recover_id)?;
-    let pub_key = Secp256k1::new().recover_ecdsa(&message, &sig)?;
+    let pub_key = DirectSecp256k1::new().recover_ecdsa(message, &sig)?;
     let calculated_ipfs_id = Identity::calculate_ipfs_id(&pub_key);
 
     if ipfs_id != calculated_ipfs_id {

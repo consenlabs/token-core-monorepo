@@ -3,7 +3,8 @@ use crate::Result;
 use std::str::FromStr;
 
 use base32::Alphabet;
-use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bitcoin::secp256k1::PublicKey;
 use hex;
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::FILECOIN_AID;
@@ -14,7 +15,7 @@ use ikc_common::utility;
 use ikc_common::utility::network_convert;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
-use secp256k1::PublicKey;
+use std::convert::TryFrom;
 
 const MAINNET_PREFIX: &'static str = "f";
 const TESTNET_PREFIX: &'static str = "t";
@@ -94,7 +95,7 @@ impl FilecoinAddress {
             ntwk,
             protocol as i8,
             base32::encode(
-                Alphabet::RFC4648 { padding: false },
+                Alphabet::Rfc4648 { padding: false },
                 &[payload, cksm].concat()
             )
             .to_lowercase()
@@ -131,10 +132,10 @@ impl FilecoinAddress {
         let parent_pub_key_obj = PublicKey::from_str(parent_pub_key)?;
 
         //get parent public key fingerprint
-        let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
+        let parent_chain_code = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
         let network = network_convert(network);
         let parent_ext_pub_key = ExtendedPubKey {
-            network,
+            network: network.into(),
             depth: 0 as u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
@@ -144,11 +145,11 @@ impl FilecoinAddress {
         let fingerprint_obj = parent_ext_pub_key.fingerprint();
 
         //build extend public key obj
-        let sub_chain_code_obj = ChainCode::from(hex::decode(sub_chain_code)?.as_slice());
+        let sub_chain_code_obj = ChainCode::try_from(hex::decode(sub_chain_code)?.as_slice())?;
 
         let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
         let extend_public_key = ExtendedPubKey {
-            network,
+            network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
             child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
@@ -175,7 +176,7 @@ impl FilecoinAddress {
             ntwk,
             protocol as i8,
             base32::encode(
-                Alphabet::RFC4648 { padding: false },
+                Alphabet::Rfc4648 { padding: false },
                 &[payload, checksum].concat()
             )
             .to_lowercase()

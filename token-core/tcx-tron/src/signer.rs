@@ -4,10 +4,8 @@ use tcx_keystore::{
     TransactionSigner as TraitTransactionSigner,
 };
 
-use bitcoin_hashes::sha256::Hash;
-use bitcoin_hashes::Hash as TraitHash;
-
 use anyhow::anyhow;
+use bitcoin_hashes::sha256::Hash;
 use tcx_common::{keccak256, FromHex, ToHex};
 
 // http://jsoneditoronline.org/index.html?id=2b86a8503ba641bebed73f32b4ac9c42
@@ -56,8 +54,10 @@ impl TraitTransactionSigner<TronTxInput, TronTxOutput> for Keystore {
         let data = Vec::from_hex(&tx.raw_data)?;
         let hash = Hash::hash(&data);
 
-        let sign_result =
-            self.secp256k1_ecdsa_sign_recoverable(&hash[..], &sign_context.derivation_path)?;
+        let sign_result = self.secp256k1_ecdsa_sign_recoverable(
+            hash.as_byte_array(),
+            &sign_context.derivation_path,
+        )?;
 
         Ok(TronTxOutput {
             signatures: vec![sign_result.to_hex()],

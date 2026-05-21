@@ -11,11 +11,11 @@ tcx-primitive = {path = "../tcx-primitive"}
 tcx-constants = {path = "../tcx-constants"}
 tcx-common = {path = "../tcx-common"}
 
-anyhow = { version = "=1.0.79", features = [] }
+anyhow = { version = "=1.0.102", features = [] }
 hex = "=0.4.3"
-ethereum-types = "=0.14.0"
+ethereum-types = "=0.14.1"
 rlp = "=0.5.2"
-prost = "=0.11.2"
-prost-types = "=0.11.2"
-regex = "=1.9.3"
-secp256k1 = {version ="=0.24.3", features = ["rand", "recovery"] }
+prost = "=0.14.3"
+prost-types = "=0.14.3"
+regex = "=1.12.3"
+secp256k1 = {version = "=0.31.1", features = ["rand", "recovery"] }

@@ -1,5 +1,6 @@
 use crate::error::CommonError;
 use crate::Result;
+use bitcoin::bip32::DerivationPath;
 use std::str::FromStr;
 
 pub fn check_path_validity(path: &str) -> Result<()> {
@@ -24,7 +25,7 @@ pub fn check_path_max_five_depth(path: &str) -> Result<()> {
 
 pub fn get_account_path(path: &str) -> Result<String> {
     // example: m/44'/60'/0'/0/0
-    let _ = bitcoin::util::bip32::DerivationPath::from_str(path)?;
+    let _ = DerivationPath::from_str(path)?;
     let mut children: Vec<&str> = path.split('/').collect();
 
     ensure!(children.len() >= 4, format!("{} path is too short", path));

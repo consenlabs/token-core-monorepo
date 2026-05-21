@@ -11,10 +11,10 @@ repository = "https://github.com/filecoin-project/ff"
 edition = "2018"
 
 [dependencies]
-byteorder = "1"
+byteorder = "=1.5.0"
 fff_derive = { version = "0.2.1", path = "ff_derive", optional = true }
-rand_core = "0.5"
-lazy_static = "1.4.0"
+rand_core = "=0.5.1"
+lazy_static = "=1.5.0"
 
 [features]
 default = []
@@ -24,4 +24,4 @@ derive = ["fff_derive"]
 maintenance = { status = "actively-developed" }
 
 [build-dependencies]
-cc = "1.0.50"
+cc = "=1.2.62"

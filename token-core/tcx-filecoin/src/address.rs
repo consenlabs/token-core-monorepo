@@ -64,7 +64,7 @@ impl Address for FilecoinAddress {
             network_prefix,
             protocol as i8,
             base32::encode(
-                Alphabet::RFC4648 { padding: false },
+                Alphabet::Rfc4648 { padding: false },
                 &[payload, checksum].concat()
             )
             .to_lowercase()

@@ -3,7 +3,7 @@ use crate::api::{
 };
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
-use bitcoin::network::constants::Network;
+use bitcoin::Network;
 use coin_bitcoin::address::BtcAddress;
 use coin_bitcoin::btc_kin_address::BtcKinAddress;
 use coin_bitcoin::network::BtcKinNetwork;

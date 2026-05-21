@@ -1,7 +1,9 @@
 use crate::hash::blake2b_160;
 use crate::Result;
-use bech32::{ToBase32, Variant};
-use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bech32::{Bech32, Hrp};
+use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bitcoin::secp256k1::{PublicKey, PublicKey as Secp256k1PublicKey};
+use hex::FromHex;
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::NERVOS_AID;
 use ikc_common::error::{CoinError, CommonError};
@@ -9,8 +11,7 @@ use ikc_common::path::check_path_validity;
 use ikc_common::utility::{network_convert, secp256k1_sign, secp256k1_sign_verify};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
-use secp256k1::hashes::hex::FromHex;
-use secp256k1::{PublicKey as Secp256k1PublicKey, PublicKey};
+use std::convert::TryFrom;
 use std::str::FromStr;
 
 pub struct CkbAddress {}
@@ -27,7 +28,7 @@ impl CkbAddress {
         buf.extend(vec![0x1, 0x00]); // append short version for locks with popular codehash and default code hash index
         buf.extend(pub_key_hash);
 
-        Ok(bech32::encode(prefix, buf.to_base32(), Variant::Bech32)?)
+        Ok(bech32::encode::<Bech32>(Hrp::parse(prefix)?, &buf)?)
     }
 
     pub fn get_public_key(path: &str) -> Result<String> {
@@ -117,10 +118,10 @@ impl CkbAddress {
         let parent_pub_key_obj = Secp256k1PublicKey::from_str(parent_pub_key)?;
 
         //get parent public key fingerprint
-        let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
+        let parent_chain_code = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
         let network = network_convert(network);
         let parent_ext_pub_key = ExtendedPubKey {
-            network,
+            network: network.into(),
             depth: 0u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
@@ -130,11 +131,11 @@ impl CkbAddress {
         let fingerprint_obj = parent_ext_pub_key.fingerprint();
 
         //build extend public key obj
-        let sub_chain_code_obj = ChainCode::from(hex::decode(sub_chain_code)?.as_slice());
+        let sub_chain_code_obj = ChainCode::try_from(hex::decode(sub_chain_code)?.as_slice())?;
 
         let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
         let extend_public_key = ExtendedPubKey {
-            network: network,
+            network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
             child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),

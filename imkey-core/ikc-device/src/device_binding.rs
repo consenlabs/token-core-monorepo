@@ -19,7 +19,7 @@ use rand::rngs::OsRng;
 use regex::Regex;
 use rsa::{BigUint, PaddingScheme, PublicKey as RSAPublic, RsaPublicKey};
 use secp256k1::{ecdh, PublicKey, SecretKey};
-use sha1::Sha1;
+use sha1::{Digest, Sha1};
 use std::collections::HashMap;
 
 lazy_static! {
@@ -84,7 +84,7 @@ impl DeviceManage {
             let pk2 = PublicKey::from_slice(key_manager_obj.se_pub_key.as_slice())?;
             let sk1 = SecretKey::from_slice(key_manager_obj.pri_key.as_slice())?;
             let shared_secret = ecdh::shared_secret_point(&pk2, &sk1);
-            let sha1_result = Sha1::from(&shared_secret[..32]).digest().bytes();
+            let sha1_result = Sha1::digest(&shared_secret[..32]);
 
             //set the session key
             key_manager_obj.session_key = sha1_result[..16].to_vec();

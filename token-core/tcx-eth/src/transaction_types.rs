@@ -5,7 +5,6 @@ use rlp::RlpStream;
 use secp256k1::{ecdsa::RecoverableSignature, ecdsa::RecoveryId, Message, PublicKey};
 use std::str::FromStr;
 use tcx_common::{keccak256, Hash256, ToHex};
-use tcx_primitive::SECP256K1_ENGINE;
 
 pub fn to_eip155_v<T: Into<u64>>(recovery_id: T, chain_id: U64) -> U64 {
     U64::from(recovery_id.into() + 35 + chain_id.as_u64() * 2)
@@ -99,11 +98,12 @@ impl Signature {
 
     pub fn recover_public_key(&self, hash: &[u8]) -> Result<PublicKey> {
         let message = Message::from_slice(hash)?;
-        let recovery_id = RecoveryId::from_i32(self.v.as_u32() as i32 - 27)?;
+        let recovery_id = RecoveryId::try_from(self.v.as_u32() as i32 - 27)?;
         let sig = <[u8; 65]>::from(self);
         let signature = RecoverableSignature::from_compact(&sig[0..64], recovery_id)?;
 
-        Ok(SECP256K1_ENGINE.recover_ecdsa(&message, &signature)?)
+        let secp = secp256k1::Secp256k1::new();
+        Ok(secp.recover_ecdsa(message, &signature)?)
     }
 }
 
