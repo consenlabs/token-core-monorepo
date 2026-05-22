@@ -4,7 +4,7 @@ use crate::Result;
 use anyhow::anyhow;
 use bitcoin::base58;
 use bitcoin::secp256k1::ecdsa::Signature;
-use bitcoin_hashes::{ripemd160, Hash};
+use bitcoin_hashes::ripemd160;
 use bytes::BufMut;
 use hex::FromHex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EosApdu};

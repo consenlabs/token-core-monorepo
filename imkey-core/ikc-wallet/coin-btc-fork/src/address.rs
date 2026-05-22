@@ -2,7 +2,7 @@ use crate::btc_fork_network::{network_form_hrp, network_from_coin, BtcForkNetwor
 use crate::common::get_xpub_data;
 use crate::Result;
 use bitcoin::base58;
-use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey as Secp256k1PublicKey;
 use bitcoin::{Network, PubkeyHash, PublicKey, ScriptBuf as Script, ScriptHash, WitnessVersion};
@@ -42,7 +42,10 @@ impl BtcForkAddress {
         let iv_bytes = hex::decode(&*iv)?;
         let encrypted =
             ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
-        Ok(base64::encode(&encrypted))
+        Ok(base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            &encrypted,
+        ))
     }
 
     /**
@@ -71,7 +74,7 @@ impl BtcForkAddress {
 
         //get parent public key fingerprint
         let chain_code_obj = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
-        let parent_ext_pub_key = ExtendedPubKey {
+        let parent_ext_pub_key = Xpub {
             network: network.into(),
             depth: 0 as u8,
             parent_fingerprint: Fingerprint::default(),
@@ -84,7 +87,7 @@ impl BtcForkAddress {
         //build extend public key obj
         let chain_code_obj = ChainCode::try_from(hex::decode(chain_code)?.as_slice())?;
         let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
-        let extend_public_key = ExtendedPubKey {
+        let extend_public_key = Xpub {
             network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,

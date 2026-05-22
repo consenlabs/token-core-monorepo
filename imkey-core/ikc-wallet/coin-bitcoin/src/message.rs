@@ -193,7 +193,10 @@ impl MessageSinger {
         let mut result_sig = vec![flag_base + final_v];
         result_sig.extend_from_slice(&final_compact);
 
-        Ok(base64::encode(&result_sig))
+        Ok(base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            &result_sig,
+        ))
     }
 
     fn sign_message_bip322_simple(&self, data: &[u8]) -> Result<String> {
@@ -220,7 +223,10 @@ impl MessageSinger {
         psbt_signer.sign(&pub_keys)?;
 
         if let Some(witness) = &psbt.inputs[0].final_script_witness {
-            Ok(base64::encode(witness_to_vec(witness.to_vec())))
+            Ok(base64::Engine::encode(
+                &base64::engine::general_purpose::STANDARD,
+                witness_to_vec(witness.to_vec()),
+            ))
         } else {
             Err(CoinError::MissingSignature.into())
         }
@@ -251,7 +257,10 @@ impl MessageSinger {
 
         let tx = psbt.extract_tx()?;
         let serialized = btc_serialize(&tx);
-        Ok(base64::encode(serialized))
+        Ok(base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            serialized,
+        ))
     }
 }
 
@@ -446,7 +455,9 @@ mod tests {
         // ── Taproot (P2TR) BIP-322 Full ──
         let taproot = make_signer("VERSION_1", "m/86'/0'/0'");
         let bip322_sig = sign(&taproot, BtcSignatureType::Bip322);
-        let decoded = base64::decode(&bip322_sig).unwrap();
+        let decoded =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &bip322_sig)
+                .unwrap();
         let tx: bitcoin::Transaction =
             bitcoin::consensus::deserialize(&decoded).expect("valid serialized tx");
         assert_eq!(tx.version, bitcoin::transaction::Version(0));

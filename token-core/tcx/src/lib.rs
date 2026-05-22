@@ -1,5 +1,4 @@
 #![feature(more_qualified_paths)]
-#![feature(test)]
 
 use std::ffi::{CStr, CString};
 
@@ -63,7 +62,6 @@ pub unsafe extern "C" fn free_const_string(s: *const c_char) {
 /// # Safety
 ///
 /// dispatch protobuf rpc call
-#[allow(deprecated)]
 #[no_mangle]
 pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
     let hex_c_str = CStr::from_ptr(hex_str);

@@ -365,7 +365,7 @@ mod tests {
         let tx_input = CkbTxInput {
             inputs,
             witnesses,
-            tx_hash: tx_hash.clone().to_owned(),
+            tx_hash: tx_hash.to_owned(),
             cached_cells,
             ..CkbTxInput::default()
         };

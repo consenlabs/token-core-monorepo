@@ -150,8 +150,8 @@ impl BtcTransaction {
 
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: tx_to_sign.txid().to_hex(),
-            wtx_id: tx_to_sign.wtxid().to_hex(),
+            tx_hash: tx_to_sign.compute_txid().to_hex(),
+            wtx_id: tx_to_sign.compute_wtxid().to_hex(),
         })
     }
 
@@ -741,12 +741,11 @@ mod tests {
     use bitcoin::consensus::deserialize;
     use bitcoin::secp256k1::schnorr::Signature;
     use bitcoin::secp256k1::{Message, Secp256k1, XOnlyPublicKey};
-    use bitcoin::{Address, Network, Transaction};
+    use bitcoin::Transaction;
     use hex::FromHex;
     use ikc_common::hex::ToHex;
     use ikc_common::utility::hex_to_bytes;
     use ikc_device::device_binding::bind_test;
-    use std::str::FromStr;
 
     #[test]
     fn test_sign_p2pkh() {
@@ -827,7 +826,7 @@ mod tests {
     fn test_sign_p2wpkh() {
         bind_test();
 
-        let extra_data = Vec::from_hex("1234").unwrap();
+        let _extra_data = Vec::from_hex("1234").unwrap();
         let utxos = vec![
             Utxo {
                 txhash: "c2ceb5088cf39b677705526065667a3992c68cc18593a9af12607e057672717f"
@@ -1846,7 +1845,7 @@ mod tests {
         let tx: Transaction =
             deserialize(&hex_to_bytes(&tx_sign_result.signature).unwrap()).unwrap();
 
-        let msg = Message::from_slice(
+        let msg = Message::from_digest_slice(
             &Vec::from_hex("f01ba76b329132e48188ad10d00791647ee6d2f7fee5ef397f3481993c898de3")
                 .unwrap(),
         )
@@ -1861,7 +1860,7 @@ mod tests {
         let verify_result = secp.verify_schnorr(&sig, &msg, &pub_key);
         assert!(verify_result.is_ok());
 
-        let msg = Message::from_slice(
+        let msg = Message::from_digest_slice(
             &Vec::from_hex("d0691b5ac1b338b9341790ea69417cb454cf346a718342fb4a846dbb8ae142e8")
                 .unwrap(),
         )

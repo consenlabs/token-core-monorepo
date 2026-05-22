@@ -275,8 +275,8 @@ impl BchTransaction {
 
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: signed_tx.txid().to_hex(),
-            wtx_id: signed_tx.ntxid().to_hex(),
+            tx_hash: signed_tx.compute_txid().to_hex(),
+            wtx_id: signed_tx.compute_ntxid().to_hex(),
         })
     }
 

@@ -256,6 +256,7 @@ mod tests {
     use super::*;
     use crate::tests::{sample_hd_keystore, wif_keystore};
     use crate::BtcKinAddress;
+    use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
     use bitcoin::Transaction;
     use tcx_common::ToHex;
     use tcx_constants::{CoinInfo, CurveType};
@@ -306,7 +307,7 @@ mod tests {
             )
             .unwrap();
 
-        let sig_bytes = base64::decode(&output.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(flag >= 31 && flag <= 34, "flag byte {} not in 31-34", flag);
@@ -337,7 +338,7 @@ mod tests {
             )
             .unwrap();
 
-        let sig_bytes = base64::decode(&output.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(flag >= 31 && flag <= 34, "flag byte {} not in 31-34", flag);
@@ -368,7 +369,7 @@ mod tests {
             )
             .unwrap();
 
-        let sig_bytes = base64::decode(&output.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(flag >= 35 && flag <= 38, "flag byte {} not in 35-38", flag);
@@ -399,7 +400,7 @@ mod tests {
             )
             .unwrap();
 
-        let sig_bytes = base64::decode(&output.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(
@@ -434,7 +435,7 @@ mod tests {
             )
             .unwrap();
 
-        let sig_bytes = base64::decode(&output.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(flag >= 39 && flag <= 42, "flag byte {} not in 39-42", flag);
@@ -466,7 +467,7 @@ mod tests {
             .unwrap();
 
         // Verify it's valid Base64 and decodes to the same witness data as old hex output
-        let decoded = base64::decode(&output.signature).unwrap();
+        let decoded = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert!(!decoded.is_empty());
         let old_hex = "024830450221009f003820d1db93bf78be08dafdd05b7dde7c31a73c9be36b705a15329bd3d0e502203eb6f1a34466995e4b9c281bf4a093a1f55a21b2ef961438c9ae284efab27dda0121026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868";
         let expected_bytes = Vec::<u8>::from_hex(old_hex).unwrap();
@@ -499,7 +500,7 @@ mod tests {
             )
             .unwrap();
 
-        let decoded = base64::decode(&output.signature).unwrap();
+        let decoded = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert!(!decoded.is_empty());
         // Full format: should be a valid serialized transaction
         let tx: Transaction =
@@ -645,7 +646,7 @@ mod tests {
             )
             .unwrap();
 
-        let sig_bytes = base64::decode(&output.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(flag >= 31 && flag <= 34);
@@ -731,7 +732,7 @@ mod tests {
             "m/86'/0'/0'",
             BtcSignatureType::Bip322,
         );
-        let decoded = base64::decode(&taproot_sig).unwrap();
+        let decoded = base64::Engine::decode(&BASE64_STANDARD, &taproot_sig).unwrap();
         let tx: Transaction =
             bitcoin::consensus::deserialize(&decoded).expect("valid serialized tx");
         assert_eq!(tx.version, bitcoin::transaction::Version(0));

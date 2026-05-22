@@ -22,7 +22,7 @@ prost-types = "=0.14.3"
 
 base58 = "=0.2.0"
 codec = { package = "parity-scale-codec", version = "=3.7.5", default-features = false, features = ["derive"] }
-rand = "=0.8.6"
+rand = "=0.10.1"
 
 anyhow = { version = "=1.0.102", features = [] }
 #tweetnacl = "0.2.1"

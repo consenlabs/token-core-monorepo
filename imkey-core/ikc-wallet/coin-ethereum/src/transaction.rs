@@ -244,8 +244,8 @@ impl Transaction {
     ) -> (Vec<u8>, UnverifiedTransaction) {
         let unverified = UnverifiedTransaction {
             unsigned: self.clone(),
-            r: sig.r().into(),
-            s: sig.s().into(),
+            r: U256::from_big_endian(sig.r()),
+            s: U256::from_big_endian(sig.s()),
             v: self.add_chain_replay_protection(sig.v() as u64, chain_id),
             hash: H256::zero(),
             chain_id: chain_id,

@@ -78,7 +78,7 @@ impl KdfParams for Pbkdf2Params {
 
     fn derive_key(&self, password: &[u8], out: &mut [u8]) {
         let salt_bytes: Vec<u8> = FromHex::from_hex(&self.salt).unwrap();
-        pbkdf2::pbkdf2::<hmac::Hmac<sha2::Sha256>>(password, &salt_bytes, self.c, out);
+        let _ = pbkdf2::pbkdf2::<hmac::Hmac<sha2::Sha256>>(password, &salt_bytes, self.c, out);
     }
 }
 
@@ -127,12 +127,14 @@ impl KdfParams for SCryptParams {
     }
 }
 
+#[cfg(test)]
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct CacheDerivedKey {
     hashed_key: String,
     derived_key: Vec<u8>,
 }
 
+#[cfg(test)]
 impl CacheDerivedKey {
     pub fn new(key: &str, derived_key: &[u8]) -> Self {
         CacheDerivedKey {
@@ -227,7 +229,7 @@ impl<'a> Unlocker<'a> {
 }
 
 impl Crypto {
-    pub fn use_key(&self, key: &Key) -> Result<Unlocker> {
+    pub fn use_key(&self, key: &Key) -> Result<Unlocker<'_>> {
         match key {
             Key::Password(password) => {
                 let derived_key = self.derive_key(password)?;

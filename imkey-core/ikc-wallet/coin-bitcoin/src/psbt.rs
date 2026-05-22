@@ -5,7 +5,7 @@ use crate::Result;
 use anyhow::anyhow;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::blockdata::script::PushBytesBuf;
-use bitcoin::consensus::{serialize, Decodable, Encodable};
+use bitcoin::consensus::{serialize, Encodable};
 use bitcoin::ecdsa::Signature as EcdsaSig;
 use bitcoin::hashes::{hash160, Hash};
 use bitcoin::key::UntweakedPublicKey;
@@ -31,7 +31,6 @@ use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
-use std::io::Cursor;
 use std::str::FromStr;
 use std::usize;
 
@@ -846,7 +845,7 @@ mod test {
         let data =
             Vec::<u8>::from_hex("3a66cf6ec1a87b10b86fa358baf64484bba8c61c9828e5cbe2eb8a3d4bbf190c")
                 .unwrap();
-        let msg = Message::from_slice(&data).unwrap();
+        let _msg = Message::from_digest_slice(&data).unwrap();
         let x_pub_key = XOnlyPublicKey::from_slice(
             Vec::<u8>::from_hex("66f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e")
                 .unwrap()
@@ -856,7 +855,7 @@ mod test {
         let secp = Secp256k1::new();
         let _tweak_pub_key = x_pub_key.tap_tweak(&secp, None);
 
-        // assert!(sig.sig.verify(&msg, &tweak_pub_key.0.to_inner()).is_ok());
+        // assert!(sig.sig.verify(&msg, &tweak_pub_key.0.to_x_only_public_key()).is_ok());
     }
 
     #[test]
@@ -877,8 +876,8 @@ mod test {
         let data =
             Vec::<u8>::from_hex("56b6c5fd09753fbbbeb8f530308e4f7d2f404e02da767f033e926d27fcc2f37e")
                 .unwrap();
-        let msg = Message::from_slice(&data).unwrap();
-        let x_pub_key = XOnlyPublicKey::from_slice(
+        let _msg = Message::from_digest_slice(&data).unwrap();
+        let _x_pub_key = XOnlyPublicKey::from_slice(
             Vec::<u8>::from_hex("66f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e")
                 .unwrap()
                 .as_slice(),
@@ -1018,26 +1017,26 @@ mod test {
 
         let tx = psbt.extract_tx().unwrap();
 
-        let msg = Message::from_slice(
+        let _msg = Message::from_digest_slice(
             &Vec::from_hex("f01ba76b329132e48188ad10d00791647ee6d2f7fee5ef397f3481993c898de3")
                 .unwrap(),
         )
         .unwrap();
-        let sig = Signature::from_slice(&tx.input[0].witness.to_vec()[0]).unwrap();
-        let pub_key = XOnlyPublicKey::from_slice(
+        let _sig = Signature::from_slice(&tx.input[0].witness.to_vec()[0]).unwrap();
+        let _pub_key = XOnlyPublicKey::from_slice(
             &Vec::from_hex("8f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233")
                 .unwrap(),
         )
         .unwrap();
         // assert!(sig.verify(&msg, &pub_key).is_ok());
 
-        let msg = Message::from_slice(
+        let _msg = Message::from_digest_slice(
             &Vec::from_hex("d0691b5ac1b338b9341790ea69417cb454cf346a718342fb4a846dbb8ae142e8")
                 .unwrap(),
         )
         .unwrap();
-        let sig = Signature::from_slice(&tx.input[1].witness.to_vec()[0]).unwrap();
-        let pub_key = XOnlyPublicKey::from_slice(
+        let _sig = Signature::from_slice(&tx.input[1].witness.to_vec()[0]).unwrap();
+        let _pub_key = XOnlyPublicKey::from_slice(
             &Vec::from_hex("9303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea06155")
                 .unwrap(),
         )

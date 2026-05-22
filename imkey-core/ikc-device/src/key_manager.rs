@@ -1,6 +1,6 @@
 use crate::error::BindError;
 use crate::Result;
-use base64::{decode, encode};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use ikc_common::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
 use ikc_common::utility::{is_valid_hex, sha256_hash};
 use secp256k1::rand;
@@ -73,7 +73,7 @@ impl KeyManager {
         let ciphertext = encrypt_pkcs7(&data, &self.encry_key, &self.iv)?;
 
         //base64 coding
-        Ok(encode(&ciphertext))
+        Ok(BASE64_STANDARD.encode(&ciphertext))
     }
 
     /**
@@ -109,7 +109,9 @@ impl KeyManager {
     pub fn decrypt_keys(&mut self, ciphertext: &str) -> Result<bool> {
         let ciphertext_bytes = match is_valid_hex(ciphertext) {
             true => hex::decode(ciphertext).expect("invalid keys"),
-            false => decode(ciphertext.as_bytes()).expect("invalid keys"), //base64 decode
+            false => BASE64_STANDARD
+                .decode(ciphertext.as_bytes())
+                .expect("invalid keys"), //base64 decode
         };
 
         //AES-CBC Decrypt

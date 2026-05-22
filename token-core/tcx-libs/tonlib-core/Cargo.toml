@@ -9,7 +9,7 @@ resolver = "2"
 
 [dependencies]
 base64 = "=0.22.1"
-bitstream-io = "=2.6.0"
+bitstream-io = "=4.10.0"
 crc = "=3.4.0"
 hex = "=0.4.3"
 hmac = "=0.13.0"

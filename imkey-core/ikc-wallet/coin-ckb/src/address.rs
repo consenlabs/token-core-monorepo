@@ -1,7 +1,7 @@
 use crate::hash::blake2b_160;
 use crate::Result;
 use bech32::{Bech32, Hrp};
-use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
 use bitcoin::secp256k1::{PublicKey, PublicKey as Secp256k1PublicKey};
 use hex::FromHex;
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
@@ -94,7 +94,10 @@ impl CkbAddress {
         let iv_bytes = hex::decode(&*iv)?;
         let encrypted =
             ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
-        Ok(base64::encode(&encrypted))
+        Ok(base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            &encrypted,
+        ))
     }
 
     pub fn get_xpub(network: &str, path: &str) -> Result<String> {
@@ -120,7 +123,7 @@ impl CkbAddress {
         //get parent public key fingerprint
         let parent_chain_code = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
         let network = network_convert(network);
-        let parent_ext_pub_key = ExtendedPubKey {
+        let parent_ext_pub_key = Xpub {
             network: network.into(),
             depth: 0u8,
             parent_fingerprint: Fingerprint::default(),
@@ -134,7 +137,7 @@ impl CkbAddress {
         let sub_chain_code_obj = ChainCode::try_from(hex::decode(sub_chain_code)?.as_slice())?;
 
         let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
-        let extend_public_key = ExtendedPubKey {
+        let extend_public_key = Xpub {
             network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,

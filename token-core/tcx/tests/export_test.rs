@@ -23,8 +23,6 @@ use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
 
 use std::fs;
 
-use sp_core::ByteArray;
-
 use crate::common::*;
 
 #[test]

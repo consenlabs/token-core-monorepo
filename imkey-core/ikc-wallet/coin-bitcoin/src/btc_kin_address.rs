@@ -2,7 +2,7 @@ use crate::common::get_xpub_data;
 use crate::network::BtcKinNetwork;
 use crate::Result;
 use bitcoin::base58;
-use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
 use bitcoin::hashes::Hash;
 use bitcoin::key::{TapTweak, UntweakedPublicKey};
 use bitcoin::secp256k1::{PublicKey as Secp256k1PublicKey, Secp256k1};
@@ -336,7 +336,7 @@ impl ImkeyPublicKey {
         let pub_key_obj = Secp256k1PublicKey::from_str(pub_key)?;
 
         let chain_code_obj = ChainCode::try_from(hex::decode(chain_code)?.as_slice())?;
-        let parent_ext_pub_key = ExtendedPubKey {
+        let parent_ext_pub_key = Xpub {
             network: network.into(),
             depth: 0u8,
             parent_fingerprint: Fingerprint::default(),
@@ -349,7 +349,7 @@ impl ImkeyPublicKey {
         //build extend public key obj
         let chain_code_obj = ChainCode::try_from(hex::decode(chain_code)?.as_slice())?;
         let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
-        let extend_public_key = ExtendedPubKey {
+        let extend_public_key = Xpub {
             network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,

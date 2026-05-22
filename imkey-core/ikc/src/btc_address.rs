@@ -100,7 +100,10 @@ pub fn get_enc_xpub(network: Network, path: &str) -> Result<String> {
     let key_bytes = hex::decode(&*key)?;
     let iv_bytes = hex::decode(&*iv)?;
     let encrypted = ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
-    Ok(base64::encode(&encrypted))
+    Ok(base64::Engine::encode(
+        &base64::engine::general_purpose::STANDARD,
+        &encrypted,
+    ))
 }
 
 pub fn register_btc_address(param: &AddressParam) -> Result<Vec<u8>> {

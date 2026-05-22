@@ -2,7 +2,7 @@ use crate::address::BtcForkAddress;
 use crate::btcforkapi::Utxo;
 use crate::Result;
 use bitcoin::base58;
-use bitcoin::bip32::{ChainCode, ChildNumber, ExtendedPubKey};
+use bitcoin::bip32::{ChainCode, ChildNumber, Xpub};
 use bitcoin::secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use bitcoin::Network;
 use bitcoin::{Address, PublicKey, ScriptBuf};
@@ -29,7 +29,7 @@ pub fn address_verify(
             let xpub_data = get_xpub_data(&utxo.derived_path, false)?;
             let public_key = &xpub_data[..130];
             let chain_code = &xpub_data[130..194];
-            ExtendedPubKey {
+            Xpub {
                 network: network.into(),
                 depth: 0,
                 parent_fingerprint: Default::default(),
@@ -40,7 +40,7 @@ pub fn address_verify(
         } else {
             let public_key_obj = Secp256k1PublicKey::from_str(public_key)?;
             let chain_code_obj = ChainCode::try_from(chain_code)?;
-            ExtendedPubKey {
+            Xpub {
                 network: network.into(),
                 depth: 0,
                 parent_fingerprint: Default::default(),
@@ -98,7 +98,7 @@ pub fn secp256k1_sign_verify(public: &[u8], signed: &[u8], message: &[u8]) -> Re
     let public_obj = Secp256k1PublicKey::from_slice(public)?;
     //build message
     let hash_result = sha256_hash(message);
-    let message_obj = Message::from_slice(hash_result.as_ref())?;
+    let message_obj = Message::from_digest_slice(hash_result.as_ref())?;
     //build signature obj
     let mut sig_obj = Signature::from_der(signed)?;
     sig_obj.normalize_s();

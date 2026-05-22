@@ -166,7 +166,7 @@ impl TxSigner {
             TapSighashType::Default,
         )?;
 
-        let msg = Message::from_slice(&hash[..])?;
+        let msg = Message::from_digest_slice(&hash[..])?;
         let sig = secp.sign_schnorr_no_aux_rand(&msg, &key_pair.to_keypair());
 
         let tx_input = &mut self.tx.input[index];
@@ -458,7 +458,7 @@ impl TransactionSigner<OmniTxInput, BtcKinTxOutput> for Keystore {
 #[cfg(test)]
 mod tests {
     use tcx_constants::coin_info::coin_info_from_param;
-    use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD, TEST_WIF};
+    use tcx_constants::TEST_PASSWORD;
     use tcx_keystore::Metadata;
     use tcx_keystore::{Keystore, TransactionSigner};
     use tcx_primitive::Secp256k1PrivateKey;
@@ -825,7 +825,7 @@ mod tests {
             let tx: Transaction = deserialize(&Vec::from_hex(&actual.raw_tx).unwrap()).unwrap();
             let secp = Secp256k1::verification_only();
 
-            let msg = Message::from_slice(
+            let msg = Message::from_digest_slice(
                 &Vec::from_hex("f01ba76b329132e48188ad10d00791647ee6d2f7fee5ef397f3481993c898de3")
                     .unwrap(),
             )
@@ -838,7 +838,7 @@ mod tests {
             .unwrap();
             assert!(secp.verify_schnorr(&sig, &msg, &pub_key).is_ok());
 
-            let msg = Message::from_slice(
+            let msg = Message::from_digest_slice(
                 &Vec::from_hex("d0691b5ac1b338b9341790ea69417cb454cf346a718342fb4a846dbb8ae142e8")
                     .unwrap(),
             )

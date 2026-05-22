@@ -67,7 +67,10 @@ impl CosmosTransaction {
         let mut signature_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
         signature_obj.normalize_s();
         let normalizes_sig_vec = signature_obj.serialize_compact();
-        let signature = base64::encode(normalizes_sig_vec.as_slice());
+        let signature = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            normalizes_sig_vec.as_slice(),
+        );
 
         let output = CosmosTxOutput { signature };
         Ok(output)
@@ -101,7 +104,7 @@ mod tests {
     fn test_base64() {
         let hex = "477135B0DF08980F927D1569A780B4C4D24DA503BBCF98B87F606C29D47110FB654A8BAC272C80860018D77039563644209011717F4A69691F6B27C44C48002E".to_string();
         let bytes = hex::decode(&hex).unwrap();
-        let base64 = base64::encode(&bytes);
+        let base64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes);
         assert_eq!(base64,
                    "R3E1sN8ImA+SfRVpp4C0xNJNpQO7z5i4f2BsKdRxEPtlSousJyyAhgAY13A5VjZEIJARcX9KaWkfayfETEgALg=="
         );

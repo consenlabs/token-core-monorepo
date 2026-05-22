@@ -5,7 +5,7 @@ use crate::hex::FromHex;
 use crate::Result;
 use base64::Engine;
 use bitcoin::base58;
-use bitcoin::bip32::{ChainCode, ChildNumber, Error as Bip32Error, ExtendedPubKey, Fingerprint};
+use bitcoin::bip32::{ChainCode, ChildNumber, Error as Bip32Error, Fingerprint, Xpub};
 use bitcoin::hashes::{sha256, Hash};
 use bitcoin::secp256k1 as bitcoin_secp256k1;
 use bitcoin::Network;
@@ -17,7 +17,7 @@ use num_traits::{FromPrimitive, Num, Zero};
 use regex::Regex;
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId, Signature};
 use secp256k1::{Message, PublicKey as PublicKey2, Secp256k1, SecretKey};
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 
 pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
     let ret_data;
@@ -37,9 +37,9 @@ pub fn secp256k1_sign(private_key: &[u8], message: &[u8]) -> Result<Vec<u8>> {
     //calc twice sha256 hash
     let message_hash = sha256_hash(sha256_hash(message).as_ref());
     //generator SecretKey obj
-    let secret_key = SecretKey::from_slice(private_key)?;
+    let secret_key = SecretKey::from_byte_array(private_key.try_into()?)?;
     //generator Message obj
-    let message_data = Message::from_slice(message_hash.as_ref())?;
+    let message_data = Message::from_digest(message_hash.as_slice().try_into()?);
     let secp = Secp256k1::new();
     //sign data
     Ok(secp
@@ -57,7 +57,7 @@ pub fn secp256k1_sign_verify(public: &[u8], signed: &[u8], message: &[u8]) -> Re
     let public_obj = PublicKey2::from_slice(public)?;
     //build message
     let hash_result = sha256_hash(message);
-    let message_obj = Message::from_slice(hash_result.as_ref())?;
+    let message_obj = Message::from_digest(hash_result.as_slice().try_into()?);
     //build signature obj
     let mut sig_obj = Signature::from_der(signed)?;
     sig_obj.normalize_s();
@@ -111,7 +111,7 @@ pub fn retrieve_recid(msg: &[u8], sign_compact: &[u8], pubkey: &Vec<u8>) -> Resu
     for i in 0..3 {
         let rec_id = RecoveryId::try_from(i)?;
         let sig = RecoverableSignature::from_compact(sign_compact, rec_id)?;
-        let msg_to_sign = Message::from_slice(msg)?;
+        let msg_to_sign = Message::from_digest(msg.try_into()?);
 
         if let Ok(rec_pubkey) = secp_context.recover_ecdsa(msg_to_sign, &sig) {
             let rec_pubkey_raw = rec_pubkey.serialize_uncompressed();
@@ -128,7 +128,7 @@ pub fn retrieve_recid(msg: &[u8], sign_compact: &[u8], pubkey: &Vec<u8>) -> Resu
     Ok(rec_id)
 }
 
-pub fn to_ss58check_with_version(extended_key: ExtendedPubKey, version: &[u8]) -> String {
+pub fn to_ss58check_with_version(extended_key: Xpub, version: &[u8]) -> String {
     let mut ret = [0; 78];
     // let extended_key = self.0;
     ret[0..4].copy_from_slice(version);
@@ -142,7 +142,7 @@ pub fn to_ss58check_with_version(extended_key: ExtendedPubKey, version: &[u8]) -
     base58::encode_check(&ret[..])
 }
 
-pub fn from_ss58check_with_version(s: &str) -> Result<(ExtendedPubKey, Vec<u8>)> {
+pub fn from_ss58check_with_version(s: &str) -> Result<(Xpub, Vec<u8>)> {
     let data = base58::decode_check(s)?;
 
     if data.len() != 78 {
@@ -151,7 +151,7 @@ pub fn from_ss58check_with_version(s: &str) -> Result<(ExtendedPubKey, Vec<u8>)>
     let cn_int: u32 = BigEndian::read_u32(&data[9..13]);
     let child_number: ChildNumber = ChildNumber::from(cn_int);
 
-    let epk = ExtendedPubKey {
+    let epk = Xpub {
         network: Network::Bitcoin.into(),
         depth: data[4],
         parent_fingerprint: Fingerprint::from(<[u8; 4]>::try_from(&data[5..9]).unwrap()),
@@ -165,10 +165,7 @@ pub fn from_ss58check_with_version(s: &str) -> Result<(ExtendedPubKey, Vec<u8>)>
     Ok((epk, network.to_vec()))
 }
 
-pub fn extended_pub_key_derive(
-    extended_pub_key: &ExtendedPubKey,
-    path: &str,
-) -> Result<ExtendedPubKey> {
+pub fn extended_pub_key_derive(extended_pub_key: &Xpub, path: &str) -> Result<Xpub> {
     let mut parts = path.split('/').peekable();
     if *parts.peek().unwrap() == "m" {
         parts.next();

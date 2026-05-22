@@ -39,7 +39,7 @@ impl Address for AtomAddress {
         )?))
     }
 
-    fn is_valid(address: &str, coin: &CoinInfo) -> bool {
+    fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
         let ret = bech32::decode(address);
         if let Ok(val) = ret {
             let (_hrp, data) = val;
@@ -71,7 +71,7 @@ impl ToString for AtomAddress {
 #[cfg(test)]
 mod tests {
     use crate::address::AtomAddress;
-    use anyhow::anyhow;
+
     use std::str::FromStr;
     use tcx_keystore::Address;
 
@@ -206,7 +206,7 @@ mod tests {
                 "stride1m566v5rcklnac8vc0dftfu4lnvznhlu7w6ffme",
             ),
         ];
-        for (hrp, chain_id, path, expected_addr) in testcase {
+        for (_hrp, chain_id, path, expected_addr) in testcase {
             let coin_info = CoinInfo {
                 chain_id: chain_id.to_string(),
                 coin: "COSMOS".to_string(),

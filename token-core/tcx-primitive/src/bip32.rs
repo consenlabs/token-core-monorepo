@@ -7,22 +7,19 @@ use crate::{Derive, Secp256k1PrivateKey, Secp256k1PublicKey, Ss58Codec};
 use tcx_common::{ripemd160, sha256, FromHex, ToHex};
 
 use bitcoin::base58;
-use bitcoin::bip32::{
-    ChainCode, ChildNumber, Error as Bip32Error, ExtendedPrivKey, ExtendedPubKey, Fingerprint,
-};
+use bitcoin::bip32::{ChainCode, ChildNumber, Error as Bip32Error, Fingerprint, Xpriv, Xpub};
 use bitcoin::secp256k1;
 use bitcoin::Network;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
-use std::convert::TryInto;
 
 use bip39::{Language, Mnemonic};
 
 #[derive(Clone)]
-pub struct Bip32DeterministicPrivateKey(ExtendedPrivKey);
+pub struct Bip32DeterministicPrivateKey(Xpriv);
 
 #[derive(Clone)]
-pub struct Bip32DeterministicPublicKey(ExtendedPubKey);
+pub struct Bip32DeterministicPublicKey(Xpub);
 
 impl From<Bip32Error> for KeyError {
     fn from(err: Bip32Error) -> Self {
@@ -44,14 +41,14 @@ impl From<Bip32Error> for KeyError {
 impl Bip32DeterministicPrivateKey {
     /// Construct a new master key from a seed value
     pub fn from_seed(seed: &[u8]) -> Result<Self> {
-        let epk = ExtendedPrivKey::new_master(Network::Bitcoin, seed)?;
+        let epk = Xpriv::new_master(Network::Bitcoin, seed)?;
         Ok(Bip32DeterministicPrivateKey(epk))
     }
 
     pub fn from_mnemonic(mnemonic: &str) -> Result<Self> {
         let mn = Mnemonic::from_phrase(mnemonic, Language::English)?;
         let seed = bip39::Seed::new(&mn, "");
-        let epk = ExtendedPrivKey::new_master(Network::Bitcoin, seed.as_ref())?;
+        let epk = Xpriv::new_master(Network::Bitcoin, seed.as_ref())?;
         Ok(Bip32DeterministicPrivateKey(epk))
     }
 }
@@ -105,14 +102,14 @@ impl DeterministicPrivateKey for Bip32DeterministicPrivateKey {
     type PrivateKey = Secp256k1PrivateKey;
 
     fn from_seed(seed: &[u8]) -> Result<Self> {
-        let esk = ExtendedPrivKey::new_master(Network::Bitcoin, seed)?;
+        let esk = Xpriv::new_master(Network::Bitcoin, seed)?;
         Ok(Bip32DeterministicPrivateKey(esk))
     }
 
     fn from_mnemonic(mnemonic: &str) -> Result<Self> {
         let mn = Mnemonic::from_phrase(mnemonic, Language::English)?;
         let seed = bip39::Seed::new(&mn, "");
-        let esk = ExtendedPrivKey::new_master(Network::Bitcoin, seed.as_bytes())?;
+        let esk = Xpriv::new_master(Network::Bitcoin, seed.as_bytes())?;
 
         Ok(Bip32DeterministicPrivateKey(esk))
     }
@@ -127,7 +124,7 @@ impl DeterministicPrivateKey for Bip32DeterministicPrivateKey {
     }
 
     fn deterministic_public_key(&self) -> Self::DeterministicPublicKey {
-        let pk = ExtendedPubKey::from_priv(&SECP256K1_ENGINE, &self.0);
+        let pk = Xpub::from_priv(&SECP256K1_ENGINE, &self.0);
         Bip32DeterministicPublicKey(pk)
     }
 }
@@ -180,7 +177,7 @@ impl FromHex for Bip32DeterministicPublicKey {
         let cn_int: u32 = BigEndian::read_u32(&data[5..9]);
         let child_number: ChildNumber = ChildNumber::from(cn_int);
 
-        let epk = ExtendedPubKey {
+        let epk = Xpub {
             network: Network::Bitcoin.into(),
             depth: data[0],
             parent_fingerprint: Fingerprint::from(<[u8; 4]>::try_from(&data[1..5]).unwrap()),
@@ -202,7 +199,7 @@ impl Ss58Codec for Bip32DeterministicPublicKey {
         let cn_int: u32 = BigEndian::read_u32(&data[9..13]);
         let child_number: ChildNumber = ChildNumber::from(cn_int);
 
-        let epk = ExtendedPubKey {
+        let epk = Xpub {
             network: Network::Bitcoin.into(),
             depth: data[4],
             parent_fingerprint: Fingerprint::from(<[u8; 4]>::try_from(&data[5..9]).unwrap()),
@@ -243,7 +240,7 @@ impl Ss58Codec for Bip32DeterministicPrivateKey {
         let child_number: ChildNumber = ChildNumber::from(cn_int);
 
         let network = Network::Bitcoin;
-        let epk = ExtendedPrivKey {
+        let epk = Xpriv {
             network: network.into(),
             depth: data[4],
             parent_fingerprint: Fingerprint::from(<[u8; 4]>::try_from(&data[5..9]).unwrap()),

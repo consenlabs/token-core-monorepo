@@ -6,7 +6,7 @@ use crate::api::{
 use crate::message_handler::encode_message;
 use crate::Result;
 use anyhow::anyhow;
-use bitcoin::bip32::ExtendedPubKey;
+use bitcoin::bip32::Xpub;
 use bitcoin::Network;
 use coin_bch::address::BchAddress;
 use coin_bitcoin::address::BtcAddress;
@@ -164,7 +164,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
         };
 
         if !ext_public_key.is_empty() {
-            let extended_pub_key = ExtendedPubKey::from_str(&ext_public_key)?;
+            let extended_pub_key = Xpub::from_str(&ext_public_key)?;
             let ext_version = get_xpub_prefix(&derivation.network);
             let ext_public_key = to_ss58check_with_version(extended_pub_key, &ext_version);
             account_rsp.extended_public_key = ext_public_key.clone();

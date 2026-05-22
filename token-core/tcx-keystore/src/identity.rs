@@ -3,7 +3,7 @@ use crate::Error;
 use crate::Result;
 use bip39::Seed;
 use bitcoin::base58;
-use bitcoin::bip32::ExtendedPrivKey;
+use bitcoin::bip32::Xpriv;
 use bitcoin::blockdata::constants::PUBKEY_ADDRESS_PREFIX_MAIN;
 use bitcoin::blockdata::constants::PUBKEY_ADDRESS_PREFIX_TEST;
 use bitcoin::consensus::{Decodable, Encodable};
@@ -15,6 +15,7 @@ use multihash_codetable::{Code, MultihashDigest};
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
 use secp256k1::{Message, PublicKey, Secp256k1 as DirectSecp256k1};
 use serde::{Deserialize, Serialize};
+use std::convert::TryInto;
 use std::io::{Cursor, Read, Write};
 use tcx_common::{keccak256, merkle_hash, random_u8_16, unix_timestamp, FromHex, ToHex};
 use tcx_crypto::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
@@ -93,7 +94,7 @@ impl Identity {
             Network::Testnet
         };
 
-        let master_key = ExtendedPrivKey::new_master(network_type, seed.as_ref())?;
+        let master_key = Xpriv::new_master(network_type, seed.as_ref())?;
         Self::new(&master_key.private_key.secret_bytes(), unlocker, network)
     }
 
@@ -173,7 +174,7 @@ pub fn decrypt_ipfs_with_enc_key(ciphertext: &str, ipfs_id: &str, enc_key: &str)
             .as_slice(),
     );
 
-    let message = Message::from_slice(&hash)?;
+    let message = Message::from_digest(hash.as_slice().try_into()?);
     let sig = RecoverableSignature::from_compact(&signature, recover_id)?;
     let pub_key = DirectSecp256k1::new().recover_ecdsa(message, &sig)?;
     let calculated_ipfs_id = Identity::calculate_ipfs_id(&pub_key);

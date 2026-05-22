@@ -11,19 +11,18 @@ use anyhow::anyhow;
 use ethereum_types::H160;
 use prost::Message;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::collections::{HashMap, HashSet};
+use serde_json::Value;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::coin_info::get_xpub_prefix;
-use tcx_constants::CoinInfo;
 use tcx_eth::address::to_checksum;
 use tcx_keystore::keystore::IdentityNetwork;
+use tcx_keystore::Keystore;
 use tcx_keystore::Metadata;
-use tcx_keystore::{Keystore, Source};
 use tcx_migration::keystore_upgrade::{mapping_curve_name, KeystoreUpgrade};
 use tcx_migration::migration::{LegacyKeystore, NumberOrNumberStr};
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
@@ -65,7 +64,7 @@ fn remove_old_keystore_file(id: &str) {
     }
 
     if Path::new(&file_path).exists() {
-        fs::remove_file(&file_path);
+        let _ = fs::remove_file(&file_path);
     }
 }
 
@@ -85,9 +84,9 @@ pub fn remove_old_keystore_by_id(id: &str) -> Option<Vec<String>> {
 
     if !map.is_empty() {
         let json_str = serde_json::to_string(&map).unwrap();
-        fs::write(&migrated_file, json_str);
+        let _ = fs::write(&migrated_file, json_str);
     } else {
-        fs::remove_file(&migrated_file);
+        let _ = fs::remove_file(&migrated_file);
     }
     marked_files
 }
@@ -534,7 +533,6 @@ mod tests {
         migration::{mark_identity_wallets, scan_legacy_keystores},
     };
     use serial_test::serial;
-    use tcx_keystore::keystore::IdentityNetwork;
 
     #[test]
     #[serial]
@@ -545,7 +543,7 @@ mod tests {
             ids: vec!["0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string()],
             source: "RECOVERED_IDENTITY".to_string(),
         };
-        mark_identity_wallets(&encode_message(param).unwrap());
+        let _ = mark_identity_wallets(&encode_message(param).unwrap());
 
         let result = scan_legacy_keystores().unwrap();
 
@@ -561,7 +559,7 @@ mod tests {
             ids: vec!["0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string()],
             source: "NEW_IDENTITY".to_string(),
         };
-        mark_identity_wallets(&encode_message(param).unwrap());
+        let _ = mark_identity_wallets(&encode_message(param).unwrap());
 
         let result = scan_legacy_keystores().unwrap();
 

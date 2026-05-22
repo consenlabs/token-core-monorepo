@@ -22,10 +22,10 @@ anyhow = { version = "=1.0.102", features = [] }
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.149"
 tiny-bip39 = "=2.0.0"
-ed25519-bip32 = "=0.3.2"
+ed25519-bip32 = "=0.4.1"
 ed25519-dalek = "=2.2.0"
 blake2b_simd = "=1.0.4"
-blst = "=0.3.3"
+blst = "=0.3.16"
 num-bigint = "=0.4.6"
 num-traits = "=0.2.19"
 sha2 = "=0.11.0"

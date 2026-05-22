@@ -12,6 +12,10 @@ pub fn get_account_path(path: &str) -> Result<String> {
     let _ = DerivationPath::from_str(path)?;
     let mut children: Vec<&str> = path.split('/').collect();
 
+    ensure!(
+        children.first() == Some(&"m"),
+        format!("{} path must start with m", path)
+    );
     ensure!(children.len() >= 4, format!("{} path is too short", path));
 
     while children.len() > 4 {

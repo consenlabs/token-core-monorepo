@@ -13,8 +13,8 @@ tcx-common = {path = "../tcx-common"}
 
 anyhow = { version = "=1.0.102", features = [] }
 hex = "=0.4.3"
-ethereum-types = "=0.14.1"
-rlp = "=0.5.2"
+ethereum-types = "=0.16.0"
+rlp = "=0.6.1"
 prost = "=0.14.3"
 prost-types = "=0.14.3"
 regex = "=1.12.3"

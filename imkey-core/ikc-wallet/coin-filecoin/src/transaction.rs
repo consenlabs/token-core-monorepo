@@ -11,19 +11,106 @@ use ikc_device::device_binding::KEY_MANAGER;
 
 use anyhow::anyhow;
 use forest_address::Address;
-use forest_cid::Cid;
-use forest_encoding::Cbor;
-use forest_message::UnsignedMessage as ForestUnsignedMessage;
+use forest_cid::{self, Cid, Code};
+use forest_encoding::{ser, serde_bytes, to_vec};
 use forest_vm::{Serialized, TokenAmount};
 use ikc_transport::message::send_apdu_timeout;
+use num_bigint_chainsafe::bigint_ser::BigIntSer;
 use secp256k1::ecdsa::Signature as SecpSignature;
 use std::str::FromStr;
 
 #[derive(Default, Debug, Clone, PartialEq, Eq)]
 pub struct Transaction {}
 
+struct FilecoinUnsignedMessage {
+    version: i64,
+    from: Address,
+    to: Address,
+    sequence: u64,
+    value: TokenAmount,
+    method_num: u64,
+    params: Serialized,
+    gas_limit: i64,
+    gas_fee_cap: TokenAmount,
+    gas_premium: TokenAmount,
+}
+
+impl ser::Serialize for FilecoinUnsignedMessage {
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        ser::Serialize::serialize(
+            &(
+                &self.version,
+                &self.to,
+                &self.from,
+                &self.sequence,
+                BigIntSer(&self.value),
+                &self.gas_limit,
+                BigIntSer(&self.gas_fee_cap),
+                BigIntSer(&self.gas_premium),
+                &self.method_num,
+                &self.params,
+            ),
+            serializer,
+        )
+    }
+}
+
+struct Secp256k1SignedMessage<'a> {
+    message: &'a FilecoinUnsignedMessage,
+    signature: Secp256k1Signature<'a>,
+}
+
+impl ser::Serialize for Secp256k1SignedMessage<'_> {
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        ser::Serialize::serialize(&(&self.message, &self.signature), serializer)
+    }
+}
+
+struct Secp256k1Signature<'a>(&'a [u8]);
+
+impl ser::Serialize for Secp256k1Signature<'_> {
+    fn serialize<S>(&self, serializer: S) -> core::result::Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+    {
+        let mut bytes = Vec::with_capacity(self.0.len() + 1);
+        bytes.push(1);
+        bytes.extend_from_slice(self.0);
+        serde_bytes::Serialize::serialize(&bytes, serializer)
+    }
+}
+
+fn secp256k1_signed_message_cid(
+    message: &FilecoinUnsignedMessage,
+    signature: &[u8],
+) -> core::result::Result<Cid, forest_encoding::Error> {
+    let signed_message = Secp256k1SignedMessage {
+        message,
+        signature: Secp256k1Signature(signature),
+    };
+    Ok(forest_cid::new_from_cbor(
+        &to_vec(&signed_message)?,
+        Code::Blake2b256,
+    ))
+}
+
+fn unsigned_message_cid(
+    message: &FilecoinUnsignedMessage,
+) -> core::result::Result<Cid, forest_encoding::Error> {
+    Ok(forest_cid::new_from_cbor(
+        &to_vec(message)?,
+        Code::Blake2b256,
+    ))
+}
+
 impl Transaction {
-    fn convert_message(message: &FilecoinTxInput) -> Result<ForestUnsignedMessage> {
+    fn convert_message(message: &FilecoinTxInput) -> Result<FilecoinUnsignedMessage> {
         let to = Address::from_str(&message.to).map_err(|_| CoinError::InvalidAddress)?;
         let from = Address::from_str(&message.from).map_err(|_| CoinError::InvalidAddress)?;
         let value = TokenAmount::from_str(&message.value).map_err(|_| CoinError::InvalidNumber)?;
@@ -34,23 +121,22 @@ impl Transaction {
             TokenAmount::from_str(&message.gas_premium).map_err(|_| CoinError::InvalidNumber)?;
 
         let message_params_bytes =
-            base64::decode(&message.params).map_err(|_| CoinError::InvalidParam)?;
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &message.params)
+                .map_err(|_| CoinError::InvalidParam)?;
         let params = Serialized::new(message_params_bytes);
 
-        let tmp = ForestUnsignedMessage::builder()
-            .to(to)
-            .from(from)
-            .sequence(message.nonce)
-            .value(value)
-            .method_num(message.method)
-            .params(params)
-            .gas_limit(gas_limit)
-            .gas_premium(gas_premium)
-            .gas_fee_cap(gas_fee_cap)
-            .build()
-            .map_err(|_| CoinError::InvalidFormat)?;
-
-        Ok(tmp)
+        Ok(FilecoinUnsignedMessage {
+            version: 0,
+            to,
+            from,
+            sequence: message.nonce,
+            value,
+            method_num: message.method,
+            params,
+            gas_limit,
+            gas_premium,
+            gas_fee_cap,
+        })
     }
 
     pub fn sign_tx(tx_input: FilecoinTxInput, sign_param: &SignParam) -> Result<FilecoinTxOutput> {
@@ -72,7 +158,7 @@ impl Transaction {
         let res_msg_pubkey = FilecoinAddress::get_pub_key(sign_param.path.as_str())?;
         let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
 
-        let mut cid: Cid = unsigned_message.cid()?;
+        let mut cid: Cid = unsigned_message_cid(&unsigned_message)?;
         let data = &digest(&cid.to_bytes(), HashSize::Default);
 
         //organize data
@@ -137,13 +223,7 @@ impl Transaction {
         data_arr[0..64].copy_from_slice(&normalizes_sig_vec[0..64]);
         data_arr[64] = i32::from(rec_id) as u8;
 
-        let forest_sig = forest_crypto::Signature::new_secp256k1(data_arr.to_vec());
-        let forest_signed_msg = forest_message::SignedMessage {
-            message: unsigned_message,
-            signature: forest_sig,
-        };
-        cid = forest_signed_msg
-            .cid()
+        cid = secp256k1_signed_message_cid(&unsigned_message, &data_arr)
             .map_err(|_e| anyhow!("{}", "forest_message cid error"))?;
 
         let signature_type = 1;
@@ -153,7 +233,10 @@ impl Transaction {
             message: Some(tx_input.clone()),
             signature: Some(Signature {
                 r#type: signature_type,
-                data: base64::encode(&data_arr.to_vec()),
+                data: base64::Engine::encode(
+                    &base64::engine::general_purpose::STANDARD,
+                    &data_arr.to_vec(),
+                ),
             }),
         })
     }

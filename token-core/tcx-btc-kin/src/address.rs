@@ -171,7 +171,7 @@ fn decode_base58(addr: &str) -> Result<Vec<u8>> {
     if addr.len() > 50 {
         return Err(Error::InvalidAddress.into());
     }
-    let data = base58::decode_check(addr)?;
+    let data = base58::decode_check(addr).map_err(|_| Error::InvalidAddress)?;
     if data.len() != 21 {
         Err(Error::InvalidAddress.into())
     } else {
@@ -248,8 +248,7 @@ impl Display for BtcKinAddress {
                 version,
                 program: ref prog,
             } => {
-                let hrp =
-                    bech32::Hrp::parse(self.network.bech32_hrp).map_err(|_| core::fmt::Error)?;
+                let hrp = bech32::Hrp::parse_unchecked(self.network.bech32_hrp);
                 bech32::segwit::encode_to_fmt_unchecked(fmt, hrp, version.to_fe(), prog)
             }
         }

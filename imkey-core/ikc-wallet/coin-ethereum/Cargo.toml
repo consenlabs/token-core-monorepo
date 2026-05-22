@@ -10,10 +10,10 @@ edition = "2018"
 ikc-common = {path = "../../ikc-common"}
 ikc-device = {path = "../../ikc-device"}
 ikc-transport = {path = "../../ikc-transport"}
-rlp = "=0.5.2"
+rlp = "=0.6.1"
 secp256k1 = {version = "=0.31.1", features = ["rand", "recovery"] }
-ethereum-types = "=0.14.1"
-keccak-hash = "=0.10.0"
+ethereum-types = "=0.16.0"
+keccak-hash = "=0.12.0"
 lazy_static = "=1.5.0"
 rustc-hex = "=2.1.0"
 serde_json = "=1.0.149"

@@ -56,7 +56,7 @@ pub fn secp256k1_sign_verify(public: &[u8], signed: &[u8], message: &[u8]) -> Re
     let public_obj = Secp256k1PublicKey::from_slice(public)?;
     //build message
     let hash_result = sha256_hash(message);
-    let message_obj = Message::from_slice(hash_result.as_ref())?;
+    let message_obj = Message::from_digest_slice(hash_result.as_ref())?;
     //build signature obj
     let mut sig_obj = Signature::from_der(signed)?;
     sig_obj.normalize_s();

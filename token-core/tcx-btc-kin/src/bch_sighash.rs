@@ -4,7 +4,7 @@ use bitcoin::consensus::Encodable;
 use bitcoin::io;
 use bitcoin::sighash::{Annex, Prevouts};
 use bitcoin::{EcdsaSighashType, Script, TapLeafHash, TapSighashType, Transaction, TxOut};
-use bitcoin_hashes::{sha256d, Hash};
+use bitcoin_hashes::sha256d;
 
 pub const SIGHASH_ANYONECANPAY: u32 = 0x80;
 
@@ -175,10 +175,10 @@ impl TxSignatureHasher for BitcoinCashSighash {
 
     fn taproot_script_spend_signature_hash(
         &mut self,
-        input_index: usize,
-        prevouts: &Prevouts<TxOut>,
-        tap_leaf_hash: TapLeafHash,
-        sighash_type: TapSighashType,
+        _input_index: usize,
+        _prevouts: &Prevouts<TxOut>,
+        _tap_leaf_hash: TapLeafHash,
+        _sighash_type: TapSighashType,
     ) -> Result<[u8; 32]> {
         Err(Error::UnsupportedTaproot.into())
     }

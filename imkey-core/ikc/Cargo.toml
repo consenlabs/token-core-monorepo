@@ -26,7 +26,7 @@ coin-btc-fork = {path = "../ikc-wallet/coin-btc-fork"}
 ikc-common = {path = "../ikc-common"}
 coin-tezos = {path = "../ikc-wallet/coin-tezos"}
 bitcoin = "=0.32.9"
-ethereum-types = "=0.14.1"
+ethereum-types = "=0.16.0"
 prost = "=0.14.3"
 bytes = "=1.11.1"
 prost-types = "=0.14.3"

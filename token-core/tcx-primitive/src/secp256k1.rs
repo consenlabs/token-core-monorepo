@@ -60,13 +60,13 @@ impl Secp256k1PrivateKey {
 
 impl Secp256k1PrivateKey {
     pub fn sign(&self, data: &[u8]) -> Result<Vec<u8>> {
-        let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
+        let msg = secp256k1::Message::from_digest_slice(data).map_err(transform_secp256k1_error)?;
         let signature = SECP256K1_ENGINE.sign_ecdsa(&msg, &self.0.inner);
         Ok(signature.serialize_der().to_vec())
     }
 
     pub fn sign_recoverable(&self, data: &[u8]) -> Result<Vec<u8>> {
-        let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
+        let msg = secp256k1::Message::from_digest_slice(data).map_err(transform_secp256k1_error)?;
         let signature = SECP256K1_ENGINE.sign_ecdsa_recoverable(&msg, &self.0.inner);
         let (recover_id, sign) = signature.serialize_compact();
         let signed_bytes = [sign[..].to_vec(), vec![recover_id.to_i32() as u8]].concat();
@@ -78,7 +78,7 @@ impl Secp256k1PrivateKey {
         data: &[u8],
         noncedata: &[u8; 32],
     ) -> Result<Vec<u8>> {
-        let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
+        let msg = secp256k1::Message::from_digest_slice(data).map_err(transform_secp256k1_error)?;
         let signature =
             SECP256K1_ENGINE.sign_ecdsa_recoverable_with_noncedata(&msg, &self.0.inner, noncedata);
         let (recover_id, sign) = signature.serialize_compact();
@@ -183,7 +183,6 @@ mod tests {
 
     use crate::PrivateKey;
 
-    use bitcoin_hashes::Hash;
     use tcx_common::ToHex;
 
     use tcx_constants::coin_info::coin_info_from_param;

@@ -39,7 +39,7 @@ impl BtcTransaction {
         }
 
         //check change amount
-        if self.amount - self.fee < MIN_NONDUST_OUTPUT {
+        if self.amount.checked_sub(self.fee).unwrap_or(0) < MIN_NONDUST_OUTPUT {
             return Err(CoinError::ImkeyAmountLessThanMinimum.into());
         }
 
@@ -48,7 +48,11 @@ impl BtcTransaction {
 
         //add change output
         let mut txouts: Vec<TxOut> = Vec::new();
-        let change_amount = self.get_total_amount() - MIN_NONDUST_OUTPUT - self.fee;
+        let change_amount = self
+            .get_total_amount()
+            .checked_sub(MIN_NONDUST_OUTPUT)
+            .and_then(|amount| amount.checked_sub(self.fee))
+            .ok_or(CoinError::ImkeyAmountLessThanMinimum)?;
         let txout_send_output = TxOut {
             value: Amount::from_sat(change_amount as u64),
             script_pubkey: Address::from_str(&self.unspents.get(0).unwrap().address)?
@@ -180,8 +184,8 @@ impl BtcTransaction {
 
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: tx_to_sign.txid().to_hex(),
-            wtx_id: tx_to_sign.ntxid().to_hex(),
+            tx_hash: tx_to_sign.compute_txid().to_hex(),
+            wtx_id: tx_to_sign.compute_ntxid().to_hex(),
         })
     }
 
@@ -198,7 +202,11 @@ impl BtcTransaction {
         if &self.unspents.len() > &MAX_UTXO_NUMBER {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
-        let change_amount = self.get_total_amount() - self.fee - MIN_NONDUST_OUTPUT;
+        let change_amount = self
+            .get_total_amount()
+            .checked_sub(self.fee)
+            .and_then(|amount| amount.checked_sub(MIN_NONDUST_OUTPUT))
+            .ok_or(CoinError::ImkeyAmountLessThanMinimum)?;
         //check change amount
         if change_amount < MIN_NONDUST_OUTPUT {
             return Err(CoinError::ImkeyAmountLessThanMinimum.into());
@@ -388,8 +396,8 @@ impl BtcTransaction {
 
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: tx_to_sign.txid().to_hex(),
-            wtx_id: tx_to_sign.wtxid().to_hex(),
+            tx_hash: tx_to_sign.compute_txid().to_hex(),
+            wtx_id: tx_to_sign.compute_wtxid().to_hex(),
         })
     }
 
@@ -420,8 +428,7 @@ impl BtcTransaction {
 #[cfg(test)]
 mod tests {
     use crate::transaction::{BtcTransaction, Utxo};
-    use bitcoin::{Address, Network};
-    use std::str::FromStr;
+    use bitcoin::Network;
 
     use ikc_device::device_binding::bind_test;
 

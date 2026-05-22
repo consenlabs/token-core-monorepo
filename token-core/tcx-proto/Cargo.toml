@@ -13,7 +13,6 @@ prost-types = "=0.14.3"
 
 [lib]
 name = "tcx_proto"
-build = "build.rs"
 
 
 [build-dependencies]
