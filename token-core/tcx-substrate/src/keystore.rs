@@ -1,5 +1,5 @@
 use crate::SubstrateAddress;
-use rand::Rng;
+use rand::RngExt;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use std::convert::TryInto;
 use tcx_keystore::{tcx_ensure, Address};
@@ -9,15 +9,16 @@ use byteorder::LittleEndian;
 use byteorder::{ReadBytesExt, WriteBytesExt};
 use regex::Regex;
 use schnorrkel::SECRET_KEY_LENGTH;
-use serde::__private::{fmt, PhantomData};
+use std::fmt;
 use std::io::Cursor;
+use std::marker::PhantomData;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tcx_common::{random_u8_32, FromHex};
 use tcx_constants::{CoinInfo, Result};
 use tcx_primitive::{PrivateKey, PublicKey, Sr25519PrivateKey, TypedPublicKey};
 use thiserror::Error;
-use xsalsa20poly1305::aead::{generic_array::GenericArray, Aead};
-use xsalsa20poly1305::{KeyInit, XSalsa20Poly1305};
+use xsalsa20poly1305::aead::Aead;
+use xsalsa20poly1305::{KeyInit, Nonce, XSalsa20Poly1305};
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]
 pub enum Error {
@@ -201,7 +202,11 @@ impl SubstrateKeystore {
     fn decode_cipher_text(&self) -> Result<Vec<u8>> {
         let hex_re = Regex::new(r"^(?:0[xX])?[0-9a-fA-F]+$").unwrap();
         if self.encoding.version == "3" && !hex_re.is_match(&self.encoded) {
-            return base64::decode(&self.encoded).map_err(|_| anyhow!("decode_cipher_text"));
+            return base64::Engine::decode(
+                &base64::engine::general_purpose::STANDARD,
+                &self.encoded,
+            )
+            .map_err(|_| anyhow!("decode_cipher_text"));
         }
 
         if self.encoded.starts_with("0x") {
@@ -264,11 +269,10 @@ fn decrypt_content(password: &[u8], encoded_bytes: &[u8]) -> Result<Vec<u8>> {
     let nonce: &[u8; 24] = &encoded_bytes[0..NONCE_LENGTH].try_into().unwrap();
     let encrypted = &encoded_bytes[NONCE_LENGTH..];
     let padding_password = password_to_key(password);
-    let key = GenericArray::from_slice(&padding_password);
-    let cipher = XSalsa20Poly1305::new(key);
-    let nonce = GenericArray::from_slice(nonce);
+    let cipher = XSalsa20Poly1305::new_from_slice(&padding_password).unwrap();
+    let nonce = Nonce::from(*nonce);
     cipher
-        .decrypt(nonce, encrypted.as_ref())
+        .decrypt(&nonce, encrypted.as_ref())
         .map_err(|_e| Error::PasswordIncorrect.into())
 }
 
@@ -278,11 +282,10 @@ fn encrypt_content(password: &str, plaintext: &[u8]) -> Result<String> {
     let (param, salt) = default_scrypt_param();
     scrypt::scrypt(password.as_bytes(), &salt, &param, &mut out).expect("can not execute scrypt");
     let padding_password = password_to_key(&out);
-    let key = GenericArray::from_slice(&padding_password);
-    let cipher = XSalsa20Poly1305::new(key);
-    let nonce = GenericArray::from_slice(&nonce_bytes);
+    let cipher = XSalsa20Poly1305::new_from_slice(&padding_password).unwrap();
+    let nonce = Nonce::from(nonce_bytes);
     let encoded = cipher
-        .encrypt(nonce, plaintext)
+        .encrypt(&nonce, plaintext)
         .map_err(|_e| anyhow!("{}", "encrypt error"))?;
 
     let scrypt_params_encoded = [
@@ -293,15 +296,18 @@ fn encrypt_content(password: &str, plaintext: &[u8]) -> Result<String> {
     ]
     .concat();
     let complete_encoded: Vec<u8> = [scrypt_params_encoded, nonce_bytes.to_vec(), encoded].concat();
-    Ok(base64::encode(complete_encoded))
+    Ok(base64::Engine::encode(
+        &base64::engine::general_purpose::STANDARD,
+        complete_encoded,
+    ))
 }
 
 fn gen_nonce() -> [u8; 24] {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     let mut nonce = [0u8; 24];
 
     (0..nonce.len()).for_each(|idx| {
-        nonce[idx] = rng.gen::<u8>();
+        nonce[idx] = rng.random::<u8>();
     });
     nonce
 }
@@ -470,7 +476,11 @@ mod test_super {
             .encoding_type
             .iter()
             .any(|x| x == "scrypt"));
-        assert!(base64::decode(&keystore.encoded).is_ok());
+        assert!(base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            &keystore.encoded,
+        )
+        .is_ok());
     }
 
     #[test]

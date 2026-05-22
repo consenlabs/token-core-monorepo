@@ -15,12 +15,13 @@ use ikc_common::utility::sha256_hash;
 use ikc_transport::hid_api::hid_connect;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use parking_lot::Mutex;
-use rand::rngs::OsRng;
 use regex::Regex;
-use rsa::{BigUint, PaddingScheme, PublicKey as RSAPublic, RsaPublicKey};
+use rsa::rand_core::OsRng;
+use rsa::{BigUint, Pkcs1v15Encrypt, RsaPublicKey};
 use secp256k1::{ecdh, PublicKey, SecretKey};
-use sha1::Sha1;
+use sha1::{Digest, Sha1};
 use std::collections::HashMap;
+use std::convert::TryInto;
 
 lazy_static! {
     pub static ref KEY_MANAGER: Mutex<KeyManager> = Mutex::new(KeyManager::new());
@@ -82,9 +83,9 @@ impl DeviceManage {
 
             //calc the session key
             let pk2 = PublicKey::from_slice(key_manager_obj.se_pub_key.as_slice())?;
-            let sk1 = SecretKey::from_slice(key_manager_obj.pri_key.as_slice())?;
+            let sk1 = SecretKey::from_byte_array(key_manager_obj.pri_key.as_slice().try_into()?)?;
             let shared_secret = ecdh::shared_secret_point(&pk2, &sk1);
-            let sha1_result = Sha1::from(&shared_secret[..32]).digest().bytes();
+            let sha1_result = Sha1::digest(&shared_secret[..32]);
 
             //set the session key
             key_manager_obj.session_key = sha1_result[..16].to_vec();
@@ -184,11 +185,7 @@ fn auth_code_encrypt(auth_code: &String) -> Result<String> {
     let rsa_pub_key = RsaPublicKey::new(u32_vec_n, u32_vec_e)?;
     let mut rng = OsRng;
     // let mut rng = OsRng;
-    let enc_data = rsa_pub_key.encrypt(
-        &mut rng,
-        PaddingScheme::PKCS1v15Encrypt,
-        auth_code.as_bytes(),
-    )?;
+    let enc_data = rsa_pub_key.encrypt(&mut rng, Pkcs1v15Encrypt, auth_code.as_bytes())?;
     Ok(hex::encode_upper(enc_data))
 }
 
@@ -270,7 +267,7 @@ mod test {
                 .create(true)
                 .open(Path::new("bind_code.txt"))
                 .expect("imkey_keyfile_opertion_error");
-            file.read_to_string(&mut bind_code_temp);
+            let _ = file.read_to_string(&mut bind_code_temp);
             bind_result = DeviceManage::bind_acquire(&bind_code_temp).unwrap();
         } else if check_result.as_str().eq("bound_other") {
             bind_result = DeviceManage::bind_acquire(&bind_code).unwrap();

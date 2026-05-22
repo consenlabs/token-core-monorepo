@@ -39,12 +39,12 @@ pub fn merkle_hash(data: &[u8]) -> Hash256 {
 
 #[inline]
 pub fn sha256(data: &[u8]) -> Hash256 {
-    sha256::Hash::hash(data).into_inner()
+    sha256::Hash::hash(data).to_byte_array()
 }
 
 #[inline]
 pub fn sha256d(data: &[u8]) -> Hash256 {
-    sha256d::Hash::hash(data).into_inner()
+    sha256d::Hash::hash(data).to_byte_array()
 }
 
 #[inline]
@@ -54,7 +54,7 @@ pub fn keccak256(data: &[u8]) -> Hash256 {
 
 #[inline]
 pub fn ripemd160(bytes: &[u8]) -> Hash160 {
-    ripemd160::Hash::hash(bytes).into_inner()
+    ripemd160::Hash::hash(bytes).to_byte_array()
 }
 #[cfg(test)]
 mod tests {

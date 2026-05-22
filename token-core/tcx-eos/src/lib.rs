@@ -2,7 +2,7 @@ pub mod address;
 // pub mod chain_factory;
 pub mod signer;
 pub mod transaction;
-use bitcoin::util::base58;
+use bitcoin::base58;
 use tcx_common::Result;
 
 pub mod eos {
@@ -24,5 +24,5 @@ pub fn encode_eos_wif(private_key_bytes: &[u8]) -> Result<String> {
     ret[0..1].copy_from_slice(&[0x80]);
     ret[1..33].copy_from_slice(private_key_bytes);
 
-    Ok(base58::check_encode_slice(&ret[..]))
+    Ok(base58::encode_check(&ret[..]))
 }

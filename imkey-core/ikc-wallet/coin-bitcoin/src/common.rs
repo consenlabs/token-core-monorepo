@@ -1,12 +1,12 @@
 use crate::transaction::Utxo;
 use crate::Result;
-use bitcoin::util::base58;
+use bitcoin::base58;
+use bitcoin::secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use bitcoin::{Network, PublicKey};
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
 use ikc_common::utility::sha256_hash;
 use ikc_transport::message::send_apdu;
-use secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use std::str::FromStr;
 
 /**
@@ -56,7 +56,7 @@ pub fn secp256k1_sign_verify(public: &[u8], signed: &[u8], message: &[u8]) -> Re
     let public_obj = Secp256k1PublicKey::from_slice(public)?;
     //build message
     let hash_result = sha256_hash(message);
-    let message_obj = Message::from_slice(hash_result.as_ref())?;
+    let message_obj = Message::from_digest_slice(hash_result.as_ref())?;
     //build signature obj
     let mut sig_obj = Signature::from_der(signed)?;
     sig_obj.normalize_s();
@@ -77,7 +77,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
                 || address.starts_with('D')
                 || address.starts_with('A')
             {
-                let address_bytes = base58::from(address)?;
+                let address_bytes = base58::decode(address)?;
                 address_bytes.as_slice()[0]
             } else if address.starts_with("bc1") {
                 'b' as u8
@@ -87,7 +87,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
         }
         Network::Testnet => {
             if address.starts_with('m') || address.starts_with('n') || address.starts_with('2') {
-                let address_bytes = base58::from(address)?;
+                let address_bytes = base58::decode(address)?;
                 address_bytes.as_slice()[0]
             } else if address.starts_with("tb1") {
                 't' as u8

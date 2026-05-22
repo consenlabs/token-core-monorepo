@@ -1,9 +1,9 @@
 use crate::error::BindError;
 use crate::Result;
-use base64::{decode, encode};
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use ikc_common::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
 use ikc_common::utility::{is_valid_hex, sha256_hash};
-use secp256k1::rand::rngs::OsRng;
+use secp256k1::rand;
 use secp256k1::Secp256k1;
 use std::fs;
 use std::fs::{File, OpenOptions};
@@ -73,7 +73,7 @@ impl KeyManager {
         let ciphertext = encrypt_pkcs7(&data, &self.encry_key, &self.iv)?;
 
         //base64 coding
-        Ok(encode(&ciphertext))
+        Ok(BASE64_STANDARD.encode(&ciphertext))
     }
 
     /**
@@ -109,7 +109,9 @@ impl KeyManager {
     pub fn decrypt_keys(&mut self, ciphertext: &str) -> Result<bool> {
         let ciphertext_bytes = match is_valid_hex(ciphertext) {
             true => hex::decode(ciphertext).expect("invalid keys"),
-            false => decode(ciphertext.as_bytes()).expect("invalid keys"), //base64 decode
+            false => BASE64_STANDARD
+                .decode(ciphertext.as_bytes())
+                .expect("invalid keys"), //base64 decode
         };
 
         //AES-CBC Decrypt
@@ -151,7 +153,7 @@ impl KeyManager {
     */
     pub fn gen_local_keys(&mut self) -> Result<()> {
         let secp = Secp256k1::new();
-        let (sk, pk) = secp.generate_keypair(&mut OsRng);
+        let (sk, pk) = secp.generate_keypair(&mut rand::rng());
         self.pri_key = sk.secret_bytes().to_vec();
         self.pub_key = pk.serialize_uncompressed().to_vec();
         Ok(())

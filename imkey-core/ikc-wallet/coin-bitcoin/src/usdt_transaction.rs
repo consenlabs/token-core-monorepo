@@ -1,25 +1,26 @@
 use crate::common::{get_address_version, get_utxo_pub_key, TxSignResult};
 use crate::transaction::BtcTransaction;
 use crate::Result;
+use bitcoin::blockdata::script::PushBytesBuf;
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};
-use bitcoin::hashes::hex::FromHex;
+use bitcoin::hashes::{hash160, Hash};
 use bitcoin::Address;
 use bitcoin::{
-    EcdsaSighashType, Network, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn,
-    TxOut, Witness,
+    absolute::LockTime, transaction::Version, Amount, EcdsaSighashType, Network, OutPoint,
+    ScriptBuf as Script, Sequence, Transaction, TxIn, TxOut, Txid, Witness,
 };
-use bitcoin_hashes::hash160;
-use bitcoin_hashes::hex::ToHex;
-use bitcoin_hashes::Hash;
+use hex::FromHex;
 use ikc_common::apdu::{ApduCheck, BtcApdu};
 use ikc_common::constants::{EACH_ROUND_NUMBER, MAX_UTXO_NUMBER, MIN_NONDUST_OUTPUT, TIMEOUT_LONG};
 use ikc_common::error::CoinError;
+use ikc_common::hex::ToHex;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::ecdsa::Signature;
+use std::convert::TryFrom;
 use std::str::FromStr;
 
 impl BtcTransaction {
@@ -38,7 +39,7 @@ impl BtcTransaction {
         }
 
         //check change amount
-        if self.amount - self.fee < MIN_NONDUST_OUTPUT {
+        if self.amount.checked_sub(self.fee).unwrap_or(0) < MIN_NONDUST_OUTPUT {
             return Err(CoinError::ImkeyAmountLessThanMinimum.into());
         }
 
@@ -47,18 +48,25 @@ impl BtcTransaction {
 
         //add change output
         let mut txouts: Vec<TxOut> = Vec::new();
-        let change_amount = self.get_total_amount() - MIN_NONDUST_OUTPUT - self.fee;
+        let change_amount = self
+            .get_total_amount()
+            .checked_sub(MIN_NONDUST_OUTPUT)
+            .and_then(|amount| amount.checked_sub(self.fee))
+            .ok_or(CoinError::ImkeyAmountLessThanMinimum)?;
         let txout_send_output = TxOut {
-            value: change_amount as u64,
+            value: Amount::from_sat(change_amount as u64),
             script_pubkey: Address::from_str(&self.unspents.get(0).unwrap().address)?
+                .assume_checked()
                 .script_pubkey(),
         };
         txouts.push(txout_send_output);
 
         //add send to output
         let txout_change_output = TxOut {
-            value: MIN_NONDUST_OUTPUT as u64,
-            script_pubkey: Address::from_str(&self.to)?.script_pubkey(),
+            value: Amount::from_sat(MIN_NONDUST_OUTPUT as u64),
+            script_pubkey: Address::from_str(&self.to)?
+                .assume_checked()
+                .script_pubkey(),
         };
         txouts.push(txout_change_output);
 
@@ -67,8 +75,8 @@ impl BtcTransaction {
 
         //output data serialize
         let mut tx_to_sign = Transaction {
-            version: 1i32,
-            lock_time: PackedLockTime::ZERO,
+            version: Version(1i32),
+            lock_time: LockTime::ZERO,
             input: vec![],
             output: txouts,
         };
@@ -121,16 +129,16 @@ impl BtcTransaction {
 
                 let mut temp_serialize_txin = TxIn {
                     previous_output: OutPoint {
-                        txid: bitcoin::hash_types::Txid::from_hex(temp_utxo.txhash.as_str())?,
+                        txid: Txid::from_str(temp_utxo.txhash.as_str())?,
                         vout: temp_utxo.vout as u32,
                     },
-                    script_sig: Script::default(),
+                    script_sig: Script::new(),
                     sequence: Sequence::MAX,
                     witness: Witness::default(),
                 };
                 if (x >= i * EACH_ROUND_NUMBER) && (x < (i + 1) * EACH_ROUND_NUMBER) {
                     temp_serialize_txin.script_sig =
-                        Script::from(Vec::from_hex(temp_utxo.script_pubkey.as_str())?);
+                        Script::from_hex(temp_utxo.script_pubkey.as_str())?;
                 }
                 input_data_vec.extend_from_slice(serialize(&temp_serialize_txin).as_slice());
                 let btc_perpare_apdu = BtcApdu::btc_perpare_input(0x80, &input_data_vec);
@@ -162,7 +170,7 @@ impl BtcTransaction {
         for (index, unspent) in self.unspents.iter().enumerate() {
             let txin = TxIn {
                 previous_output: OutPoint {
-                    txid: bitcoin::hash_types::Txid::from_hex(&unspent.txhash)?,
+                    txid: Txid::from_str(&unspent.txhash)?,
                     vout: unspent.vout as u32,
                 },
                 script_sig: lock_script_ver.get(index).unwrap().clone(),
@@ -176,8 +184,8 @@ impl BtcTransaction {
 
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: tx_to_sign.txid().to_hex(),
-            wtx_id: tx_to_sign.ntxid().to_hex(),
+            tx_hash: tx_to_sign.compute_txid().to_hex(),
+            wtx_id: tx_to_sign.compute_ntxid().to_hex(),
         })
     }
 
@@ -194,7 +202,11 @@ impl BtcTransaction {
         if &self.unspents.len() > &MAX_UTXO_NUMBER {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
-        let change_amount = self.get_total_amount() - self.fee - MIN_NONDUST_OUTPUT;
+        let change_amount = self
+            .get_total_amount()
+            .checked_sub(self.fee)
+            .and_then(|amount| amount.checked_sub(MIN_NONDUST_OUTPUT))
+            .ok_or(CoinError::ImkeyAmountLessThanMinimum)?;
         //check change amount
         if change_amount < MIN_NONDUST_OUTPUT {
             return Err(CoinError::ImkeyAmountLessThanMinimum.into());
@@ -206,17 +218,21 @@ impl BtcTransaction {
         //5.add change output
         let mut txouts: Vec<TxOut> = vec![];
         let receiver_address = &self.unspents.get(0).unwrap().address;
-        let script_pubkey = Address::from_str(receiver_address)?.script_pubkey();
+        let script_pubkey = Address::from_str(receiver_address)?
+            .assume_checked()
+            .script_pubkey();
         let txout_send_output = TxOut {
-            value: change_amount as u64,
+            value: Amount::from_sat(change_amount as u64),
             script_pubkey,
         };
         txouts.push(txout_send_output);
 
         //6.add send to output
         let txout_change_output = TxOut {
-            value: MIN_NONDUST_OUTPUT as u64,
-            script_pubkey: Address::from_str(&self.to)?.script_pubkey(),
+            value: Amount::from_sat(MIN_NONDUST_OUTPUT as u64),
+            script_pubkey: Address::from_str(&self.to)?
+                .assume_checked()
+                .script_pubkey(),
         };
         txouts.push(txout_change_output);
 
@@ -225,8 +241,8 @@ impl BtcTransaction {
 
         //8.output data serialize
         let mut tx_to_sign = Transaction {
-            version: 2i32,
-            lock_time: PackedLockTime::ZERO,
+            version: Version(2i32),
+            lock_time: LockTime::ZERO,
             input: vec![],
             output: txouts,
         };
@@ -273,7 +289,7 @@ impl BtcTransaction {
         for (index, unspent) in self.unspents.iter().enumerate() {
             let txin = TxIn {
                 previous_output: OutPoint {
-                    txid: bitcoin::hash_types::Txid::from_hex(&unspent.txhash)?,
+                    txid: Txid::from_str(&unspent.txhash)?,
                     vout: unspent.vout as u32,
                 },
                 script_sig: Script::new(),
@@ -291,9 +307,9 @@ impl BtcTransaction {
 
             //lock script
             let pub_key_bytes = hex::decode(utxo_pub_key_vec.get(index).unwrap())?;
-            let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).into_inner();
+            let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).to_byte_array();
             let script_hex = format!("76a914{}88ac", hex::encode(pub_key_hash));
-            let script = Script::from(hex::decode(script_hex)?);
+            let script = Script::from_hex(script_hex.as_str())?;
             let script_data = serialize(&script);
             data.extend(script_data.iter());
 
@@ -365,14 +381,11 @@ impl BtcTransaction {
                         .unwrap()
                         .as_slice(),
                 )
-                .into_inner();
+                .to_byte_array();
                 let hex = format!("160014{}", hex::encode(&hash));
                 Ok(TxIn {
-                    script_sig: Script::from(hex::decode(hex).unwrap()),
-                    witness: Witness::from_vec(vec![
-                        witnesses[i].0.clone(),
-                        witnesses[i].1.clone(),
-                    ]),
+                    script_sig: Script::from_hex(hex.as_str())?,
+                    witness: Witness::from_slice(&[witnesses[i].0.clone(), witnesses[i].1.clone()]),
                     ..*txin
                 })
             })
@@ -383,8 +396,8 @@ impl BtcTransaction {
 
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: tx_to_sign.txid().to_hex(),
-            wtx_id: tx_to_sign.wtxid().to_hex(),
+            tx_hash: tx_to_sign.compute_txid().to_hex(),
+            wtx_id: tx_to_sign.compute_wtxid().to_hex(),
         })
     }
 
@@ -403,10 +416,10 @@ impl BtcTransaction {
         amount_bytes.reverse();
         omni_data.extend(amount_bytes.iter());
         TxOut {
-            value: 0u64,
+            value: Amount::from_sat(0),
             script_pubkey: Builder::new()
                 .push_opcode(opcodes::all::OP_RETURN)
-                .push_slice(&omni_data[..])
+                .push_slice(PushBytesBuf::try_from(omni_data).expect("omni payload length checked"))
                 .into_script(),
         }
     }
@@ -415,8 +428,7 @@ impl BtcTransaction {
 #[cfg(test)]
 mod tests {
     use crate::transaction::{BtcTransaction, Utxo};
-    use bitcoin::{Address, Network};
-    use std::str::FromStr;
+    use bitcoin::Network;
 
     use ikc_device::device_binding::bind_test;
 

@@ -1,6 +1,6 @@
 use crate::tezosapi::{TezosTxInput, TezosTxOutput};
 use crate::Result;
-use bitcoin::util::base58;
+use bitcoin::base58;
 use blake2b_simd::Params;
 use ikc_common::apdu::{Apdu, ApduCheck, Ed25519Apdu};
 use ikc_common::constants::{TEZOS_AID, TIMEOUT_LONG};
@@ -94,7 +94,7 @@ impl Transaction {
         edsig_source_data.extend(hex::decode(sign_source_val[2..].to_string())?.iter());
         let tx_out = TezosTxOutput {
             signature: sign_source_val[2..].to_string(),
-            edsig: base58::check_encode_slice(edsig_source_data.as_slice()),
+            edsig: base58::encode_check(edsig_source_data.as_slice()),
             sbytes: format!("{}{}", tezos_tx_input.raw_data, sign_source_val),
         };
 
@@ -102,7 +102,7 @@ impl Transaction {
     }
 
     fn address_check(address: &str) -> bool {
-        let decode_result = base58::from(address);
+        let decode_result = base58::decode(address);
         if decode_result.is_err() {
             return false;
         };

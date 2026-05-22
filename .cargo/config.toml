@@ -1,0 +1,5 @@
+[build]
+rustc-wrapper = "scripts/rustc-wrapper.sh"
+rustflags = [
+    "--check-cfg=cfg(tarpaulin)",
+]

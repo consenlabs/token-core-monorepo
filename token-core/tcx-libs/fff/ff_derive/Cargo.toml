@@ -13,13 +13,12 @@ edition = "2018"
 proc-macro = true
 
 [dependencies]
-num-bigint = "0.2"
-num-traits = "0.2"
-num-integer = "0.1"
-proc-macro2 = "1"
-quote = "1"
-syn = "1"
+num-bigint = "=0.2.6"
+num-traits = "=0.2.19"
+num-integer = "=0.1.46"
+proc-macro2 = "=1.0.106"
+quote = "=1.0.45"
+syn = "=1.0.109"
 
 [badges]
 maintenance = { status = "passively-maintained" }
-

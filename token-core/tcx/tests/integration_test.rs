@@ -13,8 +13,6 @@ use tcx_common::ToHex;
 use prost::Message;
 use tcx::api::SignParam;
 
-use sp_core::ByteArray;
-
 use tcx_btc_kin::OmniTxInput;
 
 use tcx_common::hex::FromHex;

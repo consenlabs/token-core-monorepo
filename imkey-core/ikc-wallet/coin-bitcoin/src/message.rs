@@ -4,9 +4,10 @@ use crate::common::select_btc_applet;
 use crate::psbt::PsbtSigner;
 use crate::Result;
 use bitcoin::consensus::serialize as btc_serialize;
-use bitcoin::psbt::PartiallySignedTransaction;
+use bitcoin::psbt::Psbt;
 use bitcoin::{
-    Address, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn, TxOut, Txid, Witness,
+    absolute::LockTime, transaction::Version, Address, Amount, OutPoint, ScriptBuf as Script,
+    Sequence, Transaction, TxIn, TxOut, Txid, Witness,
 };
 use hex::FromHex;
 use ikc_common::apdu::{ApduCheck, BtcApdu};
@@ -192,7 +193,10 @@ impl MessageSinger {
         let mut result_sig = vec![flag_base + final_v];
         result_sig.extend_from_slice(&final_compact);
 
-        Ok(base64::encode(&result_sig))
+        Ok(base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            &result_sig,
+        ))
     }
 
     fn sign_message_bip322_simple(&self, data: &[u8]) -> Result<String> {
@@ -200,7 +204,9 @@ impl MessageSinger {
         let pub_key = BtcAddress::get_pub_key(&path)?;
         let network = network_convert(&self.network);
         let address = BtcAddress::from_public_key(&pub_key, network, &self.seg_wit)?;
-        let script_pubkey = Address::from_str(&address)?.script_pubkey();
+        let script_pubkey = Address::from_str(&address)?
+            .assume_checked()
+            .script_pubkey();
         let tx_id = get_spend_tx_id(data, script_pubkey.clone())?;
 
         select_btc_applet()?;
@@ -217,7 +223,10 @@ impl MessageSinger {
         psbt_signer.sign(&pub_keys)?;
 
         if let Some(witness) = &psbt.inputs[0].final_script_witness {
-            Ok(base64::encode(witness_to_vec(witness.to_vec())))
+            Ok(base64::Engine::encode(
+                &base64::engine::general_purpose::STANDARD,
+                witness_to_vec(witness.to_vec()),
+            ))
         } else {
             Err(CoinError::MissingSignature.into())
         }
@@ -228,7 +237,9 @@ impl MessageSinger {
         let pub_key = BtcAddress::get_pub_key(&path)?;
         let network = network_convert(&self.network);
         let address = BtcAddress::from_public_key(&pub_key, network, &self.seg_wit)?;
-        let script_pubkey = Address::from_str(&address)?.script_pubkey();
+        let script_pubkey = Address::from_str(&address)?
+            .assume_checked()
+            .script_pubkey();
         let tx_id = get_spend_tx_id(data, script_pubkey.clone())?;
 
         select_btc_applet()?;
@@ -244,9 +255,12 @@ impl MessageSinger {
         psbt_signer.tx_preview(network)?;
         psbt_signer.sign(&pub_keys)?;
 
-        let tx = psbt.extract_tx();
+        let tx = psbt.extract_tx()?;
         let serialized = btc_serialize(&tx);
-        Ok(base64::encode(serialized))
+        Ok(base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            serialized,
+        ))
     }
 }
 
@@ -276,21 +290,21 @@ fn get_spend_tx_id(data: &[u8], script_pub_key: Script) -> Result<Txid> {
     }];
 
     let outs = vec![TxOut {
-        value: 0,
+        value: Amount::from_sat(0),
         script_pubkey: script_pub_key,
     }];
 
     let tx = Transaction {
-        version: 0,
-        lock_time: PackedLockTime::ZERO,
+        version: Version(0),
+        lock_time: LockTime::ZERO,
         input: ins,
         output: outs,
     };
 
-    Ok(tx.txid())
+    Ok(tx.compute_txid())
 }
 
-fn create_to_sign_empty(txid: Txid, script_pub_key: Script) -> Result<PartiallySignedTransaction> {
+fn create_to_sign_empty(txid: Txid, script_pub_key: Script) -> Result<Psbt> {
     let ins = vec![TxIn {
         previous_output: OutPoint { txid, vout: 0 },
         script_sig: Script::new(),
@@ -299,20 +313,20 @@ fn create_to_sign_empty(txid: Txid, script_pub_key: Script) -> Result<PartiallyS
     }];
 
     let outs = vec![TxOut {
-        value: 0,
+        value: Amount::from_sat(0),
         script_pubkey: Script::from(Vec::<u8>::from_hex("6a")?),
     }];
 
     let tx = Transaction {
-        version: 0,
-        lock_time: PackedLockTime::ZERO,
+        version: Version(0),
+        lock_time: LockTime::ZERO,
         input: ins,
         output: outs,
     };
 
-    let mut psbt = PartiallySignedTransaction::from_unsigned_tx(tx)?;
+    let mut psbt = Psbt::from_unsigned_tx(tx)?;
     psbt.inputs[0].witness_utxo = Some(TxOut {
-        value: 0,
+        value: Amount::from_sat(0),
         script_pubkey: script_pub_key,
     });
 
@@ -441,10 +455,12 @@ mod tests {
         // ── Taproot (P2TR) BIP-322 Full ──
         let taproot = make_signer("VERSION_1", "m/86'/0'/0'");
         let bip322_sig = sign(&taproot, BtcSignatureType::Bip322);
-        let decoded = base64::decode(&bip322_sig).unwrap();
+        let decoded =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &bip322_sig)
+                .unwrap();
         let tx: bitcoin::Transaction =
             bitcoin::consensus::deserialize(&decoded).expect("valid serialized tx");
-        assert_eq!(tx.version, 0);
+        assert_eq!(tx.version, bitcoin::transaction::Version(0));
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 1);
         assert!(!tx.input[0].witness.is_empty());

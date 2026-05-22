@@ -6,14 +6,14 @@ use tcx_keystore::{
 };
 
 use anyhow::anyhow;
-use bitcoin::util::base58;
+use bitcoin::base58;
 use tcx_common::{ripemd160, sha256, FromHex, ToHex};
 
 fn serial_eos_sig(sig: &[u8]) -> String {
     let to_hash = [sig, "K1".as_bytes()].concat();
     let hashed = ripemd160(&to_hash);
     let data = [sig, &hashed[0..4]].concat();
-    format!("SIG_K1_{}", base58::encode_slice(&data))
+    format!("SIG_K1_{}", base58::encode(&data))
 }
 
 fn is_canonical(sig: &[u8]) -> bool {
@@ -108,7 +108,7 @@ impl MessageSigner<EosMessageInput, EosMessageOutput> for Keystore {
 mod tests {
     use std::vec;
 
-    use bitcoin::hashes::hex::ToHex;
+    use tcx_common::ToHex;
     use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::{
         HdKeystore, Keystore, MessageSigner, Metadata, PrivateKeystore, SignatureParameters,

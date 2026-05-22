@@ -6,11 +6,9 @@ use crate::ecc::{DeterministicPrivateKey, DeterministicPublicKey, KeyError};
 use crate::{Derive, Secp256k1PrivateKey, Secp256k1PublicKey, Ss58Codec};
 use tcx_common::{ripemd160, sha256, FromHex, ToHex};
 
-use bitcoin::util::base58;
-use bitcoin::util::base58::Error::InvalidLength;
-use bitcoin::util::bip32::{
-    ChainCode, ChildNumber, Error as Bip32Error, ExtendedPrivKey, ExtendedPubKey, Fingerprint,
-};
+use bitcoin::base58;
+use bitcoin::bip32::{ChainCode, ChildNumber, Error as Bip32Error, Fingerprint, Xpriv, Xpub};
+use bitcoin::secp256k1;
 use bitcoin::Network;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
@@ -18,10 +16,10 @@ use byteorder::ByteOrder;
 use bip39::{Language, Mnemonic};
 
 #[derive(Clone)]
-pub struct Bip32DeterministicPrivateKey(ExtendedPrivKey);
+pub struct Bip32DeterministicPrivateKey(Xpriv);
 
 #[derive(Clone)]
-pub struct Bip32DeterministicPublicKey(ExtendedPubKey);
+pub struct Bip32DeterministicPublicKey(Xpub);
 
 impl From<Bip32Error> for KeyError {
     fn from(err: Bip32Error) -> Self {
@@ -43,14 +41,14 @@ impl From<Bip32Error> for KeyError {
 impl Bip32DeterministicPrivateKey {
     /// Construct a new master key from a seed value
     pub fn from_seed(seed: &[u8]) -> Result<Self> {
-        let epk = ExtendedPrivKey::new_master(Network::Bitcoin, seed)?;
+        let epk = Xpriv::new_master(Network::Bitcoin, seed)?;
         Ok(Bip32DeterministicPrivateKey(epk))
     }
 
     pub fn from_mnemonic(mnemonic: &str) -> Result<Self> {
         let mn = Mnemonic::from_phrase(mnemonic, Language::English)?;
         let seed = bip39::Seed::new(&mn, "");
-        let epk = ExtendedPrivKey::new_master(Network::Bitcoin, seed.as_ref())?;
+        let epk = Xpriv::new_master(Network::Bitcoin, seed.as_ref())?;
         Ok(Bip32DeterministicPrivateKey(epk))
     }
 }
@@ -104,14 +102,14 @@ impl DeterministicPrivateKey for Bip32DeterministicPrivateKey {
     type PrivateKey = Secp256k1PrivateKey;
 
     fn from_seed(seed: &[u8]) -> Result<Self> {
-        let esk = ExtendedPrivKey::new_master(Network::Bitcoin, seed)?;
+        let esk = Xpriv::new_master(Network::Bitcoin, seed)?;
         Ok(Bip32DeterministicPrivateKey(esk))
     }
 
     fn from_mnemonic(mnemonic: &str) -> Result<Self> {
         let mn = Mnemonic::from_phrase(mnemonic, Language::English)?;
         let seed = bip39::Seed::new(&mn, "");
-        let esk = ExtendedPrivKey::new_master(Network::Bitcoin, seed.as_bytes())?;
+        let esk = Xpriv::new_master(Network::Bitcoin, seed.as_bytes())?;
 
         Ok(Bip32DeterministicPrivateKey(esk))
     }
@@ -126,7 +124,7 @@ impl DeterministicPrivateKey for Bip32DeterministicPrivateKey {
     }
 
     fn deterministic_public_key(&self) -> Self::DeterministicPublicKey {
-        let pk = ExtendedPubKey::from_priv(&SECP256K1_ENGINE, &self.0);
+        let pk = Xpub::from_priv(&SECP256K1_ENGINE, &self.0);
         Bip32DeterministicPublicKey(pk)
     }
 }
@@ -179,12 +177,12 @@ impl FromHex for Bip32DeterministicPublicKey {
         let cn_int: u32 = BigEndian::read_u32(&data[5..9]);
         let child_number: ChildNumber = ChildNumber::from(cn_int);
 
-        let epk = ExtendedPubKey {
-            network: Network::Bitcoin,
+        let epk = Xpub {
+            network: Network::Bitcoin.into(),
             depth: data[0],
-            parent_fingerprint: Fingerprint::from(&data[1..5]),
+            parent_fingerprint: Fingerprint::from(<[u8; 4]>::try_from(&data[1..5]).unwrap()),
             child_number,
-            chain_code: ChainCode::from(&data[9..41]),
+            chain_code: ChainCode::from(<[u8; 32]>::try_from(&data[9..41]).unwrap()),
             public_key: secp256k1::PublicKey::from_slice(&data[41..74])?,
         };
         Ok(Bip32DeterministicPublicKey(epk))
@@ -193,7 +191,7 @@ impl FromHex for Bip32DeterministicPublicKey {
 
 impl Ss58Codec for Bip32DeterministicPublicKey {
     fn from_ss58check_with_version(s: &str) -> Result<(Self, Vec<u8>)> {
-        let data = base58::from_check(s)?;
+        let data = base58::decode_check(s)?;
 
         if data.len() != 78 {
             return Err(KeyError::InvalidBase58.into());
@@ -201,12 +199,12 @@ impl Ss58Codec for Bip32DeterministicPublicKey {
         let cn_int: u32 = BigEndian::read_u32(&data[9..13]);
         let child_number: ChildNumber = ChildNumber::from(cn_int);
 
-        let epk = ExtendedPubKey {
-            network: Network::Bitcoin,
+        let epk = Xpub {
+            network: Network::Bitcoin.into(),
             depth: data[4],
-            parent_fingerprint: Fingerprint::from(&data[5..9]),
+            parent_fingerprint: Fingerprint::from(<[u8; 4]>::try_from(&data[5..9]).unwrap()),
             child_number,
-            chain_code: ChainCode::from(&data[13..45]),
+            chain_code: ChainCode::from(<[u8; 32]>::try_from(&data[13..45]).unwrap()),
             public_key: secp256k1::PublicKey::from_slice(&data[45..78])?,
         };
 
@@ -226,28 +224,28 @@ impl Ss58Codec for Bip32DeterministicPublicKey {
 
         ret[13..45].copy_from_slice(&extended_key.chain_code[..]);
         ret[45..78].copy_from_slice(&extended_key.public_key.serialize()[..]);
-        base58::check_encode_slice(&ret[..])
+        base58::encode_check(&ret[..])
     }
 }
 
 impl Ss58Codec for Bip32DeterministicPrivateKey {
     fn from_ss58check_with_version(s: &str) -> Result<(Self, Vec<u8>)> {
-        let data = base58::from_check(s)?;
+        let data = base58::decode_check(s)?;
 
         if data.len() != 78 {
-            return Err(InvalidLength(data.len()).into());
+            return Err(KeyError::InvalidBase58.into());
         }
 
         let cn_int: u32 = BigEndian::read_u32(&data[9..13]);
         let child_number: ChildNumber = ChildNumber::from(cn_int);
 
         let network = Network::Bitcoin;
-        let epk = ExtendedPrivKey {
-            network,
+        let epk = Xpriv {
+            network: network.into(),
             depth: data[4],
-            parent_fingerprint: Fingerprint::from(&data[5..9]),
+            parent_fingerprint: Fingerprint::from(<[u8; 4]>::try_from(&data[5..9]).unwrap()),
             child_number,
-            chain_code: ChainCode::from(&data[13..45]),
+            chain_code: ChainCode::from(<[u8; 32]>::try_from(&data[13..45]).unwrap()),
             private_key: secp256k1::SecretKey::from_slice(&data[46..78])?,
         };
         let mut network = [0; 4];
@@ -268,7 +266,7 @@ impl Ss58Codec for Bip32DeterministicPrivateKey {
         ret[13..45].copy_from_slice(&extended_key.chain_code[..]);
         ret[45] = 0;
         ret[46..78].copy_from_slice(&extended_key.private_key[..]);
-        base58::check_encode_slice(&ret[..])
+        base58::encode_check(&ret[..])
     }
 }
 
@@ -279,8 +277,8 @@ mod tests {
         DeterministicPrivateKey, PrivateKey, Ss58Codec,
     };
     use bip39::{Language, Mnemonic, Seed};
-    use bitcoin::util::{base58, bip32::Error as Bip32Error};
-    use bitcoin_hashes::hex;
+    use bitcoin::hex;
+    use bitcoin::{base58, bip32::Error as Bip32Error, secp256k1};
     use std::collections::HashMap;
     use tcx_common::{FromHex, ToHex};
 
@@ -402,9 +400,11 @@ mod tests {
         assert_eq!(key_error, KeyError::UnknownVersion);
         let key_error = KeyError::from(Bip32Error::WrongExtendedKeyLength(0));
         assert_eq!(key_error, KeyError::WrongExtendedKeyLength);
-        let key_error = KeyError::from(Bip32Error::Base58(base58::Error::InvalidLength(0)));
+        let base58_error = base58::decode_check("").unwrap_err();
+        let key_error = KeyError::from(Bip32Error::Base58(base58_error));
         assert_eq!(key_error, KeyError::Base58);
-        let key_error = KeyError::from(Bip32Error::Hex(hex::Error::InvalidChar(0)));
+        let hex_error = <[u8; 1] as hex::FromHex>::from_hex("zz").unwrap_err();
+        let key_error = KeyError::from(Bip32Error::Hex(hex_error));
         assert_eq!(key_error, KeyError::Hex);
     }
 

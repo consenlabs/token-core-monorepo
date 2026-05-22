@@ -187,9 +187,9 @@ impl<'a> CkbTxSigner<'a> {
 
         let rec_id =
             utility::retrieve_recid(&hash, &normalizes_sig_vec, &hex::decode(&pub_key)?).unwrap();
-        let rec_id = rec_id.to_i32();
+        let rec_id = i32::from(rec_id);
 
-        let mut signature = hex::encode(&normalizes_sig_vec.as_ref());
+        let mut signature = hex::encode(normalizes_sig_vec.as_slice());
         signature.push_str(&format!("{:02x}", &rec_id));
 
         Ok(signature)
@@ -365,7 +365,7 @@ mod tests {
         let tx_input = CkbTxInput {
             inputs,
             witnesses,
-            tx_hash: tx_hash.clone().to_owned(),
+            tx_hash: tx_hash.to_owned(),
             cached_cells,
             ..CkbTxInput::default()
         };

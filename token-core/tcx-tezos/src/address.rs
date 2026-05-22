@@ -1,4 +1,4 @@
-use bitcoin::util::base58;
+use bitcoin::base58;
 use blake2b_simd::Params;
 use std::str::FromStr;
 use tcx_common::{sha256, sha256d};
@@ -19,7 +19,7 @@ impl PublicKeyEncoder for TezosPublicKeyEncoder {
         let to_hash = [edpk_prefix, public_key.to_bytes()].concat();
         let hashed = sha256d(&to_hash);
         let hash_with_checksum = [to_hash, hashed[0..4].to_vec()].concat();
-        let edpk = base58::encode_slice(&hash_with_checksum);
+        let edpk = base58::encode(&hash_with_checksum);
         Ok(edpk)
     }
 }
@@ -43,13 +43,13 @@ impl Address for TezosAddress {
         let double_hash_result = sha256(&sha256(&prefixed_generic_hash));
         prefixed_generic_hash.extend_from_slice(&double_hash_result[..4]);
         //base58Encode(prefix<3> + public key hash<20> + checksum<4>)
-        let address = base58::encode_slice(prefixed_generic_hash.as_slice());
+        let address = base58::encode(prefixed_generic_hash.as_slice());
 
         Ok(TezosAddress(address))
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
-        let decode_result = base58::from(address);
+        let decode_result = base58::decode(address);
         if decode_result.is_err() {
             return false;
         };

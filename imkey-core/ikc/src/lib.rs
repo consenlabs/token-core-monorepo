@@ -59,7 +59,7 @@ pub extern "C" fn get_apdu() -> *const c_char {
 #[no_mangle]
 pub extern "C" fn set_apdu(apdu: *const c_char) {
     unsafe {
-        message::set_apdu(unsafe { apdu });
+        message::set_apdu(apdu);
     }
 }
 
@@ -71,7 +71,7 @@ pub extern "C" fn get_apdu_return() -> *const c_char {
 #[no_mangle]
 pub extern "C" fn set_apdu_return(apdu_return: *const c_char) {
     unsafe {
-        message::set_apdu_return(unsafe { apdu_return });
+        message::set_apdu_return(apdu_return);
     }
 }
 
@@ -1836,7 +1836,7 @@ mod tests {
                 }),
             };
             let action = hex::encode(encode_message(action).unwrap());
-            let ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
+            let _ret_hex = unsafe { _to_str(call_imkey_api(_to_c_char(action.as_str()))) };
             let err = unsafe { _to_str(imkey_get_last_err_message()) };
             assert!(!err.is_empty());
             let error_ret: ErrorResponse =
@@ -2335,10 +2335,11 @@ mod tests {
         // Taproot (P2TR) - BIP-322 Full
         // Schnorr signatures use random nonces (BIP-340), verify structure only
         let sig = call_sign_message("VERSION_1", "m/86'/0'/0'", BtcSignatureType::Bip322);
-        let decoded = base64::decode(&sig).unwrap();
+        let decoded =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, &sig).unwrap();
         let tx: bitcoin::Transaction =
             bitcoin::consensus::deserialize(&decoded).expect("valid serialized tx");
-        assert_eq!(tx.version, 0);
+        assert_eq!(tx.version, bitcoin::transaction::Version(0));
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 1);
         assert!(!tx.input[0].witness.is_empty());

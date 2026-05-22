@@ -1,6 +1,6 @@
 use crate::transaction::{TezosRawTxIn, TezosTxOut};
 use anyhow::anyhow;
-use bitcoin::util::base58;
+use bitcoin::base58;
 use blake2b_simd::Params;
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::Result;
@@ -51,7 +51,7 @@ impl TraitTransactionSigner<TezosRawTxIn, TezosTxOut> for Keystore {
         let sign_result_hex = sign_result.to_hex();
         let tx_out = TezosTxOut {
             signature: sign_result_hex.clone(),
-            edsig: base58::check_encode_slice(edsig_source_data.as_slice()),
+            edsig: base58::encode_check(edsig_source_data.as_slice()),
             sbytes: format!("{}{}", tx.raw_data, sign_result_hex),
         };
         Ok(tx_out)

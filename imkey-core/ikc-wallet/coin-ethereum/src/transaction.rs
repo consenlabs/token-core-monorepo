@@ -150,7 +150,7 @@ impl Transaction {
 
         let mut data_arr = [0; 65];
         data_arr[0..64].copy_from_slice(&normalizes_sig_vec[0..64]);
-        data_arr[64] = rec_id.to_i32() as u8;
+        data_arr[64] = i32::from(rec_id) as u8;
         let sig = Signature(data_arr);
 
         let signed = self.with_signature(sig, chain_id);
@@ -244,8 +244,8 @@ impl Transaction {
     ) -> (Vec<u8>, UnverifiedTransaction) {
         let unverified = UnverifiedTransaction {
             unsigned: self.clone(),
-            r: sig.r().into(),
-            s: sig.s().into(),
+            r: U256::from_big_endian(sig.r()),
+            s: U256::from_big_endian(sig.s()),
             v: self.add_chain_replay_protection(sig.v() as u64, chain_id),
             hash: H256::zero(),
             chain_id: chain_id,
@@ -340,10 +340,10 @@ impl Transaction {
         let mut data_hash = [0u8; 256 / 8];
         keccak256.finalize(&mut data_hash);
         let rec_id = utility::retrieve_recid(&data_hash, &normalizes_sig_vec, &pubkey_raw).unwrap();
-        let rec_id = rec_id.to_i32();
+        let rec_id = i32::from(rec_id);
         let v = rec_id + 27;
 
-        let mut signature = hex::encode(&normalizes_sig_vec.as_ref());
+        let mut signature = hex::encode(normalizes_sig_vec.as_slice());
         signature.push_str(&format!("{:02x}", &v));
 
         Ok(EthMessageOutput { signature })
@@ -684,7 +684,7 @@ mod tests {
             &&hex::decode(pubkey).unwrap(),
         )
         .unwrap();
-        let rec_id = rec_id.to_i32();
+        let rec_id = i32::from(rec_id);
         assert_eq!(rec_id, 0);
     }
 

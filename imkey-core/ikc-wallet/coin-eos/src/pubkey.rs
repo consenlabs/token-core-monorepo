@@ -1,15 +1,16 @@
 use crate::Result;
 use anyhow::anyhow;
+use bitcoin::base58;
+use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
 use bitcoin::secp256k1::PublicKey;
-use bitcoin::util::base58;
-use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
 use bitcoin::Network;
-use bitcoin_hashes::{ripemd160, Hash};
+use bitcoin_hashes::ripemd160;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EosApdu};
 use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::{path, utility};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
+use std::convert::TryFrom;
 use std::str::FromStr;
 
 #[derive(Debug)]
@@ -53,9 +54,9 @@ impl EosPubkey {
         //checksum base58
         let mut comprs_pubkey_slice = hex::decode(comprs_pubkey).expect("Decoding failed");
         let pubkey_hash = ripemd160::Hash::hash(&comprs_pubkey_slice);
-        let check_sum = &pubkey_hash[0..4];
+        let check_sum = &pubkey_hash.as_byte_array()[0..4];
         comprs_pubkey_slice.extend(check_sum);
-        let eos_pk = "EOS".to_owned() + base58::encode_slice(&comprs_pubkey_slice).as_ref();
+        let eos_pk = "EOS".to_owned() + base58::encode(&comprs_pubkey_slice).as_ref();
 
         Ok(eos_pk)
     }
@@ -110,9 +111,9 @@ impl EosPubkey {
         let parent_pub_key_obj = PublicKey::from_str(parent_pub_key)?;
 
         //get parent public key fingerprint
-        let parent_chain_code = ChainCode::from(hex::decode(parent_chain_code)?.as_slice());
-        let parent_ext_pub_key = ExtendedPubKey {
-            network: Network::Bitcoin,
+        let parent_chain_code = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
+        let parent_ext_pub_key = Xpub {
+            network: Network::Bitcoin.into(),
             depth: 0 as u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
@@ -122,11 +123,11 @@ impl EosPubkey {
         let fingerprint_obj = parent_ext_pub_key.fingerprint();
 
         //build extend public key obj
-        let sub_chain_code_obj = ChainCode::from(hex::decode(sub_chain_code)?.as_slice());
+        let sub_chain_code_obj = ChainCode::try_from(hex::decode(sub_chain_code)?.as_slice())?;
 
         let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
-        let extend_public_key = ExtendedPubKey {
-            network: Network::Bitcoin,
+        let extend_public_key = Xpub {
+            network: Network::Bitcoin.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
             child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
@@ -145,9 +146,9 @@ impl EosPubkey {
         //checksum base58
         let mut comprs_pubkey_slice = hex::decode(comprs_pubkey).expect("Decoding failed");
         let pubkey_hash = ripemd160::Hash::hash(&comprs_pubkey_slice);
-        let check_sum = &pubkey_hash[0..4];
+        let check_sum = &pubkey_hash.as_byte_array()[0..4];
         comprs_pubkey_slice.extend(check_sum);
-        let eos_pk = "EOS".to_owned() + base58::encode_slice(&comprs_pubkey_slice).as_ref();
+        let eos_pk = "EOS".to_owned() + base58::encode(&comprs_pubkey_slice).as_ref();
 
         Ok(eos_pk)
     }
@@ -163,9 +164,9 @@ impl EosPubkey {
         let mut compressed_pub_key = PublicKey::from_slice(pub_key)?.serialize().to_vec();
         //checksum base58
         let pub_key_hash = ripemd160::Hash::hash(&compressed_pub_key);
-        let check_sum = &pub_key_hash[0..4];
+        let check_sum = &pub_key_hash.as_byte_array()[0..4];
         compressed_pub_key.extend(check_sum);
-        let eos_pk = "EOS".to_owned() + base58::encode_slice(&compressed_pub_key).as_ref();
+        let eos_pk = "EOS".to_owned() + base58::encode(&compressed_pub_key).as_ref();
         Ok(eos_pk)
     }
 }

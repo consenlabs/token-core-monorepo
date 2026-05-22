@@ -1,5 +1,3 @@
-#![feature(let_chains)]
-
 pub mod address;
 pub mod bch_address;
 mod bch_sighash;
@@ -130,6 +128,7 @@ pub mod omni {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 mod tests {
     use tcx_common::ToHex;
     use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD, TEST_WIF};

@@ -1,12 +1,10 @@
 use crate::sighash::TxSignatureHasher;
 use crate::{Error, Result};
 use bitcoin::consensus::Encodable;
-use bitcoin::psbt::Prevouts;
-use bitcoin::util::sighash::Annex;
-use bitcoin::util::taproot::{TapLeafHash, TapSighashHash};
-use bitcoin::{EcdsaSighashType, SchnorrSighashType, Script, Sighash, Transaction, TxOut};
-use bitcoin_hashes::{sha256d, Hash};
-use std::io;
+use bitcoin::io;
+use bitcoin::sighash::{Annex, Prevouts};
+use bitcoin::{EcdsaSighashType, Script, TapLeafHash, TapSighashType, Transaction, TxOut};
+use bitcoin_hashes::sha256d;
 
 pub const SIGHASH_ANYONECANPAY: u32 = 0x80;
 
@@ -30,8 +28,8 @@ struct SegwitCache {
 impl BitcoinCashSighash {
     fn segwit_cache(&mut self) -> &SegwitCache {
         self.segwit_cache.get_or_insert_with(|| {
-            let mut enc_prevouts = sha256d::Hash::engine();
-            let mut enc_sequences = sha256d::Hash::engine();
+            let mut enc_prevouts = Vec::new();
+            let mut enc_sequences = Vec::new();
             for txin in self.tx.input.iter() {
                 txin.previous_output
                     .consensus_encode(&mut enc_prevouts)
@@ -39,14 +37,14 @@ impl BitcoinCashSighash {
                 txin.sequence.consensus_encode(&mut enc_sequences).unwrap();
             }
             SegwitCache {
-                prevouts: sha256d::Hash::from_engine(enc_prevouts),
-                sequences: sha256d::Hash::from_engine(enc_sequences),
+                prevouts: sha256d::Hash::hash(&enc_prevouts),
+                sequences: sha256d::Hash::hash(&enc_sequences),
                 outputs: {
-                    let mut enc = sha256d::Hash::engine();
+                    let mut enc = Vec::new();
                     for txout in self.tx.output.iter() {
                         txout.consensus_encode(&mut enc).unwrap();
                     }
-                    sha256d::Hash::from_engine(enc)
+                    sha256d::Hash::hash(&enc)
                 },
             }
         })
@@ -66,10 +64,10 @@ impl BitcoinCashSighash {
         script_code: &Script,
         value: u64,
         sighash_type: u32,
-    ) -> Result<Sighash> {
-        let mut enc = Sighash::engine();
-        self.encode_signing_data_to(&mut enc, input_index, script_code, value, sighash_type)?;
-        Ok(Sighash::from_engine(enc))
+    ) -> Result<[u8; 32]> {
+        let enc =
+            self.encode_signing_data_to(Vec::new(), input_index, script_code, value, sighash_type)?;
+        Ok(sha256d::Hash::hash(&enc).to_byte_array())
     }
 
     pub fn encode_signing_data_to<Write: io::Write>(
@@ -79,8 +77,8 @@ impl BitcoinCashSighash {
         script_code: &Script,
         value: u64,
         sighash_type: u32,
-    ) -> Result<()> {
-        let zero_hash = sha256d::Hash::all_zeros();
+    ) -> Result<Write> {
+        let zero_hash = sha256d::Hash::from_byte_array([0u8; 32]);
 
         let anyone_can_pay = sighash_type & SIGHASH_ANYONECANPAY != 0;
         let base_type = EcdsaSighashType::from_consensus(sighash_type);
@@ -88,29 +86,22 @@ impl BitcoinCashSighash {
         self.tx.version.consensus_encode(&mut writer)?;
 
         if !anyone_can_pay {
-            self.segwit_cache().prevouts.consensus_encode(&mut writer)?;
+            writer.write_all(self.segwit_cache().prevouts.as_ref())?;
         } else {
-            zero_hash.consensus_encode(&mut writer)?;
+            writer.write_all(zero_hash.as_ref())?;
         }
 
         if !anyone_can_pay
             && base_type != EcdsaSighashType::Single
             && base_type != EcdsaSighashType::None
         {
-            self.segwit_cache()
-                .sequences
-                .consensus_encode(&mut writer)?;
+            writer.write_all(self.segwit_cache().sequences.as_ref())?;
         } else {
-            zero_hash.consensus_encode(&mut writer)?;
+            writer.write_all(zero_hash.as_ref())?;
         }
 
         {
-            let txin = &self.tx.input.get(input_index).ok_or(
-                bitcoin::util::sighash::Error::IndexOutOfInputsBounds {
-                    index: input_index,
-                    inputs_size: self.tx.input.len(),
-                },
-            )?;
+            let txin = &self.tx.input.get(input_index).ok_or(Error::InvalidUtxo)?;
 
             txin.previous_output.consensus_encode(&mut writer)?;
             script_code.consensus_encode(&mut writer)?;
@@ -119,20 +110,20 @@ impl BitcoinCashSighash {
         }
 
         if base_type != EcdsaSighashType::Single && base_type != EcdsaSighashType::None {
-            self.segwit_cache().outputs.consensus_encode(&mut writer)?;
+            writer.write_all(self.segwit_cache().outputs.as_ref())?;
         } else if base_type == EcdsaSighashType::Single && input_index < self.tx.output.len() {
-            let mut single_enc = Sighash::engine();
+            let mut single_enc = Vec::new();
             self.tx.output[input_index].consensus_encode(&mut single_enc)?;
-            Sighash::from_engine(single_enc).consensus_encode(&mut writer)?;
+            writer.write_all(sha256d::Hash::hash(&single_enc).as_ref())?;
             // padding zero hash, copy form bitcoin core
         } else {
-            zero_hash.consensus_encode(&mut writer)?;
+            writer.write_all(zero_hash.as_ref())?;
         }
 
         self.tx.lock_time.consensus_encode(&mut writer)?;
         sighash_type.consensus_encode(&mut writer)?;
 
-        Ok(())
+        Ok(writer)
     }
 }
 
@@ -147,7 +138,7 @@ impl TxSignatureHasher for BitcoinCashSighash {
         script_code: &Script,
         value: u64,
         sighash_type: EcdsaSighashType,
-    ) -> Result<Sighash> {
+    ) -> Result<[u8; 32]> {
         self.signature_hash(
             input_index,
             script_code,
@@ -162,7 +153,7 @@ impl TxSignatureHasher for BitcoinCashSighash {
         script_code: &Script,
         value: u64,
         sighash_type: u32,
-    ) -> Result<Sighash> {
+    ) -> Result<[u8; 32]> {
         self.signature_hash(
             input_index,
             script_code,
@@ -177,18 +168,18 @@ impl TxSignatureHasher for BitcoinCashSighash {
         _: &Prevouts<TxOut>,
         _: Option<Annex>,
         _: Option<(TapLeafHash, u32)>,
-        _: SchnorrSighashType,
-    ) -> Result<TapSighashHash> {
+        _: TapSighashType,
+    ) -> Result<[u8; 32]> {
         Err(Error::UnsupportedTaproot.into())
     }
 
     fn taproot_script_spend_signature_hash(
         &mut self,
-        input_index: usize,
-        prevouts: &Prevouts<TxOut>,
-        tap_leaf_hash: TapLeafHash,
-        sighash_type: SchnorrSighashType,
-    ) -> Result<TapSighashHash> {
+        _input_index: usize,
+        _prevouts: &Prevouts<TxOut>,
+        _tap_leaf_hash: TapLeafHash,
+        _sighash_type: TapSighashType,
+    ) -> Result<[u8; 32]> {
         Err(Error::UnsupportedTaproot.into())
     }
 }
