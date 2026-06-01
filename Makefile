@@ -1,3 +1,12 @@
+TEST_ENV := MACOSX_DEPLOYMENT_TARGET=10.12 KDF_ROUNDS=1
+TCX_EXCLUDES := --exclude 'ikc*' --exclude 'coin*'
+IKC_HARDWARE_EXCLUDES := --exclude 'tcx*'
+WASM_CC ?= /opt/homebrew/opt/llvm/bin/clang
+WASM_AR ?= /opt/homebrew/opt/llvm/bin/llvm-ar
+WASM_CFLAGS ?= -Wno-implicit-function-declaration
+
+.PHONY: build-tcx-proto check-tcx build-tcx test-tcx test-ikc test-workspace test-hardware test-wasm build-wasm build-wasm-opt dev-wasm build-npm publish-npm
+
 build-tcx-proto:
 	cargo build -p tcx-proto
 
@@ -8,7 +17,55 @@ build-tcx:
 	cd token-core; cargo build
 
 test-tcx:
-	MACOSX_DEPLOYMENT_TARGET=10.12 KDF_ROUNDS=1 cargo test --workspace --exclude 'ikc*' --exclude 'coin*'
+	$(TEST_ENV) cargo test --workspace $(TCX_EXCLUDES)
 
 test-ikc:
-	MACOSX_DEPLOYMENT_TARGET=10.12 KDF_ROUNDS=1 cargo test --workspace --exclude 'tcx*'
+	$(TEST_ENV) cargo test -p ikc-common -- --skip https::test::post_test
+	$(TEST_ENV) cargo test -p ikc-proto
+	$(TEST_ENV) cargo test -p ikc normalize_sign_param
+
+test-workspace:
+	$(TEST_ENV) cargo test --workspace --no-run
+	$(MAKE) test-tcx
+	$(MAKE) test-ikc
+
+test-hardware:
+	@echo "Requires a connected and authorized imKey device; hardware tests run serially."
+	$(TEST_ENV) cargo test --workspace $(IKC_HARDWARE_EXCLUDES) -- --test-threads=1 --nocapture
+
+test-wasm:
+	CC_wasm32_unknown_unknown=$(WASM_CC) CFLAGS_wasm32_unknown_unknown="$(WASM_CFLAGS)" $(TEST_ENV) cargo check -p tcx-wasm --target wasm32-unknown-unknown
+	$(TEST_ENV) cargo test -p tcx-wasm --no-run
+
+build-wasm:
+	mkdir -p examples/wasm/public
+	CC=$(WASM_CC) CC_wasm32_unknown_unknown=$(WASM_CC) CFLAGS_wasm32_unknown_unknown="$(WASM_CFLAGS)" AR=$(WASM_AR) wasm-pack build token-core/tcx-wasm --target web --out-dir ../../examples/wasm/src/pkg
+	cp examples/wasm/src/pkg/tcx_wasm_bg.wasm examples/wasm/public/
+
+build-wasm-opt:
+	mkdir -p examples/wasm/public
+	CC=$(WASM_CC) CC_wasm32_unknown_unknown=$(WASM_CC) CFLAGS_wasm32_unknown_unknown="$(WASM_CFLAGS)" AR=$(WASM_AR) CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_OPT_LEVEL=z CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 CARGO_PROFILE_RELEASE_STRIP=true wasm-pack build token-core/tcx-wasm --release --target web --out-dir ../../examples/wasm/src/pkg
+	wasm-opt -Oz --all-features examples/wasm/src/pkg/tcx_wasm_bg.wasm -o examples/wasm/src/pkg/tcx_wasm_bg.wasm
+	cp examples/wasm/src/pkg/tcx_wasm_bg.wasm examples/wasm/public/
+	@echo "Optimized wasm size:" && ls -lh examples/wasm/public/tcx_wasm_bg.wasm
+
+dev-wasm: build-wasm
+	cd examples/wasm && npm run dev
+
+build-npm:
+	mkdir -p publish/npm
+	CC=$(WASM_CC) CC_wasm32_unknown_unknown=$(WASM_CC) CFLAGS_wasm32_unknown_unknown="$(WASM_CFLAGS)" AR=$(WASM_AR) CARGO_PROFILE_RELEASE_LTO=true CARGO_PROFILE_RELEASE_OPT_LEVEL=z CARGO_PROFILE_RELEASE_CODEGEN_UNITS=1 CARGO_PROFILE_RELEASE_STRIP=true wasm-pack build token-core/tcx-wasm --release --target web --out-dir ../../.wasm-pack-tmp
+	cp .wasm-pack-tmp/tcx_wasm_bg.wasm publish/npm/
+	cp .wasm-pack-tmp/tcx_wasm.js publish/npm/
+	cp .wasm-pack-tmp/tcx_wasm.d.ts publish/npm/
+	cp .wasm-pack-tmp/tcx_wasm_bg.wasm.d.ts publish/npm/
+	@if command -v wasm-opt >/dev/null 2>&1; then \
+		wasm-opt -Oz --all-features publish/npm/tcx_wasm_bg.wasm -o publish/npm/tcx_wasm_bg.wasm; \
+	fi
+	cp examples/wasm/README.md publish/npm/README.md
+	rm -rf .wasm-pack-tmp
+	@echo "NPM package built in publish/npm/"
+	@ls -lh publish/npm/tcx_wasm_bg.wasm
+
+publish-npm: build-npm
+	cd publish/npm && npm publish
