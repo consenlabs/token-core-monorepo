@@ -3,8 +3,12 @@ use crate::Result;
 use bitcoin::bip32::DerivationPath;
 use std::str::FromStr;
 
+fn normalize_path(path: &str) -> &str {
+    path.trim_end_matches('/')
+}
+
 pub fn check_path_validity(path: &str) -> Result<()> {
-    let path = path.trim_end_matches('/');
+    let path = normalize_path(path);
     //check depth and length
     let strings: Vec<&str> = path.split("/").collect();
     let depth = strings.len();
@@ -16,7 +20,7 @@ pub fn check_path_validity(path: &str) -> Result<()> {
 }
 
 pub fn check_path_max_five_depth(path: &str) -> Result<()> {
-    let path = path.trim_end_matches('/');
+    let path = normalize_path(path);
     //check depth and length
     let strings: Vec<&str> = path.split("/").collect();
     let depth = strings.len();
@@ -29,6 +33,7 @@ pub fn check_path_max_five_depth(path: &str) -> Result<()> {
 
 pub fn get_account_path(path: &str) -> Result<String> {
     // example: m/44'/60'/0'/0/0
+    let path = normalize_path(path);
     let _ = DerivationPath::from_str(path)?;
     let mut children: Vec<&str> = path.split('/').collect();
 
@@ -58,7 +63,7 @@ pub fn get_parent_path(path: &str) -> Result<&str> {
 
 #[cfg(test)]
 mod test {
-    use crate::path::check_path_validity;
+    use crate::path::{check_path_max_five_depth, check_path_validity, get_account_path};
 
     #[test]
     fn check_path_validity_test() {
@@ -66,5 +71,14 @@ mod test {
         assert!(check_path_validity("m/44a'/0'/0'").is_err());
         assert!(check_path_validity("m/44'/0'/0'/0'/0'").is_ok());
         assert!(check_path_validity("m/44'/0'/0'/0'/0'/0'").is_err());
+    }
+
+    #[test]
+    fn trailing_slash_is_normalized_consistently_test() {
+        let path = "m/44'/0'/0'/0/0/";
+
+        assert!(check_path_validity(path).is_ok());
+        assert!(check_path_max_five_depth(path).is_ok());
+        assert_eq!(get_account_path(path).unwrap(), "m/44'/0'/0'");
     }
 }
