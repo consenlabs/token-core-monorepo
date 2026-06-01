@@ -1,0 +1,391 @@
+use base64::Engine;
+use bitcoin::bip32::{DerivationPath, Xpriv};
+use bitcoin::secp256k1 as bitcoin_secp256k1;
+use bitcoin::Network;
+use chacha20::cipher::{KeyIvInit, StreamCipher};
+use chacha20::ChaCha20;
+use hkdf::Hkdf;
+use hmac::{Hmac, KeyInit, Mac};
+use secp256k1::{ecdh, Keypair, PublicKey, Secp256k1, SecretKey, XOnlyPublicKey};
+use sha2::Sha256;
+use tcx_common::FromHex;
+
+pub const DEFAULT_PATH: &str = "m/44'/1237'/0'/0/0";
+
+const NIP44_SALT: &[u8] = b"nip44-v2";
+const NIP44_VERSION: u8 = 0x02;
+const MIN_PLAINTEXT_SIZE: usize = 1;
+const MAX_PLAINTEXT_SIZE: usize = 65535;
+
+type HmacSha256 = Hmac<Sha256>;
+
+struct MessageKeys {
+    chacha_key: [u8; 32],
+    chacha_nonce: [u8; 12],
+    hmac_key: [u8; 32],
+}
+
+// --- Key derivation ---
+
+pub fn derive_secret_key(mnemonic: &str, path: &str) -> Result<SecretKey, String> {
+    let seed = tcx_keystore::mnemonic_to_seed(mnemonic).map_err(|e| e.to_string())?;
+    let secp = bitcoin_secp256k1::Secp256k1::new();
+    let master = Xpriv::new_master(Network::Bitcoin, seed.as_ref()).map_err(|e| e.to_string())?;
+    let derivation: DerivationPath = path
+        .parse()
+        .map_err(|e: bitcoin::bip32::Error| e.to_string())?;
+    let derived = master
+        .derive_priv(&secp, &derivation)
+        .map_err(|e| e.to_string())?;
+    SecretKey::from_byte_array(derived.private_key.secret_bytes()).map_err(|e| e.to_string())
+}
+
+pub fn get_xonly_pubkey(secret_key: &SecretKey) -> XOnlyPublicKey {
+    let secp = Secp256k1::new();
+    let keypair = Keypair::from_secret_key(&secp, secret_key);
+    keypair.x_only_public_key().0
+}
+
+pub fn generate_random_secret_key() -> Result<SecretKey, String> {
+    let mut bytes = [0u8; 32];
+    getrandom::fill(&mut bytes).map_err(|e| e.to_string())?;
+    SecretKey::from_byte_array(bytes).map_err(|e| e.to_string())
+}
+
+pub fn randomize_timestamp(base: u64, window_secs: u64) -> u64 {
+    let mut buf = [0u8; 8];
+    let _ = getrandom::fill(&mut buf);
+    let offset = u64::from_le_bytes(buf) % (window_secs + 1);
+    base.saturating_sub(offset)
+}
+
+// --- Nostr event signing (NIP-01 + BIP340) ---
+
+pub fn compute_event_id(
+    pubkey_hex: &str,
+    created_at: u64,
+    kind: u32,
+    tags: &[Vec<String>],
+    content: &str,
+) -> [u8; 32] {
+    use sha2::Digest;
+    let serialized = serde_json::json!([0, pubkey_hex, created_at, kind, tags, content]);
+    let json_str = serde_json::to_string(&serialized).expect("valid JSON");
+    let hash = Sha256::digest(json_str.as_bytes());
+    let mut result = [0u8; 32];
+    result.copy_from_slice(&hash);
+    result
+}
+
+pub fn schnorr_sign(secret_key: &SecretKey, message: &[u8; 32]) -> Result<Vec<u8>, String> {
+    let secp = Secp256k1::new();
+    let keypair = Keypair::from_secret_key(&secp, secret_key);
+    let mut aux_rand = [0u8; 32];
+    getrandom::fill(&mut aux_rand).map_err(|e| e.to_string())?;
+    let sig = secp.sign_schnorr_with_aux_rand(message, &keypair, &aux_rand);
+    Ok(sig[..].to_vec())
+}
+
+// --- NIP-44 v2 encryption ---
+
+pub fn parse_pubkey(hex_str: &str) -> Result<PublicKey, String> {
+    let bytes = Vec::from_hex(hex_str).map_err(|e| e.to_string())?;
+    match bytes.len() {
+        32 => {
+            let key_bytes: [u8; 32] = bytes
+                .as_slice()
+                .try_into()
+                .map_err(|_| "invalid public key length".to_string())?;
+            let xonly = XOnlyPublicKey::from_byte_array(key_bytes).map_err(|e| e.to_string())?;
+            Ok(PublicKey::from_x_only_public_key(
+                xonly,
+                secp256k1::Parity::Even,
+            ))
+        }
+        33 | 65 => PublicKey::from_slice(&bytes).map_err(|e| e.to_string()),
+        _ => Err("invalid public key length".to_string()),
+    }
+}
+
+pub fn get_conversation_key(secret_key: &SecretKey, pubkey: &PublicKey) -> [u8; 32] {
+    let shared_point = ecdh::shared_secret_point(pubkey, secret_key);
+    let shared_x = &shared_point[..32];
+    // HKDF-extract: PRK = HMAC-SHA256(salt, IKM)
+    let mut mac = HmacSha256::new_from_slice(NIP44_SALT).expect("valid key size");
+    mac.update(shared_x);
+    let result = mac.finalize().into_bytes();
+    let mut conv_key = [0u8; 32];
+    conv_key.copy_from_slice(&result);
+    conv_key
+}
+
+pub fn nip44_encrypt(conversation_key: &[u8; 32], plaintext: &str) -> Result<String, String> {
+    let unpadded = plaintext.as_bytes();
+    if unpadded.is_empty() || unpadded.len() > MAX_PLAINTEXT_SIZE {
+        return Err("invalid plaintext length".to_string());
+    }
+
+    let mut nonce = [0u8; 32];
+    getrandom::fill(&mut nonce).map_err(|e| e.to_string())?;
+
+    let keys = get_message_keys(conversation_key, &nonce)?;
+    let mut ciphertext = pad(unpadded)?;
+
+    let mut cipher = ChaCha20::new_from_slices(&keys.chacha_key, &keys.chacha_nonce)
+        .map_err(|e| e.to_string())?;
+    cipher.apply_keystream(&mut ciphertext);
+
+    let mut mac = HmacSha256::new_from_slice(&keys.hmac_key).expect("valid key size");
+    mac.update(&nonce);
+    mac.update(&ciphertext);
+    let mac_bytes = mac.finalize().into_bytes();
+
+    let mut payload = Vec::with_capacity(1 + 32 + ciphertext.len() + 32);
+    payload.push(NIP44_VERSION);
+    payload.extend_from_slice(&nonce);
+    payload.extend_from_slice(&ciphertext);
+    payload.extend_from_slice(&mac_bytes);
+
+    Ok(base64::engine::general_purpose::STANDARD.encode(&payload))
+}
+
+pub fn nip44_decrypt(conversation_key: &[u8; 32], payload: &str) -> Result<String, String> {
+    if payload.is_empty() || payload.starts_with('#') {
+        return Err("unknown encryption version".to_string());
+    }
+    if payload.len() < 132 || payload.len() > 87472 {
+        return Err("invalid payload size".to_string());
+    }
+
+    let data = base64::engine::general_purpose::STANDARD
+        .decode(payload)
+        .map_err(|e| e.to_string())?;
+    if data.len() < 99 || data.len() > 65603 {
+        return Err("invalid data size".to_string());
+    }
+
+    let version = data[0];
+    if version != NIP44_VERSION {
+        return Err(format!("unknown version {}", version));
+    }
+
+    let nonce: [u8; 32] = data[1..33]
+        .try_into()
+        .map_err(|_| "invalid nonce".to_string())?;
+    let ciphertext = &data[33..data.len() - 32];
+    let expected_mac = &data[data.len() - 32..];
+
+    let keys = get_message_keys(conversation_key, &nonce)?;
+
+    let mut mac = HmacSha256::new_from_slice(&keys.hmac_key).expect("valid key size");
+    mac.update(&nonce);
+    mac.update(ciphertext);
+    mac.verify_slice(expected_mac)
+        .map_err(|_| "invalid MAC".to_string())?;
+
+    let mut plaintext_padded = ciphertext.to_vec();
+    let mut cipher = ChaCha20::new_from_slices(&keys.chacha_key, &keys.chacha_nonce)
+        .map_err(|e| e.to_string())?;
+    cipher.apply_keystream(&mut plaintext_padded);
+
+    let plaintext = unpad(&plaintext_padded)?;
+    String::from_utf8(plaintext).map_err(|e| e.to_string())
+}
+
+// --- Internal helpers ---
+
+fn get_message_keys(conversation_key: &[u8; 32], nonce: &[u8; 32]) -> Result<MessageKeys, String> {
+    let hkdf = Hkdf::<Sha256>::from_prk(conversation_key).map_err(|e| e.to_string())?;
+    let mut keys = [0u8; 76];
+    hkdf.expand(nonce, &mut keys).map_err(|e| e.to_string())?;
+
+    let mut chacha_key = [0u8; 32];
+    let mut chacha_nonce = [0u8; 12];
+    let mut hmac_key = [0u8; 32];
+    chacha_key.copy_from_slice(&keys[0..32]);
+    chacha_nonce.copy_from_slice(&keys[32..44]);
+    hmac_key.copy_from_slice(&keys[44..76]);
+
+    Ok(MessageKeys {
+        chacha_key,
+        chacha_nonce,
+        hmac_key,
+    })
+}
+
+fn calc_padded_len(unpadded_len: usize) -> usize {
+    if unpadded_len <= 32 {
+        return 32;
+    }
+    let x = unpadded_len - 1;
+    let next_power = 1usize << (usize::BITS - x.leading_zeros());
+    let chunk = if next_power <= 256 {
+        32
+    } else {
+        next_power / 8
+    };
+    chunk * (x / chunk + 1)
+}
+
+fn pad(plaintext: &[u8]) -> Result<Vec<u8>, String> {
+    let unpadded_len = plaintext.len();
+    if !(MIN_PLAINTEXT_SIZE..=MAX_PLAINTEXT_SIZE).contains(&unpadded_len) {
+        return Err("invalid plaintext length".to_string());
+    }
+    let padded_len = calc_padded_len(unpadded_len);
+    let mut result = Vec::with_capacity(2 + padded_len);
+    result.extend_from_slice(&(unpadded_len as u16).to_be_bytes());
+    result.extend_from_slice(plaintext);
+    result.resize(2 + padded_len, 0);
+    Ok(result)
+}
+
+fn unpad(padded: &[u8]) -> Result<Vec<u8>, String> {
+    if padded.len() < 2 {
+        return Err("invalid padding".to_string());
+    }
+    let unpadded_len = u16::from_be_bytes([padded[0], padded[1]]) as usize;
+    if unpadded_len == 0
+        || 2 + unpadded_len > padded.len()
+        || padded.len() != 2 + calc_padded_len(unpadded_len)
+    {
+        return Err("invalid padding".to_string());
+    }
+    Ok(padded[2..2 + unpadded_len].to_vec())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tcx_common::ToHex;
+
+    fn secret_key_from_hex(hex: &str) -> SecretKey {
+        let bytes: [u8; 32] = Vec::from_hex(hex).unwrap().try_into().unwrap();
+        SecretKey::from_byte_array(bytes).unwrap()
+    }
+
+    #[test]
+    fn test_calc_padded_len() {
+        assert_eq!(calc_padded_len(1), 32);
+        assert_eq!(calc_padded_len(16), 32);
+        assert_eq!(calc_padded_len(32), 32);
+        assert_eq!(calc_padded_len(33), 64);
+        assert_eq!(calc_padded_len(37), 64);
+        assert_eq!(calc_padded_len(64), 64);
+        assert_eq!(calc_padded_len(65), 96);
+        assert_eq!(calc_padded_len(256), 256);
+        assert_eq!(calc_padded_len(257), 320);
+    }
+
+    #[test]
+    fn test_pad_unpad_roundtrip() {
+        let case_a = [b'a'];
+        let case_hello = *b"hello world";
+        let case_long = [0x42; 100];
+        let case_exact = [0xff; 32];
+        let cases: [&[u8]; 4] = [&case_a, &case_hello, &case_long, &case_exact];
+        for plaintext in cases {
+            let padded = pad(plaintext).unwrap();
+            let unpadded = unpad(&padded).unwrap();
+            assert_eq!(unpadded, plaintext);
+        }
+    }
+
+    #[test]
+    fn test_get_conversation_key_vector() {
+        let secp = Secp256k1::new();
+        let sec1 =
+            secret_key_from_hex("0000000000000000000000000000000000000000000000000000000000000001");
+        let sec2 =
+            secret_key_from_hex("0000000000000000000000000000000000000000000000000000000000000002");
+        let pub2 = PublicKey::from_secret_key(&secp, &sec2);
+
+        let conv_key = get_conversation_key(&sec1, &pub2);
+        assert_eq!(
+            conv_key.to_hex(),
+            "c41c775356fd92eadc63ff5a0dc1da211b268cbea22316767095b2871ea1412d"
+        );
+    }
+
+    #[test]
+    fn test_nip44_encrypt_decrypt_roundtrip() {
+        let secp = Secp256k1::new();
+        let sec1 =
+            secret_key_from_hex("0000000000000000000000000000000000000000000000000000000000000001");
+        let sec2 =
+            secret_key_from_hex("0000000000000000000000000000000000000000000000000000000000000002");
+        let pub2 = PublicKey::from_secret_key(&secp, &sec2);
+        let pub1 = PublicKey::from_secret_key(&secp, &sec1);
+
+        let conv_key_1 = get_conversation_key(&sec1, &pub2);
+        let conv_key_2 = get_conversation_key(&sec2, &pub1);
+        assert_eq!(conv_key_1, conv_key_2);
+
+        let plaintext = "hello nostr";
+        let encrypted = nip44_encrypt(&conv_key_1, plaintext).unwrap();
+        let decrypted = nip44_decrypt(&conv_key_2, &encrypted).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_generate_random_secret_key() {
+        let sk1 = generate_random_secret_key().unwrap();
+        let sk2 = generate_random_secret_key().unwrap();
+        assert_ne!(sk1, sk2);
+        let pk = get_xonly_pubkey(&sk1);
+        assert_eq!(pk.to_string().len(), 64);
+    }
+
+    #[test]
+    fn test_randomize_timestamp() {
+        let base = 1_700_000_000u64;
+        let window = 2 * 24 * 60 * 60;
+        for _ in 0..100 {
+            let ts = randomize_timestamp(base, window);
+            assert!(ts <= base);
+            assert!(ts >= base - window);
+        }
+        for _ in 0..10 {
+            let ts = randomize_timestamp(100, 200);
+            assert!(ts <= 100);
+        }
+    }
+
+    #[test]
+    fn test_seal_wrap_roundtrip() {
+        let secp = Secp256k1::new();
+        let sender_sk =
+            secret_key_from_hex("0000000000000000000000000000000000000000000000000000000000000001");
+        let recipient_sk =
+            secret_key_from_hex("0000000000000000000000000000000000000000000000000000000000000002");
+        let recipient_pk = PublicKey::from_secret_key(&secp, &recipient_sk);
+        let sender_pk_hex = get_xonly_pubkey(&sender_sk).to_string();
+
+        let rumor_json = r#"{"id":"abc","pubkey":"def","content":"hello"}"#;
+
+        // Seal: sender encrypts rumor for recipient
+        let seal_conv_key = get_conversation_key(&sender_sk, &recipient_pk);
+        let seal_content = nip44_encrypt(&seal_conv_key, rumor_json).unwrap();
+
+        // Recipient can decrypt the seal
+        let sender_pk = PublicKey::from_secret_key(&secp, &sender_sk);
+        let recipient_conv_key = get_conversation_key(&recipient_sk, &sender_pk);
+        let decrypted_rumor = nip44_decrypt(&recipient_conv_key, &seal_content).unwrap();
+        assert_eq!(decrypted_rumor, rumor_json);
+
+        // Wrap: ephemeral key encrypts seal for recipient
+        let ephemeral_sk = generate_random_secret_key().unwrap();
+        let wrap_conv_key = get_conversation_key(&ephemeral_sk, &recipient_pk);
+        let seal_event_json = format!(
+            r#"{{"pubkey":"{}","content":"{}"}}"#,
+            sender_pk_hex, seal_content
+        );
+        let wrap_content = nip44_encrypt(&wrap_conv_key, &seal_event_json).unwrap();
+
+        // Recipient can decrypt the wrap
+        let ephemeral_pk = PublicKey::from_secret_key(&secp, &ephemeral_sk);
+        let recipient_wrap_conv_key = get_conversation_key(&recipient_sk, &ephemeral_pk);
+        let decrypted_seal = nip44_decrypt(&recipient_wrap_conv_key, &wrap_content).unwrap();
+        assert_eq!(decrypted_seal, seal_event_json);
+    }
+}
