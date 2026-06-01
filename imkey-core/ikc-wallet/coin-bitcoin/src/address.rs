@@ -91,7 +91,8 @@ impl BtcAddress {
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
 
-        let pub_key_obj = PublicKey::from_str(pub_key)?;
+        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
+        pub_key_obj.compressed = true;
         let compressed = CompressedPublicKey::try_from(pub_key_obj)?;
 
         Ok(Address::p2shwpkh(&compressed, network).to_string())
@@ -102,7 +103,8 @@ impl BtcAddress {
 
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
-        let pub_key_obj = PublicKey::from_str(pub_key)?;
+        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
+        pub_key_obj.compressed = true;
         let compressed = CompressedPublicKey::try_from(pub_key_obj)?;
 
         Ok(Address::p2wpkh(&compressed, network).to_string())
@@ -164,7 +166,8 @@ impl BtcAddress {
     }
 
     pub fn from_public_key(public_key: &str, network: Network, seg_wit: &str) -> Result<String> {
-        let pub_key_obj = PublicKey::from_str(public_key)?;
+        let mut pub_key_obj = PublicKey::from_str(public_key)?;
+        pub_key_obj.compressed = true;
         let address = match seg_wit {
             constants::BTC_SEG_WIT_TYPE_P2WPKH => {
                 let compressed = CompressedPublicKey::try_from(pub_key_obj)?;

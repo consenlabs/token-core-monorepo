@@ -44,6 +44,14 @@ pub struct PsbtSigner<'a> {
     is_sign_message: bool,
 }
 
+fn normalize_derivation_path(path: &str) -> String {
+    if path.is_empty() || path == "m" || path.starts_with("m/") {
+        path.to_string()
+    } else {
+        format!("m/{path}")
+    }
+}
+
 impl<'a> PsbtSigner<'a> {
     pub fn new(
         psbt: &'a mut Psbt,
@@ -151,13 +159,13 @@ impl<'a> PsbtSigner<'a> {
             let tap_bip32_derivation = input.tap_key_origins.first_key_value();
 
             if let Some((_, key_source)) = tap_bip32_derivation {
-                path = key_source.1 .1.to_string();
+                path = normalize_derivation_path(&key_source.1 .1.to_string());
             }
         } else {
             let bip32_derivations = input.bip32_derivation.first_key_value();
 
             if let Some((_, key_source)) = bip32_derivations {
-                path = key_source.1.to_string();
+                path = normalize_derivation_path(&key_source.1.to_string());
             }
         }
         Ok(path)

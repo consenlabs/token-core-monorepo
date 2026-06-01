@@ -184,8 +184,8 @@ impl BtcTransaction {
 
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: tx_to_sign.compute_txid().to_hex(),
-            wtx_id: tx_to_sign.compute_ntxid().to_hex(),
+            tx_hash: tx_to_sign.compute_txid().to_string(),
+            wtx_id: tx_to_sign.compute_ntxid().to_string(),
         })
     }
 
@@ -396,8 +396,8 @@ impl BtcTransaction {
 
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: tx_to_sign.compute_txid().to_hex(),
-            wtx_id: tx_to_sign.compute_wtxid().to_hex(),
+            tx_hash: tx_to_sign.compute_txid().to_string(),
+            wtx_id: tx_to_sign.compute_wtxid().to_string(),
         })
     }
 

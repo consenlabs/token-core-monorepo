@@ -82,7 +82,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
             } else if address.starts_with("bc1") {
                 'b' as u8
             } else {
-                return Err(CoinError::InvalidAddress.into());
+                return Err(CoinError::AddressTypeMismatch.into());
             }
         }
         Network::Testnet => {
@@ -92,7 +92,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
             } else if address.starts_with("tb1") {
                 't' as u8
             } else {
-                return Err(CoinError::InvalidAddress.into());
+                return Err(CoinError::AddressTypeMismatch.into());
             }
         }
         _ => {

@@ -284,8 +284,7 @@ impl Display for BtcKinAddress {
                 version,
                 program: ref prog,
             } => {
-                let hrp =
-                    bech32::Hrp::parse(self.network.bech32_hrp).map_err(|_| core::fmt::Error)?;
+                let hrp = bech32::Hrp::parse_unchecked(self.network.bech32_hrp);
                 bech32::segwit::encode_to_fmt_unchecked(fmt, hrp, version.to_fe(), prog)
             }
         }
