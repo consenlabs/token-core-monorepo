@@ -12,6 +12,7 @@ tcx-constants = { path = "../tcx-constants" }
 tcx-primitive = { path = "../tcx-primitive" }
 tcx-crypto = { path = "../tcx-crypto" }
 tcx-common = { path = "../tcx-common" }
+wallet-core-common = { path = "../../common/wallet-core-common", features = ["tezos"] }
 
 anyhow = { version = "=1.0.102", features = [] }
 blake2b_simd = "=1.0.4"

@@ -12,15 +12,13 @@ tcx-keystore = { path = "../tcx-keystore" }
 tcx-primitive = { path = "../tcx-primitive" }
 tcx-constants = { path = "../tcx-constants" }
 tcx-common = { path = "../tcx-common"}
+wallet-core-common = { path = "../../common/wallet-core-common", features = ["ckb-address"] }
 
 prost = "=0.14.3"
 bytes = "=1.11.1"
 blake2b-rs = "=0.2.0"
 anyhow = { version = "=1.0.102", features = [] }
-byteorder = "=1.5.0"
-bech32 = "=0.11.1"
 
 hex = "=0.4.3"
 lazy_static = "=1.5.0"
 thiserror = "=2.0.18"
-

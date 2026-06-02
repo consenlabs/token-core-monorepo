@@ -31,34 +31,17 @@ pub mod ctr {
 pub mod cbc {
 
     use crate::{Error, Result};
-    use aes::cipher::{block_padding::Pkcs7, BlockModeDecrypt, BlockModeEncrypt, KeyIvInit};
 
-    type Aes128CbcEnc = cbc::Encryptor<aes::Aes128>;
-    type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
     #[inline]
     pub fn encrypt_pkcs7(data: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
-        if key.len() != 16 || iv.len() != 16 {
-            return Err(Error::InvalidKeyIvLength.into());
-        }
-        let padding_len = 16 - (data.len() % 16);
-        let mut buf = vec![0u8; data.len() + padding_len];
-        let ct = Aes128CbcEnc::new_from_slices(key, iv)?
-            .encrypt_padded_b2b::<Pkcs7>(data, &mut buf)
-            .unwrap();
-
-        Ok(ct.to_vec())
+        wallet_core_common::aes::cbc::encrypt_pkcs7(data, key, iv)
+            .map_err(|_| Error::InvalidKeyIvLength.into())
     }
 
     #[inline]
     pub fn decrypt_pkcs7(encrypted: &[u8], key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
-        if key.len() != 16 || iv.len() != 16 {
-            return Err(Error::InvalidKeyIvLength.into());
-        }
-        let mut buf = vec![0u8; encrypted.len()];
-        let pt = Aes128CbcDec::new_from_slices(key, iv)?
-            .decrypt_padded_b2b::<Pkcs7>(encrypted, &mut buf)
-            .unwrap();
-        Ok(pt.to_vec())
+        wallet_core_common::aes::cbc::decrypt_pkcs7(encrypted, key, iv)
+            .map_err(|_| Error::InvalidKeyIvLength.into())
     }
 }
 

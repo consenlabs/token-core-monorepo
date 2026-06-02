@@ -46,38 +46,24 @@ impl CurveType {
 }
 
 #[cfg(test)]
-mod test {
-    use crate::CurveType;
+mod tests {
+    use super::CurveType;
 
     #[test]
-    fn test_curve_type_as_str() {
-        assert_eq!(CurveType::SECP256k1.as_str(), "secp256k1");
-        assert_eq!(CurveType::ED25519.as_str(), "ed25519");
-        assert_eq!(
-            CurveType::ED25519Blake2bNano.as_str(),
-            "ed25519-blake2b-nano"
-        );
-        assert_eq!(CurveType::SR25519.as_str(), "sr25519");
-        assert_eq!(CurveType::Curve25519.as_str(), "curve25519");
-        assert_eq!(CurveType::NIST256p1.as_str(), "nist256p1");
-        assert_eq!(CurveType::BLS.as_str(), "bls12-381");
-    }
+    fn keeps_legacy_string_values() {
+        let cases = [
+            (CurveType::SECP256k1, "secp256k1"),
+            (CurveType::ED25519, "ed25519"),
+            (CurveType::ED25519Blake2bNano, "ed25519-blake2b-nano"),
+            (CurveType::SR25519, "sr25519"),
+            (CurveType::Curve25519, "curve25519"),
+            (CurveType::NIST256p1, "nist256p1"),
+            (CurveType::BLS, "bls12-381"),
+        ];
 
-    #[test]
-    fn test_curve_type_from_str() {
-        let curve_type = CurveType::from_str("secp256k1");
-        assert_eq!(curve_type, CurveType::SECP256k1);
-        let curve_type = CurveType::from_str("ed25519");
-        assert_eq!(curve_type, CurveType::ED25519);
-        let curve_type = CurveType::from_str("ed25519-blake2b-nano");
-        assert_eq!(curve_type, CurveType::ED25519Blake2bNano);
-        let curve_type = CurveType::from_str("sr25519");
-        assert_eq!(curve_type, CurveType::SR25519);
-        let curve_type = CurveType::from_str("curve25519");
-        assert_eq!(curve_type, CurveType::Curve25519);
-        let curve_type = CurveType::from_str("nist256p1");
-        assert_eq!(curve_type, CurveType::NIST256p1);
-        let curve_type = CurveType::from_str("bls12-381");
-        assert_eq!(curve_type, CurveType::BLS);
+        for (curve, value) in cases {
+            assert_eq!(curve.as_str(), value);
+            assert_eq!(CurveType::from_str(value), curve);
+        }
     }
 }

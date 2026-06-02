@@ -10,6 +10,7 @@ edition = "2018"
 ikc-common = {path = "../../ikc-common"}
 ikc-device = {path = "../../ikc-device"}
 ikc-transport = {path = "../../ikc-transport"}
+wallet-core-common = { path = "../../../common/wallet-core-common", features = ["btc"] }
 
 bitcoin = "=0.32.9"
 secp256k1 = {version = "=0.31.1", features = ["rand", "recovery"] }
@@ -27,4 +28,3 @@ lazy_static = "=1.5.0"
 parking_lot = "=0.12.5"
 bech32 = "=0.11.1"
 base64 = "=0.22.1"
-

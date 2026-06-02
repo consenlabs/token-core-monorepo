@@ -21,9 +21,9 @@ use ikc_common::constants::{
     MIN_NONDUST_OUTPUT, TIMEOUT_LONG,
 };
 use ikc_common::error::{CoinError, CommonError};
-use ikc_common::hex::ToHex;
 use ikc_common::path::{check_path_validity, get_account_path};
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, network_convert, secp256k1_sign};
+use ikc_common::ToHex;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_device::device_manager::get_btc_apple_version;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
@@ -743,8 +743,8 @@ mod tests {
     use bitcoin::secp256k1::{Message, Secp256k1, XOnlyPublicKey};
     use bitcoin::Transaction;
     use hex::FromHex;
-    use ikc_common::hex::ToHex;
     use ikc_common::utility::hex_to_bytes;
+    use ikc_common::ToHex;
     use ikc_device::device_binding::bind_test;
 
     #[test]

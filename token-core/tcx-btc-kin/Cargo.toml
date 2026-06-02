@@ -10,6 +10,7 @@ tcx-keystore = { path = "../tcx-keystore" }
 tcx-primitive = { path = "../tcx-primitive" }
 tcx-constants = { path = "../tcx-constants" }
 tcx-common = { path = "../tcx-common" }
+wallet-core-common = { path = "../../common/wallet-core-common", features = ["btc"] }
 
 hex = "=0.4.3"
 base64 = "=0.22.1"

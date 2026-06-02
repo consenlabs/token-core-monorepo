@@ -1,36 +1,22 @@
 use crate::aes::cbc::encrypt_pkcs7;
-use crate::constants::SECP256K1_ENGINE;
 use crate::error::CommonError;
-use crate::hex::FromHex;
 use crate::Result;
 use base64::Engine;
-use bitcoin::base58;
-use bitcoin::bip32::{ChainCode, ChildNumber, Error as Bip32Error, Fingerprint, Xpub};
-use bitcoin::hashes::{sha256, Hash};
-use bitcoin::secp256k1 as bitcoin_secp256k1;
+use bitcoin::bip32::Xpub;
 use bitcoin::Network;
-use byteorder::BigEndian;
-use byteorder::ByteOrder;
 use num_bigint::BigInt;
 use num_integer::Integer;
 use num_traits::{FromPrimitive, Num, Zero};
-use regex::Regex;
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId, Signature};
 use secp256k1::{Message, PublicKey as PublicKey2, Secp256k1, SecretKey};
 use std::convert::{TryFrom, TryInto};
 
 pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
-    let ret_data;
-    if value.to_lowercase().starts_with("0x") {
-        ret_data = hex::decode(&value[2..value.len()])?
-    } else {
-        ret_data = hex::decode(value)?
-    }
-    Ok(ret_data)
+    Ok(wallet_core_common::hex::hex_to_bytes(value)?)
 }
 
 pub fn sha256_hash(data: &[u8]) -> Vec<u8> {
-    sha256::Hash::hash(data).to_byte_array().to_vec()
+    wallet_core_common::hash::sha256(data).to_vec()
 }
 
 pub fn secp256k1_sign(private_key: &[u8], message: &[u8]) -> Result<Vec<u8>> {
@@ -68,11 +54,7 @@ pub fn secp256k1_sign_verify(public: &[u8], signed: &[u8], message: &[u8]) -> Re
 }
 
 pub fn bigint_to_byte_vec(val: u64) -> Vec<u8> {
-    let mut return_data = BigInt::from(val).to_signed_bytes_be();
-    while return_data.len() < 8 {
-        return_data.insert(0, 0x00);
-    }
-    return_data
+    wallet_core_common::util::u64_to_be_bytes_vec(val)
 }
 
 pub fn uncompress_pubkey_2_compress(uncomprs_pubkey: &str) -> String {
@@ -90,18 +72,7 @@ pub fn uncompress_pubkey_2_compress(uncomprs_pubkey: &str) -> String {
 }
 
 pub fn is_valid_hex(input: &str) -> bool {
-    let mut value = input;
-
-    if input.starts_with("0x") || input.starts_with("0X") {
-        value = input[2..].as_ref();
-    };
-
-    if value.len() == 0 || value.len() % 2 != 0 {
-        return false;
-    }
-
-    let regex = Regex::new(r"^[0-9a-fA-F]+$").unwrap();
-    regex.is_match(value.as_ref())
+    wallet_core_common::hex::is_valid_hex(input)
 }
 
 pub fn retrieve_recid(msg: &[u8], sign_compact: &[u8], pubkey: &Vec<u8>) -> Result<RecoveryId> {
@@ -129,63 +100,22 @@ pub fn retrieve_recid(msg: &[u8], sign_compact: &[u8], pubkey: &Vec<u8>) -> Resu
 }
 
 pub fn to_ss58check_with_version(extended_key: Xpub, version: &[u8]) -> String {
-    let mut ret = [0; 78];
-    // let extended_key = self.0;
-    ret[0..4].copy_from_slice(version);
-    ret[4] = extended_key.depth;
-    ret[5..9].copy_from_slice(&extended_key.parent_fingerprint[..]);
-
-    BigEndian::write_u32(&mut ret[9..13], u32::from(extended_key.child_number));
-
-    ret[13..45].copy_from_slice(&extended_key.chain_code[..]);
-    ret[45..78].copy_from_slice(&extended_key.public_key.serialize()[..]);
-    base58::encode_check(&ret[..])
+    wallet_core_common::bip32::xpub_to_ss58check_with_version(&extended_key, version)
 }
 
 pub fn from_ss58check_with_version(s: &str) -> Result<(Xpub, Vec<u8>)> {
-    let data = base58::decode_check(s)?;
-
-    if data.len() != 78 {
-        return Err(CommonError::InvalidBase58.into());
-    }
-    let cn_int: u32 = BigEndian::read_u32(&data[9..13]);
-    let child_number: ChildNumber = ChildNumber::from(cn_int);
-
-    let epk = Xpub {
-        network: Network::Bitcoin.into(),
-        depth: data[4],
-        parent_fingerprint: Fingerprint::from(<[u8; 4]>::try_from(&data[5..9]).unwrap()),
-        child_number,
-        chain_code: ChainCode::from(<[u8; 32]>::try_from(&data[13..45]).unwrap()),
-        public_key: bitcoin_secp256k1::PublicKey::from_slice(&data[45..78])?,
-    };
-
-    let mut network = [0; 4];
-    network.copy_from_slice(&data[0..4]);
-    Ok((epk, network.to_vec()))
+    wallet_core_common::bip32::xpub_from_ss58check_with_version(s).map_err(|err| match err {
+        wallet_core_common::bip32::XpubError::InvalidBase58 => CommonError::InvalidBase58.into(),
+        err => anyhow::anyhow!(err),
+    })
 }
 
 pub fn extended_pub_key_derive(extended_pub_key: &Xpub, path: &str) -> Result<Xpub> {
-    let mut parts = path.split('/').peekable();
-    if *parts.peek().unwrap() == "m" {
-        parts.next();
-    }
-
-    let children_nums = parts
-        .map(str::parse)
-        .collect::<std::result::Result<Vec<ChildNumber>, Bip32Error>>()?;
-
-    let child_key = extended_pub_key.derive_pub(&SECP256K1_ENGINE, &children_nums)?;
-
-    Ok(child_key)
+    wallet_core_common::bip32::derive_xpub(extended_pub_key, path).map_err(Into::into)
 }
 
 pub fn get_xpub_prefix(network: &str) -> Vec<u8> {
-    if network == "MAINNET" {
-        hex_to_bytes("0488b21e").unwrap()
-    } else {
-        hex_to_bytes("043587cf").unwrap()
-    }
+    wallet_core_common::util::xpub_prefix_for_network_name(network).to_vec()
 }
 
 pub fn encrypt_xpub(xpub: &str) -> Result<String> {
@@ -198,41 +128,15 @@ pub fn encrypt_xpub(xpub: &str) -> Result<String> {
 }
 
 pub fn network_convert(network: &str) -> Network {
-    match network.to_uppercase().as_str() {
-        "MAINNET" => Network::Bitcoin,
-        "TESTNET" => Network::Testnet,
-        _ => Network::Testnet,
-    }
+    wallet_core_common::bip32::bitcoin_network_from_name(network)
 }
 
 pub fn utf8_or_hex_to_bytes(value: &str) -> Result<Vec<u8>> {
-    if value.to_lowercase().starts_with("0x") {
-        let ret = FromHex::from_0x_hex(value);
-        if ret.is_err() {
-            Ok(value.as_bytes().to_vec())
-        } else {
-            ret
-        }
-    } else {
-        Ok(value.as_bytes().to_vec())
-    }
+    Ok(wallet_core_common::hex::utf8_or_hex_to_bytes(value))
 }
 
 pub fn version_at_least(version: &str, minimum: (u64, u64, u64)) -> bool {
-    let parts = version
-        .split('.')
-        .take(3)
-        .map(str::parse::<u64>)
-        .collect::<std::result::Result<Vec<_>, _>>();
-
-    let Ok(parts) = parts else {
-        return false;
-    };
-    if parts.len() != 3 {
-        return false;
-    }
-
-    (parts[0], parts[1], parts[2]) >= minimum
+    wallet_core_common::util::version_at_least(version, minimum)
 }
 
 #[cfg(test)]
@@ -256,6 +160,23 @@ mod tests {
             vec![0x66, 0x6f, 0x6f, 0x62, 0x61, 0x72],
             utility::hex_to_bytes("0x666f6f626172").unwrap_or_default()
         );
+    }
+
+    #[test]
+    fn utf8_or_hex_to_bytes_test() {
+        let tests = vec![
+            ("0x1234", vec![0x12, 0x34]),
+            ("1234", vec![0x31, 0x32, 0x33, 0x34]),
+            ("0x1234abcd", vec![0x12, 0x34, 0xab, 0xcd]),
+            (
+                "1234abcd",
+                vec![0x31, 0x32, 0x33, 0x34, 0x61, 0x62, 0x63, 0x64],
+            ),
+        ];
+
+        for (input, expected) in tests {
+            assert_eq!(utility::utf8_or_hex_to_bytes(input).unwrap(), expected);
+        }
     }
 
     #[test]
