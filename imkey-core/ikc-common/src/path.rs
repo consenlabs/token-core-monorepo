@@ -1,64 +1,46 @@
 use crate::error::CommonError;
 use crate::Result;
-use bitcoin::bip32::DerivationPath;
-use std::str::FromStr;
 
 fn normalize_path(path: &str) -> &str {
-    path.trim_end_matches('/')
+    wallet_core_common::path::normalize_path(path, true)
 }
 
 pub fn check_path_validity(path: &str) -> Result<()> {
     let path = normalize_path(path);
-    //check depth and length
-    let strings: Vec<&str> = path.split("/").collect();
-    let depth = strings.len();
+    let depth = path.split('/').count();
     if depth < 3 || depth > 6 {
         return Err(CommonError::ImkeyPathIllegal.into());
     }
-    DerivationPath::from_str(path).map_err(|_| CommonError::ImkeyPathIllegal)?;
+    wallet_core_common::path::validate_bip32_path(path)
+        .map_err(|_| CommonError::ImkeyPathIllegal)?;
     Ok(())
 }
 
 pub fn check_path_max_five_depth(path: &str) -> Result<()> {
     let path = normalize_path(path);
-    //check depth and length
-    let strings: Vec<&str> = path.split("/").collect();
-    let depth = strings.len();
+    let depth = path.split('/').count();
     if depth < 3 || depth > 6 {
         return Err(CommonError::ImkeyPathIllegal.into());
     }
-    DerivationPath::from_str(path).map_err(|_| CommonError::ImkeyPathIllegal)?;
+    wallet_core_common::path::validate_bip32_path(path)
+        .map_err(|_| CommonError::ImkeyPathIllegal)?;
     Ok(())
 }
 
 pub fn get_account_path(path: &str) -> Result<String> {
     // example: m/44'/60'/0'/0/0
-    let path = normalize_path(path);
-    let _ = DerivationPath::from_str(path)?;
-    let mut children: Vec<&str> = path.split('/').collect();
-
-    ensure!(children.len() >= 4, format!("{} path is too short", path));
-
-    while children.len() > 4 {
-        children.remove(children.len() - 1);
-    }
-    Ok(children.join("/"))
+    wallet_core_common::path::account_path(
+        path,
+        wallet_core_common::path::AccountPathOptions::IMKEY_COMPAT,
+    )
+    .map_err(Into::into)
 }
 
 /**
 get parent public key path
  */
 pub fn get_parent_path(path: &str) -> Result<&str> {
-    if path.is_empty() {
-        return Err(CommonError::ImkeyPathIllegal.into());
-    }
-
-    let mut end_flg = path.rfind("/").unwrap();
-    if path.ends_with("/") {
-        let path = &path[..path.len() - 1];
-        end_flg = path.rfind("/").unwrap();
-    }
-    Ok(&path[..end_flg])
+    wallet_core_common::path::parent_path(path).ok_or_else(|| CommonError::ImkeyPathIllegal.into())
 }
 
 #[cfg(test)]

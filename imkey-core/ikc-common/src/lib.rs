@@ -4,9 +4,7 @@ pub mod applet;
 pub mod coin_info;
 pub mod common;
 pub mod constants;
-pub mod curve;
 pub mod error;
-pub mod hex;
 pub mod https;
 pub mod path;
 pub mod utility;
@@ -14,6 +12,8 @@ pub mod utility;
 use parking_lot::RwLock;
 
 pub use crate::common::SignParam;
+pub use wallet_core_common::curve::CurveType;
+pub use wallet_core_common::hex::{FromHex, ToHex};
 
 #[macro_use]
 extern crate lazy_static;

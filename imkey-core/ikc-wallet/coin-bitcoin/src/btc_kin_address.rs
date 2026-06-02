@@ -4,8 +4,7 @@ use crate::Result;
 use bitcoin::base58;
 use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
 use bitcoin::hashes::Hash;
-use bitcoin::key::{TapTweak, UntweakedPublicKey};
-use bitcoin::secp256k1::{PublicKey as Secp256k1PublicKey, Secp256k1};
+use bitcoin::secp256k1::PublicKey as Secp256k1PublicKey;
 use bitcoin::Network;
 use bitcoin::{Address as LibAddress, PublicKey, ScriptBuf as Script};
 use bitcoin::{CompressedPublicKey, PubkeyHash, ScriptHash, WitnessVersion};
@@ -76,21 +75,13 @@ impl AddressTrait for BtcKinAddress {
                     network,
                 )?
             }
-            constants::BTC_SEG_WIT_TYPE_VERSION_1 => {
-                let public_key =
-                    bitcoin::secp256k1::PublicKey::from_slice(&hex_to_bytes(&public_key)?)?;
-                let (x_only, _) = public_key.x_only_public_key();
-                let untweak_pub_key = UntweakedPublicKey::from(x_only);
-                let secp = Secp256k1::new();
-                let output_key = untweak_pub_key.tap_tweak(&secp, None).0;
-                BtcKinAddress {
-                    payload: BtcKinPayload::WitnessProgram {
-                        version: WitnessVersion::V1,
-                        program: output_key.serialize().to_vec(),
-                    },
-                    network: network.clone(),
-                }
-            }
+            constants::BTC_SEG_WIT_TYPE_VERSION_1 => BtcKinAddress {
+                payload: BtcKinPayload::WitnessProgram {
+                    version: WitnessVersion::V1,
+                    program: wallet_core_common::btc::p2tr_program(&hex_to_bytes(public_key)?)?,
+                },
+                network: network.clone(),
+            },
             _ => BtcKinAddress::from_lib_address(
                 LibAddress::p2pkh(&pub_key_obj, Network::Bitcoin),
                 network,
@@ -152,15 +143,10 @@ impl BtcKinAddress {
         check_path_validity(path)?;
 
         let pub_key = &get_xpub_data(path, true)?[..130];
-        let public_key = bitcoin::secp256k1::PublicKey::from_slice(&hex_to_bytes(&pub_key)?)?;
-        let (x_only, _) = public_key.x_only_public_key();
-        let untweak_pub_key = UntweakedPublicKey::from(x_only);
-        let secp = Secp256k1::new();
-        let output_key = untweak_pub_key.tap_tweak(&secp, None).0;
         Ok(BtcKinAddress {
             payload: BtcKinPayload::WitnessProgram {
                 version: WitnessVersion::V1,
-                program: output_key.serialize().to_vec(),
+                program: wallet_core_common::btc::p2tr_program(&hex_to_bytes(pub_key)?)?,
             },
             network: network.clone(),
         })
@@ -183,12 +169,10 @@ impl BtcKinAddress {
 
     pub fn script_pubkey(&self) -> Script {
         match &self.payload {
-            BtcKinPayload::PubkeyHash(hash) => Script::new_p2pkh(hash),
-            BtcKinPayload::ScriptHash(hash) => Script::new_p2sh(hash),
+            BtcKinPayload::PubkeyHash(hash) => wallet_core_common::btc::p2pkh_script_pubkey(hash),
+            BtcKinPayload::ScriptHash(hash) => wallet_core_common::btc::p2sh_script_pubkey(hash),
             BtcKinPayload::WitnessProgram { version, program } => {
-                let witness_program =
-                    bitcoin::WitnessProgram::new(*version, program).expect("valid witness program");
-                Script::new_witness_program(&witness_program)
+                wallet_core_common::btc::witness_script_pubkey(*version, program)
             }
         }
     }

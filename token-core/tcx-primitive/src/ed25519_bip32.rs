@@ -96,7 +96,7 @@ impl ToHex for Ed25519DeterministicPublicKey {
     }
 }
 
-impl FromHex for Ed25519DeterministicPublicKey {
+impl FromHex<anyhow::Error> for Ed25519DeterministicPublicKey {
     fn from_hex<T: AsRef<[u8]>>(_: T) -> Result<Self> {
         Err(KeyError::UnsupportEd25519PubkeyDerivation.into())
     }

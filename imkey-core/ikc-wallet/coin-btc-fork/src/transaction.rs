@@ -13,9 +13,9 @@ use ikc_common::constants::{
     BTC_FORK_DUST, EACH_ROUND_NUMBER, MAX_OPRETURN_SIZE, MAX_UTXO_NUMBER, TIMEOUT_LONG,
 };
 use ikc_common::error::CoinError;
-use ikc_common::hex::ToHex;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign};
+use ikc_common::ToHex;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::ecdsa::Signature;

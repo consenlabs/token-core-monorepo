@@ -167,7 +167,7 @@ impl ToHex for Bip32DeterministicPublicKey {
     }
 }
 
-impl FromHex for Bip32DeterministicPublicKey {
+impl FromHex<anyhow::Error> for Bip32DeterministicPublicKey {
     fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self> {
         let data = Vec::from_hex(hex)?;
 
@@ -191,40 +191,18 @@ impl FromHex for Bip32DeterministicPublicKey {
 
 impl Ss58Codec for Bip32DeterministicPublicKey {
     fn from_ss58check_with_version(s: &str) -> Result<(Self, Vec<u8>)> {
-        let data = base58::decode_check(s)?;
-
-        if data.len() != 78 {
-            return Err(KeyError::InvalidBase58.into());
-        }
-        let cn_int: u32 = BigEndian::read_u32(&data[9..13]);
-        let child_number: ChildNumber = ChildNumber::from(cn_int);
-
-        let epk = Xpub {
-            network: Network::Bitcoin.into(),
-            depth: data[4],
-            parent_fingerprint: Fingerprint::from(<[u8; 4]>::try_from(&data[5..9]).unwrap()),
-            child_number,
-            chain_code: ChainCode::from(<[u8; 32]>::try_from(&data[13..45]).unwrap()),
-            public_key: secp256k1::PublicKey::from_slice(&data[45..78])?,
-        };
-
-        let mut network = [0; 4];
-        network.copy_from_slice(&data[0..4]);
-        Ok((Bip32DeterministicPublicKey(epk), network.to_vec()))
+        wallet_core_common::bip32::xpub_from_ss58check_with_version(s)
+            .map(|(xpub, version)| (Bip32DeterministicPublicKey(xpub), version))
+            .map_err(|err| match err {
+                wallet_core_common::bip32::XpubError::InvalidBase58 => {
+                    KeyError::InvalidBase58.into()
+                }
+                err => anyhow::anyhow!(err),
+            })
     }
 
     fn to_ss58check_with_version(&self, version: &[u8]) -> String {
-        let mut ret = [0; 78];
-        let extended_key = self.0;
-        ret[0..4].copy_from_slice(version);
-        ret[4] = extended_key.depth;
-        ret[5..9].copy_from_slice(&extended_key.parent_fingerprint[..]);
-
-        BigEndian::write_u32(&mut ret[9..13], u32::from(extended_key.child_number));
-
-        ret[13..45].copy_from_slice(&extended_key.chain_code[..]);
-        ret[45..78].copy_from_slice(&extended_key.public_key.serialize()[..]);
-        base58::encode_check(&ret[..])
+        wallet_core_common::bip32::xpub_to_ss58check_with_version(&self.0, version)
     }
 }
 

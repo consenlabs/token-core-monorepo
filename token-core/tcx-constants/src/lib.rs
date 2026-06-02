@@ -1,6 +1,5 @@
 pub mod btc_fork_network;
 pub mod coin_info;
-pub mod curve;
 pub mod sample_key;
 
 pub use btc_fork_network::{
@@ -8,7 +7,7 @@ pub use btc_fork_network::{
     BtcForkNetwork,
 };
 pub use coin_info::{coin_info_from_param, CoinInfo};
-pub use curve::CurveType;
+pub use wallet_core_common::curve::CurveType;
 
 pub type Result<T> = std::result::Result<T, anyhow::Error>;
 

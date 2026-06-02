@@ -3,33 +3,16 @@ use tcx_keystore::{Address, Result};
 use tcx_primitive::{PublicKey, TypedPublicKey};
 
 use forest_address::Address as ForestAddress;
+use wallet_core_common::filecoin;
 
 use super::Error;
-use crate::utils::{digest, HashSize};
-use base32::Alphabet;
 use std::str::FromStr;
 
 const MAINNET_PREFIX: &str = "f";
 const TESTNET_PREFIX: &str = "t";
 
-#[derive(Clone, Copy)]
-pub enum Protocol {
-    Secp256k1 = 1,
-    Bls = 3,
-}
-
 #[derive(PartialEq, Eq, Clone)]
 pub struct FilecoinAddress(String);
-
-impl FilecoinAddress {
-    fn checksum(ingest: &[u8]) -> Vec<u8> {
-        digest(ingest, HashSize::Checksum)
-    }
-
-    fn address_hash(ingest: &[u8]) -> Vec<u8> {
-        digest(ingest, HashSize::Payload)
-    }
-}
 
 impl Address for FilecoinAddress {
     fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
@@ -37,38 +20,19 @@ impl Address for FilecoinAddress {
             "TESTNET" => TESTNET_PREFIX,
             _ => MAINNET_PREFIX,
         };
-        let protocol;
-        let payload;
-        let checksum;
 
-        match public_key {
-            TypedPublicKey::Secp256k1(pk) => {
-                protocol = Protocol::Secp256k1;
-                payload = Self::address_hash(&pk.to_uncompressed());
-
-                checksum = Self::checksum(&[vec![protocol as u8], payload.to_vec()].concat());
-            }
+        let address = match public_key {
+            TypedPublicKey::Secp256k1(pk) => filecoin::secp256k1_address_from_uncompressed_pubkey(
+                network_prefix,
+                &pk.to_uncompressed(),
+            ),
             TypedPublicKey::BLS(pk) => {
-                protocol = Protocol::Bls;
-                payload = pk.to_bytes();
-
-                checksum = Self::checksum(&[vec![protocol as u8], payload.to_vec()].concat());
+                filecoin::bls_address_from_public_key(network_prefix, &pk.to_bytes())
             }
-            _ => {
-                return Err(Error::InvalidCurveType.into());
-            }
+            _ => return Err(Error::InvalidCurveType.into()),
         };
 
-        Ok(FilecoinAddress(format!(
-            "{}{}{}",
-            network_prefix,
-            protocol as i8,
-            base32::encode(
-                Alphabet::Rfc4648 { padding: false },
-                &[payload, checksum].concat()
-            )
-            .to_lowercase()
-        )))
+        Ok(FilecoinAddress(address))
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {

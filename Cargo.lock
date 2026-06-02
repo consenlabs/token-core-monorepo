@@ -1008,6 +1008,7 @@ dependencies = [
  "prost",
  "prost-types",
  "secp256k1 0.31.1",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -1033,6 +1034,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tiny-bip39",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -1041,10 +1043,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64",
- "bech32 0.11.1",
  "bitcoin",
  "blake2b-rs",
- "byteorder",
  "hex",
  "ikc-common",
  "ikc-device",
@@ -1053,6 +1053,7 @@ dependencies = [
  "prost",
  "secp256k1 0.31.1",
  "thiserror 2.0.18",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -1063,7 +1064,6 @@ dependencies = [
  "base64",
  "bech32 0.11.1",
  "bitcoin",
- "bitcoin_hashes 0.20.0",
  "bytes",
  "hex",
  "ikc-common",
@@ -1079,6 +1079,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "serde_json",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -1119,7 +1120,6 @@ dependencies = [
  "num-traits",
  "prost",
  "prost-types",
- "regex",
  "rlp",
  "rustc-hex",
  "secp256k1 0.31.1",
@@ -1127,6 +1127,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "tiny-keccak",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -1134,7 +1135,6 @@ name = "coin-filecoin"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base32",
  "base64",
  "bech32 0.11.1",
  "bitcoin",
@@ -1159,6 +1159,7 @@ dependencies = [
  "secp256k1 0.31.1",
  "serde",
  "serde_json",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -1190,6 +1191,7 @@ dependencies = [
  "ikc-transport",
  "prost",
  "prost-types",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -1203,10 +1205,10 @@ dependencies = [
  "ikc-common",
  "ikc-device",
  "ikc-transport",
- "keccak-hash",
  "prost",
  "secp256k1 0.31.1",
  "tiny-keccak",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -2586,6 +2588,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -5181,7 +5184,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64",
- "bech32 0.11.1",
  "bytes",
  "lazy_static",
  "prost",
@@ -5190,6 +5192,7 @@ dependencies = [
  "tcx-crypto",
  "tcx-keystore",
  "tcx-primitive",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -5222,6 +5225,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tiny-bip39",
  "uuid",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -5229,9 +5233,7 @@ name = "tcx-ckb"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bech32 0.11.1",
  "blake2b-rs",
- "byteorder",
  "bytes",
  "hex",
  "lazy_static",
@@ -5242,6 +5244,7 @@ dependencies = [
  "tcx-keystore",
  "tcx-primitive",
  "thiserror 2.0.18",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -5250,16 +5253,14 @@ version = "0.1.0"
 dependencies = [
  "aes",
  "anyhow",
- "bitcoin",
  "ctr",
  "ethereum-types",
- "hex",
- "keccak-hash",
  "rand 0.10.1",
  "regex",
  "secp256k1 0.31.1",
  "thiserror 2.0.18",
  "tiny-bip39",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -5272,6 +5273,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tcx-common",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -5300,6 +5302,7 @@ dependencies = [
  "tcx-constants",
  "thiserror 2.0.18",
  "tiny-keccak",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -5328,13 +5331,13 @@ dependencies = [
  "hex",
  "prost",
  "prost-types",
- "regex",
  "rlp",
  "secp256k1 0.31.1",
  "tcx-common",
  "tcx-constants",
  "tcx-keystore",
  "tcx-primitive",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -5364,7 +5367,6 @@ name = "tcx-filecoin"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "base32",
  "base64",
  "blake2b-rs",
  "byteorder",
@@ -5384,6 +5386,7 @@ dependencies = [
  "tcx-keystore",
  "tcx-primitive",
  "thiserror 2.0.18",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -5482,6 +5485,7 @@ dependencies = [
  "tcx-constants",
  "thiserror 2.0.18",
  "tiny-bip39",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -5550,6 +5554,7 @@ dependencies = [
  "tcx-crypto",
  "tcx-keystore",
  "tcx-primitive",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -5594,6 +5599,7 @@ dependencies = [
  "tcx-primitive",
  "tiny-bip39",
  "uuid",
+ "wallet-core-common",
 ]
 
 [[package]]
@@ -6227,6 +6233,22 @@ checksum = "29790946404f91d9c5d06f9874efddea1dc06c5efe94541a7d6863108e3a5e4b"
 dependencies = [
  "same-file",
  "winapi-util",
+]
+
+[[package]]
+name = "wallet-core-common"
+version = "0.1.0"
+dependencies = [
+ "aes",
+ "base32",
+ "bech32 0.11.1",
+ "bitcoin",
+ "blake2b-rs",
+ "blake2b_simd 1.0.4",
+ "cbc",
+ "hex",
+ "keccak-hash",
+ "serde",
 ]
 
 [[package]]

@@ -28,7 +28,7 @@ use std::fs;
 use sp_core::ByteArray;
 
 use anyhow::anyhow;
-use tcx_common::hex::FromHex;
+use tcx_common::FromHex;
 
 pub fn _to_c_char(str: &str) -> *const c_char {
     CString::new(str).unwrap().into_raw()
