@@ -2561,13 +2561,10 @@ dependencies = [
 name = "ikc-common"
 version = "0.1.0"
 dependencies = [
- "aes",
  "anyhow",
- "base64",
  "bitcoin",
  "byteorder",
  "bytes",
- "cbc",
  "hex",
  "http-body-util",
  "hyper",
@@ -2575,14 +2572,10 @@ dependencies = [
  "hyper-tls",
  "hyper-util",
  "lazy_static",
- "num-bigint 0.4.6",
- "num-integer",
- "num-traits",
  "parking_lot",
  "prost",
  "prost-types",
  "regex",
- "secp256k1 0.31.1",
  "serde",
  "serde_derive",
  "serde_json",
@@ -5280,11 +5273,8 @@ dependencies = [
 name = "tcx-crypto"
 version = "0.1.0"
 dependencies = [
- "aes",
  "anyhow",
  "bitcoin_hashes 0.20.0",
- "cbc",
- "ctr",
  "digest 0.11.3",
  "hex",
  "hmac 0.13.0",
@@ -6240,14 +6230,21 @@ name = "wallet-core-common"
 version = "0.1.0"
 dependencies = [
  "aes",
+ "anyhow",
  "base32",
+ "base64",
  "bech32 0.11.1",
  "bitcoin",
  "blake2b-rs",
  "blake2b_simd 1.0.4",
  "cbc",
+ "ctr",
  "hex",
  "keccak-hash",
+ "num-bigint 0.4.6",
+ "num-integer",
+ "num-traits",
+ "secp256k1 0.31.1",
  "serde",
 ]
 

@@ -23,3 +23,5 @@ pub mod tezos;
 #[cfg(feature = "tron")]
 pub mod tron;
 pub mod util;
+#[cfg(feature = "utility")]
+pub mod utility;

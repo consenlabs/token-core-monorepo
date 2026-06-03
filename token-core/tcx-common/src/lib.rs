@@ -4,15 +4,13 @@ mod errors;
 mod time;
 
 mod uint;
-mod util;
 
 pub use crate::errors::*;
 pub use crate::rand::*;
 pub use crate::time::*;
 pub use crate::uint::*;
-pub use crate::util::*;
 pub use wallet_core_common::hash::*;
-pub use wallet_core_common::hex::{FromHex, ToHex};
+pub use wallet_core_common::hex::{utf8_or_hex_to_bytes, FromHex, ToHex};
 
 use std::result;
 

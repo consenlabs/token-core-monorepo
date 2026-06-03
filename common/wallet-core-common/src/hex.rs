@@ -85,12 +85,13 @@ pub fn strip_0x_compat(value: &[u8]) -> &[u8] {
     }
 }
 
-pub fn utf8_or_hex_to_bytes(value: &str) -> Vec<u8> {
-    if value.to_lowercase().starts_with("0x") {
+pub fn utf8_or_hex_to_bytes(value: &str) -> anyhow::Result<Vec<u8>> {
+    let bytes = if value.to_lowercase().starts_with("0x") {
         decode_0x(value).unwrap_or_else(|_| value.as_bytes().to_vec())
     } else {
         value.as_bytes().to_vec()
-    }
+    };
+    Ok(bytes)
 }
 
 pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>, ::hex::FromHexError> {
@@ -130,11 +131,14 @@ mod tests {
 
     #[test]
     fn treats_0x_prefixed_valid_hex_as_bytes_and_other_input_as_utf8() {
-        assert_eq!(utf8_or_hex_to_bytes("0x1234"), [0x12, 0x34]);
-        assert_eq!(utf8_or_hex_to_bytes("1234"), b"1234");
-        assert_eq!(utf8_or_hex_to_bytes("0x1234abcd"), [0x12, 0x34, 0xab, 0xcd]);
-        assert_eq!(utf8_or_hex_to_bytes("1234abcd"), b"1234abcd");
-        assert_eq!(utf8_or_hex_to_bytes("0x1234abc"), b"0x1234abc");
+        assert_eq!(utf8_or_hex_to_bytes("0x1234").unwrap(), [0x12, 0x34]);
+        assert_eq!(utf8_or_hex_to_bytes("1234").unwrap(), b"1234");
+        assert_eq!(
+            utf8_or_hex_to_bytes("0x1234abcd").unwrap(),
+            [0x12, 0x34, 0xab, 0xcd]
+        );
+        assert_eq!(utf8_or_hex_to_bytes("1234abcd").unwrap(), b"1234abcd");
+        assert_eq!(utf8_or_hex_to_bytes("0x1234abc").unwrap(), b"0x1234abc");
     }
 
     #[test]
