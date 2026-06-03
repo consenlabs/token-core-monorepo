@@ -1,6 +1,7 @@
 [package]
 name = "tcx-wasm"
 version = "0.7.0"
+license = "Apache-2.0"
 edition = "2021"
 
 [lib]

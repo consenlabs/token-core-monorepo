@@ -180,7 +180,7 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
     let param: DeriveSubAccountsParam =
         DeriveSubAccountsParam::decode(data).expect("derive_accounts_param_error");
     //get xpub
-    let curve = CurveType::from_str(&param.curve);
+    let curve = CurveType::from_curve_name(&param.curve);
     let xpub = match curve {
         CurveType::SECP256k1 => from_ss58check_with_version(&param.extended_public_key)?,
         _ => return Err(anyhow!("invalid_curve_type")),

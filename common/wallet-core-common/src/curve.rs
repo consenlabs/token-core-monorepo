@@ -31,7 +31,7 @@ impl CurveType {
         }
     }
 
-    pub fn from_str(value: &str) -> CurveType {
+    pub fn from_curve_name(value: &str) -> CurveType {
         match value {
             "secp256k1" => CurveType::SECP256k1,
             "ed25519" => CurveType::ED25519,
@@ -63,7 +63,7 @@ mod tests {
 
         for (curve, value) in cases {
             assert_eq!(curve.as_str(), value);
-            assert_eq!(CurveType::from_str(value), curve);
+            assert_eq!(CurveType::from_curve_name(value), curve);
         }
     }
 }

@@ -5,7 +5,7 @@ authors = ["Sean Bowe <ewillbefull@gmail.com>"]
 description = "Procedural macro library used to build custom prime field implementations"
 documentation = "https://docs.rs/ff/"
 homepage = "https://github.com/filecoin-project/ff"
-license = "MIT/Apache-2.0"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/filecoin-project/ff"
 edition = "2018"
 

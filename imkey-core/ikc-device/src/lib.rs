@@ -109,9 +109,6 @@ impl<T> ServiceResponse<T> {
     }
 
     pub fn apdu_handle(apdu_list: Vec<String>) -> Result<(Vec<String>, String)> {
-        if apdu_list.is_empty() {
-            ()
-        }
         let mut apdu_res: Vec<String> = vec![];
         let mut status_word: String = String::new();
         for (index_val, apdu_val) in apdu_list.iter().enumerate() {

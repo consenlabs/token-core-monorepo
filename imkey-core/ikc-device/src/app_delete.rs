@@ -42,15 +42,12 @@ impl TsmService for AppDeleteRequest {
                     return Ok(());
                 }
 
-                match return_bean.return_data.apdu_list {
-                    Some(apdu_list) => {
-                        let handle_result =
-                            ServiceResponse::<AppDeleteResponse>::apdu_handle(apdu_list)?;
-                        self.card_ret_data_list = Some(handle_result.0);
-                        self.status_word = Some(handle_result.1);
-                        self.step_key = next_step_key;
-                    }
-                    None => (),
+                if let Some(apdu_list) = return_bean.return_data.apdu_list {
+                    let handle_result =
+                        ServiceResponse::<AppDeleteResponse>::apdu_handle(apdu_list)?;
+                    self.card_ret_data_list = Some(handle_result.0);
+                    self.status_word = Some(handle_result.1);
+                    self.step_key = next_step_key;
                 }
             } else {
                 return_bean.service_res_check()?;
@@ -62,9 +59,9 @@ impl TsmService for AppDeleteRequest {
 impl AppDeleteRequest {
     pub fn build_request_data(seid: String, instance_aid: String, device_cert: String) -> Self {
         AppDeleteRequest {
-            seid: seid,
-            instance_aid: instance_aid,
-            device_cert: device_cert,
+            seid,
+            instance_aid,
+            device_cert,
             step_key: String::from("01"),
             status_word: None,
             command_id: String::from(constants::TSM_ACTION_APP_DELETE),

@@ -935,7 +935,7 @@ pub(crate) fn export_private_key(data: &[u8]) -> Result<Vec<u8>> {
             .into(),
     )?;
 
-    let curve = CurveType::from_str(&param.curve);
+    let curve = CurveType::from_curve_name(&param.curve);
     let private_key_bytes = guard
         .keystore_mut()
         .get_private_key(curve, &param.path)?
@@ -1144,7 +1144,10 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
         .map(|derivation| {
             guard
                 .keystore_mut()
-                .get_public_key(CurveType::from_str(&derivation.curve), &derivation.path)
+                .get_public_key(
+                    CurveType::from_curve_name(&derivation.curve),
+                    &derivation.path,
+                )
                 .expect("PublicKeyProcessed")
         })
         .collect();
@@ -1157,7 +1160,7 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
             chain_id: "".to_string(),
             coin: derivation.chain_type.to_string(),
             derivation_path: derivation.path.to_string(),
-            curve: CurveType::from_str(&derivation.curve),
+            curve: CurveType::from_curve_name(&derivation.curve),
             ..Default::default()
         };
 
@@ -1199,7 +1202,7 @@ pub(crate) fn get_extended_public_keys(data: &[u8]) -> Result<Vec<u8>> {
             let extended_public_key = guard
                 .keystore_mut()
                 .get_deterministic_public_key(
-                    CurveType::from_str(&derivation.curve),
+                    CurveType::from_curve_name(&derivation.curve),
                     &derivation.path,
                 )
                 .expect("GetExtendedPublicKeysParam");
@@ -1603,7 +1606,7 @@ pub fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
     let param: DeriveSubAccountsParam =
         DeriveSubAccountsParam::decode(data).expect("DeriveSubAccountsParam");
 
-    let curve = CurveType::from_str(&param.curve);
+    let curve = CurveType::from_curve_name(&param.curve);
     let xpub = TypedDeterministicPublicKey::from_ss58check(curve, &param.extended_public_key)?;
 
     let account_ret: Vec<Result<AccountResponse>> = param
@@ -1650,7 +1653,7 @@ pub fn mnemonic_to_public(data: &[u8]) -> Result<Vec<u8>> {
     let coin_info = CoinInfo {
         chain_id: "".to_string(),
         derivation_path: param.path,
-        curve: CurveType::from_str(&param.curve),
+        curve: CurveType::from_curve_name(&param.curve),
         coin: param.encoding,
         ..Default::default()
     };
