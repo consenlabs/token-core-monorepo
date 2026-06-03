@@ -28,6 +28,9 @@ pub enum PathError {
     PathMustStartWithM(String),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ImkeyPathError;
+
 impl fmt::Display for PathError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -52,6 +55,14 @@ impl From<bitcoin::bip32::Error> for PathError {
         PathError::InvalidBip32Path(err)
     }
 }
+
+impl fmt::Display for ImkeyPathError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("imkey_path_illegal")
+    }
+}
+
+impl Error for ImkeyPathError {}
 
 pub fn normalize_path(path: &str, trim_trailing_slash: bool) -> &str {
     if trim_trailing_slash {
@@ -102,6 +113,31 @@ pub fn parent_path(path: &str) -> Option<&str> {
     Some(&normalized[..end])
 }
 
+pub fn check_path_validity(path: &str) -> Result<(), ImkeyPathError> {
+    check_imkey_path(path)
+}
+
+pub fn check_path_max_five_depth(path: &str) -> Result<(), ImkeyPathError> {
+    check_imkey_path(path)
+}
+
+pub fn get_account_path(path: &str) -> Result<String, ImkeyPathError> {
+    account_path(path, AccountPathOptions::IMKEY_COMPAT).map_err(|_| ImkeyPathError)
+}
+
+pub fn get_parent_path(path: &str) -> Result<&str, ImkeyPathError> {
+    parent_path(path).ok_or(ImkeyPathError)
+}
+
+fn check_imkey_path(path: &str) -> Result<(), ImkeyPathError> {
+    let path = normalize_path(path, true);
+    let depth = path.split('/').count();
+    if depth < 3 || depth > 6 {
+        return Err(ImkeyPathError);
+    }
+    validate_bip32_path(path).map_err(|_| ImkeyPathError)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,5 +169,23 @@ mod tests {
             "m/44'/0'/0'"
         );
         assert_eq!(parent_path("m/44'/0'/0'/0/0/").unwrap(), "m/44'/0'/0'/0");
+    }
+
+    #[test]
+    fn validates_imkey_paths_with_legacy_error() {
+        assert!(check_path_validity("m/44'/0'/0'").is_ok());
+        assert!(check_path_validity("m/44'/0'/0'/0'/0'").is_ok());
+        assert_eq!(
+            check_path_validity("m/44a'/0'/0'").unwrap_err().to_string(),
+            "imkey_path_illegal"
+        );
+        assert_eq!(
+            check_path_validity("m/44'/0'/0'/0'/0'/0'")
+                .unwrap_err()
+                .to_string(),
+            "imkey_path_illegal"
+        );
+        assert!(check_path_max_five_depth("m/44'/0'/0'/0/0/").is_ok());
+        assert_eq!(get_account_path("m/44'/0'/0'/0/0/").unwrap(), "m/44'/0'/0'");
     }
 }

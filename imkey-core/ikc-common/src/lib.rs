@@ -1,4 +1,3 @@
-pub mod aes;
 pub mod apdu;
 pub mod applet;
 pub mod coin_info;
@@ -6,14 +5,15 @@ pub mod common;
 pub mod constants;
 pub mod error;
 pub mod https;
-pub mod path;
 pub mod utility;
 
 use parking_lot::RwLock;
 
 pub use crate::common::SignParam;
+pub use wallet_core_common::aes;
 pub use wallet_core_common::curve::CurveType;
 pub use wallet_core_common::hex::{FromHex, ToHex};
+pub use wallet_core_common::path;
 
 #[macro_use]
 extern crate lazy_static;
