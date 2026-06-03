@@ -8,14 +8,18 @@ mod common;
 use tcx::*;
 
 use prost::Message;
+#[cfg(feature = "cache_dk")]
+use tcx::api::DerivedKeyResult;
 use tcx::api::{
-    DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DerivedKeyResult, EncryptDataToIpfsParam,
+    DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, EncryptDataToIpfsParam,
     EncryptDataToIpfsResult, ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam,
     GeneralResult, ImportPrivateKeyParam, KeystoreResult, SignAuthenticationMessageParam,
     SignAuthenticationMessageResult, WalletKeyParam,
 };
 
-use tcx::handler::{encode_message, get_derived_key, import_private_key};
+#[cfg(feature = "cache_dk")]
+use tcx::handler::get_derived_key;
+use tcx::handler::{encode_message, import_private_key};
 
 use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
 
@@ -52,6 +56,42 @@ pub fn test_verify_password() {
             assert!(ret.is_err());
             assert_eq!(format!("{}", ret.err().unwrap()), "password_incorrect");
         }
+    })
+}
+
+#[test]
+#[serial]
+#[cfg(not(feature = "cache_dk"))]
+pub fn test_get_derived_key_is_not_in_default_api_table() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+        let param = WalletKeyParam {
+            id: wallet.id,
+            key: Some(api::wallet_key_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+        };
+
+        let ret = call_api("get_derived_key", param);
+        assert_eq!(format!("{}", ret.err().unwrap()), "unsupported_method");
+    })
+}
+
+#[test]
+#[serial]
+#[cfg(not(feature = "test_api"))]
+pub fn test_unlock_then_crash_is_not_in_default_api_table() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+        let param = WalletKeyParam {
+            id: wallet.id,
+            key: Some(api::wallet_key_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+        };
+
+        let ret = call_api("unlock_then_crash", param);
+        assert_eq!(format!("{}", ret.err().unwrap()), "unsupported_method");
     })
 }
 
@@ -105,6 +145,7 @@ pub fn test_delete_keystore_by_password() {
 
 #[test]
 #[serial]
+#[cfg(feature = "cache_dk")]
 pub fn test_delete_keystore_by_derived_key() {
     run_test(|| {
         let param: ImportPrivateKeyParam = ImportPrivateKeyParam {

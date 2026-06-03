@@ -9,6 +9,7 @@ mod private;
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "cache_dk")]
 use tcx_common::ToHex;
 use tcx_constants::{CoinInfo, CurveType};
 
@@ -292,6 +293,7 @@ impl Keystore {
         }
     }
 
+    #[cfg(feature = "cache_dk")]
     pub fn get_derived_key(&mut self, password: &str) -> Result<String> {
         Ok(self
             .store_mut()
@@ -771,11 +773,14 @@ pub(crate) mod tests {
             "password_incorrect"
         );
 
-        let derived_key = keystore.get_derived_key(TEST_PASSWORD).unwrap();
         assert!(keystore.verify_password(&Key::Password(TEST_PASSWORD.to_string())));
-        assert!(keystore.verify_password(&Key::DerivedKey(derived_key.to_string())));
         assert!(!keystore.verify_password(&Key::Password("WRONG PASSWORD".to_string())));
-        assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
+        #[cfg(feature = "cache_dk")]
+        {
+            let derived_key = keystore.get_derived_key(TEST_PASSWORD).unwrap();
+            assert!(keystore.verify_password(&Key::DerivedKey(derived_key.to_string())));
+            assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
+        }
         keystore.unlock_by_password(TEST_PASSWORD).unwrap();
         assert_eq!(
             "inject kidney empty canal shadow pact comfort wife crush horse wife sketch",
@@ -890,11 +895,14 @@ pub(crate) mod tests {
         assert!(keystore.identity().identifier.starts_with("im"));
         assert_eq!(keystore.meta().name, "Unknown");
         assert_ne!(keystore.id(), "");
-        let derived_key = keystore.get_derived_key(TEST_PASSWORD).unwrap();
         assert!(keystore.verify_password(&Key::Password(TEST_PASSWORD.to_string())));
-        assert!(keystore.verify_password(&Key::DerivedKey(derived_key.to_string())));
         assert!(!keystore.verify_password(&Key::Password("WRONG PASSWORD".to_string())));
-        assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
+        #[cfg(feature = "cache_dk")]
+        {
+            let derived_key = keystore.get_derived_key(TEST_PASSWORD).unwrap();
+            assert!(keystore.verify_password(&Key::DerivedKey(derived_key.to_string())));
+            assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
+        }
 
         let coin_info = CoinInfo {
             chain_id: "".to_string(),
@@ -964,11 +972,14 @@ pub(crate) mod tests {
             format!("{}", keystore.export().unwrap()),
             TEST_PRIVATE_KEY.to_string()
         );
-        let derived_key = keystore.get_derived_key(TEST_PASSWORD).unwrap();
         assert!(keystore.verify_password(&Key::Password(TEST_PASSWORD.to_string())));
-        assert!(keystore.verify_password(&Key::DerivedKey(derived_key.to_string())));
         assert!(!keystore.verify_password(&Key::Password("WRONG PASSWORD".to_string())));
-        assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
+        #[cfg(feature = "cache_dk")]
+        {
+            let derived_key = keystore.get_derived_key(TEST_PASSWORD).unwrap();
+            assert!(keystore.verify_password(&Key::DerivedKey(derived_key.to_string())));
+            assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
+        }
 
         let coin_info = CoinInfo {
             chain_id: "".to_string(),
