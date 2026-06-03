@@ -78,7 +78,8 @@ impl KdfParams for Pbkdf2Params {
 
     fn derive_key(&self, password: &[u8], out: &mut [u8]) {
         let salt_bytes: Vec<u8> = FromHex::from_hex(&self.salt).unwrap();
-        let _ = pbkdf2::pbkdf2::<hmac::Hmac<sha2::Sha256>>(password, &salt_bytes, self.c, out);
+        pbkdf2::pbkdf2::<hmac::Hmac<sha2::Sha256>>(password, &salt_bytes, self.c, out)
+            .expect("HMAC-SHA256 PBKDF2 should accept any output length");
     }
 }
 

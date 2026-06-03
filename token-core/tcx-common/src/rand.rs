@@ -1,9 +1,12 @@
-use rand::RngExt;
+use rand::rngs::SysRng;
+use rand::TryRng;
 
 #[inline]
 pub fn random_bytes<const N: usize>() -> [u8; N] {
     let mut bytes = [0u8; N];
-    rand::rng().fill(&mut bytes[..]);
+    SysRng
+        .try_fill_bytes(&mut bytes[..])
+        .expect("system random source should be available");
     bytes
 }
 
