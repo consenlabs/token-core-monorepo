@@ -10,5 +10,5 @@ use crate::Result;
 pub fn encrypt_xpub(xpub: &str) -> Result<String> {
     let key = crate::XPUB_COMMON_KEY_128.read();
     let iv = crate::XPUB_COMMON_IV.read();
-    wallet_core_common::utility::encrypt_xpub_with_key_iv(xpub, &key, &iv).map_err(Into::into)
+    wallet_core_common::utility::encrypt_xpub_with_key_iv(xpub, &key, &iv)
 }

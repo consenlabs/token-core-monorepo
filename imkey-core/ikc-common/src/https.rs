@@ -17,7 +17,7 @@ pub fn post(action: &str, req_data: Vec<u8>) -> Result<String> {
 }
 
 async fn async_post(action: &str, req_data: Vec<u8>) -> Result<String> {
-    let uri: hyper::Uri = format!("{}{}", constants::URL.to_string(), action)
+    let uri: hyper::Uri = format!("{}{}", constants::URL, action)
         .to_string()
         .parse()
         .unwrap();

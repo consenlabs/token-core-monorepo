@@ -53,7 +53,7 @@ impl FromStr for DeriveJunction {
 
     fn from_str(inp: &str) -> Result<Self> {
         Ok(
-            if inp.chars().last().map_or(false, |l| l == '\'' || l == 'h') {
+            if inp.chars().last().is_some_and(|l| l == '\'' || l == 'h') {
                 DeriveJunction::Hard(
                     inp[0..inp.len() - 1]
                         .parse()
@@ -129,7 +129,7 @@ mod tests {
     #[test]
     fn derive_path_from_root() {
         if let Ok(path) = DerivePath::from_str("m/44'/159h/0") {
-            let expects = vec![
+            let expects = [
                 DeriveJunction::hard(44),
                 DeriveJunction::hard(159),
                 DeriveJunction::soft(0),
@@ -139,7 +139,7 @@ mod tests {
 
             for value in path.into_iter() {
                 assert_eq!(expects[index], value, "should be correct path");
-                index = index + 1;
+                index += 1;
             }
         } else {
             assert_eq!(0, 1, "should not be failed");
@@ -149,13 +149,13 @@ mod tests {
     #[test]
     fn derive_path_relative() {
         if let Ok(path) = DerivePath::from_str("0/0") {
-            let expects = vec![DeriveJunction::soft(0), DeriveJunction::soft(0)];
+            let expects = [DeriveJunction::soft(0), DeriveJunction::soft(0)];
 
             let mut index = 0;
 
             for value in path.into_iter() {
                 assert_eq!(expects[index], value, "should be correct path");
-                index = index + 1;
+                index += 1;
             }
         } else {
             assert_eq!(0, 1, "should not be failed");

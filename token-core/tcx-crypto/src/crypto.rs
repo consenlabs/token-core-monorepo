@@ -447,15 +447,19 @@ mod tests {
 
     #[test]
     fn test_kdf_type() {
-        let mut params = Pbkdf2Params::default();
-        params.salt = random_u8_32().to_hex();
+        let params = Pbkdf2Params {
+            salt: random_u8_32().to_hex(),
+            ..Default::default()
+        };
 
         let kdf_type = KdfType::Pbkdf2(params);
         assert!(kdf_type.validate().is_ok());
         assert_eq!(kdf_type.name(), "pbkdf2");
 
-        let mut params = SCryptParams::default();
-        params.salt = random_u8_32().to_hex();
+        let params = SCryptParams {
+            salt: random_u8_32().to_hex(),
+            ..Default::default()
+        };
 
         let kdf_type = KdfType::Scrypt(params);
         assert!(kdf_type.validate().is_ok());
@@ -529,8 +533,10 @@ mod tests {
             Error::KdfParamsInvalid,
         );
 
-        let mut params = Pbkdf2Params::default();
-        params.salt = "0x1234".to_owned();
+        let params = Pbkdf2Params {
+            salt: "0x1234".to_owned(),
+            ..Default::default()
+        };
 
         assert!(params.validate().is_ok());
         assert_eq!(params.name(), "pbkdf2");
@@ -543,12 +549,11 @@ mod tests {
 
         assert_eq!(*crate::KDF_ROUNDS.read() as u32, 262144);
 
-        let v = env::var("KDF_ROUNDS");
-        if v.is_ok() {
-            let env_kdf_rounds = u32::from_str(&v.unwrap()).unwrap();
+        if let Ok(v) = env::var("KDF_ROUNDS") {
+            let env_kdf_rounds = u32::from_str(&v).unwrap();
             env::remove_var("KDF_ROUNDS");
             assert_eq!(default_kdf_rounds(), 262144);
-            env::set_var("KDF_ROUNDS", &env_kdf_rounds.to_string());
+            env::set_var("KDF_ROUNDS", env_kdf_rounds.to_string());
         } else {
             assert_eq!(default_kdf_rounds(), 262144);
         }
@@ -556,9 +561,11 @@ mod tests {
 
     #[test]
     fn test_derive_key_pbkdf2() {
-        let mut pbkdf2_param = Pbkdf2Params::default();
-        pbkdf2_param.c = 1024;
-        pbkdf2_param.salt = "01020304010203040102030401020304".to_string();
+        let mut pbkdf2_param = Pbkdf2Params {
+            c: 1024,
+            salt: "01020304010203040102030401020304".to_string(),
+            ..Default::default()
+        };
         let mut derived_key = [0; CREDENTIAL_LEN];
         pbkdf2_param.derive_key(TEST_PASSWORD.as_bytes(), &mut derived_key);
         let dk_hex = derived_key.to_hex();
@@ -571,9 +578,11 @@ mod tests {
 
     #[test]
     fn test_derive_key_scrypt() {
-        let mut param = SCryptParams::default();
-        param.n = 1024;
-        param.salt = "01020304010203040102030401020304".to_string();
+        let mut param = SCryptParams {
+            n: 1024,
+            salt: "01020304010203040102030401020304".to_string(),
+            ..Default::default()
+        };
         let mut derived_key = [0; CREDENTIAL_LEN];
         param.derive_key(TEST_PASSWORD.as_bytes(), &mut derived_key);
         let dk_hex = derived_key.to_hex();

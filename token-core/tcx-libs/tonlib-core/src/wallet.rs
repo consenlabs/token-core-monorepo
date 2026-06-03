@@ -48,20 +48,20 @@ impl WalletVersion {
     pub fn code(&self) -> Result<ArcCell, TonCellError> {
         let code = match self {
             WalletVersion::V1R1 => WALLET_V1R1_CODE,
-            WalletVersion::V1R2 => &WALLET_V1R2_CODE,
-            WalletVersion::V1R3 => &WALLET_V1R3_CODE,
-            WalletVersion::V2R1 => &WALLET_V2R1_CODE,
-            WalletVersion::V2R2 => &WALLET_V2R2_CODE,
-            WalletVersion::V3R1 => &WALLET_V3R1_CODE,
-            WalletVersion::V3R2 => &WALLET_V3R2_CODE,
-            WalletVersion::V4R1 => &WALLET_V4R1_CODE,
-            WalletVersion::V4R2 => &WALLET_V4R2_CODE,
-            WalletVersion::V5R1 => &WALLET_V5R1_CODE,
-            WalletVersion::HighloadV1R1 => &HIGHLOAD_V1R1_CODE,
-            WalletVersion::HighloadV1R2 => &HIGHLOAD_V1R2_CODE,
-            WalletVersion::HighloadV2 => &HIGHLOAD_V2_CODE,
-            WalletVersion::HighloadV2R1 => &HIGHLOAD_V2R1_CODE,
-            WalletVersion::HighloadV2R2 => &HIGHLOAD_V2R2_CODE,
+            WalletVersion::V1R2 => WALLET_V1R2_CODE,
+            WalletVersion::V1R3 => WALLET_V1R3_CODE,
+            WalletVersion::V2R1 => WALLET_V2R1_CODE,
+            WalletVersion::V2R2 => WALLET_V2R2_CODE,
+            WalletVersion::V3R1 => WALLET_V3R1_CODE,
+            WalletVersion::V3R2 => WALLET_V3R2_CODE,
+            WalletVersion::V4R1 => WALLET_V4R1_CODE,
+            WalletVersion::V4R2 => WALLET_V4R2_CODE,
+            WalletVersion::V5R1 => WALLET_V5R1_CODE,
+            WalletVersion::HighloadV1R1 => HIGHLOAD_V1R1_CODE,
+            WalletVersion::HighloadV1R2 => HIGHLOAD_V1R2_CODE,
+            WalletVersion::HighloadV2 => HIGHLOAD_V2_CODE,
+            WalletVersion::HighloadV2R1 => HIGHLOAD_V2R1_CODE,
+            WalletVersion::HighloadV2R2 => HIGHLOAD_V2R2_CODE,
         };
         let bag_of_cells = BagOfCells::parse_base64(code).expect("ton_parse_base64_error");
         let cell = bag_of_cells.single_root()?;
@@ -70,7 +70,7 @@ impl WalletVersion {
 
     pub fn initial_data(&self, key: &[u8], wallet_id: i32) -> Result<ArcCell, TonCellError> {
         let mut public_key: [u8; 32] = [0; 32];
-        public_key.copy_from_slice(&key.to_vec());
+        public_key.copy_from_slice(key);
         let data_cell: Cell = match &self {
             WalletVersion::V1R1
             | WalletVersion::V1R2

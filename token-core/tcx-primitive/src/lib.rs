@@ -46,7 +46,7 @@ pub trait Ss58Codec: Sized {
 }
 
 pub fn mnemonic_to_public(mnemonic: &str, path: &str, curve: &str) -> Result<TypedPublicKey> {
-    let curve_type = CurveType::from_str(curve);
+    let curve_type = CurveType::from_curve_name(curve);
     let root = TypedDeterministicPrivateKey::from_mnemonic(curve_type, mnemonic)?;
 
     let private_key = root.derive(path)?.private_key();

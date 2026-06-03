@@ -163,7 +163,7 @@ impl KeystoreUpgrade {
             }
             "TEZOS" => Ok(encode_tezos_private_key(&private_key_bytes.to_hex())?),
             "FILECOIN" => {
-                let curve_type = CurveType::from_str(&new_curve_name);
+                let curve_type = CurveType::from_curve_name(&new_curve_name);
                 Ok(KeyInfo::from_private_key(curve_type, &private_key_bytes)?
                     .to_json()?
                     .to_hex())

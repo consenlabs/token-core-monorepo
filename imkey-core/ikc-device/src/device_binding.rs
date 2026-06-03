@@ -39,7 +39,7 @@ lazy_static! {
 pub struct DeviceManage {}
 
 impl DeviceManage {
-    pub fn bind_check(file_path: &String) -> Result<String> {
+    pub fn bind_check(file_path: &str) -> Result<String> {
         //get seid
         let seid = device_manager::get_se_id()?;
         //get SN number
@@ -99,7 +99,7 @@ impl DeviceManage {
         Ok(BIND_STATUS_MAP.get(status.as_str()).unwrap().to_string())
     }
 
-    pub fn bind_acquire(binding_code: &String) -> Result<String> {
+    pub fn bind_acquire(binding_code: &str) -> Result<String> {
         let temp_binding_code = binding_code.to_uppercase();
         let binding_code_bytes = temp_binding_code.as_bytes();
         //check auth code
@@ -126,7 +126,7 @@ impl DeviceManage {
 
         //encryption hash value by session key
         let ciphertext = encrypt_pkcs7(
-            &data_hash.as_ref(),
+            data_hash.as_ref(),
             &key_manager_obj.session_key,
             &gen_iv(&temp_binding_code),
         )?;
@@ -184,7 +184,6 @@ fn auth_code_encrypt(auth_code: &String) -> Result<String> {
     let u32_vec_e = BigUint::from_bytes_be(&e.unwrap());
     let rsa_pub_key = RsaPublicKey::new(u32_vec_n, u32_vec_e)?;
     let mut rng = OsRng;
-    // let mut rng = OsRng;
     let enc_data = rsa_pub_key.encrypt(&mut rng, Pkcs1v15Encrypt, auth_code.as_bytes())?;
     Ok(hex::encode_upper(enc_data))
 }
@@ -224,7 +223,6 @@ pub fn bind_test() {
             println!("{:?}", "binding success");
         } else {
             println!("{:?}", "binding error");
-            return;
         }
     } else {
         println!("bind this");
@@ -265,14 +263,13 @@ mod test {
                 .read(true)
                 .write(true)
                 .create(true)
+                .truncate(false)
                 .open(Path::new("bind_code.txt"))
                 .expect("imkey_keyfile_opertion_error");
             let _ = file.read_to_string(&mut bind_code_temp);
             bind_result = DeviceManage::bind_acquire(&bind_code_temp).unwrap();
         } else if check_result.as_str().eq("bound_other") {
             bind_result = DeviceManage::bind_acquire(&bind_code).unwrap();
-        } else {
-            ();
         }
         println!("{}", bind_result);
     }
