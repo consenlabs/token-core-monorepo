@@ -16,6 +16,7 @@ jobs:
     name: Build iOS Release
     if: github.event.review.state == 'approved'
     runs-on: macos-14
+    environment: release
     steps:
       - name: Get the latest commit SHA
         id: sha
