@@ -455,6 +455,13 @@ pub struct ImportJsonParam {
     #[prost(bool, tag = "3")]
     pub overwrite: bool,
 }
+/// Common chain signing parameter.
+///
+/// Recommended TcxAction method names:
+/// - `sign_transaction`: transaction signing; legacy alias `sign_tx`.
+/// - `sign_message`: chain message signing; legacy alias `sign_msg`.
+///
+/// The concrete input type is chain-specific and is carried in `input`.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct SignParam {
     #[prost(string, tag = "1")]
@@ -696,6 +703,11 @@ pub struct VerifyDerivedKeyParam {
     #[prost(string, tag = "2")]
     pub derived_key: ::prost::alloc::string::String,
 }
+/// Sensitive cache-derived-key API.
+///
+/// `get_derived_key` is not part of the default public production API surface.
+/// It is compiled into tcx only when the `cache_dk` feature is explicitly
+/// enabled for mobile/key-cache integration tests or platform-specific builds.
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct DerivedKeyResult {
     #[prost(string, tag = "1")]

@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 tcx-proto = { path = "../tcx-proto" }
-tcx-crypto = { path = "../tcx-crypto", features = ["cache_dk"] }
-tcx-keystore = { path = "../tcx-keystore", features = ["cache_dk"] }
+tcx-crypto = { path = "../tcx-crypto" }
+tcx-keystore = { path = "../tcx-keystore" }
 tcx-btc-kin = { path = "../tcx-btc-kin" }
 tcx-tron = { path = "../tcx-tron" }
 tcx-ckb = { path = "../tcx-ckb" }
@@ -44,6 +44,11 @@ ethereum-types = "=0.16.0"
 strum = { version = "=0.28.0", features = ["derive"] }
 sp-core = "=41.0.0"
 schnorrkel = "=0.11.5"
+
+[features]
+default = []
+cache_dk = ["tcx-crypto/cache_dk", "tcx-keystore/cache_dk"]
+test_api = []
 
 [lib]
 name = "tcx"

@@ -6,6 +6,11 @@ message VerifyDerivedKeyParam {
     string derivedKey = 2;
 }
 
+// Sensitive cache-derived-key API.
+//
+// `get_derived_key` is not part of the default public production API surface.
+// It is compiled into tcx only when the `cache_dk` feature is explicitly
+// enabled for mobile/key-cache integration tests or platform-specific builds.
 message DerivedKeyResult {
     string id = 1;
     string derivedKey = 2;

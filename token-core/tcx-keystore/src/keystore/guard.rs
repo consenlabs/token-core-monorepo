@@ -77,21 +77,24 @@ mod tests {
 
         assert!(ks.is_locked());
 
-        let mut ks = Keystore::from_private_key(
-            PRIVATE_KEY,
-            TEST_PASSWORD,
-            CurveType::SECP256k1,
-            Metadata::default(),
-            None,
-        )
-        .unwrap();
-        let derived_key = ks.get_derived_key(&TEST_PASSWORD).unwrap();
-
+        #[cfg(feature = "cache_dk")]
         {
-            let guard = KeystoreGuard::unlock_by_derived_key(&mut ks, &derived_key).unwrap();
-            assert!(!guard.keystore().is_locked());
-        }
+            let mut ks = Keystore::from_private_key(
+                PRIVATE_KEY,
+                TEST_PASSWORD,
+                CurveType::SECP256k1,
+                Metadata::default(),
+                None,
+            )
+            .unwrap();
+            let derived_key = ks.get_derived_key(&TEST_PASSWORD).unwrap();
 
-        assert!(ks.is_locked());
+            {
+                let guard = KeystoreGuard::unlock_by_derived_key(&mut ks, &derived_key).unwrap();
+                assert!(!guard.keystore().is_locked());
+            }
+
+            assert!(ks.is_locked());
+        }
     }
 }
