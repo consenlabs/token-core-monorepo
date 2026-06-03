@@ -67,7 +67,8 @@ pub fn fingerprint_from_mnemonic(mnemonic: &str) -> Result<String> {
 }
 
 pub fn mnemonic_to_seed(mnemonic: &str) -> Result<Seed> {
-    let m = Mnemonic::from_phrase(mnemonic, Language::English).map_err(transform_mnemonic_error)?;
+    let m = Mnemonic::from_phrase(mnemonic, Language::English)
+        .map_err(|err| transform_mnemonic_error(err.into()))?;
     Ok(Seed::new(&m, ""))
 }
 
@@ -246,9 +247,8 @@ mod tests {
 
     use crate::keystore::tests::MockAddress;
     use crate::{Keystore, Source};
-    use bitcoin_hashes::hex::ToHex;
     use std::string::ToString;
-    use tcx_common::FromHex;
+    use tcx_common::{FromHex, ToHex};
     use tcx_constants::{CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_primitive::{PublicKey, Secp256k1PublicKey, TypedPublicKey};
     use test::Bencher;

@@ -184,10 +184,10 @@ impl TronSigner {
         let normalizes_sig_vec = signnture_obj.serialize_compact();
 
         let rec_id = utility::retrieve_recid(&hash, &normalizes_sig_vec, &pubkey_raw).unwrap();
-        let rec_id = rec_id.to_i32();
+        let rec_id = i32::from(rec_id);
         let v = rec_id + 27;
 
-        let mut signature = hex::encode(&normalizes_sig_vec.as_ref());
+        let mut signature = hex::encode(normalizes_sig_vec.as_slice());
         signature.push_str(&format!("{:02x}", &v));
 
         Ok(signature)

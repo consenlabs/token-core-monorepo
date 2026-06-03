@@ -2,13 +2,13 @@ use crate::eosapi::{EosMessageInput, EosMessageOutput, EosSignResult, EosTxInput
 use crate::pubkey::EosPubkey;
 use crate::Result;
 use anyhow::anyhow;
+use bitcoin::base58;
 use bitcoin::secp256k1::ecdsa::Signature;
-use bitcoin::util::base58;
-use bitcoin_hashes::hex::ToHex;
-use bitcoin_hashes::{ripemd160, Hash};
+use bitcoin_hashes::ripemd160;
 use bytes::BufMut;
 use hex::FromHex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EosApdu};
+use ikc_common::hex::ToHex;
 use ikc_common::utility::{retrieve_recid, secp256k1_sign, sha256_hash};
 use ikc_common::{constants, path, utility, SignParam};
 use ikc_device::device_binding::KEY_MANAGER;
@@ -94,9 +94,9 @@ impl EosTransaction {
                 let comprs_pubkey = utility::uncompress_pubkey_2_compress(&uncomprs_pubkey);
                 let mut comprs_pubkey_slice = hex::decode(comprs_pubkey)?;
                 let pubkey_hash = ripemd160::Hash::hash(&comprs_pubkey_slice);
-                let check_sum = &pubkey_hash[0..4];
+                let check_sum = &pubkey_hash.as_byte_array()[0..4];
                 comprs_pubkey_slice.extend(check_sum);
-                let eos_pk = "EOS".to_owned() + base58::encode_slice(&comprs_pubkey_slice).as_ref();
+                let eos_pk = "EOS".to_owned() + base58::encode(&comprs_pubkey_slice).as_ref();
                 if pub_key != &eos_pk {
                     return Err(anyhow!("imkey_publickey_mismatch_with_path"));
                 }
@@ -116,7 +116,7 @@ impl EosTransaction {
                     signature_obj.normalize_s();
                     let signatrue_der = signature_obj.serialize_der().to_vec();
                     let normalizes_sig_vec = signature_obj.serialize_compact();
-                    let sig_str = hex::encode(&normalizes_sig_vec.as_ref());
+                    let sig_str = hex::encode(normalizes_sig_vec.as_slice());
 
                     let len_r = signatrue_der[3];
                     let len_s = signatrue_der[5 + len_r as usize];
@@ -125,7 +125,7 @@ impl EosTransaction {
                         let pub_key_raw = hex::decode(&uncomprs_pubkey).unwrap();
                         let sign_compact = hex::decode(&sign_result[2..130]).unwrap();
                         let rec_id = retrieve_recid(&tx_data_hash, &sign_compact, &pub_key_raw)?;
-                        let rec_id = rec_id.to_i32();
+                        let rec_id = i32::from(rec_id);
                         let v = rec_id + 27 + 4;
 
                         signature.push_str(&format!("{:02X}", &v));
@@ -139,12 +139,12 @@ impl EosTransaction {
                 let mut to_hash = hex::decode(&signature).unwrap();
                 to_hash.put_slice("K1".as_bytes());
                 let signature_hash = ripemd160::Hash::hash(&to_hash);
-                let check_sum = &signature_hash[0..4];
+                let check_sum = &signature_hash.as_byte_array()[0..4];
 
                 let mut signature_slice = hex::decode(&signature).unwrap();
                 signature_slice.extend(check_sum);
                 let sigature_base58 =
-                    "SIG_K1_".to_owned() + base58::encode_slice(&signature_slice).as_ref();
+                    "SIG_K1_".to_owned() + base58::encode(&signature_slice).as_ref();
                 sign_result.signs.push(sigature_base58);
 
                 trans_multi_signs.push(sign_result.clone());
@@ -213,7 +213,7 @@ impl EosTransaction {
             signature_obj.normalize_s();
             let signatrue_der = signature_obj.serialize_der().to_vec();
             let normalizes_sig_vec = signature_obj.serialize_compact();
-            let sig_str = hex::encode(&normalizes_sig_vec.as_ref());
+            let sig_str = hex::encode(normalizes_sig_vec.as_slice());
 
             let len_r = signatrue_der[3];
             let len_s = signatrue_der[5 + len_r as usize];
@@ -226,7 +226,7 @@ impl EosTransaction {
                 let pub_key_raw = hex::decode(&uncomprs_pubkey).unwrap();
                 let sign_compact = hex::decode(&sign_result[2..130]).unwrap();
                 let rec_id = utility::retrieve_recid(&hash, &sign_compact, &pub_key_raw).unwrap();
-                let rec_id = rec_id.to_i32();
+                let rec_id = i32::from(rec_id);
                 let v = rec_id + 27 + 4;
 
                 signature.push_str(&format!("{:02X}", &v));
@@ -240,11 +240,11 @@ impl EosTransaction {
         let mut to_hash = hex::decode(&signature).unwrap();
         to_hash.put_slice("K1".as_bytes());
         let signature_hash = ripemd160::Hash::hash(&to_hash);
-        let check_sum = &signature_hash[0..4];
+        let check_sum = &signature_hash.as_byte_array()[0..4];
 
         let mut signature_slice = hex::decode(&signature).unwrap();
         signature_slice.extend(check_sum);
-        let signature = "SIG_K1_".to_owned() + base58::encode_slice(&signature_slice).as_ref();
+        let signature = "SIG_K1_".to_owned() + base58::encode(&signature_slice).as_ref();
 
         let output = EosMessageOutput { signature };
         Ok(output)
@@ -282,6 +282,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let result = EosTransaction::sign_tx(eox_tx_input, &sign_param).unwrap();
@@ -315,6 +316,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let result = EosTransaction::sign_tx(eox_tx_input, &sign_param);
@@ -348,6 +350,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let result = EosTransaction::sign_tx(eox_tx_input, &sign_param).unwrap();
@@ -375,6 +378,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);
@@ -402,6 +406,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);
@@ -429,6 +434,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);
@@ -456,6 +462,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);
@@ -483,6 +490,7 @@ mod tests {
             receiver: "".to_string(),
             sender: "".to_string(),
             fee: "".to_string(),
+            seg_wit: "".to_string(),
         };
 
         let output = EosTransaction::sign_message(input, &sign_param);

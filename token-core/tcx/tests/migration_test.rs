@@ -1,5 +1,4 @@
 use filemanager::{STATUS_MIGRATED, STATUS_NEW, STATUS_UNMIGRATED};
-use libc::id_t;
 use serial_test::serial;
 
 mod common;
@@ -13,9 +12,9 @@ use tcx_atom::transaction::{AtomTxInput, AtomTxOutput};
 use prost::Message;
 use tcx::api::{
     export_mnemonic_param, migrate_keystore_param, wallet_key_param, BackupResult,
-    ExportMnemonicParam, ExportMnemonicResult, KeystoreResult, MarkIdentityWalletsParam,
-    MigrateKeystoreParam, MigrateKeystoreResult, ReadKeystoreMnemonicPathResult,
-    ScannedKeystoresResult, SignParam, WalletId, WalletKeyParam,
+    ExportMnemonicParam, ExportMnemonicResult, MarkIdentityWalletsParam, MigrateKeystoreParam,
+    MigrateKeystoreResult, ReadKeystoreMnemonicPathResult, ScannedKeystoresResult, SignParam,
+    WalletId, WalletKeyParam,
 };
 
 use tcx::handler::encode_message;
@@ -23,11 +22,8 @@ use tcx_constants::CurveType;
 use tcx_constants::{OTHER_MNEMONIC, TEST_PASSWORD};
 use tcx_keystore::Keystore;
 
-use anyhow::{anyhow, format_err};
+use std::fs;
 use std::path::Path;
-use std::{fs, io};
-
-use sp_core::ByteArray;
 
 use crate::common::*;
 
@@ -815,7 +811,7 @@ fn test_migrate_duplicate_then_delete_keystore() {
         id: "300b42bc-0948-4734-82cb-4293dfeeefd2".to_string(),
         key: Some(wallet_key_param::Key::Password(TEST_PASSWORD.to_string())),
     };
-    let ret = call_api("delete_keystore", param).unwrap();
+    let _ret = call_api("delete_keystore", param).unwrap();
 
     assert_eq!(
         Path::new("/tmp/token-core-x/wallets/300b42bc-0948-4734-82cb-4293dfeeefd2.json").exists(),
@@ -880,7 +876,7 @@ fn test_migrate_duplicate_delete_all_keystore_migrate_again() {
         id: "300b42bc-0948-4734-82cb-4293dfeeefd2".to_string(),
         key: Some(wallet_key_param::Key::Password(TEST_PASSWORD.to_string())),
     };
-    let ret = call_api("delete_keystore", param).unwrap();
+    let _ret = call_api("delete_keystore", param).unwrap();
 
     let param = MigrateKeystoreParam {
         id: "792a0051-16d7-44a7-921a-9b4a0c893b8f".to_string(),
@@ -1007,13 +1003,13 @@ fn test_delete_all_identity_wallets() {
         )),
     };
     let ret = call_api("migrate_keystore", param).unwrap();
-    let migrated_ks = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
+    let _migrated_ks = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
 
     let param = WalletKeyParam {
         id: "0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string(),
         key: Some(wallet_key_param::Key::Password(TEST_PASSWORD.to_string())),
     };
-    let ret = call_api("delete_keystore", param).unwrap();
+    let _ret = call_api("delete_keystore", param).unwrap();
 
     assert_eq!(
         Path::new("/tmp/token-core-x/wallets/0a2756cd-ff70-437b-9bdb-ad46b8bb0819.json").exists(),
@@ -1134,7 +1130,7 @@ pub fn test_scan_keystores() {
     }
 
     fs::remove_dir_all("../test-data/scan-keystores/walletsV2").unwrap();
-    fs::remove_file("../test-data/scan-keystores/wallets/_migrated.json");
+    let _ = fs::remove_file("../test-data/scan-keystores/wallets/_migrated.json");
 }
 
 #[test]

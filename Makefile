@@ -8,7 +8,7 @@ build-tcx:
 	cd token-core; cargo build
 
 test-tcx:
-	KDF_ROUNDS=1 cargo test --workspace --exclude 'ikc*' --exclude 'coin*'
+	MACOSX_DEPLOYMENT_TARGET=10.12 KDF_ROUNDS=1 cargo test --workspace --exclude 'ikc*' --exclude 'coin*'
 
 test-ikc:
-	KDF_ROUNDS=1 cargo test --workspace --exclude 'tcx*' 
+	MACOSX_DEPLOYMENT_TARGET=10.12 KDF_ROUNDS=1 cargo test --workspace --exclude 'tcx*'

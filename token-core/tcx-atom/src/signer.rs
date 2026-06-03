@@ -4,7 +4,6 @@ use tcx_keystore::{
 };
 
 use anyhow::anyhow;
-use base64;
 use tcx_common::{sha256, FromHex};
 
 const SIG_LEN: usize = 64;
@@ -29,7 +28,10 @@ impl TraitTransactionSigner<AtomTxInput, AtomTxOutput> for Keystore {
             self.secp256k1_ecdsa_sign_recoverable(&hash[..], &params.derivation_path)?;
 
         Ok(AtomTxOutput {
-            signature: (base64::encode(&sign_result[..SIG_LEN])),
+            signature: (base64::Engine::encode(
+                &base64::engine::general_purpose::STANDARD,
+                &sign_result[..SIG_LEN],
+            )),
         })
     }
 }

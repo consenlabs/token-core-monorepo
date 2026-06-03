@@ -13,7 +13,7 @@ pub use derivation_path::{ChildIndex, DerivationPath};
 pub use ed25519_dalek::{SigningKey, VerifyingKey};
 
 use core::fmt;
-use hmac::{Hmac, Mac};
+use hmac::{Hmac, KeyInit, Mac};
 use sha2::Sha512;
 
 const ED25519_BIP32_NAME: &str = "ed25519 seed";

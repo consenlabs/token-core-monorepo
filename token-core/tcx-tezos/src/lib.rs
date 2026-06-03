@@ -1,7 +1,7 @@
 pub mod address;
 pub mod signer;
 pub mod transaction;
-use bitcoin::util::base58;
+use bitcoin::base58;
 use tcx_common::FromHex;
 use tcx_keystore::Result;
 use tcx_primitive::{Ed25519PrivateKey, PrivateKey, PublicKey};
@@ -18,11 +18,11 @@ pub fn encode_tezos_private_key(sk: &str) -> Result<String> {
     prefixed_sec_key_vec.extend(&ed25519_private_key.to_bytes());
     prefixed_sec_key_vec.extend(&ed25519_private_key.public_key().to_bytes());
 
-    Ok(base58::check_encode_slice(prefixed_sec_key_vec.as_slice()))
+    Ok(base58::encode_check(prefixed_sec_key_vec.as_slice()))
 }
 
 pub fn parse_tezos_private_key(private_key: &str) -> Result<Vec<u8>> {
-    let data = base58::from_check(private_key)?;
+    let data = base58::decode_check(private_key)?;
     let sec_key = Ed25519PrivateKey::from_slice(&data[4..36])?;
     Ok(sec_key.to_bytes())
 }

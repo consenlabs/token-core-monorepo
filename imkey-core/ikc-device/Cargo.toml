@@ -9,21 +9,21 @@ edition = "2018"
 [dependencies]
 ikc-common = {path = "../ikc-common"}
 ikc-transport = {path = "../ikc-transport"}
-serde = { version = "=1.0.147", features = ["derive"] }
-serde_derive = "=1.0.147"
-serde_json = "=1.0.89"
-base64 = "=0.13.1"
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_derive = "=1.0.228"
+serde_json = "=1.0.149"
+base64 = "=0.22.1"
 hex = "=0.4.3"
-secp256k1 = {version ="=0.24.3", features = ["rand", "recovery", "rand-std"] }
-rand = "=0.8.5"
-sha1 = "=0.6.1"
-rsa = "=0.7.2"
-lazy_static = "=1.4.0"
-regex = "=1.9.3"
-anyhow = "=1.0.79"
-log = {version = "=0.4.17", features = ["std"]}
-prost = "=0.11.2"
-prost-types = "=0.11.2"
-bytes = "=1.4.0"
-parking_lot = "=0.12.1"
-thiserror = "=1.0.56"
+secp256k1 = {version = "=0.31.1", features = ["rand", "recovery"] }
+rand = "=0.10.1"
+sha1 = "=0.11.0"
+rsa = { version = "=0.9.10", features = ["getrandom"] }
+lazy_static = "=1.5.0"
+regex = "=1.12.3"
+anyhow = "=1.0.102"
+log = {version = "=0.4.29", features = ["std"]}
+prost = "=0.14.3"
+prost-types = "=0.14.3"
+bytes = "=1.11.1"
+parking_lot = "=0.12.5"
+thiserror = "=2.0.18"

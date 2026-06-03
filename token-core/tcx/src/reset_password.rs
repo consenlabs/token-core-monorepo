@@ -1,8 +1,6 @@
-use std::ascii::AsciiExt;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
-use std::str::FromStr;
 
 use anyhow::anyhow;
 use serde_json::Value;
@@ -12,7 +10,7 @@ use tcx_eos::address::EosPublicKeyEncoder;
 use tcx_keystore::{fingerprint_from_mnemonic, PublicKeyEncoder};
 use tcx_migration::keystore_upgrade::mapping_curve_name;
 use tcx_migration::migration::LegacyKeystore;
-use tcx_primitive::{Derive, PrivateKey, TypedDeterministicPrivateKey, TypedPrivateKey};
+use tcx_primitive::{Derive, TypedDeterministicPrivateKey, TypedPrivateKey};
 
 use crate::error_handling::Result;
 use crate::filemanager::{LEGACY_WALLET_FILE_DIR, WALLET_FILE_DIR};

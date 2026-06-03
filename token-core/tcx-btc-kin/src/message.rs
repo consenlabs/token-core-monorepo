@@ -1,10 +1,12 @@
 use crate::psbt::PsbtSigner;
 use crate::transaction::{BtcMessageInput, BtcMessageOutput, BtcSignatureType};
 use crate::{BtcKinAddress, Error, Result};
+use base64::Engine;
 use bitcoin::consensus::serialize as btc_serialize;
-use bitcoin::psbt::PartiallySignedTransaction;
+use bitcoin::psbt::Psbt;
 use bitcoin::{
-    OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn, TxOut, Txid, Witness,
+    absolute::LockTime, transaction::Version, Amount, OutPoint, ScriptBuf as Script, Sequence,
+    Transaction, TxIn, TxOut, Txid, Witness,
 };
 use tcx_common::{sha256, utf8_or_hex_to_bytes, FromHex};
 use tcx_constants::{CoinInfo, CurveType};
@@ -59,7 +61,7 @@ fn sign_message_bip137(
     compact.push(flag_base + recovery_id);
     compact.extend_from_slice(&sig[..64]);
 
-    Ok(base64::encode(&compact))
+    Ok(base64::engine::general_purpose::STANDARD.encode(&compact))
 }
 
 fn get_spend_tx_id(data: &[u8], script_pub_key: Script) -> Result<Txid> {
@@ -85,21 +87,21 @@ fn get_spend_tx_id(data: &[u8], script_pub_key: Script) -> Result<Txid> {
     }];
 
     let outs = vec![TxOut {
-        value: 0,
+        value: Amount::from_sat(0),
         script_pubkey: script_pub_key,
     }];
 
     let tx = Transaction {
-        version: 0,
-        lock_time: PackedLockTime::ZERO,
+        version: Version(0),
+        lock_time: LockTime::ZERO,
         input: ins,
         output: outs,
     };
 
-    Ok(tx.txid())
+    Ok(tx.compute_txid())
 }
 
-fn create_to_sign_empty(txid: Txid, script_pub_key: Script) -> Result<PartiallySignedTransaction> {
+fn create_to_sign_empty(txid: Txid, script_pub_key: Script) -> Result<Psbt> {
     let ins = vec![TxIn {
         previous_output: OutPoint { txid, vout: 0 },
         script_sig: Script::new(),
@@ -108,20 +110,20 @@ fn create_to_sign_empty(txid: Txid, script_pub_key: Script) -> Result<PartiallyS
     }];
 
     let outs = vec![TxOut {
-        value: 0,
+        value: Amount::from_sat(0),
         script_pubkey: Script::from(Vec::<u8>::from_hex("6a")?),
     }];
 
     let tx = Transaction {
-        version: 0,
-        lock_time: PackedLockTime::ZERO,
+        version: Version(0),
+        lock_time: LockTime::ZERO,
         input: ins,
         output: outs,
     };
 
-    let mut psbt = PartiallySignedTransaction::from_unsigned_tx(tx)?;
+    let mut psbt = Psbt::from_unsigned_tx(tx)?;
     psbt.inputs[0].witness_utxo = Some(TxOut {
-        value: 0,
+        value: Amount::from_sat(0),
         script_pubkey: script_pub_key,
     });
 
@@ -168,7 +170,7 @@ fn sign_message_bip322_simple(
     psbt_signer.sign()?;
 
     if let Some(witness) = &psbt.inputs[0].final_script_witness {
-        Ok(base64::encode(witness_to_vec(witness.to_vec())))
+        Ok(base64::engine::general_purpose::STANDARD.encode(witness_to_vec(witness.to_vec())))
     } else {
         Err(Error::MissingSignature.into())
     }
@@ -203,9 +205,9 @@ fn sign_message_bip322_full(
     );
     psbt_signer.sign()?;
 
-    let tx = psbt.extract_tx();
+    let tx = psbt.extract_tx()?;
     let serialized = btc_serialize(&tx);
-    Ok(base64::encode(serialized))
+    Ok(base64::engine::general_purpose::STANDARD.encode(serialized))
 }
 
 impl MessageSigner<BtcMessageInput, BtcMessageOutput> for Keystore {
@@ -254,6 +256,7 @@ mod tests {
     use super::*;
     use crate::tests::{sample_hd_keystore, wif_keystore};
     use crate::BtcKinAddress;
+    use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
     use bitcoin::Transaction;
     use tcx_common::ToHex;
     use tcx_constants::{CoinInfo, CurveType};
@@ -304,7 +307,7 @@ mod tests {
             )
             .unwrap();
 
-        let sig_bytes = base64::decode(&output.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(flag >= 31 && flag <= 34, "flag byte {} not in 31-34", flag);
@@ -335,7 +338,7 @@ mod tests {
             )
             .unwrap();
 
-        let sig_bytes = base64::decode(&output.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(flag >= 31 && flag <= 34, "flag byte {} not in 31-34", flag);
@@ -366,7 +369,7 @@ mod tests {
             )
             .unwrap();
 
-        let sig_bytes = base64::decode(&output.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(flag >= 35 && flag <= 38, "flag byte {} not in 35-38", flag);
@@ -397,7 +400,7 @@ mod tests {
             )
             .unwrap();
 
-        let sig_bytes = base64::decode(&output.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(
@@ -432,7 +435,7 @@ mod tests {
             )
             .unwrap();
 
-        let sig_bytes = base64::decode(&output.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(flag >= 39 && flag <= 42, "flag byte {} not in 39-42", flag);
@@ -464,7 +467,7 @@ mod tests {
             .unwrap();
 
         // Verify it's valid Base64 and decodes to the same witness data as old hex output
-        let decoded = base64::decode(&output.signature).unwrap();
+        let decoded = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert!(!decoded.is_empty());
         let old_hex = "024830450221009f003820d1db93bf78be08dafdd05b7dde7c31a73c9be36b705a15329bd3d0e502203eb6f1a34466995e4b9c281bf4a093a1f55a21b2ef961438c9ae284efab27dda0121026b5b6a9d041bc5187e0b34f9e496436c7bff261c6c1b5f3c06b433c61394b868";
         let expected_bytes = Vec::<u8>::from_hex(old_hex).unwrap();
@@ -497,7 +500,7 @@ mod tests {
             )
             .unwrap();
 
-        let decoded = base64::decode(&output.signature).unwrap();
+        let decoded = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert!(!decoded.is_empty());
         // Full format: should be a valid serialized transaction
         let tx: Transaction =
@@ -643,7 +646,7 @@ mod tests {
             )
             .unwrap();
 
-        let sig_bytes = base64::decode(&output.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(flag >= 31 && flag <= 34);
@@ -729,10 +732,10 @@ mod tests {
             "m/86'/0'/0'",
             BtcSignatureType::Bip322,
         );
-        let decoded = base64::decode(&taproot_sig).unwrap();
+        let decoded = base64::Engine::decode(&BASE64_STANDARD, &taproot_sig).unwrap();
         let tx: Transaction =
             bitcoin::consensus::deserialize(&decoded).expect("valid serialized tx");
-        assert_eq!(tx.version, 0);
+        assert_eq!(tx.version, bitcoin::transaction::Version(0));
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 1);
         assert!(!tx.input[0].witness.is_empty());

@@ -1,5 +1,5 @@
 use crate::Result;
-use bitcoin::util::base58;
+use bitcoin::base58;
 use blake2b_simd::Params;
 use ikc_common::apdu::{Apdu, ApduCheck, Ed25519Apdu};
 use ikc_common::constants::TEZOS_AID;
@@ -28,7 +28,7 @@ impl TezosAddress {
         let double_hash_result = sha256_hash(&sha256_hash(&prefixed_generic_hash));
         prefixed_generic_hash.extend_from_slice(&double_hash_result[..4]);
         //base58Encode(prefix<3> + public key hash<20> + checksum<4>)
-        let address = base58::encode_slice(prefixed_generic_hash.as_slice());
+        let address = base58::encode(prefixed_generic_hash.as_slice());
         Ok(address)
     }
 
@@ -81,7 +81,7 @@ impl TezosAddress {
         let to_hash = [edpk_prefix, pub_key_bytes].concat();
         let hashed = sha256_hash(&sha256_hash(&to_hash));
         let hash_with_checksum = [to_hash, hashed[0..4].to_vec()].concat();
-        let edpk = base58::encode_slice(&hash_with_checksum);
+        let edpk = base58::encode(&hash_with_checksum);
 
         Ok(edpk.to_string())
     }

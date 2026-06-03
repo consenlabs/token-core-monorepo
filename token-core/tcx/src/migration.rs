@@ -11,19 +11,18 @@ use anyhow::anyhow;
 use ethereum_types::H160;
 use prost::Message;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::collections::{HashMap, HashSet};
+use serde_json::Value;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::coin_info::get_xpub_prefix;
-use tcx_constants::CoinInfo;
 use tcx_eth::address::to_checksum;
 use tcx_keystore::keystore::IdentityNetwork;
+use tcx_keystore::Keystore;
 use tcx_keystore::Metadata;
-use tcx_keystore::{Keystore, Source};
 use tcx_migration::keystore_upgrade::{mapping_curve_name, KeystoreUpgrade};
 use tcx_migration::migration::{LegacyKeystore, NumberOrNumberStr};
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
@@ -65,7 +64,7 @@ fn remove_old_keystore_file(id: &str) {
     }
 
     if Path::new(&file_path).exists() {
-        fs::remove_file(&file_path);
+        let _ = fs::remove_file(&file_path);
     }
 }
 
@@ -85,9 +84,9 @@ pub fn remove_old_keystore_by_id(id: &str) -> Option<Vec<String>> {
 
     if !map.is_empty() {
         let json_str = serde_json::to_string(&map).unwrap();
-        fs::write(&migrated_file, json_str);
+        let _ = fs::write(&migrated_file, json_str);
     } else {
-        fs::remove_file(&migrated_file);
+        let _ = fs::remove_file(&migrated_file);
     }
     marked_files
 }
@@ -338,7 +337,7 @@ pub(crate) fn scan_legacy_keystores() -> Result<ScanLegacyKeystoresResult> {
         }
 
         let v_result = serde_json::from_str::<Value>(&contents);
-        let Ok(v) = v_result  else {
+        let Ok(v) = v_result else {
             continue;
         };
 
@@ -464,23 +463,23 @@ fn parse_tcx_keystore(v: &Value) -> Result<LegacyKeystoreResult> {
             "".to_string()
         };
 
-        let (extended_public_key, encrypted_extended_public_key) = if !legacy_account
-            .ext_pub_key
-            .is_empty()
-        {
-            let Ok(hd_key) = Bip32DeterministicPublicKey::from_hex_auto(&legacy_account.ext_pub_key) else {
+        let (extended_public_key, encrypted_extended_public_key) =
+            if !legacy_account.ext_pub_key.is_empty() {
+                let Ok(hd_key) =
+                    Bip32DeterministicPublicKey::from_hex_auto(&legacy_account.ext_pub_key)
+                else {
                     continue;
                 };
-            let xpub_prefix = get_xpub_prefix(&legacy_account.network);
-            let extended_public_key = hd_key.to_ss58check_with_version(&xpub_prefix);
+                let xpub_prefix = get_xpub_prefix(&legacy_account.network);
+                let extended_public_key = hd_key.to_ss58check_with_version(&xpub_prefix);
 
-            (
-                extended_public_key,
-                encrypt_xpub(&legacy_account.ext_pub_key).unwrap_or("".to_string()),
-            )
-        } else {
-            ("".to_string(), "".to_string())
-        };
+                (
+                    extended_public_key,
+                    encrypt_xpub(&legacy_account.ext_pub_key).unwrap_or("".to_string()),
+                )
+            } else {
+                ("".to_string(), "".to_string())
+            };
 
         let mut address = legacy_account.address.to_string();
         if legacy_account.coin.eq("ETHEREUM") {
@@ -534,7 +533,6 @@ mod tests {
         migration::{mark_identity_wallets, scan_legacy_keystores},
     };
     use serial_test::serial;
-    use tcx_keystore::keystore::IdentityNetwork;
 
     #[test]
     #[serial]
@@ -545,7 +543,7 @@ mod tests {
             ids: vec!["0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string()],
             source: "RECOVERED_IDENTITY".to_string(),
         };
-        mark_identity_wallets(&encode_message(param).unwrap());
+        let _ = mark_identity_wallets(&encode_message(param).unwrap());
 
         let result = scan_legacy_keystores().unwrap();
 
@@ -561,7 +559,7 @@ mod tests {
             ids: vec!["0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string()],
             source: "NEW_IDENTITY".to_string(),
         };
-        mark_identity_wallets(&encode_message(param).unwrap());
+        let _ = mark_identity_wallets(&encode_message(param).unwrap());
 
         let result = scan_legacy_keystores().unwrap();
 

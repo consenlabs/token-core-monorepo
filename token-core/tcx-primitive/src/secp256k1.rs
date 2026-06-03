@@ -1,12 +1,10 @@
 use crate::constant::SECP256K1_ENGINE;
 use crate::ecc::{KeyError, PrivateKey as TraitPrivateKey, PublicKey as TraitPublicKey};
 
-use bitcoin::Network;
-
-use bitcoin::util::key::{PrivateKey, PublicKey};
+use bitcoin::secp256k1;
+use bitcoin::{base58, Network, PrivateKey, PublicKey};
 
 use crate::{Result, Ss58Codec};
-use bitcoin::util::base58;
 use tcx_common::ToHex;
 
 use tcx_constants::{network_from_coin, CoinInfo};
@@ -62,16 +60,16 @@ impl Secp256k1PrivateKey {
 
 impl Secp256k1PrivateKey {
     pub fn sign(&self, data: &[u8]) -> Result<Vec<u8>> {
-        let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
+        let msg = secp256k1::Message::from_digest_slice(data).map_err(transform_secp256k1_error)?;
         let signature = SECP256K1_ENGINE.sign_ecdsa(&msg, &self.0.inner);
         Ok(signature.serialize_der().to_vec())
     }
 
     pub fn sign_recoverable(&self, data: &[u8]) -> Result<Vec<u8>> {
-        let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
+        let msg = secp256k1::Message::from_digest_slice(data).map_err(transform_secp256k1_error)?;
         let signature = SECP256K1_ENGINE.sign_ecdsa_recoverable(&msg, &self.0.inner);
         let (recover_id, sign) = signature.serialize_compact();
-        let signed_bytes = [sign[..].to_vec(), vec![(recover_id.to_i32()) as u8]].concat();
+        let signed_bytes = [sign[..].to_vec(), vec![recover_id.to_i32() as u8]].concat();
         Ok(signed_bytes)
     }
 
@@ -80,11 +78,11 @@ impl Secp256k1PrivateKey {
         data: &[u8],
         noncedata: &[u8; 32],
     ) -> Result<Vec<u8>> {
-        let msg = secp256k1::Message::from_slice(data).map_err(transform_secp256k1_error)?;
+        let msg = secp256k1::Message::from_digest_slice(data).map_err(transform_secp256k1_error)?;
         let signature =
             SECP256K1_ENGINE.sign_ecdsa_recoverable_with_noncedata(&msg, &self.0.inner, noncedata);
         let (recover_id, sign) = signature.serialize_compact();
-        let signed_bytes = [sign[..].to_vec(), vec![(recover_id.to_i32()) as u8]].concat();
+        let signed_bytes = [sign[..].to_vec(), vec![recover_id.to_i32() as u8]].concat();
         Ok(signed_bytes)
     }
 }
@@ -97,7 +95,7 @@ impl TraitPrivateKey for Secp256k1PrivateKey {
         Ok(Secp256k1PrivateKey(PrivateKey {
             inner,
             compressed: true,
-            network: Network::Bitcoin,
+            network: Network::Bitcoin.into(),
         }))
     }
 
@@ -129,7 +127,7 @@ impl TraitPublicKey for Secp256k1PublicKey {
 
 impl Ss58Codec for Secp256k1PrivateKey {
     fn from_ss58check_with_version(wif: &str) -> Result<(Self, Vec<u8>)> {
-        let data = base58::from_check(wif)?;
+        let data = base58::decode_check(wif)?;
 
         let compressed = match data.len() {
             33 => false,
@@ -140,9 +138,9 @@ impl Ss58Codec for Secp256k1PrivateKey {
         };
 
         let pk = Secp256k1PrivateKey(PrivateKey {
-            inner: bitcoin::secp256k1::SecretKey::from_slice(&data[1..33])?,
+            inner: secp256k1::SecretKey::from_slice(&data[1..33])?,
             compressed,
-            network: Network::Bitcoin,
+            network: Network::Bitcoin.into(),
         });
 
         Ok((pk, vec![data[0]]))
@@ -154,9 +152,9 @@ impl Ss58Codec for Secp256k1PrivateKey {
         ret[1..33].copy_from_slice(&self.0.inner[..]);
         if self.0.compressed {
             ret[33] = 1;
-            base58::check_encode_slice(&ret[..])
+            base58::encode_check(&ret[..])
         } else {
-            base58::check_encode_slice(&ret[..33])
+            base58::encode_check(&ret[..33])
         }
     }
 }
@@ -185,8 +183,7 @@ mod tests {
 
     use crate::PrivateKey;
 
-    use bitcoin_hashes::hex::ToHex;
-    use bitcoin_hashes::Hash;
+    use tcx_common::ToHex;
 
     use tcx_constants::coin_info::coin_info_from_param;
 
@@ -225,7 +222,7 @@ mod tests {
                 .unwrap();
         let msg = "TokenCoreX";
         let hash = bitcoin_hashes::sha256::Hash::hash(msg.as_bytes());
-        let signed_bytes = prv_key.sign(&hash.into_inner()).unwrap();
+        let signed_bytes = prv_key.sign(hash.as_byte_array()).unwrap();
         assert_eq!("304402202514266dc7d807ecd69f6d5d03dae7d68619b2c562d8ac77f60e186f4fde4f2202207fbedf5642b095e4a37e71432c99e2b1144f8b9d73a0018be04e6d5ddbd26146", signed_bytes.to_hex());
 
         let wrong_signed = prv_key.sign(&[0, 1, 2, 3]);

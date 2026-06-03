@@ -1,8 +1,7 @@
 pub mod cbc {
     use crate::error::CommonError;
     use crate::Result;
-    use aes::cipher::generic_array::GenericArray;
-    use aes::cipher::{block_padding::Pkcs7, BlockDecryptMut, BlockEncryptMut, KeyIvInit};
+    use aes::cipher::{block_padding::Pkcs7, BlockModeDecrypt, BlockModeEncrypt, KeyIvInit};
 
     type Aes128CbcEnc = cbc::Encryptor<aes::Aes128>;
     type Aes128CbcDec = cbc::Decryptor<aes::Aes128>;
@@ -13,8 +12,8 @@ pub mod cbc {
         }
         let padding_len = 16 - (data.len() % 16);
         let mut buf = vec![0u8; data.len() + padding_len];
-        let ct = Aes128CbcEnc::new(key.into(), iv.into())
-            .encrypt_padded_b2b_mut::<Pkcs7>(data, &mut buf)
+        let ct = Aes128CbcEnc::new_from_slices(key, iv)?
+            .encrypt_padded_b2b::<Pkcs7>(data, &mut buf)
             .unwrap();
 
         Ok(ct.to_vec())
@@ -26,10 +25,8 @@ pub mod cbc {
             return Err(CommonError::InvalidKeyIvLength.into());
         }
         let mut buf = vec![0u8; encrypted.len()];
-        let key = GenericArray::from_slice(key);
-        let iv = GenericArray::from_slice(iv);
-        let pt = Aes128CbcDec::new(key, iv)
-            .decrypt_padded_b2b_mut::<Pkcs7>(encrypted, &mut buf)
+        let pt = Aes128CbcDec::new_from_slices(key, iv)?
+            .decrypt_padded_b2b::<Pkcs7>(encrypted, &mut buf)
             .unwrap();
         Ok(pt.to_vec())
     }

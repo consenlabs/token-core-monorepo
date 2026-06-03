@@ -1,4 +1,4 @@
-use bitcoin::util::base58;
+use bitcoin::base58;
 use std::str::FromStr;
 use tcx_common::ripemd160;
 use tcx_constants::CoinInfo;
@@ -19,7 +19,7 @@ impl PublicKeyEncoder for EosPublicKeyEncoder {
         let mut bytes = vec![];
         bytes.extend_from_slice(&pubkey_bytes);
         bytes.extend_from_slice(&checksum);
-        Ok(format!("EOS{}", base58::encode_slice(&bytes)))
+        Ok(format!("EOS{}", base58::encode(&bytes)))
     }
 }
 

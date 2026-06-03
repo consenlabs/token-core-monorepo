@@ -7,14 +7,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-prost = "=0.11.2"
-bytes = "=1.4.0"
-prost-types = "=0.11.2"
+prost = "=0.14.3"
+bytes = "=1.11.1"
+prost-types = "=0.14.3"
 
 [lib]
 name = "tcx_proto"
-build = "build.rs"
 
 
 [build-dependencies]
-prost-build = "=0.11.4"
+prost-build = "=0.14.3"

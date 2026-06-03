@@ -67,7 +67,7 @@ fn transform_mnemonic_error(err: anyhow::Error) -> Error {
     if let Ok(err) = err {
         match err {
             bip39::ErrorKind::InvalidChecksum => Error::MnemonicChecksumInvalid,
-            bip39::ErrorKind::InvalidWord => Error::MnemonicWordInvalid,
+            bip39::ErrorKind::InvalidWord(_) => Error::MnemonicWordInvalid,
             bip39::ErrorKind::InvalidWordLength(_) => Error::MnemonicLengthInvalid,
             _ => Error::MnemonicInvalid,
         }
@@ -1090,7 +1090,7 @@ pub(crate) mod tests {
         let err = transform_mnemonic_error(bip39::ErrorKind::InvalidChecksum.into());
         assert_eq!(err.to_string(), "mnemonic_checksum_invalid");
 
-        let err = transform_mnemonic_error(bip39::ErrorKind::InvalidWord.into());
+        let err = transform_mnemonic_error(bip39::ErrorKind::InvalidWord(0).into());
         assert_eq!(err.to_string(), "mnemonic_word_invalid");
 
         let err = transform_mnemonic_error(bip39::ErrorKind::InvalidWordLength(1).into());

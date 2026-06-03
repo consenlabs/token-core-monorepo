@@ -87,7 +87,7 @@ mod test {
         //gen bindchec apdu
         let bind_check_apdu = ImkApdu::bind_check(&key_manager_obj.pub_key);
         //send bindcheck command and get return data
-        send_apdu(Apdu::select_applet(IMK_AID));
+        let _ = send_apdu(Apdu::select_applet(IMK_AID));
         let bind_check_apdu_resp_data = send_apdu(bind_check_apdu).unwrap();
         let se_pub_key_cert: String =
             String::from(&bind_check_apdu_resp_data[2..(bind_check_apdu_resp_data.len() - 4)]);

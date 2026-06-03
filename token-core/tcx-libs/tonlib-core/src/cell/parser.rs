@@ -1,6 +1,6 @@
 use std::io::Cursor;
 
-use bitstream_io::{BigEndian, BitRead, BitReader, Numeric};
+use bitstream_io::{BigEndian, BitRead, BitReader, Integer, Numeric};
 
 use super::ArcCell;
 use crate::cell::{MapTonCellError, TonCellError};
@@ -80,11 +80,11 @@ impl<'a> CellParser<'a> {
             .map_cell_parser_error()
     }
 
-    fn load_number<N: Numeric>(&mut self, bit_len: usize) -> Result<N, TonCellError> {
+    fn load_number<N: Numeric + Integer>(&mut self, bit_len: usize) -> Result<N, TonCellError> {
         self.ensure_enough_bits(bit_len)?;
 
         self.bit_reader
-            .read::<N>(bit_len as u32)
+            .read_var::<N>(bit_len as u32)
             .map_cell_parser_error()
     }
 

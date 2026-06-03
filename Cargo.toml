@@ -42,4 +42,4 @@ members = [
 ]
 
 [patch.crates-io]
-fff = { path = "token-core/tcx-libs/fff" }
+crypto-common = { path = "vendor/crypto-common-0.1.7" }

@@ -1,24 +1,25 @@
+use bitcoin::blockdata::script::PushBytesBuf;
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::{serialize, Encodable};
 use bitcoin::hashes::hex::FromHex;
 use bitcoin::{
-    EcdsaSighashType, Network, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn,
-    TxOut, Witness,
+    absolute::LockTime, Amount, EcdsaSighashType, Network, OutPoint, ScriptBuf, Sequence,
+    Transaction, TxIn, TxOut, Witness,
 };
 use bitcoin_hashes::hash160;
-use bitcoin_hashes::hex::ToHex;
-use bitcoin_hashes::Hash;
 use ikc_common::apdu::{ApduCheck, BtcForkApdu};
 use ikc_common::coin_info::CoinInfo;
 use ikc_common::constants::{
     BTC_FORK_DUST, EACH_ROUND_NUMBER, MAX_OPRETURN_SIZE, MAX_UTXO_NUMBER, TIMEOUT_LONG,
 };
 use ikc_common::error::CoinError;
+use ikc_common::hex::ToHex;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::ecdsa::Signature;
+use std::convert::TryFrom;
 use std::str::FromStr;
 
 use crate::address::BtcForkAddress;
@@ -103,8 +104,8 @@ impl BtcForkTransaction {
                 &self.tx_input.change_address,
             )?;
             txouts.push(TxOut {
-                value: self.get_change_amount() as u64,
-                script_pubkey: change_addr.payload.script_pubkey(),
+                value: Amount::from_sat(self.get_change_amount() as u64),
+                script_pubkey: change_addr.script_pubkey(),
             });
         }
 
@@ -118,8 +119,8 @@ impl BtcForkTransaction {
 
         //output data serialize
         let mut tx_to_sign = Transaction {
-            version: 1i32,
-            lock_time: PackedLockTime::ZERO,
+            version: bitcoin::transaction::Version(1i32),
+            lock_time: LockTime::ZERO,
             input: vec![],
             output: txouts,
         };
@@ -163,7 +164,7 @@ impl BtcForkTransaction {
             ApduCheck::check_response(&send_apdu_timeout(temp_str, TIMEOUT_LONG)?)?;
         }
 
-        let mut lock_script_ver: Vec<Script> = vec![];
+        let mut lock_script_ver: Vec<ScriptBuf> = vec![];
         let count = (self.tx_input.unspents.len() - 1) / EACH_ROUND_NUMBER + 1;
         for i in 0..count {
             for (x, temp_utxo) in self.tx_input.unspents.iter().enumerate() {
@@ -172,10 +173,10 @@ impl BtcForkTransaction {
 
                 let mut temp_serialize_txin = TxIn {
                     previous_output: OutPoint {
-                        txid: bitcoin::hash_types::Txid::from_hex(temp_utxo.tx_hash.as_str())?,
+                        txid: bitcoin::hash_types::Txid::from_str(temp_utxo.tx_hash.as_str())?,
                         vout: temp_utxo.vout as u32,
                     },
-                    script_sig: Script::default(),
+                    script_sig: ScriptBuf::new(),
                     sequence: Sequence::MAX,
                     witness: Witness::default(),
                 };
@@ -183,7 +184,7 @@ impl BtcForkTransaction {
                     // temp_serialize_txin.script_sig =
                     //     Script::from(Vec::from_hex(temp_utxo.script_pub_key.as_str())?);
                     temp_serialize_txin.script_sig =
-                        Script::from_hex(temp_utxo.script_pub_key.as_str())?;
+                        ScriptBuf::from_hex(temp_utxo.script_pub_key.as_str())?;
                 }
                 input_data_vec.extend_from_slice(serialize(&temp_serialize_txin).as_slice());
                 let btc_perpare_apdu =
@@ -231,7 +232,7 @@ impl BtcForkTransaction {
         for (index, unspent) in self.tx_input.unspents.iter().enumerate() {
             let txin = TxIn {
                 previous_output: OutPoint {
-                    txid: bitcoin::hash_types::Txid::from_hex(&unspent.tx_hash)?,
+                    txid: bitcoin::hash_types::Txid::from_str(&unspent.tx_hash)?,
                     vout: unspent.vout as u32,
                 },
                 script_sig: lock_script_ver.get(index).unwrap().clone(),
@@ -244,8 +245,8 @@ impl BtcForkTransaction {
         let tx_bytes = serialize(&tx_to_sign);
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: tx_to_sign.txid().to_hex(),
-            wtx_id: tx_to_sign.ntxid().to_hex(),
+            tx_hash: tx_to_sign.compute_txid().to_hex(),
+            wtx_id: tx_to_sign.compute_ntxid().to_hex(),
         })
     }
 
@@ -315,8 +316,8 @@ impl BtcForkTransaction {
                 &self.tx_input.change_address,
             )?;
             txouts.push(TxOut {
-                value: self.get_change_amount() as u64,
-                script_pubkey: change_addr.payload.script_pubkey(),
+                value: Amount::from_sat(self.get_change_amount() as u64),
+                script_pubkey: change_addr.script_pubkey(),
             });
         }
 
@@ -330,8 +331,8 @@ impl BtcForkTransaction {
 
         //8.output data serialize
         let mut tx_to_sign = Transaction {
-            version: 2i32,
-            lock_time: PackedLockTime::ZERO,
+            version: bitcoin::transaction::Version(2i32),
+            lock_time: LockTime::ZERO,
             input: vec![],
             output: txouts,
         };
@@ -385,10 +386,10 @@ impl BtcForkTransaction {
         for (index, unspent) in self.tx_input.unspents.iter().enumerate() {
             let txin = TxIn {
                 previous_output: OutPoint {
-                    txid: bitcoin::hash_types::Txid::from_hex(&unspent.tx_hash)?,
+                    txid: bitcoin::hash_types::Txid::from_str(&unspent.tx_hash)?,
                     vout: unspent.vout as u32,
                 },
-                script_sig: Script::new(),
+                script_sig: ScriptBuf::new(),
                 sequence: Sequence::MAX,
                 witness: Witness::default(),
             };
@@ -403,10 +404,10 @@ impl BtcForkTransaction {
 
             //lock script
             let pub_key_bytes = hex::decode(utxo_pub_key_vec.get(index).unwrap())?;
-            let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).into_inner();
+            let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).to_byte_array();
             let script_hex = format!("76a914{}88ac", hex::encode(pub_key_hash));
             // let script = Script::from(hex::decode(script_hex)?);
-            let script = Script::from_hex(script_hex.as_str())?;
+            let script = ScriptBuf::from_hex(script_hex.as_str())?;
             let script_data = serialize(&script);
             data.extend(script_data.iter());
 
@@ -482,14 +483,11 @@ impl BtcForkTransaction {
                         .unwrap()
                         .as_slice(),
                 )
-                .into_inner();
+                .to_byte_array();
                 let hex = format!("160014{}", hex::encode(&hash));
                 Ok(TxIn {
-                    script_sig: Script::from_hex(hex.as_str())?,
-                    witness: Witness::from_vec(vec![
-                        witnesses[i].0.clone(),
-                        witnesses[i].1.clone(),
-                    ]),
+                    script_sig: ScriptBuf::from_hex(hex.as_str())?,
+                    witness: Witness::from_slice(&[witnesses[i].0.clone(), witnesses[i].1.clone()]),
                     ..*txin
                 })
             })
@@ -500,8 +498,8 @@ impl BtcForkTransaction {
 
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: tx_to_sign.txid().to_hex(),
-            wtx_id: tx_to_sign.wtxid().to_hex(),
+            tx_hash: tx_to_sign.compute_txid().to_hex(),
+            wtx_id: tx_to_sign.compute_wtxid().to_hex(),
         })
     }
 
@@ -522,23 +520,25 @@ impl BtcForkTransaction {
     pub fn build_send_to_output(&self) -> TxOut {
         let legacy_addr = BtcForkAddress::from_str(&self.tx_input.to).unwrap();
         TxOut {
-            value: self.tx_input.amount as u64,
-            script_pubkey: legacy_addr.payload.script_pubkey(),
+            value: Amount::from_sat(self.tx_input.amount as u64),
+            script_pubkey: legacy_addr.script_pubkey(),
         }
     }
 
     pub fn build_op_return_output(&self, extra_data: &Vec<u8>) -> TxOut {
         let opreturn_script = Builder::new()
             .push_opcode(opcodes::all::OP_RETURN)
-            .push_slice(&extra_data[..])
+            .push_slice(
+                PushBytesBuf::try_from(extra_data.clone()).expect("op_return data length checked"),
+            )
             .into_script();
         TxOut {
-            value: 0u64,
+            value: Amount::from_sat(0),
             script_pubkey: opreturn_script,
         }
     }
 
-    pub fn build_lock_script(&self, signed: &str, utxo_public_key: &str) -> Result<Script> {
+    pub fn build_lock_script(&self, signed: &str, utxo_public_key: &str) -> Result<ScriptBuf> {
         let signed_vec = Vec::from_hex(&signed)?;
         let mut signature_obj = Signature::from_compact(signed_vec.as_slice())?;
         signature_obj.normalize_s();
@@ -546,9 +546,10 @@ impl BtcForkTransaction {
 
         //add hash type
         signed_vec.push(EcdsaSighashType::All.to_u32() as u8);
+        let public_key = Vec::from_hex(utxo_public_key)?;
         Ok(Builder::new()
-            .push_slice(&signed_vec)
-            .push_slice(Vec::from_hex(utxo_public_key)?.as_slice())
+            .push_slice(PushBytesBuf::try_from(signed_vec)?)
+            .push_slice(PushBytesBuf::try_from(public_key)?)
             .into_script())
     }
 

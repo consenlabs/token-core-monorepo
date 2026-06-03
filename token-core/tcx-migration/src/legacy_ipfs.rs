@@ -1,16 +1,7 @@
-use anyhow::anyhow;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io::Read;
-use tcx_constants::{coin_info_from_param, CurveType};
-use tcx_crypto::{Crypto, EncPair, Key};
-use tcx_keystore::identity::Identity;
-use tcx_keystore::keystore::{IdentityNetwork, Keystore, Metadata, Store};
-use tcx_keystore::{
-    fingerprint_from_private_key, fingerprint_from_seed, mnemonic_to_seed, Address, HdKeystore,
-    PrivateKeystore, Result, Source,
-};
-use tcx_primitive::{PrivateKey, Secp256k1PrivateKey, TypedPublicKey};
+use tcx_keystore::Result;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

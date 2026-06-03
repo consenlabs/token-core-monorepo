@@ -10,29 +10,30 @@ tcx-primitive = { path = "../tcx-primitive" }
 tcx-constants = { path = "../tcx-constants" }
 tcx-common = {path = "../tcx-common"}
 
-bitcoin = "=0.29.2"
-byteorder = "=1.4.3"
-secp256k1 = { version = "=0.24.3", features = ["rand", "recovery"] }
-tiny-bip39 = "=1.0.0"
-bitcoin_hashes = "=0.11.0"
-uuid = { version = "=1.2.2", features = ["serde", "v4"] }
-serde = { version = "=1.0.147", features = ["derive"] }
-serde_json = "=1.0.89"
-anyhow = { version = "=1.0.79", features = [] }
-regex = "=1.9.3"
+bitcoin = "=0.32.9"
+byteorder = "=1.5.0"
+secp256k1 = { version = "=0.31.1", features = ["rand", "recovery"] }
+tiny-bip39 = "=2.0.0"
+bitcoin_hashes = "=0.20.0"
+uuid = { version = "=1.23.1", features = ["serde", "v4"] }
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.149"
+anyhow = { version = "=1.0.102", features = [] }
+regex = "=1.12.3"
 hex = "=0.4.3"
 
-sha2 = "=0.10.6"
-hmac-sha256 = "=1.1.6"
-multihash = "=0.18.1"
-lazy_static = "=1.4.0"
-parking_lot = "=0.12.1"
-prost = "=0.11.2"
-bytes = "=1.4.0"
-thiserror = "=1.0.56"
+sha2 = "=0.11.0"
+hmac-sha256 = "=1.1.14"
+multihash = "=0.19.5"
+multihash-codetable = { version = "=0.2.2", features = ["sha2"] }
+lazy_static = "=1.5.0"
+parking_lot = "=0.12.5"
+prost = "=0.14.3"
+bytes = "=1.11.1"
+thiserror = "=2.0.18"
 
 [dev-dependencies.cargo-husky]
-version = "1"
+version = "=1.5.0"
 default-features = false
 features = ["precommit-hook", "run-cargo-fmt"]
 

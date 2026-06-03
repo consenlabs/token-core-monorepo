@@ -260,7 +260,7 @@ mod test {
     #[should_panic(expected = "imkey_app_name_not_exist")]
     fn app_delete_wrong_app_name_test() {
         assert!(hid_connect(constants::DEVICE_MODEL_NAME).is_ok());
-        app_delete("TEST");
+        let _ = app_delete("TEST");
     }
 
     #[test]

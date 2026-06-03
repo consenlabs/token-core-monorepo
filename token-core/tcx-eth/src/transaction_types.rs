@@ -3,9 +3,9 @@ use anyhow::anyhow;
 use ethereum_types::{Address, H256, U256, U64};
 use rlp::RlpStream;
 use secp256k1::{ecdsa::RecoverableSignature, ecdsa::RecoveryId, Message, PublicKey};
+use std::convert::TryInto;
 use std::str::FromStr;
 use tcx_common::{keccak256, Hash256, ToHex};
-use tcx_primitive::SECP256K1_ENGINE;
 
 pub fn to_eip155_v<T: Into<u64>>(recovery_id: T, chain_id: U64) -> U64 {
     U64::from(recovery_id.into() + 35 + chain_id.as_u64() * 2)
@@ -60,10 +60,8 @@ impl ToHex for Signature {
 impl From<&Signature> for [u8; 65] {
     fn from(src: &Signature) -> [u8; 65] {
         let mut sig = [0u8; 65];
-        let mut r_bytes = [0u8; 32];
-        let mut s_bytes = [0u8; 32];
-        src.r.to_big_endian(&mut r_bytes);
-        src.s.to_big_endian(&mut s_bytes);
+        let r_bytes = src.r.to_big_endian();
+        let s_bytes = src.s.to_big_endian();
         sig[..32].copy_from_slice(&r_bytes);
         sig[32..64].copy_from_slice(&s_bytes);
         // TODO: What if we try to serialize a signature where
@@ -98,12 +96,13 @@ impl Signature {
     }
 
     pub fn recover_public_key(&self, hash: &[u8]) -> Result<PublicKey> {
-        let message = Message::from_slice(hash)?;
-        let recovery_id = RecoveryId::from_i32(self.v.as_u32() as i32 - 27)?;
+        let message = Message::from_digest(hash.try_into()?);
+        let recovery_id = RecoveryId::try_from(self.v.as_u32() as i32 - 27)?;
         let sig = <[u8; 65]>::from(self);
         let signature = RecoverableSignature::from_compact(&sig[0..64], recovery_id)?;
 
-        Ok(SECP256K1_ENGINE.recover_ecdsa(&message, &signature)?)
+        let secp = secp256k1::Secp256k1::new();
+        Ok(secp.recover_ecdsa(message, &signature)?)
     }
 }
 
@@ -266,6 +265,7 @@ impl Transaction {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 mod test {
     use super::{Signature, SignedTransaction, Transaction, TransactionType};
     use crate::transaction_types::AccessListItem;

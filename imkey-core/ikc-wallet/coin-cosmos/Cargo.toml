@@ -10,20 +10,20 @@ edition = "2018"
 ikc-common = {path = "../../ikc-common"}
 ikc-device = {path = "../../ikc-device"}
 ikc-transport = {path = "../../ikc-transport"}
-bitcoin_hashes = "=0.11.0"
+bitcoin_hashes = "=0.20.0"
 hex = "=0.4.3"
-bitcoin = "=0.29.2"
-secp256k1 = {version ="=0.24.3", features = ["rand", "recovery"] }
-bech32 = "=0.9.1"
-serde = { version = "=1.0.147", features = ["derive"] }
-serde_derive = "=1.0.147"
-serde_json = { version = "=1.0.89", default-features = false, features = ["alloc"] }
-num-bigint = "=0.4.3"
-num-traits = "=0.2.15"
-num-integer = "=0.1.45"
-base64 = "=0.13.1"
-anyhow = "=1.0.79"
-bytes = "=1.4.0"
-prost = "=0.11.2"
-prost-types = "=0.11.2"
+bitcoin = "=0.32.9"
+secp256k1 = {version = "=0.31.1", features = ["rand", "recovery"] }
+bech32 = "=0.11.1"
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_derive = "=1.0.228"
+serde_json = { version = "=1.0.149", default-features = false, features = ["alloc"] }
+num-bigint = "=0.4.6"
+num-traits = "=0.2.19"
+num-integer = "=0.1.46"
+base64 = "=0.22.1"
+anyhow = "=1.0.102"
+bytes = "=1.11.1"
+prost = "=0.14.3"
+prost-types = "=0.14.3"
 linked-hash-map = { version = "=0.5.6", features = ["serde_impl"] }

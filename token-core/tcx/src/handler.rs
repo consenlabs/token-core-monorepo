@@ -122,7 +122,10 @@ pub fn encrypt_xpub(xpub: &str) -> Result<String> {
     let key_bytes = Vec::from_hex(&*key)?;
     let iv_bytes = Vec::from_hex(&*iv)?;
     let encrypted = encrypt_pkcs7(xpub.as_bytes(), &key_bytes, &iv_bytes)?;
-    Ok(base64::encode(encrypted))
+    Ok(base64::Engine::encode(
+        &base64::engine::general_purpose::STANDARD,
+        encrypted,
+    ))
 }
 
 fn key_data_from_any_format_pk(pk: &str) -> Result<Vec<u8>> {
@@ -145,7 +148,13 @@ pub(crate) fn fingerprint_from_any_format_pk(pk: &str) -> Result<String> {
     } else {
         key_data_from_any_format_pk(pk)?
     };
-    fingerprint_from_private_key(&key_data)
+    fingerprint_from_private_key(&key_data).map_err(|err| {
+        if err.to_string() == "invalid_sr25519_key" {
+            anyhow!("invalid_private_key")
+        } else {
+            err
+        }
+    })
 }
 
 fn import_private_key_internal(
@@ -271,7 +280,8 @@ pub(crate) fn decode_private_key(private_key: &str) -> Result<DecodedPrivateKey>
                 ];
                 curve = CurveType::SECP256k1;
             } else if decoded_data.len() == 64 {
-                let sr25519_key = Sr25519PrivateKey::from_slice(&decoded_data)?;
+                let sr25519_key = Sr25519PrivateKey::from_slice(&decoded_data)
+                    .map_err(|_| anyhow!("invalid_private_key"))?;
                 //Originally, the to_bytes method of Sr25519 PrivateKey was called for conversion, but to_bytes did not return Result Trait.
                 //In order to return the "invalid_private_key" error code, the code of the to_bytes method was directly copied for conversion.[R2D2-14129]
                 // private_key_bytes = sr25519_key.to_bytes();
@@ -1562,7 +1572,10 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
         SignAuthenticationMessageParam::decode(data).expect("SignAuthenticationMessageParam");
 
     let map = KEYSTORE_MAP.read();
-    let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
+    let Some(identity_ks) = map
+        .values()
+        .find(|ks| ks.identity().identifier == param.identifier)
+    else {
         return Err(anyhow::anyhow!("identity_not_found"));
     };
 
