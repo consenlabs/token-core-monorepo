@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "common/wallet-core-common",
     "token-core/tcx-proto",
     "token-core/tcx-constants",
     "token-core/tcx-primitive",

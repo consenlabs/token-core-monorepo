@@ -2,8 +2,6 @@ use anyhow::anyhow;
 use core::str::FromStr;
 
 use crate::hrps::CHAIN_ID_HRP_MAP;
-use bech32::{Bech32, Hrp};
-use tcx_common::{ripemd160, sha256};
 use tcx_constants::CoinInfo;
 use tcx_keystore::{Address, Result};
 use tcx_primitive::TypedPublicKey;
@@ -27,30 +25,15 @@ pub struct AtomAddress(String);
 
 impl Address for AtomAddress {
     fn from_public_key(public_key: &TypedPublicKey, coin: &CoinInfo) -> Result<Self> {
-        let pub_key_bytes = public_key.to_bytes();
-        let mut bytes = [0u8; LENGTH];
-        let pub_key_hash = ripemd160(&sha256(&pub_key_bytes));
-        bytes.copy_from_slice(&pub_key_hash[..LENGTH]);
         let hrp = find_hrp(&coin.chain_id)?;
 
-        Ok(AtomAddress(bech32::encode::<Bech32>(
-            Hrp::parse(&hrp)?,
-            &bytes,
-        )?))
+        Ok(AtomAddress(
+            wallet_core_common::cosmos::address_from_pubkey(&hrp, &public_key.to_bytes())?,
+        ))
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
-        let ret = bech32::decode(address);
-        if let Ok(val) = ret {
-            let (_hrp, data) = val;
-
-            if data.len() != 20 {
-                return false;
-            }
-            true
-        } else {
-            false
-        }
+        wallet_core_common::cosmos::is_valid_address(address)
     }
 }
 

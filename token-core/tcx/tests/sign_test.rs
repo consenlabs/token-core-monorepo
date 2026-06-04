@@ -38,7 +38,7 @@ use tcx_constants::{sample_key, CurveType};
 use tcx_constants::{OTHER_MNEMONIC, TEST_PASSWORD, TEST_PRIVATE_KEY};
 use tcx_keystore::Keystore;
 
-use tcx_common::hex::FromHex;
+use tcx_common::FromHex;
 use tcx_eth::transaction::{
     AccessList, EthMessageInput, EthMessageOutput, EthTxInput, EthTxOutput,
 };

@@ -1,9 +1,7 @@
 use crate::Result;
-use bech32::{Bech32, Hrp};
 use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
 use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
-use bitcoin_hashes::hash160;
 use hex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu};
 use ikc_common::error::CoinError;
@@ -51,12 +49,11 @@ impl CosmosAddress {
     pub fn get_address(path: &str) -> Result<String> {
         let compress_pubkey =
             utility::uncompress_pubkey_2_compress(&CosmosAddress::get_pub_key(path)?);
-        //hash160
         let pub_key_bytes = hex::decode(compress_pubkey).unwrap();
-        let pub_key_hash = hash160::Hash::hash(&pub_key_bytes);
-        let address =
-            bech32::encode::<Bech32>(Hrp::parse("cosmos")?, pub_key_hash.as_byte_array())?;
-        Ok(address)
+        Ok(wallet_core_common::cosmos::address_from_pubkey(
+            "cosmos",
+            &pub_key_bytes,
+        )?)
     }
 
     pub fn display_address(path: &str) -> Result<String> {
@@ -116,12 +113,9 @@ impl CosmosAddress {
     }
 
     pub fn from_pub_key(pub_key: Vec<u8>) -> Result<String> {
-        let public_key = PublicKey::from_slice(pub_key.as_slice())?;
-        let compressed_pubkey = public_key.serialize();
-        let pub_key_hash = hash160::Hash::hash(&compressed_pubkey);
-        let address =
-            bech32::encode::<Bech32>(Hrp::parse("cosmos")?, pub_key_hash.as_byte_array())?;
-        Ok(address)
+        Ok(wallet_core_common::cosmos::address_from_pubkey(
+            "cosmos", &pub_key,
+        )?)
     }
 }
 

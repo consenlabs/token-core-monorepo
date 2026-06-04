@@ -1,4 +1,5 @@
 use crate::Result;
+#[cfg(test)]
 use bitcoin::base58;
 use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
 use bitcoin::secp256k1::PublicKey;
@@ -13,7 +14,6 @@ use ikc_common::utility;
 use ikc_common::utility::secp256k1_sign;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
-use keccak_hash::keccak;
 use std::convert::TryFrom;
 use std::str::FromStr;
 
@@ -21,11 +21,7 @@ pub struct TronAddress {}
 
 impl TronAddress {
     pub fn from_pub_key(pub_key: &[u8]) -> Result<String> {
-        let public_key = PublicKey::from_slice(pub_key)?.serialize_uncompressed();
-        let keccak_hash = keccak(public_key[1..].as_ref());
-        let address = [vec![0x41], keccak_hash[12..].to_vec()].concat();
-        let base58_address = base58::encode_check(&address);
-        Ok(base58_address)
+        Ok(wallet_core_common::tron::address_from_pubkey(pub_key)?)
     }
 
     pub fn get_address(path: &str) -> Result<String> {

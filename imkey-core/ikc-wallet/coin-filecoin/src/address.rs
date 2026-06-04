@@ -1,8 +1,6 @@
-use crate::utils::{digest, HashSize};
 use crate::Result;
 use std::str::FromStr;
 
-use base32::Alphabet;
 use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
 use bitcoin::secp256k1::PublicKey;
 use hex;
@@ -16,15 +14,10 @@ use ikc_common::utility::network_convert;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
 use std::convert::TryFrom;
+use wallet_core_common::filecoin;
 
 const MAINNET_PREFIX: &'static str = "f";
 const TESTNET_PREFIX: &'static str = "t";
-
-#[derive(Clone, Copy)]
-pub enum Protocol {
-    Secp256k1 = 1,
-    BLS = 3,
-}
 
 #[derive(Debug)]
 pub struct FilecoinAddress {}
@@ -69,14 +62,6 @@ impl FilecoinAddress {
         Ok(uncomprs_pubkey)
     }
 
-    fn checksum(ingest: &[u8]) -> Vec<u8> {
-        digest(ingest, HashSize::Checksum)
-    }
-
-    fn address_hash(ingest: &[u8]) -> Vec<u8> {
-        digest(ingest, HashSize::Payload)
-    }
-
     pub fn get_address(path: &str, network: &str) -> Result<String> {
         let ntwk = match network {
             "TESTNET" => TESTNET_PREFIX,
@@ -85,20 +70,9 @@ impl FilecoinAddress {
 
         let uncomprs_pubkey = Self::get_pub_key(path).unwrap();
         let pub_key_bytes = hex::decode(&uncomprs_pubkey[..130]).unwrap();
-        let protocol = Protocol::Secp256k1;
-
-        let payload = Self::address_hash(&pub_key_bytes);
-        let cksm = Self::checksum(&[vec![protocol as u8], payload.clone().to_vec()].concat());
-
-        Ok(format!(
-            "{}{}{}",
+        Ok(filecoin::secp256k1_address_from_uncompressed_pubkey(
             ntwk,
-            protocol as i8,
-            base32::encode(
-                Alphabet::Rfc4648 { padding: false },
-                &[payload, cksm].concat()
-            )
-            .to_lowercase()
+            &pub_key_bytes,
         ))
     }
 
@@ -167,19 +141,9 @@ impl FilecoinAddress {
         };
 
         let pub_key_bytes = PublicKey::from_slice(pub_key.as_slice())?.serialize_uncompressed();
-        let protocol = Protocol::Secp256k1;
-        let payload = Self::address_hash(&pub_key_bytes);
-        let checksum = Self::checksum(&[vec![protocol as u8], payload.clone().to_vec()].concat());
-
-        Ok(format!(
-            "{}{}{}",
+        Ok(filecoin::secp256k1_address_from_uncompressed_pubkey(
             ntwk,
-            protocol as i8,
-            base32::encode(
-                Alphabet::Rfc4648 { padding: false },
-                &[payload, checksum].concat()
-            )
-            .to_lowercase()
+            &pub_key_bytes,
         ))
     }
 }

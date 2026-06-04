@@ -11,8 +11,8 @@ tcx-keystore = { path = "../tcx-keystore" }
 tcx-primitive = { path = "../tcx-primitive" }
 tcx-constants = { path = "../tcx-constants" }
 tcx-common = { path = "../tcx-common" }
+wallet-core-common = { path = "../../common/wallet-core-common", features = ["cosmos"] }
 
-bech32 = "=0.11.1"
 anyhow = { version = "=1.0.102", features = [] }
 
 prost = "=0.14.3"

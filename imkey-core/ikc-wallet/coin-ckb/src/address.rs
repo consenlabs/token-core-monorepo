@@ -1,8 +1,6 @@
-use crate::hash::blake2b_160;
 use crate::Result;
-use bech32::{Bech32, Hrp};
 use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
-use bitcoin::secp256k1::{PublicKey, PublicKey as Secp256k1PublicKey};
+use bitcoin::secp256k1::PublicKey as Secp256k1PublicKey;
 use hex::FromHex;
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::NERVOS_AID;
@@ -18,17 +16,9 @@ pub struct CkbAddress {}
 
 impl CkbAddress {
     pub fn from_public_key(network: &str, pubkey: &[u8]) -> Result<String> {
-        let prefix = match network {
-            "TESTNET" => "ckt",
-            _ => "ckb",
-        };
-        let pub_key_hash = blake2b_160(PublicKey::from_slice(pubkey)?.serialize());
-
-        let mut buf = vec![];
-        buf.extend(vec![0x1, 0x00]); // append short version for locks with popular codehash and default code hash index
-        buf.extend(pub_key_hash);
-
-        Ok(bech32::encode::<Bech32>(Hrp::parse(prefix)?, &buf)?)
+        Ok(wallet_core_common::ckb::address::short_address_from_pubkey(
+            network, pubkey,
+        )?)
     }
 
     pub fn get_public_key(path: &str) -> Result<String> {

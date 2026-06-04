@@ -1,8 +1,6 @@
 use blake2b_rs::Blake2bBuilder;
 
 pub enum HashSize {
-    Checksum = 4,
-    Payload = 20,
     Default = 32,
 }
 
@@ -26,8 +24,11 @@ mod tests {
         let payload = [1u8, 2];
 
         assert_eq!(
-            digest(&payload, HashSize::Checksum),
-            vec![219, 55, 214, 157]
+            digest(&payload, HashSize::Default),
+            vec![
+                101, 218, 57, 134, 234, 236, 240, 70, 203, 44, 65, 103, 58, 237, 157, 78, 30, 102,
+                23, 48, 220, 49, 198, 47, 50, 125, 245, 209, 89, 51, 89, 93,
+            ]
         );
     }
 }

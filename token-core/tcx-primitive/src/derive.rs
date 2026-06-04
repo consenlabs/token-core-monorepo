@@ -1,27 +1,18 @@
 use crate::ecc::KeyError;
 use crate::Result;
 
-use bitcoin::bip32::{ChildNumber, DerivationPath};
+use bitcoin::bip32::ChildNumber;
 
-use anyhow::ensure;
 use std::convert::TryInto;
 use std::str::FromStr;
 
 pub fn get_account_path(path: &str) -> Result<String> {
     // example: m/44'/60'/0'/0/0
-    let _ = DerivationPath::from_str(path)?;
-    let mut children: Vec<&str> = path.split('/').collect();
-
-    ensure!(
-        children.first() == Some(&"m"),
-        format!("{} path must start with m", path)
-    );
-    ensure!(children.len() >= 4, format!("{} path is too short", path));
-
-    while children.len() > 4 {
-        children.remove(children.len() - 1);
-    }
-    Ok(children.join("/"))
+    wallet_core_common::path::account_path(
+        path,
+        wallet_core_common::path::AccountPathOptions::STRICT,
+    )
+    .map_err(Into::into)
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]

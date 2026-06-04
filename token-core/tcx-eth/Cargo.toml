@@ -10,6 +10,7 @@ tcx-keystore = {path = "../tcx-keystore"}
 tcx-primitive = {path = "../tcx-primitive"}
 tcx-constants = {path = "../tcx-constants"}
 tcx-common = {path = "../tcx-common"}
+wallet-core-common = { path = "../../common/wallet-core-common", features = ["eth"] }
 
 anyhow = { version = "=1.0.102", features = [] }
 hex = "=0.4.3"
@@ -17,5 +18,4 @@ ethereum-types = "=0.16.0"
 rlp = "=0.6.1"
 prost = "=0.14.3"
 prost-types = "=0.14.3"
-regex = "=1.12.3"
 secp256k1 = {version = "=0.31.1", features = ["rand", "recovery"] }

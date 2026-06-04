@@ -77,7 +77,7 @@ impl ToHex for Sr25519PublicKey {
     }
 }
 
-impl FromHex for Sr25519PublicKey {
+impl FromHex<anyhow::Error> for Sr25519PublicKey {
     fn from_hex<T: AsRef<[u8]>>(hex: T) -> Result<Self> {
         let bytes = Vec::from_hex(hex)?;
         let pk = Sr25519PublicKey::from_slice(bytes.as_slice())?;

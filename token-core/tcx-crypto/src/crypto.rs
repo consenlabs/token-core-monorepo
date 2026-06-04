@@ -178,12 +178,12 @@ pub struct Unlocker<'a> {
 
 fn encrypt(plaintext: &[u8], derived_key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
     let key = &derived_key[0..16];
-    super::aes::ctr::encrypt_nopadding(plaintext, key, iv)
+    Ok(super::aes::ctr::encrypt_nopadding(plaintext, key, iv)?)
 }
 
 fn decrypt(ciphertext: &[u8], derived_key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
     let key = &derived_key[0..16];
-    super::aes::ctr::decrypt_nopadding(ciphertext, key, iv)
+    Ok(super::aes::ctr::decrypt_nopadding(ciphertext, key, iv)?)
 }
 
 fn generate_mac(derived_key: &[u8], ciphertext: &[u8]) -> Vec<u8> {

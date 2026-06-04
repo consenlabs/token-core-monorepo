@@ -5,7 +5,7 @@ use bitcoin::base58;
 use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey as Secp256k1PublicKey;
-use bitcoin::{Network, PubkeyHash, PublicKey, ScriptBuf as Script, ScriptHash, WitnessVersion};
+use bitcoin::{Network, PubkeyHash, ScriptBuf as Script, ScriptHash, WitnessVersion};
 use std::convert::{TryFrom, TryInto};
 
 use ikc_common::coin_info::coin_info_from_param;
@@ -123,10 +123,10 @@ impl BtcForkAddress {
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
 
-        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
-        pub_key_obj.compressed = true;
         let btc_fork_address = BtcForkAddress {
-            payload: BtcForkPayload::PubkeyHash(pub_key_obj.pubkey_hash()),
+            payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::p2pkh_hash(
+                &hex::decode(pub_key)?,
+            )?),
             network: network.clone(),
         };
 
@@ -141,11 +141,10 @@ impl BtcForkAddress {
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
 
-        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
-        pub_key_obj.compressed = true;
-        let script = Script::new_p2wpkh(&pub_key_obj.wpubkey_hash()?);
         let btc_fork_address = BtcForkAddress {
-            payload: BtcForkPayload::ScriptHash(script.script_hash()),
+            payload: BtcForkPayload::ScriptHash(wallet_core_common::btc::p2shwpkh_hash(
+                &hex::decode(pub_key)?,
+            )?),
             network: network.clone(),
         };
 
@@ -160,12 +159,10 @@ impl BtcForkAddress {
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
 
-        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
-        pub_key_obj.compressed = true;
         let btc_fork_address = BtcForkAddress {
             payload: BtcForkPayload::WitnessProgram {
                 version: WitnessVersion::V0,
-                program: pub_key_obj.wpubkey_hash()?[..].to_vec(),
+                program: wallet_core_common::btc::p2wpkh_program(&hex::decode(pub_key)?)?,
             },
             network: network.clone(),
         };
@@ -197,18 +194,15 @@ impl BtcForkAddress {
     }
 
     pub fn from_pub_key(pub_key: Vec<u8>, btc_fork_network: BtcForkNetwork) -> Result<String> {
-        let mut public_key = PublicKey::from_slice(&pub_key)?;
-        public_key.compressed = true;
         let address = match btc_fork_network.seg_wit.to_uppercase().as_str() {
-            "P2WPKH" => {
-                let script = Script::new_p2wpkh(&public_key.wpubkey_hash()?);
-                BtcForkAddress {
-                    payload: BtcForkPayload::ScriptHash(script.script_hash()),
-                    network: btc_fork_network,
-                }
-            }
+            "P2WPKH" => BtcForkAddress {
+                payload: BtcForkPayload::ScriptHash(wallet_core_common::btc::p2shwpkh_hash(
+                    &pub_key,
+                )?),
+                network: btc_fork_network,
+            },
             _ => BtcForkAddress {
-                payload: BtcForkPayload::PubkeyHash(public_key.pubkey_hash()),
+                payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::p2pkh_hash(&pub_key)?),
                 network: btc_fork_network,
             },
         };
@@ -216,12 +210,10 @@ impl BtcForkAddress {
     }
     pub fn script_pubkey(&self) -> Script {
         match &self.payload {
-            BtcForkPayload::PubkeyHash(hash) => Script::new_p2pkh(hash),
-            BtcForkPayload::ScriptHash(hash) => Script::new_p2sh(hash),
+            BtcForkPayload::PubkeyHash(hash) => wallet_core_common::btc::p2pkh_script_pubkey(hash),
+            BtcForkPayload::ScriptHash(hash) => wallet_core_common::btc::p2sh_script_pubkey(hash),
             BtcForkPayload::WitnessProgram { version, program } => {
-                let witness_program =
-                    bitcoin::WitnessProgram::new(*version, program).expect("valid witness program");
-                Script::new_witness_program(&witness_program)
+                wallet_core_common::btc::witness_script_pubkey(*version, program)
             }
         }
     }

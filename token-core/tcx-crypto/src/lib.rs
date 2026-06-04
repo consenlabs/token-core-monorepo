@@ -1,5 +1,5 @@
-pub mod aes;
 pub mod crypto;
+pub use wallet_core_common::aes;
 
 use core::result;
 pub use crypto::{Crypto, EncPair, KdfParams, Key, Pbkdf2Params, SCryptParams};

@@ -72,7 +72,7 @@ impl DeterministicPrivateKey for BLSDeterministicPrivateKey {
 
 impl Derive for BLSDeterministicPublicKey {}
 
-impl FromHex for BLSDeterministicPublicKey {
+impl FromHex<anyhow::Error> for BLSDeterministicPublicKey {
     fn from_hex<T: AsRef<[u8]>>(_: T) -> Result<Self> {
         panic!("not supported")
     }

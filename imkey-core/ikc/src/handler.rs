@@ -22,15 +22,13 @@ use coin_ethereum::address::EthAddress;
 use coin_filecoin::address::FilecoinAddress;
 use coin_substrate::address::{AddressType, SubstrateAddress};
 use coin_tron::address::TronAddress;
-use ikc_common::curve::CurveType;
 use ikc_common::error::CommonError;
-use ikc_common::hex::ToHex;
 use ikc_common::path::get_account_path;
 use ikc_common::utility::{
     encrypt_xpub, extended_pub_key_derive, from_ss58check_with_version, get_xpub_prefix,
     network_convert, to_ss58check_with_version, uncompress_pubkey_2_compress,
 };
-use ikc_common::SignParam;
+use ikc_common::{CurveType, SignParam, ToHex};
 use prost::Message;
 use std::str::FromStr;
 

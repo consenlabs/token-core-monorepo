@@ -1,7 +1,6 @@
 use crate::constants::{BTC_AID, COSMOS_AID, EOS_AID, ETH_AID, LC_MAX};
 use crate::error::ApduError;
-use crate::hex::ToHex;
-use crate::Result;
+use crate::{Result, ToHex};
 use hex;
 
 pub trait CoinCommonApdu: Default {

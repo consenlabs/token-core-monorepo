@@ -7,6 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+wallet-core-common = { path = "../../common/wallet-core-common", features = ["aes", "bip32", "curve", "hash", "path", "utility"] }
 hyper = { version = "=1.9.0", features = ["full"] }
 hyper-util = { version = "=0.1.20", features = ["client-legacy", "http1", "http2", "tokio"] }
 hyper-tls = "=0.6.0"
@@ -18,19 +19,12 @@ serde_json = "=1.0.149"
 hex = "=0.4.3"
 tokio = { version = "=1.52.3", features = ["full"] }
 regex = "=1.12.3"
-num-bigint = "=0.4.6"
-num-traits = "=0.2.19"
-num-integer = "=0.1.46"
 prost = "=0.14.3"
 bytes = "=1.11.1"
 prost-types = "=0.14.3"
-secp256k1 = { version = "=0.31.1", features = ["rand", "recovery"] }
 anyhow = "=1.0.102"
 lazy_static = "=1.5.0"
-aes = "=0.9.0"
-cbc = "=0.2.1"
 parking_lot = "=0.12.5"
 bitcoin = "=0.32.9"
 byteorder = "=1.5.0"
 thiserror = "=2.0.18"
-base64 = "=0.22.1"
