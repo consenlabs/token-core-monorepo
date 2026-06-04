@@ -24,6 +24,7 @@ use tcx::handler::{encode_message, import_private_key};
 use tcx_constants::{CurveType, TEST_WIF};
 use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
 
+#[cfg(feature = "cache_dk")]
 use std::fs;
 
 use crate::common::*;
