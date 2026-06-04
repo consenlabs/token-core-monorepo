@@ -21,6 +21,7 @@ members = [
     "token-core/tcx-ton",
     "token-core/tcx-common",
     "token-core/tcx-migration",
+    "token-core/tcx-wasm",
     "token-core/tcx-libs/ed25519-dalek-bip32",
     "token-core/tcx-libs/tonlib-core",
     "imkey-core/ikc",

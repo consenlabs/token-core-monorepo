@@ -40,8 +40,10 @@
 - `token-core/tcx-keystore`：HD/private keystore、身份、签名接口、账户派生。
 - `token-core/tcx-migration`：旧 keystore 迁移、扫描、升级。
 - `token-core/tcx-btc-kin`、`tcx-eth`、`tcx-tron`、`tcx-ckb`、`tcx-atom`、`tcx-eos`、`tcx-substrate`、`tcx-filecoin`、`tcx-tezos`、`tcx-ton`、`tcx-eth2`：链级地址和签名实现。
+- `token-core/tcx-wasm`：TokenCoreX 的 wasm 绑定层，用于浏览器/Passkey/keyless 方向的最小 Rust 集成。
 - `token-core/tcx-libs`：本地维护/集成的底层库，例如 `ed25519-dalek-bip32`、`tonlib-core`。
 - `token-core/test-data`：迁移、扫描、重置密码等测试 fixture，测试会读写这些数据的临时副本。
+- `examples/wasm`：`tcx-wasm` 的 Next.js 浏览器示例，用于本地加载生成的 wasm 包并跑浏览器侧功能验证。
 
 ### imkey-core
 
@@ -80,8 +82,17 @@ cargo build
 # TokenCoreX 测试，不包含 imkey-core/coin-* 测试
 make test-tcx
 
-# imkey-core 测试；注意：包含需要真实 imKey 设备的测试
+# imkey-core host-safe 测试，默认不依赖真实 imKey 设备
 make test-ikc
+
+# workspace 分层验证：先编译全部测试目标，再跑默认非硬件测试
+make test-workspace
+
+# imKey 硬件测试，串行执行，要求真实设备连接和授权
+make test-hardware
+
+# tcx-wasm wasm32/native 编译验证
+make test-wasm
 
 # 编译检查
 cargo check --workspace
@@ -110,16 +121,41 @@ MACOSX_DEPLOYMENT_TARGET=10.12 KDF_ROUNDS=1 cargo test --workspace --exclude 'ik
 
 ### imkey-core
 
-`make test-ikc` 会执行 imkey 侧 workspace 测试，但其中很多测试需要真实 imKey 设备或 APDU 通道，例如：
+`make test-ikc` 当前只执行 imKey host-safe 子集，默认不连接真实 imKey 设备：
+
+- `ikc-common`，跳过依赖外部 TSM 网络的 `https::test::post_test`。
+- `ikc-proto`。
+- `ikc` 中不触发硬件的聚焦兼容性测试。
+
+真实设备测试统一放到 `make test-hardware`，该目标使用 `--test-threads=1 --nocapture` 串行执行，便于逐个在设备上确认授权。
+
+硬件测试通常包含以下标记或行为：
 
 - 调用 `bind_test()`
 - 调用 `hid_connect(...)`
 - 通过 `send_apdu(...)` 与设备交互
 - 地址展示、xpub 获取、硬件签名、设备管理、绑定、COS/app 管理测试
 
-没有连接设备时，完整 `make test-ikc` 可能失败，这是测试环境问题，不一定是代码回归。
+更完整的阶段二测试边界记录见 `doc/testing-strategy-phase2.md`。
 
-不需要连接设备的本地测试可通过 `cargo test --workspace --exclude 'tcx*' -- --skip ...` 过滤硬件测试执行。当前已验证过本地集合，另外 `https::test::post_test` 依赖外部 TSM 网络接口，也应与纯本地测试分开看待。
+### tcx-wasm
+
+`tcx-wasm` 已纳入 workspace。验证入口：
+
+```bash
+make test-wasm
+```
+
+wasm32 目标默认使用 `/opt/homebrew/opt/llvm/bin/clang`，因为当前 macOS Apple clang 不能直接编译 `secp256k1-sys` 的 wasm C 代码。可通过 `WASM_CC=...` 和 `WASM_CFLAGS=...` 覆盖。
+
+浏览器示例入口：
+
+```bash
+make build-wasm
+make dev-wasm
+```
+
+`make build-npm` 会按 npm 发布形态构建 `tcx-wasm`，输出到 `publish/npm`。
 
 ### KDF_ROUNDS
 
@@ -169,4 +205,3 @@ MACOSX_DEPLOYMENT_TARGET=10.12 KDF_ROUNDS=1 cargo test --workspace --exclude 'ik
 - imKeyCore 文档：`imkey-core/ikc-docs/`
 - 发布文档：`publish/README.md`、`publish/android/README.md`
 - 依赖升级记录：`dependency-upgrade-list.md`
-
