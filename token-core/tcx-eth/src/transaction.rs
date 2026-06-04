@@ -65,7 +65,11 @@ pub struct EthRecoverAddressOutput {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum SignatureType {
+    /// Ethereum personal_sign: hashes "\x19Ethereum Signed Message:\n" || len || message.
     PersonalSign = 0,
+    /// Raw secp256k1 signing over keccak256(message). This is kept for legacy
+    /// callers; prefer a domain-specific API such as transaction signing,
+    /// personal_sign, or typed-data signing when the payload semantics are known.
     EcSign = 1,
 }
 impl SignatureType {

@@ -20,14 +20,20 @@ use prost::Message;
 use sp_core::ByteArray;
 use sp_runtime::traits::Verify;
 
+#[cfg(feature = "cache_dk")]
+use tcx::api::DerivedKeyResult;
+#[cfg(feature = "test_api")]
+use tcx::api::GeneralResult;
+#[cfg(any(feature = "cache_dk", feature = "test_api"))]
+use tcx::api::WalletKeyParam;
 use tcx::api::{
-    sign_param, DeriveAccountsParam, DeriveAccountsResult, DerivedKeyResult, GeneralResult,
-    GetPublicKeysParam, GetPublicKeysResult, ImportMnemonicParam, ImportPrivateKeyParam,
-    ImportPrivateKeyResult, KeystoreResult, PublicKeyDerivation, SignHashesParam, SignHashesResult,
-    SignParam, WalletKeyParam,
+    sign_param, DeriveAccountsParam, DeriveAccountsResult, GetPublicKeysParam, GetPublicKeysResult,
+    ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult, KeystoreResult,
+    PublicKeyDerivation, SignHashesParam, SignHashesResult, SignParam,
 };
 
 use tcx::handler::encode_message;
+#[cfg(feature = "cache_dk")]
 use tcx::handler::get_derived_key;
 use tcx_btc_kin::transaction::{
     BtcKinTxInput, BtcMessageInput, BtcMessageOutput, BtcSignatureType,
@@ -47,6 +53,62 @@ use tcx_substrate::{SubstrateRawTxIn, SubstrateTxOut};
 use tcx_tezos::transaction::{TezosRawTxIn, TezosTxOut};
 use tcx_ton::transaction::{TonRawTxIn, TonTxOut};
 use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
+
+#[test]
+#[serial]
+pub fn test_recommended_sign_transaction_alias() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+        let raw_data = "0a0202a22208e216e254e43ee10840c8cbe4e3df2d5a67080112630a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412320a15415c68cc82c87446f602f019e5fd797437f5b79cc212154156a6076cd1537fa317c2606e4edfa4acd3e8e92e18a08d06709084e1e3df2d".to_string();
+        let input = TronTxInput { raw_data };
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_owned())),
+            chain_type: "TRON".to_string(),
+            path: "m/44'/195'/0'/0/0".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: encode_message(input).unwrap(),
+            }),
+        };
+
+        let ret = call_api("sign_transaction", tx).unwrap();
+        let output: TronTxOutput = TronTxOutput::decode(ret.as_slice()).unwrap();
+        assert!(!output.signatures.is_empty());
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_recommended_sign_message_alias() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+        let input = EthMessageInput {
+            message: "hello imToken".to_string(),
+            signature_type: tcx_eth::transaction::SignatureType::PersonalSign as i32,
+        };
+        let tx = SignParam {
+            id: wallet.id.to_string(),
+            key: Some(Key::Password(TEST_PASSWORD.to_owned())),
+            chain_type: "ETHEREUM".to_string(),
+            path: "m/44'/60'/0'/0/0".to_string(),
+            curve: "secp256k1".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            input: Some(::prost_types::Any {
+                type_url: "imtoken".to_string(),
+                value: encode_message(input).unwrap(),
+            }),
+        };
+
+        let ret = call_api("sign_message", tx).unwrap();
+        let output: EthMessageOutput = EthMessageOutput::decode(ret.as_slice()).unwrap();
+        assert!(!output.signature.is_empty());
+    })
+}
 
 #[test]
 #[serial]
@@ -599,6 +661,7 @@ pub fn test_sign_filecoin_secp256k1() {
 
 #[test]
 #[serial]
+#[cfg(feature = "cache_dk")]
 pub fn test_sign_by_dk_in_pk_store() {
     run_test(|| {
         let import_result = import_default_pk_store();
@@ -891,6 +954,7 @@ fn test_bitcoin_sign_message_incompatible() {
 
 #[test]
 #[serial]
+#[cfg(feature = "cache_dk")]
 fn test_sign_by_dk_hd_store() {
     run_test(|| {
         let wallet = import_default_wallet();
@@ -1055,6 +1119,7 @@ pub fn test_lock_after_sign() {
 
 #[test]
 #[serial]
+#[cfg(feature = "test_api")]
 #[ignore = "this case is test panic"]
 fn test_panic_keystore_locked() {
     run_test(|| {
@@ -1239,7 +1304,7 @@ pub fn test_sign_hashes() {
             )),
             data_to_sign,
         };
-        let result_bytes = call_api("sign_hashes", param).unwrap();
+        let result_bytes = call_api("sign_raw_hashes", param).unwrap();
         let result = SignHashesResult::decode(result_bytes.as_slice()).unwrap();
         assert_eq!(result.signatures.get(0).unwrap(), "0x8fa5d4dfe4766de7896f0e32c5bee9baae47aaa843cf5f1a2587dd9aaedf8a8c4400cb31bdcb1e90ddfe6d309e57841204dbf53704e4c4da3a9d25e9b4a09dac31a3221a7aac76f58ca21854173303cf58f039770a9e2307966e89faf0e5e79e");
 

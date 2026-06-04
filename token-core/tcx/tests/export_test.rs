@@ -5,22 +5,26 @@ mod common;
 
 use tcx::api::derive_accounts_param::Derivation;
 
+#[cfg(feature = "cache_dk")]
 use tcx::handler::cache_keystores;
 use tcx::*;
 
 use prost::Message;
+#[cfg(feature = "cache_dk")]
+use tcx::api::DerivedKeyResult;
 use tcx::api::{
     export_private_key_param, BackupResult, DeriveAccountsParam, DeriveAccountsResult,
-    DerivedKeyResult, ExistsKeystoreResult, ExistsPrivateKeyParam, ExportMnemonicResult,
-    ExportPrivateKeyParam, ExportPrivateKeyResult, GetPublicKeysParam, GetPublicKeysResult,
-    ImportJsonParam, ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult,
-    KeystoreResult, PublicKeyDerivation, WalletKeyParam,
+    ExistsKeystoreResult, ExistsPrivateKeyParam, ExportMnemonicResult, ExportPrivateKeyParam,
+    ExportPrivateKeyResult, GetPublicKeysParam, GetPublicKeysResult, ImportJsonParam,
+    ImportMnemonicParam, ImportPrivateKeyParam, ImportPrivateKeyResult, KeystoreResult,
+    PublicKeyDerivation, WalletKeyParam,
 };
 
 use tcx::handler::{encode_message, import_private_key};
 use tcx_constants::{CurveType, TEST_WIF};
 use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
 
+#[cfg(feature = "cache_dk")]
 use std::fs;
 
 use crate::common::*;
@@ -564,27 +568,30 @@ pub fn test_backup_v3_keystore() {
             .original
             .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
 
-        let param = WalletKeyParam {
-            id: import_result.id.to_string(),
-            key: Some(api::wallet_key_param::Key::Password(
-                TEST_PASSWORD.to_owned(),
-            )),
-        };
+        #[cfg(feature = "cache_dk")]
+        {
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
 
-        let ret = call_api("get_derived_key", param).unwrap();
-        let derived_key_result: DerivedKeyResult =
-            DerivedKeyResult::decode(ret.as_slice()).unwrap();
-        let param = WalletKeyParam {
-            id: import_result.id.to_string(),
-            key: Some(api::wallet_key_param::Key::DerivedKey(
-                derived_key_result.derived_key,
-            )),
-        };
-        let ret = call_api("backup", param).unwrap();
-        let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
-        assert!(export_result
-            .original
-            .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
+            let ret = call_api("get_derived_key", param).unwrap();
+            let derived_key_result: DerivedKeyResult =
+                DerivedKeyResult::decode(ret.as_slice()).unwrap();
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::DerivedKey(
+                    derived_key_result.derived_key,
+                )),
+            };
+            let ret = call_api("backup", param).unwrap();
+            let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
+            assert!(export_result
+                .original
+                .contains("0x6031564e7b2F5cc33737807b2E58DaFF870B590b"));
+        }
     })
 }
 
@@ -635,27 +642,30 @@ pub fn test_backup_pjs_kystore() {
             .original
             .contains("JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS"));
 
-        let param = WalletKeyParam {
-            id: import_result.id.to_string(),
-            key: Some(api::wallet_key_param::Key::Password(
-                TEST_PASSWORD.to_owned(),
-            )),
-        };
+        #[cfg(feature = "cache_dk")]
+        {
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
 
-        let ret = call_api("get_derived_key", param).unwrap();
-        let derived_key_result: DerivedKeyResult =
-            DerivedKeyResult::decode(ret.as_slice()).unwrap();
-        let param = WalletKeyParam {
-            id: import_result.id.to_string(),
-            key: Some(api::wallet_key_param::Key::DerivedKey(
-                derived_key_result.derived_key,
-            )),
-        };
-        let ret = call_api("backup", param).unwrap();
-        let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
-        assert!(export_result
-            .original
-            .contains("JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS"));
+            let ret = call_api("get_derived_key", param).unwrap();
+            let derived_key_result: DerivedKeyResult =
+                DerivedKeyResult::decode(ret.as_slice()).unwrap();
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::DerivedKey(
+                    derived_key_result.derived_key,
+                )),
+            };
+            let ret = call_api("backup", param).unwrap();
+            let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
+            assert!(export_result
+                .original
+                .contains("JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS"));
+        }
     })
 }
 
@@ -694,31 +704,34 @@ pub fn test_backup_private_key() {
         let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
         assert_eq!(export_result.original, TEST_WIF);
 
-        let param = WalletKeyParam {
-            id: import_result.id.to_string(),
-            key: Some(api::wallet_key_param::Key::Password(
-                TEST_PASSWORD.to_owned(),
-            )),
-        };
+        #[cfg(feature = "cache_dk")]
+        {
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
 
-        let ret = call_api("get_derived_key", param).unwrap();
-        let derived_key_result: DerivedKeyResult =
-            DerivedKeyResult::decode(ret.as_slice()).unwrap();
-        let param = WalletKeyParam {
-            id: import_result.id.to_string(),
-            key: Some(api::wallet_key_param::Key::DerivedKey(
-                derived_key_result.derived_key,
-            )),
-        };
-        let ret = call_api("backup", param.clone()).unwrap();
-        let backup_result = BackupResult::decode(ret.as_slice()).unwrap();
-        assert_eq!(backup_result.original, TEST_WIF);
+            let ret = call_api("get_derived_key", param).unwrap();
+            let derived_key_result: DerivedKeyResult =
+                DerivedKeyResult::decode(ret.as_slice()).unwrap();
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::DerivedKey(
+                    derived_key_result.derived_key,
+                )),
+            };
+            let ret = call_api("backup", param.clone()).unwrap();
+            let backup_result = BackupResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(backup_result.original, TEST_WIF);
 
-        change_fingerprint_in_keystore(&import_result.id, &import_result.source_fingerprint);
-        cache_keystores().unwrap();
+            change_fingerprint_in_keystore(&import_result.id, &import_result.source_fingerprint);
+            cache_keystores().unwrap();
 
-        let ret = call_api("backup", param);
-        assert_eq!(format!("{}", ret.err().unwrap()), "fingerprint_not_match");
+            let ret = call_api("backup", param);
+            assert_eq!(format!("{}", ret.err().unwrap()), "fingerprint_not_match");
+        }
     })
 }
 
@@ -747,34 +760,38 @@ pub fn test_backup_mnemonic() {
         let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
         assert_eq!(export_result.original, TEST_MNEMONIC.to_string());
 
-        let param = WalletKeyParam {
-            id: import_result.id.to_string(),
-            key: Some(api::wallet_key_param::Key::Password(
-                TEST_PASSWORD.to_owned(),
-            )),
-        };
+        #[cfg(feature = "cache_dk")]
+        {
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            };
 
-        let ret = call_api("get_derived_key", param).unwrap();
-        let derived_key_result: DerivedKeyResult =
-            DerivedKeyResult::decode(ret.as_slice()).unwrap();
-        let param = WalletKeyParam {
-            id: import_result.id.to_string(),
-            key: Some(api::wallet_key_param::Key::DerivedKey(
-                derived_key_result.derived_key,
-            )),
-        };
-        let ret = call_api("backup", param.clone()).unwrap();
-        let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
-        assert_eq!(export_result.original, TEST_MNEMONIC.to_string());
+            let ret = call_api("get_derived_key", param).unwrap();
+            let derived_key_result: DerivedKeyResult =
+                DerivedKeyResult::decode(ret.as_slice()).unwrap();
+            let param = WalletKeyParam {
+                id: import_result.id.to_string(),
+                key: Some(api::wallet_key_param::Key::DerivedKey(
+                    derived_key_result.derived_key,
+                )),
+            };
+            let ret = call_api("backup", param.clone()).unwrap();
+            let export_result: BackupResult = BackupResult::decode(ret.as_slice()).unwrap();
+            assert_eq!(export_result.original, TEST_MNEMONIC.to_string());
 
-        change_fingerprint_in_keystore(&import_result.id, &import_result.source_fingerprint);
-        cache_keystores().unwrap();
+            change_fingerprint_in_keystore(&import_result.id, &import_result.source_fingerprint);
+            cache_keystores().unwrap();
 
-        let ret = call_api("backup", param);
-        assert_eq!(format!("{}", ret.err().unwrap()), "fingerprint_not_match");
+            let ret = call_api("backup", param);
+            assert_eq!(format!("{}", ret.err().unwrap()), "fingerprint_not_match");
+        }
     })
 }
 
+#[cfg(feature = "cache_dk")]
 fn change_fingerprint_in_keystore(id: &str, fingerprint: &str) {
     let file_path = format!("/tmp/imtoken/walletsV2/{}.json", id);
     let contents = fs::read_to_string(&file_path).unwrap();

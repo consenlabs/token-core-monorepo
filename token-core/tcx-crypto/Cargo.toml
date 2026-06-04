@@ -19,6 +19,7 @@ sha2 = "=0.11.0"
 digest = "=0.11.3"
 hmac = "=0.13.0"
 pbkdf2 = "=0.13.0"
+argon2 = "=0.5.3"
 bitcoin_hashes = "=0.20.0"
 anyhow = { version = "=1.0.102", features = [] }
 secp256k1 = {version = "=0.31.1", features = ["rand", "recovery"] }

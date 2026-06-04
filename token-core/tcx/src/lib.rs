@@ -21,13 +21,17 @@ use anyhow::Error;
 use std::result;
 
 use crate::error_handling::{landingpad, LAST_ERROR};
+#[cfg(feature = "cache_dk")]
+use crate::handler::get_derived_key;
+#[cfg(feature = "test_api")]
+use crate::handler::unlock_then_crash;
 use crate::handler::{
     create_keystore, decrypt_data_from_ipfs, delete_keystore, derive_accounts, derive_sub_accounts,
     encode_message, encrypt_data_to_ipfs, eth_batch_personal_sign, exists_json, exists_mnemonic,
-    exists_private_key, export_json, export_mnemonic, export_private_key, get_derived_key,
-    get_extended_public_keys, get_public_keys, import_json, import_mnemonic, import_private_key,
-    mnemonic_to_public, scan_keystores, sign_authentication_message, sign_hashes, sign_message,
-    sign_psbt, sign_psbts, sign_tx, unlock_then_crash, verify_password,
+    exists_private_key, export_json, export_mnemonic, export_private_key, get_extended_public_keys,
+    get_public_keys, import_json, import_mnemonic, import_private_key, mnemonic_to_public,
+    scan_keystores, sign_authentication_message, sign_hashes, sign_message, sign_psbt, sign_psbts,
+    sign_tx, verify_password,
 };
 use crate::migration::{migrate_keystore, scan_legacy_keystores};
 
@@ -96,16 +100,16 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "exists_mnemonic" => landingpad(|| exists_mnemonic(&action.param.unwrap().value)),
         "exists_private_key" => landingpad(|| exists_private_key(&action.param.unwrap().value)),
         "derive_sub_accounts" => landingpad(|| derive_sub_accounts(&action.param.unwrap().value)),
-        "sign_tx" => landingpad(|| sign_tx(&action.param.unwrap().value)),
-        "sign_msg" => landingpad(|| sign_message(&action.param.unwrap().value)),
+        "sign_tx" | "sign_transaction" => landingpad(|| sign_tx(&action.param.unwrap().value)),
+        "sign_msg" | "sign_message" => landingpad(|| sign_message(&action.param.unwrap().value)),
         "exists_json" => landingpad(|| exists_json(&action.param.unwrap().value)),
         "import_json" => landingpad(|| import_json(&action.param.unwrap().value)),
         "export_json" => landingpad(|| export_json(&action.param.unwrap().value)),
         "backup" => landingpad(|| backup(&action.param.unwrap().value)),
 
-        // !!! WARNING !!! used for `cache_dk` feature
+        #[cfg(feature = "cache_dk")]
         "get_derived_key" => landingpad(|| get_derived_key(&action.param.unwrap().value)),
-        // !!! WARNING !!! used for test only
+        #[cfg(feature = "test_api")]
         "unlock_then_crash" => landingpad(|| unlock_then_crash(&action.param.unwrap().value)),
 
         "encrypt_data_to_ipfs" => landingpad(|| encrypt_data_to_ipfs(&action.param.unwrap().value)),
@@ -121,7 +125,9 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
             landingpad(|| get_extended_public_keys(&action.param.unwrap().value))
         }
         "get_public_keys" => landingpad(|| get_public_keys(&action.param.unwrap().value)),
-        "sign_hashes" => landingpad(|| sign_hashes(&action.param.unwrap().value)),
+        "sign_hashes" | "sign_raw_hashes" => {
+            landingpad(|| sign_hashes(&action.param.unwrap().value))
+        }
         "mnemonic_to_public" => landingpad(|| mnemonic_to_public(&action.param.unwrap().value)),
         "sign_bls_to_execution_change" => {
             landingpad(|| sign_bls_to_execution_change(&action.param.unwrap().value))

@@ -145,6 +145,13 @@ message ImportJsonParam {
 }
 
 
+// Common chain signing parameter.
+//
+// Recommended TcxAction method names:
+// - `sign_transaction`: transaction signing; legacy alias `sign_tx`.
+// - `sign_message`: chain message signing; legacy alias `sign_msg`.
+//
+// The concrete input type is chain-specific and is carried in `input`.
 message SignParam {
   string id = 1;
   oneof key {
