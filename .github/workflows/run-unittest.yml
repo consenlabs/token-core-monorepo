@@ -1,64 +1,219 @@
-name: Run Tcx Unit Testing
+name: CI Quality Gates
 
 on:
   pull_request:
     types:
       - opened
       - synchronize
+      - reopened
+      - ready_for_review
+  push:
+    branches:
+      - main
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.number || github.sha }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
   CARGO_TERM_COLOR: always
-
+  MACOSX_DEPLOYMENT_TARGET: "10.12"
+  KDF_ROUNDS: "1"
 
 jobs:
-  build:
-    name: Run Tcx Unit Testing
+  fmt:
+    name: cargo fmt
     runs-on: macos-14
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     steps:
-      - name: Get the latest commit SHA
-        id: sha
-        uses: actions/github-script@v6
-        with:
-          result-encoding: string
-          script: |
-            const { owner, repo, number } = context.issue
-            const pr = await github.rest.pulls.get({
-              owner,
-              repo,
-              pull_number: number,
-            })
-            return pr.data.head.sha
-
       - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          ref: ${{ steps.sha.outputs.result }}
-          fetch-depth: 5
+        uses: actions/checkout@v4
 
-      - name: Cache
+      - name: Install Rust
+        run: rustup component add rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --check
+
+  clippy:
+    name: cargo clippy
+    runs-on: macos-14
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache cargo artifacts
         uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            ~/.rustup
             target
-          key: ${{ runner.os }}-nightly
+          key: ${{ runner.os }}-cargo-clippy-${{ hashFiles('Cargo.lock') }}
 
       - name: Install Rust
-        run: |
-          rustup toolchain install nightly-2022-10-31
-          rustup default nightly-2022-10-31-aarch64-apple-darwin
-          rustup show
+        run: rustup component add clippy
 
       - name: Install dependency
-        run: |
-          brew install protobuf
+        run: brew install protobuf
 
-      - name: Run TCX Unit Testing
+      - name: Run clippy
         run: |
-          make test-tcx
+          cargo clippy --workspace --all-targets -- \
+            -D warnings \
+            -A clippy::redundant_field_names \
+            -A clippy::redundant_static_lifetimes \
+            -A clippy::field_reassign_with_default \
+            -A clippy::unnecessary_unwrap \
+            -A clippy::needless_borrows_for_generic_args \
+            -A clippy::needless_borrow \
+            -A clippy::to_string_trait_impl \
+            -A clippy::large_enum_variant \
+            -A clippy::assign_op_pattern \
+            -A clippy::useless_vec \
+            -A clippy::explicit_counter_loop \
+            -A clippy::unnecessary_to_owned \
+            -A clippy::len_zero \
+            -A clippy::needless_return \
+            -A clippy::clone_on_copy \
+            -A clippy::let_unit_value \
+            -A clippy::single_match \
+            -A clippy::ptr_arg \
+            -A clippy::to_string_in_format_args \
+            -A clippy::op_ref \
+            -A clippy::new_without_default \
+            -A clippy::suspicious_open_options \
+            -A clippy::no_effect \
+            -A clippy::unused_unit \
+            -A clippy::derivable_impls \
+            -A clippy::manual_is_multiple_of \
+            -A clippy::unnecessary_cast \
+            -A clippy::get_last_with_len \
+            -A clippy::comparison_to_empty \
+            -A clippy::needless_as_bytes \
+            -A clippy::manual_strip \
+            -A clippy::doc_overindented_list_items \
+            -A clippy::needless_range_loop \
+            -A clippy::redundant_slicing \
+            -A clippy::needless_bool \
+            -A clippy::let_and_return \
+            -A clippy::char_lit_as_u8 \
+            -A clippy::legacy_numeric_constants \
+            -A clippy::useless_conversion \
+            -A clippy::manual_saturating_arithmetic \
+            -A clippy::get_first \
+            -A clippy::manual_div_ceil \
+            -A clippy::sliced_string_as_bytes \
+            -A clippy::needless_late_init \
+            -A clippy::manual_map \
+            -A clippy::vec_init_then_push \
+            -A clippy::map_clone \
+            -A clippy::empty_line_after_doc_comments \
+            -A clippy::nonminimal_bool \
+            -A clippy::match_like_matches_macro \
+            -A clippy::type_complexity \
+            -A clippy::missing_const_for_thread_local \
+            -A clippy::cmp_owned \
+            -A clippy::ok_expect \
+            -A clippy::missing_safety_doc \
+            -A clippy::not_unsafe_ptr_arg_deref \
+            -A clippy::redundant_closure \
+            -A clippy::needless_update \
+            -A clippy::manual_range_contains \
+            -A clippy::bool_assert_comparison \
+            -A clippy::identity_op \
+            -A clippy::unwrap_or_default \
+            -A clippy::bind_instead_of_map \
+            -A clippy::assertions_on_constants \
+            -A clippy::manual_flatten \
+            -A clippy::useless_format
+
+  test-no-run:
+    name: cargo test --no-run
+    runs-on: macos-14
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-test-no-run-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install dependency
+        run: brew install protobuf
+
+      - name: Compile workspace test targets
+        run: cargo test --workspace --no-run
+
+  host-tests:
+    name: host-safe unit tests
+    runs-on: macos-14
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-host-tests-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install dependency
+        run: brew install protobuf
+
+      - name: Run TokenCore host tests
+        run: make test-tcx
+
+      - name: Run imKey host-safe tests
+        run: make test-ikc
+
+  wasm-check:
+    name: wasm check
+    runs-on: macos-14
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-wasm-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install dependencies
+        run: brew install llvm protobuf
+
+      - name: Install wasm target
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Run wasm check
+        run: make test-wasm
+
+  dependency-policy:
+    name: dependency audit and licenses
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run cargo-deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          rust-version: nightly-2026-04-06
+          command: check advisories licenses sources

@@ -10,6 +10,25 @@ Generated after upgrading the remaining 12 crates and pinning registry dependenc
 - `generic-array 0.14.9` requires a local `[patch.crates-io]` for `crypto-common 0.1.7`, because upstream `crypto-common 0.1.7` exact-pins `generic-array = 0.14.7`.
 - `forest_message`, `forest_crypto`, and unused `crypto-mac` were removed to clear old transitive constraints.
 
+## CI Deny Remediation
+
+Added after enabling `cargo-deny` in CI:
+
+| Dependency | Previous | Current | Reason |
+|---|---:|---:|---|
+| `aes` | `=0.9.0` | `=0.9.1` | Removes the yanked `0.9.0` release while keeping an exact dependency requirement. |
+
+The remaining `cargo-deny` advisory exceptions are recorded in `deny.toml` because they are not direct patch-level upgrades:
+
+| Advisory | Crate | Current blocker |
+|---|---|---|
+| `RUSTSEC-2020-0036` | `failure` | Pulled by `bch_addr/cash_addr 0.1.0`; no newer `bch_addr` release exists. Replacing the BCH address codec requires compatibility tests. |
+| `RUSTSEC-2023-0071` | `rsa` | Direct `ikc-device` dependency. `rsa 0.10.0-rc.18` was tested and is still affected; the advisory has no safe upgrade yet. |
+| `RUSTSEC-2023-0037` | `xsalsa20poly1305` | Replacement `crypto_secretbox 0.2.0-pre.0` conflicts with the workspace RustCrypto `cipher 0.5.2` stack. |
+| `RUSTSEC-2024-0370` | `proc-macro-error` | Pulled by the legacy Filecoin `forest_cid/cid/multihash` dependency stack. |
+| `RUSTSEC-2024-0436` | `paste` | Pulled by the Substrate `sp-core 41.0.0` dependency stack. |
+| `RUSTSEC-2025-0161` | `libsecp256k1` | Pulled by `sp-core 41.0.0`; the advisory has no safe direct upgrade and implies a larger Substrate/k256 migration. |
+
 ## Additional 12 Dependencies Completed
 
 | Dependency | Previous current | Current/latest | Note |
@@ -33,7 +52,7 @@ Changed dependency names: 76
 
 | Dependency | Before | After |
 |---|---:|---:|
-| `aes` | `=0.8.3` | `=0.9.0` |
+| `aes` | `=0.8.3` | `=0.9.1` |
 | `anyhow` | `=1.0.79` | `=1.0.102` |
 | `base32` | `=0.4.0` | `=0.5.1` |
 | `base64` | `0.22, =0.13.1` | `=0.22.1` |
@@ -116,7 +135,7 @@ Current registry dependency names declared in Cargo.toml files: 94
 
 | Dependency | Requirement |
 |---|---:|
-| `aes` | `=0.9.0` |
+| `aes` | `=0.9.1` |
 | `anyhow` | `=1.0.102` |
 | `base32` | `=0.5.1` |
 | `base58` | `=0.2.0` |

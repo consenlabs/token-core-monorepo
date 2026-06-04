@@ -17,17 +17,15 @@ lazy_static! {
 const DEV_VID: u16 = 0x096e;
 const DEV_PID: u16 = 0x0891;
 
-pub fn hid_send(apdu: &String, timeout: i32) -> Result<String> {
+pub fn hid_send(apdu: &str, timeout: i32) -> Result<String> {
     //get hid_device obj
-    let hid_device_obj: &Vec<HidDevice> = &HID_DEVICE.lock();
+    let hid_device_obj = HID_DEVICE.lock();
     if hid_device_obj.is_empty() {
         return Err(HidError::DeviceConnectInterfaceNotCalled.into());
     }
-    send_device_message(
-        &hid_device_obj.get(0).unwrap(),
-        Vec::from_hex(apdu.as_str()).unwrap().as_slice(),
-    )?;
-    let return_data = read_device_response(&hid_device_obj.get(0).unwrap(), timeout)?;
+    let device = hid_device_obj.first().unwrap();
+    send_device_message(device, Vec::from_hex(apdu).unwrap().as_slice())?;
+    let return_data = read_device_response(device, timeout)?;
     let apdu_response = hex::encode_upper(return_data);
     Ok(apdu_response)
 }
@@ -54,7 +52,7 @@ fn read_device_response(device: &hidapi::HidDevice, timeout: i32) -> Result<Vec<
     let mut buf = vec![0; 64];
     device.read(&mut buf)?;
 
-    let msg_size = (buf[5] as u8 & 0xFF) + (buf[6] as u8 & 0xFF);
+    let msg_size = buf[5] + buf[6];
     let mut data = Vec::new();
     data.extend_from_slice(&buf[7..]);
     while data.len() < (msg_size as usize) {
@@ -73,16 +71,17 @@ fn read_device_response(device: &hidapi::HidDevice, timeout: i32) -> Result<Vec<
 
 fn send_device_message(device: &hidapi::HidDevice, msg: &[u8]) -> Result<usize> {
     let msg_size = msg.len();
-    let mut headerdata = Vec::new();
     // first pack
-    headerdata.push(0x00 as u8);
-    headerdata.push(0x00 as u8);
-    headerdata.push(0x00 as u8);
-    headerdata.push(0x00 as u8);
-    headerdata.push(0x01 as u8);
-    headerdata.push(0x83 as u8);
-    headerdata.push((msg_size & 0xFF00) as u8);
-    headerdata.push((msg_size & 0x00FF) as u8);
+    let headerdata = [
+        0x00,
+        0x00,
+        0x00,
+        0x00,
+        0x01,
+        0x83,
+        (msg_size & 0xFF00) as u8,
+        (msg_size & 0x00FF) as u8,
+    ];
     let mut data = Vec::new();
     if (msg_size + 8) <= 65 {
         data.extend_from_slice(&headerdata[0..8]);
@@ -91,7 +90,7 @@ fn send_device_message(device: &hidapi::HidDevice, msg: &[u8]) -> Result<usize> 
         let mut datalenflage = 0;
         let mut flg = 0;
         loop {
-            if !(datalenflage == 0) {
+            if datalenflage != 0 {
                 if datalenflage + 65 - 6 >= msg_size {
                     data.extend_from_slice(&headerdata[0..5]);
                     data.push(flg as u8);
@@ -100,7 +99,7 @@ fn send_device_message(device: &hidapi::HidDevice, msg: &[u8]) -> Result<usize> 
                 }
                 data.extend_from_slice(&headerdata[0..5]);
                 data.push(flg as u8);
-                flg = 1 + flg;
+                flg += 1;
                 data.extend_from_slice(&msg[datalenflage..datalenflage + 65 - 6]);
                 datalenflage += 65 - 6;
             } else {
@@ -113,7 +112,7 @@ fn send_device_message(device: &hidapi::HidDevice, msg: &[u8]) -> Result<usize> 
 
     let total_written = 0;
     for chunk in data.chunks(65) {
-        device.write(&chunk)?;
+        device.write(chunk)?;
     }
     Ok(total_written)
 }
@@ -132,22 +131,18 @@ pub fn hid_connect(_device_model_name: &str) -> Result<()> {
             *hid_device_obj = vec![hid_device];
             drop(hid_device_obj);
             send_apdu("00A40400".to_string())?;
-            return Ok(());
+            Ok(())
         }
         Err(err) => {
             // println!("device connect failed : {}", err);
             drop(hid_api);
             //Check if the connection is normal
             match send_apdu("00A40400".to_string()) {
-                Ok(_apdu_res) => {
-                    return Ok(());
-                }
-                Err(_err) => {
-                    return Err(err.into());
-                }
+                Ok(_apdu_res) => Ok(()),
+                Err(_err) => Err(err.into()),
             }
         }
-    };
+    }
 }
 
 #[cfg(test)]

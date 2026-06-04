@@ -104,52 +104,45 @@ impl CosUpgradeRequest {
                 }
 
                 let mut apdu_res: Vec<String> = vec![];
-                match return_bean.return_data.apdu_list {
-                    Some(apdu_list) => {
-                        for (index_val, apdu_val) in apdu_list.iter().enumerate() {
-                            //send apdu command and get return data
-                            let res = send_apdu(apdu_val.to_string())?;
-                            apdu_res.push(res.clone());
-                            if index_val == apdu_list.len() - 1 {
-                                request_data.status_word =
-                                    Some(String::from(&res[res.len() - 4..]));
-                                if constants::APDU_RSP_SUCCESS.eq(&res[res.len() - 4..])
-                                    || constants::APDU_RSP_SWITCH_BL_STATUS_SUCCESS
-                                        .eq(&res[res.len() - 4..])
-                                {
-                                    if "03".eq(next_step_key.as_str()) {
-                                        reconnect()?;
-                                        se_bl_version = Some(get_bl_version()?);
-                                        request_data.se_bl_version = se_bl_version;
-                                    } else if "05".eq(next_step_key.as_str()) {
-                                        reconnect()?;
-                                        se_cos_version = get_firmware_version()?;
-                                        request_data.se_cos_version = se_cos_version;
-                                    }
+                if let Some(apdu_list) = return_bean.return_data.apdu_list {
+                    for (index_val, apdu_val) in apdu_list.iter().enumerate() {
+                        //send apdu command and get return data
+                        let res = send_apdu(apdu_val.to_string())?;
+                        apdu_res.push(res.clone());
+                        if index_val == apdu_list.len() - 1 {
+                            request_data.status_word = Some(String::from(&res[res.len() - 4..]));
+                            if constants::APDU_RSP_SUCCESS.eq(&res[res.len() - 4..])
+                                || constants::APDU_RSP_SWITCH_BL_STATUS_SUCCESS
+                                    .eq(&res[res.len() - 4..])
+                            {
+                                if "03".eq(next_step_key.as_str()) {
+                                    reconnect()?;
+                                    se_bl_version = Some(get_bl_version()?);
+                                    request_data.se_bl_version = se_bl_version;
+                                } else if "05".eq(next_step_key.as_str()) {
+                                    reconnect()?;
+                                    se_cos_version = get_firmware_version()?;
+                                    request_data.se_cos_version = se_cos_version;
                                 }
                             }
                         }
-                        request_data.card_ret_data_list = Some(apdu_res);
                     }
-                    None => (),
+                    request_data.card_ret_data_list = Some(apdu_res);
                 }
 
                 if "06".eq(next_step_key.as_str()) {
                     //applet download
-                    match &return_bean.return_data.instance_aid_list {
-                        Some(aid_list) => {
-                            for temp_instance_aid in aid_list.iter() {
-                                AppDownloadRequest::build_request_data(
-                                    seid.clone(),
-                                    temp_instance_aid.clone(),
-                                    device_cert.clone(),
-                                    sdk_version.clone(),
-                                )
-                                .send_message()?;
-                            }
+                    if let Some(aid_list) = &return_bean.return_data.instance_aid_list {
+                        for temp_instance_aid in aid_list.iter() {
+                            AppDownloadRequest::build_request_data(
+                                seid.clone(),
+                                temp_instance_aid.clone(),
+                                device_cert.clone(),
+                                sdk_version.clone(),
+                            )
+                            .send_message()?;
                         }
-                        None => (),
-                    };
+                    }
                 }
                 request_data.step_key = next_step_key;
             } else {

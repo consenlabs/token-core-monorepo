@@ -9,13 +9,8 @@ pub trait CoinCommonApdu: Default {
     fn register_address(address: &[u8]) -> String;
 }
 
+#[derive(Default)]
 pub struct BtcApdu();
-
-impl Default for BtcApdu {
-    fn default() -> Self {
-        BtcApdu {}
-    }
-}
 
 impl CoinCommonApdu for BtcApdu {
     fn select_applet() -> String {
@@ -32,12 +27,12 @@ impl CoinCommonApdu for BtcApdu {
 }
 
 impl BtcApdu {
-    pub fn btc_prepare(ins: u8, p1: u8, data: &Vec<u8>) -> Vec<String> {
+    pub fn btc_prepare(ins: u8, p1: u8, data: &[u8]) -> Vec<String> {
         let mut apdu_vec = Vec::new();
         let apdu_number = (data.len() - 1) / LC_MAX as usize + 1;
         for index in 0..apdu_number {
             if index == apdu_number - 1 {
-                let length = if data.len() % LC_MAX as usize == 0 {
+                let length = if data.len().is_multiple_of(LC_MAX as usize) {
                     LC_MAX
                 } else {
                     (data.len() % LC_MAX as usize) as u32
@@ -50,15 +45,15 @@ impl BtcApdu {
                 let mut temp_apdu_vec =
                     ApduHeader::new(0x80, ins, p1, 0x00, LC_MAX as u8).to_array();
                 temp_apdu_vec.extend_from_slice(
-                    &data[index * LC_MAX as usize..((index + 1) * LC_MAX as usize) as usize],
+                    &data[index * LC_MAX as usize..(index + 1) * LC_MAX as usize],
                 );
                 apdu_vec.push(hex::encode_upper(temp_apdu_vec));
             }
         }
-        return apdu_vec;
+        apdu_vec
     }
 
-    pub fn btc_perpare_input(p1: u8, data: &Vec<u8>) -> String {
+    pub fn btc_perpare_input(p1: u8, data: &[u8]) -> String {
         if data.len() as u32 > LC_MAX {
             panic!("data to long");
         }
@@ -71,7 +66,7 @@ impl BtcApdu {
     /**
      *p2 00:sign psbt transaction  80: sign message
      **/
-    pub fn btc_psbt_preview(data: &Vec<u8>, p2: u8) -> String {
+    pub fn btc_psbt_preview(data: &[u8], p2: u8) -> String {
         if data.len() as u32 > LC_MAX {
             panic!("data to long");
         }
@@ -154,12 +149,12 @@ impl BtcApdu {
         Apdu::register_address(0x37, &data)
     }
 
-    pub fn btc_single_utxo_sign_prepare(ins: u8, data: &Vec<u8>) -> Vec<String> {
+    pub fn btc_single_utxo_sign_prepare(ins: u8, data: &[u8]) -> Vec<String> {
         let mut apdu_vec = Vec::new();
         let apdu_number = (data.len() - 1) / LC_MAX as usize + 1;
         for index in 0..apdu_number {
             if index == 0 && index == apdu_number - 1 {
-                let length = if data.len() % LC_MAX as usize == 0 {
+                let length = if data.len().is_multiple_of(LC_MAX as usize) {
                     LC_MAX
                 } else {
                     (data.len() % LC_MAX as usize) as u32
@@ -172,18 +167,18 @@ impl BtcApdu {
                 let mut temp_apdu_vec =
                     ApduHeader::new(0x80, ins, 0x00, 0x00, LC_MAX as u8).to_array();
                 temp_apdu_vec.extend_from_slice(
-                    &data[index * LC_MAX as usize..((index + 1) * LC_MAX as usize) as usize],
+                    &data[index * LC_MAX as usize..(index + 1) * LC_MAX as usize],
                 );
                 apdu_vec.push(hex::encode_upper(temp_apdu_vec));
             } else if index != 0 && index != apdu_number - 1 {
                 let mut temp_apdu_vec =
                     ApduHeader::new(0x80, ins, 0x80, 0x00, LC_MAX as u8).to_array();
                 temp_apdu_vec.extend_from_slice(
-                    &data[index * LC_MAX as usize..((index + 1) * LC_MAX as usize) as usize],
+                    &data[index * LC_MAX as usize..(index + 1) * LC_MAX as usize],
                 );
                 apdu_vec.push(hex::encode_upper(temp_apdu_vec));
             } else if index != 0 && index == apdu_number - 1 {
-                let length = if data.len() % LC_MAX as usize == 0 {
+                let length = if data.len().is_multiple_of(LC_MAX as usize) {
                     LC_MAX
                 } else {
                     (data.len() % LC_MAX as usize) as u32
@@ -194,7 +189,7 @@ impl BtcApdu {
                 apdu_vec.push(hex::encode_upper(temp_apdu_vec));
             }
         }
-        return apdu_vec;
+        apdu_vec
     }
 
     pub fn btc_single_utxo_sign(index: u8, hash_type: u8, path: &str) -> String {
@@ -207,13 +202,8 @@ impl BtcApdu {
     }
 }
 
+#[derive(Default)]
 pub struct EthApdu();
-
-impl Default for EthApdu {
-    fn default() -> Self {
-        EthApdu()
-    }
-}
 
 impl CoinCommonApdu for EthApdu {
     fn select_applet() -> String {
@@ -247,13 +237,8 @@ impl EthApdu {
     }
 }
 
+#[derive(Default)]
 pub struct EosApdu();
-
-impl Default for EosApdu {
-    fn default() -> Self {
-        EosApdu()
-    }
-}
 
 impl CoinCommonApdu for EosApdu {
     fn select_applet() -> String {
@@ -299,13 +284,8 @@ impl EosApdu {
     }
 }
 
+#[derive(Default)]
 pub struct CosmosApdu();
-
-impl Default for CosmosApdu {
-    fn default() -> Self {
-        CosmosApdu()
-    }
-}
 
 impl CoinCommonApdu for CosmosApdu {
     fn select_applet() -> String {
@@ -331,13 +311,8 @@ impl CosmosApdu {
     }
 }
 
+#[derive(Default)]
 pub struct Secp256k1Apdu();
-
-impl Default for Secp256k1Apdu {
-    fn default() -> Self {
-        Secp256k1Apdu()
-    }
-}
 
 impl Secp256k1Apdu {
     pub fn sign(data: &[u8]) -> Vec<String> {
@@ -364,13 +339,8 @@ impl Secp256k1Apdu {
     }
 }
 
+#[derive(Default)]
 pub struct Ed25519Apdu();
-
-impl Default for Ed25519Apdu {
-    fn default() -> Self {
-        Ed25519Apdu()
-    }
-}
 
 impl Ed25519Apdu {
     pub fn sign(data: &[u8]) -> Vec<String> {
@@ -397,13 +367,8 @@ impl Ed25519Apdu {
     }
 }
 
+#[derive(Default)]
 pub struct BtcForkApdu();
-
-impl Default for BtcForkApdu {
-    fn default() -> Self {
-        BtcForkApdu {}
-    }
-}
 
 impl CoinCommonApdu for BtcForkApdu {
     fn select_applet() -> String {
@@ -420,12 +385,12 @@ impl CoinCommonApdu for BtcForkApdu {
 }
 
 impl BtcForkApdu {
-    pub fn btc_fork_prepare(ins: u8, p1: u8, data: &Vec<u8>) -> Vec<String> {
+    pub fn btc_fork_prepare(ins: u8, p1: u8, data: &[u8]) -> Vec<String> {
         let mut apdu_vec = Vec::new();
         let apdu_number = (data.len() - 1) / LC_MAX as usize + 1;
         for index in 0..apdu_number {
             if index == apdu_number - 1 {
-                let length = if data.len() % LC_MAX as usize == 0 {
+                let length = if data.len().is_multiple_of(LC_MAX as usize) {
                     LC_MAX
                 } else {
                     (data.len() % LC_MAX as usize) as u32
@@ -438,15 +403,15 @@ impl BtcForkApdu {
                 let mut temp_apdu_vec =
                     ApduHeader::new(0x80, ins, p1, 0x00, LC_MAX as u8).to_array();
                 temp_apdu_vec.extend_from_slice(
-                    &data[index * LC_MAX as usize..((index + 1) * LC_MAX as usize) as usize],
+                    &data[index * LC_MAX as usize..(index + 1) * LC_MAX as usize],
                 );
                 apdu_vec.push(hex::encode_upper(temp_apdu_vec));
             }
         }
-        return apdu_vec;
+        apdu_vec
     }
 
-    pub fn btc_fork_perpare_input(ins: u8, p1: u8, data: &Vec<u8>) -> String {
+    pub fn btc_fork_perpare_input(ins: u8, p1: u8, data: &[u8]) -> String {
         if data.len() as u32 > LC_MAX {
             panic!("data to long");
         }
@@ -494,11 +459,11 @@ struct ApduHeader {
 impl ApduHeader {
     fn new(cla: u8, ins: u8, p1: u8, p2: u8, lc: u8) -> ApduHeader {
         ApduHeader {
-            cla: cla,
-            ins: ins,
-            p1: p1,
-            p2: p2,
-            lc: lc,
+            cla,
+            ins,
+            p1,
+            p2,
+            lc,
         }
     }
 
@@ -520,8 +485,8 @@ impl Apdu {
 
     pub fn prepare_sign(ins: u8, data: Vec<u8>) -> Vec<String> {
         let mut apdu_list = Vec::new();
-        let size = data.len() as u32 / LC_MAX as u32
-            + if data.len() as u32 % LC_MAX as u32 != 0 {
+        let size = data.len() as u32 / LC_MAX
+            + if !(data.len() as u32).is_multiple_of(LC_MAX) {
                 1
             } else {
                 0
@@ -531,17 +496,13 @@ impl Apdu {
             let mut apdu = Vec::new();
             let p1 = if i == 0 { 0x00 } else { 0x80 };
             let (p2, lc) = if i == size - 1 {
-                (
-                    0x80,
-                    (data.len() as u32 - LC_MAX as u32 * (size - 1 as u32)) as u8,
-                )
+                (0x80, (data.len() as u32 - LC_MAX * (size - 1)) as u8)
             } else {
                 (0x00, 0xF5)
             };
             let apdu_header = ApduHeader::new(0x80, ins, p1, p2, lc);
             apdu.extend(apdu_header.to_array().iter());
-            let payload =
-                &data[(i as u32 * LC_MAX) as usize..(i as u32 * LC_MAX + lc as u32) as usize];
+            let payload = &data[(i * LC_MAX) as usize..(i * LC_MAX + lc as u32) as usize];
             apdu.extend(payload.iter()); //payload
             apdu.push(0x00); //le
             apdu_list.push(hex::encode(apdu))
@@ -603,7 +564,7 @@ impl ImkApdu {
     /**
     binding check apdu build
     */
-    pub fn bind_check(data: &Vec<u8>) -> String {
+    pub fn bind_check(data: &[u8]) -> String {
         if data.len() as u32 > LC_MAX {
             panic!("data to long");
         }
@@ -624,7 +585,7 @@ impl ImkApdu {
     /**
     bind code verify
     */
-    pub fn identity_verify(data: &Vec<u8>) -> String {
+    pub fn identity_verify(data: &[u8]) -> String {
         if data.len() as u32 > LC_MAX {
             panic!("data to long");
         }
@@ -763,7 +724,7 @@ mod tests {
     #[test]
     fn btc_sign_test() {
         assert_eq!(
-            BtcApdu::btc_sign(02, 01, "m/44'/0'/0'/0/0"),
+            BtcApdu::btc_sign(2, 1, "m/44'/0'/0'/0/0"),
             String::from("804202010F6D2F3434272F30272F30272F302F3000")
         );
     }
@@ -773,11 +734,11 @@ mod tests {
     fn btc_segwit_sign_test() {
         let data = Vec::from_hex("0200000080a10bc28928f4c17a287318125115c3f098ed20a8237d1e8e4125bc25d1be99752adad0a7b9ceca853768aebb6965eca126a62965f698a0c1bc43d83db632ad7f717276057e6012afa99385c18cc692397a666560520577679bf38c08b5cec2000000001976a914654fbb08267f3d50d715a8f1abb55979b160dd5b88ac50c3000000000000ffffffffd622ad82d85a944f2c242762292e13462240fddd7d19791829e911d7885dec770000000001000000").unwrap();
         assert_eq!(
-            BtcApdu::btc_segwit_sign(true, 01, data),
+            BtcApdu::btc_segwit_sign(true, 1, data),
             String::from("80328001B60200000080A10BC28928F4C17A287318125115C3F098ED20A8237D1E8E4125BC25D1BE99752ADAD0A7B9CECA853768AEBB6965ECA126A62965F698A0C1BC43D83DB632AD7F717276057E6012AFA99385C18CC692397A666560520577679BF38C08B5CEC2000000001976A914654FBB08267F3D50D715A8F1ABB55979B160DD5B88AC50C3000000000000FFFFFFFFD622AD82D85A944F2C242762292E13462240FDDD7D19791829E911D7885DEC77000000000100000000")
         );
         let long_data = Vec::from_hex("7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff").unwrap();
-        BtcApdu::btc_segwit_sign(true, 01, long_data);
+        BtcApdu::btc_segwit_sign(true, 1, long_data);
     }
 
     #[test]
@@ -870,7 +831,7 @@ mod tests {
 
     #[test]
     fn eos_sign_tx_test() {
-        assert_eq!(EosApdu::sign_tx(0101), "8062000002006500".to_string());
+        assert_eq!(EosApdu::sign_tx(101), "8062000002006500".to_string());
     }
 
     #[test]

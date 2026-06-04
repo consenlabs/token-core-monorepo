@@ -1,6 +1,7 @@
 [package]
 name = "ikc-common"
 version = "0.1.0"
+license = "Apache-2.0"
 authors = ["wyoyw <wyoyw@126.com>"]
 edition = "2018"
 

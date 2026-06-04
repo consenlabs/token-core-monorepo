@@ -16,6 +16,7 @@ jobs:
     name: Build iOS Release
     if: github.event.review.state == 'approved'
     runs-on: macos-14
+    environment: release
     steps:
       - name: Get the latest commit SHA
         id: sha
@@ -45,7 +46,7 @@ jobs:
             ~/.cargo/git
             ~/.rustup
             target
-          key: macos-latest-nightly
+          key: macos-latest-nightly-2026-04-06
 
       - name: Check cpu arch
         run: |
@@ -53,8 +54,8 @@ jobs:
 
       - name: Install Rust
         run: |
-          rustup toolchain install nightly-2023-06-15
-          rustup default nightly-2023-06-15-aarch64-apple-darwin
+          rustup toolchain install nightly-2026-04-06
+          rustup default nightly-2026-04-06-aarch64-apple-darwin
           rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
           rustup show
           cargo install cbindgen --version 0.26.0 --locked

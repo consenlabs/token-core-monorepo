@@ -1,0 +1,56 @@
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+yanked = "deny"
+ignore = [
+    # failure is pulled in through bch_addr/cash_addr 0.1.0. There is no newer
+    # bch_addr release; replacing the BCH address codec needs compatibility tests.
+    "RUSTSEC-2020-0036",
+    # rsa is used by ikc-device for public-key encryption of local binding codes.
+    # The advisory has no patched version yet; rsa 0.10.0-rc.18 is still affected.
+    "RUSTSEC-2023-0071",
+    # xsalsa20poly1305 was renamed to crypto_secretbox. The available
+    # crypto_secretbox 0.2.0-pre.0 currently conflicts with the workspace
+    # RustCrypto cipher 0.5.2 stack, so this needs a separate crypto migration.
+    "RUSTSEC-2023-0037",
+    # proc-macro-error is pulled in by the legacy Filecoin forest_cid/cid/
+    # multihash stack. Updating it means migrating the Filecoin codec stack.
+    "RUSTSEC-2024-0370",
+    # paste is pulled in by the Substrate sp-core 41.0.0 stack. There is no
+    # simple direct dependency update that removes it from this workspace.
+    "RUSTSEC-2024-0436",
+    # libsecp256k1 is pulled in by sp-core 41.0.0. The advisory itself has no
+    # safe upgrade and recommends a larger k256/Substrate migration.
+    "RUSTSEC-2025-0161",
+]
+
+[licenses]
+version = 2
+confidence-threshold = 0.8
+allow = [
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "CC0-1.0",
+    "ISC",
+    "MIT",
+    "MITNFA",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+]
+
+[licenses.private]
+ignore = true
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

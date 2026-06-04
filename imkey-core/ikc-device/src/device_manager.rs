@@ -56,12 +56,7 @@ pub fn get_firmware_version() -> Result<String> {
     select_isd()?;
     let res = send_apdu("80CB800005DFFF02800300".to_string())?;
     ApduCheck::check_response(res.as_str())?;
-    let firmware_version = format!(
-        "{}.{}.{}",
-        res[0..1].to_string(),
-        res[1..2].to_string(),
-        res[2..res.len() - 4].to_string()
-    );
+    let firmware_version = format!("{}.{}.{}", &res[0..1], &res[1..2], &res[2..res.len() - 4]);
     Ok(firmware_version)
 }
 
@@ -69,12 +64,7 @@ pub fn get_bl_version() -> Result<String> {
     select_isd()?;
     let res = send_apdu("80CA800900".to_string())?;
     ApduCheck::check_response(res.as_str())?;
-    let bl_version = format!(
-        "{}.{}.{}",
-        res[0..1].to_string(),
-        res[1..2].to_string(),
-        res[2..res.len() - 4].to_string()
-    );
+    let bl_version = format!("{}.{}.{}", &res[0..1], &res[1..2], &res[2..res.len() - 4]);
     Ok(bl_version)
 }
 
@@ -84,7 +74,7 @@ pub fn get_battery_power() -> Result<String> {
     ApduCheck::check_response(res.as_str())?;
     let hex_power: String = res[0..res.len() - 4].to_string();
     let charging_flag = "FF";
-    let power = match &hex_power == charging_flag {
+    let power = match hex_power == charging_flag {
         true => hex_power,
         false => i64::from_str_radix(&hex_power, 16)?.to_string(),
     };
@@ -110,7 +100,7 @@ pub fn get_life_time() -> Result<String> {
 
 pub fn get_ble_name() -> Result<String> {
     let res = send_apdu("FFDB465400".to_string())?;
-    let hex = hex::decode(&res[0..res.len() - 4].to_string())?;
+    let hex = hex::decode(&res[0..res.len() - 4])?;
     Ok(String::from_utf8(hex)?)
 }
 

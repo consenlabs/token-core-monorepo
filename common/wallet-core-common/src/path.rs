@@ -132,7 +132,7 @@ pub fn get_parent_path(path: &str) -> Result<&str, ImkeyPathError> {
 fn check_imkey_path(path: &str) -> Result<(), ImkeyPathError> {
     let path = normalize_path(path, true);
     let depth = path.split('/').count();
-    if depth < 3 || depth > 6 {
+    if !(3..=6).contains(&depth) {
         return Err(ImkeyPathError);
     }
     validate_bip32_path(path).map_err(|_| ImkeyPathError)
