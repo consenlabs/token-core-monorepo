@@ -35,6 +35,10 @@ message HdStoreImportParam {
 TransactionInput 将作为SignTxParam中的input字段传入。如需要其他字段也可以放入其中。示例参见[btc-fork.proto](../tcx-proto/src/btc-fork.proto), [handler.rs#sign_tx](../tcx/src/handler.rs)。    
 编写完成之后配置`tcx-proto`中`build.rs`文件，将新定义的结构编译到链所在的package中即可使用。    
 
+## Keystore KDF 策略
+
+新创建的 TokenCoreX keystore 默认使用 `argon2id` 作为 KDF。历史 keystore 中已有的 `pbkdf2` 和 `scrypt` 格式继续按原 JSON 参数解锁，不做自动破坏性迁移。完整参数、兼容策略和安全说明见 [KDF 策略](./KDF.zh.md)。
+
 ## 安全敏感接口边界
 
 以下接口不属于默认生产构建的公共 API：
