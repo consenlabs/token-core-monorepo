@@ -484,7 +484,7 @@ pub fn test_export_private_key_from_hd_store() {
 #[serial]
 pub fn test_chain_cannot_export_private_key() {
     run_test(|| {
-        let derivations = vec![Derivation {
+        let derivations = [Derivation {
             chain_type: "COSMOS".to_string(),
             path: "m/44'/118'/0'/0/0".to_string(),
             network: "MAINNET".to_string(),
@@ -494,23 +494,23 @@ pub fn test_chain_cannot_export_private_key() {
             contract_code: "".to_string(),
         }];
 
-        let export_info = vec![
+        let export_info = [
             ("m/44'/118'/0'/0/0", "COSMOS", "secp256k1"),
             ("m/44'/434'/0'/0/0", "KUSAMA", "sr25519"),
             ("m/44'/354'/0'/0/0", "POLKADOT", "sr25519"),
         ];
 
         let import_result = import_default_wallet();
-        for idx in 0..derivations.len() {
+        for export_item in export_info.iter().take(derivations.len()) {
             let param: ExportPrivateKeyParam = ExportPrivateKeyParam {
                 id: import_result.id.to_string(),
                 key: Some(crate::api::export_private_key_param::Key::Password(
                     TEST_PASSWORD.to_owned(),
                 )),
-                chain_type: export_info[idx].1.to_string(),
+                chain_type: export_item.1.to_string(),
                 network: "".to_string(),
-                curve: export_info[idx].2.to_string(),
-                path: export_info[idx].1.to_string(),
+                curve: export_item.2.to_string(),
+                path: export_item.1.to_string(),
             };
             let ret = call_api("export_private_key", param);
 

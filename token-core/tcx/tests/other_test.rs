@@ -139,7 +139,7 @@ pub fn test_delete_keystore_by_password() {
         let ret_bytes = call_api("exists_private_key", param).unwrap();
         let ret: ExistsKeystoreResult = ExistsKeystoreResult::decode(ret_bytes.as_slice()).unwrap();
 
-        assert_eq!(false, ret.is_exists);
+        assert!(!ret.is_exists);
     })
 }
 

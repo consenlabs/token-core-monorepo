@@ -145,8 +145,7 @@ impl TransactionSigner<CkbTxInput, CkbTxOutput> for Keystore {
 
         let find_cache_cell = |x: &OutPoint| -> Result<&CachedCell> {
             for y in tx.cached_cells.iter() {
-                if y.out_point.is_some() {
-                    let point = y.out_point.as_ref().unwrap();
+                if let Some(point) = &y.out_point {
                     if point.index == x.index && point.tx_hash == x.tx_hash {
                         return Ok(y);
                     }
@@ -295,7 +294,6 @@ mod tests {
             witnesses,
             tx_hash: tx_hash.to_owned(),
             cached_cells,
-            ..CkbTxInput::default()
         };
 
         let coin_info = CoinInfo {
@@ -454,7 +452,6 @@ mod tests {
                     witnesses: vec![],
                     tx_hash: tx_hash.to_owned(),
                     cached_cells: cached_cells.clone(),
-                    ..CkbTxInput::default()
                 },
                 "required_witness",
             ),
@@ -464,7 +461,6 @@ mod tests {
                     witnesses: witnesses.clone(),
                     tx_hash: tx_hash.to_owned(),
                     cached_cells: cached_cells.clone(),
-                    ..CkbTxInput::default()
                 },
                 "invalid_input_cells",
             ),
@@ -474,7 +470,6 @@ mod tests {
                     witnesses: witnesses.clone(),
                     tx_hash: "".to_owned(),
                     cached_cells: cached_cells.clone(),
-                    ..CkbTxInput::default()
                 },
                 "invalid_tx_hash",
             ),
@@ -484,7 +479,6 @@ mod tests {
                     witnesses: witnesses.clone(),
                     tx_hash: tx_hash.to_owned(),
                     cached_cells: vec![],
-                    ..CkbTxInput::default()
                 },
                 "cell_input_not_cached",
             ),
@@ -516,7 +510,6 @@ mod tests {
             witnesses,
             tx_hash: tx_hash.to_owned(),
             cached_cells,
-            ..CkbTxInput::default()
         };
 
         let coin_info = CoinInfo {
@@ -583,7 +576,6 @@ mod tests {
             witnesses,
             tx_hash: tx_hash.to_owned(),
             cached_cells,
-            ..CkbTxInput::default()
         };
 
         let coin_info = CoinInfo {
@@ -654,7 +646,6 @@ mod tests {
             witnesses,
             tx_hash: tx_hash.to_owned(),
             cached_cells,
-            ..CkbTxInput::default()
         };
 
         let coin_info = CoinInfo {
@@ -731,7 +722,7 @@ mod tests {
 
         let actual = signer.sign_witness_group(
             &Vec::from_hex_auto(tx_hash).unwrap(),
-            &vec![],
+            &[],
             params.derivation_path.as_str(),
         );
         assert_eq!(
@@ -889,7 +880,6 @@ mod tests {
             witnesses,
             tx_hash: tx_hash.to_owned(),
             cached_cells,
-            ..CkbTxInput::default()
         };
 
         let coin_info = CoinInfo {

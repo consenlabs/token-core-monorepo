@@ -41,7 +41,7 @@ impl BtcForkAddress {
         let key_bytes = hex::decode(&*key)?;
         let iv_bytes = hex::decode(&*iv)?;
         let encrypted =
-            ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
+            ikc_common::aes::cbc::encrypt_pkcs7(xpub.as_bytes(), &key_bytes, &iv_bytes)?;
         Ok(base64::Engine::encode(
             &base64::engine::general_purpose::STANDARD,
             &encrypted,
@@ -76,7 +76,7 @@ impl BtcForkAddress {
         let chain_code_obj = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
         let parent_ext_pub_key = Xpub {
             network: network.into(),
-            depth: 0 as u8,
+            depth: 0_u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
             public_key: parent_pub_key_obj,
@@ -91,7 +91,7 @@ impl BtcForkAddress {
             network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
-            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            child_number: *chain_number_vec.last().unwrap(),
             public_key: pub_key_obj,
             chain_code: chain_code_obj,
         };
@@ -108,8 +108,7 @@ impl BtcForkAddress {
         }
 
         let mut end_flg = path.rfind("/").unwrap();
-        if path.ends_with("/") {
-            let path = &path[..path.len() - 1];
+        if let Some(path) = path.strip_suffix("/") {
             end_flg = path.rfind("/").unwrap();
         }
         Ok(&path[..end_flg])
@@ -171,13 +170,9 @@ impl BtcForkAddress {
     }
 
     pub fn is_valid(address: &str, coin: &CoinInfo) -> bool {
-        let ret = BtcForkAddress::from_str(address);
-        if ret.is_err() {
-            false
-        } else {
-            let addr: BtcForkAddress = ret.unwrap();
-            addr.network.network == coin.network
-        }
+        BtcForkAddress::from_str(address)
+            .map(|addr| addr.network.network == coin.network)
+            .unwrap_or(false)
     }
 
     pub fn get_pub_key(path: &str) -> Result<String> {
@@ -347,10 +342,7 @@ impl Display for BtcForkAddress {
 
 /// Extract the bech32 prefix.
 fn bech32_network(bech32: &str) -> Option<BtcForkNetwork> {
-    let bech32_prefix = match bech32.rfind('1') {
-        None => None,
-        Some(sep) => Some(bech32.split_at(sep).0),
-    };
+    let bech32_prefix = bech32.rfind('1').map(|sep| bech32.split_at(sep).0);
     match bech32_prefix {
         Some(prefix) => network_form_hrp(prefix),
         None => None,
@@ -362,9 +354,9 @@ fn decode_base58(addr: &str) -> Result<Vec<u8>> {
     if addr.len() > 50 {
         return Err(CoinError::InvalidAddrLength.into());
     }
-    let data = base58::decode_check(&addr)?;
+    let data = base58::decode_check(addr)?;
     if data.len() != 21 {
-        return Err(CoinError::InvalidAddrLength.into());
+        Err(CoinError::InvalidAddrLength.into())
     } else {
         Ok(data)
     }

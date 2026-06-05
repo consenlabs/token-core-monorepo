@@ -31,9 +31,9 @@ impl FromStr for TronAddress {
     }
 }
 
-impl ToString for TronAddress {
-    fn to_string(&self) -> String {
-        self.0.clone()
+impl std::fmt::Display for TronAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
     }
 }
 
@@ -107,8 +107,8 @@ mod tests {
     fn test_derive_address() {
         let coin_info = coin_info_from_param("TRON", "", "", "").unwrap();
         let mut keystore =
-            Keystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, Metadata::default()).unwrap();
-        keystore.unlock_by_password(&TEST_PASSWORD).unwrap();
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let acc = keystore.derive_coin::<TronAddress>(&coin_info).unwrap();
         assert_eq!(acc.address, "TY2uroBeZ5trA9QT96aEWj32XLkAAhQ9R2");

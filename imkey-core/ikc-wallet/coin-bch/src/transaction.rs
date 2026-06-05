@@ -49,7 +49,7 @@ impl BchTransaction {
         path: &str,
         change_idx: i32,
         change_address: &str,
-        extra_data: &Vec<u8>,
+        extra_data: &[u8],
     ) -> Result<TxSignResult> {
         //path check
         check_path_validity(path)?;
@@ -60,7 +60,7 @@ impl BchTransaction {
             path_str = format!("{}{}", path_str, "/");
         }
         //check utxo number
-        if &self.unspents.len() > &MAX_UTXO_NUMBER {
+        if self.unspents.len() > MAX_UTXO_NUMBER {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
 
@@ -105,7 +105,7 @@ impl BchTransaction {
             //add change output
             let change_addr = self.get_change_address(network, path, change_idx, change_address)?;
             txouts.push(TxOut {
-                value: Amount::from_sat(self.get_change_amount() as u64),
+                value: Amount::from_sat(self.get_change_amount()),
                 script_pubkey: change_addr.script_pubkey(),
             });
         }
@@ -145,7 +145,7 @@ impl BchTransaction {
         output_serialize_data.push(address_version);
 
         output_serialize_data.extend(self.to.as_bytes());
-        output_serialize_data.push(self.to.as_bytes().len() as u8);
+        output_serialize_data.push(self.to.len() as u8);
 
         //set 01 tag and length
         output_serialize_data.insert(0, output_serialize_data.len() as u8);
@@ -173,7 +173,7 @@ impl BchTransaction {
             let txin = TxIn {
                 previous_output: OutPoint {
                     txid: bitcoin::hash_types::Txid::from_str(&unspent.txhash)?,
-                    vout: unspent.vout as u32,
+                    vout: unspent.vout,
                 },
                 script_sig: ScriptBuf::new(),
                 sequence: Sequence::MAX,
@@ -211,10 +211,10 @@ impl BchTransaction {
             //address
             let mut address_data: Vec<u8> = vec![];
             if unspent.derive_path.is_empty() {
-                address_data.push(path_str.as_bytes().len() as u8);
+                address_data.push(path_str.len() as u8);
                 address_data.extend_from_slice(path_str.as_bytes());
             } else {
-                address_data.push(unspent.derive_path.as_bytes().len() as u8);
+                address_data.push(unspent.derive_path.len() as u8);
                 address_data.extend_from_slice(unspent.derive_path.as_bytes());
             }
             data.extend(address_data.iter());
@@ -290,24 +290,25 @@ impl BchTransaction {
 
     pub fn get_change_amount(&self) -> u64 {
         let total_amount = self.get_total_amount();
-        let change_amout = total_amount - self.amount - self.fee;
-        change_amout
+
+        total_amount - self.amount - self.fee
     }
 
     pub fn build_send_to_output(&self) -> TxOut {
         let legacy_addr_str = BchAddress::convert_to_legacy_if_need(&self.to).unwrap();
         let legacy_addr = Address::from_str(&legacy_addr_str).unwrap();
         TxOut {
-            value: Amount::from_sat(self.amount as u64),
+            value: Amount::from_sat(self.amount),
             script_pubkey: legacy_addr.assume_checked().script_pubkey(),
         }
     }
 
-    pub fn build_op_return_output(&self, extra_data: &Vec<u8>) -> TxOut {
+    pub fn build_op_return_output(&self, extra_data: &[u8]) -> TxOut {
         let opreturn_script = Builder::new()
             .push_opcode(opcodes::all::OP_RETURN)
             .push_slice(
-                PushBytesBuf::try_from(extra_data.clone()).expect("op_return data length checked"),
+                PushBytesBuf::try_from(extra_data.to_owned())
+                    .expect("op_return data length checked"),
             )
             .into_script();
         TxOut {
@@ -317,13 +318,13 @@ impl BchTransaction {
     }
 
     pub fn build_lock_script(&self, signed: &str, utxo_public_key: &str) -> Result<ScriptBuf> {
-        let signed_vec = Vec::from_hex(&signed)?;
+        let signed_vec = Vec::from_hex(signed)?;
         let mut signature_obj = Signature::from_compact(signed_vec.as_slice())?;
         signature_obj.normalize_s();
         let mut signed_vec = signature_obj.serialize_der().to_vec();
 
         //add hash type
-        signed_vec.push(0x41 as u8);
+        signed_vec.push(0x41_u8);
         let public_key = Vec::from_hex(utxo_public_key)?;
         Ok(Builder::new()
             .push_slice(PushBytesBuf::try_from(signed_vec)?)
@@ -373,8 +374,7 @@ mod tests {
             derive_path: "m/44'/145'/0'/0/0".to_string(),
             sequence: 0,
         };
-        let mut utxos = Vec::new();
-        utxos.push(utxo);
+        let utxos = vec![utxo];
         let transaction_req_data = BchTransaction {
             to: "qq40fskqshxem2gvz0xkf34ww3h6zwv4dcr7pm0z6s".to_string(),
             amount: 93454,
@@ -383,7 +383,7 @@ mod tests {
         };
         let sign_result = transaction_req_data.sign_transaction(
             Network::Bitcoin,
-            &"m/44'/145'/0'/".to_string(),
+            "m/44'/145'/0'/",
             0,
             "",
             &extra_data,
@@ -418,9 +418,7 @@ mod tests {
             derive_path: "m/44'/145'/0'/0/0".to_string(),
             sequence: 0,
         };
-        let mut utxos = Vec::new();
-        utxos.push(utxo);
-        utxos.push(utxo2);
+        let utxos = vec![utxo, utxo2];
         let transaction_req_data = BchTransaction {
             to: "qq40fskqshxem2gvz0xkf34ww3h6zwv4dcr7pm0z6s".to_string(),
             amount: 110000,
@@ -429,7 +427,7 @@ mod tests {
         };
         let sign_result = transaction_req_data.sign_transaction(
             Network::Bitcoin,
-            &"m/44'/145'/0'/".to_string(),
+            "m/44'/145'/0'/",
             0,
             "",
             &extra_data,
@@ -464,9 +462,7 @@ mod tests {
             derive_path: "m/44'/145'/0'/0/0".to_string(),
             sequence: 0,
         };
-        let mut utxos = Vec::new();
-        utxos.push(utxo);
-        utxos.push(utxo2);
+        let utxos = vec![utxo, utxo2];
         let transaction_req_data = BchTransaction {
             to: "14v8bLFeGxuQG7NsKVfbk6P3PsazeduWcK".to_string(),
             amount: 110000,
@@ -475,7 +471,7 @@ mod tests {
         };
         let sign_result = transaction_req_data.sign_transaction(
             Network::Bitcoin,
-            &"m/44'/145'/0'/".to_string(),
+            "m/44'/145'/0'/",
             0,
             "",
             &extra_data,
@@ -510,9 +506,7 @@ mod tests {
             derive_path: "m/44'/145'/0'/0/0".to_string(),
             sequence: 0,
         };
-        let mut utxos = Vec::new();
-        utxos.push(utxo);
-        utxos.push(utxo2);
+        let utxos = vec![utxo, utxo2];
         let transaction_req_data = BchTransaction {
             to: "14v8bLFeGxuQG7NsKVfbk6P3PsazeduWcK".to_string(),
             amount: 110000,
@@ -521,7 +515,7 @@ mod tests {
         };
         let sign_result = transaction_req_data.sign_transaction(
             Network::Bitcoin,
-            &"m/44'/145'/0'/".to_string(),
+            "m/44'/145'/0'/",
             0,
             "qzld7dav7d2sfjdl6x9snkvf6raj8lfxjcj5fa8y2r",
             &extra_data,

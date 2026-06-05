@@ -97,6 +97,7 @@ make dev-wasm
 - [`doc/TEST.md`](./doc/TEST.md)：host-safe、workspace、wasm 与硬件测试。
 - [`doc/RELEASE.md`](./doc/RELEASE.md)：版本号、tag、产物和发布检查。
 - [`doc/COMPATIBILITY.md`](./doc/COMPATIBILITY.md)：toolchain 与产物兼容矩阵。
+- [`doc/QUALITY_DEBT.md`](./doc/QUALITY_DEBT.md)：当前 CI 质量门禁与依赖安全例外说明。
 - [`SECURITY.md`](./SECURITY.md)：安全漏洞报告政策。
 - [`SUPPORT.md`](./SUPPORT.md)：支持范围与维护边界。
 - [`token-core/tcx-docs`](./token-core/tcx-docs)：TokenCoreX API 与设计说明。

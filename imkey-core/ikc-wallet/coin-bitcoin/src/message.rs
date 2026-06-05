@@ -268,7 +268,7 @@ const UTXO: &str = "000000000000000000000000000000000000000000000000000000000000
 const TAG: &str = "BIP0322-signed-message";
 
 fn get_spend_tx_id(data: &[u8], script_pub_key: Script) -> Result<Txid> {
-    let tag_hash = sha256_hash(&TAG.as_bytes().to_vec());
+    let tag_hash = sha256_hash(TAG.as_bytes());
     let mut to_sign = Vec::new();
     to_sign.extend(tag_hash.clone());
     to_sign.extend(tag_hash);

@@ -76,13 +76,11 @@ pub fn calc_external_address(param: &ExternalAddressParam) -> Result<Vec<u8>> {
     let network = network_convert(param.network.as_ref());
     let account_path = param.path.to_string();
     let external_path = format!("{}/0/{}", account_path, param.external_idx);
-    let receive_address: String;
-
-    if param.seg_wit.to_uppercase() == "P2WPKH" {
-        receive_address = BtcAddress::p2shwpkh(network, external_path.as_str())?;
+    let receive_address = if param.seg_wit.to_uppercase() == "P2WPKH" {
+        BtcAddress::p2shwpkh(network, external_path.as_str())?
     } else {
-        receive_address = BtcAddress::p2pkh(network, external_path.as_str())?;
-    }
+        BtcAddress::p2pkh(network, external_path.as_str())?
+    };
 
     let external_address = ExternalAddress {
         address: receive_address,
@@ -99,7 +97,7 @@ pub fn get_enc_xpub(network: Network, path: &str) -> Result<String> {
     let iv = ikc_common::XPUB_COMMON_IV.read();
     let key_bytes = hex::decode(&*key)?;
     let iv_bytes = hex::decode(&*iv)?;
-    let encrypted = ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
+    let encrypted = ikc_common::aes::cbc::encrypt_pkcs7(xpub.as_bytes(), &key_bytes, &iv_bytes)?;
     Ok(base64::Engine::encode(
         &base64::engine::general_purpose::STANDARD,
         &encrypted,

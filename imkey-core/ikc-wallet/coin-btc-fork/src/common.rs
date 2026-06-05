@@ -52,7 +52,7 @@ pub fn address_verify(
 
         let public_key = PublicKey::from_str(extend_public_key.public_key.to_string().as_str())?;
         let se_script = match trans_type_flg {
-            TransTypeFlg::BTC => Address::p2pkh(&public_key, network).script_pubkey(),
+            TransTypeFlg::BTC => Address::p2pkh(public_key, network).script_pubkey(),
             TransTypeFlg::SEGWIT => {
                 let witness_script = ScriptBuf::new_p2wpkh(&public_key.wpubkey_hash()?);
                 ScriptBuf::new_p2sh(&witness_script.script_hash())

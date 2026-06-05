@@ -30,7 +30,7 @@ pub fn sign_legacy_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -
         tx_input: param.clone(),
         coin_info,
     };
-    let network = if sign_param.network == "TESTNET".to_string() {
+    let network = if sign_param.network == "TESTNET" {
         Network::Testnet
     } else {
         Network::Bitcoin
@@ -52,7 +52,7 @@ pub fn sign_segwit_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -
         tx_input: param.clone(),
         coin_info,
     };
-    let network = if sign_param.network == "TESTNET".to_string() {
+    let network = if sign_param.network == "TESTNET" {
         Network::Testnet
     } else {
         Network::Bitcoin
@@ -88,8 +88,7 @@ mod tests {
             derived_path: "0/0".to_string(),
             sequence: 0,
         };
-        let mut unspents = Vec::new();
-        unspents.push(utxo);
+        let unspents = vec![utxo];
 
         let tx_input = BtcForkTxInput {
             to: "mrU9pEmAx26HcbKVrABvgL7AwA5fjNFoDc".to_string(),

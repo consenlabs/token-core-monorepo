@@ -69,7 +69,10 @@ pub extern "C" fn get_apdu() -> *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn set_apdu(apdu: *const c_char) {
+/// # Safety
+///
+/// `apdu` must be a valid pointer to a NUL-terminated C string for the duration of this call.
+pub unsafe extern "C" fn set_apdu(apdu: *const c_char) {
     unsafe {
         message::set_apdu(apdu);
     }
@@ -81,7 +84,10 @@ pub extern "C" fn get_apdu_return() -> *const c_char {
 }
 
 #[no_mangle]
-pub extern "C" fn set_apdu_return(apdu_return: *const c_char) {
+/// # Safety
+///
+/// `apdu_return` must be a valid pointer to a NUL-terminated C string for the duration of this call.
+pub unsafe extern "C" fn set_apdu_return(apdu_return: *const c_char) {
     unsafe {
         message::set_apdu_return(apdu_return);
     }
@@ -95,6 +101,9 @@ pub extern "C" fn set_callback(
 }
 
 #[no_mangle]
+/// # Safety
+///
+/// `s` must be either null or a pointer previously returned by this library as a C string.
 pub unsafe extern "C" fn imkey_free_const_string(s: *const c_char) {
     if s.is_null() {
         return;
@@ -103,6 +112,10 @@ pub unsafe extern "C" fn imkey_free_const_string(s: *const c_char) {
 }
 
 /// dispatch protobuf rpc call
+///
+/// # Safety
+///
+/// `hex_str` must be a valid pointer to a NUL-terminated C string containing hex encoded protobuf.
 #[no_mangle]
 pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char {
     let mut _l = API_LOCK.lock();
@@ -119,32 +132,32 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
         "app_download" => landingpad(|| device_manager::app_download(&action.param.unwrap().value)),
         "app_update" => landingpad(|| device_manager::app_update(&action.param.unwrap().value)),
         "app_delete" => landingpad(|| device_manager::app_delete(&action.param.unwrap().value)),
-        "device_activate" => landingpad(|| device_manager::se_activate()),
-        "check_update" => landingpad(|| device_manager::check_update()),
-        "device_secure_check" => landingpad(|| device_manager::se_secure_check()),
-        "bind_check" => landingpad(|| device_manager::bind_check()),
-        "bind_display_code" => landingpad(|| device_manager::bind_display_code()),
+        "device_activate" => landingpad(device_manager::se_activate),
+        "check_update" => landingpad(device_manager::check_update),
+        "device_secure_check" => landingpad(device_manager::se_secure_check),
+        "bind_check" => landingpad(device_manager::bind_check),
+        "bind_display_code" => landingpad(device_manager::bind_display_code),
         "bind_acquire" => landingpad(|| device_manager::bind_acquire(&action.param.unwrap().value)),
-        "get_seid" => landingpad(|| device_manager::get_seid()),
-        "get_sn" => landingpad(|| device_manager::get_sn()),
-        "get_ram_size" => landingpad(|| device_manager::get_ram_size()),
-        "get_firmware_version" => landingpad(|| device_manager::get_firmware_version()),
-        "get_battery_power" => landingpad(|| device_manager::get_battery_power()),
-        "get_life_time" => landingpad(|| device_manager::get_life_time()),
-        "get_ble_name" => landingpad(|| device_manager::get_ble_name()),
+        "get_seid" => landingpad(device_manager::get_seid),
+        "get_sn" => landingpad(device_manager::get_sn),
+        "get_ram_size" => landingpad(device_manager::get_ram_size),
+        "get_firmware_version" => landingpad(device_manager::get_firmware_version),
+        "get_battery_power" => landingpad(device_manager::get_battery_power),
+        "get_life_time" => landingpad(device_manager::get_life_time),
+        "get_ble_name" => landingpad(device_manager::get_ble_name),
         "set_ble_name" => landingpad(|| device_manager::set_ble_name(&action.param.unwrap().value)),
-        "get_ble_version" => landingpad(|| device_manager::get_ble_version()),
-        "get_sdk_info" => landingpad(|| device_manager::get_sdk_info()),
+        "get_ble_version" => landingpad(device_manager::get_ble_version),
+        "get_sdk_info" => landingpad(device_manager::get_sdk_info),
         #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
-        "cos_update" => landingpad(|| device_manager::cos_update()),
+        "cos_update" => landingpad(device_manager::cos_update),
         #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
-        "cos_check_update" => landingpad(|| device_manager::cos_check_update()),
+        "cos_check_update" => landingpad(device_manager::cos_check_update),
         #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
         "device_connect" => {
             landingpad(|| device_manager::device_connect(&action.param.unwrap().value))
         }
         #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
-        "is_bl_status" => landingpad(|| device_manager::is_bl_status()),
+        "is_bl_status" => landingpad(device_manager::is_bl_status),
 
         "get_address" => landingpad(|| {
             let param: AddressParam = AddressParam::decode(action.param.unwrap().value.as_slice())
@@ -298,6 +311,9 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
 }
 
 #[no_mangle]
+/// # Safety
+///
+/// This function mutates thread-local error state and has no pointer preconditions.
 pub unsafe extern "C" fn imkey_clear_err() {
     LAST_ERROR.with(|e| {
         *e.borrow_mut() = None;
@@ -305,6 +321,9 @@ pub unsafe extern "C" fn imkey_clear_err() {
 }
 
 #[no_mangle]
+/// # Safety
+///
+/// The returned pointer must be released by the caller using the matching free function.
 pub unsafe extern "C" fn imkey_get_last_err_message() -> *const c_char {
     LAST_ERROR.with(|e| {
         if let Some(ref err) = *e.borrow() {
@@ -1852,7 +1871,7 @@ mod tests {
     fn test_get_extended_public_keys_error_case() {
         connect_and_bind();
 
-        let test_data = vec![
+        let test_data = [
             vec![PublicKeyDerivation {
                 chain_type: "POLKADOT".to_string(),
                 path: "m/44'/354'/0'/0'/0'".to_string(),
@@ -1869,9 +1888,9 @@ mod tests {
                 curve: "secp256k1".to_string(),
             }],
         ];
-        for i in 0..test_data.len() {
+        for (i, item) in test_data.iter().enumerate() {
             let param = GetExtendedPublicKeysParam {
-                derivations: test_data[i].clone(),
+                derivations: item.clone(),
             };
             let action: ImkeyAction = ImkeyAction {
                 method: "get_extended_public_keys".to_string(),
@@ -2311,7 +2330,7 @@ mod tests {
         let ret_bytes = hex::decode(ret_hex).unwrap();
         let sign_result = PsbtOutput::decode(ret_bytes.as_slice()).unwrap();
 
-        assert!(sign_result.psbt.len() > 0);
+        assert!(!sign_result.psbt.is_empty());
     }
 
     #[test]

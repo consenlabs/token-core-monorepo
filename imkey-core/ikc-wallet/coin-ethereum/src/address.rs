@@ -31,7 +31,7 @@ impl EthAddress {
         ApduCheck::check_response(&select_response)?;
 
         //get public
-        let msg_pubkey = EthApdu::get_xpub(&path, false);
+        let msg_pubkey = EthApdu::get_xpub(path, false);
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
@@ -57,7 +57,7 @@ impl EthAddress {
         ApduCheck::check_response(&select_response)?;
 
         //get public
-        let msg_pubkey = EthApdu::get_xpub(&path, false);
+        let msg_pubkey = EthApdu::get_xpub(path, false);
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
@@ -88,7 +88,7 @@ impl EthAddress {
         let parent_chain_code = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
         let parent_ext_pub_key = Xpub {
             network: Network::Bitcoin.into(),
-            depth: 0 as u8,
+            depth: 0_u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
             public_key: parent_pub_key_obj,
@@ -104,7 +104,7 @@ impl EthAddress {
             network: Network::Bitcoin.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
-            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            child_number: *chain_number_vec.last().unwrap(),
             public_key: pub_key_obj,
             chain_code: sub_chain_code_obj,
         };

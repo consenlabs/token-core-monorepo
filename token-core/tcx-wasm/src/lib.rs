@@ -23,7 +23,7 @@ use types::*;
 
 thread_local! {
     static CACHED_KEYSTORE_JSON: RefCell<Option<String>> = const { RefCell::new(None) };
-    static CACHED_MESSAGE_SECRET_KEY: RefCell<Option<SecretKey>> = RefCell::new(None);
+    static CACHED_MESSAGE_SECRET_KEY: RefCell<Option<SecretKey>> = const { RefCell::new(None) };
 }
 
 fn to_js_err(e: impl std::fmt::Display) -> JsValue {
@@ -130,8 +130,10 @@ pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
         Some("TESTNET") => IdentityNetwork::Testnet,
         _ => IdentityNetwork::Mainnet,
     };
-    let mut meta = Metadata::default();
-    meta.network = network;
+    let meta = Metadata {
+        network,
+        ..Default::default()
+    };
     let keystore = Keystore::from_mnemonic(&mnemonic, "", meta).map_err(to_js_err)?;
     let identity = keystore.store().identity.clone();
 

@@ -83,7 +83,7 @@ impl AddressTrait for BtcKinAddress {
                 network: network.clone(),
             },
             _ => BtcKinAddress::from_lib_address(
-                LibAddress::p2pkh(&pub_key_obj, Network::Bitcoin),
+                LibAddress::p2pkh(pub_key_obj, Network::Bitcoin),
                 network,
             )?,
         };
@@ -110,7 +110,7 @@ impl BtcKinAddress {
         let mut pub_key_obj = PublicKey::from_str(pub_key)?;
         pub_key_obj.compressed = true;
 
-        BtcKinAddress::from_lib_address(LibAddress::p2pkh(&pub_key_obj, Network::Bitcoin), network)
+        BtcKinAddress::from_lib_address(LibAddress::p2pkh(pub_key_obj, Network::Bitcoin), network)
     }
 
     pub fn p2shwpkh(network: &BtcKinNetwork, path: &str) -> Result<BtcKinAddress> {
@@ -162,7 +162,7 @@ impl BtcKinAddress {
             _ => Self::p2pkh(network, path)?,
         };
 
-        let apdu_res = send_apdu(BtcApdu::register_address(&address.to_string().as_bytes()))?;
+        let apdu_res = send_apdu(BtcApdu::register_address(address.to_string().as_bytes()))?;
         ApduCheck::check_response(apdu_res.as_str())?;
         Ok(address.to_string())
     }
@@ -278,13 +278,12 @@ impl Display for BtcKinAddress {
 fn bech32_network(bech32: &str) -> Option<&BtcKinNetwork> {
     let bech32_prefix = bech32.rfind('1').map(|sep| bech32.split_at(sep).0);
 
-    if bech32_prefix.is_some() {
-        let prefix = bech32_prefix.unwrap();
+    if let Some(prefix) = bech32_prefix {
         if !prefix.is_empty() {
             return BtcKinNetwork::find_by_hrp(prefix);
         }
     }
-    return None;
+    None
 }
 
 fn decode_base58(addr: &str) -> result::Result<Vec<u8>, CoinError> {
@@ -336,7 +335,7 @@ impl ImkeyPublicKey {
             network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
-            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            child_number: *chain_number_vec.last().unwrap(),
             public_key: pub_key_obj,
             chain_code: chain_code_obj,
         };

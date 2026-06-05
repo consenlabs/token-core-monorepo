@@ -50,14 +50,14 @@ impl TronAddress {
         ApduCheck::check_response(&select_response)?;
 
         let key_manager_obj = KEY_MANAGER.lock();
-        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &path.as_bytes())?;
+        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, path.as_bytes())?;
 
         let mut apdu_pack: Vec<u8> = vec![];
         apdu_pack.push(0x00);
         apdu_pack.push(bind_signature.len() as u8);
         apdu_pack.extend(bind_signature.as_slice());
         apdu_pack.push(0x01);
-        apdu_pack.push(path.as_bytes().len() as u8);
+        apdu_pack.push(path.len() as u8);
         apdu_pack.extend(path.as_bytes());
 
         //get public
@@ -107,7 +107,7 @@ impl TronAddress {
             network: Network::Bitcoin.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
-            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            child_number: *chain_number_vec.last().unwrap(),
             public_key: sub_pub_key,
             chain_code: chain_code_obj,
         };

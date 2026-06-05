@@ -572,7 +572,7 @@ pub fn test_filecoin_private_key_bls_import() {
 pub fn test_fil_bls_tezos_reimport() {
     run_test(|| {
         let hd_import_result = import_default_wallet();
-        let test_case = vec![
+        let test_case = [
             (
                 "TEZOS".to_string(),
                 "m/44'/1729'/0'/0'".to_string(),
@@ -1628,7 +1628,7 @@ pub fn test_reset_password_hd_seed_already_exist() {
 
         let ret = call_api("import_mnemonic", import_param).unwrap();
         let import_result: KeystoreResult = KeystoreResult::decode(ret.as_slice()).unwrap();
-        assert_eq!(import_result.is_existed, false);
+        assert!(!import_result.is_existed);
         assert_eq!(import_result.existed_id, "".to_string());
         let import_param = ImportMnemonicParam {
             mnemonic: TEST_MNEMONIC.to_string(),
@@ -1706,7 +1706,7 @@ pub fn test_reset_password_hd_valid_overwrite_wallet_first() {
         let ret = call_api("import_mnemonic", import_param).unwrap();
         let import_wallet_a_result: KeystoreResult =
             KeystoreResult::decode(ret.as_slice()).unwrap();
-        assert_eq!(import_wallet_a_result.is_existed, false);
+        assert!(!import_wallet_a_result.is_existed);
         assert_eq!(import_wallet_a_result.existed_id, "".to_string());
         let import_param = ImportMnemonicParam {
             mnemonic: OTHER_MNEMONIC.to_string(),
@@ -1767,16 +1767,14 @@ pub fn test_reset_password_private_not_overwrite() {
 fn delete_dir_contents(path: &str) {
     let read_dir_res = fs::read_dir(path);
     if let Ok(dir) = read_dir_res {
-        for entry in dir {
-            if let Ok(entry) = entry {
-                let path = entry.path();
+        for entry in dir.flatten() {
+            let path = entry.path();
 
-                if path.is_dir() {
-                    fs::remove_dir_all(path).expect("Failed to remove a dir");
-                } else {
-                    fs::remove_file(path).expect("Failed to remove a file");
-                }
-            };
+            if path.is_dir() {
+                fs::remove_dir_all(path).expect("Failed to remove a dir");
+            } else {
+                fs::remove_file(path).expect("Failed to remove a file");
+            }
         }
     };
 }

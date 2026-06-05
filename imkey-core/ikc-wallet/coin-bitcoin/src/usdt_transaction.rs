@@ -34,12 +34,12 @@ impl BtcTransaction {
         check_path_validity(path)?;
 
         //check uxto number
-        if &self.unspents.len() > &MAX_UTXO_NUMBER {
+        if self.unspents.len() > MAX_UTXO_NUMBER {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
 
         //check change amount
-        if self.amount.checked_sub(self.fee).unwrap_or(0) < MIN_NONDUST_OUTPUT {
+        if self.amount.saturating_sub(self.fee) < MIN_NONDUST_OUTPUT {
             return Err(CoinError::ImkeyAmountLessThanMinimum.into());
         }
 
@@ -54,8 +54,8 @@ impl BtcTransaction {
             .and_then(|amount| amount.checked_sub(self.fee))
             .ok_or(CoinError::ImkeyAmountLessThanMinimum)?;
         let txout_send_output = TxOut {
-            value: Amount::from_sat(change_amount as u64),
-            script_pubkey: Address::from_str(&self.unspents.get(0).unwrap().address)?
+            value: Amount::from_sat(change_amount),
+            script_pubkey: Address::from_str(&self.unspents.first().unwrap().address)?
                 .assume_checked()
                 .script_pubkey(),
         };
@@ -63,7 +63,7 @@ impl BtcTransaction {
 
         //add send to output
         let txout_change_output = TxOut {
-            value: Amount::from_sat(MIN_NONDUST_OUTPUT as u64),
+            value: Amount::from_sat(MIN_NONDUST_OUTPUT),
             script_pubkey: Address::from_str(&self.to)?
                 .assume_checked()
                 .script_pubkey(),
@@ -130,7 +130,7 @@ impl BtcTransaction {
                 let mut temp_serialize_txin = TxIn {
                     previous_output: OutPoint {
                         txid: Txid::from_str(temp_utxo.txhash.as_str())?,
-                        vout: temp_utxo.vout as u32,
+                        vout: temp_utxo.vout,
                     },
                     script_sig: Script::new(),
                     sequence: Sequence::MAX,
@@ -171,7 +171,7 @@ impl BtcTransaction {
             let txin = TxIn {
                 previous_output: OutPoint {
                     txid: Txid::from_str(&unspent.txhash)?,
-                    vout: unspent.vout as u32,
+                    vout: unspent.vout,
                 },
                 script_sig: lock_script_ver.get(index).unwrap().clone(),
                 sequence: Sequence::MAX,
@@ -199,7 +199,7 @@ impl BtcTransaction {
         check_path_validity(path)?;
 
         //check uxto number
-        if &self.unspents.len() > &MAX_UTXO_NUMBER {
+        if self.unspents.len() > MAX_UTXO_NUMBER {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
         let change_amount = self
@@ -217,19 +217,19 @@ impl BtcTransaction {
 
         //5.add change output
         let mut txouts: Vec<TxOut> = vec![];
-        let receiver_address = &self.unspents.get(0).unwrap().address;
+        let receiver_address = &self.unspents.first().unwrap().address;
         let script_pubkey = Address::from_str(receiver_address)?
             .assume_checked()
             .script_pubkey();
         let txout_send_output = TxOut {
-            value: Amount::from_sat(change_amount as u64),
+            value: Amount::from_sat(change_amount),
             script_pubkey,
         };
         txouts.push(txout_send_output);
 
         //6.add send to output
         let txout_change_output = TxOut {
-            value: Amount::from_sat(MIN_NONDUST_OUTPUT as u64),
+            value: Amount::from_sat(MIN_NONDUST_OUTPUT),
             script_pubkey: Address::from_str(&self.to)?
                 .assume_checked()
                 .script_pubkey(),
@@ -290,7 +290,7 @@ impl BtcTransaction {
             let txin = TxIn {
                 previous_output: OutPoint {
                     txid: Txid::from_str(&unspent.txhash)?,
-                    vout: unspent.vout as u32,
+                    vout: unspent.vout,
                 },
                 script_sig: Script::new(),
                 sequence: Sequence::MAX,
@@ -382,7 +382,7 @@ impl BtcTransaction {
                         .as_slice(),
                 )
                 .to_byte_array();
-                let hex = format!("160014{}", hex::encode(&hash));
+                let hex = format!("160014{}", hex::encode(hash));
                 Ok(TxIn {
                     script_sig: Script::from_hex(hex.as_str())?,
                     witness: Witness::from_slice(&[witnesses[i].0.clone(), witnesses[i].1.clone()]),
@@ -446,8 +446,7 @@ mod tests {
             derive_path: "m/44'/1'/0'/0/0".to_string(),
             sequence: 4294967295,
         };
-        let mut utxos = Vec::new();
-        utxos.push(utxo);
+        let utxos = vec![utxo];
 
         let transaction_req_data = BtcTransaction {
             to: "moLK3tBG86ifpDDTqAQzs4a9cUoNjVLRE3".to_string(),
@@ -456,11 +455,8 @@ mod tests {
             fee: 4000,
             chain_type: "".to_string(),
         };
-        let sign_result = transaction_req_data.sign_omni_transaction(
-            Network::Testnet,
-            &"m/44'/1'/0'".to_string(),
-            31,
-        );
+        let sign_result =
+            transaction_req_data.sign_omni_transaction(Network::Testnet, "m/44'/1'/0'", 31);
         assert_eq!(
             "36a25fa2005b5d4922d18f6f819bf068dca479d4103904ce225a9438a2c1f5a0",
             sign_result.as_ref().unwrap().tx_hash
@@ -486,8 +482,7 @@ mod tests {
             sequence: 0,
         };
 
-        let mut utxos = Vec::new();
-        utxos.push(utxo);
+        let utxos = vec![utxo];
         let transaction_req_data = BtcTransaction {
             to: "moLK3tBG86ifpDDTqAQzs4a9cUoNjVLRE3".to_string(),
             amount: 10000000000,
@@ -495,11 +490,8 @@ mod tests {
             fee: 4000,
             chain_type: "".to_string(),
         };
-        let sign_result = transaction_req_data.sign_omni_segwit_transaction(
-            Network::Testnet,
-            &"m/49'/1'/0'/".to_string(),
-            31,
-        );
+        let sign_result =
+            transaction_req_data.sign_omni_segwit_transaction(Network::Testnet, "m/49'/1'/0'/", 31);
 
         assert_eq!(
             "e664888c4a67cfed29786e5ada0c24cb25b91cafca4ae699fb7b90e7071e88bc",
@@ -589,15 +581,7 @@ mod tests {
             sequence: 0,
         };
 
-        let mut utxos = Vec::new();
-        utxos.push(utxo);
-        utxos.push(utxo2);
-        utxos.push(utxo3);
-        utxos.push(utxo4);
-        utxos.push(utxo5);
-        utxos.push(utxo6);
-        utxos.push(utxo7);
-        utxos.push(utxo8);
+        let utxos = vec![utxo, utxo2, utxo3, utxo4, utxo5, utxo6, utxo7, utxo8];
         let transaction_req_data = BtcTransaction {
             to: "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a".to_string(),
             amount: 750000000,
@@ -605,11 +589,8 @@ mod tests {
             fee: 502130,
             chain_type: "".to_string(),
         };
-        let sign_result = transaction_req_data.sign_omni_segwit_transaction(
-            Network::Bitcoin,
-            &"m/49'/0'/0'/".to_string(),
-            31,
-        );
+        let sign_result =
+            transaction_req_data.sign_omni_segwit_transaction(Network::Bitcoin, "m/49'/0'/0'/", 31);
         assert_eq!(
             "79ec1ab9008e3ce2809419d7b25c58de0f03a782e81f15d0e92042e16f141434",
             sign_result.as_ref().unwrap().tx_hash
@@ -634,8 +615,7 @@ mod tests {
             derive_path: "m/49'/0'/0'/0/22".to_string(),
             sequence: 0,
         };
-        let mut utxos = Vec::new();
-        utxos.push(utxo);
+        let utxos = vec![utxo];
         let transaction_req_data = BtcTransaction {
             to: "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a".to_string(),
             amount: 345678,
@@ -643,11 +623,8 @@ mod tests {
             fee: 502130,
             chain_type: "".to_string(),
         };
-        let sign_result = transaction_req_data.sign_omni_segwit_transaction(
-            Network::Bitcoin,
-            &"m/49'/0'/0'/".to_string(),
-            31,
-        );
+        let sign_result =
+            transaction_req_data.sign_omni_segwit_transaction(Network::Bitcoin, "m/49'/0'/0'/", 31);
         assert_eq!(
             "0f3365929829d1d519751ed65bc0751cae6fe4480bc7b2098efa8c634e8b11b5",
             sign_result.as_ref().unwrap().tx_hash
@@ -680,11 +657,8 @@ mod tests {
             fee: 502130,
             chain_type: "".to_string(),
         };
-        let sign_result = transaction_req_data.sign_omni_segwit_transaction(
-            Network::Bitcoin,
-            &"m/49'/0'/0'".to_string(),
-            31,
-        );
+        let sign_result =
+            transaction_req_data.sign_omni_segwit_transaction(Network::Bitcoin, "m/49'/0'/0'", 31);
         assert_eq!(
             format!("{}", sign_result.err().unwrap()),
             "imkey_exceeded_max_utxo_number"
@@ -711,11 +685,8 @@ mod tests {
             fee: 4000,
             chain_type: "".to_string(),
         };
-        let sign_result = transaction_req_data.sign_omni_transaction(
-            Network::Testnet,
-            &"m/44'/1'/0'".to_string(),
-            31,
-        );
+        let sign_result =
+            transaction_req_data.sign_omni_transaction(Network::Testnet, "m/44'/1'/0'", 31);
 
         assert_eq!(
             format!("{}", sign_result.err().unwrap()),
@@ -734,8 +705,7 @@ mod tests {
             derive_path: "m/49'/0'/0'/0/22".to_string(),
             sequence: 0,
         };
-        let mut utxos = Vec::new();
-        utxos.push(utxo);
+        let utxos = vec![utxo];
 
         let transaction_req_data = BtcTransaction {
             to: "3PGEDofNu6aJ3KfgK9PHGt3EW3oZK5qY1a".to_string(),
@@ -744,11 +714,8 @@ mod tests {
             fee: 900,
             chain_type: "".to_string(),
         };
-        let sign_result = transaction_req_data.sign_omni_segwit_transaction(
-            Network::Bitcoin,
-            &"m/49'/0'/0'/".to_string(),
-            31,
-        );
+        let sign_result =
+            transaction_req_data.sign_omni_segwit_transaction(Network::Bitcoin, "m/49'/0'/0'/", 31);
         assert_eq!(
             format!("{}", sign_result.err().unwrap()),
             "imkey_amount_less_than_minimum"
@@ -763,8 +730,7 @@ mod tests {
             derive_path: "m/44'/1'/0'/0/0".to_string(),
             sequence: 4294967295,
         };
-        let mut utxos = Vec::new();
-        utxos.push(utxo);
+        let utxos = vec![utxo];
 
         let transaction_req_data = BtcTransaction {
             to: "moLK3tBG86ifpDDTqAQzs4a9cUoNjVLRE3".to_string(),
@@ -773,11 +739,8 @@ mod tests {
             fee: 900,
             chain_type: "".to_string(),
         };
-        let sign_result = transaction_req_data.sign_omni_transaction(
-            Network::Testnet,
-            &"m/44'/1'/0'".to_string(),
-            31,
-        );
+        let sign_result =
+            transaction_req_data.sign_omni_transaction(Network::Testnet, "m/44'/1'/0'", 31);
 
         assert_eq!(
             format!("{}", sign_result.err().unwrap()),

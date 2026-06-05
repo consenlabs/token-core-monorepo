@@ -17,10 +17,10 @@ fn serial_eos_sig(sig: &[u8]) -> String {
 }
 
 fn is_canonical(sig: &[u8]) -> bool {
-    !(sig[0] & 0x80 != 0)
-        && !(sig[0] == 0 && !(sig[1] & 0x80 != 0))
-        && !(sig[32] & 0x80 != 0)
-        && !(sig[32] == 0 && !(sig[33] & 0x80 != 0))
+    (sig[0] & 0x80 == 0)
+        && !(sig[0] == 0 && (sig[1] & 0x80 == 0))
+        && (sig[32] & 0x80 == 0)
+        && !(sig[32] == 0 && (sig[33] & 0x80 == 0))
 }
 
 fn i32_to_u8_array(value: i32) -> [u8; 32] {
@@ -36,7 +36,7 @@ fn eos_sign(keystore: &mut Keystore, hashed: &[u8], path: &str) -> Result<String
     for nonce in 0..1000 {
         sign_result = keystore.secp256k1_ecdsa_sign_recoverable_with_noncedata(
             hashed,
-            &path,
+            path,
             &i32_to_u8_array(nonce),
         )?;
         if is_canonical(&sign_result) {

@@ -36,29 +36,29 @@ impl Transaction {
 
         let mut message_pack: Vec<u8> = vec![];
         //add hash
-        message_pack.push(0x01 as u8);
+        message_pack.push(0x01_u8);
         message_pack.push(hash_result.as_bytes().len() as u8);
         message_pack.extend(hash_result.as_bytes());
         //add path
-        message_pack.push(0x02 as u8);
-        message_pack.push(sign_param.path.as_bytes().len() as u8);
+        message_pack.push(0x02_u8);
+        message_pack.push(sign_param.path.len() as u8);
         message_pack.extend(sign_param.path.as_bytes());
         //add preview (payment + to + fee)
-        message_pack.push(0x07 as u8);
-        message_pack.push(sign_param.payment.as_bytes().len() as u8);
+        message_pack.push(0x07_u8);
+        message_pack.push(sign_param.payment.len() as u8);
         message_pack.extend(sign_param.payment.as_bytes());
-        message_pack.push(0x08 as u8);
-        message_pack.push(sign_param.receiver.as_bytes().len() as u8);
+        message_pack.push(0x08_u8);
+        message_pack.push(sign_param.receiver.len() as u8);
         message_pack.extend(sign_param.receiver.as_bytes());
-        message_pack.push(0x09 as u8);
-        message_pack.push(sign_param.fee.as_bytes().len() as u8);
+        message_pack.push(0x09_u8);
+        message_pack.push(sign_param.fee.len() as u8);
         message_pack.extend(sign_param.fee.as_bytes());
         //bind private key sign
         let key_manager_obj = KEY_MANAGER.lock();
         let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &message_pack).unwrap();
         //add signature
         let mut data_pack: Vec<u8> = vec![];
-        data_pack.push(0x00 as u8);
+        data_pack.push(0x00_u8);
         data_pack.push(bind_signature.len() as u8);
         data_pack.extend(bind_signature.iter());
         data_pack.extend(message_pack.iter());
@@ -91,7 +91,7 @@ impl Transaction {
         let edsig_prefix: [u8; 5] = [9, 245, 205, 134, 18];
         let mut edsig_source_data = vec![];
         edsig_source_data.extend(&edsig_prefix);
-        edsig_source_data.extend(hex::decode(sign_source_val[2..].to_string())?.iter());
+        edsig_source_data.extend(hex::decode(&sign_source_val[2..])?.iter());
         let tx_out = TezosTxOutput {
             signature: sign_source_val[2..].to_string(),
             edsig: base58::encode_check(edsig_source_data.as_slice()),

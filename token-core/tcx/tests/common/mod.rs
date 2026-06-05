@@ -52,12 +52,12 @@ pub fn teardown() {
     fs::remove_dir_all("/tmp/imtoken").expect("remove test directory");
 }
 
-pub fn run_test<T>(test: T) -> ()
+pub fn run_test<T>(test: T)
 where
-    T: FnOnce() -> () + panic::UnwindSafe,
+    T: FnOnce() + panic::UnwindSafe,
 {
     setup();
-    let result = panic::catch_unwind(|| test());
+    let result = panic::catch_unwind(test);
     teardown();
     assert!(result.is_ok())
 }
@@ -147,7 +147,7 @@ pub fn call_api(method: &str, msg: impl Message) -> Result<Vec<u8>> {
             value: encode_message(msg).unwrap(),
         }),
     };
-    let _ = unsafe { clear_err() };
+    unsafe { clear_err() };
     let param_bytes = encode_message(param).unwrap();
     let param_hex = param_bytes.to_hex();
     let ret_hex = unsafe { _to_str(call_tcx_api(_to_c_char(&param_hex))) };
@@ -199,7 +199,7 @@ fn copy_dir(src: &Path, dst: &Path) -> tcx::Result<()> {
 
 pub fn setup_test(old_wallet_dir: &str) {
     let _ = fs::remove_dir_all("/tmp/token-core-x");
-    copy_dir(&Path::new(old_wallet_dir), &Path::new("/tmp/token-core-x")).unwrap();
+    copy_dir(Path::new(old_wallet_dir), Path::new("/tmp/token-core-x")).unwrap();
 
     init_token_core_x("/tmp/token-core-x");
 }

@@ -392,7 +392,7 @@ impl Keystore {
     }
 
     pub fn get_curve(&self) -> Option<CurveType> {
-        self.store().curve.clone()
+        self.store().curve
     }
 
     pub fn get_deterministic_public_key(
@@ -562,13 +562,13 @@ pub(crate) mod tests {
         }
     }
 
-    impl ToString for MockAddress {
-        fn to_string(&self) -> String {
-            self.0.to_hex()
+    impl std::fmt::Display for MockAddress {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str(&self.0.to_hex())
         }
     }
 
-    static HD_KEYSTORE_JSON: &'static str = r#"
+    static HD_KEYSTORE_JSON: &str = r#"
         {
     "id": "7719d1e3-3f67-439f-a18e-d9ae413e00e1",
     "version": 12000,
@@ -613,18 +613,18 @@ pub(crate) mod tests {
 }
 "#;
 
-    static PK_KEYSTORE_JSON: &'static str = r#"
+    static PK_KEYSTORE_JSON: &str = r#"
     {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":12001,
     "sourceFingerprint":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"identity":{"encAuthKey":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"},"encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3","identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf","ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"},"encOriginal":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"}, "imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE","network":"MAINNET"},
     "curve": "secp256k1"
     }
     "#;
 
-    static INVALID_PK_KEYSTORE_JSON: &'static str = r#"
+    static INVALID_PK_KEYSTORE_JSON: &str = r#"
     {"id":"89e6fc5d-ac9a-46ab-b53f-342a80f3d28b","version":10001,"sourceFingerprint":"4fc213ddcb6fa44a2e2f4c83d67502f88464e6ee","crypto":{"cipher":"aes-128-ctr","cipherparams":{"iv":"c0ecc72839f8a02cc37eb7b0dd0b93ba"},"ciphertext":"1239e5807e19f95d86567f81c162c69a5f4564ea17f487669a277334f4dcc7dc","kdf":"pbkdf2","kdfparams":{"c":1024,"prf":"hmac-sha256","dklen":32,"salt":"3c9df9eb95a014c77bbc8b9a06f4f14e0d08170dea71189c7cf377a3b2099404"},"mac":"909a6bfe1ad031901e80927b847a8fa8407fdcde56cfa374f7a732fb3b3a882d"},"identity":{"encAuthKey":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"},"encKey":"ef806a542bcc30da7ce60fc37bd6cc91619b482f6f070af3a9d7b042087886f3","identifier":"im14x5GXsdME4JsrHYe2wvznqRz4cUhx2pA4HPf","ipfsId":"QmWqwovhrZBMmo32BzY83ZMEBQaP7YRMqXNmMc8mgrpzs6"},"encOriginal":{"encStr":"ba382601567c543984778a7914d7bfb2462098a8680f36edd7ceaa1a5039e1ca","nonce":"d117ae86c627850341f1a5d6bd9cd855"}, "imTokenMeta":{"name":"Unknown","passwordHint":"","timestamp":1576733295,"source":"PRIVATE","network":"MAINNET"}}
     "#;
 
-    static OLD_KEYSTORE_JSON: &'static str = r#"
+    static OLD_KEYSTORE_JSON: &str = r#"
     {
   "crypto": {
     "cipher": "aes-128-ctr",

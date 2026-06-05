@@ -106,7 +106,7 @@ impl TxSignatureHasher for SighashCache<Box<Transaction>> {
         Ok(self
             .taproot_script_spend_signature_hash(
                 input_index,
-                &prevouts,
+                prevouts,
                 tap_leaf_hash,
                 sighash_type,
             )?

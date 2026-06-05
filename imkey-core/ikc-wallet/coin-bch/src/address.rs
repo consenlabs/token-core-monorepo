@@ -20,9 +20,9 @@ use std::str::FromStr;
 
 fn legacy_to_bch(addr: &str) -> Result<String> {
     let convert = Converter::new();
-    let bch_addr = if convert.is_legacy_addr(&addr) {
+    let bch_addr = if convert.is_legacy_addr(addr) {
         convert
-            .to_cash_addr(&addr)
+            .to_cash_addr(addr)
             .map_err(|_| CoinError::ConvertToCashAddressFailed)?
     } else {
         addr.to_string()
@@ -32,9 +32,9 @@ fn legacy_to_bch(addr: &str) -> Result<String> {
 
 fn bch_to_legacy(addr: &str) -> Result<String> {
     let convert = Converter::new();
-    if !convert.is_legacy_addr(&addr) {
+    if !convert.is_legacy_addr(addr) {
         convert
-            .to_legacy_addr(&addr)
+            .to_legacy_addr(addr)
             .map_err(|_| CoinError::ConvertToLegacyAddressFailed.into())
     } else {
         Ok(addr.to_string())
@@ -47,7 +47,7 @@ fn remove_bch_prefix(addr: &str) -> String {
             return addr.split_at(sep + 1).1.to_owned();
         }
     }
-    return addr.to_owned();
+    addr.to_owned()
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -100,7 +100,7 @@ impl BchAddress {
         let pub_key = Self::get_pub_key(network, path)?;
         let mut pub_key_obj = PublicKey::from_str(&pub_key)?;
         pub_key_obj.compressed = true;
-        let addr = BtcAddress::p2pkh(&pub_key_obj, network).to_string();
+        let addr = BtcAddress::p2pkh(pub_key_obj, network).to_string();
         legacy_to_bch(&addr)
     }
 
@@ -124,18 +124,14 @@ impl BchAddress {
 
     pub fn is_valid(address: &str) -> bool {
         let converter = Converter::default();
-        if converter.is_legacy_addr(address) || converter.is_cash_addr(address) {
-            return true;
-        } else {
-            return false;
-        }
+        converter.is_legacy_addr(address) || converter.is_cash_addr(address)
     }
 
     pub fn from_pub_key(pub_key: &[u8], network: &str) -> Result<String> {
         let network = network_convert(network);
         let mut pub_key_obj = PublicKey::from_slice(pub_key)?;
         pub_key_obj.compressed = true;
-        let addr = BtcAddress::p2pkh(&pub_key_obj, network).to_string();
+        let addr = BtcAddress::p2pkh(pub_key_obj, network).to_string();
         legacy_to_bch(&addr)
     }
 }

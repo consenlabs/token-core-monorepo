@@ -50,10 +50,10 @@ impl EosTransaction {
             //view_info
             let mut view_info = "".to_string();
             view_info.push_str("07");
-            view_info.push_str(&format!("{:02x}", &sign_data.payment.as_bytes().len()));
+            view_info.push_str(&format!("{:02x}", &sign_data.payment.len()));
             view_info.push_str(&hex::encode(&sign_data.payment));
             view_info.push_str("08");
-            view_info.push_str(&format!("{:02x}", &sign_data.receiver.as_bytes().len()));
+            view_info.push_str(&format!("{:02x}", &sign_data.receiver.len()));
             view_info.push_str(&hex::encode(&sign_data.receiver));
 
             //sign
@@ -132,7 +132,7 @@ impl EosTransaction {
                         signature.push_str(&sig_str);
                         break;
                     }
-                    nonce = nonce + 1;
+                    nonce += 1;
                 }
 
                 //checksum base58
@@ -170,7 +170,7 @@ impl EosTransaction {
         data_pack.push(0x20);
         data_pack.extend(hash.as_slice());
         data_pack.push(0x02);
-        data_pack.push(sign_param.path.as_bytes().len() as u8);
+        data_pack.push(sign_param.path.len() as u8);
         data_pack.extend(sign_param.path.as_bytes());
 
         let key_manager_obj = KEY_MANAGER.lock();
@@ -197,7 +197,7 @@ impl EosTransaction {
         //todo optmize,calc from prepare response
         let pubkey = EosPubkey::pubkey_from_response(&prepare_response).unwrap();
         let mut signature = "".to_string();
-        if &pubkey != &input.pubkey {
+        if pubkey != input.pubkey {
             return Err(anyhow!("imkey_publickey_mismatch_with_path"));
         }
         //sign
@@ -233,7 +233,7 @@ impl EosTransaction {
                 signature.push_str(&sig_str);
                 break;
             }
-            nonce = nonce + 1;
+            nonce += 1;
         }
 
         //checksum base58
