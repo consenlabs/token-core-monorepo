@@ -1,5 +1,5 @@
 # Contributing to TokenCoreX
-TokenCoreX welcomes contribution from everyone. Here are the show some ways you can help to build TokenCoreX :    
+TokenCoreX welcomes contribution from everyone. Here are the show some ways you can help to build TokenCoreX :
 ## Report Bug
 
 While bugs are unfortunate, they're a reality in software. We can't fix what we don't know about, so please report liberally. If you're not sure if something is a bug or not, feel free to file a bug anyway.
@@ -34,15 +34,19 @@ CI server already setup to check style on CI build. We recommend you turn on cod
 
 ## CI
 
-Code submitted must pass all unit tests and static analysis ("lint") checks. We use Travis CI to test code on Linux, macOS.
+Code submitted must pass the workspace quality gates in GitHub Actions,
+including formatting, clippy, workspace test compilation, host-safe tests,
+wasm checks, and dependency policy checks.
 
-For failing CI builds, the issue may not be related to the PR itself. Such failures are usually related to flaky tests. These failures can be ignored (authors don't need to fix unrelated issues), but please file a GH issue so the test gets fixed eventually.
+For local verification, start with the commands documented in
+[`../doc/TEST.md`](../doc/TEST.md). Hardware tests require a connected and
+authorized imKey device and are tracked separately from host-safe CI tests.
 
 ## Commit Message
 
 We follow a rough convention for commit message writing.
 
-First line is the subject line, in around 50 characters or less to describe what changed. And the body of the commit should describe why changed. 
+First line is the subject line, in around 50 characters or less to describe what changed. And the body of the commit should describe why changed.
 
 Template:
 
@@ -55,4 +59,3 @@ from the PR description in the final commit message.
 
 issue notices, e.g. "Fixes #42, Resolve #123, See also #456".
 ```
-

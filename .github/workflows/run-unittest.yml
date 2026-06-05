@@ -204,6 +204,28 @@ jobs:
       - name: Run wasm check
         run: make test-wasm
 
+  docs-links:
+    name: markdown links
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check local Markdown links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --offline
+            --include-fragments
+            --exclude-path vendor
+            --exclude-path token-core/tcx-examples/iOSExample/Pods
+            --exclude-path imkey-core/mobile-sdk/ios/Example/Pods
+            --exclude-path imkey-core/ikc-examples/ios/Pods
+            './**/*.md'
+          fail: true
+
   dependency-policy:
     name: dependency audit and licenses
     runs-on: ubuntu-latest

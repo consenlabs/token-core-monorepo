@@ -112,12 +112,12 @@ jreleaser {
 ```yaml
 env:
   JRELEASER_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  JRELEASER_GPG_PASSPHRASE: ${{ secrets.SIGNING_SECRET }}
+  JRELEASER_GPG_PASSPHRASE: ${{ secrets.SIGNING_SECRET_JRELEASER }}
   JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
   JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
   # 使用Central Portal凭据
-  JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-  JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+  JRELEASER_MAVENCENTRAL_USERNAME: ${{ secrets.MAVENCENTRAL_USERNAME }}
+  JRELEASER_MAVENCENTRAL_PASSWORD: ${{ secrets.MAVENCENTRAL_PASSWORD }}
 
 # 移除contents: write权限（不再需要创建GitHub Release）
 permissions:
@@ -134,11 +134,11 @@ permissions:
 ### 步骤4: 更新GitHub Secrets
 
 需要更新以下Secrets：
-- `OSSRH_USERNAME`: Central Portal用户名
-- `OSSRH_PASSWORD`: Central Portal Token（不是旧的OSSRH密码）
+- `MAVENCENTRAL_USERNAME`: Central Portal User Token username
+- `MAVENCENTRAL_PASSWORD`: Central Portal User Token password
 - `GPG_PUBLIC_KEY`: GPG公钥
 - `GPG_PRIVATE_KEY`: GPG私钥
-- `SIGNING_SECRET`: GPG密码
+- `SIGNING_SECRET_JRELEASER`: GPG密码
 
 ## 关键决策说明
 
@@ -225,4 +225,4 @@ A: Central Portal使用不同的认证系统，必须生成新的Portal Token。
 3. **更可靠**: 避免了staging profile查找等问题
 4. **现代化**: 使用官方推荐的最新发布方式
 
-通过禁用Android工作流的GitHub Release功能，我们避免了与iOS工作流的冲突，实现了职责分离：iOS负责GitHub Release，Android专注于Maven发布。 
+通过禁用Android工作流的GitHub Release功能，我们避免了与iOS工作流的冲突，实现了职责分离：iOS负责GitHub Release，Android专注于Maven发布。

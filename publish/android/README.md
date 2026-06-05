@@ -1,70 +1,91 @@
-# Token Core Android 发布指南
+# Android Publishing Guide
 
-本文档描述了如何使用JReleaser将Token Core Android库发布到Maven中央仓库。
+This Gradle project packages Token Core native libraries into an Android AAR and
+publishes `io.github.consenlabs.android:token-core` to Maven Central with
+JReleaser.
 
-## 先决条件
+For the repository-wide release policy, see [`../../doc/RELEASE.md`](../../doc/RELEASE.md).
 
-在开始发布过程前，确保你已经具备以下条件：
+## Prerequisites
 
-1. GPG密钥对 - 用于签名Maven制品
-2. Sonatype OSSRH账号 - 用于发布到Maven中央仓库
-3. 已正确设置的GitHub Actions密钥:
-   - `OSSRH_USERNAME` - Sonatype账号用户名
-   - `OSSRH_PASSWORD` - Sonatype账号密码
-   - `SIGNING_SECRET` - GPG密钥密码
-   - `GPG_PUBLIC_KEY` - GPG公钥（ASCII格式）
-   - `GPG_PRIVATE_KEY` - GPG私钥（ASCII格式）
+Local Android packaging requires:
 
-## 发布流程
+- Java 17
+- Android SDK
+- Android NDK `25.2.9519653` for release-equivalent native builds
+- Gradle wrapper from this directory
+- Rust Android targets documented in [`../../doc/BUILD.md`](../../doc/BUILD.md)
+- Protobuf
 
-### 本地测试发布
+Release publishing requires GitHub environment secrets:
 
-在推送到GitHub之前，你可以在本地测试发布流程：
+- `SIGNING_SECRET_JRELEASER`
+- `GPG_PUBLIC_KEY`
+- `GPG_PRIVATE_KEY`
+- `MAVENCENTRAL_USERNAME`
+- `MAVENCENTRAL_PASSWORD`
+- `SLACK_WEBHOOK` for release notifications
 
-1. 确保已经编译好AAR文件：
-   ```bash
-   ./gradlew assemble
-   ```
+The workflow maps these secrets to the `JRELEASER_*` environment variables used
+by JReleaser.
 
-2. 使用JReleaser执行本地验证：
-   ```bash
-   ./gradlew jreleaserConfig
-   ```
-   
-3. 查看生成的配置并验证：
-   ```bash
-   cat build/jreleaser/config/jreleaser.yml
-   ```
+## Local Build Check
 
-### GitHub Actions自动发布
+Build the AAR from this directory:
 
-当Pull Request被审核通过后，GitHub Actions工作流会自动执行以下步骤：
+```bash
+./gradlew assemble
+```
 
-1. 构建Rust原生库
-2. 构建Android AAR库
-3. 使用JReleaser发布到Maven中央仓库
-4. 发送Slack通知
+Validate the generated JReleaser configuration:
 
-整个流程无需人工干预，JReleaser会自动处理：
-- 签名制品
-- 上传到Sonatype OSSRH
-- 关闭和发布Staging仓库
-- 将库发布到Maven中央仓库
+```bash
+./gradlew jreleaserConfig
+```
 
-## 故障排除
+The generated trace and output files are written under `build/jreleaser/`.
 
-如果发布过程中遇到问题，可以查看Actions运行的输出，特别是JReleaser的日志：
-- `build/jreleaser/trace.log` - 详细的JReleaser执行日志
-- `build/jreleaser/output.properties` - 输出属性
+## Versioning
 
-## 依赖引用
+The release workflow reads the repository root [`../../VERSION`](../../VERSION)
+and appends the release commit short SHA when publishing. For example, root
+version `2.8.4` from commit `abc1234` becomes `2.8.4+abc1234` in the workflow.
 
-发布完成后，可以在其他项目中使用以下方式引用该库：
+For local publishing checks, pass the version explicitly when needed:
+
+```bash
+VERSION=2.8.4-local ./gradlew publishProductionPublicationToStagingRepository
+```
+
+## Automated Release Flow
+
+The GitHub Actions workflow
+[`../../.github/workflows/build-release-android.yml`](../../.github/workflows/build-release-android.yml)
+runs after an approved pull request review. It:
+
+1. Checks out the reviewed PR head commit.
+2. Installs Rust, Android SDK/NDK, Java, Gradle, and Protobuf.
+3. Builds native libraries with [`../../script/build-android.sh`](../../script/build-android.sh).
+4. Builds `tokencore-release.aar`.
+5. Publishes to a local staging repository.
+6. Deploys to Maven Central with JReleaser.
+7. Uploads JReleaser logs as workflow artifacts.
+
+## Consuming the AAR
 
 ```kotlin
 dependencies {
-    implementation("io.github.consenlabs.android:token-core:$version")
+    implementation("io.github.consenlabs.android:token-core:<version>")
 }
 ```
 
-其中 `$version` 是发布的版本号。 
+Use the exact version published by the release workflow.
+
+## Troubleshooting
+
+- Check `build/jreleaser/trace.log` for detailed JReleaser errors.
+- Check `build/jreleaser/output.properties` for generated deployment metadata.
+- Confirm that the AAR exists at
+  `tokencore/build/outputs/aar/tokencore-release.aar` before publishing.
+- Confirm that all required secrets are available in the `release` GitHub
+  environment.

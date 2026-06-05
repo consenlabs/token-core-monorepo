@@ -47,17 +47,18 @@
 3. 在GitHub仓库中添加以下Secrets：
    - `GPG_PUBLIC_KEY`: 公钥文件 public-key.gpg 的内容
    - `GPG_PRIVATE_KEY`: 私钥文件 private-key.gpg 的内容
-   - `SIGNING_SECRET`: 您在创建GPG密钥时设置的密码
+   - `SIGNING_SECRET_JRELEASER`: 您在创建GPG密钥时设置的密码
 
-## 发布到Sonatype OSSRH
+## 发布到Maven Central
 
 确保您已经：
 
-1. 在Sonatype OSSRH (https://central.sonatype.com/) 注册了一个账号
+1. 在Central Portal (https://central.sonatype.com/) 注册了一个账号
 2. 创建了一个项目/包的命名空间（例如：io.github.yourusername）
-3. 将以下信息添加为GitHub Secrets：
-   - `OSSRH_USERNAME`: 您的Sonatype用户名
-   - `OSSRH_PASSWORD`: 您的Sonatype密码
+3. 生成Central Portal User Token
+4. 将以下信息添加为GitHub Secrets：
+   - `MAVENCENTRAL_USERNAME`: Central Portal User Token username
+   - `MAVENCENTRAL_PASSWORD`: Central Portal User Token password
 
 ## 将GPG公钥分发到公钥服务器
 
