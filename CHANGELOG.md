@@ -5,7 +5,7 @@ All notable user-facing changes to this repository should be documented here.
 This project has multiple release surfaces:
 
 - Mobile release artifacts follow the root [`VERSION`](./VERSION).
-- iOS releases use GitHub tags named `v<VERSION>`.
+- iOS releases use GitHub tags named `v<VERSION>+<short-sha>`.
 - Android releases publish Maven Central artifacts under
   `io.github.consenlabs.android:token-core`.
 - `tcx-wasm` has a separate crate/package version in

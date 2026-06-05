@@ -85,7 +85,7 @@ make dev-wasm
 | 发布面 | 版本来源 | 产物 |
 | ------ | -------- | ---- |
 | Android | [`VERSION`](./VERSION) 与发布提交 | Maven Central AAR `io.github.consenlabs.android:token-core` |
-| iOS | [`VERSION`](./VERSION) 与发布提交 | GitHub Release tag `v<VERSION>`，包含 TokenCoreX 与 imKeyCoreX XCFramework zip |
+| iOS | [`VERSION`](./VERSION) 与发布提交 | GitHub Release tag `v<VERSION>+<short-sha>`，包含版本匹配的 TokenCoreX 与 imKeyCoreX XCFramework zip |
 | WebAssembly | [`token-core/tcx-wasm/Cargo.toml`](./token-core/tcx-wasm/Cargo.toml) 与生成的 npm package metadata | `make build-npm` 生成的 `publish/npm` 文件 |
 
 版本、tag 与产物关系见 [`doc/RELEASE.md`](./doc/RELEASE.md)。面向用户的变化应记录在

@@ -8,7 +8,7 @@ artifact, and changelog entry aligned before publishing.
 | Surface | Version source | Publishing path | Artifact |
 | ------- | -------------- | --------------- | -------- |
 | Android AAR | Root [`../VERSION`](../VERSION), with short commit appended by CI | [`../.github/workflows/build-release-android.yml`](../.github/workflows/build-release-android.yml) | Maven Central package `io.github.consenlabs.android:token-core` |
-| iOS XCFrameworks | Root [`../VERSION`](../VERSION), with short commit in zip names | [`../.github/workflows/build-release-ios.yml`](../.github/workflows/build-release-ios.yml) | GitHub Release `v<VERSION>` containing `ios-tcx-<VERSION>+<sha>.zip` and `ios-ikc-<VERSION>+<sha>.zip` |
+| iOS XCFrameworks | Root [`../VERSION`](../VERSION), with short commit appended by CI | [`../.github/workflows/build-release-ios.yml`](../.github/workflows/build-release-ios.yml) | GitHub Release `v<VERSION>+<short-sha>` containing `ios-tcx-<VERSION>+<short-sha>.zip` and `ios-ikc-<VERSION>+<short-sha>.zip` |
 | WebAssembly/npm files | [`../token-core/tcx-wasm/Cargo.toml`](../token-core/tcx-wasm/Cargo.toml) and generated package metadata | `make build-npm`, then `make publish-npm` when publishing is intended | Files under `publish/npm/` |
 
 The root `VERSION` currently governs mobile release automation. Individual Rust
@@ -17,7 +17,8 @@ crate versions do not automatically imply a mobile SDK release.
 ## Version and Tag Rules
 
 - Use semantic versions in `VERSION`, for example `2.8.4`.
-- iOS release automation creates or updates GitHub Release tag `v<VERSION>`.
+- iOS release automation creates or updates GitHub Release tag
+  `v<VERSION>+<short-sha>`, matching the published zip artifact version.
 - Android release automation publishes a Maven Central version derived from
   `VERSION` plus the release commit short SHA.
 - `tcx-wasm` has its own crate/package version. Bump it when the wasm API or
@@ -74,7 +75,7 @@ The iOS workflow starts after an approved pull request review. It:
 4. Builds `token-core/tcx` for iOS device and simulator targets.
 5. Produces `imKeyCoreX.xcframework` and `TokenCoreX.xcframework`.
 6. Packages zip files and records SHA-256 hashes.
-7. Creates a GitHub Release tagged `v<VERSION>`.
+7. Creates a GitHub Release tagged `v<VERSION>+<short-sha>`.
 
 The current iOS deployment target in automation is `14.0`.
 
