@@ -1,8 +1,11 @@
 use crate::address::{BtcKinAddress, ScriptPubkey};
 use crate::{Error, Result};
 
-use bch_addr::Converter;
 use bitcoin::ScriptBuf as Script;
+use bitcoincash_addr::{
+    Address as CashAddress, AddressCodec, Base58Codec, CashAddrCodec, Network as CashNetwork,
+    Scheme,
+};
 
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -21,11 +24,38 @@ fn remove_bch_prefix(addr: &str) -> String {
     addr.to_owned()
 }
 
+fn decode_cash_address(addr: &str) -> Result<CashAddress> {
+    if let Ok(decoded) = CashAddress::decode(addr) {
+        return Ok(decoded);
+    }
+
+    if addr.contains(':') {
+        return Err(Error::InvalidAddress.into());
+    }
+
+    for prefix in ["bitcoincash", "bchtest"] {
+        let prefixed = format!("{prefix}:{addr}");
+        if let Ok(decoded) = CashAddrCodec::decode(&prefixed) {
+            return Ok(decoded);
+        }
+    }
+
+    Err(Error::InvalidAddress.into())
+}
+
+fn is_legacy_addr(addr: &str) -> bool {
+    Base58Codec::decode(addr).is_ok()
+}
+
+fn is_cash_addr(addr: &str) -> bool {
+    !is_legacy_addr(addr) && decode_cash_address(addr).is_ok()
+}
+
 fn legacy_to_bch(addr: &str) -> Result<String> {
-    let convert = Converter::new();
-    let bch_addr = if convert.is_legacy_addr(addr) {
-        convert
-            .to_cash_addr(addr)
+    let bch_addr = if let Ok(mut decoded) = Base58Codec::decode(addr) {
+        decoded.scheme = Scheme::CashAddr;
+        decoded
+            .encode()
             .map_err(|_| Error::ConvertToCashAddressFailed(addr.to_string()))?
     } else {
         addr.to_string()
@@ -34,13 +64,12 @@ fn legacy_to_bch(addr: &str) -> Result<String> {
 }
 
 fn bch_to_legacy(addr: &str) -> Result<String> {
-    let convert = Converter::new();
-    if !convert.is_legacy_addr(addr) {
-        Ok(convert
-            .to_legacy_addr(addr)
-            .map_err(|_| Error::InvalidAddress)?)
-    } else {
+    if is_legacy_addr(addr) {
         Ok(addr.to_string())
+    } else {
+        let mut decoded = decode_cash_address(addr)?;
+        decoded.scheme = Scheme::Base58;
+        decoded.encode().map_err(|_| Error::InvalidAddress.into())
     }
 }
 
@@ -59,7 +88,7 @@ pub struct BchAddress(pub BtcKinAddress);
 
 impl BchAddress {
     pub fn convert_to_legacy_if_need(addr: &str) -> Result<String> {
-        if Converter::default().is_cash_addr(addr) {
+        if is_cash_addr(addr) {
             bch_to_legacy(addr)
         } else {
             Ok(addr.to_string())
@@ -75,16 +104,12 @@ impl Address for BchAddress {
     }
 
     fn is_valid(address: &str, coin: &CoinInfo) -> bool {
-        let converter = Converter::default();
-
-        if converter.is_legacy_addr(address) || converter.is_cash_addr(address) {
-            if converter.is_mainnet_addr(address) {
-                coin.network == "MAINNET"
-            } else {
-                coin.network == "TESTNET"
-            }
-        } else {
-            false
+        match decode_cash_address(address) {
+            Ok(decoded) => match decoded.network {
+                CashNetwork::Main => coin.network == "MAINNET",
+                CashNetwork::Test | CashNetwork::Regtest => coin.network == "TESTNET",
+            },
+            Err(_) => false,
         }
     }
 }
