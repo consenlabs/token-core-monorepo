@@ -7,6 +7,8 @@ use tcx_keystore::{tcx_ensure, Address};
 use anyhow::anyhow;
 use byteorder::LittleEndian;
 use byteorder::{ReadBytesExt, WriteBytesExt};
+use crypto_secretbox::aead::Aead;
+use crypto_secretbox::{KeyInit, Nonce, XSalsa20Poly1305};
 use regex::Regex;
 use schnorrkel::SECRET_KEY_LENGTH;
 use std::fmt;
@@ -17,8 +19,6 @@ use tcx_common::{random_u8_32, FromHex};
 use tcx_constants::{CoinInfo, Result};
 use tcx_primitive::{PrivateKey, PublicKey, Sr25519PrivateKey, TypedPublicKey};
 use thiserror::Error;
-use xsalsa20poly1305::aead::Aead;
-use xsalsa20poly1305::{KeyInit, Nonce, XSalsa20Poly1305};
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]
 pub enum Error {

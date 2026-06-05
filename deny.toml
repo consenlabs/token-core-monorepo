@@ -5,16 +5,9 @@ all-features = true
 version = 2
 yanked = "deny"
 ignore = [
-    # failure is pulled in through bch_addr/cash_addr 0.1.0. There is no newer
-    # bch_addr release; replacing the BCH address codec needs compatibility tests.
-    "RUSTSEC-2020-0036",
     # rsa is used by ikc-device for public-key encryption of local binding codes.
     # The advisory has no patched version yet; rsa 0.10.0-rc.18 is still affected.
     "RUSTSEC-2023-0071",
-    # xsalsa20poly1305 was renamed to crypto_secretbox. The available
-    # crypto_secretbox 0.2.0-pre.0 currently conflicts with the workspace
-    # RustCrypto cipher 0.5.2 stack, so this needs a separate crypto migration.
-    "RUSTSEC-2023-0037",
     # proc-macro-error is pulled in by the legacy Filecoin forest_cid/cid/
     # multihash stack. Updating it means migrating the Filecoin codec stack.
     "RUSTSEC-2024-0370",
