@@ -126,7 +126,7 @@ mod tests {
 
         let meta = Metadata::default();
         let mut keystore =
-            Keystore::Hd(HdKeystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, meta).unwrap());
+            Keystore::Hd(HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, meta).unwrap());
         let mut guard = KeystoreGuard::unlock_by_password(&mut keystore, TEST_PASSWORD).unwrap();
         let ks = guard.keystore_mut();
 
@@ -147,8 +147,8 @@ mod tests {
     fn test_sign_message_by_hd() {
         let coin_info = coin_info_from_param("TRON", "", "", "").unwrap();
         let mut keystore =
-            Keystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, Metadata::default()).unwrap();
-        keystore.unlock_by_password(&TEST_PASSWORD).unwrap();
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let params = SignatureParameters {
             chain_type: "TRON".to_string(),
@@ -290,7 +290,7 @@ mod tests {
 
         let hash = keccak256(&to_signed);
         let mut signed = sk.sign_recoverable(&hash).unwrap();
-        signed[64] = signed[64] + 27;
+        signed[64] += 27;
         assert_eq!("7209610445e867cf2a36ea301bb5d1fbc3da597fd2ce4bb7fa64796fbf0620a4175e9f841cbf60d12c26737797217c0082fdb3caa8e44079e04ec3f93e86bbea1c", signed.to_hex())
     }
 }

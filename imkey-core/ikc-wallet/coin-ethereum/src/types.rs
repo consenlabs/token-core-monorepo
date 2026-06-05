@@ -2,19 +2,14 @@ use ethereum_types::Address;
 use rlp::{self, RlpStream};
 
 /// Transaction action type.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Action {
     /// Create creates new contract.
+    #[default]
     Create,
     /// Calls contract at given address.
     /// In the case of a transfer, this is the receiver's address.'
     Call(Address),
-}
-
-impl Default for Action {
-    fn default() -> Action {
-        Action::Create
-    }
 }
 
 impl rlp::Encodable for Action {

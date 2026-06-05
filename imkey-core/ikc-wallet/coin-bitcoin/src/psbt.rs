@@ -32,7 +32,6 @@ use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::str::FromStr;
-use std::usize;
 
 pub struct PsbtSigner<'a> {
     psbt: &'a mut Psbt,
@@ -73,18 +72,18 @@ impl<'a> PsbtSigner<'a> {
         Ok(psbt_signer)
     }
 
-    pub fn sign(&mut self, pub_keys: &Vec<String>) -> Result<()> {
-        for idx in 0..self.prevouts.len() {
+    pub fn sign(&mut self, pub_keys: &[String]) -> Result<()> {
+        for (idx, pub_key) in pub_keys.iter().enumerate().take(self.prevouts.len()) {
             let prevout = &self.prevouts[idx];
 
             if prevout.script_pubkey.is_p2pkh() {
-                self.sign_p2pkh(idx, &pub_keys[idx])?;
+                self.sign_p2pkh(idx, pub_key)?;
 
                 if self.auto_finalize {
                     self.finalize_p2pkh(idx);
                 }
             } else if prevout.script_pubkey.is_p2sh() {
-                self.sign_p2sh_nested_p2wpkh(idx, &pub_keys[idx])?;
+                self.sign_p2sh_nested_p2wpkh(idx, pub_key)?;
 
                 if self.auto_finalize {
                     self.finalize_p2sh_nested_p2wpkh(idx);
@@ -102,10 +101,7 @@ impl<'a> PsbtSigner<'a> {
                 self.sign_p2tr_script(
                     idx,
                     &pub_keys[idx],
-                    Some((
-                        TapLeafHash::from_script(script, leaf_version.clone()).into(),
-                        0xFFFFFFFF,
-                    )),
+                    Some((TapLeafHash::from_script(script, *leaf_version), 0xFFFFFFFF)),
                 )?;
 
                 if self.auto_finalize {
@@ -263,7 +259,7 @@ impl<'a> PsbtSigner<'a> {
         //address
         let mut address_data: Vec<u8> = vec![];
         let sign_path = self.get_path(idx, false)?;
-        address_data.push(sign_path.as_bytes().len() as u8);
+        address_data.push(sign_path.len() as u8);
         address_data.extend_from_slice(sign_path.as_bytes());
         data.extend(address_data.iter());
 
@@ -324,7 +320,7 @@ impl<'a> PsbtSigner<'a> {
         //address
         let mut address_data: Vec<u8> = vec![];
         let sign_path = self.get_path(idx, false)?;
-        address_data.push(sign_path.as_bytes().len() as u8);
+        address_data.push(sign_path.len() as u8);
         address_data.extend_from_slice(sign_path.as_bytes());
         data.extend(address_data.iter());
 
@@ -365,7 +361,7 @@ impl<'a> PsbtSigner<'a> {
 
         let mut path_data: Vec<u8> = vec![];
         let sign_path = self.get_path(idx, true)?;
-        path_data.push(sign_path.as_bytes().len() as u8);
+        path_data.push(sign_path.len() as u8);
         path_data.extend_from_slice(sign_path.as_bytes());
         data.extend(path_data.iter());
 
@@ -430,7 +426,7 @@ impl<'a> PsbtSigner<'a> {
         }
         let mut path_data: Vec<u8> = vec![];
         let sign_path = self.get_path(idx, true)?;
-        path_data.push(sign_path.as_bytes().len() as u8);
+        path_data.push(sign_path.len() as u8);
         path_data.extend_from_slice(sign_path.as_bytes());
         data.extend(path_data.iter());
         let mut tweaked_pub_key_data: Vec<u8> = vec![];
@@ -609,15 +605,15 @@ impl<'a> PsbtSigner<'a> {
     fn finalize_p2tr(&mut self, index: usize) {
         let input = &mut self.psbt.inputs[index];
 
-        if input.tap_key_sig.is_some() {
+        if let Some(tap_key_sig) = input.tap_key_sig {
             let mut witness = Witness::new();
-            witness.push(input.tap_key_sig.unwrap().to_vec());
+            witness.push(tap_key_sig.to_vec());
 
             if !input.tap_scripts.is_empty() {
                 let (control_block, script_leaf) = input.tap_scripts.first_key_value().unwrap();
 
                 let (script, _) = script_leaf;
-                witness.push(script.as_bytes().to_vec());
+                witness.push(script.as_bytes());
                 witness.push(control_block.serialize())
             }
 
@@ -727,8 +723,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn get_page_indices(total_number: usize, page_number: usize) -> Result<(usize, usize)> {
-        let total_pages = (total_number + constants::BTC_PSBT_TRX_PER_PAGE_NUMBER - 1)
-            / constants::BTC_PSBT_TRX_PER_PAGE_NUMBER;
+        let total_pages = total_number.div_ceil(constants::BTC_PSBT_TRX_PER_PAGE_NUMBER);
         if page_number >= total_pages {
             return Err(anyhow!("page_number_out_of_range"));
         }
@@ -814,9 +809,9 @@ pub fn sign_psbt(
 
     let vec = psbt.serialize();
 
-    return Ok(PsbtOutput {
+    Ok(PsbtOutput {
         psbt: hex::encode(vec),
-    });
+    })
 }
 
 #[cfg(test)]
@@ -905,7 +900,7 @@ mod test {
         bind_test();
 
         let raw_tx = "02000000054adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0000000000ffffffff4adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0100000000ffffffff12cc8049bf85b5e18cb2be8aa7aefc3afb8df4ec5c1f766750014cc95ca2dc130000000000ffffffff729e6570928cc65200f1d53def65a7934d2e9b543059d90598ed1d166af422010100000000ffffffffa126724475cd2f3252352b3543c8455c7999a8283883bd7a712a7d66609d92d80100000000ffffffff02409c00000000000022512036079c540758a51a86eeaf9e17668d4d8543d8b1b7e56fe2da0982c390c5655ef8fa0700000000002251209303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea0615500000000";
-        let tx: Transaction = deserialize(&Vec::from_hex(&raw_tx).unwrap()).unwrap();
+        let tx: Transaction = deserialize(&Vec::from_hex(raw_tx).unwrap()).unwrap();
 
         let mut psbt = Psbt::from_unsigned_tx(tx).unwrap();
         let fake_pub_key = bitcoin::secp256k1::PublicKey::from_slice(

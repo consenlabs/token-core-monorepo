@@ -5,7 +5,7 @@ use std::{cell::RefCell, panic};
 pub type Result<T> = result::Result<T, Error>;
 
 thread_local! {
-    pub static LAST_ERROR: RefCell<Option<Error>> = RefCell::new(None);
+    pub static LAST_ERROR: RefCell<Option<Error>> = const { RefCell::new(None) };
 }
 
 #[cfg_attr(tarpaulin, ignore)]

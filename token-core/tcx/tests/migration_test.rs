@@ -417,10 +417,9 @@ pub fn test_migrate_keystores_flush() {
         };
     let _ = call_api("migrate_keystore", param).unwrap();
     // let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
-    let json = fs::read_to_string(format!(
-        "../test-data/walletsV2/4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca.json"
-    ))
-    .unwrap();
+    let json =
+        fs::read_to_string("../test-data/walletsV2/4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca.json")
+            .unwrap();
     let mut keystore = Keystore::from_json(&json).unwrap();
     assert_eq!(
         keystore.fingerprint(),
@@ -453,10 +452,9 @@ pub fn test_migrate_keystores_flush_mainnet() {
     };
     let _ = call_api("migrate_keystore", param).unwrap();
     // let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
-    let json = fs::read_to_string(format!(
-        "../test-data/walletsV2/4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca.json"
-    ))
-    .unwrap();
+    let json =
+        fs::read_to_string("../test-data/walletsV2/4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca.json")
+            .unwrap();
     let mut keystore = Keystore::from_json(&json).unwrap();
     assert_eq!(
         keystore.fingerprint(),
@@ -489,10 +487,9 @@ pub fn test_identified_network_flush() {
         };
     let _ = call_api("migrate_keystore", param).unwrap();
     // let result: MigrateKeystoreResult = MigrateKeystoreResult::decode(ret.as_slice()).unwrap();
-    let json = fs::read_to_string(format!(
-        "../test-data/walletsV2/4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca.json"
-    ))
-    .unwrap();
+    let json =
+        fs::read_to_string("../test-data/walletsV2/4b07b86f-cc3f-4bdd-b156-a69d5cbd4bca.json")
+            .unwrap();
     let mut keystore = Keystore::from_json(&json).unwrap();
     assert_eq!(
         keystore.fingerprint(),
@@ -526,10 +523,9 @@ pub fn test_migrate_keystores_identified_chain_types() {
                 )),
             };
         call_api("migrate_keystore", param).unwrap();
-        let json = fs::read_to_string(format!(
-            "../test-data/walletsV2/d9e3bb9c-87fd-4836-b146-10a3e249eb75.json"
-        ))
-        .unwrap();
+        let json =
+            fs::read_to_string("../test-data/walletsV2/d9e3bb9c-87fd-4836-b146-10a3e249eb75.json")
+                .unwrap();
         let keystore = Keystore::from_json(&json).unwrap();
         assert_eq!(
             keystore.meta().identified_chain_types,
@@ -557,10 +553,9 @@ pub fn test_migrate_keystores_identified_chain_types() {
                 )),
             };
         call_api("migrate_keystore", param).unwrap();
-        let json = fs::read_to_string(format!(
-            "../test-data/walletsV2/60573d8d-8e83-45c3-85a5-34fbb2aad5e1.json"
-        ))
-        .unwrap();
+        let json =
+            fs::read_to_string("../test-data/walletsV2/60573d8d-8e83-45c3-85a5-34fbb2aad5e1.json")
+                .unwrap();
         let keystore = Keystore::from_json(&json).unwrap();
         assert_eq!(
             keystore.meta().identified_chain_types,
@@ -587,10 +582,9 @@ pub fn test_migrate_keystores_identified_chain_types() {
             )),
         };
     call_api("migrate_keystore", param).unwrap();
-    let json = fs::read_to_string(format!(
-        "../test-data/walletsV2/792a0051-16d7-44a7-921a-9b4a0c893b8f.json"
-    ))
-    .unwrap();
+    let json =
+        fs::read_to_string("../test-data/walletsV2/792a0051-16d7-44a7-921a-9b4a0c893b8f.json")
+            .unwrap();
     let keystore = Keystore::from_json(&json).unwrap();
     assert!(keystore.meta().identified_chain_types.is_none());
 
@@ -604,10 +598,9 @@ pub fn test_migrate_keystores_identified_chain_types() {
             )),
         };
     call_api("migrate_keystore", param).unwrap();
-    let json = fs::read_to_string(format!(
-        "../test-data/walletsV2/f3615a56-cb03-4aa4-a893-89944e49920d.json"
-    ))
-    .unwrap();
+    let json =
+        fs::read_to_string("../test-data/walletsV2/f3615a56-cb03-4aa4-a893-89944e49920d.json")
+            .unwrap();
     let keystore = Keystore::from_json(&json).unwrap();
     assert_eq!(
         keystore.meta().identified_chain_types,
@@ -636,10 +629,9 @@ pub fn test_migrate_keystores_identified_chain_types() {
         )),
     };
     call_api("migrate_keystore", param).unwrap();
-    let json = fs::read_to_string(format!(
-        "../test-data/walletsV2/fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb.json"
-    ))
-    .unwrap();
+    let json =
+        fs::read_to_string("../test-data/walletsV2/fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb.json")
+            .unwrap();
     let keystore = Keystore::from_json(&json).unwrap();
     assert_eq!(
         keystore.meta().identified_chain_types,
@@ -666,10 +658,9 @@ pub fn test_migrate_keystores_identified_chain_types_mainnet() {
             )),
         };
         call_api("migrate_keystore", param).unwrap();
-        let json = fs::read_to_string(format!(
-            "../test-data/walletsV2/d9e3bb9c-87fd-4836-b146-10a3e249eb75.json"
-        ))
-        .unwrap();
+        let json =
+            fs::read_to_string("../test-data/walletsV2/d9e3bb9c-87fd-4836-b146-10a3e249eb75.json")
+                .unwrap();
         let keystore = Keystore::from_json(&json).unwrap();
         let unlocker = keystore
             .store()
@@ -693,10 +684,9 @@ pub fn test_migrate_keystores_identified_chain_types_mainnet() {
             )),
         };
         call_api("migrate_keystore", param).unwrap();
-        let json = fs::read_to_string(format!(
-            "../test-data/walletsV2/60573d8d-8e83-45c3-85a5-34fbb2aad5e1.json"
-        ))
-        .unwrap();
+        let json =
+            fs::read_to_string("../test-data/walletsV2/60573d8d-8e83-45c3-85a5-34fbb2aad5e1.json")
+                .unwrap();
         let keystore = Keystore::from_json(&json).unwrap();
         let unlocker = keystore
             .store()
@@ -718,10 +708,9 @@ pub fn test_migrate_keystores_identified_chain_types_mainnet() {
         )),
     };
     call_api("migrate_keystore", param).unwrap();
-    let json = fs::read_to_string(format!(
-        "../test-data/walletsV2/f3615a56-cb03-4aa4-a893-89944e49920d.json"
-    ))
-    .unwrap();
+    let json =
+        fs::read_to_string("../test-data/walletsV2/f3615a56-cb03-4aa4-a893-89944e49920d.json")
+            .unwrap();
     let keystore = Keystore::from_json(&json).unwrap();
     let unlocker = keystore
         .store()
@@ -813,18 +802,11 @@ fn test_migrate_duplicate_then_delete_keystore() {
     };
     let _ret = call_api("delete_keystore", param).unwrap();
 
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/300b42bc-0948-4734-82cb-4293dfeeefd2.json").exists(),
-        false
+    assert!(
+        !Path::new("/tmp/token-core-x/wallets/300b42bc-0948-4734-82cb-4293dfeeefd2.json").exists()
     );
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/9b696367-69c1-4cfe-8325-e5530399fc3f").exists(),
-        false
-    );
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/_migrated").exists(),
-        false
-    );
+    assert!(!Path::new("/tmp/token-core-x/wallets/9b696367-69c1-4cfe-8325-e5530399fc3f").exists());
+    assert!(!Path::new("/tmp/token-core-x/wallets/_migrated").exists());
 }
 
 #[test]
@@ -898,23 +880,13 @@ fn test_migrate_duplicate_delete_all_keystore_migrate_again() {
         .mnemonic;
     assert_eq!(OTHER_MNEMONIC, exported);
 
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/300b42bc-0948-4734-82cb-4293dfeeefd2.json").exists(),
-        false
+    assert!(
+        !Path::new("/tmp/token-core-x/wallets/300b42bc-0948-4734-82cb-4293dfeeefd2.json").exists()
     );
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/9b696367-69c1-4cfe-8325-e5530399fc3f").exists(),
-        false
-    );
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/_migrated").exists(),
-        false
-    );
+    assert!(!Path::new("/tmp/token-core-x/wallets/9b696367-69c1-4cfe-8325-e5530399fc3f").exists());
+    assert!(!Path::new("/tmp/token-core-x/wallets/_migrated").exists());
 
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/792a0051-16d7-44a7-921a-9b4a0c893b8f").exists(),
-        true
-    );
+    assert!(Path::new("/tmp/token-core-x/wallets/792a0051-16d7-44a7-921a-9b4a0c893b8f").exists());
 }
 
 #[test]
@@ -977,22 +949,12 @@ fn test_delete_all_identity_wallets() {
         ],
         source: "RECOVERED_IDENTITY".to_string(),
     };
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/0a2756cd-ff70-437b-9bdb-ad46b8bb0819.json").exists(),
-        true
+    assert!(
+        Path::new("/tmp/token-core-x/wallets/0a2756cd-ff70-437b-9bdb-ad46b8bb0819.json").exists()
     );
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/00fc0804-7cea-46d8-9e95-ed1efac65358").exists(),
-        true
-    );
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/6c3eae60-ad03-48db-a5e5-61a6f72aef8d").exists(),
-        true
-    );
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/identity.json").exists(),
-        true
-    );
+    assert!(Path::new("/tmp/token-core-x/wallets/00fc0804-7cea-46d8-9e95-ed1efac65358").exists());
+    assert!(Path::new("/tmp/token-core-x/wallets/6c3eae60-ad03-48db-a5e5-61a6f72aef8d").exists());
+    assert!(Path::new("/tmp/token-core-x/wallets/identity.json").exists());
     call_api("mark_identity_wallets", param).unwrap();
 
     let param = MigrateKeystoreParam {
@@ -1011,22 +973,12 @@ fn test_delete_all_identity_wallets() {
     };
     let _ret = call_api("delete_keystore", param).unwrap();
 
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/0a2756cd-ff70-437b-9bdb-ad46b8bb0819.json").exists(),
-        false
+    assert!(
+        !Path::new("/tmp/token-core-x/wallets/0a2756cd-ff70-437b-9bdb-ad46b8bb0819.json").exists()
     );
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/00fc0804-7cea-46d8-9e95-ed1efac65358").exists(),
-        false
-    );
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/6c3eae60-ad03-48db-a5e5-61a6f72aef8d").exists(),
-        false
-    );
-    assert_eq!(
-        Path::new("/tmp/token-core-x/wallets/identity.json").exists(),
-        false
-    );
+    assert!(!Path::new("/tmp/token-core-x/wallets/00fc0804-7cea-46d8-9e95-ed1efac65358").exists());
+    assert!(!Path::new("/tmp/token-core-x/wallets/6c3eae60-ad03-48db-a5e5-61a6f72aef8d").exists());
+    assert!(!Path::new("/tmp/token-core-x/wallets/identity.json").exists());
 }
 
 #[test]

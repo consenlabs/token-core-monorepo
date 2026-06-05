@@ -100,7 +100,7 @@ The GitHub Actions workflow [`../.github/workflows/run-unittest.yml`](../.github
 runs:
 
 - `cargo fmt --check`
-- `cargo clippy --workspace --all-targets` with the repository's current allowlist
+- `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo test --workspace --no-run`
 - `make test-tcx`
 - `make test-ikc`

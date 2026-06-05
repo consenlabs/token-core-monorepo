@@ -33,7 +33,7 @@ pub fn address_verify(
             };
             let chain_code_obj = ChainCode::try_from(chain_code)?;
             (
-                Address::p2pkh(&public_key_obj, network).to_string(),
+                Address::p2pkh(public_key_obj, network).to_string(),
                 Xpub {
                     network: network.into(),
                     depth: 0,
@@ -58,7 +58,7 @@ pub fn address_verify(
 
             (
                 Address::p2pkh(
-                    &PublicKey::from_str(extend_public_key.public_key.to_string().as_str())?,
+                    PublicKey::from_str(extend_public_key.public_key.to_string().as_str())?,
                     network,
                 )
                 .to_string(),

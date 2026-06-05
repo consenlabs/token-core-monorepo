@@ -66,7 +66,7 @@ impl BtcTransaction {
         check_path_validity(path)?;
 
         //check uxto number
-        if &self.unspents.len() > &MAX_UTXO_NUMBER {
+        if self.unspents.len() > MAX_UTXO_NUMBER {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
 
@@ -81,7 +81,7 @@ impl BtcTransaction {
         //utxo address verify
         let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents)?;
 
-        let output = self.tx_output(change_idx, &path, network, seg_wit, extra_data)?;
+        let output = self.tx_output(change_idx, path, network, seg_wit, extra_data)?;
 
         let mut tx_to_sign = Transaction {
             version: Version(1i32),
@@ -157,7 +157,7 @@ impl BtcTransaction {
 
     pub fn sign_p2pkh_inputs(
         &self,
-        utxo_pub_key_vec: &Vec<String>,
+        utxo_pub_key_vec: &[String],
         transaction: &mut Transaction,
     ) -> Result<()> {
         let mut lock_script_ver: Vec<Script> = vec![];
@@ -170,7 +170,7 @@ impl BtcTransaction {
                 let mut temp_serialize_txin = TxIn {
                     previous_output: OutPoint {
                         txid: Txid::from_str(temp_utxo.txhash.as_str())?,
-                        vout: temp_utxo.vout as u32,
+                        vout: temp_utxo.vout,
                     },
                     script_sig: Script::new(),
                     sequence: Sequence::MAX,
@@ -213,7 +213,7 @@ impl BtcTransaction {
             let txin = TxIn {
                 previous_output: OutPoint {
                     txid: Txid::from_str(&unspent.txhash)?,
-                    vout: unspent.vout as u32,
+                    vout: unspent.vout,
                 },
                 script_sig: lock_script_ver.get(index).unwrap().clone(),
                 sequence: Sequence::MAX,
@@ -236,7 +236,7 @@ impl BtcTransaction {
             let mut temp_serialize_txin = TxIn {
                 previous_output: OutPoint {
                     txid: Txid::from_str(temp_utxo.txhash.as_str())?,
-                    vout: temp_utxo.vout as u32,
+                    vout: temp_utxo.vout,
                 },
                 script_sig: Script::new(),
                 sequence: Sequence::MAX,
@@ -499,22 +499,23 @@ impl BtcTransaction {
 
     pub fn get_change_amount(&self) -> u64 {
         let total_amount = self.get_total_amount();
-        let change_amout = total_amount - self.amount - self.fee;
-        change_amout
+
+        total_amount - self.amount - self.fee
     }
 
     pub fn build_send_to_output(&self) -> TxOut {
         TxOut {
-            value: Amount::from_sat(self.amount as u64),
+            value: Amount::from_sat(self.amount),
             script_pubkey: BtcKinAddress::from_str(&self.to).unwrap().script_pubkey(),
         }
     }
 
-    pub fn build_op_return_output(&self, extra_data: &Vec<u8>) -> TxOut {
+    pub fn build_op_return_output(&self, extra_data: &[u8]) -> TxOut {
         let opreturn_script = Builder::new()
             .push_opcode(opcodes::all::OP_RETURN)
             .push_slice(
-                PushBytesBuf::try_from(extra_data.clone()).expect("op_return data length checked"),
+                PushBytesBuf::try_from(extra_data.to_owned())
+                    .expect("op_return data length checked"),
             )
             .into_script();
         TxOut {
@@ -524,7 +525,7 @@ impl BtcTransaction {
     }
 
     pub fn build_unlock_script(&self, signed: &str, utxo_public_key: &str) -> Result<Script> {
-        let signed_vec = Vec::from_hex(&signed)?;
+        let signed_vec = Vec::from_hex(signed)?;
         let mut signature_obj = Signature::from_compact(signed_vec.as_slice())?;
         signature_obj.normalize_s();
         let mut signed_vec = signature_obj.serialize_der().to_vec();
@@ -577,8 +578,8 @@ impl BtcTransaction {
             });
         }
         //add the op_return
-        if extra_data.is_some() {
-            let op_return = hex_to_bytes(extra_data.unwrap())?;
+        if let Some(extra_data) = extra_data {
+            let op_return = hex_to_bytes(extra_data)?;
             if op_return.len() > MAX_OPRETURN_SIZE {
                 return Err(CoinError::ImkeySdkIllegalArgument.into());
             }
@@ -803,7 +804,7 @@ mod tests {
         };
         let sign_result = transaction.sign_transaction(
             "TESTNET",
-            &"m/44'/1'/0'".to_string(),
+            "m/44'/1'/0'",
             Some(53),
             Some("0200000080a10bc28928f4c17a287318125115c3f098ed20a8237d1e8e4125bc25d1be99752adad0a7b9ceca853768aebb6965eca126a62965f698a0c1bc43d83db632ad7f717276057e6012afa99385"),
             "DEFAULT",
@@ -857,13 +858,8 @@ mod tests {
             fee: 10000,
             chain_type: "BITCOIN".to_string(),
         };
-        let sign_result = transaction.sign_transaction(
-            "TESTNET",
-            &"m/49'/1'/0'".to_string(),
-            Some(0),
-            Some("1234"),
-            "P2WPKH",
-        );
+        let sign_result =
+            transaction.sign_transaction("TESTNET", "m/49'/1'/0'", Some(0), Some("1234"), "P2WPKH");
         assert_eq!(
             "dc021850ca46b2fdc3f278020ac4e27ee18d9753dd07cbd97b84a2a0a2af3940",
             sign_result.as_ref().unwrap().tx_hash
@@ -896,13 +892,8 @@ mod tests {
             fee: 10000,
             chain_type: "BITCOIN".to_string(),
         };
-        let sign_result = transaction.sign_transaction(
-            "TESTNET",
-            &"m/49'/1'/0'".to_string(),
-            Some(0),
-            None,
-            "VERSION_0",
-        );
+        let sign_result =
+            transaction.sign_transaction("TESTNET", "m/49'/1'/0'", Some(0), None, "VERSION_0");
         assert_eq!(
             "02000000000101c4c9b7636d2d817a750bf4b48892e08f2a3f70efb3dd8a8085a1ead585e5c2d70100000000ffffffff02c057010000000000160014654fbb08267f3d50d715a8f1abb55979b160dd5bd007000000000000160014622347653655d57ee8e8f25983f646bcdf9c503202473044022055b4bbbad7e85e9b359a69e8f68801066e9368dbeb3ed777c418f83f175d1ef802206f2a70af6443083f58df7882028f0c94505d1c06167202db21eb2d98d250289a0121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc00000000",
             sign_result.as_ref().unwrap().signature
@@ -938,13 +929,8 @@ mod tests {
             fee: 10000,
             chain_type: "BITCOIN".to_string(),
         };
-        let sign_result = transaction.sign_transaction(
-            "TESTNET",
-            &"m/49'/1'/0'".to_string(),
-            Some(0),
-            None,
-            "VERSION_0",
-        );
+        let sign_result =
+            transaction.sign_transaction("TESTNET", "m/49'/1'/0'", Some(0), None, "VERSION_0");
         assert_eq!(
             "020000000001010ff65f63aaa1c2eb0ebd530db2af2d18fdee98959339c0b253d491e206f9997c0000000000ffffffff0250c3000000000000160014654fbb08267f3d50d715a8f1abb55979b160dd5b606d000000000000160014622347653655d57ee8e8f25983f646bcdf9c50320248304502210099fc03a90559def6c8b8a9d6283f419189445200ae0218d5f9c53ea745d3c0ef0220590069313bac5f52f003dc7626148af6c85c479a93c0dd21c2a82c73f1576ed90121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc00000000",
             sign_result.as_ref().unwrap().signature
@@ -980,13 +966,8 @@ mod tests {
             fee: 8000,
             chain_type: "BITCOIN".to_string(),
         };
-        let sign_result = transaction.sign_transaction(
-            "TESTNET",
-            &"m/49'/1'/0'".to_string(),
-            Some(0),
-            None,
-            "VERSION_0",
-        );
+        let sign_result =
+            transaction.sign_transaction("TESTNET", "m/49'/1'/0'", Some(0), None, "VERSION_0");
         assert_eq!(
             "0200000000010115f049abba251aaacb5f53d38d5e6e74d1e91eeead78878e866a8c67061338640100000000ffffffff0230750000000000001976a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688ac30f2000000000000160014622347653655d57ee8e8f25983f646bcdf9c503202483045022100bc0e5f620554681ccd336cd9e12a244abd40d374a3a7668671a73edfb561a7900220534617da8eb8636f2db8bdb6191323bb766d534235d97ad08935a05ffb8b81010121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc00000000",
             sign_result.as_ref().unwrap().signature
@@ -1022,13 +1003,8 @@ mod tests {
             fee: 7000,
             chain_type: "BITCOIN".to_string(),
         };
-        let sign_result = transaction.sign_transaction(
-            "TESTNET",
-            &"m/49'/1'/0'".to_string(),
-            Some(0),
-            None,
-            "VERSION_0",
-        );
+        let sign_result =
+            transaction.sign_transaction("TESTNET", "m/49'/1'/0'", Some(0), None, "VERSION_0");
         assert_eq!(
             "020000000001019865d03f127681590922079451579b4609c3bc5079ee11b1140cd80f9722c6fc0000000000ffffffff02307500000000000017a9142d2b1ef5ee4cf6c3ebc8cf66a602783798f7875987c832000000000000160014622347653655d57ee8e8f25983f646bcdf9c503202483045022100f2d33b3a6f592f6f9ec9f2e560aaa2323e59cbc9e42cf9161b690ce26ef8371702203b2bebece7c8cfb9c24baf56bef8eecb9ec0be322889ac8053da1722a97c45160121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc00000000",
             sign_result.as_ref().unwrap().signature
@@ -1063,13 +1039,8 @@ mod tests {
             fee: 5000,
             chain_type: "BITCOIN".to_string(),
         };
-        let sign_result = transaction.sign_transaction(
-            "TESTNET",
-            &"m/44'/1'/0'".to_string(),
-            Some(0),
-            None,
-            "DEFAULT",
-        );
+        let sign_result =
+            transaction.sign_transaction("TESTNET", "m/44'/1'/0'", Some(0), None, "DEFAULT");
         assert_eq!(
             "0100000001eaa366c979d29cf2f860bdfe46a79c44eb9791f4ba909b8404a360b3d4a03eeb000000006b483045022100e8209a6692b87d0e743509e314894affefdb1f02ae0a210184c3d4c2c75394a70220144af4619d8b16dd3a7cb6f4a10552e766a7e9e16786c796cd9a162d8c0041880121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff01a861000000000000160014654fbb08267f3d50d715a8f1abb55979b160dd5b00000000",
             sign_result.as_ref().unwrap().signature
@@ -1101,13 +1072,8 @@ mod tests {
             fee: 4000,
             chain_type: "BITCOIN".to_string(),
         };
-        let sign_result = transaction.sign_transaction(
-            "TESTNET",
-            &"m/49'/1'/0'".to_string(),
-            Some(0),
-            Some("1234"),
-            "P2WPKH",
-        );
+        let sign_result =
+            transaction.sign_transaction("TESTNET", "m/49'/1'/0'", Some(0), Some("1234"), "P2WPKH");
         assert_eq!(
             "02000000000101a9c7fe8f5d4bdc32b5185e843b84e185e175a72bcb18ff801d7bb30c95d8ade50000000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffff029065000000000000160014654fbb08267f3d50d715a8f1abb55979b160dd5b0000000000000000046a02123402483045022100aca51e4f49ea1222a2a0ee92b4f76ab3cc4f81ee34fdabc51dfd5115fb4f472f022024c2c860b01e5314139c6a9442679e3a10ca5003f37eb727aa9b1af322a0ba8c0121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc00000000",
             sign_result.as_ref().unwrap().signature
@@ -1156,13 +1122,8 @@ mod tests {
             fee: 5000,
             chain_type: "BITCOIN".to_string(),
         };
-        let sign_result = transaction.sign_transaction(
-            "TESTNET",
-            &"m/49'/1'/0'".to_string(),
-            Some(0),
-            None,
-            "VERSION_0",
-        );
+        let sign_result =
+            transaction.sign_transaction("TESTNET", "m/49'/1'/0'", Some(0), None, "VERSION_0");
         assert_eq!(
             "02000000000102cc6132e93c42b43f98db2c2aa1a0004b5a6246848f776d5ac5c1d34af95919400000000000ffffffffa9c7fe8f5d4bdc32b5185e843b84e185e175a72bcb18ff801d7bb30c95d8ade50100000000ffffffff021879000000000000160014654fbb08267f3d50d715a8f1abb55979b160dd5bb80b000000000000160014622347653655d57ee8e8f25983f646bcdf9c50320248304502210098aea910af0731b676ec0b09f5e9b78be165808e7cda7f56fff535aab3ace1f5022062546d6894f0e6a0ae24e659fe37fb11c407739970a8aeb05b79c7bf8e012f4b0121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc02483045022100bd8dc6ec13fb55900441ab8449675995bc9b046709c1bd1831b7bbc3066e2f8e02205f9dd402d1133ab92cbe46abcda11b332280955525fa4ff94832ecdf83803d89012103d83187d984c44ec073d4661d93fa306b613c0c91a1661d919dd43814da1a5f8900000000",
             sign_result.as_ref().unwrap().signature
@@ -1249,13 +1210,8 @@ mod tests {
             fee: 10000,
             chain_type: "BITCOIN".to_string(),
         };
-        let sign_result = transaction.sign_transaction(
-            "TESTNET",
-            &"m/49'/1'/0'/0/0".to_string(),
-            Some(53),
-            None,
-            "P2WPKH",
-        );
+        let sign_result =
+            transaction.sign_transaction("TESTNET", "m/49'/1'/0'/0/0", Some(53), None, "P2WPKH");
         assert_eq!(
             "020000000001023c8225a97ec8d51d25ecebcf44f9ee6c222043e191e91d2c076f4628865e6d35010000006b483045022100e3f1bffc773f0bd984f4d0cb727b4beb5c9833a701e2af3b26479a93eb764bc6022017b3269ade37bb70f84ed9576ac9bc96f262ac249b781bd5592069aceb01f4e80121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff0eaebea0d14ecf8d818c1251d3f7e62cf1ef0dbb7f01418b7cfd612559a33cb60100000017160014654fbb08267f3d50d715a8f1abb55979b160dd5bffffffff01f40517000000000017a9148bbb53570df9656926ea0ef029cd2ee84dbc7d0f87000247304402206b159cc6edc019125ea87b4df39a566520e092371ddb030071f150476a1bbd8d022074c43c41557ab6be848d48ccc611225b3a36ea3b4163f0cfc970fc945dfa7acf0121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc00000000",
             sign_result.as_ref().unwrap().signature
@@ -1292,13 +1248,8 @@ mod tests {
             fee: 10000,
             chain_type: "BITCOIN".to_string(),
         };
-        let sign_result = transaction.sign_transaction(
-            "TESTNET",
-            &"m/84'/1'/0'".to_string(),
-            Some(53),
-            None,
-            "VERSION_0",
-        );
+        let sign_result =
+            transaction.sign_transaction("TESTNET", "m/84'/1'/0'", Some(53), None, "VERSION_0");
         assert_eq!(
             "02000000000101a7ddaf857a10b5db42bbfd29cab5ea556d434a96eecfb0f1d14738315870eb410100000000ffffffff0230750000000000001600140efbea077aa9cdb69569176ef5172de8c13a997360ea0000000000001600147805a6361d2532deac1b62c93288aa159308dcc002483045022100ae80f750fc99a9db1a017fd7021b102524edb7b708611aab83c4fe068c4a47110220743dd9c574956c736d38d3b072bd105b1b4e283ca9a0df2e95c7a6a4373cfe30012102e24f625a31c9a8bae42239f2bf945a306c01a450a03fd123316db0e837a660c000000000",
             sign_result.as_ref().unwrap().signature
@@ -1350,7 +1301,7 @@ mod tests {
         };
         let sign_result = transaction_req_data.sign_transaction(
             "TESTNET",
-            &"m/84'/1'/0'".to_string(),
+            "m/84'/1'/0'",
             Some(53),
             None,
             "VERSION_0",
@@ -2014,13 +1965,8 @@ mod tests {
             fee: 10000,
             chain_type: "DOGECOIN".to_string(),
         };
-        let sign_result = transaction.sign_transaction(
-            "TESTNET",
-            &"m/44'/1'/0'".to_string(),
-            Some(53),
-            None,
-            "NONE",
-        );
+        let sign_result =
+            transaction.sign_transaction("TESTNET", "m/44'/1'/0'", Some(53), None, "NONE");
 
         assert_eq!(
             "01000000047a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000006a47304402200eb094ab218f492e15bcae19c61c980111fdca403108ed8502a6c4ada5ffe8b802204afb0b58b770a4523148895ffdb1a154c0642584223306c267ee67e6d2f35fba01210312a0cb31ff52c480c049da26d0aaa600f47e9deee53d02fc2b0e9acf3c20fbdfffffffff31b5a9794dcaf82af1738745afe1ecf402ea4a93e71ae75c7d3d8bf7c78aef45010000006a47304402203b7317f8443f49a8c2930b679181feb0640e88447bca3f2a94600cc0078e4ab90220624ec6e2ba25f3bde477df048d84a9aad736087332ffced65377a66b1ea4d3c10121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffffa92c40dfd195a188d87110557fb7f46dbbfb68c4bb8718f33dc31d61927ec614000000006b4830450221008541d1e27f76450b4b78a89af8e6707a042a30151d1e59d271f335720a3a4a590220152b688827df0fff697cb8ba47a6293a4785d651e5da426854bebce7ea4d34010121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffffb99a3e8884b14f330d2a444a4bc2a03af16804fb99b5e37ee892ed5db8b67f11010000006a473044022042b27e6639c575f0acf4ebb4b43ee52ff9fef2888caf5d88d38a6c6b062cbbae022048446492f4c315cc5cd37d6dac041d67ffbf1bc199311bfc5f29fbdb102279a60121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff0220d9ae2f000000001976a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688acd0070000000000001976a91412967cdd9ceb72bbdbb7e5db85e2dbc6d6c3ab1a88ac00000000",
@@ -2070,13 +2016,8 @@ mod tests {
             fee: 10000,
             chain_type: "DOGECOIN".to_string(),
         };
-        let sign_result = transaction.sign_transaction(
-            "TESTNET",
-            &"m/49'/1'/0'".to_string(),
-            Some(0),
-            Some("1234"),
-            "P2WPKH",
-        );
+        let sign_result =
+            transaction.sign_transaction("TESTNET", "m/49'/1'/0'", Some(0), Some("1234"), "P2WPKH");
         assert_eq!(
             "dc021850ca46b2fdc3f278020ac4e27ee18d9753dd07cbd97b84a2a0a2af3940",
             sign_result.as_ref().unwrap().tx_hash
@@ -2122,13 +2063,8 @@ mod tests {
             fee: 10000,
             chain_type: "DOGECOIN".to_string(),
         };
-        let sign_result = transaction.sign_transaction(
-            "MAINNET",
-            &"m/49'/1'/0'".to_string(),
-            Some(0),
-            None,
-            "P2WPKH",
-        );
+        let sign_result =
+            transaction.sign_transaction("MAINNET", "m/49'/1'/0'", Some(0), None, "P2WPKH");
         assert_eq!(
             "330df579f9432661cd295cd6317c9f6f0af4356e7e78c258dfd3e40fd4e8ca47",
             sign_result.as_ref().unwrap().tx_hash

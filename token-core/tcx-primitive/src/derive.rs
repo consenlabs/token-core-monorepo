@@ -135,11 +135,8 @@ mod tests {
                 DeriveJunction::soft(0),
             ];
 
-            let mut index = 0;
-
-            for value in path.into_iter() {
+            for (index, value) in path.into_iter().enumerate() {
                 assert_eq!(expects[index], value, "should be correct path");
-                index += 1;
             }
         } else {
             assert_eq!(0, 1, "should not be failed");
@@ -151,11 +148,8 @@ mod tests {
         if let Ok(path) = DerivePath::from_str("0/0") {
             let expects = [DeriveJunction::soft(0), DeriveJunction::soft(0)];
 
-            let mut index = 0;
-
-            for value in path.into_iter() {
+            for (index, value) in path.into_iter().enumerate() {
                 assert_eq!(expects[index], value, "should be correct path");
-                index += 1;
             }
         } else {
             assert_eq!(0, 1, "should not be failed");

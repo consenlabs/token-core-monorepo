@@ -17,7 +17,7 @@ impl Transaction {
     // Ref: https://github.com/paritytech/txwrapper-core/blob/8c7c9e16ab877f0247e547ee6368e22e5579b492/packages/txwrapper-core/src/core/construct/createSigningPayload.ts#L37-L42
     pub fn hash_unsigned_payload(payload: &[u8]) -> Result<Vec<u8>> {
         if payload.len() > PAYLOAD_HASH_THRESHOLD {
-            Ok(blake2_256(&payload).to_vec())
+            Ok(blake2_256(payload).to_vec())
         } else {
             Ok(payload.to_vec())
         }
@@ -53,16 +53,16 @@ impl Transaction {
         data_pack.extend(hash.iter());
 
         //path
-        data_pack.extend([2, sign_param.path.as_bytes().len() as u8].iter());
+        data_pack.extend([2, sign_param.path.len() as u8].iter());
         data_pack.extend(sign_param.path.as_bytes().iter());
         //payment info in TLV format
-        data_pack.extend([7, sign_param.payment.as_bytes().len() as u8].iter());
+        data_pack.extend([7, sign_param.payment.len() as u8].iter());
         data_pack.extend(sign_param.payment.as_bytes().iter());
         //receiver info in TLV format
-        data_pack.extend([8, sign_param.receiver.as_bytes().len() as u8].iter());
+        data_pack.extend([8, sign_param.receiver.len() as u8].iter());
         data_pack.extend(sign_param.receiver.as_bytes().iter());
         //fee info in TLV format
-        data_pack.extend([9, sign_param.fee.as_bytes().len() as u8].iter());
+        data_pack.extend([9, sign_param.fee.len() as u8].iter());
         data_pack.extend(sign_param.fee.as_bytes().iter());
 
         let key_manager_obj = KEY_MANAGER.lock();

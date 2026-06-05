@@ -56,7 +56,7 @@ impl BtcAddress {
             network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
-            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            child_number: *chain_number_vec.last().unwrap(),
             public_key: pub_key_obj,
             chain_code: chain_code_obj,
         };
@@ -115,7 +115,7 @@ impl BtcAddress {
 
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
-        let public_key = Secp256k1PublicKey::from_slice(&hex_to_bytes(&pub_key)?)?;
+        let public_key = Secp256k1PublicKey::from_slice(&hex_to_bytes(pub_key)?)?;
         let (x_only, _) = public_key.x_only_public_key();
         let untweak_pub_key = UntweakedPublicKey::from(x_only);
 
@@ -143,8 +143,7 @@ impl BtcAddress {
         }
 
         let mut end_flg = path.rfind("/").unwrap();
-        if path.ends_with("/") {
-            let path = &path[..path.len() - 1];
+        if let Some(path) = path.strip_suffix("/") {
             end_flg = path.rfind("/").unwrap();
         }
         Ok(&path[..end_flg])
@@ -160,7 +159,7 @@ impl BtcAddress {
             _ => Self::p2pkh(network, path)?,
         };
 
-        let apdu_res = send_apdu(BtcApdu::register_address(&address.as_bytes()))?;
+        let apdu_res = send_apdu(BtcApdu::register_address(address.as_bytes()))?;
         ApduCheck::check_response(apdu_res.as_str())?;
         Ok(address)
     }
@@ -178,7 +177,7 @@ impl BtcAddress {
                 Address::p2wpkh(&compressed, network).to_string()
             }
             constants::BTC_SEG_WIT_TYPE_VERSION_1 => {
-                let public_key = Secp256k1PublicKey::from_slice(&hex_to_bytes(&public_key)?)?;
+                let public_key = Secp256k1PublicKey::from_slice(&hex_to_bytes(public_key)?)?;
                 let (x_only, _) = public_key.x_only_public_key();
                 let untweak_pub_key = UntweakedPublicKey::from(x_only);
                 let secp256k1 = Secp256k1::new();

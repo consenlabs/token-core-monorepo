@@ -171,15 +171,15 @@ impl<'a> PsbtSigner<'a> {
     fn finalize_p2tr(&mut self, index: usize) {
         let input = &mut self.psbt.inputs[index];
 
-        if input.tap_key_sig.is_some() {
+        if let Some(tap_key_sig) = input.tap_key_sig {
             let mut witness = Witness::new();
-            witness.push(input.tap_key_sig.unwrap().to_vec());
+            witness.push(tap_key_sig.to_vec());
 
             if !input.tap_scripts.is_empty() {
                 let (control_block, script_leaf) = input.tap_scripts.first_key_value().unwrap();
 
                 let (script, _) = script_leaf;
-                witness.push(script.as_bytes().to_vec());
+                witness.push(script.as_bytes());
                 witness.push(control_block.serialize())
             }
 
@@ -306,7 +306,7 @@ impl<'a> PsbtSigner<'a> {
         let hash = self.sighash_cache.taproot_script_spend_signature_hash(
             index,
             &Prevouts::All(&self.prevouts.clone()),
-            TapLeafHash::from_script(script, leaf_version.clone()),
+            TapLeafHash::from_script(script, *leaf_version),
             TapSighashType::Default,
         )?;
 
@@ -386,7 +386,7 @@ pub fn sign_psbt(
 
     let vec = psbt.serialize();
 
-    return Ok(PsbtOutput { psbt: vec.to_hex() });
+    Ok(PsbtOutput { psbt: vec.to_hex() })
 }
 
 pub fn sign_psbts(
@@ -531,7 +531,7 @@ mod tests {
         let mut hd = sample_hd_keystore();
 
         let raw_tx = "02000000054adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0000000000ffffffff4adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0100000000ffffffff12cc8049bf85b5e18cb2be8aa7aefc3afb8df4ec5c1f766750014cc95ca2dc130000000000ffffffff729e6570928cc65200f1d53def65a7934d2e9b543059d90598ed1d166af422010100000000ffffffffa126724475cd2f3252352b3543c8455c7999a8283883bd7a712a7d66609d92d80100000000ffffffff02409c00000000000022512036079c540758a51a86eeaf9e17668d4d8543d8b1b7e56fe2da0982c390c5655ef8fa0700000000002251209303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea0615500000000";
-        let tx: Transaction = deserialize(&Vec::from_hex(&raw_tx).unwrap()).unwrap();
+        let tx: Transaction = deserialize(&Vec::from_hex(raw_tx).unwrap()).unwrap();
 
         let mut psbt = Psbt::from_unsigned_tx(tx).unwrap();
         let fake_pub_key = PublicKey::from_slice(

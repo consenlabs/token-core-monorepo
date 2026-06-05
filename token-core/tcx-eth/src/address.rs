@@ -36,9 +36,9 @@ impl Address for EthAddress {
     }
 }
 
-impl ToString for EthAddress {
-    fn to_string(&self) -> String {
-        to_checksum(&self.0, None)
+impl std::fmt::Display for EthAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&to_checksum(&self.0, None))
     }
 }
 
@@ -97,16 +97,16 @@ mod test {
 
         let is_valid =
             EthAddress::is_valid("0xef678007d18427e6022059dbc264f27507cd1ffc", &coin_info);
-        assert_eq!(is_valid, true);
+        assert!(is_valid);
 
-        assert_eq!(
-            EthAddress::is_valid("0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5", &coin_info),
-            true
-        );
-        assert_eq!(
-            EthAddress::is_valid("0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfE5", &coin_info),
-            false
-        );
+        assert!(EthAddress::is_valid(
+            "0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfe5",
+            &coin_info
+        ));
+        assert!(!EthAddress::is_valid(
+            "0x95222290DD7278Aa3Ddd389Cc1E1d165CC4BAfE5",
+            &coin_info
+        ));
     }
 
     #[test]
@@ -132,20 +132,20 @@ mod test {
 
     #[test]
     fn test_invalid_address() {
-        let invalid_address_list = vec![
+        let invalid_address_list = [
             "ef678007D18427E6022059Dbc264f27507CD1ffC",
             "0xef678007D18427E6022059Dbc264f27507CD1ffCXX",
             "0xef678007D18427E6022059Dbc264f27507CD1ff#",
         ];
         for address in invalid_address_list.iter() {
             let result = is_valid_address(address);
-            assert_eq!(result, false);
+            assert!(!result);
         }
     }
 
     #[test]
     fn test_valid_address() {
-        let address_list = vec![
+        let address_list = [
             "0x6031564e7b2F5cc33737807b2E58DaFF870B590b",
             "0x80427Ae1f55bCf60ee4CD2db7549b8BC69a74303",
         ];

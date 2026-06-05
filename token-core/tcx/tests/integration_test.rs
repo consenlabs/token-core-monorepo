@@ -35,6 +35,5 @@ fn test_call_tcx_api() {
         unsafe {
             call_tcx_api(CString::new(bytes.to_hex()).unwrap().as_ptr());
         }
-        assert!(true);
     });
 }

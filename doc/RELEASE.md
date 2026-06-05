@@ -115,6 +115,7 @@ loading remain separate integration checks.
 - `CHANGELOG.md` contains the release entry.
 - `VERSION` is correct for mobile release surfaces.
 - `token-core/tcx-wasm/Cargo.toml` is correct for wasm package changes.
+- `doc/QUALITY_DEBT.md` still matches current clippy and cargo-deny exceptions.
 - `cargo fmt --check` passes.
 - `make test-workspace` passes or any skipped hardware boundary is documented.
 - `make test-wasm` passes for wasm-facing changes.

@@ -141,20 +141,20 @@ impl TronSigner {
         ApduCheck::check_response(&select_result)?;
 
         let key_manager_obj = KEY_MANAGER.lock();
-        let path_signature = secp256k1_sign(&key_manager_obj.pri_key, &path.as_bytes())?;
+        let path_signature = secp256k1_sign(&key_manager_obj.pri_key, path.as_bytes())?;
         let mut path_pack: Vec<u8> = vec![];
         path_pack.push(0x00);
         path_pack.push(path_signature.len() as u8);
         path_pack.extend(path_signature.as_slice());
         path_pack.push(0x01);
-        path_pack.push(path.as_bytes().len() as u8);
+        path_pack.push(path.len() as u8);
         path_pack.extend(path.as_bytes());
 
         let msg_pubkey = Secp256k1Apdu::get_xpub(&path_pack);
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         let pubkey_raw = hex::decode(&res_msg_pubkey[..130]).unwrap();
         let address = TronAddress::from_pub_key(pubkey_raw.as_slice()).unwrap();
-        if !sender.to_string().is_empty() && &address != sender {
+        if !sender.to_string().is_empty() && address != sender {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());
         }
 
@@ -183,7 +183,7 @@ impl TronSigner {
         signnture_obj.normalize_s();
         let normalizes_sig_vec = signnture_obj.serialize_compact();
 
-        let rec_id = utility::retrieve_recid(&hash, &normalizes_sig_vec, &pubkey_raw).unwrap();
+        let rec_id = utility::retrieve_recid(hash, &normalizes_sig_vec, &pubkey_raw).unwrap();
         let rec_id = i32::from(rec_id);
         let v = rec_id + 27;
 

@@ -36,7 +36,7 @@ impl CkbAddress {
         apdu_pack.push(bind_signature.len() as u8);
         apdu_pack.extend(bind_signature.as_slice());
         apdu_pack.push(0x01);
-        apdu_pack.push(path.as_bytes().len() as u8);
+        apdu_pack.push(path.len() as u8);
         apdu_pack.extend(path.as_bytes());
 
         //get public
@@ -83,7 +83,7 @@ impl CkbAddress {
         let key_bytes = hex::decode(&*key)?;
         let iv_bytes = hex::decode(&*iv)?;
         let encrypted =
-            ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
+            ikc_common::aes::cbc::encrypt_pkcs7(xpub.as_bytes(), &key_bytes, &iv_bytes)?;
         Ok(base64::Engine::encode(
             &base64::engine::general_purpose::STANDARD,
             &encrypted,
@@ -131,7 +131,7 @@ impl CkbAddress {
             network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
-            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            child_number: *chain_number_vec.last().unwrap(),
             public_key: pub_key_obj,
             chain_code: sub_chain_code_obj,
         };
@@ -151,7 +151,7 @@ impl CkbAddress {
         apdu_pack.push(bind_signature.len() as u8);
         apdu_pack.extend(bind_signature.as_slice());
         apdu_pack.push(0x01);
-        apdu_pack.push(path.as_bytes().len() as u8);
+        apdu_pack.push(path.len() as u8);
         apdu_pack.extend(path.as_bytes());
 
         let apdu_xpub = Secp256k1Apdu::get_xpub(&apdu_pack);
@@ -166,8 +166,7 @@ impl CkbAddress {
         }
 
         let mut end_flg = path.rfind("/").unwrap();
-        if path.ends_with("/") {
-            let path = &path[..path.len() - 1];
+        if let Some(path) = path.strip_suffix("/") {
             end_flg = path.rfind("/").unwrap();
         }
         Ok(&path[..end_flg])

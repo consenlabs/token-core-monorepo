@@ -102,6 +102,7 @@ Release policy and version/tag conventions are documented in
 - [`doc/TEST.md`](./doc/TEST.md): host-safe, workspace, wasm, and hardware tests.
 - [`doc/RELEASE.md`](./doc/RELEASE.md): versioning, tags, artifacts, and release checks.
 - [`doc/COMPATIBILITY.md`](./doc/COMPATIBILITY.md): supported toolchains and artifact matrix.
+- [`doc/QUALITY_DEBT.md`](./doc/QUALITY_DEBT.md): current CI quality gates and advisory exceptions.
 - [`SECURITY.md`](./SECURITY.md): vulnerability reporting policy.
 - [`SUPPORT.md`](./SUPPORT.md): supported questions and maintenance boundaries.
 - [`token-core/tcx-docs`](./token-core/tcx-docs): TokenCoreX API and design notes.

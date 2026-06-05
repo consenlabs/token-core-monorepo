@@ -156,7 +156,7 @@ impl LegacyKeystore {
 
     fn has_mnemonic(&self) -> bool {
         // EOS wallet in iOS will contains an empty encMnemonic object, check the 20a9f050-7fd1-4f2c-b7f8-f03c78201f78 fixture kesytore
-        self.enc_mnemonic.is_some() && self.enc_mnemonic.as_ref().unwrap().enc_str != ""
+        self.enc_mnemonic.is_some() && !self.enc_mnemonic.as_ref().unwrap().enc_str.is_empty()
     }
 
     pub fn from_json_str(keystore_str: &str) -> Result<LegacyKeystore> {
@@ -198,7 +198,7 @@ impl LegacyKeystore {
             .expect("migration to hd need imTokenMeta")
             .to_metadata();
 
-        let identity = Identity::from_seed(&seed, &unlocker, &identity_network)?;
+        let identity = Identity::from_seed(&seed, &unlocker, identity_network)?;
 
         let enc_original = unlocker.encrypt_with_random_iv(mnemonic.as_bytes())?;
         let mut store = Store {
@@ -240,7 +240,7 @@ impl LegacyKeystore {
                 unlocker.decrypt_enc_pair(enc_private)?
             } else {
                 unlocker.decrypt_enc_pair(
-                    &key_paths[0]
+                    key_paths[0]
                         .private_key
                         .as_ref()
                         .expect("ios eos keystore should have private key"),
@@ -275,7 +275,7 @@ impl LegacyKeystore {
             .expect("migrate to private need imTokenMeta");
 
         let identity =
-            Identity::from_private_key(&private_key.to_hex(), &unlocker, &identity_network)?;
+            Identity::from_private_key(&private_key.to_hex(), &unlocker, identity_network)?;
 
         let enc_original = unlocker.encrypt_with_random_iv(&original)?;
 
@@ -436,7 +436,7 @@ mod tests {
             )
             .unwrap();
 
-        assert_eq!(keystore.derivable(), true);
+        assert!(keystore.derivable());
         assert_eq!(keystore.id(), "02a55ab6-554a-4e78-bc26-6a7acced7e5e");
 
         let coin_info = CoinInfo {
@@ -464,7 +464,7 @@ mod tests {
         let key = Key::DerivedKey(derived_key.to_owned());
         let mut keystore = ks.migrate(&key, &IdentityNetwork::Testnet).unwrap();
 
-        assert_eq!(keystore.derivable(), false);
+        assert!(!keystore.derivable());
         assert_eq!(keystore.id(), "045861fe-0e9b-4069-92aa-0ac03cad55e0");
 
         let coin_info = CoinInfo {
@@ -491,7 +491,7 @@ mod tests {
         let key = Key::DerivedKey(derived_key.to_owned());
         let mut keystore = ks.migrate(&key, &IdentityNetwork::Testnet).unwrap();
 
-        assert_eq!(keystore.derivable(), false);
+        assert!(!keystore.derivable());
         assert_eq!(keystore.id(), "045861fe-0e9b-4069-92aa-0ac03cad55e1");
 
         let coin_info = CoinInfo {
@@ -517,7 +517,7 @@ mod tests {
         let key = Key::DerivedKey(derived_key.to_owned());
         let mut keystore = ks.migrate(&key, &IdentityNetwork::Testnet).unwrap();
 
-        assert_eq!(keystore.derivable(), true);
+        assert!(keystore.derivable());
         assert_eq!(keystore.id(), "175169f7-5a35-4df7-93c1-1ff612168e71");
         let coin_info = CoinInfo {
             chain_id: "".to_string(),
@@ -542,7 +542,7 @@ mod tests {
         let key = Key::DerivedKey(derived_key.to_owned());
         let mut keystore = ks.migrate(&key, &IdentityNetwork::Testnet).unwrap();
 
-        assert_eq!(keystore.derivable(), true);
+        assert!(keystore.derivable());
         assert_eq!(keystore.id(), "5991857a-2488-4546-b730-463a5f84ea6a");
         let coin_info = CoinInfo {
             chain_id: "".to_string(),
@@ -571,7 +571,7 @@ mod tests {
         let key = Key::DerivedKey(derived_key.to_owned());
         let mut keystore = ks.migrate(&key, &IdentityNetwork::Testnet).unwrap();
 
-        assert_eq!(keystore.derivable(), true);
+        assert!(keystore.derivable());
         assert_eq!(keystore.id(), "6f8c2912-ebe8-4359-90f4-f1d1f1af1e4d");
         let coin_info = CoinInfo {
             chain_id: "".to_string(),

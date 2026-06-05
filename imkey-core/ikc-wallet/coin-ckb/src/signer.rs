@@ -38,7 +38,7 @@ impl<'a> CkbTxSigner<'a> {
             return Err(Error::InvalidTxHash.into());
         }
 
-        if witnesses.len() == 0 {
+        if witnesses.is_empty() {
             return Err(Error::WitnessEmpty.into());
         }
 
@@ -72,7 +72,7 @@ impl<'a> CkbTxSigner<'a> {
         witness_group: &[&Witness],
         _path: &str,
     ) -> Result<Witness> {
-        if witness_group.len() == 0 {
+        if witness_group.is_empty() {
             return Err(Error::WitnessGroupEmpty.into());
         }
 
@@ -130,10 +130,10 @@ impl<'a> CkbTxSigner<'a> {
         data_pack.extend(hash.iter());
 
         //path
-        data_pack.extend([2, self.sign_param.path.as_bytes().len() as u8].iter());
+        data_pack.extend([2, self.sign_param.path.len() as u8].iter());
         data_pack.extend(self.sign_param.path.as_bytes().iter());
         //payment info in TLV format
-        data_pack.extend([7, self.sign_param.payment.as_bytes().len() as u8].iter());
+        data_pack.extend([7, self.sign_param.payment.len() as u8].iter());
         data_pack.extend(self.sign_param.payment.as_bytes().iter());
         //receiver info in TLV format
         let mut receiver_address = self.sign_param.receiver.clone();
@@ -141,14 +141,14 @@ impl<'a> CkbTxSigner<'a> {
             receiver_address = format!(
                 "{}{}{}",
                 &receiver_address[..47].to_string(),
-                "***".to_string(),
+                "***",
                 &receiver_address[receiver_address.len() - 50..]
             );
         }
-        data_pack.extend([8, receiver_address.as_bytes().len() as u8].iter());
+        data_pack.extend([8, receiver_address.len() as u8].iter());
         data_pack.extend(receiver_address.as_bytes().iter());
         //fee info in TLV format
-        data_pack.extend([9, self.sign_param.fee.as_bytes().len() as u8].iter());
+        data_pack.extend([9, self.sign_param.fee.len() as u8].iter());
         data_pack.extend(self.sign_param.fee.as_bytes().iter());
 
         let key_manager_obj = KEY_MANAGER.lock();
@@ -186,7 +186,7 @@ impl<'a> CkbTxSigner<'a> {
         let normalizes_sig_vec = signnture_obj.serialize_compact();
 
         let rec_id =
-            utility::retrieve_recid(&hash, &normalizes_sig_vec, &hex::decode(&pub_key)?).unwrap();
+            utility::retrieve_recid(hash, &normalizes_sig_vec, &hex::decode(&pub_key)?).unwrap();
         let rec_id = i32::from(rec_id);
 
         let mut signature = hex::encode(normalizes_sig_vec.as_slice());
@@ -201,16 +201,14 @@ impl<'a> CkbTxSigner<'a> {
     ) -> Result<HashMap<Vec<u8>, Vec<usize>>> {
         let mut map: HashMap<Vec<u8>, Vec<usize>> = HashMap::new();
 
-        for i in 0..input_cells.len() {
-            let item = &input_cells[i];
+        for (i, item) in input_cells.iter().enumerate() {
             if item.lock.is_none() {
                 continue;
             }
 
             let hash = item.lock.as_ref().unwrap().to_hash()?;
-            let indices = map.get_mut(&hash);
-            if indices.is_some() {
-                indices.unwrap().push(i);
+            if let Some(indices) = map.get_mut(&hash) {
+                indices.push(i);
             } else {
                 map.insert(hash, vec![i]);
             }
@@ -222,14 +220,13 @@ impl<'a> CkbTxSigner<'a> {
 
 impl CkbSigner {
     pub fn sign_transaction(tx: &CkbTxInput, sign_param: &SignParam) -> Result<CkbTxOutput> {
-        if tx.witnesses.len() == 0 {
+        if tx.witnesses.is_empty() {
             return Err(Error::RequiredWitness.into());
         }
 
         let find_cache_cell = |x: &OutPoint| -> Result<&CachedCell> {
             for y in tx.cached_cells.iter() {
-                if y.out_point.is_some() {
-                    let point = y.out_point.as_ref().unwrap();
+                if let Some(point) = &y.out_point {
                     if point.index == x.index && point.tx_hash == x.tx_hash {
                         return Ok(y);
                     }
@@ -249,7 +246,7 @@ impl CkbSigner {
             input_cells.push(find_cache_cell(x.previous_output.as_ref().unwrap())?);
         }
 
-        if tx.witnesses.len() < input_cells.len() || input_cells.len() == 0 {
+        if tx.witnesses.len() < input_cells.len() || input_cells.is_empty() {
             return Err(Error::InvalidInputCells.into());
         }
 
@@ -367,7 +364,6 @@ mod tests {
             witnesses,
             tx_hash: tx_hash.to_owned(),
             cached_cells,
-            ..CkbTxInput::default()
         };
 
         let sign_param = SignParam {

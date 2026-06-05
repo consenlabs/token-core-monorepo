@@ -138,9 +138,9 @@ pub fn batch_personal_sign(
 ) -> Result<Vec<String>> {
     let mut signatures = vec![];
     for val in data.iter() {
-        let message = hash_message(utf8_or_hex_to_bytes(&val)?);
+        let message = hash_message(utf8_or_hex_to_bytes(val)?);
         let mut signature = keystore.secp256k1_ecdsa_sign_recoverable(&message, path)?;
-        signature[64] = signature[64] + 27;
+        signature[64] += 27;
         signatures.push(signature.to_0x_hex());
     }
     Ok(signatures)
@@ -346,15 +346,14 @@ mod test {
         );
         assert_eq!(tx_output.signature, "02f86a8182084585c61d4f61a883da2d8394ef970655297d1234174bcfe31ee803aaa97ad0ca0b81eec001a060364c7bddc7d080dcdbf859a6d8316b297d27c4ebd6288ccc6591e5870fff74a05e9b1a2074062dbf84c757a940a92d0d5712eaebd1043665478f16deb26347c8");
 
-        let mut access_list = vec![];
-        access_list.push(AccessList {
+        let access_list = vec![AccessList {
             address: "0x70b361fc3a4001e4f8e4e946700272b51fe4f0c4".to_string(),
             storage_keys: vec![
                 "0x8419643489566e30b68ce5bc642e166f86e844454c99a03ed4a3d4a2b9a96f63".to_string(),
                 "0x8a2a020581b8f3142a9751344796fb1681a8cde503b6662d43b8333f863fb4d3".to_string(),
                 "0x897544db13bf6cd166ce52498d894fe6ce5a8d2096269628e7f971e818bf9ab9".to_string(),
             ],
-        });
+        }];
         let tx = EthTxInput {
             nonce: "4".to_string(),
             gas_price: "".to_string(),
@@ -377,14 +376,13 @@ mod test {
         );
         assert_eq!(tx_output.signature, "02f8f18201140482702685e04598e45f3694d5539a0e4d27ebf74515fc4acb38adcc3c513f25408bf579eebd8a5295c6f9c86ef87cf87a9470b361fc3a4001e4f8e4e946700272b51fe4f0c4f863a08419643489566e30b68ce5bc642e166f86e844454c99a03ed4a3d4a2b9a96f63a08a2a020581b8f3142a9751344796fb1681a8cde503b6662d43b8333f863fb4d3a0897544db13bf6cd166ce52498d894fe6ce5a8d2096269628e7f971e818bf9ab980a0c34ce2038e430ecf67194a78cf47da1ff6c6fff427a43d4a7caf0cec52d6be0da065f6bf0e34a511bf3b81510d46510b3420fee86637120df4a56ef07fc8704e40");
 
-        let mut access_list = vec![];
-        access_list.push(AccessList {
+        let access_list = vec![AccessList {
             address: "0x55a7ce45514b6e71743bbb67e9959bd19eefb8ed".to_string(),
             storage_keys: vec![
                 "0x766d2c1aef5f615a3f935de247800dfbf9a8bb7be5a43795f78f9c83f24f013d".to_string(),
                 "0xb34339a846e7a304ad82e20b3cf05260698566efc1c6488bf851689a279d262e".to_string(),
             ],
-        });
+        }];
         let tx = EthTxInput {
             nonce: "6".to_string(),
             gas_price: "".to_string(),
@@ -407,11 +405,10 @@ mod test {
         );
         assert_eq!(tx_output.signature, "02f8d081e10681b784b1e3a78f83a6142b94d24911709fa01130804188b5c76ed65bfdfd6a0582137e89e9290f2d3d754ba522f85bf8599455a7ce45514b6e71743bbb67e9959bd19eefb8edf842a0766d2c1aef5f615a3f935de247800dfbf9a8bb7be5a43795f78f9c83f24f013da0b34339a846e7a304ad82e20b3cf05260698566efc1c6488bf851689a279d262e01a0fec0c018ec049c8278e346b290cd74d68cc5b18fac6c8dc9abbe7155367681cea02c2592c44cdae3d0a1017ab30f61486ddba1a45ba358e1c66e493b652e8827e1");
 
-        let mut access_list = vec![];
-        access_list.push(AccessList {
+        let access_list = vec![AccessList {
             address: "0x4824aec0a347a627d2bd88ae1f69a41b0665fed0".to_string(),
             storage_keys: vec![],
-        });
+        }];
         let tx = EthTxInput {
             nonce: "3".to_string(),
             gas_price: "".to_string(),
@@ -434,25 +431,30 @@ mod test {
         );
         assert_eq!(tx_output.signature, "02f88382016d0381df853c61e8d81a82a2ec94af9031dff5db0a02d25cd09b3cbb0d3f7f332faf82af8b4fd7d6944824aec0a347a627d2bd88ae1f69a41b0665fed0c080a016fd2a3b319df64713a402c20c9f2cccf16449fb1ad850d1dd5defc3d154e680a012adb991599d3c7cc7279aaf7ebee8ed9278f0574fa5899ddbfd5688921b9d0f");
 
-        let mut access_list = vec![];
-        access_list.push(AccessList {
-            address: "0x019fda53b3198867b8aae65320c9c55d74de1938".to_string(),
-            storage_keys: vec![],
-        });
-        access_list.push(AccessList {
-            address: "0x1b976cdbc43cfcbeaad2623c95523981ea1e664a".to_string(),
-            storage_keys: vec![
-                "0xd259410e74fa5c0227f688cc1f79b4d2bee3e9b7342c4c61342e8906a63406a2".to_string(),
-            ],
-        });
-        access_list.push(AccessList {
-            address: "0xf1946eba70f89687d67493d8106f56c90ecba943".to_string(),
-            storage_keys: vec![
-                "0xb3838dedffc33c62f8abfc590b41717a6dd70c3cab5a6900efae846d9060a2b9".to_string(),
-                "0x6a6c4d1ab264204fb2cdd7f55307ca3a0040855aa9c4a749a605a02b43374b82".to_string(),
-                "0x0c38e901d0d95fbf8f05157c68a89393a86aa1e821279e4cce78f827dccb2064".to_string(),
-            ],
-        });
+        let access_list = vec![
+            AccessList {
+                address: "0x019fda53b3198867b8aae65320c9c55d74de1938".to_string(),
+                storage_keys: vec![],
+            },
+            AccessList {
+                address: "0x1b976cdbc43cfcbeaad2623c95523981ea1e664a".to_string(),
+                storage_keys: vec![
+                    "0xd259410e74fa5c0227f688cc1f79b4d2bee3e9b7342c4c61342e8906a63406a2"
+                        .to_string(),
+                ],
+            },
+            AccessList {
+                address: "0xf1946eba70f89687d67493d8106f56c90ecba943".to_string(),
+                storage_keys: vec![
+                    "0xb3838dedffc33c62f8abfc590b41717a6dd70c3cab5a6900efae846d9060a2b9"
+                        .to_string(),
+                    "0x6a6c4d1ab264204fb2cdd7f55307ca3a0040855aa9c4a749a605a02b43374b82"
+                        .to_string(),
+                    "0x0c38e901d0d95fbf8f05157c68a89393a86aa1e821279e4cce78f827dccb2064"
+                        .to_string(),
+                ],
+            },
+        ];
         let tx = EthTxInput {
             nonce: "1".to_string(),
             gas_price: "".to_string(),
@@ -643,8 +645,8 @@ mod test {
     #[test]
     fn test_sign_message_by_hd() {
         let mut keystore =
-            Keystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, Metadata::default()).unwrap();
-        keystore.unlock_by_password(&TEST_PASSWORD).unwrap();
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
 
         let message = EthMessageInput {
             message: "hello world".to_string(),

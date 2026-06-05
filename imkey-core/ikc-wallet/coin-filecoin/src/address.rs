@@ -16,8 +16,8 @@ use ikc_transport::message;
 use std::convert::TryFrom;
 use wallet_core_common::filecoin;
 
-const MAINNET_PREFIX: &'static str = "f";
-const TESTNET_PREFIX: &'static str = "t";
+const MAINNET_PREFIX: &str = "f";
+const TESTNET_PREFIX: &str = "t";
 
 #[derive(Debug)]
 pub struct FilecoinAddress {}
@@ -31,14 +31,14 @@ impl FilecoinAddress {
         ApduCheck::check_response(&select_response)?;
 
         let key_manager_obj = KEY_MANAGER.lock();
-        let bind_signature = utility::secp256k1_sign(&key_manager_obj.pri_key, &path.as_bytes())?;
+        let bind_signature = utility::secp256k1_sign(&key_manager_obj.pri_key, path.as_bytes())?;
 
         let mut apdu_pack: Vec<u8> = vec![];
         apdu_pack.push(0x00);
         apdu_pack.push(bind_signature.len() as u8);
         apdu_pack.extend(bind_signature.as_slice());
         apdu_pack.push(0x01);
-        apdu_pack.push(path.as_bytes().len() as u8);
+        apdu_pack.push(path.len() as u8);
         apdu_pack.extend(path.as_bytes());
 
         //get public
@@ -110,7 +110,7 @@ impl FilecoinAddress {
         let network = network_convert(network);
         let parent_ext_pub_key = Xpub {
             network: network.into(),
-            depth: 0 as u8,
+            depth: 0_u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
             public_key: parent_pub_key_obj,
@@ -126,7 +126,7 @@ impl FilecoinAddress {
             network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
-            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            child_number: *chain_number_vec.last().unwrap(),
             public_key: pub_key_obj,
             chain_code: sub_chain_code_obj,
         };

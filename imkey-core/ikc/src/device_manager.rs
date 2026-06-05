@@ -130,7 +130,7 @@ pub fn check_update() -> Result<Vec<u8>> {
 
     let return_code = response.return_code;
     let mut status = constants::IMKEY_DEV_STATUS_LATEST;
-    if return_code == constants::TSM_RETURNCODE_DEV_INACTIVATED.to_string() {
+    if return_code == constants::TSM_RETURNCODE_DEV_INACTIVATED {
         status = constants::IMKEY_DEV_STATUS_INACTIVATED;
     }
 
@@ -175,54 +175,45 @@ pub fn bind_acquire(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub fn get_seid() -> Result<Vec<u8>> {
-    let seid = device_manager::get_se_id().ok().expect("get_seid_error");
+    let seid = device_manager::get_se_id().expect("get_seid_error");
     let response_msg = GetSeidRes { seid };
     encode_message(response_msg)
 }
 
 pub fn get_sn() -> Result<Vec<u8>> {
-    let sn = device_manager::get_sn().ok().expect("get_sn_error");
+    let sn = device_manager::get_sn().expect("get_sn_error");
     let response_msg = GetSnRes { sn };
     encode_message(response_msg)
 }
 
 pub fn get_ram_size() -> Result<Vec<u8>> {
-    let ram_size = device_manager::get_ram_size()
-        .ok()
-        .expect("get_ram_size_error");
+    let ram_size = device_manager::get_ram_size().expect("get_ram_size_error");
     let response_msg = GetRamSizeRes { ram_size };
     encode_message(response_msg)
 }
 
 pub fn get_firmware_version() -> Result<Vec<u8>> {
-    let firmware_version = device_manager::get_firmware_version()
-        .ok()
-        .expect("get_firmware_version_error");
+    let firmware_version =
+        device_manager::get_firmware_version().expect("get_firmware_version_error");
 
     let response_msg = GetFirmwareVersionRes { firmware_version };
     encode_message(response_msg)
 }
 
 pub fn get_battery_power() -> Result<Vec<u8>> {
-    let battery_power = device_manager::get_battery_power()
-        .ok()
-        .expect("get_battery_power_error");
+    let battery_power = device_manager::get_battery_power().expect("get_battery_power_error");
     let response_msg = GetBatteryPowerRes { battery_power };
     encode_message(response_msg)
 }
 
 pub fn get_life_time() -> Result<Vec<u8>> {
-    let life_time = device_manager::get_life_time()
-        .ok()
-        .expect("get_life_time_error");
+    let life_time = device_manager::get_life_time().expect("get_life_time_error");
     let response_msg = GetLifeTimeRes { life_time };
     encode_message(response_msg)
 }
 
 pub fn get_ble_name() -> Result<Vec<u8>> {
-    let ble_name = device_manager::get_ble_name()
-        .ok()
-        .expect("get_ble_name_error");
+    let ble_name = device_manager::get_ble_name().expect("get_ble_name_error");
 
     let response_msg = GetBleNameRes { ble_name };
     encode_message(response_msg)
@@ -231,18 +222,14 @@ pub fn get_ble_name() -> Result<Vec<u8>> {
 pub fn set_ble_name(data: &[u8]) -> Result<Vec<u8>> {
     let request: SetBleNameReq = SetBleNameReq::decode(data).expect("ble_action");
 
-    device_manager::set_ble_name(request.ble_name)
-        .ok()
-        .expect("set_ble_name_error");
+    device_manager::set_ble_name(request.ble_name).expect("set_ble_name_error");
     encode_message(CommonResponse {
         result: "success".to_string(),
     })
 }
 
 pub fn get_ble_version() -> Result<Vec<u8>> {
-    let ble_version = device_manager::get_ble_version()
-        .ok()
-        .expect("get_ble_version_error");
+    let ble_version = device_manager::get_ble_version().expect("get_ble_version_error");
     let response_msg = GetBleVersionRes { ble_version };
     encode_message(response_msg)
 }

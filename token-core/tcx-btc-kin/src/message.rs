@@ -65,9 +65,9 @@ fn sign_message_bip137(
 }
 
 fn get_spend_tx_id(data: &[u8], script_pub_key: Script) -> Result<Txid> {
-    let tag_hash = sha256(&TAG.as_bytes().to_vec());
+    let tag_hash = sha256(TAG.as_bytes());
     let mut to_sign = Vec::new();
-    to_sign.extend(tag_hash.clone());
+    to_sign.extend(tag_hash);
     to_sign.extend(tag_hash);
     to_sign.extend(data);
 
@@ -310,7 +310,7 @@ mod tests {
         let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
-        assert!(flag >= 31 && flag <= 34, "flag byte {} not in 31-34", flag);
+        assert!((31..=34).contains(&flag), "flag byte {} not in 31-34", flag);
     }
 
     #[test]
@@ -341,7 +341,7 @@ mod tests {
         let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
-        assert!(flag >= 31 && flag <= 34, "flag byte {} not in 31-34", flag);
+        assert!((31..=34).contains(&flag), "flag byte {} not in 31-34", flag);
     }
 
     #[test]
@@ -372,7 +372,7 @@ mod tests {
         let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
-        assert!(flag >= 35 && flag <= 38, "flag byte {} not in 35-38", flag);
+        assert!((35..=38).contains(&flag), "flag byte {} not in 35-38", flag);
     }
 
     #[test]
@@ -404,7 +404,7 @@ mod tests {
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(
-            flag >= 31 && flag <= 34,
+            (31..=34).contains(&flag),
             "Standard format should always use 31-34 range, got {}",
             flag
         );
@@ -438,7 +438,7 @@ mod tests {
         let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
-        assert!(flag >= 39 && flag <= 42, "flag byte {} not in 39-42", flag);
+        assert!((39..=42).contains(&flag), "flag byte {} not in 39-42", flag);
     }
 
     #[test]
@@ -649,7 +649,7 @@ mod tests {
         let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &output.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
-        assert!(flag >= 31 && flag <= 34);
+        assert!((31..=34).contains(&flag));
     }
 
     fn derive_and_sign(

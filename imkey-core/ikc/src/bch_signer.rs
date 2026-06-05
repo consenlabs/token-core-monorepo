@@ -29,11 +29,11 @@ pub fn sign_bch_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -> R
     let bch_tx = BchTransaction {
         to: param.to.to_string(),
         amount: param.amount,
-        unspents: unspents,
+        unspents,
         fee: param.fee,
     };
 
-    let network = if sign_param.network == "TESTNET".to_string() {
+    let network = if sign_param.network == "TESTNET" {
         Network::Testnet
     } else {
         Network::Bitcoin
@@ -76,8 +76,7 @@ mod tests {
             derived_path: "0/0".to_string(),
             sequence: 0,
         };
-        let mut utxos = Vec::new();
-        utxos.push(utxo);
+        let utxos = vec![utxo];
         let tx_input = BtcForkTxInput {
             to: "qq40fskqshxem2gvz0xkf34ww3h6zwv4dcr7pm0z6s".to_string(),
             amount: 93454,

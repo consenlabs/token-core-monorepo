@@ -41,7 +41,7 @@ impl BtcForkTransaction {
         &self,
         network: Network,
         path: &str,
-        extra_data: &Vec<u8>,
+        extra_data: &[u8],
     ) -> Result<TxSignResult> {
         //path check
         check_path_validity(path)?;
@@ -52,7 +52,7 @@ impl BtcForkTransaction {
             path_str = format!("{}{}", path_str, "/");
         }
         //check uxto number
-        if &self.tx_input.unspents.len() > &MAX_UTXO_NUMBER {
+        if self.tx_input.unspents.len() > MAX_UTXO_NUMBER {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
 
@@ -69,7 +69,7 @@ impl BtcForkTransaction {
         //use se public key verify sign
         let key_manager_obj = KEY_MANAGER.lock();
         let sign_verify_result = secp256k1_sign_verify(
-            &key_manager_obj.se_pub_key.as_slice(),
+            key_manager_obj.se_pub_key.as_slice(),
             hex::decode(sign_result).unwrap().as_slice(),
             hex::decode(sign_source_val).unwrap().as_slice(),
         );
@@ -104,7 +104,7 @@ impl BtcForkTransaction {
                 &self.tx_input.change_address,
             )?;
             txouts.push(TxOut {
-                value: Amount::from_sat(self.get_change_amount() as u64),
+                value: Amount::from_sat(self.get_change_amount()),
                 script_pubkey: change_addr.script_pubkey(),
             });
         }
@@ -114,7 +114,7 @@ impl BtcForkTransaction {
             if extra_data.len() > MAX_OPRETURN_SIZE {
                 return Err(CoinError::ImkeySdkIllegalArgument.into());
             }
-            txouts.push(self.build_op_return_output(&extra_data))
+            txouts.push(self.build_op_return_output(extra_data))
         }
 
         //output data serialize
@@ -174,7 +174,7 @@ impl BtcForkTransaction {
                 let mut temp_serialize_txin = TxIn {
                     previous_output: OutPoint {
                         txid: bitcoin::hash_types::Txid::from_str(temp_utxo.tx_hash.as_str())?,
-                        vout: temp_utxo.vout as u32,
+                        vout: temp_utxo.vout,
                     },
                     script_sig: ScriptBuf::new(),
                     sequence: Sequence::MAX,
@@ -233,7 +233,7 @@ impl BtcForkTransaction {
             let txin = TxIn {
                 previous_output: OutPoint {
                     txid: bitcoin::hash_types::Txid::from_str(&unspent.tx_hash)?,
-                    vout: unspent.vout as u32,
+                    vout: unspent.vout,
                 },
                 script_sig: lock_script_ver.get(index).unwrap().clone(),
                 sequence: Sequence::MAX,
@@ -254,7 +254,7 @@ impl BtcForkTransaction {
         &self,
         network: Network,
         path: &str,
-        extra_data: &Vec<u8>,
+        extra_data: &[u8],
     ) -> Result<TxSignResult> {
         //path check
         check_path_validity(path)?;
@@ -265,7 +265,7 @@ impl BtcForkTransaction {
             path_str = format!("{}{}", path_str, "/");
         }
         //check utxo number
-        if &self.tx_input.unspents.len() > &MAX_UTXO_NUMBER {
+        if self.tx_input.unspents.len() > MAX_UTXO_NUMBER {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
 
@@ -282,7 +282,7 @@ impl BtcForkTransaction {
         //use se public key verify sign
         let key_manager_obj = KEY_MANAGER.lock();
         let sign_verify_result = secp256k1_sign_verify(
-            &key_manager_obj.se_pub_key.as_slice(),
+            key_manager_obj.se_pub_key.as_slice(),
             hex::decode(sign_result).unwrap().as_slice(),
             hex::decode(sign_source_val).unwrap().as_slice(),
         );
@@ -316,7 +316,7 @@ impl BtcForkTransaction {
                 &self.tx_input.change_address,
             )?;
             txouts.push(TxOut {
-                value: Amount::from_sat(self.get_change_amount() as u64),
+                value: Amount::from_sat(self.get_change_amount()),
                 script_pubkey: change_addr.script_pubkey(),
             });
         }
@@ -387,7 +387,7 @@ impl BtcForkTransaction {
             let txin = TxIn {
                 previous_output: OutPoint {
                     txid: bitcoin::hash_types::Txid::from_str(&unspent.tx_hash)?,
-                    vout: unspent.vout as u32,
+                    vout: unspent.vout,
                 },
                 script_sig: ScriptBuf::new(),
                 sequence: Sequence::MAX,
@@ -425,10 +425,10 @@ impl BtcForkTransaction {
             //address
             let mut address_data: Vec<u8> = vec![];
             if unspent.derived_path.is_empty() {
-                address_data.push(path_str.as_bytes().len() as u8);
+                address_data.push(path_str.len() as u8);
                 address_data.extend_from_slice(path_str.as_bytes());
             } else {
-                address_data.push(unspent.derived_path.as_bytes().len() as u8);
+                address_data.push(unspent.derived_path.len() as u8);
                 address_data.extend_from_slice(unspent.derived_path.as_bytes());
             }
 
@@ -484,7 +484,7 @@ impl BtcForkTransaction {
                         .as_slice(),
                 )
                 .to_byte_array();
-                let hex = format!("160014{}", hex::encode(&hash));
+                let hex = format!("160014{}", hex::encode(hash));
                 Ok(TxIn {
                     script_sig: ScriptBuf::from_hex(hex.as_str())?,
                     witness: Witness::from_slice(&[witnesses[i].0.clone(), witnesses[i].1.clone()]),
@@ -513,23 +513,24 @@ impl BtcForkTransaction {
 
     pub fn get_change_amount(&self) -> u64 {
         let total_amount = self.get_total_amount();
-        let change_amout = total_amount - self.tx_input.amount - self.tx_input.fee;
-        change_amout
+
+        total_amount - self.tx_input.amount - self.tx_input.fee
     }
 
     pub fn build_send_to_output(&self) -> TxOut {
         let legacy_addr = BtcForkAddress::from_str(&self.tx_input.to).unwrap();
         TxOut {
-            value: Amount::from_sat(self.tx_input.amount as u64),
+            value: Amount::from_sat(self.tx_input.amount),
             script_pubkey: legacy_addr.script_pubkey(),
         }
     }
 
-    pub fn build_op_return_output(&self, extra_data: &Vec<u8>) -> TxOut {
+    pub fn build_op_return_output(&self, extra_data: &[u8]) -> TxOut {
         let opreturn_script = Builder::new()
             .push_opcode(opcodes::all::OP_RETURN)
             .push_slice(
-                PushBytesBuf::try_from(extra_data.clone()).expect("op_return data length checked"),
+                PushBytesBuf::try_from(extra_data.to_owned())
+                    .expect("op_return data length checked"),
             )
             .into_script();
         TxOut {
@@ -539,7 +540,7 @@ impl BtcForkTransaction {
     }
 
     pub fn build_lock_script(&self, signed: &str, utxo_public_key: &str) -> Result<ScriptBuf> {
-        let signed_vec = Vec::from_hex(&signed)?;
+        let signed_vec = Vec::from_hex(signed)?;
         let mut signature_obj = Signature::from_compact(signed_vec.as_slice())?;
         signature_obj.normalize_s();
         let mut signed_vec = signature_obj.serialize_der().to_vec();
@@ -610,8 +611,7 @@ mod tests {
             derived_path: "m/44'/2'/0'/0/0".to_string(),
             sequence: 0,
         };
-        let mut unspents = Vec::new();
-        unspents.push(utxo);
+        let unspents = vec![utxo];
 
         let tx_input = BtcForkTxInput {
             to: "mrU9pEmAx26HcbKVrABvgL7AwA5fjNFoDc".to_string(),
@@ -628,11 +628,8 @@ mod tests {
             tx_input,
             coin_info,
         };
-        let sign_result = transaction_req_data.sign_transaction(
-            Network::Testnet,
-            &"m/44'/2'/0'/".to_string(),
-            &extra_data,
-        );
+        let sign_result =
+            transaction_req_data.sign_transaction(Network::Testnet, "m/44'/2'/0'/", &extra_data);
 
         assert_eq!(
             "01000000015884e5db9de218238671572340b207ee85b628074e7e467096c267266baf77a4000000006b483045022100b73ecae568a16b17c556d86afab4e71131848f02e888439a978cb9c1b32df95702201a4d63b36cc5a623114443a6fe9d3ee8dc95611488f49bcdfbcb89df9c89dd3b01210289ca41680edbc5594ee6378ebd937e42cd6b4b969e40dd82c20ef2a8aa5bad7bffffffff0220a10700000000001976a9147821c0a3768aa9d1a37e16cf76002aef5373f1a888ac801a0600000000001976a914cee8ec4d3d43bfe9150e0e66c781bf1d84e6ad3288ac00000000",
@@ -655,8 +652,7 @@ mod tests {
             derived_path: "m/44'/2'/0'/0/0".to_string(),
             sequence: 0,
         };
-        let mut unspents = Vec::new();
-        unspents.push(utxo);
+        let unspents = vec![utxo];
 
         let tx_input = BtcForkTxInput {
             to: "mrU9pEmAx26HcbKVrABvgL7AwA5fjNFoDc".to_string(),
@@ -673,11 +669,8 @@ mod tests {
             tx_input,
             coin_info,
         };
-        let sign_result = transaction_req_data.sign_transaction(
-            Network::Testnet,
-            &"m/44'/2'/0'/".to_string(),
-            &extra_data,
-        );
+        let sign_result =
+            transaction_req_data.sign_transaction(Network::Testnet, "m/44'/2'/0'/", &extra_data);
 
         assert_eq!(
             "01000000015884e5db9de218238671572340b207ee85b628074e7e467096c267266baf77a4000000006b483045022100b73ecae568a16b17c556d86afab4e71131848f02e888439a978cb9c1b32df95702201a4d63b36cc5a623114443a6fe9d3ee8dc95611488f49bcdfbcb89df9c89dd3b01210289ca41680edbc5594ee6378ebd937e42cd6b4b969e40dd82c20ef2a8aa5bad7bffffffff0220a10700000000001976a9147821c0a3768aa9d1a37e16cf76002aef5373f1a888ac801a0600000000001976a914cee8ec4d3d43bfe9150e0e66c781bf1d84e6ad3288ac00000000",
@@ -715,7 +708,7 @@ mod tests {
         };
         let sign_result = transaction_req_data.sign_segwit_transaction(
             Network::Bitcoin,
-            &"m/44'/2'/0'/".to_string(),
+            "m/44'/2'/0'/",
             &extra_data,
         );
 
@@ -755,7 +748,7 @@ mod tests {
         };
         let sign_result = transaction_req_data.sign_segwit_transaction(
             Network::Bitcoin,
-            &"m/44'/2'/0'/0/0".to_string(),
+            "m/44'/2'/0'/0/0",
             &extra_data,
         );
 

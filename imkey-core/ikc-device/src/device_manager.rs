@@ -182,7 +182,7 @@ pub fn app_delete(app_name: &str) -> Result<()> {
 }
 
 pub fn bind_check(file_path: &str) -> Result<String> {
-    DeviceManage::bind_check(&file_path.to_string())
+    DeviceManage::bind_check(file_path)
 }
 
 pub fn bind_display_code() -> Result<()> {
@@ -190,7 +190,7 @@ pub fn bind_display_code() -> Result<()> {
 }
 
 pub fn bind_acquire(bind_code: &str) -> Result<String> {
-    DeviceManage::bind_acquire(&bind_code.to_string())
+    DeviceManage::bind_acquire(bind_code)
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]

@@ -67,7 +67,7 @@ pub(crate) fn derive_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 account_rsp.public_key = format!("0x{}", public_key);
 
                 let address = match derivation.seg_wit.as_str() {
-                    "P2WPKH" => BtcKinAddress::p2shwpkh(&network, &derivation.path)?.to_string(),
+                    "P2WPKH" => BtcKinAddress::p2shwpkh(network, &derivation.path)?.to_string(),
                     "VERSION_0" => BtcKinAddress::p2wpkh(network, &derivation.path)?.to_string(),
                     "VERSION_1" => BtcKinAddress::p2tr(network, &derivation.path)?.to_string(),
                     _ => BtcKinAddress::p2pkh(network, &derivation.path)?.to_string(),
@@ -209,7 +209,7 @@ pub(crate) fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
                 }
                 BtcKinAddress::from_public_key(
                     &hex::encode(pub_key_uncompressed),
-                    &network.unwrap(),
+                    network.unwrap(),
                     &param.seg_wit,
                 )?
                 .to_string()
@@ -343,7 +343,7 @@ pub(crate) fn sign_psbt(data: &[u8]) -> Result<Vec<u8>> {
     )
     .expect("psbt_input decode");
 
-    let network = if param.network == "TESTNET".to_string() {
+    let network = if param.network == "TESTNET" {
         Network::Testnet
     } else {
         Network::Bitcoin

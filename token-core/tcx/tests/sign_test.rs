@@ -115,7 +115,7 @@ pub fn test_recommended_sign_message_alias() {
 pub fn test_sign_ckb_tx() {
     run_test(|| {
         let wallet: KeystoreResult = import_default_wallet();
-        let out_points = vec![
+        let out_points = [
             OutPoint {
                 tx_hash: "0xfb9c020db967e84af1fbd755df5bc23427e2ed70f73e07895a0c394f6195f083"
                     .to_owned(),
@@ -509,7 +509,7 @@ pub fn test_sign_substrate_raw_tx() {
 
         assert_eq!(output.signature[0..4].to_string(), "0x01",);
 
-        let sig_bytes = Vec::from_hex(output.signature[4..].to_string()).unwrap();
+        let sig_bytes = Vec::from_hex(&output.signature[4..]).unwrap();
         let signature = sp_core::sr25519::Signature::from_slice(&sig_bytes).unwrap();
 
         let pub_key =
@@ -809,12 +809,10 @@ fn test_bitcoin_sign_message_bip322_base64() {
     run_test(|| {
         let wallet = import_default_wallet();
 
-        let messages = vec!["hello world", "test1", "test2"];
-        let old_hex_sigs = vec![
-            "02473044022062775640116afb7f17d23c222b0a6904fdaf2aea0d76e550d75c8fd362b80dcb022067c299fde774aaab689f8a53ebd0956395ff45b7ff6b7e99569d0abec85110c80121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc",
+        let messages = ["hello world", "test1", "test2"];
+        let old_hex_sigs = ["02473044022062775640116afb7f17d23c222b0a6904fdaf2aea0d76e550d75c8fd362b80dcb022067c299fde774aaab689f8a53ebd0956395ff45b7ff6b7e99569d0abec85110c80121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc",
             "02483045022100b805ccd16f1a664ae394bf292962ea6d76e0ddd5beb0b050cca4a1aa9ababc9a02201503132e39dc600957ec8f33663b10ab0cff0c4e37cab2811619152be8d919300121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc",
-            "02483045022100e96bfdb41b3562a1ff5a4c816da2620e82bcc8d702843ae1cec506666d4569c302206477d7d93c082cb42d462200a136e6aef7edde053722008a206ab8b9b356f0380121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc",
-        ];
+            "02483045022100e96bfdb41b3562a1ff5a4c816da2620e82bcc8d702843ae1cec506666d4569c302206477d7d93c082cb42d462200a136e6aef7edde053722008a206ab8b9b356f0380121031aee5e20399d68cf0035d1a21564868f22bc448ab205292b4279136b15ecaebc"];
 
         for (msg, old_hex) in messages.iter().zip(old_hex_sigs.iter()) {
             let input = BtcMessageInput {
@@ -879,7 +877,7 @@ fn test_bitcoin_sign_message_standard() {
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(
-            flag >= 31 && flag <= 34,
+            (31..=34).contains(&flag),
             "Standard flag {} not in 31-34",
             flag
         );
@@ -916,7 +914,7 @@ fn test_bitcoin_sign_message_bip137() {
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(
-            flag >= 39 && flag <= 42,
+            (39..=42).contains(&flag),
             "BIP-137 VERSION_0 flag {} not in 39-42",
             flag
         );
@@ -1306,7 +1304,7 @@ pub fn test_sign_hashes() {
         };
         let result_bytes = call_api("sign_raw_hashes", param).unwrap();
         let result = SignHashesResult::decode(result_bytes.as_slice()).unwrap();
-        assert_eq!(result.signatures.get(0).unwrap(), "0x8fa5d4dfe4766de7896f0e32c5bee9baae47aaa843cf5f1a2587dd9aaedf8a8c4400cb31bdcb1e90ddfe6d309e57841204dbf53704e4c4da3a9d25e9b4a09dac31a3221a7aac76f58ca21854173303cf58f039770a9e2307966e89faf0e5e79e");
+        assert_eq!(result.signatures.first().unwrap(), "0x8fa5d4dfe4766de7896f0e32c5bee9baae47aaa843cf5f1a2587dd9aaedf8a8c4400cb31bdcb1e90ddfe6d309e57841204dbf53704e4c4da3a9d25e9b4a09dac31a3221a7aac76f58ca21854173303cf58f039770a9e2307966e89faf0e5e79e");
 
         let data_to_sign = vec![DataToSign {
             hash: "3e0658d8284d8f50c0aa8fa6cdbd1bde0eb370d4b3489a26c83763671ace8b1c".to_string(),
@@ -1323,7 +1321,7 @@ pub fn test_sign_hashes() {
         };
         let result_bytes = call_api("sign_hashes", param).unwrap();
         let result = SignHashesResult::decode(result_bytes.as_slice()).unwrap();
-        assert_eq!(result.signatures.get(0).unwrap(), "0x80c4f5c9299d21dc62a91e6bd1868cda545e31cadbf0eff35f802a4509cecea2618e5b352843ac4f487d2b43ebd55cdf7ad0b78ca81a96504744cd4209ce343d00");
+        assert_eq!(result.signatures.first().unwrap(), "0x80c4f5c9299d21dc62a91e6bd1868cda545e31cadbf0eff35f802a4509cecea2618e5b352843ac4f487d2b43ebd55cdf7ad0b78ca81a96504744cd4209ce343d00");
 
         remove_created_wallet(&import_result.id);
     })
@@ -1437,25 +1435,30 @@ pub fn test_sign_ethereum_eip1559_tx2() {
     run_test(|| {
         let wallet = import_default_wallet();
         //eip1559 transaction
-        let mut access_list = vec![];
-        access_list.push(AccessList {
-            address: "0x019fda53b3198867b8aae65320c9c55d74de1938".to_string(),
-            storage_keys: vec![],
-        });
-        access_list.push(AccessList {
-            address: "0x1b976cdbc43cfcbeaad2623c95523981ea1e664a".to_string(),
-            storage_keys: vec![
-                "0xd259410e74fa5c0227f688cc1f79b4d2bee3e9b7342c4c61342e8906a63406a2".to_string(),
-            ],
-        });
-        access_list.push(AccessList {
-            address: "0xf1946eba70f89687d67493d8106f56c90ecba943".to_string(),
-            storage_keys: vec![
-                "0xb3838dedffc33c62f8abfc590b41717a6dd70c3cab5a6900efae846d9060a2b9".to_string(),
-                "0x6a6c4d1ab264204fb2cdd7f55307ca3a0040855aa9c4a749a605a02b43374b82".to_string(),
-                "0x0c38e901d0d95fbf8f05157c68a89393a86aa1e821279e4cce78f827dccb2064".to_string(),
-            ],
-        });
+        let access_list = vec![
+            AccessList {
+                address: "0x019fda53b3198867b8aae65320c9c55d74de1938".to_string(),
+                storage_keys: vec![],
+            },
+            AccessList {
+                address: "0x1b976cdbc43cfcbeaad2623c95523981ea1e664a".to_string(),
+                storage_keys: vec![
+                    "0xd259410e74fa5c0227f688cc1f79b4d2bee3e9b7342c4c61342e8906a63406a2"
+                        .to_string(),
+                ],
+            },
+            AccessList {
+                address: "0xf1946eba70f89687d67493d8106f56c90ecba943".to_string(),
+                storage_keys: vec![
+                    "0xb3838dedffc33c62f8abfc590b41717a6dd70c3cab5a6900efae846d9060a2b9"
+                        .to_string(),
+                    "0x6a6c4d1ab264204fb2cdd7f55307ca3a0040855aa9c4a749a605a02b43374b82"
+                        .to_string(),
+                    "0x0c38e901d0d95fbf8f05157c68a89393a86aa1e821279e4cce78f827dccb2064"
+                        .to_string(),
+                ],
+            },
+        ];
         let eth_tx_input = EthTxInput {
             nonce: "8".to_string(),
             gas_price: "".to_string(),
@@ -1553,7 +1556,7 @@ pub fn test_sign_bls_to_execution_change() {
         };
         let result_bytes = call_api("get_public_keys", param).unwrap();
         let result = GetPublicKeysResult::decode(result_bytes.as_slice()).unwrap();
-        assert_eq!(result.public_keys.clone().get(0).unwrap(), "0x99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db");
+        assert_eq!(result.public_keys.clone().first().unwrap(), "0x99b1f1d84d76185466d86c34bde1101316afddae76217aa86cd066979b19858c2c9d9e56eebc1e067ac54277a61790db");
 
         let mut param = SignBlsToExecutionChangeParam {
             id: import_result.id.to_string(),
@@ -1566,14 +1569,14 @@ pub fn test_sign_bls_to_execution_change() {
             genesis_validators_root:
                 "0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95".to_string(),
             validator_index: vec![0],
-            from_bls_pub_key: result.public_keys.get(0).unwrap().to_owned(),
+            from_bls_pub_key: result.public_keys.first().unwrap().to_owned(),
             eth1_withdrawal_address: "0x8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15".to_string(),
         };
         let ret_bytes = call_api("sign_bls_to_execution_change", param.clone()).unwrap();
         let result: SignBlsToExecutionChangeResult =
             SignBlsToExecutionChangeResult::decode(ret_bytes.as_slice()).unwrap();
 
-        assert_eq!(result.signeds.get(0).unwrap().signature, "8c8ce9f8aedf380e47548501d348afa28fbfc282f50edf33555a3ed72eb24d710bc527b5108022cffb764b953941ec4014c44106d2708387d26cc84cbc5c546a1e6e56fdc194cf2649719e6ac149596d80c86bf6844b36bd47038ee96dd3962f");
+        assert_eq!(result.signeds.first().unwrap().signature, "8c8ce9f8aedf380e47548501d348afa28fbfc282f50edf33555a3ed72eb24d710bc527b5108022cffb764b953941ec4014c44106d2708387d26cc84cbc5c546a1e6e56fdc194cf2649719e6ac149596d80c86bf6844b36bd47038ee96dd3962f");
         param.eth1_withdrawal_address = "0x8c1Ff978036F2e9d7CC382Eff7B4c8c53C22ac15XX".to_string();
         let result = call_api("sign_bls_to_execution_change", param.clone());
         assert_eq!(

@@ -12,7 +12,7 @@ pub struct IpfsInfo {
 }
 
 pub fn read_legacy_ipfs_info(filepath: &str) -> Result<IpfsInfo> {
-    let mut identify_file = fs::File::open(&filepath)?;
+    let mut identify_file = fs::File::open(filepath)?;
 
     let mut json_str = String::new();
     identify_file.read_to_string(&mut json_str)?;

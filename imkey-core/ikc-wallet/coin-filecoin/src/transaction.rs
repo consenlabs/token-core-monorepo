@@ -168,16 +168,16 @@ impl Transaction {
         data_pack.extend(data.iter());
 
         //path
-        data_pack.extend([2, sign_param.path.as_bytes().len() as u8].iter());
+        data_pack.extend([2, sign_param.path.len() as u8].iter());
         data_pack.extend(sign_param.path.as_bytes().iter());
         //payment info in TLV format
-        data_pack.extend([7, sign_param.payment.as_bytes().len() as u8].iter());
+        data_pack.extend([7, sign_param.payment.len() as u8].iter());
         data_pack.extend(sign_param.payment.as_bytes().iter());
         //receiver info in TLV format
-        data_pack.extend([8, sign_param.receiver.as_bytes().len() as u8].iter());
+        data_pack.extend([8, sign_param.receiver.len() as u8].iter());
         data_pack.extend(sign_param.receiver.as_bytes().iter());
         //fee info in TLV format
-        data_pack.extend([9, sign_param.fee.as_bytes().len() as u8].iter());
+        data_pack.extend([9, sign_param.fee.len() as u8].iter());
         data_pack.extend(sign_param.fee.as_bytes().iter());
 
         let key_manager_obj = KEY_MANAGER.lock();
@@ -217,7 +217,7 @@ impl Transaction {
         signature_obj.normalize_s();
         let normalizes_sig_vec = signature_obj.serialize_compact();
 
-        let rec_id = utility::retrieve_recid(&data, &normalizes_sig_vec, &pubkey_raw).unwrap();
+        let rec_id = utility::retrieve_recid(data, &normalizes_sig_vec, &pubkey_raw).unwrap();
 
         let mut data_arr = [0; 65];
         data_arr[0..64].copy_from_slice(&normalizes_sig_vec[0..64]);
@@ -233,10 +233,7 @@ impl Transaction {
             message: Some(tx_input.clone()),
             signature: Some(Signature {
                 r#type: signature_type,
-                data: base64::Engine::encode(
-                    &base64::engine::general_purpose::STANDARD,
-                    &data_arr.to_vec(),
-                ),
+                data: base64::Engine::encode(&base64::engine::general_purpose::STANDARD, data_arr),
             }),
         })
     }

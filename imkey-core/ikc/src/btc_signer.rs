@@ -45,10 +45,7 @@ pub fn btc_sign(param: &BtcTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
         chain_type: sign_param.chain_type.clone(),
     };
 
-    let op_return = match &param.extra {
-        Some(extra) => Some(extra.op_return.clone()),
-        _ => None,
-    };
+    let op_return = param.extra.as_ref().map(|extra| extra.op_return.clone());
 
     let signed = btc_tx.sign_transaction(
         &sign_param.network,
@@ -83,12 +80,12 @@ pub fn sign_usdt_transaction(input: &BtcTxInput, sign_param: &SignParam) -> Resu
     let btc_tx = BtcTransaction {
         to: input.to.to_string(),
         amount: input.amount,
-        unspents: unspents,
+        unspents,
         fee: input.fee,
         chain_type: sign_param.chain_type.clone(),
     };
 
-    let network = if sign_param.network == "TESTNET".to_string() {
+    let network = if sign_param.network == "TESTNET" {
         Network::Testnet
     } else {
         Network::Bitcoin
@@ -125,12 +122,12 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
     let btc_tx = BtcTransaction {
         to: input.to.to_string(),
         amount: input.amount,
-        unspents: unspents,
+        unspents,
         fee: input.fee,
         chain_type: sign_param.chain_type.clone(),
     };
 
-    let network = if sign_param.network == "TESTNET".to_string() {
+    let network = if sign_param.network == "TESTNET" {
         Network::Testnet
     } else {
         Network::Bitcoin
@@ -142,7 +139,7 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
         .expect("sign usdt tx must contains extra");
 
     let signed =
-        btc_tx.sign_omni_segwit_transaction(network, &sign_param.path, extra.property_id as i32)?;
+        btc_tx.sign_omni_segwit_transaction(network, &sign_param.path, extra.property_id)?;
     let tx_sign_result = BtcTxOutput {
         signature: signed.signature,
         wtx_hash: signed.wtx_id,

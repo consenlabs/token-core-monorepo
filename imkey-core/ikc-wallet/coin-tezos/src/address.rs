@@ -34,7 +34,7 @@ impl TezosAddress {
         apdu_pack.push(bind_signature.len() as u8);
         apdu_pack.extend(bind_signature.as_slice());
         apdu_pack.push(0x01);
-        apdu_pack.push(path.as_bytes().len() as u8);
+        apdu_pack.push(path.len() as u8);
         apdu_pack.extend(path.as_bytes());
 
         //get public

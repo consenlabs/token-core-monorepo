@@ -80,7 +80,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
                 let address_bytes = base58::decode(address)?;
                 address_bytes.as_slice()[0]
             } else if address.starts_with("bc1") {
-                'b' as u8
+                b'b'
             } else {
                 return Err(CoinError::AddressTypeMismatch.into());
             }
@@ -90,7 +90,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
                 let address_bytes = base58::decode(address)?;
                 address_bytes.as_slice()[0]
             } else if address.starts_with("tb1") {
-                't' as u8
+                b't'
             } else {
                 return Err(CoinError::AddressTypeMismatch.into());
             }

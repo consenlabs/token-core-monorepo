@@ -5,7 +5,7 @@ use std::{cell::RefCell, panic};
 pub type Result<T> = result::Result<T, Error>;
 
 thread_local! {
-    pub static LAST_ERROR: RefCell<Option<Error>> = RefCell::new(None);
+    pub static LAST_ERROR: RefCell<Option<Error>> = const { RefCell::new(None) };
 }
 
 #[allow(irrefutable_let_patterns)]
@@ -19,6 +19,11 @@ fn notify_err(err: Error) -> Error {
 
 /// catch any error and format to string
 /// ref: <https://doc.rust-lang.org/edition-guide/rust-2018/error-handling-and-panics/controlling-panics-with-std-panic.html>
+///
+/// # Safety
+///
+/// The caller must ensure that any unsafe operations performed inside `f` uphold their own
+/// invariants. This wrapper only catches panics and records errors.
 pub unsafe fn landingpad<F: FnOnce() -> Result<T> + panic::UnwindSafe, T>(f: F) -> Result<T> {
     match panic::catch_unwind(f) {
         Ok(rv) => rv.map_err(notify_err),
