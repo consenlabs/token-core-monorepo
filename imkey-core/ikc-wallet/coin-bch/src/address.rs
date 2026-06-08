@@ -94,7 +94,7 @@ impl BchAddress {
         //path check
         check_path_validity(path)?;
 
-        let select_apdu = Apdu::select_applet(BTC_AID);
+        let select_apdu = Apdu::select_applet(BTC_AID)?;
         let select_response = message::send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
@@ -139,7 +139,7 @@ impl BchAddress {
         let apdu_res = send_apdu(BtcApdu::register_name_address(
             "BCH".as_bytes(),
             &address_str.clone().into_bytes().to_vec(),
-        ))?;
+        )?)?;
         ApduCheck::check_response(apdu_res.as_str())?;
         Ok(address_str)
     }

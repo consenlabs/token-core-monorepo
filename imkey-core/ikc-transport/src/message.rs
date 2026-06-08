@@ -23,6 +23,16 @@ pub trait ApduTransport {
     fn send_apdu_timeout(&self, apdu: &str, timeout: i32) -> Result<String>;
 }
 
+fn c_string_ptr(value: &str) -> *const c_char {
+    let sanitized = value.replace('\0', "");
+    match CString::new(sanitized) {
+        Ok(value) => value.into_raw(),
+        Err(_) => CString::new("")
+            .expect("static empty string contains no NUL byte")
+            .into_raw(),
+    }
+}
+
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub struct HidApduTransport;
 
@@ -50,9 +60,7 @@ impl ApduTransport for CallbackApduTransport {
 
 #[no_mangle]
 pub extern "C" fn default_callback(_apdu: *const c_char, _timeout: i32) -> *const c_char {
-    CString::new("need set callback!".to_owned())
-        .unwrap()
-        .into_raw()
+    c_string_ptr("need set callback!")
 }
 
 pub fn set_callback(callback: extern "C" fn(apdu: *const c_char, timeout: i32) -> *const c_char) {
@@ -62,7 +70,7 @@ pub fn set_callback(callback: extern "C" fn(apdu: *const c_char, timeout: i32) -
 
 pub fn get_apdu() -> *const c_char {
     let apdu = APDU.read();
-    CString::new(apdu.to_owned()).unwrap().into_raw()
+    c_string_ptr(&apdu)
 }
 
 #[allow(dead_code)]
@@ -86,10 +94,12 @@ fn set_apdu_r(apdu: String) {
 ///
 /// `apdu` must be a valid, non-null pointer to a NUL-terminated C string.
 pub unsafe fn set_apdu(apdu: *const c_char) {
+    if apdu.is_null() {
+        return;
+    }
     let mut _apdu = APDU.write();
     let c_str: &CStr = unsafe { CStr::from_ptr(apdu) };
-    let str_slice: &str = c_str.to_str().unwrap();
-    let str_buf: String = str_slice.to_owned();
+    let str_buf: String = c_str.to_string_lossy().into_owned();
     *_apdu = str_buf;
     drop(_apdu);
 }
@@ -123,17 +133,19 @@ fn get_apdu_return_r() -> Result<String> {
 
 pub fn get_apdu_return() -> *const c_char {
     let apdu = APDU_RETURN.read();
-    CString::new(apdu.to_owned()).unwrap().into_raw()
+    c_string_ptr(&apdu)
 }
 
 /// # Safety
 ///
 /// `apdu_return` must be a valid, non-null pointer to a NUL-terminated C string.
 pub unsafe fn set_apdu_return(apdu_return: *const c_char) {
+    if apdu_return.is_null() {
+        return;
+    }
     let mut _apdu_return = APDU_RETURN.write();
     let c_str: &CStr = unsafe { CStr::from_ptr(apdu_return) };
-    let str_slice: &str = c_str.to_str().unwrap();
-    let str_buf: String = str_slice.to_owned();
+    let str_buf: String = c_str.to_string_lossy().into_owned();
     *_apdu_return = str_buf;
     drop(_apdu_return);
 }
@@ -166,7 +178,10 @@ fn send_apdu_with_callback(apdu: &str, timeout: i32) -> Result<String> {
     // get_apdu_return_r().unwrap()
 
     let callback = CALLBACK.lock();
-    let ptr = callback(CString::new(apdu).unwrap().into_raw(), timeout);
+    let ptr = callback(c_string_ptr(apdu), timeout);
+    if ptr.is_null() {
+        return Err(anyhow!("imkey_send_apdu_timeout"));
+    }
 
     // let mut res = unsafe { Ok(CStr::from_ptr(ptr).to_string_lossy().into_owned()) }?;
     // let prefix = "communication_error_";

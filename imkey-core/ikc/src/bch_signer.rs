@@ -1,5 +1,6 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
+use anyhow::anyhow;
 use bitcoin::Network;
 use coin_bch::transaction::{BchTransaction, Utxo};
 use coin_btc_fork::btcforkapi::{BtcForkTxInput, BtcForkTxOutput};
@@ -7,7 +8,7 @@ use ikc_common::SignParam;
 use prost::Message;
 
 pub fn sign_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: BtcForkTxInput = BtcForkTxInput::decode(data).expect("BtcTxInput");
+    let input: BtcForkTxInput = BtcForkTxInput::decode(data).map_err(|_| anyhow!("BtcTxInput"))?;
     sign_bch_transaction(&input, sign_param)
 }
 

@@ -89,9 +89,9 @@ pub fn address_verify(
 get xpub
 */
 pub fn get_xpub_data(path: &str, verify_flag: bool) -> Result<String> {
-    let select_response = send_apdu(BtcForkApdu::select_applet())?;
+    let select_response = send_apdu(BtcForkApdu::select_applet()?)?;
     ApduCheck::check_response(&select_response)?;
-    let xpub_data = send_apdu(BtcForkApdu::get_xpub(path, verify_flag))?;
+    let xpub_data = send_apdu(BtcForkApdu::get_xpub(path, verify_flag)?)?;
     ApduCheck::check_response(&xpub_data)?;
     Ok(xpub_data)
 }

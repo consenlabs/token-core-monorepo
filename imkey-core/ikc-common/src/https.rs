@@ -1,5 +1,6 @@
 use crate::constants;
 use crate::Result;
+use anyhow::anyhow;
 use bytes::Bytes;
 use http_body_util::{BodyExt, Full};
 use hyper::header::HeaderValue;
@@ -13,14 +14,11 @@ use tokio::runtime::Runtime;
 
 pub fn post(action: &str, req_data: Vec<u8>) -> Result<String> {
     let f = async_post(action, req_data);
-    Runtime::new().unwrap().block_on(f)
+    Runtime::new()?.block_on(f)
 }
 
 async fn async_post(action: &str, req_data: Vec<u8>) -> Result<String> {
-    let uri: hyper::Uri = format!("{}{}", constants::URL, action)
-        .to_string()
-        .parse()
-        .unwrap();
+    let uri: hyper::Uri = format!("{}{}", constants::URL, action).parse()?;
     let mut req = Request::new(Full::new(Bytes::from(req_data)));
     *req.method_mut() = Method::POST;
     *req.uri_mut() = uri.clone();
@@ -43,9 +41,12 @@ async fn async_post(action: &str, req_data: Vec<u8>) -> Result<String> {
     let client = Client::builder(TokioExecutor::new()).build::<_, Full<Bytes>>(connector);
 
     let resp = client.request(req).await?;
+    if !resp.status().is_success() {
+        return Err(anyhow!("imkey_tsm_server_error"));
+    }
 
     let bytes = resp.into_body().collect().await?.to_bytes();
-    let res_data = std::str::from_utf8(&bytes).unwrap().to_string();
+    let res_data = std::str::from_utf8(&bytes)?.to_string();
     Ok(res_data)
 }
 

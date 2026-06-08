@@ -26,12 +26,12 @@ impl EthAddress {
     pub fn get_address(path: &str) -> Result<String> {
         check_path_validity(path)?;
 
-        let select_apdu = EthApdu::select_applet();
+        let select_apdu = EthApdu::select_applet()?;
         let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
         //get public
-        let msg_pubkey = EthApdu::get_xpub(path, false);
+        let msg_pubkey = EthApdu::get_xpub(path, false)?;
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
@@ -43,7 +43,7 @@ impl EthAddress {
 
     pub fn display_address(path: &str) -> Result<String> {
         let address = EthAddress::get_address(path).unwrap();
-        let reg_apdu = EthApdu::register_address(address.as_bytes());
+        let reg_apdu = EthApdu::register_address(address.as_bytes())?;
         let res_reg = send_apdu(reg_apdu)?;
         ApduCheck::check_response(&res_reg)?;
         Ok(address)
@@ -52,12 +52,12 @@ impl EthAddress {
     pub fn get_pub_key(path: &str) -> Result<String> {
         check_path_validity(path)?;
 
-        let select_apdu = EthApdu::select_applet();
+        let select_apdu = EthApdu::select_applet()?;
         let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
         //get public
-        let msg_pubkey = EthApdu::get_xpub(path, false);
+        let msg_pubkey = EthApdu::get_xpub(path, false)?;
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 

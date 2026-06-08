@@ -1,12 +1,13 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
+use anyhow::anyhow;
 use coin_eos::eosapi::{EosMessageInput, EosMessageOutput, EosTxInput};
 use coin_eos::transaction::EosTransaction;
 use ikc_common::SignParam;
 use prost::Message;
 
 pub fn sign_eos_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: EosTxInput = EosTxInput::decode(data).expect("imkey_illegal_param");
+    let input: EosTxInput = EosTxInput::decode(data).map_err(|_| anyhow!("imkey_illegal_param"))?;
 
     let signed = EosTransaction::sign_tx(input, sign_param)?;
     encode_message(signed)
@@ -14,7 +15,7 @@ pub fn sign_eos_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
 
 pub fn sign_eos_message(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
     let input: EosMessageInput =
-        EosMessageInput::decode(data).expect("EosMessageInput unpack error");
+        EosMessageInput::decode(data).map_err(|_| anyhow!("EosMessageInput unpack error"))?;
 
     let signed = EosTransaction::sign_message(input, sign_param)?;
     let mes_sign_result = EosMessageOutput {

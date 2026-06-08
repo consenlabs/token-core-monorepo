@@ -21,7 +21,7 @@ impl EosTransaction {
     pub fn sign_tx(tx_input: EosTxInput, sign_param: &SignParam) -> Result<EosTxOutput> {
         path::check_path_validity(&sign_param.path)?;
 
-        let select_apdu = EosApdu::select_applet();
+        let select_apdu = EosApdu::select_applet()?;
         let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
@@ -182,7 +182,7 @@ impl EosTransaction {
         prepare_pack.extend(bind_signature.iter());
         prepare_pack.extend(data_pack.iter());
 
-        let select_apdu = EosApdu::select_applet();
+        let select_apdu = EosApdu::select_applet()?;
         let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 

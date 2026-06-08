@@ -1,5 +1,6 @@
 use crate::substrateapi::{SubstrateRawTxIn, SubstrateTxOut};
 use crate::{Result, PAYLOAD_HASH_THRESHOLD, SIGNATURE_TYPE_ED25519};
+use anyhow::anyhow;
 use ikc_common::apdu::{Apdu, ApduCheck, Ed25519Apdu};
 use ikc_common::constants::{KUSAMA_AID, POLKADOT_AID};
 use ikc_common::error::CoinError;
@@ -27,14 +28,14 @@ impl Transaction {
         tx: &SubstrateRawTxIn,
         sign_param: &SignParam,
     ) -> Result<SubstrateTxOut> {
-        check_path_validity(&sign_param.path).expect("check path error");
+        check_path_validity(&sign_param.path)?;
 
         let aid = match sign_param.chain_type.as_str() {
             "POLKADOT" => POLKADOT_AID,
             "KUSAMA" => KUSAMA_AID,
-            _ => panic!("chain type not support"),
+            _ => return Err(anyhow!("unsupported_chain_type")),
         };
-        let select_apdu = Apdu::select_applet(aid);
+        let select_apdu = Apdu::try_select_applet(aid)?;
         let select_result = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_result)?;
 
@@ -66,7 +67,7 @@ impl Transaction {
         data_pack.extend(sign_param.fee.as_bytes().iter());
 
         let key_manager_obj = KEY_MANAGER.lock();
-        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &data_pack).unwrap();
+        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &data_pack)?;
 
         let mut apdu_pack: Vec<u8> = Vec::new();
         apdu_pack.push(0x00);
@@ -83,19 +84,31 @@ impl Transaction {
         }
 
         // verify
-        let sign_source_val = &sign_response[..130];
-        let sign_result = &sign_response[130..sign_response.len() - 4];
+        let payload_end = sign_response
+            .len()
+            .checked_sub(4)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let sign_source_val = sign_response
+            .get(..130)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let sign_result = sign_response
+            .get(130..payload_end)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
         let sign_verify_result = utility::secp256k1_sign_verify(
             &key_manager_obj.se_pub_key,
-            hex::decode(sign_result).unwrap().as_slice(),
-            hex::decode(sign_source_val).unwrap().as_slice(),
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(sign_source_val)?.as_slice(),
         )?;
 
         if !sign_verify_result {
             return Err(CoinError::ImkeySignatureVerifyFail.into());
         }
 
-        let sig = hex::decode(&sign_response[2..130])?;
+        let sig = hex::decode(
+            sign_response
+                .get(2..130)
+                .ok_or_else(|| anyhow!("invalid_param"))?,
+        )?;
         let sig_with_type = [vec![SIGNATURE_TYPE_ED25519], sig.to_vec()].concat();
 
         let tx_out = SubstrateTxOut {

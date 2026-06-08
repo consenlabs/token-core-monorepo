@@ -22,7 +22,7 @@ impl TronSigner {
         input: TronMessageInput,
         sign_param: &SignParam,
     ) -> Result<TronMessageOutput> {
-        check_path_validity(&sign_param.path).unwrap();
+        check_path_validity(&sign_param.path)?;
 
         if input.version == 3 && input.header.to_uppercase() != "TRON" {
             return Err(anyhow!("tip712_header_must_be_tron"));
@@ -91,7 +91,7 @@ impl TronSigner {
     }
 
     pub fn sign_transaction(input: TronTxInput, sign_param: &SignParam) -> Result<TronTxOutput> {
-        check_path_validity(&sign_param.path).unwrap();
+        check_path_validity(&sign_param.path)?;
 
         let mut data_pack = Vec::new();
 
@@ -136,7 +136,7 @@ impl TronSigner {
     }
 
     pub fn sign(path: &str, data_pack: &[u8], hash: &[u8], sender: &str) -> Result<String> {
-        let select_apdu = Apdu::select_applet(TRON_AID);
+        let select_apdu = Apdu::try_select_applet(TRON_AID)?;
         let select_result = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_result)?;
 
@@ -150,10 +150,14 @@ impl TronSigner {
         path_pack.push(path.len() as u8);
         path_pack.extend(path.as_bytes());
 
-        let msg_pubkey = Secp256k1Apdu::get_xpub(&path_pack);
+        let msg_pubkey = Secp256k1Apdu::try_get_xpub(&path_pack)?;
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
-        let pubkey_raw = hex::decode(&res_msg_pubkey[..130]).unwrap();
-        let address = TronAddress::from_pub_key(pubkey_raw.as_slice()).unwrap();
+        ApduCheck::check_response(&res_msg_pubkey)?;
+        let pubkey_hex = res_msg_pubkey
+            .get(..130)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let pubkey_raw = hex::decode(pubkey_hex)?;
+        let address = TronAddress::from_pub_key(pubkey_raw.as_slice())?;
         if !sender.to_string().is_empty() && address != sender {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());
         }
@@ -170,20 +174,23 @@ impl TronSigner {
         let sign_result = &sign_response[132..sign_response.len() - 4];
         let sign_verify_result = utility::secp256k1_sign_verify(
             &key_manager_obj.se_pub_key,
-            hex::decode(sign_result).unwrap().as_slice(),
-            hex::decode(sign_source_val).unwrap().as_slice(),
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(sign_source_val)?.as_slice(),
         )?;
 
         if !sign_verify_result {
             return Err(CoinError::ImkeySignatureVerifyFail.into());
         }
 
-        let sign_compact = hex::decode(&sign_response[2..130]).unwrap();
-        let mut signnture_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
+        let sign_compact_hex = sign_response
+            .get(2..130)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let sign_compact = hex::decode(sign_compact_hex)?;
+        let mut signnture_obj = SecpSignature::from_compact(sign_compact.as_slice())?;
         signnture_obj.normalize_s();
         let normalizes_sig_vec = signnture_obj.serialize_compact();
 
-        let rec_id = utility::retrieve_recid(hash, &normalizes_sig_vec, &pubkey_raw).unwrap();
+        let rec_id = utility::retrieve_recid(hash, &normalizes_sig_vec, &pubkey_raw)?;
         let rec_id = i32::from(rec_id);
         let v = rec_id + 27;
 

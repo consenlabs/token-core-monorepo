@@ -43,7 +43,7 @@ impl TsmService for SeQueryRequest {
     type ReturnData = ServiceResponse<SeQueryResponse>;
 
     fn send_message(&mut self) -> Result<ServiceResponse<SeQueryResponse>> {
-        let req_data = serde_json::to_vec_pretty(&self).unwrap();
+        let req_data = serde_json::to_vec_pretty(&self)?;
         let response_data = https::post(constants::TSM_ACTION_SE_QUERY, req_data)?;
         let mut return_bean: ServiceResponse<SeQueryResponse> =
             serde_json::from_str(response_data.as_str())?;

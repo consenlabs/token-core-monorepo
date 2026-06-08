@@ -155,6 +155,47 @@ impl BtcTransaction {
         })
     }
 
+    pub(crate) fn unspent_at(&self, idx: usize) -> Result<&Utxo> {
+        self.unspents
+            .get(idx)
+            .ok_or_else(|| CoinError::InvalidUtxo.into())
+    }
+
+    pub(crate) fn pub_key_at(utxo_pub_key_vec: &[String], idx: usize) -> Result<&str> {
+        utxo_pub_key_vec
+            .get(idx)
+            .map(String::as_str)
+            .ok_or_else(|| CoinError::InvalidUtxo.into())
+    }
+
+    pub(crate) fn sign_response_payload(response: &str) -> Result<&str> {
+        let payload_end = response
+            .len()
+            .checked_sub(4)
+            .ok_or(CoinError::MissingSignature)?;
+        let payload = response
+            .get(..payload_end)
+            .ok_or(CoinError::MissingSignature)?;
+        let signature_end = payload
+            .len()
+            .checked_sub(2)
+            .ok_or(CoinError::MissingSignature)?;
+        payload
+            .get(2..signature_end)
+            .ok_or_else(|| CoinError::MissingSignature.into())
+    }
+
+    pub(crate) fn segwit_sign_response_bytes(response: &str) -> Result<Vec<u8>> {
+        let signature_end = response
+            .len()
+            .checked_sub(6)
+            .ok_or(CoinError::MissingSignature)?;
+        let signature = response
+            .get(2..signature_end)
+            .ok_or(CoinError::MissingSignature)?;
+        Ok(Vec::from_hex(signature)?)
+    }
+
     pub fn sign_p2pkh_inputs(
         &self,
         utxo_pub_key_vec: &[String],
@@ -181,7 +222,7 @@ impl BtcTransaction {
                         Script::from_hex(temp_utxo.script_pubkey.as_str())?;
                 }
                 input_data_vec.extend_from_slice(serialize(&temp_serialize_txin).as_slice());
-                let btc_perpare_apdu = BtcApdu::btc_perpare_input(0x80, &input_data_vec);
+                let btc_perpare_apdu = BtcApdu::try_btc_perpare_input(0x80, &input_data_vec)?;
                 //send perpare apdu to device
                 ApduCheck::check_response(&send_apdu(btc_perpare_apdu)?)?;
             }
@@ -192,19 +233,17 @@ impl BtcTransaction {
                 let btc_sign_apdu = BtcApdu::btc_sign(
                     y as u8,
                     EcdsaSighashType::All.to_u32() as u8,
-                    self.unspents.get(y).unwrap().derive_path.as_str(),
+                    self.unspent_at(y)?.derive_path.as_str(),
                 );
                 //sign data
                 let btc_sign_apdu_return = send_apdu(btc_sign_apdu)?;
                 ApduCheck::check_response(&btc_sign_apdu_return)?;
-                let btc_sign_apdu_return =
-                    &btc_sign_apdu_return[..btc_sign_apdu_return.len() - 4].to_string();
                 let sign_result_str =
-                    btc_sign_apdu_return[2..btc_sign_apdu_return.len() - 2].to_string();
+                    Self::sign_response_payload(&btc_sign_apdu_return)?.to_string();
 
                 lock_script_ver.push(self.build_unlock_script(
                     sign_result_str.as_str(),
-                    utxo_pub_key_vec.get(y).unwrap(),
+                    Self::pub_key_at(utxo_pub_key_vec, y)?,
                 )?)
             }
         }
@@ -215,7 +254,10 @@ impl BtcTransaction {
                     txid: Txid::from_str(&unspent.txhash)?,
                     vout: unspent.vout,
                 },
-                script_sig: lock_script_ver.get(index).unwrap().clone(),
+                script_sig: lock_script_ver
+                    .get(index)
+                    .ok_or(CoinError::MissingSignature)?
+                    .clone(),
                 sequence: Sequence::MAX,
                 witness: Witness::default(),
             };
@@ -257,14 +299,12 @@ impl BtcTransaction {
         let btc_sign_apdu = BtcApdu::btc_single_utxo_sign(
             idx as u8,
             EcdsaSighashType::All.to_u32() as u8,
-            self.unspents.get(idx).unwrap().derive_path.as_str(),
+            self.unspent_at(idx)?.derive_path.as_str(),
         );
 
         let btc_sign_apdu_return = send_apdu(btc_sign_apdu)?;
         ApduCheck::check_response(&btc_sign_apdu_return)?;
-        let btc_sign_apdu_return =
-            &btc_sign_apdu_return[..btc_sign_apdu_return.len() - 4].to_string();
-        let sign_result_str = btc_sign_apdu_return[2..btc_sign_apdu_return.len() - 2].to_string();
+        let sign_result_str = Self::sign_response_payload(&btc_sign_apdu_return)?.to_string();
 
         let mut signature_obj = Signature::from_compact(&hex::decode(&sign_result_str)?)?;
         signature_obj.normalize_s();
@@ -272,8 +312,8 @@ impl BtcTransaction {
         let script_sig = self.build_unlock_script(sign_result_str.as_str(), pub_key)?;
         let tx_in = TxIn {
             previous_output: OutPoint {
-                txid: Txid::from_str(self.unspents[idx].txhash.as_str())?,
-                vout: self.unspents[idx].vout,
+                txid: Txid::from_str(self.unspent_at(idx)?.txhash.as_str())?,
+                vout: self.unspent_at(idx)?.vout,
             },
             script_sig,
             sequence: Sequence::MAX,
@@ -290,7 +330,7 @@ impl BtcTransaction {
         pub_key: &str,
         transaction: &mut Transaction,
     ) -> Result<()> {
-        let unspent = self.unspents.get(idx).expect("get_utxo_fail ");
+        let unspent = self.unspent_at(idx)?;
         let txin = TxIn {
             previous_output: OutPoint {
                 txid: Txid::from_str(&unspent.txhash)?,
@@ -309,7 +349,7 @@ impl BtcTransaction {
         let script = Script::new_p2wpkh(&WPubkeyHash::from_raw_hash(hash160::Hash::hash(
             &hex_to_bytes(pub_key)?,
         )));
-        let script = script.p2wpkh_script_code().expect("must be v0_p2wpkh");
+        let script = script.p2wpkh_script_code().ok_or(CoinError::InvalidUtxo)?;
         data.extend(serialize(&script).iter());
         //amount
         let mut utxo_amount = num_bigint::BigInt::from(unspent.amount).to_signed_bytes_le();
@@ -318,7 +358,7 @@ impl BtcTransaction {
         }
         data.extend(utxo_amount.iter());
         //set sequence
-        data.extend(hex::decode("FFFFFFFF").unwrap());
+        data.extend_from_slice(&[0xff, 0xff, 0xff, 0xff]);
         //set length
         data.insert(0, data.len() as u8);
         //address
@@ -329,16 +369,15 @@ impl BtcTransaction {
         data.extend(address_data.iter());
 
         let sign_apdu = if idx == (self.unspents.len() - 1) {
-            BtcApdu::btc_segwit_sign(true, 0x01, data)
+            BtcApdu::try_btc_segwit_sign(true, 0x01, data)?
         } else {
-            BtcApdu::btc_segwit_sign(false, 0x01, data)
+            BtcApdu::try_btc_segwit_sign(false, 0x01, data)?
         };
         let sign_apdu_return_data = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_apdu_return_data)?;
 
         //build signature obj
-        let sign_result_vec =
-            Vec::from_hex(&sign_apdu_return_data[2..sign_apdu_return_data.len() - 6]).unwrap();
+        let sign_result_vec = Self::segwit_sign_response_bytes(&sign_apdu_return_data)?;
         let mut signature_obj = Signature::from_compact(sign_result_vec.as_slice())?;
         signature_obj.normalize_s();
         //generator der sign data
@@ -368,7 +407,7 @@ impl BtcTransaction {
         pub_key: &str,
         transaction: &mut Transaction,
     ) -> Result<()> {
-        let unspent = self.unspents.get(idx).expect("get_utxo_fail");
+        let unspent = self.unspent_at(idx)?;
         let txin = TxIn {
             previous_output: OutPoint {
                 txid: Txid::from_str(&unspent.txhash)?,
@@ -388,7 +427,7 @@ impl BtcTransaction {
         let script = address
             .script_pubkey()
             .p2wpkh_script_code()
-            .expect("must be v0_p2wpkh");
+            .ok_or(CoinError::InvalidUtxo)?;
         data.extend(serialize(&script).iter());
         //amount
         let mut utxo_amount = num_bigint::BigInt::from(unspent.amount).to_signed_bytes_le();
@@ -397,7 +436,7 @@ impl BtcTransaction {
         }
         data.extend(utxo_amount.iter());
         //set sequence
-        data.extend(hex::decode("FFFFFFFF").unwrap());
+        data.extend_from_slice(&[0xff, 0xff, 0xff, 0xff]);
         //set length
         data.insert(0, data.len() as u8);
         //address
@@ -408,15 +447,14 @@ impl BtcTransaction {
         data.extend(address_data.iter());
 
         let sign_apdu = if idx == (self.unspents.len() - 1) {
-            BtcApdu::btc_segwit_sign(true, 0x01, data)
+            BtcApdu::try_btc_segwit_sign(true, 0x01, data)?
         } else {
-            BtcApdu::btc_segwit_sign(false, 0x01, data)
+            BtcApdu::try_btc_segwit_sign(false, 0x01, data)?
         };
         let sign_apdu_return_data = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_apdu_return_data)?;
         //build signature obj
-        let sign_result_vec =
-            Vec::from_hex(&sign_apdu_return_data[2..sign_apdu_return_data.len() - 6]).unwrap();
+        let sign_result_vec = Self::segwit_sign_response_bytes(&sign_apdu_return_data)?;
         let mut signature_obj = Signature::from_compact(sign_result_vec.as_slice())?;
         signature_obj.normalize_s();
         //generator der sign data
@@ -436,7 +474,7 @@ impl BtcTransaction {
         transaction: &mut Transaction,
         sighash_type: TapSighashType,
     ) -> Result<()> {
-        let unspent = self.unspents.get(idx).expect("get_utxo_fail");
+        let unspent = self.unspent_at(idx)?;
         let mut data: Vec<u8> = vec![];
         // epoch (1).
         data.push(0x00u8);
@@ -468,9 +506,9 @@ impl BtcTransaction {
         data.extend(tweaked_pub_key_data.iter());
 
         let sign_apdu = if idx == (self.unspents.len() - 1) {
-            BtcApdu::btc_taproot_sign(true, data)
+            BtcApdu::try_btc_taproot_sign(true, data)?
         } else {
-            BtcApdu::btc_taproot_sign(false, data)
+            BtcApdu::try_btc_taproot_sign(false, data)?
         };
         let sign_result = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_result)?;
@@ -503,25 +541,22 @@ impl BtcTransaction {
         total_amount - self.amount - self.fee
     }
 
-    pub fn build_send_to_output(&self) -> TxOut {
-        TxOut {
+    pub fn build_send_to_output(&self) -> Result<TxOut> {
+        Ok(TxOut {
             value: Amount::from_sat(self.amount),
-            script_pubkey: BtcKinAddress::from_str(&self.to).unwrap().script_pubkey(),
-        }
+            script_pubkey: BtcKinAddress::from_str(&self.to)?.script_pubkey(),
+        })
     }
 
-    pub fn build_op_return_output(&self, extra_data: &[u8]) -> TxOut {
+    pub fn build_op_return_output(&self, extra_data: &[u8]) -> Result<TxOut> {
         let opreturn_script = Builder::new()
             .push_opcode(opcodes::all::OP_RETURN)
-            .push_slice(
-                PushBytesBuf::try_from(extra_data.to_owned())
-                    .expect("op_return data length checked"),
-            )
+            .push_slice(PushBytesBuf::try_from(extra_data.to_owned())?)
             .into_script();
-        TxOut {
+        Ok(TxOut {
             value: Amount::from_sat(0),
             script_pubkey: opreturn_script,
-        }
+        })
     }
 
     pub fn build_unlock_script(&self, signed: &str, utxo_public_key: &str) -> Result<Script> {
@@ -548,7 +583,7 @@ impl BtcTransaction {
     ) -> Result<Vec<TxOut>> {
         let mut outputs = vec![];
         //to output
-        outputs.push(self.build_send_to_output());
+        outputs.push(self.build_send_to_output()?);
         //change output
         if self.get_change_amount() >= MIN_NONDUST_OUTPUT {
             let change_script = if let Some(change_address_index) = change_idx {
@@ -564,8 +599,8 @@ impl BtcTransaction {
                     return Err(CommonError::MissingNetwork.into());
                 }
 
-                let change_address =
-                    BtcKinAddress::from_public_key(&pub_key, network.unwrap(), seg_wit)?;
+                let network = network.ok_or(CommonError::MissingNetwork)?;
+                let change_address = BtcKinAddress::from_public_key(&pub_key, network, seg_wit)?;
                 change_address.script_pubkey()
                 // let change_address = Address::from_str(&change_address)?;
                 // change_address.script_pubkey()
@@ -583,7 +618,7 @@ impl BtcTransaction {
             if op_return.len() > MAX_OPRETURN_SIZE {
                 return Err(CoinError::ImkeySdkIllegalArgument.into());
             }
-            outputs.push(self.build_op_return_output(&op_return))
+            outputs.push(self.build_op_return_output(&op_return)?)
         }
 
         Ok(outputs)
@@ -643,8 +678,7 @@ impl BtcTransaction {
         let mut encoder_hash = Vec::new();
         let len = EcdsaSighashType::All
             .to_u32()
-            .consensus_encode(&mut encoder_hash)
-            .unwrap();
+            .consensus_encode(&mut encoder_hash)?;
         debug_assert_eq!(len, encoder_hash.len());
         output_serialize_data.extend(encoder_hash);
 
@@ -697,8 +731,7 @@ impl BtcTransaction {
         let mut encoder_hash = Vec::new();
         let len = EcdsaSighashType::All
             .to_u32()
-            .consensus_encode(&mut encoder_hash)
-            .unwrap();
+            .consensus_encode(&mut encoder_hash)?;
         debug_assert_eq!(len, encoder_hash.len());
         output_serialize_data.extend(encoder_hash);
 

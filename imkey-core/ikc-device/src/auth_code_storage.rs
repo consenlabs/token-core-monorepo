@@ -28,7 +28,7 @@ impl TsmService for AuthCodeStorageRequest {
     type ReturnData = ();
 
     fn send_message(&mut self) -> Result<()> {
-        let req_data = serde_json::to_vec_pretty(&self).unwrap();
+        let req_data = serde_json::to_vec_pretty(&self)?;
         let response_data = https::post(constants::TSM_ACTION_AUTHCODE_STORAGE, req_data)?;
         let return_bean: ServiceResponse<AuthCodeStorageResponse> =
             serde_json::from_str(response_data.as_str())?;

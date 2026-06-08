@@ -156,7 +156,11 @@ impl Transaction {
 
         // get public key
         let res_msg_pubkey = FilecoinAddress::get_pub_key(sign_param.path.as_str())?;
-        let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
+        let pubkey_raw = hex_to_bytes(
+            res_msg_pubkey
+                .get(..130)
+                .ok_or_else(|| anyhow!("invalid_param"))?,
+        )?;
 
         let mut cid: Cid = unsigned_message_cid(&unsigned_message)?;
         let data = &digest(&cid.to_bytes(), HashSize::Default);
@@ -181,7 +185,7 @@ impl Transaction {
         data_pack.extend(sign_param.fee.as_bytes().iter());
 
         let key_manager_obj = KEY_MANAGER.lock();
-        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &data_pack).unwrap();
+        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &data_pack)?;
 
         let mut apdu_pack: Vec<u8> = Vec::new();
         apdu_pack.push(0x00);
@@ -198,26 +202,36 @@ impl Transaction {
         }
 
         // verify
-        let sign_source_val = &sign_response[..132];
-        let sign_result = &sign_response[132..sign_response.len() - 4];
+        let payload_end = sign_response
+            .len()
+            .checked_sub(4)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let sign_source_val = sign_response
+            .get(..132)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let sign_result = sign_response
+            .get(132..payload_end)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
         let sign_verify_result = utility::secp256k1_sign_verify(
             &key_manager_obj.se_pub_key,
-            hex::decode(sign_result).unwrap().as_slice(),
-            hex::decode(sign_source_val).unwrap().as_slice(),
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(sign_source_val)?.as_slice(),
         )?;
 
         if !sign_verify_result {
             return Err(CoinError::ImkeySignatureVerifyFail.into());
         }
 
-        let sign_compact = &sign_response[2..130];
-        let sign_compact_vec = hex_to_bytes(sign_compact).unwrap();
+        let sign_compact = sign_response
+            .get(2..130)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let sign_compact_vec = hex_to_bytes(sign_compact)?;
 
-        let mut signature_obj = SecpSignature::from_compact(sign_compact_vec.as_slice()).unwrap();
+        let mut signature_obj = SecpSignature::from_compact(sign_compact_vec.as_slice())?;
         signature_obj.normalize_s();
         let normalizes_sig_vec = signature_obj.serialize_compact();
 
-        let rec_id = utility::retrieve_recid(data, &normalizes_sig_vec, &pubkey_raw).unwrap();
+        let rec_id = utility::retrieve_recid(data, &normalizes_sig_vec, &pubkey_raw)?;
 
         let mut data_arr = [0; 65];
         data_arr[0..64].copy_from_slice(&normalizes_sig_vec[0..64]);

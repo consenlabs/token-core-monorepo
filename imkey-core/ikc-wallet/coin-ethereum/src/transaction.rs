@@ -104,7 +104,7 @@ impl Transaction {
         apdu_pack.extend(data_pack.as_slice());
 
         //select applet
-        let select_apdu = EthApdu::select_applet();
+        let select_apdu = EthApdu::select_applet()?;
         let select_result = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_result)?;
 
@@ -116,7 +116,7 @@ impl Transaction {
         }
 
         //get public
-        let msg_pubkey = EthApdu::get_xpub(path, false);
+        let msg_pubkey = EthApdu::get_xpub(path, false)?;
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
@@ -128,7 +128,7 @@ impl Transaction {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());
         }
         //sign
-        let msg_sign = EthApdu::sign_digest(path);
+        let msg_sign = EthApdu::sign_digest(path)?;
         let res_msg_sign = send_apdu(msg_sign)?;
         ApduCheck::check_response(&res_msg_sign)?;
 
@@ -302,11 +302,11 @@ impl Transaction {
         apdu_pack.extend(bind_signature.as_slice());
         apdu_pack.extend(data_to_sign.as_slice());
 
-        let select_apdu = EthApdu::select_applet();
+        let select_apdu = EthApdu::select_applet()?;
         let select_result = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_result)?;
 
-        let msg_pubkey = EthApdu::get_xpub(&sign_param.path, false);
+        let msg_pubkey = EthApdu::get_xpub(&sign_param.path, false)?;
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
         let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone()).unwrap();
@@ -321,7 +321,7 @@ impl Transaction {
             ApduCheck::check_response(&res)?;
         }
 
-        let sign_apdu = EthApdu::personal_sign(&sign_param.path);
+        let sign_apdu = EthApdu::personal_sign(&sign_param.path)?;
         let sign_response = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_response)?;
 

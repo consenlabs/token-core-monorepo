@@ -1,5 +1,6 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
+use anyhow::anyhow;
 use bitcoin::Network;
 use coin_bitcoin::btcapi::{BtcMessageInput, BtcTxInput, BtcTxOutput};
 use coin_bitcoin::message::MessageSinger;
@@ -9,7 +10,7 @@ use ikc_common::SignParam;
 use prost::Message;
 
 pub fn sign_btc_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: BtcTxInput = BtcTxInput::decode(data).expect("BtcTxInput");
+    let input: BtcTxInput = BtcTxInput::decode(data).map_err(|_| anyhow!("BtcTxInput"))?;
 
     if input.protocol.to_uppercase() == "OMNI" {
         if input.seg_wit.to_uppercase() == "P2WPKH" {
@@ -92,8 +93,8 @@ pub fn sign_usdt_transaction(input: &BtcTxInput, sign_param: &SignParam) -> Resu
     };
     let extra = input
         .extra
-        .clone()
-        .expect("sign usdt tx must contains extra");
+        .as_ref()
+        .ok_or_else(|| anyhow!("sign usdt tx must contains extra"))?;
 
     let signed = btc_tx.sign_omni_transaction(network, &sign_param.path, extra.property_id)?;
     let tx_sign_result = BtcTxOutput {
@@ -135,8 +136,8 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
 
     let extra = input
         .extra
-        .clone()
-        .expect("sign usdt tx must contains extra");
+        .as_ref()
+        .ok_or_else(|| anyhow!("sign usdt tx must contains extra"))?;
 
     let signed =
         btc_tx.sign_omni_segwit_transaction(network, &sign_param.path, extra.property_id)?;
@@ -149,7 +150,8 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
 }
 
 pub fn btc_sign_message(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: BtcMessageInput = BtcMessageInput::decode(data).expect("imkey_illegal_param");
+    let input: BtcMessageInput =
+        BtcMessageInput::decode(data).map_err(|_| anyhow!("imkey_illegal_param"))?;
     let derivation_path = get_account_path(&sign_param.path)?;
     let singer = MessageSinger {
         derivation_path,
