@@ -24,7 +24,7 @@ impl CkbAddress {
     pub fn get_public_key(path: &str) -> Result<String> {
         check_path_validity(path)?;
 
-        let select_apdu = Apdu::select_applet(NERVOS_AID);
+        let select_apdu = Apdu::try_select_applet(NERVOS_AID)?;
         let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
@@ -40,24 +40,30 @@ impl CkbAddress {
         apdu_pack.extend(path.as_bytes());
 
         //get public
-        let msg_pubkey = Secp256k1Apdu::get_xpub(&apdu_pack);
+        let msg_pubkey = Secp256k1Apdu::try_get_xpub(&apdu_pack)?;
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
-        let sign_source_val = &res_msg_pubkey[..194];
-        let sign_result = &res_msg_pubkey[194..res_msg_pubkey.len() - 4];
+        let sign_source_val = res_msg_pubkey.get(..194).ok_or(CoinError::InvalidParam)?;
+        let sign_result_end = res_msg_pubkey
+            .len()
+            .checked_sub(4)
+            .ok_or(CoinError::InvalidParam)?;
+        let sign_result = res_msg_pubkey
+            .get(194..sign_result_end)
+            .ok_or(CoinError::InvalidParam)?;
 
         //verify
         let sign_verify_result = secp256k1_sign_verify(
             &key_manager_obj.se_pub_key,
-            hex::decode(sign_result).unwrap().as_slice(),
-            hex::decode(sign_source_val).unwrap().as_slice(),
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(sign_source_val)?.as_slice(),
         )?;
         if !sign_verify_result {
             return Err(CoinError::ImkeySignatureVerifyFail.into());
         }
 
-        let pub_key = &res_msg_pubkey[0..130];
+        let pub_key = res_msg_pubkey.get(..130).ok_or(CoinError::InvalidParam)?;
         Ok(pub_key.to_string())
     }
 
@@ -70,7 +76,7 @@ impl CkbAddress {
     pub fn display_address(network: &str, path: &str) -> Result<String> {
         let address = CkbAddress::get_address(network, path)?;
         let menu_name = "CKB".as_bytes();
-        let reg_apdu = Secp256k1Apdu::register_address(menu_name, address.as_bytes());
+        let reg_apdu = Secp256k1Apdu::register_address(menu_name, address.as_bytes())?;
         let res_reg = send_apdu(reg_apdu)?;
         ApduCheck::check_response(&res_reg)?;
         Ok(address)
@@ -140,7 +146,7 @@ impl CkbAddress {
     }
 
     pub fn get_xpub_data(path: &str) -> Result<String> {
-        let select_apdu = Apdu::select_applet(NERVOS_AID);
+        let select_apdu = Apdu::select_applet(NERVOS_AID)?;
         let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
@@ -154,7 +160,7 @@ impl CkbAddress {
         apdu_pack.push(path.len() as u8);
         apdu_pack.extend(path.as_bytes());
 
-        let apdu_xpub = Secp256k1Apdu::get_xpub(&apdu_pack);
+        let apdu_xpub = Secp256k1Apdu::get_xpub(&apdu_pack)?;
         let xpub_data = send_apdu(apdu_xpub)?;
         ApduCheck::check_response(&xpub_data)?;
         Ok(xpub_data)

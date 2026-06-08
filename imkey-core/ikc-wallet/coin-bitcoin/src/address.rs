@@ -159,7 +159,7 @@ impl BtcAddress {
             _ => Self::p2pkh(network, path)?,
         };
 
-        let apdu_res = send_apdu(BtcApdu::register_address(address.as_bytes()))?;
+        let apdu_res = send_apdu(BtcApdu::register_address(address.as_bytes())?)?;
         ApduCheck::check_response(apdu_res.as_str())?;
         Ok(address)
     }

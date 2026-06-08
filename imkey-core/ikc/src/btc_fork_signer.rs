@@ -1,5 +1,6 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
+use anyhow::anyhow;
 use bitcoin::Network;
 
 use coin_btc_fork::btcforkapi::{BtcForkTxInput, BtcForkTxOutput};
@@ -9,7 +10,8 @@ use ikc_common::SignParam;
 use prost::Message;
 
 pub fn sign_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: BtcForkTxInput = BtcForkTxInput::decode(data).expect("BtcForkTxInput");
+    let input: BtcForkTxInput =
+        BtcForkTxInput::decode(data).map_err(|_| anyhow!("BtcForkTxInput"))?;
     if input.seg_wit.to_uppercase() == "P2WPKH" {
         sign_segwit_transaction(&input, sign_param)
     } else {
@@ -24,8 +26,7 @@ pub fn sign_legacy_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -
         &sign_param.network,
         &param.seg_wit,
         "",
-    )
-    .unwrap();
+    )?;
     let transaction_req_data = BtcForkTransaction {
         tx_input: param.clone(),
         coin_info,
@@ -47,7 +48,7 @@ pub fn sign_legacy_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -
 
 pub fn sign_segwit_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
     let extra_data = vec![];
-    let coin_info = coin_info_from_param("LITECOIN", "MAINNET", "P2WPKH", "").unwrap();
+    let coin_info = coin_info_from_param("LITECOIN", "MAINNET", "P2WPKH", "")?;
     let transaction_req_data = BtcForkTransaction {
         tx_input: param.clone(),
         coin_info,

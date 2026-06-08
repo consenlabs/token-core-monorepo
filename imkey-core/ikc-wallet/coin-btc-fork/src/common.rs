@@ -27,8 +27,8 @@ pub fn address_verify(
     for utxo in utxos {
         let extend_public_key = if !utxo.derived_path.is_empty() {
             let xpub_data = get_xpub_data(&utxo.derived_path, false)?;
-            let public_key = &xpub_data[..130];
-            let chain_code = &xpub_data[130..194];
+            let public_key = public_key_from_xpub_response(&xpub_data)?;
+            let chain_code = chain_code_from_xpub_response(&xpub_data)?;
             Xpub {
                 network: network.into(),
                 depth: 0,
@@ -59,7 +59,7 @@ pub fn address_verify(
             }
         };
 
-        let utxo_address = BtcForkAddress::from_str(&utxo.address).unwrap();
+        let utxo_address = BtcForkAddress::from_str(&utxo.address)?;
         let utxo_script = utxo_address.script_pubkey();
 
         if se_script != utxo_script {
@@ -68,6 +68,18 @@ pub fn address_verify(
         utxo_pub_key_vec.push(extend_public_key.public_key.to_string());
     }
     Ok(utxo_pub_key_vec)
+}
+
+pub fn public_key_from_xpub_response(xpub_data: &str) -> Result<&str> {
+    xpub_data
+        .get(..130)
+        .ok_or_else(|| CoinError::GetXpubError.into())
+}
+
+pub fn chain_code_from_xpub_response(xpub_data: &str) -> Result<&str> {
+    xpub_data
+        .get(130..194)
+        .ok_or_else(|| CoinError::GetXpubError.into())
 }
 
 /**
@@ -82,9 +94,9 @@ pub enum TransTypeFlg {
 get xpub
 */
 pub fn get_xpub_data(path: &str, verify_flag: bool) -> Result<String> {
-    let select_response = send_apdu(BtcApdu::select_applet())?;
+    let select_response = send_apdu(BtcApdu::select_applet()?)?;
     ApduCheck::check_response(&select_response)?;
-    let xpub_data = send_apdu(BtcApdu::get_xpub(path, verify_flag))?;
+    let xpub_data = send_apdu(BtcApdu::get_xpub(path, verify_flag)?)?;
     ApduCheck::check_response(&xpub_data)?;
     Ok(xpub_data)
 }

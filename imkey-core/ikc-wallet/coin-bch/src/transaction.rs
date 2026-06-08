@@ -219,9 +219,9 @@ impl BchTransaction {
             }
             data.extend(address_data.iter());
             if index == self.unspents.len() - 1 {
-                sign_apdu_vec.push(BtcForkApdu::btc_fork_segwit_sign(0x48, true, 0x01, data));
+                sign_apdu_vec.push(BtcForkApdu::btc_fork_segwit_sign(0x48, true, 0x01, data)?);
             } else {
-                sign_apdu_vec.push(BtcForkApdu::btc_fork_segwit_sign(0x48, false, 0x01, data));
+                sign_apdu_vec.push(BtcForkApdu::btc_fork_segwit_sign(0x48, false, 0x01, data)?);
             }
 
             txinputs.push(txin.clone());

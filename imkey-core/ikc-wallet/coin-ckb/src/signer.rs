@@ -109,16 +109,16 @@ impl<'a> CkbTxSigner<'a> {
 
     fn sign_recoverable_hash(&mut self, hash: &[u8]) -> Result<String> {
         println!("hash:{}", hex::encode(hash));
-        let select_apdu = Apdu::select_applet(NERVOS_AID);
+        let select_apdu = Apdu::try_select_applet(NERVOS_AID)?;
         let select_result = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_result)?;
 
         let pub_key = CkbAddress::get_public_key(&self.sign_param.path)?;
         let comprs_pubkey = uncompress_pubkey_2_compress(&pub_key);
         let testnet_address =
-            CkbAddress::from_public_key("TESTNET", &hex::decode(&comprs_pubkey)?).unwrap();
+            CkbAddress::from_public_key("TESTNET", &hex::decode(&comprs_pubkey)?)?;
         let mainnet_address =
-            CkbAddress::from_public_key("MAINNET", &hex::decode(&comprs_pubkey)?).unwrap();
+            CkbAddress::from_public_key("MAINNET", &hex::decode(&comprs_pubkey)?)?;
         if testnet_address != self.sign_param.sender && mainnet_address != self.sign_param.sender {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());
         }
@@ -152,7 +152,7 @@ impl<'a> CkbTxSigner<'a> {
         data_pack.extend(self.sign_param.fee.as_bytes().iter());
 
         let key_manager_obj = KEY_MANAGER.lock();
-        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &data_pack).unwrap();
+        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &data_pack)?;
 
         let mut apdu_pack: Vec<u8> = Vec::new();
         apdu_pack.push(0x00);

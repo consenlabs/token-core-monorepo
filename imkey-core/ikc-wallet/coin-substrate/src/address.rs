@@ -14,7 +14,7 @@ use std::str::FromStr;
 pub struct SubstrateAddress();
 impl SubstrateAddress {
     pub fn from_public_key(public_key: &[u8], address_type: &AddressType) -> Result<String> {
-        let public_obj = Public::from_slice(public_key).unwrap();
+        let public_obj = Public::from_slice(public_key).map_err(|_| CoinError::InvalidParam)?;
         let address = match address_type {
             AddressType::Polkadot => {
                 public_obj.to_ss58check_with_version(Ss58AddressFormat::custom(0))
@@ -34,7 +34,7 @@ impl SubstrateAddress {
             AddressType::Polkadot => POLKADOT_AID,
             AddressType::Kusama => KUSAMA_AID,
         };
-        let select_apdu = Apdu::select_applet(aid);
+        let select_apdu = Apdu::try_select_applet(aid)?;
         let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
@@ -50,18 +50,24 @@ impl SubstrateAddress {
         apdu_pack.extend(path.as_bytes());
 
         //get public
-        let msg_pubkey = Ed25519Apdu::get_xpub(&apdu_pack);
+        let msg_pubkey = Ed25519Apdu::try_get_xpub(&apdu_pack)?;
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
-        let pubkey = &res_msg_pubkey[..64];
-        let sign_result = &res_msg_pubkey[64..res_msg_pubkey.len() - 4];
+        let pubkey = res_msg_pubkey.get(..64).ok_or(CoinError::InvalidParam)?;
+        let sign_result_end = res_msg_pubkey
+            .len()
+            .checked_sub(4)
+            .ok_or(CoinError::InvalidParam)?;
+        let sign_result = res_msg_pubkey
+            .get(64..sign_result_end)
+            .ok_or(CoinError::InvalidParam)?;
 
         //verify
         let sign_verify_result = secp256k1_sign_verify(
             &key_manager_obj.se_pub_key,
-            hex::decode(sign_result).unwrap().as_slice(),
-            hex::decode(pubkey).unwrap().as_slice(),
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(pubkey)?.as_slice(),
         )?;
         if !sign_verify_result {
             return Err(CoinError::ImkeySignatureVerifyFail.into());
@@ -82,7 +88,7 @@ impl SubstrateAddress {
             AddressType::Polkadot => "DOT",
             AddressType::Kusama => "KSM",
         };
-        let reg_apdu = Ed25519Apdu::register_address(menu_name.as_bytes(), address.as_bytes());
+        let reg_apdu = Ed25519Apdu::register_address(menu_name.as_bytes(), address.as_bytes())?;
         let res_reg = send_apdu(reg_apdu)?;
         ApduCheck::check_response(&res_reg)?;
         Ok(address)

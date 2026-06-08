@@ -26,7 +26,7 @@ impl FilecoinAddress {
     pub fn get_pub_key(path: &str) -> Result<String> {
         path::check_path_validity(path)?;
 
-        let select_apdu = Apdu::select_applet(FILECOIN_AID);
+        let select_apdu = Apdu::try_select_applet(FILECOIN_AID)?;
         let select_response = message::send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
@@ -42,24 +42,29 @@ impl FilecoinAddress {
         apdu_pack.extend(path.as_bytes());
 
         //get public
-        let msg_pubkey = Secp256k1Apdu::get_xpub(&apdu_pack);
+        let msg_pubkey = Secp256k1Apdu::try_get_xpub(&apdu_pack)?;
         let res_msg_pubkey = message::send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
-        let sign_source_val = &res_msg_pubkey[..194];
-        let sign_result = &res_msg_pubkey[194..res_msg_pubkey.len() - 4];
+        let sign_source_val = res_msg_pubkey.get(..194).ok_or(CoinError::InvalidParam)?;
+        let sign_result_end = res_msg_pubkey
+            .len()
+            .checked_sub(4)
+            .ok_or(CoinError::InvalidParam)?;
+        let sign_result = res_msg_pubkey
+            .get(194..sign_result_end)
+            .ok_or(CoinError::InvalidParam)?;
 
         let sign_verify_result = utility::secp256k1_sign_verify(
             &key_manager_obj.se_pub_key,
-            hex::decode(sign_result).unwrap().as_slice(),
-            hex::decode(sign_source_val).unwrap().as_slice(),
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(sign_source_val)?.as_slice(),
         )?;
         if !sign_verify_result {
             return Err(CoinError::ImkeySignatureVerifyFail.into());
         }
 
-        let uncomprs_pubkey: String = res_msg_pubkey.chars().take(194).collect();
-        Ok(uncomprs_pubkey)
+        Ok(sign_source_val.to_string())
     }
 
     pub fn get_address(path: &str, network: &str) -> Result<String> {
@@ -68,8 +73,9 @@ impl FilecoinAddress {
             _ => MAINNET_PREFIX,
         };
 
-        let uncomprs_pubkey = Self::get_pub_key(path).unwrap();
-        let pub_key_bytes = hex::decode(&uncomprs_pubkey[..130]).unwrap();
+        let uncomprs_pubkey = Self::get_pub_key(path)?;
+        let pub_key_hex = uncomprs_pubkey.get(..130).ok_or(CoinError::InvalidParam)?;
+        let pub_key_bytes = hex::decode(pub_key_hex)?;
         Ok(filecoin::secp256k1_address_from_uncompressed_pubkey(
             ntwk,
             &pub_key_bytes,
@@ -77,9 +83,9 @@ impl FilecoinAddress {
     }
 
     pub fn display_address(path: &str, network: &str) -> Result<String> {
-        let address = Self::get_address(path, network).unwrap();
+        let address = Self::get_address(path, network)?;
         let filecoin_menu_name = "FIL".as_bytes();
-        let reg_apdu = Secp256k1Apdu::register_address(filecoin_menu_name, address.as_bytes());
+        let reg_apdu = Secp256k1Apdu::register_address(filecoin_menu_name, address.as_bytes())?;
         let res_reg = message::send_apdu(reg_apdu)?;
         ApduCheck::check_response(&res_reg)?;
         Ok(address)

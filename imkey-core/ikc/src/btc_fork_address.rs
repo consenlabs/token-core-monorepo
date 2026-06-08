@@ -1,19 +1,23 @@
 use crate::api::{AddressParam, BtcForkWallet};
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
+use crate::types::SegWit;
 use coin_btc_fork::address::BtcForkAddress;
 use coin_btc_fork::btc_fork_network::network_from_param;
+use ikc_common::error::CommonError;
 use ikc_common::path::get_account_path;
 use ikc_common::utility::network_convert;
 
 pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
-    let address = match param.seg_wit.as_str() {
-        "P2WPKH" => {
-            let network = network_from_param(&param.chain_type, &param.network, "P2WPKH").unwrap();
+    let address = match SegWit::from_name(&param.seg_wit) {
+        SegWit::P2wpkh => {
+            let network = network_from_param(&param.chain_type, &param.network, "P2WPKH")
+                .ok_or(CommonError::MissingNetwork)?;
             BtcForkAddress::p2shwpkh(&network, &param.path)?
         }
         _ => {
-            let network = network_from_param(&param.chain_type, &param.network, "NONE").unwrap();
+            let network = network_from_param(&param.chain_type, &param.network, "NONE")
+                .ok_or(CommonError::MissingNetwork)?;
             BtcForkAddress::p2pkh(&network, &param.path)?
         }
     };

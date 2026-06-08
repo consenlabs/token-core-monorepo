@@ -47,7 +47,7 @@ impl CosmosTransaction {
         prepare_data.insert(0, 0x00);
         prepare_data.extend(sign_pack_vec.iter());
 
-        let select_apdu = CosmosApdu::select_applet();
+        let select_apdu = CosmosApdu::select_applet()?;
         let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
@@ -58,7 +58,7 @@ impl CosmosTransaction {
             ApduCheck::check_response(&response)?;
         }
 
-        let sign_apdu = CosmosApdu::sign_digest(&self.path);
+        let sign_apdu = CosmosApdu::sign_digest(&self.path)?;
 
         let sign_result = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_result)?;

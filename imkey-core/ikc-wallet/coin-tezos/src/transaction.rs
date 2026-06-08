@@ -55,7 +55,7 @@ impl Transaction {
         message_pack.extend(sign_param.fee.as_bytes());
         //bind private key sign
         let key_manager_obj = KEY_MANAGER.lock();
-        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &message_pack).unwrap();
+        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &message_pack)?;
         //add signature
         let mut data_pack: Vec<u8> = vec![];
         data_pack.push(0x00_u8);
@@ -65,7 +65,7 @@ impl Transaction {
         //build sign apdu
         let sign_apdus = Ed25519Apdu::sign(data_pack.as_slice());
         //select applet
-        let select_apdu = Apdu::select_applet(TEZOS_AID);
+        let select_apdu = Apdu::try_select_applet(TEZOS_AID)?;
         let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
         //sign

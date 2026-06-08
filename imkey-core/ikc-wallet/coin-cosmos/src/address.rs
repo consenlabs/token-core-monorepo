@@ -20,12 +20,12 @@ impl CosmosAddress {
     pub fn get_pub_key(path: &str) -> Result<String> {
         path::check_path_validity(path)?;
 
-        let select_apdu = CosmosApdu::select_applet();
+        let select_apdu = CosmosApdu::select_applet()?;
         let select_response = message::send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
         //get public
-        let msg_pubkey = CosmosApdu::get_xpub(path, true);
+        let msg_pubkey = CosmosApdu::get_xpub(path, true)?;
         let res_msg_pubkey = message::send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
@@ -58,7 +58,7 @@ impl CosmosAddress {
 
     pub fn display_address(path: &str) -> Result<String> {
         let address = CosmosAddress::get_address(path).unwrap();
-        let reg_apdu = CosmosApdu::register_address(address.as_bytes());
+        let reg_apdu = CosmosApdu::register_address(address.as_bytes())?;
         let res_reg = message::send_apdu(reg_apdu)?;
         ApduCheck::check_response(&res_reg)?;
         Ok(address)

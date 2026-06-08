@@ -1,7 +1,6 @@
 use crate::ServiceResponse;
-use crate::{Result, TsmService};
+use crate::{run_tsm_steps, Result, TsmService, TsmStepRequest, TsmStepResponse};
 use ikc_common::constants;
-use ikc_common::https;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -32,29 +31,36 @@ impl TsmService for AppDownloadRequest {
     type ReturnData = ServiceResponse<AppDownloadResponse>;
 
     fn send_message(&mut self) -> Result<ServiceResponse<AppDownloadResponse>> {
-        loop {
-            let req_data = serde_json::to_vec_pretty(&self).unwrap();
-            let response_data = https::post(constants::TSM_ACTION_APP_DOWNLOAD, req_data)?;
-            let return_bean: ServiceResponse<AppDownloadResponse> =
-                serde_json::from_str(response_data.as_str())?;
-            if return_bean.return_code == constants::TSM_RETURN_CODE_SUCCESS {
-                //check step key is end
-                let next_step_key = return_bean.clone().return_data.next_step_key.unwrap();
-                if constants::TSM_END_FLAG.eq(next_step_key.as_str()) {
-                    return Ok(return_bean);
-                }
+        run_tsm_steps(self)
+    }
+}
 
-                if let Some(apdu_list) = return_bean.return_data.apdu_list {
-                    let handle_result =
-                        ServiceResponse::<AppDownloadResponse>::apdu_handle(apdu_list)?;
-                    self.card_ret_data_list = Some(handle_result.0);
-                    self.status_word = Some(handle_result.1);
-                    self.step_key = next_step_key;
-                }
-            } else {
-                return_bean.service_res_check()?;
-            }
-        }
+impl TsmStepResponse for AppDownloadResponse {
+    fn next_step_key(&self) -> Option<&str> {
+        self.next_step_key.as_deref()
+    }
+
+    fn apdu_list(&self) -> Option<&[String]> {
+        self.apdu_list.as_deref()
+    }
+}
+
+impl TsmStepRequest for AppDownloadRequest {
+    type Response = AppDownloadResponse;
+
+    fn tsm_action(&self) -> &'static str {
+        constants::TSM_ACTION_APP_DOWNLOAD
+    }
+
+    fn update_step_result(
+        &mut self,
+        next_step_key: String,
+        card_ret_data_list: Vec<String>,
+        status_word: String,
+    ) {
+        self.card_ret_data_list = Some(card_ret_data_list);
+        self.status_word = Some(status_word);
+        self.step_key = next_step_key;
     }
 }
 

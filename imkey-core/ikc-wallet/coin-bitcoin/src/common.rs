@@ -17,7 +17,7 @@ pub fn get_utxo_pub_key(utxos: &Vec<Utxo>) -> Result<Vec<String>> {
     for utxo in utxos {
         let xpub_data = get_xpub_data(&utxo.derive_path, false)?;
         //parsing xpub data
-        let derive_pub_key = &xpub_data[..130];
+        let derive_pub_key = public_key_from_xpub_response(&xpub_data)?;
 
         let mut public_key = PublicKey::from_str(derive_pub_key)?;
         public_key.compressed = true;
@@ -27,13 +27,19 @@ pub fn get_utxo_pub_key(utxos: &Vec<Utxo>) -> Result<Vec<String>> {
     Ok(utxo_pub_key_vec)
 }
 
+pub fn public_key_from_xpub_response(xpub_data: &str) -> Result<&str> {
+    xpub_data
+        .get(..130)
+        .ok_or_else(|| CoinError::GetXpubError.into())
+}
+
 /**
 get xpub
 */
 pub fn get_xpub_data(path: &str, verify_flag: bool) -> Result<String> {
-    let select_response = send_apdu(BtcApdu::select_applet())?;
+    let select_response = send_apdu(BtcApdu::select_applet()?)?;
     ApduCheck::check_response(&select_response)?;
-    let xpub_data = send_apdu(BtcApdu::get_xpub(path, verify_flag))?;
+    let xpub_data = send_apdu(BtcApdu::get_xpub(path, verify_flag)?)?;
     ApduCheck::check_response(&xpub_data)?;
     Ok(xpub_data)
 }
@@ -42,7 +48,7 @@ pub fn get_xpub_data(path: &str, verify_flag: bool) -> Result<String> {
 select btc applet
  */
 pub fn select_btc_applet() -> Result<()> {
-    let select_response = send_apdu(BtcApdu::select_applet())?;
+    let select_response = send_apdu(BtcApdu::select_applet()?)?;
     ApduCheck::check_response(&select_response)?;
     Ok(())
 }

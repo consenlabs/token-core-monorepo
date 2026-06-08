@@ -5,12 +5,13 @@ use anyhow::anyhow;
 use hex::FromHex;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use hidapi::{HidApi, HidDevice};
-use parking_lot::Mutex;
+use parking_lot::{Mutex, MutexGuard};
 
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 lazy_static! {
-    pub static ref HID_API: Mutex<HidApi> =
-        Mutex::new(HidApi::new().expect("hid_initialization_error"));
+    pub static ref HID_API: Result<Mutex<HidApi>> = HidApi::new()
+        .map(Mutex::new)
+        .map_err(|err| anyhow!("hid_initialization_error: {}", err));
     pub static ref HID_DEVICE: Mutex<Vec<HidDevice>> = Mutex::new(vec![]);
 }
 
@@ -20,6 +21,13 @@ const DEV_PID: u16 = 0x0891;
 const HID_PACKET_SIZE: usize = 65;
 const FIRST_PACKET_HEADER_SIZE: usize = 8;
 const NEXT_PACKET_HEADER_SIZE: usize = 6;
+
+fn hid_api() -> Result<MutexGuard<'static, HidApi>> {
+    HID_API
+        .as_ref()
+        .map_err(|err| anyhow!("{}", err))
+        .map(|hid_api| hid_api.lock())
+}
 
 pub fn hid_send(apdu: &str, timeout: i32) -> Result<String> {
     //get hid_device obj
@@ -134,7 +142,7 @@ fn encode_device_message(msg: &[u8]) -> Vec<u8> {
 
 pub fn hid_connect(_device_model_name: &str) -> Result<()> {
     //get hid initialization obj
-    let hid_api = HID_API.lock();
+    let hid_api = hid_api()?;
 
     //connect device
     match hid_api.open(DEV_VID, DEV_PID) {
