@@ -75,6 +75,10 @@ impl<'a> PsbtSigner<'a> {
     }
 
     pub fn sign(&mut self, pub_keys: &[String]) -> Result<()> {
+        if pub_keys.len() < self.prevouts.len() {
+            return Err(CoinError::InvalidParam.into());
+        }
+
         for (idx, pub_key) in pub_keys.iter().enumerate().take(self.prevouts.len()) {
             let prevout = &self.prevouts[idx];
 
@@ -848,11 +852,55 @@ mod test {
     use bitcoin::psbt::Psbt;
     use bitcoin::secp256k1::schnorr::Signature;
     use bitcoin::secp256k1::{Message, Secp256k1, XOnlyPublicKey};
-    use bitcoin::{Address, Amount, Network, Transaction, TxOut};
+    use bitcoin::{
+        absolute::LockTime, transaction::Version, Address, Amount, Network, OutPoint, Sequence,
+        Transaction, TxIn, TxOut, Witness,
+    };
     use hex::FromHex;
     use ikc_common::ToHex;
     use ikc_device::device_binding::bind_test;
     use std::str::FromStr;
+
+    #[test]
+    fn sign_rejects_missing_pub_keys_before_partial_signing() {
+        let unsigned_tx = Transaction {
+            version: Version(2),
+            lock_time: LockTime::ZERO,
+            input: vec![
+                TxIn {
+                    previous_output: OutPoint::null(),
+                    script_sig: Default::default(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::default(),
+                },
+                TxIn {
+                    previous_output: OutPoint::null(),
+                    script_sig: Default::default(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::default(),
+                },
+            ],
+            output: vec![],
+        };
+        let mut psbt = Psbt::from_unsigned_tx(unsigned_tx).unwrap();
+        let prevout = TxOut {
+            value: Amount::from_sat(1_000),
+            script_pubkey: Default::default(),
+        };
+        let mut signer = PsbtSigner {
+            psbt: &mut psbt,
+            derivation_path: String::new(),
+            auto_finalize: true,
+            prevouts: vec![prevout.clone(), prevout],
+            network: Network::Bitcoin,
+            preview_output: vec![],
+            is_sign_message: false,
+        };
+
+        let err = signer.sign(&["pubkey".to_string()]).unwrap_err();
+
+        assert_eq!("invalid_param", err.to_string());
+    }
 
     #[test]
     fn test_sign_psbt_no_script() {

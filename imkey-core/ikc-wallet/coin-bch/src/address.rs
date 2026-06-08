@@ -151,7 +151,7 @@ impl BchAddress {
     }
 
     pub fn is_valid(address: &str) -> bool {
-        decode_cash_address(address).is_ok()
+        is_legacy_addr(address) || decode_cash_address(address).is_ok()
     }
 
     pub fn from_pub_key(pub_key: &[u8], network: &str) -> Result<String> {
@@ -197,6 +197,18 @@ mod tests {
                 .unwrap(),
             "1oEx5Ztg2DUDYJDxb1AeaiG5TYesikMVU"
         );
+    }
+
+    #[test]
+    fn is_valid_accepts_legacy_and_cash_addresses() {
+        assert!(BchAddress::is_valid("2N54wJxopnWTvBfqgAPVWqXVEdaqoH7Suvf"));
+        assert!(BchAddress::is_valid(
+            "qqyta3mqzeaxe8hqcdsgpy4srwd4f0fc0gj0njf885"
+        ));
+        assert!(BchAddress::is_valid(
+            "bitcoincash:qqyta3mqzeaxe8hqcdsgpy4srwd4f0fc0gj0njf885"
+        ));
+        assert!(!BchAddress::is_valid("not-a-bch-address"));
     }
 
     #[test]

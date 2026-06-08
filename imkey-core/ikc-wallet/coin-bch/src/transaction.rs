@@ -360,6 +360,30 @@ mod tests {
     use ikc_device::device_binding::bind_test;
 
     #[test]
+    fn get_change_address_accepts_legacy_bch_address() {
+        let transaction = BchTransaction {
+            to: "14v8bLFeGxuQG7NsKVfbk6P3PsazeduWcK".to_string(),
+            amount: 110000,
+            unspents: vec![],
+            fee: 6100,
+        };
+
+        let change_address = transaction
+            .get_change_address(
+                Network::Bitcoin,
+                "m/44'/145'/0'/",
+                0,
+                "1oEx5Ztg2DUDYJDxb1AeaiG5TYesikMVU",
+            )
+            .unwrap();
+
+        assert_eq!(
+            change_address.script_pubkey(),
+            BchAddress::script_pubkey("1oEx5Ztg2DUDYJDxb1AeaiG5TYesikMVU").unwrap()
+        );
+    }
+
+    #[test]
     fn test_sign_transaction() {
         //binding device
         bind_test();
