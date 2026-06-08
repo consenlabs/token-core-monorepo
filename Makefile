@@ -23,6 +23,11 @@ test-ikc:
 	$(TEST_ENV) cargo test -p ikc-common -- --skip https::test::post_test
 	$(TEST_ENV) cargo test -p ikc-proto
 	$(TEST_ENV) cargo test -p ikc normalize_sign_param
+	$(TEST_ENV) cargo test -p ikc call_imkey_api
+	$(TEST_ENV) cargo test -p ikc handler::test
+	$(TEST_ENV) cargo test -p ikc types::tests
+	$(TEST_ENV) cargo test -p ikc-transport encode_device_message
+	$(TEST_ENV) cargo test -p ikc-transport apdu_transport_trait
 
 test-workspace:
 	$(TEST_ENV) cargo test --workspace --no-run

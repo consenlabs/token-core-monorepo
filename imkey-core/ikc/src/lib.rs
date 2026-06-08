@@ -36,6 +36,7 @@ use parking_lot::Mutex;
 mod handler;
 pub mod tezos_address;
 pub mod tezos_signer;
+mod types;
 
 #[macro_use]
 extern crate lazy_static;
@@ -43,6 +44,7 @@ extern crate anyhow;
 use crate::error_handling::{landingpad, LAST_ERROR};
 use crate::handler::{derive_accounts, get_extended_public_keys, get_public_keys, sign_psbt};
 use crate::message_handler::encode_message;
+use crate::types::{ChainType, Method, SegWit};
 use ikc_transport::message;
 
 lazy_static! {
@@ -53,14 +55,59 @@ pub type Result<T> = result::Result<T, Error>;
 
 fn normalize_sign_param(mut param: SignParam) -> SignParam {
     if param.seg_wit.is_empty()
-        && matches!(
-            param.chain_type.as_str(),
-            "BITCOIN" | "DOGECOIN" | "LITECOIN" | "BITCOINCASH"
-        )
+        && ChainType::from_name(&param.chain_type).is_some_and(ChainType::is_btc_family)
     {
-        param.seg_wit = "NONE".to_string();
+        param.seg_wit = SegWit::None.as_str().to_string();
     }
     param
+}
+
+fn empty_c_string() -> *const c_char {
+    CString::new("")
+        .expect("static empty string contains no NUL byte")
+        .into_raw()
+}
+
+fn c_string_from_string(value: String) -> *const c_char {
+    CString::new(value)
+        .unwrap_or_else(|_| CString::new("").expect("static empty string contains no NUL byte"))
+        .into_raw()
+}
+
+fn parse_action(hex_str: *const c_char) -> Result<ImkeyAction> {
+    if hex_str.is_null() {
+        return Err(anyhow!("imkey_illegal_param"));
+    }
+
+    let hex_c_str = unsafe { CStr::from_ptr(hex_str) };
+    let hex_str = hex_c_str
+        .to_str()
+        .map_err(|_| anyhow!("parse_arguments to_str"))?;
+    let data = hex::decode(hex_str).map_err(|_| anyhow!("imkey_illegal_prarm"))?;
+    ImkeyAction::decode(data.as_slice()).map_err(|_| anyhow!("decode imkey api"))
+}
+
+fn action_param_value(action: &ImkeyAction) -> Result<&[u8]> {
+    action
+        .param
+        .as_ref()
+        .map(|param| param.value.as_slice())
+        .ok_or_else(|| anyhow!("imkey_illegal_param"))
+}
+
+fn decode_action_param<M>(action: &ImkeyAction, err_msg: &'static str) -> Result<M>
+where
+    M: Message + Default,
+{
+    M::decode(action_param_value(action)?).map_err(|_| anyhow!(err_msg))
+}
+
+fn sign_input_value(param: &SignParam) -> Result<&[u8]> {
+    param
+        .input
+        .as_ref()
+        .map(|input| input.value.as_slice())
+        .ok_or_else(|| anyhow!("imkey_illegal_param"))
 }
 
 #[no_mangle]
@@ -108,7 +155,7 @@ pub unsafe extern "C" fn imkey_free_const_string(s: *const c_char) {
     if s.is_null() {
         return;
     }
-    let _ = CStr::from_ptr(s);
+    let _ = CString::from_raw(s as *mut c_char);
 }
 
 /// dispatch protobuf rpc call
@@ -118,163 +165,141 @@ pub unsafe extern "C" fn imkey_free_const_string(s: *const c_char) {
 /// `hex_str` must be a valid pointer to a NUL-terminated C string containing hex encoded protobuf.
 #[no_mangle]
 pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char {
-    let mut _l = API_LOCK.lock();
-    let hex_c_str = CStr::from_ptr(hex_str);
-    let hex_str = hex_c_str.to_str().expect("parse_arguments to_str");
-
-    let data = hex::decode(hex_str).expect("imkey_illegal_prarm");
-    let action: ImkeyAction = ImkeyAction::decode(data.as_slice()).expect("decode imkey api");
-    let reply: Result<Vec<u8>> = match action.method.to_lowercase().as_str() {
-        "init_imkey_core_x" => {
-            landingpad(|| device_manager::init_imkey_core(&action.param.unwrap().value))
+    let _l = API_LOCK.lock();
+    let action = match landingpad(|| parse_action(hex_str)) {
+        Ok(action) => action,
+        Err(_) => return empty_c_string(),
+    };
+    let reply: Result<Vec<u8>> = match Method::from_name(&action.method) {
+        Some(Method::InitImkeyCoreX) => {
+            landingpad(|| device_manager::init_imkey_core(action_param_value(&action)?))
         }
         // imkey manager
-        "app_download" => landingpad(|| device_manager::app_download(&action.param.unwrap().value)),
-        "app_update" => landingpad(|| device_manager::app_update(&action.param.unwrap().value)),
-        "app_delete" => landingpad(|| device_manager::app_delete(&action.param.unwrap().value)),
-        "device_activate" => landingpad(device_manager::se_activate),
-        "check_update" => landingpad(device_manager::check_update),
-        "device_secure_check" => landingpad(device_manager::se_secure_check),
-        "bind_check" => landingpad(device_manager::bind_check),
-        "bind_display_code" => landingpad(device_manager::bind_display_code),
-        "bind_acquire" => landingpad(|| device_manager::bind_acquire(&action.param.unwrap().value)),
-        "get_seid" => landingpad(device_manager::get_seid),
-        "get_sn" => landingpad(device_manager::get_sn),
-        "get_ram_size" => landingpad(device_manager::get_ram_size),
-        "get_firmware_version" => landingpad(device_manager::get_firmware_version),
-        "get_battery_power" => landingpad(device_manager::get_battery_power),
-        "get_life_time" => landingpad(device_manager::get_life_time),
-        "get_ble_name" => landingpad(device_manager::get_ble_name),
-        "set_ble_name" => landingpad(|| device_manager::set_ble_name(&action.param.unwrap().value)),
-        "get_ble_version" => landingpad(device_manager::get_ble_version),
-        "get_sdk_info" => landingpad(device_manager::get_sdk_info),
+        Some(Method::AppDownload) => {
+            landingpad(|| device_manager::app_download(action_param_value(&action)?))
+        }
+        Some(Method::AppUpdate) => {
+            landingpad(|| device_manager::app_update(action_param_value(&action)?))
+        }
+        Some(Method::AppDelete) => {
+            landingpad(|| device_manager::app_delete(action_param_value(&action)?))
+        }
+        Some(Method::DeviceActivate) => landingpad(device_manager::se_activate),
+        Some(Method::CheckUpdate) => landingpad(device_manager::check_update),
+        Some(Method::DeviceSecureCheck) => landingpad(device_manager::se_secure_check),
+        Some(Method::BindCheck) => landingpad(device_manager::bind_check),
+        Some(Method::BindDisplayCode) => landingpad(device_manager::bind_display_code),
+        Some(Method::BindAcquire) => {
+            landingpad(|| device_manager::bind_acquire(action_param_value(&action)?))
+        }
+        Some(Method::GetSeid) => landingpad(device_manager::get_seid),
+        Some(Method::GetSn) => landingpad(device_manager::get_sn),
+        Some(Method::GetRamSize) => landingpad(device_manager::get_ram_size),
+        Some(Method::GetFirmwareVersion) => landingpad(device_manager::get_firmware_version),
+        Some(Method::GetBatteryPower) => landingpad(device_manager::get_battery_power),
+        Some(Method::GetLifeTime) => landingpad(device_manager::get_life_time),
+        Some(Method::GetBleName) => landingpad(device_manager::get_ble_name),
+        Some(Method::SetBleName) => {
+            landingpad(|| device_manager::set_ble_name(action_param_value(&action)?))
+        }
+        Some(Method::GetBleVersion) => landingpad(device_manager::get_ble_version),
+        Some(Method::GetSdkInfo) => landingpad(device_manager::get_sdk_info),
         #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
-        "cos_update" => landingpad(device_manager::cos_update),
+        Some(Method::CosUpdate) => landingpad(device_manager::cos_update),
         #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
-        "cos_check_update" => landingpad(device_manager::cos_check_update),
+        Some(Method::CosCheckUpdate) => landingpad(device_manager::cos_check_update),
         #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
-        "device_connect" => {
-            landingpad(|| device_manager::device_connect(&action.param.unwrap().value))
+        Some(Method::DeviceConnect) => {
+            landingpad(|| device_manager::device_connect(action_param_value(&action)?))
         }
         #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
-        "is_bl_status" => landingpad(device_manager::is_bl_status),
+        Some(Method::IsBlStatus) => landingpad(device_manager::is_bl_status),
 
-        "get_address" => landingpad(|| {
-            let param: AddressParam = AddressParam::decode(action.param.unwrap().value.as_slice())
-                .expect("imkey_illegal_param");
-            match param.chain_type.as_str() {
-                "BITCOIN" | "DEGECOIN" => btc_address::get_address(&param),
-                "ETHEREUM" => ethereum_address::get_address(&param),
-                "COSMOS" => cosmos_address::get_address(&param),
-                "FILECOIN" => filecoin_address::get_address(&param),
-                "POLKADOT" => substrate_address::get_address(&param),
-                "KUSAMA" => substrate_address::get_address(&param),
-                "TRON" => tron_address::get_address(&param),
-                "NERVOS" => nervos_address::get_address(&param),
-                "TEZOS" => tezos_address::get_address(&param),
-                "BITCOINCASH" => bch_address::get_address(&param),
-                "LITECOIN" => btc_fork_address::get_address(&param),
+        Some(Method::GetAddress) => landingpad(|| {
+            let param: AddressParam = decode_action_param(&action, "imkey_illegal_param")?;
+            match ChainType::from_name(&param.chain_type) {
+                Some(ChainType::Bitcoin | ChainType::Dogecoin) => btc_address::get_address(&param),
+                Some(ChainType::Ethereum) => ethereum_address::get_address(&param),
+                Some(ChainType::Cosmos) => cosmos_address::get_address(&param),
+                Some(ChainType::Filecoin) => filecoin_address::get_address(&param),
+                Some(ChainType::Polkadot | ChainType::Kusama) => {
+                    substrate_address::get_address(&param)
+                }
+                Some(ChainType::Tron) => tron_address::get_address(&param),
+                Some(ChainType::Nervos) => nervos_address::get_address(&param),
+                Some(ChainType::Tezos) => tezos_address::get_address(&param),
+                Some(ChainType::BitcoinCash) => bch_address::get_address(&param),
+                Some(ChainType::Litecoin) => btc_fork_address::get_address(&param),
                 _ => Err(anyhow!("get_address unsupported_chain")),
             }
         }),
-        "derive_accounts" => landingpad(|| derive_accounts(&action.param.unwrap().value)),
-        "derive_sub_accounts" => landingpad(|| derive_sub_accounts(&action.param.unwrap().value)),
-        "get_public_keys" => landingpad(|| get_public_keys(&action.param.unwrap().value)),
-        "register_pub_key" => landingpad(|| {
-            let param: PubKeyParam = PubKeyParam::decode(action.param.unwrap().value.as_slice())
-                .expect("imkey_illegal_param");
-            match param.chain_type.as_str() {
-                "EOS" => eos_pubkey::display_eos_pubkey(&param),
+        Some(Method::DeriveAccounts) => {
+            landingpad(|| derive_accounts(action_param_value(&action)?))
+        }
+        Some(Method::DeriveSubAccounts) => {
+            landingpad(|| derive_sub_accounts(action_param_value(&action)?))
+        }
+        Some(Method::GetPublicKeys) => landingpad(|| get_public_keys(action_param_value(&action)?)),
+        Some(Method::RegisterPubKey) => landingpad(|| {
+            let param: PubKeyParam = decode_action_param(&action, "imkey_illegal_param")?;
+            match ChainType::from_name(&param.chain_type) {
+                Some(ChainType::Eos) => eos_pubkey::display_eos_pubkey(&param),
                 _ => Err(anyhow!("register_pub_key unsupported_chain")),
             }
         }),
 
-        "register_address" => landingpad(|| {
-            let param: AddressParam = AddressParam::decode(action.param.unwrap().value.as_slice())
-                .expect("imkey_illegal_param");
-            match param.chain_type.as_str() {
-                "BITCOIN" => btc_address::register_btc_address(&param),
-                "ETHEREUM" => ethereum_address::register_address(&param),
-                "COSMOS" => cosmos_address::display_cosmos_address(&param),
-                "FILECOIN" => filecoin_address::display_filecoin_address(&param),
-                "POLKADOT" => substrate_address::display_address(&param),
-                "KUSAMA" => substrate_address::display_address(&param),
-                "TRON" => tron_address::display_address(&param),
-                "NERVOS" => nervos_address::display_address(&param),
-                "TEZOS" => tezos_address::display_tezos_address(&param),
+        Some(Method::RegisterAddress) => landingpad(|| {
+            let param: AddressParam = decode_action_param(&action, "imkey_illegal_param")?;
+            match ChainType::from_name(&param.chain_type) {
+                Some(ChainType::Bitcoin) => btc_address::register_btc_address(&param),
+                Some(ChainType::Ethereum) => ethereum_address::register_address(&param),
+                Some(ChainType::Cosmos) => cosmos_address::display_cosmos_address(&param),
+                Some(ChainType::Filecoin) => filecoin_address::display_filecoin_address(&param),
+                Some(ChainType::Polkadot | ChainType::Kusama) => {
+                    substrate_address::display_address(&param)
+                }
+                Some(ChainType::Tron) => tron_address::display_address(&param),
+                Some(ChainType::Nervos) => nervos_address::display_address(&param),
+                Some(ChainType::Tezos) => tezos_address::display_tezos_address(&param),
                 _ => Err(anyhow!("register_address unsupported_chain")),
             }
         }),
 
-        "sign_tx" => landingpad(|| {
-            let param: SignParam = SignParam::decode(action.param.unwrap().value.as_slice())
-                .expect("sign_tx unpack error");
+        Some(Method::SignTx) => landingpad(|| {
+            let param: SignParam = decode_action_param(&action, "sign_tx unpack error")?;
             let param = normalize_sign_param(param);
-            match param.chain_type.as_str() {
-                "BITCOIN" => {
-                    btc_signer::sign_btc_transaction(&param.clone().input.unwrap().value, &param)
+            let input = sign_input_value(&param)?;
+            match ChainType::from_name(&param.chain_type) {
+                Some(ChainType::Bitcoin | ChainType::Dogecoin) => {
+                    btc_signer::sign_btc_transaction(input, &param)
                 }
-                "ETHEREUM" => ethereum_signer::sign_eth_transaction(
-                    &param.clone().input.unwrap().value,
-                    &param,
-                ),
-                "EOS" => {
-                    eos_signer::sign_eos_transaction(&param.clone().input.unwrap().value, &param)
+                Some(ChainType::Ethereum) => ethereum_signer::sign_eth_transaction(input, &param),
+                Some(ChainType::Eos) => eos_signer::sign_eos_transaction(input, &param),
+                Some(ChainType::Cosmos) => cosmos_signer::sign_cosmos_transaction(input, &param),
+                Some(ChainType::Filecoin) => {
+                    filecoin_signer::sign_filecoin_transaction(input, &param)
                 }
-                "COSMOS" => cosmos_signer::sign_cosmos_transaction(
-                    &param.clone().input.unwrap().value,
-                    &param,
-                ),
-                "FILECOIN" => filecoin_signer::sign_filecoin_transaction(
-                    &param.clone().input.unwrap().value,
-                    &param,
-                ),
-                "POLKADOT" => {
-                    substrate_signer::sign_transaction(&param.clone().input.unwrap().value, &param)
+                Some(ChainType::Polkadot | ChainType::Kusama) => {
+                    substrate_signer::sign_transaction(input, &param)
                 }
-                "KUSAMA" => {
-                    substrate_signer::sign_transaction(&param.clone().input.unwrap().value, &param)
-                }
-                "TRON" => {
-                    tron_signer::sign_transaction(&param.clone().input.unwrap().value, &param)
-                }
-                "NERVOS" => {
-                    nervos_signer::sign_transaction(&param.clone().input.unwrap().value, &param)
-                }
-                "TEZOS" => tezos_signer::sign_tezos_transaction(
-                    &param.clone().input.unwrap().value,
-                    &param,
-                ),
-                "BITCOINCASH" => {
-                    bch_signer::sign_transaction(&param.clone().input.unwrap().value, &param)
-                }
-                "LITECOIN" => {
-                    btc_fork_signer::sign_transaction(&param.clone().input.unwrap().value, &param)
-                }
-                "DOGECOIN" => {
-                    btc_signer::sign_btc_transaction(&param.clone().input.unwrap().value, &param)
-                }
+                Some(ChainType::Tron) => tron_signer::sign_transaction(input, &param),
+                Some(ChainType::Nervos) => nervos_signer::sign_transaction(input, &param),
+                Some(ChainType::Tezos) => tezos_signer::sign_tezos_transaction(input, &param),
+                Some(ChainType::BitcoinCash) => bch_signer::sign_transaction(input, &param),
+                Some(ChainType::Litecoin) => btc_fork_signer::sign_transaction(input, &param),
                 _ => Err(anyhow!("sign_tx unsupported_chain")),
             }
         }),
 
-        "sign_message" => landingpad(|| {
-            let param: SignParam = SignParam::decode(action.param.unwrap().value.as_slice())
-                .expect("unpack sign_message param error");
+        Some(Method::SignMessage) => landingpad(|| {
+            let param: SignParam = decode_action_param(&action, "unpack sign_message param error")?;
             let param = normalize_sign_param(param);
-            match param.chain_type.as_str() {
-                "ETHEREUM" => ethereum_signer::sign_eth_message(
-                    param.clone().input.unwrap().value.as_slice(),
-                    &param,
-                ),
-                "EOS" => eos_signer::sign_eos_message(
-                    param.clone().input.unwrap().value.as_slice(),
-                    &param,
-                ),
-                "TRON" => tron_signer::sign_message(&param.clone().input.unwrap().value, &param),
-                "BITCOIN" => {
-                    btc_signer::btc_sign_message(&param.clone().input.unwrap().value, &param)
-                }
+            let input = sign_input_value(&param)?;
+            match ChainType::from_name(&param.chain_type) {
+                Some(ChainType::Ethereum) => ethereum_signer::sign_eth_message(input, &param),
+                Some(ChainType::Eos) => eos_signer::sign_eos_message(input, &param),
+                Some(ChainType::Tron) => tron_signer::sign_message(input, &param),
+                Some(ChainType::Bitcoin) => btc_signer::btc_sign_message(input, &param),
                 _ => Err(anyhow!(
                     "sign message is not supported the chain {}",
                     param.chain_type
@@ -283,30 +308,29 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
         }),
 
         // btc
-        "calc_external_address" => landingpad(|| {
+        Some(Method::CalcExternalAddress) => landingpad(|| {
             let param: ExternalAddressParam =
-                ExternalAddressParam::decode(action.param.unwrap().value.as_slice())
-                    .expect("calc external address unpack error");
-            match param.chain_type.as_str() {
-                "BITCOIN" => btc_address::calc_external_address(&param),
+                decode_action_param(&action, "calc external address unpack error")?;
+            match ChainType::from_name(&param.chain_type) {
+                Some(ChainType::Bitcoin) => btc_address::calc_external_address(&param),
                 _ => Err(anyhow!("only support calc bitcoin external address")),
             }
         }),
 
-        "get_extended_public_keys" => {
-            landingpad(|| get_extended_public_keys(&action.param.unwrap().value))
+        Some(Method::GetExtendedPublicKeys) => {
+            landingpad(|| get_extended_public_keys(action_param_value(&action)?))
         }
 
-        "sign_psbt" => landingpad(|| sign_psbt(&action.param.unwrap().value)),
+        Some(Method::SignPsbt) => landingpad(|| sign_psbt(action_param_value(&action)?)),
 
         _ => landingpad(|| Err(anyhow!("unsupported_method"))),
     };
     match reply {
         Ok(reply) => {
             let ret_str = hex::encode(reply);
-            CString::new(ret_str).unwrap().into_raw()
+            c_string_from_string(ret_str)
         }
-        _ => CString::new("").unwrap().into_raw(),
+        _ => empty_c_string(),
     }
 }
 
@@ -331,11 +355,12 @@ pub unsafe extern "C" fn imkey_get_last_err_message() -> *const c_char {
                 is_success: false,
                 error: err.to_string(),
             };
-            let rsp_bytes = encode_message(rsp).expect("encode error");
-            let ret_str = hex::encode(rsp_bytes);
-            CString::new(ret_str).unwrap().into_raw()
+            match encode_message(rsp) {
+                Ok(rsp_bytes) => c_string_from_string(hex::encode(rsp_bytes)),
+                Err(_) => empty_c_string(),
+            }
         } else {
-            CString::new("").unwrap().into_raw()
+            empty_c_string()
         }
     })
 }
@@ -382,6 +407,41 @@ mod tests {
         }
     }
 
+    unsafe fn take_c_string(ptr: *const c_char) -> String {
+        if ptr.is_null() {
+            return String::new();
+        }
+        let value = CStr::from_ptr(ptr).to_string_lossy().into_owned();
+        imkey_free_const_string(ptr);
+        value
+    }
+
+    unsafe fn call_api_hex(hex: &str) -> String {
+        let request = CString::new(hex).unwrap();
+        let ptr = call_imkey_api(request.as_ptr());
+        take_c_string(ptr)
+    }
+
+    unsafe fn last_error_message() -> String {
+        let ptr = imkey_get_last_err_message();
+        let err_hex = take_c_string(ptr);
+        if err_hex.is_empty() {
+            return String::new();
+        }
+        let err_bytes = hex::decode(err_hex).unwrap();
+        ErrorResponse::decode(err_bytes.as_slice()).unwrap().error
+    }
+
+    fn action_hex(method: &str) -> String {
+        hex::encode(
+            encode_message(ImkeyAction {
+                method: method.to_string(),
+                param: None,
+            })
+            .unwrap(),
+        )
+    }
+
     #[test]
     fn normalize_sign_param_defaults_btc_family_to_legacy() {
         for chain_type in ["BITCOIN", "DOGECOIN", "LITECOIN", "BITCOINCASH"] {
@@ -397,6 +457,52 @@ mod tests {
 
         let non_btc = normalize_sign_param(sign_param("ETHEREUM", ""));
         assert_eq!("", non_btc.seg_wit);
+    }
+
+    #[test]
+    fn call_imkey_api_reports_invalid_hex_without_panicking() {
+        unsafe {
+            imkey_clear_err();
+            assert_eq!("", call_api_hex("not-hex"));
+            assert_eq!("imkey_illegal_prarm", last_error_message());
+        }
+    }
+
+    #[test]
+    fn call_imkey_api_reports_invalid_protobuf_without_panicking() {
+        unsafe {
+            imkey_clear_err();
+            assert_eq!("", call_api_hex("00"));
+            assert_eq!("decode imkey api", last_error_message());
+        }
+    }
+
+    #[test]
+    fn call_imkey_api_reports_missing_param_without_panicking() {
+        unsafe {
+            imkey_clear_err();
+            assert_eq!("", call_api_hex(&action_hex("get_address")));
+            assert_eq!("imkey_illegal_param", last_error_message());
+        }
+    }
+
+    #[test]
+    fn call_imkey_api_keeps_case_insensitive_method_dispatch() {
+        unsafe {
+            imkey_clear_err();
+            assert_eq!("", call_api_hex(&action_hex("GET_ADDRESS")));
+            assert_eq!("imkey_illegal_param", last_error_message());
+        }
+    }
+
+    #[test]
+    fn call_imkey_api_reports_null_request_without_panicking() {
+        unsafe {
+            imkey_clear_err();
+            let ptr = call_imkey_api(std::ptr::null());
+            assert_eq!("", take_c_string(ptr));
+            assert_eq!("imkey_illegal_param", last_error_message());
+        }
     }
 
     #[test]
