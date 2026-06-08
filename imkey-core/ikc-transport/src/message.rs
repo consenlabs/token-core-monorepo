@@ -19,6 +19,30 @@ lazy_static! {
     pub static ref TEST:RwLock<String> = RwLock::new("".to_string());
 }
 
+pub trait ApduTransport {
+    fn send_apdu_timeout(&self, apdu: &str, timeout: i32) -> Result<String>;
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+pub struct HidApduTransport;
+
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+impl ApduTransport for HidApduTransport {
+    fn send_apdu_timeout(&self, apdu: &str, timeout: i32) -> Result<String> {
+        hid_api::hid_send(apdu, timeout)
+    }
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub struct CallbackApduTransport;
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+impl ApduTransport for CallbackApduTransport {
+    fn send_apdu_timeout(&self, apdu: &str, timeout: i32) -> Result<String> {
+        send_apdu_with_callback(apdu, timeout)
+    }
+}
+
 //#[cfg(any(target_os = "macos", target_os = "windows"))]
 //lazy_static! {
 //   pub static ref DEVICE: Mutex<HidDevice> = Mutex::new(hid_api::hid_connect().unwrap());
@@ -121,7 +145,8 @@ pub fn send_apdu(apdu: String) -> Result<String> {
 
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub fn send_apdu_timeout(apdu: String, timeout: i32) -> Result<String> {
-    hid_api::hid_send(&apdu, timeout)
+    let transport = HidApduTransport;
+    transport.send_apdu_timeout(&apdu, timeout)
 }
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -131,6 +156,12 @@ pub fn send_apdu(apdu: String) -> Result<String> {
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
 pub fn send_apdu_timeout(apdu: String, timeout: i32) -> Result<String> {
+    let transport = CallbackApduTransport;
+    transport.send_apdu_timeout(&apdu, timeout)
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+fn send_apdu_with_callback(apdu: &str, timeout: i32) -> Result<String> {
     // set_apdu_r(apdu);
     // get_apdu_return_r().unwrap()
 
@@ -185,4 +216,21 @@ fn test_callback() {
     );
     let result = unsafe { CStr::from_ptr(ptr).to_string_lossy().into_owned() };
     println!("callback result:{:#?}", result);
+}
+
+#[test]
+fn test_apdu_transport_trait_can_be_mocked() {
+    struct EchoTransport;
+
+    impl ApduTransport for EchoTransport {
+        fn send_apdu_timeout(&self, apdu: &str, timeout: i32) -> Result<String> {
+            Ok(format!("{apdu}:{timeout}"))
+        }
+    }
+
+    let transport = EchoTransport;
+    assert_eq!(
+        "00A4040000:20",
+        transport.send_apdu_timeout("00A4040000", 20).unwrap()
+    );
 }
