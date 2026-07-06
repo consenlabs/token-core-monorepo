@@ -145,3 +145,16 @@ message EthBatchPersonalSignResult {
     repeated string signatures = 1;
 }
 
+message SignTypedDataWithAuthKeyParam {
+    string identifier = 1;
+    string typedData = 2;
+    oneof key {
+        string password = 3;
+        string derivedKey = 4;
+    }
+}
+
+message SignTypedDataWithAuthKeyResult {
+    string identifier = 1;
+    string signature = 2;
+}

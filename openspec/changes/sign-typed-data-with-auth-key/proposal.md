@@ -15,10 +15,10 @@ stake 业务需要把某个 `xpub` 关联到某个 `identifier` 下，以便业�
 ## 变更内容
 
 - 新增 `sign_typed_data_with_auth_key` protobuf API，入参包含 `identifier`、`typedData`、password 或 derivedKey
-- 新增 EIP-712 TypedData JSON 解析与哈希能力
+- 新增基于 `alloy-dyn-abi 1.6.0` 的 EIP-712 TypedData JSON 解析与哈希能力
 - 新增 auth key typed data 签名实现，复用现有 `identity.encAuthKey` 解密流程
 - 输出 65 字节 recoverable secp256k1 签名的 `0x` hex 字符串，其中 `v = recovery_id + 27`
-- 添加 EIP-712 官方样例与 stake 业务样例测试
+- 添加 EIP-712 官方样例与接口集成测试；最终 stake 业务样例待业务方确认后补充
 
 ## 能力清单
 
@@ -28,14 +28,12 @@ stake 业务需要把某个 `xpub` 关联到某个 `identifier` 下，以便业�
 
 ## 影响范围
 
-- **Protobuf API**：`token-core/tcx-proto/src/params.proto` 新增请求与返回消息
+- **Protobuf API**：`token-core/tcx-proto/src/api.proto` 新增请求与返回消息
 - **tcx RPC 分发**：`token-core/tcx/src/lib.rs` 新增 `sign_typed_data_with_auth_key` method
 - **tcx handler**：`token-core/tcx/src/handler.rs` 新增业务 handler
 - **tcx-keystore**：建议在 `Identity` 上新增 auth key 签任意 32-byte digest 的内部方法，避免 handler 直接操作 `encAuthKey`
-- **EIP-712 hashing**：新增独立模块，位置待实现阶段确定。候选位置：
-  - `token-core/tcx-eth/src/eip712.rs`：语义上属于 ETH typed data
-  - `token-core/tcx/src/eip712.rs`：接口只服务于 tcx auth key
-  - `token-core/tcx-common/src/eip712.rs`：若后续多链复用再考虑
+- **EIP-712 hashing**：在 `tcx` handler 层接入 `alloy_dyn_abi::eip712::TypedData`，由 token-core 内部计算 EIP-712 signing hash
+- **依赖与工具链**：引入 `alloy-dyn-abi 1.6.0` 后，工具链升级到 Rust 1.85 级别的 nightly，并同步更新受影响的基础依赖锁定版本
 
 ## 非目标
 
@@ -45,12 +43,11 @@ stake 业务需要把某个 `xpub` 关联到某个 `identifier` 下，以便业�
 
 ## 待确认问题
 
-1. **EIP-712 crate 选型与类型支持范围**：优先采用开源 crate 实现 EIP-712 TypedData hash，重点评估 `alloy-dyn-abi` 和 ethers `types` 的兼容性、依赖体积、许可证与 Rust 版本要求。
-2. **stake 业务 TypedData 示例**：最终由产品/业务方提供用于联调和测试的 TypedData JSON 示例。
+1. **stake 业务 TypedData 示例**：最终由产品/业务方提供用于联调和测试的 TypedData JSON 示例。
 
 ## 上线策略
 
-本次先提交 OpenSpec 提案供 review。提案确认后再进入实现阶段，按 tasks 分步提交：
+本次按 OpenSpec 提案实现，按 tasks 分步提交：
 
 1. 先实现 EIP-712 hash 并用官方测试向量锁定行为
 2. 再接入 auth key 签名接口

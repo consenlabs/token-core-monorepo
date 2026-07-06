@@ -126,10 +126,19 @@ impl Identity {
         device_token: &str,
         unlocker: &Unlocker,
     ) -> Result<String> {
+        let digest =
+            keccak256(format!("{}.{}.{}", access_time, self.identifier, device_token).as_bytes());
+        self.sign_authentication_digest(&digest, unlocker)
+    }
+
+    pub fn sign_authentication_digest(
+        &self,
+        digest: &[u8; 32],
+        unlocker: &Unlocker,
+    ) -> Result<String> {
         let enc_auth_key = unlocker.decrypt_enc_pair(&self.enc_auth_key)?;
-        let mut signature = Secp256k1PrivateKey::from_slice(&enc_auth_key)?.sign_recoverable(
-            &keccak256(format!("{}.{}.{}", access_time, self.identifier, device_token).as_bytes()),
-        )?;
+        let mut signature =
+            Secp256k1PrivateKey::from_slice(&enc_auth_key)?.sign_recoverable(digest)?;
         signature[64] += 27;
         Ok(signature.to_0x_hex())
     }

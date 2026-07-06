@@ -128,29 +128,33 @@ TypedData JSON 结构：
 - `identifier` 是该接口的证明对象，接口语义更直接
 - 正常导入流程会按 source fingerprint 识别已存在 keystore，不预期同一 identity 重复加载
 
-### 决策 4：EIP-712 编码优先采用开源 crate
+### 决策 4：EIP-712 编码采用 `alloy-dyn-abi 1.6.0`
 
-**选择**：优先采用成熟开源 crate 实现 EIP-712 TypedData hash。当前优先评估：
+**选择**：采用 `alloy-dyn-abi = 1.6.0` 实现 EIP-712 TypedData hash。
 
-- `alloy-dyn-abi`：运行时 ABI 与 EIP-712 实现，提供 `alloy_dyn_abi::eip712::TypedData` 与 `eip712_signing_hash()`，更贴合"调用方传入明文 TypedData JSON"的需求
-- `ethers`/`ethers-core` 的 `types::transaction::eip712`：包含 `TypedData` / `Eip712` 相关能力；但 `ethers-core` 文档已提示该库在 deprecating，并建议使用 `utils`、`types`、`abi` re-export，因此不应直接依赖已废弃入口
+实现入口使用 `alloy_dyn_abi::eip712::TypedData` 解析调用方传入的运行时 TypedData JSON，并调用 `eip712_signing_hash()` 生成标准 digest。依赖配置使用 `default-features = false`，开启 `std` 与 `eip712` feature。
 
 **理由**：
 
 - EIP-712 编码规则复杂，开源实现能降低自实现偏差风险
 - 本接口接收运行时 JSON TypedData，优先选择能直接处理动态 TypedData 的 crate
-- 选型需确认依赖体积、许可证、维护状态，以及是否兼容项目当前 Rust 工具链
+- `ethers-core` 已处于 deprecating 过程，不适合作为新功能的直接依赖入口
+- `alloy-dyn-abi` 属于 alloy 生态，维护状态更适合作为新实现基础
 
-**备选方案**：如果候选 crate 因许可证、依赖体积、Rust 版本或功能缺口不适合引入，再实现项目内最小 EIP-712 encoder。
+**工具链影响**：
 
-### 决策 5：类型支持范围由 crate 选型确认
+- `alloy-dyn-abi 1.6.0` 需要 Rust 1.85 级别工具链
+- 当前项目仍使用 `#![feature(test)]`，因此工具链升级为 `nightly-2024-11-28`
+- 依赖求解后需要同步升级部分基础依赖，并在 `Cargo.lock` 中锁定兼容当前工具链的 transitive dependency 版本
 
-**选择**：第一版支持的 EIP-712 类型范围跟随最终选定 crate 的能力确定。
+### 决策 5：类型支持范围跟随 `alloy-dyn-abi 1.6.0`
+
+**选择**：第一版支持的 EIP-712 类型范围跟随 `alloy-dyn-abi 1.6.0` 的运行时 TypedData 能力确定。
 
 **理由**：
 
-- 如果采用 `alloy-dyn-abi`，预期可以覆盖常见运行时 Solidity 类型、nested struct 与 EIP-712 hash
-- 如果 crate 存在不支持的类型，应在接口文档和测试中明确列出，而不是隐式失败
+- `alloy-dyn-abi` 覆盖常见运行时 Solidity 类型、nested struct 与 EIP-712 hash
+- 如果 crate 存在不支持的类型，应返回明确的 typed data 校验错误，而不是隐式签名错误 digest
 - stake 首版所需字段以最终 TypedData 示例为准，但接口实现不应硬编码 stake 字段
 
 ### 决策 6：`v` 使用 ETH 兼容格式 27/28
@@ -164,11 +168,12 @@ TypedData JSON 结构：
 
 ## 风险 / 权衡
 
-**[EIP-712 crate 选型]** → 优先采用开源 crate，但需要确认候选 crate 的维护状态、许可证、依赖体积、Rust 版本要求，以及能否处理调用方传入的运行时 TypedData JSON。
+**[依赖与工具链升级]** → `alloy-dyn-abi 1.6.0` 引入 alloy 生态依赖，并要求 Rust 1.85 级别工具链。项目需要同步升级到 `nightly-2024-11-28`，同时更新部分基础依赖版本以通过新 Cargo 的依赖求解与编译检查。
 
-**[类型支持范围]** → 最终支持的 EIP-712 类型范围取决于 crate 能力。需要用 EIP-712 官方样例和 stake 业务样例验证行为，文档中明确不支持的类型。
+**[transitive dependency 版本]** → alloy 依赖链中的部分 transitive dependency 最新版本可能要求更高 Rust 版本，当前实现需要在 `Cargo.lock` 中固定兼容当前工具链的版本。
+
+**[类型支持范围]** → 支持范围跟随 `alloy-dyn-abi 1.6.0`。需要用 EIP-712 官方样例和 stake 业务样例验证行为，不支持或非法的 TypedData 应返回明确错误。
 
 ## 待确认事项
 
-1. 最终采用哪个 EIP-712 crate，以及其支持的 TypedData 类型范围。
-2. stake 业务用于联调和测试的 TypedData JSON 示例。
+1. stake 业务用于联调和测试的最终 TypedData JSON 示例。
