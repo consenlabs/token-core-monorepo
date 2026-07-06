@@ -1,8 +1,8 @@
 ## 1. 提案确认
 
-- [ ] 1.1 确认 API method 名称：`sign_typed_data_with_auth_key`
-- [ ] 1.2 确认请求参数是否包含 `id`
-- [ ] 1.3 确认返回结果是否包含 `digest`
+- [x] 1.1 API method 名称使用 `sign_typed_data_with_auth_key`
+- [x] 1.2 请求参数只包含 `identifier`，不包含 keystore `id`
+- [x] 1.3 返回结果不包含 `digest`
 - [ ] 1.4 确认 EIP-712 类型支持范围
 - [ ] 1.5 确认 stake 业务 TypedData schema
 
@@ -36,9 +36,8 @@
 - [ ] 5.1 在 `token-core/tcx/src/handler.rs` 新增 `sign_typed_data_with_auth_key`
 - [ ] 5.2 根据 `identifier` 查找 keystore，找不到返回 `identity_not_found`
 - [ ] 5.3 使用 password/derivedKey 获取 `Unlocker`
-- [ ] 5.4 校验 `typedData.message.identifier` 与请求 `identifier` 一致（待确认后实现）
-- [ ] 5.5 返回 `SignTypedDataWithAuthKeyResult`
-- [ ] 5.6 在 `token-core/tcx/src/lib.rs` 注册 `call_tcx_api` method
+- [ ] 5.4 返回 `SignTypedDataWithAuthKeyResult`
+- [ ] 5.5 在 `token-core/tcx/src/lib.rs` 注册 `call_tcx_api` method
 
 ## 6. 测试
 
@@ -48,10 +47,8 @@
 - [ ] 6.4 添加 password 与 derivedKey 两种解锁路径测试
 - [ ] 6.5 添加 identifier 不存在错误测试
 - [ ] 6.6 添加 malformed typedData 错误测试
-- [ ] 6.7 添加 message.identifier 与请求 identifier 不一致错误测试（若确认该约束）
 
 ## 7. 文档
 
 - [ ] 7.1 记录接口参数与返回格式
-- [ ] 7.2 记录后端验证流程
-- [ ] 7.3 记录业务 TypedData 必须包含 nonce/expiration 以防重放
+- [ ] 7.2 记录支持的 EIP-712 类型范围

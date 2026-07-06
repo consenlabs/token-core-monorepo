@@ -50,15 +50,13 @@
 - **则** `signature` 必须是长度为 132 字符的 `0x` hex 字符串
 - **并且** 最后一个字节必须为 `0x1b` 或 `0x1c`
 
-### 需求：业务 TypedData 必须支持防重放字段
-
-系统接口必须允许业务 TypedData 携带 nonce、expiration、domain 等字段。重放保护由业务后端执行，但 token-core 文档必须明确建议调用方在 TypedData 中包含防重放字段。
+### 需求：stake TypedData schema 必须由调用方提供
 
 #### 场景：stake 绑定 xpub
 
-- **当** stake 业务构造 xpub 绑定 TypedData
-- **则** TypedData message 应包含 `identifier`、`xpub`、`purpose`、`nonce` 和 `expiration`
-- **并且** domain 应包含业务名称和版本
+- **当** stake 业务构造 xpub 绑定 TypedData 并传入 token-core
+- **则** 系统必须按调用方传入的 TypedData schema 进行 EIP-712 哈希
+- **并且** 系统不得在 token-core 内部改写业务字段
 
 ### 需求：不得改变现有认证签名接口
 
