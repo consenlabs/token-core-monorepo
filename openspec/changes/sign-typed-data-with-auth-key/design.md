@@ -128,34 +128,30 @@ TypedData JSON 结构：
 - `identifier` 是该接口的证明对象，接口语义更直接
 - 正常导入流程会按 source fingerprint 识别已存在 keystore，不预期同一 identity 重复加载
 
-### 决策 4：EIP-712 编码优先自实现小模块
+### 决策 4：EIP-712 编码优先采用开源 crate
 
-**选择**：第一版建议在代码中实现 EIP-712 TypedData hash，而不是直接引入第三方 crate。
+**选择**：优先采用成熟开源 crate 实现 EIP-712 TypedData hash。当前优先评估：
 
-**理由**：
-
-- 当前项目未引入 `ethers-core` / `alloy` / `ethabi`
-- `ethers-core` 成熟但依赖较重
-- `eip712_enc` 是专门 crate，但 docs 显示许可证为 GPL-3.0，不适合作为 SDK 依赖的默认选择
-- 自实现可将依赖面控制在现有 `serde_json`、`ethereum-types`、`keccak256`
-
-**保留选项**：如果 review 后认为完整 EIP-712 支持优先级高于依赖体积，可评估引入 `ethers-core` 的 `TypedData` hash 能力。
-
-### 决策 5：第一版应尽量完整支持标准类型
-
-**建议**：实现完整 EIP-712 常用类型：
-
-- atomic：`address`、`bool`、`bytes1`-`bytes32`、`int8`-`int256`、`uint8`-`uint256`
-- dynamic：`bytes`、`string`
-- reference：nested struct
-- arrays：定长和动态数组
+- `alloy-dyn-abi`：运行时 ABI 与 EIP-712 实现，提供 `alloy_dyn_abi::eip712::TypedData` 与 `eip712_signing_hash()`，更贴合"调用方传入明文 TypedData JSON"的需求
+- `ethers`/`ethers-core` 的 `types::transaction::eip712`：包含 `TypedData` / `Eip712` 相关能力；但 `ethers-core` 文档已提示该库在 deprecating，并建议使用 `utils`、`types`、`abi` re-export，因此不应直接依赖已废弃入口
 
 **理由**：
 
-- 只支持 stake 当前字段会让接口名和 EIP-712 语义不匹配
-- EIP-712 编码最容易出错，后续补类型会带来兼容性风险
+- EIP-712 编码规则复杂，开源实现能降低自实现偏差风险
+- 本接口接收运行时 JSON TypedData，优先选择能直接处理动态 TypedData 的 crate
+- 选型需确认依赖体积、许可证、维护状态，以及是否兼容项目当前 Rust 工具链
 
-**可裁剪选项**：若实现周期必须压缩，第一版至少支持 `string`、`uint256`、`address`、nested struct，并明确数组与 bytes 类型暂不支持。
+**备选方案**：如果候选 crate 因许可证、依赖体积、Rust 版本或功能缺口不适合引入，再实现项目内最小 EIP-712 encoder。
+
+### 决策 5：类型支持范围由 crate 选型确认
+
+**选择**：第一版支持的 EIP-712 类型范围跟随最终选定 crate 的能力确定。
+
+**理由**：
+
+- 如果采用 `alloy-dyn-abi`，预期可以覆盖常见运行时 Solidity 类型、nested struct 与 EIP-712 hash
+- 如果 crate 存在不支持的类型，应在接口文档和测试中明确列出，而不是隐式失败
+- stake 首版所需字段以最终 TypedData 示例为准，但接口实现不应硬编码 stake 字段
 
 ### 决策 6：`v` 使用 ETH 兼容格式 27/28
 
@@ -168,11 +164,11 @@ TypedData JSON 结构：
 
 ## 风险 / 权衡
 
-**[EIP-712 编码复杂度]** → `encodeType`、nested struct、array、bytes/int 处理容易出错。缓解：使用 EIP-712 官方样例和至少一个外部实现生成的测试向量交叉验证。
+**[EIP-712 crate 选型]** → 优先采用开源 crate，但需要确认候选 crate 的维护状态、许可证、依赖体积、Rust 版本要求，以及能否处理调用方传入的运行时 TypedData JSON。
 
-**[依赖选择]** → 自实现减少依赖但增加实现责任；第三方 crate 降低编码风险但增加依赖体积和许可证审查成本。
+**[类型支持范围]** → 最终支持的 EIP-712 类型范围取决于 crate 能力。需要用 EIP-712 官方样例和 stake 业务样例验证行为，文档中明确不支持的类型。
 
 ## 待确认事项
 
-1. 第一版是否必须完整支持 EIP-712 arrays / bytes / signed int？
-2. stake 绑定 xpub 的最终 TypedData schema。
+1. 最终采用哪个 EIP-712 crate，以及其支持的 TypedData 类型范围。
+2. stake 业务用于联调和测试的 TypedData JSON 示例。

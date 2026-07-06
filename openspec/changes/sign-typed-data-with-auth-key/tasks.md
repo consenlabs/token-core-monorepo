@@ -3,8 +3,8 @@
 - [x] 1.1 API method 名称使用 `sign_typed_data_with_auth_key`
 - [x] 1.2 请求参数只包含 `identifier`，不包含 keystore `id`
 - [x] 1.3 返回结果不包含 `digest`
-- [ ] 1.4 确认 EIP-712 类型支持范围
-- [ ] 1.5 确认 stake 业务 TypedData schema
+- [ ] 1.4 确认 EIP-712 crate 选型与类型支持范围
+- [ ] 1.5 确认 stake 业务 TypedData JSON 示例
 
 ## 2. Protobuf API 扩展
 
@@ -14,16 +14,12 @@
 
 ## 3. EIP-712 TypedData 哈希
 
-- [ ] 3.1 新增 TypedData JSON 解析结构
-- [ ] 3.2 实现 `encodeType(primaryType)`，包含依赖 struct 收集与排序
-- [ ] 3.3 实现 `typeHash = keccak256(encodeType(type))`
-- [ ] 3.4 实现 atomic 类型编码：`address`、`bool`、`bytes1..bytes32`、`int*`、`uint*`
-- [ ] 3.5 实现 dynamic 类型编码：`bytes`、`string`
-- [ ] 3.6 实现 nested struct 的 `hashStruct`
-- [ ] 3.7 实现 array 类型编码
-- [ ] 3.8 实现 `domainSeparator`
-- [ ] 3.9 实现最终 digest：`keccak256("\x19\x01" || domainSeparator || hashStruct(message))`
-- [ ] 3.10 使用 EIP-712 官方 Ether Mail 样例添加单元测试
+- [ ] 3.1 评估 `alloy-dyn-abi` 对运行时 TypedData JSON 的支持、许可证、依赖体积与 Rust 版本兼容性
+- [ ] 3.2 评估 ethers `types::transaction::eip712` 能力与 deprecating 状态影响
+- [ ] 3.3 确认最终 crate 选型；若候选 crate 不适合，再定义项目内最小自实现范围
+- [ ] 3.4 接入选定 crate，计算 `domainSeparator`、`hashStruct(message)` 与最终 digest
+- [ ] 3.5 使用 EIP-712 官方 Ether Mail 样例添加单元测试
+- [ ] 3.6 使用 stake 业务 TypedData 示例添加单元测试
 
 ## 4. Auth Key 签名
 

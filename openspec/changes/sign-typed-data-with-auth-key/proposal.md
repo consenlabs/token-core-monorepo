@@ -45,8 +45,8 @@ stake 业务需要把某个 `xpub` 关联到某个 `identifier` 下，以便业�
 
 ## 待确认问题
 
-1. **TypedData 支持范围**：是否需要完整支持 EIP-712 所有类型，包括数组、嵌套 struct、定长/动态 bytes、int/uint/address/bool/string；还是第一版只覆盖 stake 绑定 xpub 所需字段类型？
-2. **stake 业务 TypedData schema**：最终字段后续由产品/业务方确认。
+1. **EIP-712 crate 选型与类型支持范围**：优先采用开源 crate 实现 EIP-712 TypedData hash，重点评估 `alloy-dyn-abi` 和 ethers `types` 的兼容性、依赖体积、许可证与 Rust 版本要求。
+2. **stake 业务 TypedData 示例**：最终由产品/业务方提供用于联调和测试的 TypedData JSON 示例。
 
 ## 上线策略
 
