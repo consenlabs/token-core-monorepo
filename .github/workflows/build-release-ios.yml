@@ -52,8 +52,8 @@ jobs:
 
       - name: Install Rust
         run: |
-          rustup toolchain install nightly-2023-06-15
-          rustup default nightly-2023-06-15-aarch64-apple-darwin
+          rustup toolchain install nightly-2024-11-28
+          rustup default nightly-2024-11-28-aarch64-apple-darwin
           rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
           rustup show
           cargo install cbindgen --version 0.26.0 --locked
