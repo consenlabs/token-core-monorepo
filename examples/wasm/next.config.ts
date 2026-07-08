@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async rewrites() {
+    return [
+      {
+        source: "/imkey/:path*",
+        destination: "https://imkeyserver.com:10444/imkey/:path*",
+      },
+    ];
+  },
 };
 
 export default nextConfig;

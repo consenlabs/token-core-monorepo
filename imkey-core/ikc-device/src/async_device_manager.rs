@@ -40,7 +40,6 @@ pub struct DeviceInfo {
     pub sn: String,
     pub firmware_version: String,
     pub life_time: String,
-    pub battery_power: String,
 }
 
 async fn send_checked<T>(transport: &T, apdu: &str) -> Result<String>
@@ -192,7 +191,6 @@ where
         sn: get_sn(transport).await?,
         firmware_version: get_firmware_version(transport).await?,
         life_time: get_life_time(transport).await?,
-        battery_power: get_battery_power(transport).await?,
     })
 }
 

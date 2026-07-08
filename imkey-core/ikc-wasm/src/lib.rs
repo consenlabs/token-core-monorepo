@@ -17,6 +17,16 @@ fn js_err(message: impl AsRef<str>) -> JsValue {
     JsValue::from_str(message.as_ref())
 }
 
+fn js_value_message(value: &JsValue, fallback: &str) -> String {
+    if let Some(message) = value.as_string() {
+        return message;
+    }
+    Reflect::get(value, &JsValue::from_str("message"))
+        .ok()
+        .and_then(|message| message.as_string())
+        .unwrap_or_else(|| fallback.to_string())
+}
+
 fn map_err(error: anyhow::Error) -> JsValue {
     js_err(error.to_string())
 }
@@ -115,11 +125,9 @@ impl AsyncApduTransport for JsApduTransport {
     fn send_apdu<'a>(&'a self, apdu: &'a str, timeout: i32) -> BoxFutureResult<'a, String> {
         Box::pin(async move {
             let timeout_ms = timeout.max(1) as u32 * 1000;
-            call_transport(apdu, Some(timeout_ms)).await.map_err(|err| {
-                anyhow::anyhow!(err
-                    .as_string()
-                    .unwrap_or_else(|| "imkey_send_apdu_error".to_string()))
-            })
+            call_transport(apdu, Some(timeout_ms))
+                .await
+                .map_err(|err| anyhow::anyhow!(js_value_message(&err, "imkey_send_apdu_error")))
         })
     }
 }
@@ -130,11 +138,9 @@ impl AsyncTsmClient for JsTsmClient {
     fn post<'a>(&'a self, action: &'a str, body: Vec<u8>) -> BoxFutureResult<'a, String> {
         Box::pin(async move {
             let body_json = String::from_utf8(body)?;
-            call_tsm(action, &body_json).await.map_err(|err| {
-                anyhow::anyhow!(err
-                    .as_string()
-                    .unwrap_or_else(|| "imkey_tsm_request_error".to_string()))
-            })
+            call_tsm(action, &body_json)
+                .await
+                .map_err(|err| anyhow::anyhow!(js_value_message(&err, "imkey_tsm_request_error")))
         })
     }
 }
