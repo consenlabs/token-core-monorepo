@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createImKeyCore, type ImKeyCore } from "@/lib/imkey-core";
 
 interface LogItem {
@@ -9,17 +9,36 @@ interface LogItem {
   detail?: string;
 }
 
+interface ApduLog {
+  id: number;
+  command: string;
+  response: string;
+  time: string;
+  error?: boolean;
+}
+
 export default function ImKeyPage() {
   const [core, setCore] = useState<ImKeyCore | null>(null);
   const [logs, setLogs] = useState<LogItem[]>([]);
+  const [apduCommand, setApduCommand] = useState("");
+  const [apduLogs, setApduLogs] = useState<ApduLog[]>([]);
+  const [nextApduLogId, setNextApduLogId] = useState(1);
   const [running, setRunning] = useState(false);
+  const [sendingApdu, setSendingApdu] = useState(false);
   const [webUsbSupported, setWebUsbSupported] = useState(true);
+  const apduScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setWebUsbSupported("usb" in navigator);
   }, []);
 
-  const push = (item: LogItem) => {
+  useEffect(() => {
+    if (apduScrollRef.current) {
+      apduScrollRef.current.scrollTop = apduScrollRef.current.scrollHeight;
+    }
+  }, [apduLogs]);
+
+  const push = useCallback((item: LogItem) => {
     setLogs((previous) => {
       const index = previous.findIndex((entry) => entry.name === item.name);
       if (index === -1) return [...previous, item];
@@ -27,20 +46,6 @@ export default function ImKeyPage() {
       next[index] = item;
       return next;
     });
-  };
-
-  const runStep = useCallback(async (name: string, task: () => Promise<string>) => {
-    push({ name, status: "running" });
-    try {
-      push({ name, status: "pass", detail: await task() });
-    } catch (error) {
-      push({
-        name,
-        status: "fail",
-        detail: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    }
   }, []);
 
   const runCoreStep = useCallback(
@@ -106,28 +111,6 @@ export default function ImKeyPage() {
       );
     } catch (error) {
       // The failing step has already been marked by runStep.
-    } finally {
-      setRunning(false);
-    }
-  }, [core, runCoreStep]);
-
-  const rawSelect = useCallback(async () => {
-    if (!core) return;
-    setRunning(true);
-    try {
-      await runCoreStep("Debug Raw Select ISD", (imkey) => imkey.sendRawApdu("00A4040000"));
-    } finally {
-      setRunning(false);
-    }
-  }, [core, runCoreStep]);
-
-  const directRawSelect = useCallback(async () => {
-    if (!core) return;
-    setRunning(true);
-    try {
-      await runCoreStep("Debug Direct Raw Select ISD", (imkey) =>
-        imkey.sendRawApduDirect("00A4040000")
-      );
     } finally {
       setRunning(false);
     }
@@ -214,6 +197,45 @@ export default function ImKeyPage() {
     }
   }, [core]);
 
+  const sendApduCommand = useCallback(async () => {
+    if (!core || sendingApdu) return;
+    const command = apduCommand.trim().replace(/\s+/g, "").toUpperCase();
+    if (!command) return;
+
+    setSendingApdu(true);
+    const time = new Date().toLocaleTimeString();
+    try {
+      const response = await core.sendRawApdu(command);
+      setApduLogs((previous) => [
+        ...previous,
+        {
+          id: nextApduLogId,
+          command,
+          response: response.toUpperCase(),
+          time,
+        },
+      ]);
+    } catch (error) {
+      setApduLogs((previous) => [
+        ...previous,
+        {
+          id: nextApduLogId,
+          command,
+          response: error instanceof Error ? error.message : String(error),
+          time,
+          error: true,
+        },
+      ]);
+    } finally {
+      setNextApduLogId((previous) => previous + 1);
+      setSendingApdu(false);
+    }
+  }, [apduCommand, core, nextApduLogId, sendingApdu]);
+
+  const clearApduLogs = useCallback(() => {
+    setApduLogs([]);
+  }, []);
+
   return (
     <main className="min-h-screen bg-zinc-950 px-6 py-8 text-zinc-100">
       <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -238,20 +260,6 @@ export default function ImKeyPage() {
             onClick={readInfo}
           >
             Read Device Info
-          </button>
-          <button
-            className="rounded bg-lime-500 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
-            disabled={running || !core}
-            onClick={rawSelect}
-          >
-            Debug Raw Select
-          </button>
-          <button
-            className="rounded bg-lime-300 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
-            disabled={running || !core}
-            onClick={directRawSelect}
-          >
-            Debug Direct Raw Select
           </button>
           <button
             className="rounded bg-violet-500 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
@@ -288,6 +296,76 @@ export default function ImKeyPage() {
             WebUSB is not available in this browser. Use Chrome or Edge.
           </div>
         )}
+
+        <section className="rounded border border-zinc-800 bg-zinc-900 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h2 className="text-sm font-medium">APDU Console</h2>
+            {apduLogs.length > 0 && (
+              <button
+                className="rounded border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:border-zinc-500 disabled:opacity-50"
+                disabled={sendingApdu}
+                onClick={clearApduLogs}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <input
+              className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-sky-500"
+              placeholder="Enter APDU hex command"
+              value={apduCommand}
+              onChange={(event) => setApduCommand(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  void sendApduCommand();
+                }
+              }}
+            />
+            <button
+              className="rounded bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+              disabled={!core || sendingApdu || !apduCommand.trim()}
+              onClick={sendApduCommand}
+            >
+              {sendingApdu ? "Sending..." : "Send"}
+            </button>
+          </div>
+
+          <div
+            ref={apduScrollRef}
+            className="mt-4 h-64 overflow-auto rounded bg-zinc-950 p-3 font-mono text-xs"
+          >
+            {apduLogs.length === 0 ? (
+              <div className="flex h-full items-center justify-center text-zinc-600">
+                Ready for commands...
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {apduLogs.map((log) => (
+                  <div key={log.id} className="border-b border-zinc-800 pb-3 last:border-0">
+                    <div className="mb-2 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
+                      <span>
+                        #{log.id} · {log.time}
+                      </span>
+                      <span className={log.error ? "text-rose-400" : "text-emerald-400"}>
+                        {log.error ? "ERROR" : "OK"}
+                      </span>
+                    </div>
+                    <div className="break-all leading-relaxed text-sky-300">
+                      <span className="text-zinc-500">&gt;&gt; </span>
+                      {log.command}
+                    </div>
+                    <div className={log.error ? "break-all leading-relaxed text-rose-300" : "break-all leading-relaxed text-emerald-300"}>
+                      <span className="text-zinc-500">&lt;&lt; </span>
+                      {log.response}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
 
         <section className="grid gap-3">
           {logs.map((log) => (

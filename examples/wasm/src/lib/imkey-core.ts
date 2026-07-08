@@ -32,7 +32,6 @@ export interface ImKeyDeviceInfo {
   sn: string;
   firmware_version: string;
   life_time: string;
-  battery_power: string;
 }
 
 export interface ImKeyCoreOptions {
@@ -107,13 +106,6 @@ export class ImKeyCore {
 
   async sendRawApdu(apduHex: string): Promise<string> {
     return send_apdu_unchecked(apduHex);
-  }
-
-  async sendRawApduDirect(apduHex: string): Promise<string> {
-    if (!this.session) {
-      throw new Error("imkey_transport_not_set");
-    }
-    return this.session.transport.sendApduRaw(apduHex);
   }
 
   async secureCheck(): Promise<unknown> {

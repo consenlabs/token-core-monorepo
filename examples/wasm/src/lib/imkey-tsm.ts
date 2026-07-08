@@ -7,7 +7,7 @@ export interface FetchTsmClientOptions {
   fetchImpl?: typeof fetch;
 }
 
-const DEFAULT_TSM_BASE_URL = "https://imkey.online:1000/imkey";
+const DEFAULT_TSM_BASE_URL = "/imkey";
 
 export class FetchTsmClient implements TsmClient {
   private readonly baseUrl: string;
@@ -15,7 +15,7 @@ export class FetchTsmClient implements TsmClient {
 
   constructor(options: FetchTsmClientOptions = {}) {
     this.baseUrl = options.baseUrl ?? DEFAULT_TSM_BASE_URL;
-    this.fetchImpl = options.fetchImpl ?? fetch;
+    this.fetchImpl = options.fetchImpl ?? globalThis.fetch.bind(globalThis);
   }
 
   async post(action: string, bodyJson: string): Promise<string> {
@@ -27,7 +27,10 @@ export class FetchTsmClient implements TsmClient {
       body: bodyJson,
     });
     if (!response.ok) {
-      throw new Error(`imkey_tsm_http_error_${response.status}`);
+      const detail = await response.text().catch(() => "");
+      throw new Error(
+        `imkey_tsm_http_error_${response.status}${detail ? `: ${detail}` : ""}`
+      );
     }
     return response.text();
   }
