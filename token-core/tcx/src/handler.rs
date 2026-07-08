@@ -24,6 +24,7 @@ use tcx_keystore::{
 };
 use tcx_keystore::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
 
+use alloy_dyn_abi::eip712::TypedData;
 use anyhow::{anyhow, ensure};
 use tcx_crypto::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
 use tcx_filecoin::KeyInfo;
@@ -41,7 +42,8 @@ use crate::api::{
     ImportPrivateKeyResult, KeystoreResult, LegacyKeystoreResult, MnemonicToPublicKeyParam,
     MnemonicToPublicKeyResult, ScanKeystoresResult, ScannedKeystore, ScannedKeystoresResult,
     SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
-    SignHashesResult, WalletKeyParam,
+    SignHashesResult, SignTypedDataWithAuthKeyParam, SignTypedDataWithAuthKeyResult,
+    WalletKeyParam,
 };
 use crate::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult};
 use crate::api::{InitTokenCoreXParam, SignParam};
@@ -1562,17 +1564,18 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
         SignAuthenticationMessageParam::decode(data).expect("SignAuthenticationMessageParam");
 
     let map = KEYSTORE_MAP.read();
-    let Some(identity_ks) = map.values().find(|ks| ks.identity().identifier == param.identifier) else {
+    let Some(identity_ks) = map
+        .values()
+        .find(|ks| ks.identity().identifier == param.identifier)
+    else {
         return Err(anyhow::anyhow!("identity_not_found"));
     };
 
-    let unlocker = identity_ks.store().crypto.use_key(
-        &param
-            .key
-            .clone()
-            .expect("need_password_or_derived_key")
-            .into(),
-    )?;
+    let key = param
+        .key
+        .clone()
+        .ok_or_else(|| anyhow!("need_password_or_derived_key"))?;
+    let unlocker = identity_ks.store().crypto.use_key(&key.into())?;
 
     let signature = identity_ks.identity().sign_authentication_message(
         param.access_time,
@@ -1584,6 +1587,99 @@ pub(crate) fn sign_authentication_message(data: &[u8]) -> Result<Vec<u8>> {
         signature,
         access_time: param.access_time,
     })
+}
+
+pub(crate) fn eip712_signing_hash_from_json(typed_data_json: &str) -> Result<[u8; 32]> {
+    let typed_data: TypedData = serde_json::from_str(typed_data_json)
+        .map_err(|err| anyhow!("invalid_typed_data_json: {}", err))?;
+    let hash = typed_data
+        .eip712_signing_hash()
+        .map_err(|err| anyhow!("invalid_typed_data: {}", err))?;
+    let mut digest = [0u8; 32];
+    digest.copy_from_slice(hash.as_slice());
+    Ok(digest)
+}
+
+impl_to_key!(crate::api::sign_typed_data_with_auth_key_param::Key);
+pub(crate) fn sign_typed_data_with_auth_key(data: &[u8]) -> Result<Vec<u8>> {
+    let param = SignTypedDataWithAuthKeyParam::decode(data).expect("SignTypedDataWithAuthKeyParam");
+
+    let map = KEYSTORE_MAP.read();
+    let Some(identity_ks) = map
+        .values()
+        .find(|ks| ks.identity().identifier == param.identifier)
+    else {
+        return Err(anyhow::anyhow!("identity_not_found"));
+    };
+
+    let key = param
+        .key
+        .clone()
+        .ok_or_else(|| anyhow!("need_password_or_derived_key"))?;
+    let unlocker = identity_ks.store().crypto.use_key(&key.into())?;
+
+    let digest = eip712_signing_hash_from_json(&param.typed_data)?;
+    let signature = identity_ks
+        .identity()
+        .sign_authentication_digest(&digest, &unlocker)?;
+
+    encode_message(SignTypedDataWithAuthKeyResult {
+        identifier: param.identifier,
+        signature,
+    })
+}
+
+#[cfg(test)]
+mod eip712_tests {
+    use super::eip712_signing_hash_from_json;
+    use tcx_common::ToHex;
+
+    #[test]
+    fn test_official_ether_mail_typed_data_hash() {
+        let typed_data = r#"{
+          "types": {
+            "EIP712Domain": [
+              { "name": "name", "type": "string" },
+              { "name": "version", "type": "string" },
+              { "name": "chainId", "type": "uint256" },
+              { "name": "verifyingContract", "type": "address" }
+            ],
+            "Person": [
+              { "name": "name", "type": "string" },
+              { "name": "wallet", "type": "address" }
+            ],
+            "Mail": [
+              { "name": "from", "type": "Person" },
+              { "name": "to", "type": "Person" },
+              { "name": "contents", "type": "string" }
+            ]
+          },
+          "primaryType": "Mail",
+          "domain": {
+            "name": "Ether Mail",
+            "version": "1",
+            "chainId": 1,
+            "verifyingContract": "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC"
+          },
+          "message": {
+            "from": {
+              "name": "Cow",
+              "wallet": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826"
+            },
+            "to": {
+              "name": "Bob",
+              "wallet": "0xbBbBBBBbbBBBbbbBbbBbbbbBBbBbbbbBbBbbBBbB"
+            },
+            "contents": "Hello, Bob!"
+          }
+        }"#;
+
+        let digest = eip712_signing_hash_from_json(typed_data).unwrap();
+        assert_eq!(
+            digest.to_0x_hex(),
+            "0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2"
+        );
+    }
 }
 
 pub fn derive_sub_accounts(data: &[u8]) -> Result<Vec<u8>> {
