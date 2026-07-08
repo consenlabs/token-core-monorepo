@@ -1,4 +1,4 @@
-use super::key_manager::KeyManager;
+use super::key_manager::{BindingStorage, FileBindingStorage, KeyManager};
 use crate::auth_code_storage::AuthCodeStorageRequest;
 use crate::device_cert_check::DeviceCertCheckRequest;
 use crate::error::{BindError, ImkeyError};
@@ -40,6 +40,10 @@ pub struct DeviceManage {}
 
 impl DeviceManage {
     pub fn bind_check(file_path: &str) -> Result<String> {
+        Self::bind_check_with_storage(&FileBindingStorage::new(file_path))
+    }
+
+    pub fn bind_check_with_storage(storage: &dyn BindingStorage) -> Result<String> {
         //get seid
         let seid = device_manager::get_se_id()?;
         //get SN number
@@ -49,7 +53,7 @@ impl DeviceManage {
         key_manager_obj.gen_encrypt_key(&seid, &sn);
 
         //Get the ciphertext of the local key file
-        let ciphertext = KeyManager::get_key_file_data(file_path, &seid)?;
+        let ciphertext = storage.load(&seid)?.unwrap_or_default();
         let mut key_flag = false;
         if !ciphertext.is_empty() {
             //Decrypt and parse the ciphertext
@@ -102,7 +106,7 @@ impl DeviceManage {
             //Save the ciphertext to a local file
             if key_flag {
                 let ciphertext = key_manager_obj.encrypt_data()?;
-                KeyManager::save_keys_to_local_file(&ciphertext, file_path, &seid)?;
+                storage.save(&seid, &ciphertext)?;
             }
         }
         bind_status_message(status.as_str())

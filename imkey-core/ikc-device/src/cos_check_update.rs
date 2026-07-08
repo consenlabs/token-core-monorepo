@@ -1,6 +1,6 @@
 use crate::ServiceResponse;
-use crate::{Result, TsmService};
-use ikc_common::{constants, https};
+use crate::{tsm_post, Result, TsmService};
+use ikc_common::constants;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -28,7 +28,7 @@ impl TsmService for CosCheckUpdateRequest {
 
     fn send_message(&mut self) -> Result<ServiceResponse<CosCheckUpdateResponse>> {
         let req_data = serde_json::to_vec_pretty(&self)?;
-        let response_data = https::post(constants::TSM_ACTION_COS_CHECK_UPDATE, req_data)?;
+        let response_data = tsm_post(constants::TSM_ACTION_COS_CHECK_UPDATE, req_data)?;
         let return_bean: ServiceResponse<CosCheckUpdateResponse> =
             serde_json::from_str(response_data.as_str())?;
         match return_bean.service_res_check() {

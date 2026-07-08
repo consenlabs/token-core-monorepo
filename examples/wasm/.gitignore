@@ -42,4 +42,6 @@ next-env.d.ts
 
 # wasm build artifacts
 /src/pkg/
+/src/imkey-pkg/
 /public/tcx_wasm_bg.wasm
+/public/ikc_wasm_bg.wasm

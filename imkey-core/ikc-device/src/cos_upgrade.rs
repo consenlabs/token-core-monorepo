@@ -4,9 +4,9 @@ use crate::device_manager::{
 };
 use crate::error::ImkeyError;
 use crate::ServiceResponse;
-use crate::{Result, TsmService};
+use crate::{tsm_post, Result, TsmService};
+use ikc_common::constants;
 use ikc_common::utility::hex_to_bytes;
-use ikc_common::{constants, https};
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use ikc_transport::hid_api::hid_connect;
 use ikc_transport::message::send_apdu;
@@ -94,7 +94,7 @@ impl CosUpgradeRequest {
 
         loop {
             let req_data = serde_json::to_vec_pretty(&request_data)?;
-            let response_data = https::post(constants::TSM_ACTION_COS_UPGRADE, req_data)?;
+            let response_data = tsm_post(constants::TSM_ACTION_COS_UPGRADE, req_data)?;
             let return_bean: ServiceResponse<CosUpgradeResponse> =
                 serde_json::from_str(response_data.as_str())?;
             if return_bean.return_code == constants::TSM_RETURN_CODE_SUCCESS {

@@ -1,23 +1,41 @@
+#[cfg(not(target_arch = "wasm32"))]
 use crate::constants;
 use crate::tsm;
 use crate::Result;
 use anyhow::anyhow;
+#[cfg(not(target_arch = "wasm32"))]
 use bytes::Bytes;
+#[cfg(not(target_arch = "wasm32"))]
 use http_body_util::{BodyExt, Full};
+#[cfg(not(target_arch = "wasm32"))]
 use hyper::header::HeaderValue;
+#[cfg(not(target_arch = "wasm32"))]
 use hyper::{Method, Request};
+#[cfg(not(target_arch = "wasm32"))]
 use hyper_timeout::TimeoutConnector;
+#[cfg(not(target_arch = "wasm32"))]
 use hyper_tls::HttpsConnector;
+#[cfg(not(target_arch = "wasm32"))]
 use hyper_util::client::legacy::Client;
+#[cfg(not(target_arch = "wasm32"))]
 use hyper_util::rt::TokioExecutor;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::runtime::Runtime;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn post(action: &str, req_data: Vec<u8>) -> Result<String> {
     let f = async_post(action, req_data);
     Runtime::new()?.block_on(f)
 }
 
+#[cfg(target_arch = "wasm32")]
+pub fn post(_action: &str, _req_data: Vec<u8>) -> Result<String> {
+    Err(anyhow!("imkey_tsm_web_adapter_required"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 async fn async_post(action: &str, req_data: Vec<u8>) -> Result<String> {
     let uri = tsm::request_uri(action)?;
     async_post_uri(uri, req_data).await

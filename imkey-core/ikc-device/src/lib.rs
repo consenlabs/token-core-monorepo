@@ -8,6 +8,8 @@ pub mod se_activate;
 pub mod se_query;
 pub mod se_secure_check;
 extern crate ikc_common;
+pub mod async_device_manager;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod cos_upgrade;
 pub mod device_manager;
 pub mod deviceapi;
@@ -53,6 +55,10 @@ pub trait TsmService {
     fn send_message(&mut self) -> Result<Self::ReturnData>;
 }
 
+pub fn tsm_post(action: &str, req_data: Vec<u8>) -> Result<String> {
+    https::post(action, req_data)
+}
+
 pub trait TsmStepResponse {
     fn next_step_key(&self) -> Option<&str>;
     fn apdu_list(&self) -> Option<&[String]>;
@@ -76,7 +82,7 @@ where
 {
     loop {
         let req_data = serde_json::to_vec_pretty(request)?;
-        let response_data = https::post(request.tsm_action(), req_data)?;
+        let response_data = tsm_post(request.tsm_action(), req_data)?;
         let return_bean: ServiceResponse<T::Response> =
             serde_json::from_str(response_data.as_str())?;
         if return_bean.return_code != constants::TSM_RETURN_CODE_SUCCESS {

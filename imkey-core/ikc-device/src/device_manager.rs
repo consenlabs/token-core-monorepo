@@ -5,7 +5,9 @@ use super::se_secure_check::SeSecureCheckRequest;
 use crate::app_delete::AppDeleteRequest;
 use crate::app_download::{AppDownloadRequest, AppDownloadResponse};
 use crate::app_update::AppUpdateResponse;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use crate::cos_check_update::{CosCheckUpdateRequest, CosCheckUpdateResponse};
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use crate::cos_upgrade::CosUpgradeRequest;
 use crate::device_binding::DeviceManage;
 use crate::se_query::SeQueryResponse;
@@ -37,6 +39,7 @@ pub(crate) fn apdu_payload(response: &str) -> Result<&str> {
         .ok_or_else(|| ApduError::ImkeyApduWrongLength.into())
 }
 
+#[allow(dead_code)]
 pub(crate) fn apdu_status_word(response: &str) -> Result<&str> {
     let status_start = response
         .len()

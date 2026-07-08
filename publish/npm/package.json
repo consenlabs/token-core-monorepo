@@ -1,0 +1,21 @@
+{
+  "name": "@imtoken/wallet-core-web",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "tcx_wasm.js",
+    "tcx_wasm.d.ts",
+    "tcx_wasm_bg.wasm",
+    "tcx_wasm_bg.wasm.d.ts",
+    "ikc_wasm.js",
+    "ikc_wasm.d.ts",
+    "ikc_wasm_bg.wasm",
+    "ikc_wasm_bg.wasm.d.ts",
+    "README.md"
+  ],
+  "sideEffects": false
+}
