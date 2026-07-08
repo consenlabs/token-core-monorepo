@@ -88,7 +88,7 @@ jobs:
           echo '[target.x86_64-linux-android]' >> ~/.cargo/config
           echo 'ar = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar"' >> ~/.cargo/config
           echo 'linker = "/Users/runner/Library/Android/sdk/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin/x86_64-linux-android29-clang"' >> ~/.cargo/config
-          echo 'rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]' >> ~/.cargo/config
+          echo 'rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384", "--cfg", "curve25519_dalek_backend=\"serial\""]' >> ~/.cargo/config
           cat ~/.cargo/config
 
       - name: Build TCX And IKC
