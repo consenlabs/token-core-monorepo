@@ -1,7 +1,6 @@
 use crate::ServiceResponse;
-use crate::{Result, TsmService};
+use crate::{tsm_post, Result, TsmService};
 use ikc_common::constants;
-use ikc_common::https;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -29,7 +28,7 @@ impl TsmService for AuthCodeStorageRequest {
 
     fn send_message(&mut self) -> Result<()> {
         let req_data = serde_json::to_vec_pretty(&self)?;
-        let response_data = https::post(constants::TSM_ACTION_AUTHCODE_STORAGE, req_data)?;
+        let response_data = tsm_post(constants::TSM_ACTION_AUTHCODE_STORAGE, req_data)?;
         let return_bean: ServiceResponse<AuthCodeStorageResponse> =
             serde_json::from_str(response_data.as_str())?;
         return_bean.service_res_check()

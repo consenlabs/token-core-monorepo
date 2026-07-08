@@ -36,6 +36,66 @@ pub struct KeyManager {
     pub iv: Vec<u8>, //16 byte
 }
 
+pub trait BindingStorage {
+    fn load(&self, seid: &str) -> Result<Option<String>>;
+    fn save(&self, seid: &str, encrypted_key: &str) -> Result<()>;
+}
+
+pub struct FileBindingStorage<'a> {
+    path: &'a str,
+}
+
+impl<'a> FileBindingStorage<'a> {
+    pub fn new(path: &'a str) -> Self {
+        Self { path }
+    }
+}
+
+impl BindingStorage for FileBindingStorage<'_> {
+    fn load(&self, seid: &str) -> Result<Option<String>> {
+        let mut return_data = String::new();
+        // !!! compatibility issue, the path of key file in android is different with ios before 2.0.0
+        let android_path = format!("{}/keys{}", self.path, KeyManager::key_file_suffix(seid)?);
+        let ios_path = format!("{}/keys{}", self.path, seid);
+        let path = if Path::new(android_path.as_str()).exists() {
+            android_path
+        } else {
+            ios_path
+        };
+        let file = File::open(&path);
+        match file {
+            Ok(mut f) => {
+                f.read_to_string(&mut return_data)
+                    .map_err(|_| BindError::ImkeyKeyfileIoError)?;
+                Ok(Some(return_data))
+            }
+            Err(e) => match e.kind() {
+                ErrorKind::NotFound => Ok(None),
+                _ => Err(BindError::ImkeyKeyfileIoError.into()),
+            },
+        }
+    }
+
+    fn save(&self, seid: &str, encrypted_key: &str) -> Result<()> {
+        if !Path::new(self.path).exists() {
+            fs::create_dir_all(self.path)?;
+        }
+
+        let key_path = format!("{}/keys{}", self.path, KeyManager::key_file_suffix(seid)?);
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(Path::new(key_path.as_str()))
+            .map_err(|_| BindError::ImkeySaveKeyFileFail)?;
+        match file.write_all(encrypted_key.as_bytes()) {
+            Ok(val) => Ok(val),
+            Err(_e) => Err(BindError::ImkeySaveKeyFileFail.into()),
+        }
+    }
+}
+
 impl Default for KeyManager {
     fn default() -> Self {
         Self::new()
@@ -96,27 +156,9 @@ impl KeyManager {
     Get key file data
     */
     pub fn get_key_file_data(path: &str, seid: &str) -> Result<String> {
-        let mut return_data = String::new();
-        // !!! compatibility issue, the path of key file in android is different with ios before 2.0.0
-        let android_path = format!("{}/keys{}", path, Self::key_file_suffix(seid)?);
-        let ios_path = format!("{}/keys{}", path, seid);
-        let path = if Path::new(android_path.as_str()).exists() {
-            android_path
-        } else {
-            ios_path
-        };
-        let file = File::open(&path);
-        match file {
-            Ok(mut f) => {
-                f.read_to_string(&mut return_data)
-                    .map_err(|_| BindError::ImkeyKeyfileIoError)?;
-                Ok(return_data)
-            }
-            Err(e) => match e.kind() {
-                ErrorKind::NotFound => Ok(return_data),
-                _ => Err(BindError::ImkeyKeyfileIoError.into()),
-            },
-        }
+        Ok(FileBindingStorage::new(path)
+            .load(seid)?
+            .unwrap_or_default())
     }
 
     /**
@@ -189,22 +231,7 @@ impl KeyManager {
      Store key data
     */
     pub fn save_keys_to_local_file(keys: &str, path: &str, seid: &str) -> Result<()> {
-        if !Path::new(path).exists() {
-            fs::create_dir_all(path)?;
-        }
-
-        let key_path = format!("{}/keys{}", path, Self::key_file_suffix(seid)?);
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(Path::new(key_path.as_str()))
-            .map_err(|_| BindError::ImkeySaveKeyFileFail)?;
-        match file.write_all(keys.as_bytes()) {
-            Ok(val) => Ok(val),
-            Err(_e) => Err(BindError::ImkeySaveKeyFileFail.into()),
-        }
+        FileBindingStorage::new(path).save(seid, keys)
     }
 
     fn key_file_suffix(seid: &str) -> Result<&str> {

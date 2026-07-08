@@ -173,6 +173,16 @@ pub fn send_apdu_timeout(apdu: String, timeout: i32) -> Result<String> {
     transport.send_apdu_timeout(&apdu, timeout)
 }
 
+#[cfg(target_arch = "wasm32")]
+pub fn send_apdu(apdu: String) -> Result<String> {
+    send_apdu_timeout(apdu, 20)
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn send_apdu_timeout(_apdu: String, _timeout: i32) -> Result<String> {
+    Err(anyhow!("imkey_sync_apdu_not_supported_in_wasm"))
+}
+
 #[cfg(any(target_os = "android", target_os = "ios", test))]
 fn send_apdu_with_callback(apdu: &str, timeout: i32) -> Result<String> {
     let callback_guard = CALLBACK.lock();
