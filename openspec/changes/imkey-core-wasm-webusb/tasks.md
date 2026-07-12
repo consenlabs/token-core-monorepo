@@ -7,7 +7,7 @@
 - [x] 1.5 确认 npm 包命名：`@imtoken/wallet-core-web`
 - [x] 1.6 确认导出结构原则：前端公开 API 只暴露业务能力，不直接暴露 wasm-pack 底层文件
 - [x] 1.7 确认开发测试阶段保留 `tcx_wasm*` / `ikc_wasm*` 生成文件，供示例/测试页面直接引用；正式 npm API 不承诺这些文件名稳定
-- [ ] 1.8 确认 imKey Pro 正式 WebUSB descriptor 文档值：VID/PID、interface class、interface number、endpoint in/out、packet size
+- [x] 1.8 确认 imKey Pro WebUSB reference descriptor 文档值：VID/PID、interface class、interface number、endpoint in/out、packet size；运行时仍以动态探测为准
 
 ## 2. Transport 抽象
 
@@ -22,7 +22,7 @@
 - [x] 3.1 实现 `WebUsbImKeyTransport.connect()`：授权、打开设备、configuration 1 fallback、动态扫描并 claim 可用 interface、记录 endpoint
 - [x] 3.2 实现 `sendApdu(apduHex, timeout)`：按 WebUSB 64-byte framing 编码请求、`transferOut` 发送、`transferIn` 接收、处理 `0xFF` busy、组包响应
 - [x] 3.3 实现断开检测、重连状态清理和超时控制
-- [ ] 3.4 增加 transport 级单元测试或浏览器集成测试夹具
+- [x] 3.4 增加 transport 级单元测试，覆盖 framing、动态 endpoint、busy deadline 和并发串行化
 - [x] 3.5 暴露低层诊断信息，便于调试 endpoint、超时和设备返回码
 
 ## 4. TSM 与 Storage Adapter
@@ -36,7 +36,7 @@
 ## 5. wasm facade 与 npm 包
 
 - [x] 5.1 新增 `ikc-wasm` 或统一 `wallet-core-wasm` facade crate
-- [ ] 5.2 暴露 web 友好的异步业务 API：connect、getDeviceInfo、bind、getAddress、signTx、signMessage、app management
+- [x] 5.2 暴露 web 友好的异步业务 API：connect、getDeviceInfo、bind、getAddress、signTx、signMessage、app management
 - [x] 5.3 处理 wasm target 依赖兼容：`getrandom`、native-only network、native-only filesystem、条件编译
 - [x] 5.4 扩展 `Makefile` / publish 脚本，使统一 npm 包同时包含 token-core wasm 和 imKey wasm，并在开发测试阶段输出本地示例页面可直接引用的 wasm-pack 产物
 - [x] 5.5 生成 TypeScript 类型定义和 README 使用示例，文档以 `@imtoken/wallet-core-web` 的业务 API 为主

@@ -9,11 +9,11 @@ default = []
 aes = ["dep:aes", "dep:cbc", "dep:ctr"]
 bip32 = ["dep:bitcoin"]
 btc = ["dep:bitcoin"]
-ckb-address = ["dep:bech32", "dep:bitcoin", "dep:blake2b-rs"]
+ckb-address = ["dep:bech32", "dep:bitcoin", "dep:blake2b-rs", "dep:blake2b_simd"]
 cosmos = ["dep:bech32", "dep:bitcoin"]
 curve = ["dep:serde"]
 eth = ["dep:keccak-hash"]
-filecoin = ["dep:base32", "dep:blake2b-rs"]
+filecoin = ["dep:base32", "dep:blake2b-rs", "dep:blake2b_simd"]
 hash = ["dep:bitcoin", "dep:keccak-hash"]
 path = ["dep:bitcoin"]
 tezos = ["dep:bitcoin", "dep:blake2b_simd"]
@@ -35,7 +35,6 @@ anyhow = "=1.0.102"
 base32 = { version = "=0.5.1", optional = true }
 bech32 = { version = "=0.11.1", optional = true }
 bitcoin = { version = "=0.32.9", optional = true }
-blake2b-rs = { version = "=0.2.0", optional = true }
 blake2b_simd = { version = "=1.0.4", optional = true }
 cbc = { version = "=0.2.1", optional = true }
 ctr = { version = "=0.10.1", optional = true }
@@ -47,3 +46,6 @@ num-traits = { version = "=0.2.19", optional = true }
 base64 = { version = "=0.22.1", optional = true }
 secp256k1 = { version = "=0.31.1", features = ["rand", "recovery"], optional = true }
 serde = { version = "=1.0.228", features = ["derive"], optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+blake2b-rs = { version = "=0.2.0", optional = true }

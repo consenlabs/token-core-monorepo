@@ -174,7 +174,7 @@ impl DeviceManage {
     }
 }
 
-fn bind_status_message(status: &str) -> Result<String> {
+pub(crate) fn bind_status_message(status: &str) -> Result<String> {
     BIND_STATUS_MAP
         .get(status)
         .map(|message| (*message).to_string())
@@ -189,7 +189,7 @@ fn select_imk_applet() -> Result<()> {
 /**
 generator iv
 */
-fn gen_iv(auth_code: &str) -> [u8; 16] {
+pub(crate) fn gen_iv(auth_code: &str) -> [u8; 16] {
     let salt_bytes = sha256_hash("bindingCode".as_bytes());
     let auth_code_hash = sha256_hash(auth_code.as_bytes());
     let mut result = [0u8; 32];
@@ -207,7 +207,7 @@ fn gen_iv(auth_code: &str) -> [u8; 16] {
 /**
 encrypt auth code
 */
-fn auth_code_encrypt(auth_code: &str) -> Result<String> {
+pub(crate) fn auth_code_encrypt(auth_code: &str) -> Result<String> {
     let n = hex::decode("C6627A6F0485B33DDC1CA7E062C64E8841133B9246A41F40D0767BAE44EAB2EF453D008FFB07B8D9FDFCD21882487ECC4DA933C97E494242ADA3CE02C5A05189AA49410E771A66E8100E43CB1AF6CC610B59EE4EBB236FF38C62AD7B1D11DFBD4E054D19E3349391A31F5E89CA721292B7380295745D8968CC5C2D223AC6750BB0ACA27773687E9CD76065E47F42F4AE005459BCE5746BD760646A5BD119BA3469A935F48EB898CBAB72CB394C3FEC9E41635EAE954107A17AC7B8C6321D8F1755AD3915A9D2398DB268A3F642CEE9CBE9F82ECD5AD64EBEDDDE66601DC2B891E2FEDDF72DAF627FA8FA16F7C640DB661BE15DCB4274D9576D98DBEB20C25309")?;
     let e = hex::decode("010001")?;
     let u32_vec_n = BigUint::from_bytes_be(&n);
@@ -218,7 +218,7 @@ fn auth_code_encrypt(auth_code: &str) -> Result<String> {
     Ok(hex::encode_upper(enc_data))
 }
 
-fn get_se_pubkey(se_pubkey_cert: &str) -> Result<String> {
+pub(crate) fn get_se_pubkey(se_pubkey_cert: &str) -> Result<String> {
     let index = se_pubkey_cert
         .find("7F4947B041")
         .or_else(|| se_pubkey_cert.find("7F4946B041"))

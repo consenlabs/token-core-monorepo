@@ -11,6 +11,7 @@ use ikc_common::path;
 use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::utility;
 use ikc_common::utility::network_convert;
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
 use std::convert::TryFrom;
@@ -23,6 +24,142 @@ const TESTNET_PREFIX: &str = "t";
 pub struct FilecoinAddress {}
 
 impl FilecoinAddress {
+    async fn send_checked<T>(transport: &T, apdu: String) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let response = transport.send_apdu(&apdu, 20).await?;
+        ApduCheck::check_response(&response)?;
+        Ok(response)
+    }
+
+    pub async fn get_pub_key_async<T>(transport: &T, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        path::check_path_validity(path)?;
+
+        let select_apdu = Apdu::try_select_applet(FILECOIN_AID)?;
+        Self::send_checked(transport, select_apdu).await?;
+
+        let (bind_signature, se_pub_key) = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            (
+                utility::secp256k1_sign(&key_manager_obj.pri_key, path.as_bytes())?,
+                key_manager_obj.se_pub_key.clone(),
+            )
+        };
+
+        let mut apdu_pack: Vec<u8> = vec![];
+        apdu_pack.push(0x00);
+        apdu_pack.push(bind_signature.len() as u8);
+        apdu_pack.extend(bind_signature.as_slice());
+        apdu_pack.push(0x01);
+        apdu_pack.push(path.len() as u8);
+        apdu_pack.extend(path.as_bytes());
+
+        let msg_pubkey = Secp256k1Apdu::try_get_xpub(&apdu_pack)?;
+        let res_msg_pubkey = Self::send_checked(transport, msg_pubkey).await?;
+
+        let sign_source_val = res_msg_pubkey.get(..194).ok_or(CoinError::InvalidParam)?;
+        let sign_result_end = res_msg_pubkey
+            .len()
+            .checked_sub(4)
+            .ok_or(CoinError::InvalidParam)?;
+        let sign_result = res_msg_pubkey
+            .get(194..sign_result_end)
+            .ok_or(CoinError::InvalidParam)?;
+
+        let sign_verify_result = utility::secp256k1_sign_verify(
+            &se_pub_key,
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(sign_source_val)?.as_slice(),
+        )?;
+        if !sign_verify_result {
+            return Err(CoinError::ImkeySignatureVerifyFail.into());
+        }
+
+        Ok(sign_source_val.to_string())
+    }
+
+    pub async fn get_address_async<T>(transport: &T, path: &str, network: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let ntwk = match network {
+            "TESTNET" => TESTNET_PREFIX,
+            _ => MAINNET_PREFIX,
+        };
+
+        let uncomprs_pubkey = Self::get_pub_key_async(transport, path).await?;
+        let pub_key_hex = uncomprs_pubkey.get(..130).ok_or(CoinError::InvalidParam)?;
+        let pub_key_bytes = hex::decode(pub_key_hex)?;
+        Ok(filecoin::secp256k1_address_from_uncompressed_pubkey(
+            ntwk,
+            &pub_key_bytes,
+        ))
+    }
+
+    pub async fn display_address_async<T>(
+        transport: &T,
+        path: &str,
+        network: &str,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let address = Self::get_address_async(transport, path, network).await?;
+        let filecoin_menu_name = "FIL".as_bytes();
+        let reg_apdu = Secp256k1Apdu::register_address(filecoin_menu_name, address.as_bytes())?;
+        Self::send_checked(transport, reg_apdu).await?;
+        Ok(address)
+    }
+
+    pub async fn get_xpub_async<T>(transport: &T, network: &str, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = Self::get_pub_key_async(transport, path).await?;
+        let xpub_data = &xpub_data[..194];
+
+        let pub_key = &xpub_data[..130];
+        let sub_chain_code = &xpub_data[130..];
+        let pub_key_obj = PublicKey::from_str(pub_key)?;
+
+        let parent_xpub_data = Self::get_pub_key_async(transport, get_parent_path(path)?).await?;
+        let parent_xpub_data = &parent_xpub_data[..194];
+        let parent_pub_key = &parent_xpub_data[..130];
+        let parent_chain_code = &parent_xpub_data[130..];
+        let parent_pub_key_obj = PublicKey::from_str(parent_pub_key)?;
+
+        let parent_chain_code = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
+        let network = network_convert(network);
+        let parent_ext_pub_key = Xpub {
+            network: network.into(),
+            depth: 0_u8,
+            parent_fingerprint: Fingerprint::default(),
+            child_number: ChildNumber::from_normal_idx(0).unwrap(),
+            public_key: parent_pub_key_obj,
+            chain_code: parent_chain_code,
+        };
+        let fingerprint_obj = parent_ext_pub_key.fingerprint();
+
+        let sub_chain_code_obj = ChainCode::try_from(hex::decode(sub_chain_code)?.as_slice())?;
+
+        let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
+        let extend_public_key = Xpub {
+            network: network.into(),
+            depth: chain_number_vec.len() as u8,
+            parent_fingerprint: fingerprint_obj,
+            child_number: *chain_number_vec.last().unwrap(),
+            public_key: pub_key_obj,
+            chain_code: sub_chain_code_obj,
+        };
+        Ok(extend_public_key.to_string())
+    }
+
     pub fn get_pub_key(path: &str) -> Result<String> {
         path::check_path_validity(path)?;
 

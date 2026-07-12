@@ -8,6 +8,7 @@ use bitcoin_hashes::ripemd160;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EosApdu};
 use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::{path, utility};
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
 use std::convert::TryFrom;
@@ -17,6 +18,114 @@ use std::str::FromStr;
 pub struct EosPubkey {}
 
 impl EosPubkey {
+    async fn send_checked<T>(transport: &T, apdu: String) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let response = transport.send_apdu(&apdu, 20).await?;
+        ApduCheck::check_response(&response)?;
+        Ok(response)
+    }
+
+    pub async fn get_pubkey_async<T>(transport: &T, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let response = Self::get_sub_pubkey_response_async(transport, path).await?;
+        Self::pubkey_from_response(&response)
+    }
+
+    pub async fn get_sub_pubkey_async<T>(transport: &T, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let response = Self::get_sub_pubkey_response_async(transport, path).await?;
+        Ok(response[..194].to_string())
+    }
+
+    async fn get_sub_pubkey_response_async<T>(transport: &T, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        path::check_path_validity(path)?;
+
+        let select_apdu = EosApdu::select_applet()?;
+        Self::send_checked(transport, select_apdu).await?;
+
+        let msg_pubkey = EosApdu::get_xpub(path, true)?;
+        let res_msg_pubkey = Self::send_checked(transport, msg_pubkey).await?;
+
+        let sign_source_val = &res_msg_pubkey[..194];
+        let sign_result = &res_msg_pubkey[194..res_msg_pubkey.len() - 4];
+
+        let key_manager_obj = KEY_MANAGER.lock();
+
+        let sign_verify_result = utility::secp256k1_sign_verify(
+            &key_manager_obj.se_pub_key,
+            hex::decode(sign_result).unwrap().as_slice(),
+            hex::decode(sign_source_val).unwrap().as_slice(),
+        )?;
+        if !sign_verify_result {
+            return Err(anyhow!("imkey_signature_verify_fail"));
+        }
+
+        Ok(res_msg_pubkey)
+    }
+
+    pub async fn get_xpub_async<T>(transport: &T, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = Self::get_sub_pubkey_async(transport, path).await?;
+
+        let pub_key = &xpub_data[..130];
+        let sub_chain_code = &xpub_data[130..];
+        let pub_key_obj = PublicKey::from_str(pub_key)?;
+
+        let parent_xpub_data =
+            Self::get_sub_pubkey_async(transport, get_parent_path(path)?).await?;
+        let parent_xpub_data = &parent_xpub_data[..194];
+        let parent_pub_key = &parent_xpub_data[..130];
+        let parent_chain_code = &parent_xpub_data[130..];
+        let parent_pub_key_obj = PublicKey::from_str(parent_pub_key)?;
+
+        let parent_chain_code = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
+        let parent_ext_pub_key = Xpub {
+            network: Network::Bitcoin.into(),
+            depth: 0_u8,
+            parent_fingerprint: Fingerprint::default(),
+            child_number: ChildNumber::from_normal_idx(0).unwrap(),
+            public_key: parent_pub_key_obj,
+            chain_code: parent_chain_code,
+        };
+        let fingerprint_obj = parent_ext_pub_key.fingerprint();
+
+        let sub_chain_code_obj = ChainCode::try_from(hex::decode(sub_chain_code)?.as_slice())?;
+
+        let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
+        let extend_public_key = Xpub {
+            network: Network::Bitcoin.into(),
+            depth: chain_number_vec.len() as u8,
+            parent_fingerprint: fingerprint_obj,
+            child_number: *chain_number_vec.last().unwrap(),
+            public_key: pub_key_obj,
+            chain_code: sub_chain_code_obj,
+        };
+        Ok(extend_public_key.to_string())
+    }
+
+    pub async fn display_pubkey_async<T>(transport: &T, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let pubkey = Self::get_pubkey_async(transport, path).await?;
+        let reg_apdu = EosApdu::register_address(pubkey.as_bytes())?;
+        Self::send_checked(transport, reg_apdu).await?;
+        Ok(pubkey)
+    }
+
     pub fn get_pubkey(path: &str) -> Result<String> {
         path::check_path_validity(path)?;
 

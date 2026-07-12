@@ -122,6 +122,11 @@ trait ApduTransport {
 
 业务逻辑只依赖 `ApduTransport`，不依赖 WebUSB、hidapi 或移动端 callback。
 
+实现中同步和异步 APDU trait 均归属 `ikc-transport`。native HID、mobile
+callback 和 wasm JS bridge 分别实现对应 adapter；`ikc-device` 与 `coin-*`
+只消费 transport 能力。为保持现有同步 C ABI，native/mobile 入口继续同步，
+但与 wasm async 入口共享交易准备、APDU payload 和响应解析逻辑。
+
 ### 为什么不能只替换 `send_apdu`
 
 现有 `send_apdu(apdu) -> Result<String>` 是同步函数。WebUSB 是异步 Promise API，且连接对象存在于 JavaScript runtime。直接把现有同步 `send_apdu` 替换成 WebUSB 会导致：

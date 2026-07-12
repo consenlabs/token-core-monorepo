@@ -6,6 +6,7 @@ use hex;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EthApdu};
 use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::utility::hex_to_bytes;
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_transport::message::send_apdu;
 use std::convert::TryFrom;
 use std::str::FromStr;
@@ -21,6 +22,100 @@ impl EthAddress {
 
     pub fn address_checksum(address: &str) -> String {
         wallet_core_common::eth::checksum_hex_unchecked(address)
+    }
+
+    async fn send_checked<T>(transport: &T, apdu: String) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let response = transport.send_apdu(&apdu, 20).await?;
+        ApduCheck::check_response(&response)?;
+        Ok(response)
+    }
+
+    pub async fn get_address_async<T>(transport: &T, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let select_apdu = EthApdu::select_applet()?;
+        Self::send_checked(transport, select_apdu).await?;
+
+        let msg_pubkey = EthApdu::get_xpub(path, false)?;
+        let res_msg_pubkey = Self::send_checked(transport, msg_pubkey).await?;
+
+        let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
+        EthAddress::from_pub_key(pubkey_raw)
+    }
+
+    pub async fn display_address_async<T>(transport: &T, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let address = EthAddress::get_address_async(transport, path).await?;
+        let reg_apdu = EthApdu::register_address(address.as_bytes())?;
+        Self::send_checked(transport, reg_apdu).await?;
+        Ok(address)
+    }
+
+    pub async fn get_pub_key_async<T>(transport: &T, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let select_apdu = EthApdu::select_applet()?;
+        Self::send_checked(transport, select_apdu).await?;
+
+        let msg_pubkey = EthApdu::get_xpub(path, false)?;
+        let res_msg_pubkey = Self::send_checked(transport, msg_pubkey).await?;
+
+        Ok(res_msg_pubkey[..194].to_string())
+    }
+
+    pub async fn get_xpub_async<T>(transport: &T, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = Self::get_pub_key_async(transport, path).await?;
+        let xpub_data = &xpub_data[..194];
+
+        let pub_key = &xpub_data[..130];
+        let sub_chain_code = &xpub_data[130..];
+        let pub_key_obj = PublicKey::from_str(pub_key)?;
+
+        let parent_xpub_data = Self::get_pub_key_async(transport, get_parent_path(path)?).await?;
+        let parent_xpub_data = &parent_xpub_data[..194];
+        let parent_pub_key = &parent_xpub_data[..130];
+        let parent_chain_code = &parent_xpub_data[130..];
+        let parent_pub_key_obj = PublicKey::from_str(parent_pub_key)?;
+
+        let parent_chain_code = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
+        let parent_ext_pub_key = Xpub {
+            network: Network::Bitcoin.into(),
+            depth: 0_u8,
+            parent_fingerprint: Fingerprint::default(),
+            child_number: ChildNumber::from_normal_idx(0).unwrap(),
+            public_key: parent_pub_key_obj,
+            chain_code: parent_chain_code,
+        };
+        let fingerprint_obj = parent_ext_pub_key.fingerprint();
+
+        let sub_chain_code_obj = ChainCode::try_from(hex::decode(sub_chain_code)?.as_slice())?;
+
+        let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
+        let extend_public_key = Xpub {
+            network: Network::Bitcoin.into(),
+            depth: chain_number_vec.len() as u8,
+            parent_fingerprint: fingerprint_obj,
+            child_number: *chain_number_vec.last().unwrap(),
+            public_key: pub_key_obj,
+            chain_code: sub_chain_code_obj,
+        };
+        Ok(extend_public_key.to_string())
     }
 
     pub fn get_address(path: &str) -> Result<String> {

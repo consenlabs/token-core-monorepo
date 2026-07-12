@@ -124,7 +124,4 @@ imKey Pro 的 onboarding、激活、绑定、应用管理、地址获取和硬�
 6. 统一 npm 包名确定为 `@imtoken/wallet-core-web`。
 7. 前端公开 API 只暴露业务能力，不要求业务方直接使用 wasm-pack 生成的底层文件。
 8. 开发测试阶段需要保留 wasm-pack 生成文件，供本仓库示例/测试页面直接引用；这些文件作为构建产物和内部调试入口保留，不设计为长期公开 API。
-
-### 待确认
-
-1. imKey Pro WebUSB descriptor 的正式稳定值：`vendorId`、`productId`、configuration、interface class、interface number、endpoint in/out、packet size。参考实现已能动态探测，但 SDK 文档仍应记录设备正式 descriptor。
+9. imKey Pro WebUSB reference descriptor 已记录在 `doc/imkey-webusb-descriptor.md`：VID=`0x096E`、PID=`0x0891`、configuration=1、vendor-specific interface 优先、参考 interface=0、IN=5、OUT=4、packet size=64；SDK 运行时以动态 descriptor 探测结果为准。

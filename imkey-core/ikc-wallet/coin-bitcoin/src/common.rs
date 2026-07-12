@@ -6,6 +6,7 @@ use bitcoin::{Network, PublicKey};
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
 use ikc_common::utility::sha256_hash;
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_transport::message::send_apdu;
 use std::str::FromStr;
 
@@ -17,6 +18,23 @@ pub fn get_utxo_pub_key(utxos: &Vec<Utxo>) -> Result<Vec<String>> {
     for utxo in utxos {
         let xpub_data = get_xpub_data(&utxo.derive_path, false)?;
         //parsing xpub data
+        let derive_pub_key = public_key_from_xpub_response(&xpub_data)?;
+
+        let mut public_key = PublicKey::from_str(derive_pub_key)?;
+        public_key.compressed = true;
+
+        utxo_pub_key_vec.push(public_key.to_string());
+    }
+    Ok(utxo_pub_key_vec)
+}
+
+pub async fn get_utxo_pub_key_async<T>(transport: &T, utxos: &Vec<Utxo>) -> Result<Vec<String>>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    let mut utxo_pub_key_vec: Vec<String> = vec![];
+    for utxo in utxos {
+        let xpub_data = get_xpub_data_async(transport, &utxo.derive_path, false).await?;
         let derive_pub_key = public_key_from_xpub_response(&xpub_data)?;
 
         let mut public_key = PublicKey::from_str(derive_pub_key)?;
@@ -44,11 +62,35 @@ pub fn get_xpub_data(path: &str, verify_flag: bool) -> Result<String> {
     Ok(xpub_data)
 }
 
+pub async fn get_xpub_data_async<T>(transport: &T, path: &str, verify_flag: bool) -> Result<String>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    let select_apdu = BtcApdu::select_applet()?;
+    let select_response = transport.send_apdu(&select_apdu, 20).await?;
+    ApduCheck::check_response(&select_response)?;
+
+    let xpub_apdu = BtcApdu::get_xpub(path, verify_flag)?;
+    let xpub_data = transport.send_apdu(&xpub_apdu, 20).await?;
+    ApduCheck::check_response(&xpub_data)?;
+    Ok(xpub_data)
+}
+
 /**
 select btc applet
  */
 pub fn select_btc_applet() -> Result<()> {
     let select_response = send_apdu(BtcApdu::select_applet()?)?;
+    ApduCheck::check_response(&select_response)?;
+    Ok(())
+}
+
+pub async fn select_btc_applet_async<T>(transport: &T) -> Result<()>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    let select_apdu = BtcApdu::select_applet()?;
+    let select_response = transport.send_apdu(&select_apdu, 20).await?;
     ApduCheck::check_response(&select_response)?;
     Ok(())
 }
