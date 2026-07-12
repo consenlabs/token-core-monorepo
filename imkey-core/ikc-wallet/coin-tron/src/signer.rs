@@ -9,6 +9,7 @@ use ikc_common::path::check_path_validity;
 use ikc_common::utility::{secp256k1_sign, sha256_hash};
 use ikc_common::FromHex;
 use ikc_common::{constants, utility, SignParam};
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::{self, ecdsa::Signature as SecpSignature};
@@ -18,6 +19,15 @@ use tiny_keccak::Hasher;
 pub struct TronSigner {}
 
 impl TronSigner {
+    async fn send_checked<T>(transport: &T, apdu: String, timeout: i32) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let response = transport.send_apdu(&apdu, timeout).await?;
+        ApduCheck::check_response(&response)?;
+        Ok(response)
+    }
+
     pub fn sign_message(
         input: TronMessageInput,
         sign_param: &SignParam,
@@ -90,6 +100,81 @@ impl TronSigner {
         Ok(TronMessageOutput { signature })
     }
 
+    pub async fn sign_message_async<T>(
+        transport: &T,
+        input: TronMessageInput,
+        sign_param: &SignParam,
+    ) -> Result<TronMessageOutput>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(&sign_param.path)?;
+
+        if input.version == 3 && input.header.to_uppercase() != "TRON" {
+            return Err(anyhow!("tip712_header_must_be_tron"));
+        }
+
+        let message = if input.message.to_lowercase().starts_with("0x") {
+            Vec::from_hex_auto(&input.message)?
+        } else {
+            input.message.into_bytes()
+        };
+
+        if input.version == 3 && message.len() != 64 {
+            return Err(anyhow!("tip712_message_invalid_length"));
+        }
+
+        let header = match input.header.to_uppercase().as_str() {
+            "TRON" => match input.version {
+                2 => "\x19TRON Signed Message:\n".as_bytes(),
+                3 => "\x19\x01".as_bytes(),
+                _ => "\x19TRON Signed Message:\n32".as_bytes(),
+            },
+            "ETH" => "\x19Ethereum Signed Message:\n32".as_bytes(),
+            "NONE" => "\x19Ethereum Signed Message:\n32".as_bytes(),
+            _ => return Err(anyhow!("sign_message_header_type_incorrect")),
+        };
+        let mut msg_with_header = Vec::new();
+        msg_with_header.extend(header);
+        msg_with_header.extend(&message);
+
+        let mut data_pack = Vec::new();
+
+        let mut keccak256 = tiny_keccak::Keccak::v256();
+        keccak256.update(msg_with_header.as_slice());
+        let mut hash = [0u8; 256 / 8];
+        keccak256.finalize(&mut hash);
+
+        data_pack.push(0x01);
+        data_pack.push(hash.len() as u8);
+        data_pack.extend(&hash);
+
+        let path = sign_param.path.as_bytes();
+        data_pack.push(0x02);
+        data_pack.push(path.len() as u8);
+        data_pack.extend(path);
+
+        let msg_sig = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            secp256k1_sign(&key_manager_obj.pri_key, &data_pack)?
+        };
+        let mut data_pack_with_sig = Vec::new();
+        data_pack_with_sig.push(0x00);
+        data_pack_with_sig.push(msg_sig.len() as u8);
+        data_pack_with_sig.extend(msg_sig);
+        data_pack_with_sig.extend(&data_pack);
+
+        let signature = TronSigner::sign_async(
+            transport,
+            &sign_param.path,
+            &data_pack_with_sig,
+            &hash,
+            &sign_param.sender,
+        )
+        .await?;
+        Ok(TronMessageOutput { signature })
+    }
+
     pub fn sign_transaction(input: TronTxInput, sign_param: &SignParam) -> Result<TronTxOutput> {
         check_path_validity(&sign_param.path)?;
 
@@ -135,6 +220,61 @@ impl TronSigner {
         Ok(TronTxOutput { signature })
     }
 
+    pub async fn sign_transaction_async<T>(
+        transport: &T,
+        input: TronTxInput,
+        sign_param: &SignParam,
+    ) -> Result<TronTxOutput>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(&sign_param.path)?;
+
+        let mut data_pack = Vec::new();
+
+        let raw_data = hex::decode(input.raw_data)?;
+        let hash = sha256_hash(&raw_data);
+        data_pack.push(0x01);
+        data_pack.push(hash.len() as u8);
+        data_pack.extend(&hash);
+
+        let path = sign_param.path.as_bytes();
+        data_pack.push(0x02);
+        data_pack.push(path.len() as u8);
+        data_pack.extend(path);
+
+        let payment = sign_param.payment.as_bytes();
+        data_pack.push(0x07);
+        data_pack.push(payment.len() as u8);
+        data_pack.extend(payment);
+
+        let to = sign_param.receiver.as_bytes();
+        data_pack.push(0x08);
+        data_pack.push(to.len() as u8);
+        data_pack.extend(to);
+
+        let data_pack_sig = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            secp256k1_sign(&key_manager_obj.pri_key, &data_pack)?
+        };
+
+        let mut data_pack_with_sig = Vec::new();
+        data_pack_with_sig.push(0x00);
+        data_pack_with_sig.push(data_pack_sig.len() as u8);
+        data_pack_with_sig.extend(&data_pack_sig);
+        data_pack_with_sig.extend(&data_pack);
+
+        let signature = TronSigner::sign_async(
+            transport,
+            &sign_param.path,
+            &data_pack_with_sig,
+            &hash,
+            &sign_param.sender,
+        )
+        .await?;
+        Ok(TronTxOutput { signature })
+    }
+
     pub fn sign(path: &str, data_pack: &[u8], hash: &[u8], sender: &str) -> Result<String> {
         let select_apdu = Apdu::try_select_applet(TRON_AID)?;
         let select_result = send_apdu(select_apdu)?;
@@ -174,6 +314,81 @@ impl TronSigner {
         let sign_result = &sign_response[132..sign_response.len() - 4];
         let sign_verify_result = utility::secp256k1_sign_verify(
             &key_manager_obj.se_pub_key,
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(sign_source_val)?.as_slice(),
+        )?;
+
+        if !sign_verify_result {
+            return Err(CoinError::ImkeySignatureVerifyFail.into());
+        }
+
+        let sign_compact_hex = sign_response
+            .get(2..130)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let sign_compact = hex::decode(sign_compact_hex)?;
+        let mut signnture_obj = SecpSignature::from_compact(sign_compact.as_slice())?;
+        signnture_obj.normalize_s();
+        let normalizes_sig_vec = signnture_obj.serialize_compact();
+
+        let rec_id = utility::retrieve_recid(hash, &normalizes_sig_vec, &pubkey_raw)?;
+        let rec_id = i32::from(rec_id);
+        let v = rec_id + 27;
+
+        let mut signature = hex::encode(normalizes_sig_vec.as_slice());
+        signature.push_str(&format!("{:02x}", &v));
+
+        Ok(signature)
+    }
+
+    pub async fn sign_async<T>(
+        transport: &T,
+        path: &str,
+        data_pack: &[u8],
+        hash: &[u8],
+        sender: &str,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let select_apdu = Apdu::try_select_applet(TRON_AID)?;
+        Self::send_checked(transport, select_apdu, 20).await?;
+
+        let (path_signature, se_pub_key) = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            (
+                secp256k1_sign(&key_manager_obj.pri_key, path.as_bytes())?,
+                key_manager_obj.se_pub_key.clone(),
+            )
+        };
+        let mut path_pack: Vec<u8> = vec![];
+        path_pack.push(0x00);
+        path_pack.push(path_signature.len() as u8);
+        path_pack.extend(path_signature.as_slice());
+        path_pack.push(0x01);
+        path_pack.push(path.len() as u8);
+        path_pack.extend(path.as_bytes());
+
+        let msg_pubkey = Secp256k1Apdu::try_get_xpub(&path_pack)?;
+        let res_msg_pubkey = Self::send_checked(transport, msg_pubkey, 20).await?;
+        let pubkey_hex = res_msg_pubkey
+            .get(..130)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let pubkey_raw = hex::decode(pubkey_hex)?;
+        let address = TronAddress::from_pub_key(pubkey_raw.as_slice())?;
+        if !sender.to_string().is_empty() && address != sender {
+            return Err(CoinError::ImkeyAddressMismatchWithPath.into());
+        }
+
+        let mut sign_response = "".to_string();
+        let sign_apdus = Secp256k1Apdu::sign(data_pack);
+        for apdu in sign_apdus {
+            sign_response = Self::send_checked(transport, apdu, constants::TIMEOUT_LONG).await?;
+        }
+
+        let sign_source_val = &sign_response[..132];
+        let sign_result = &sign_response[132..sign_response.len() - 4];
+        let sign_verify_result = utility::secp256k1_sign_verify(
+            &se_pub_key,
             hex::decode(sign_result)?.as_slice(),
             hex::decode(sign_source_val)?.as_slice(),
         )?;

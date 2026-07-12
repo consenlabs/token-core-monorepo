@@ -1,37 +1,40 @@
 use crate::app_delete::AppDeleteRequest;
 use crate::app_download::{AppDownloadRequest, AppDownloadResponse};
 use crate::app_update::{AppUpdateRequest, AppUpdateResponse};
+use crate::auth_code_storage::{AuthCodeStorageRequest, AuthCodeStorageResponse};
+use crate::device_binding::{
+    auth_code_encrypt, bind_status_message, gen_iv, get_se_pubkey, KEY_MANAGER,
+};
+use crate::device_cert_check::{DeviceCertCheckRequest, DeviceCertCheckResponse};
+use crate::error::{BindError, ImkeyError};
 use crate::se_activate::SeActivateRequest;
 use crate::se_query::{SeQueryRequest, SeQueryResponse};
 use crate::se_secure_check::SeSecureCheckRequest;
 use crate::{Result, ServiceResponse, TsmStepRequest, TsmStepResponse};
 use anyhow::anyhow;
+use ikc_common::aes::cbc::encrypt_pkcs7;
 use ikc_common::apdu::{Apdu, ApduCheck, ImkApdu};
 use ikc_common::applet;
-use ikc_common::constants;
+use ikc_common::constants::{
+    self, BIND_RESULT_ERROR, BIND_STATUS_BOUND_OTHER, BIND_STATUS_UNBOUND, TIMEOUT_LONG,
+};
 use ikc_common::error::ApduError;
+use ikc_common::utility::sha256_hash;
+pub use ikc_transport::async_transport::{AsyncApduTransport, BoxFutureResult, TransportProfile};
+use regex::Regex;
+use secp256k1::{ecdh, PublicKey, SecretKey};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::future::Future;
-use std::pin::Pin;
-
-pub type BoxFutureResult<'a, T> = Pin<Box<dyn Future<Output = Result<T>> + 'a>>;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum TransportProfile {
-    WebUsb,
-    WebHid,
-    Ble,
-    NativeHid,
-}
-
-pub trait AsyncApduTransport {
-    fn profile(&self) -> TransportProfile;
-    fn send_apdu<'a>(&'a self, apdu: &'a str, timeout: i32) -> BoxFutureResult<'a, String>;
-}
+use sha1::Digest;
+use std::convert::TryInto;
 
 pub trait AsyncTsmClient {
     fn post<'a>(&'a self, action: &'a str, body: Vec<u8>) -> BoxFutureResult<'a, String>;
+}
+
+pub trait AsyncBindingStorage {
+    fn load<'a>(&'a self, seid: &'a str) -> BoxFutureResult<'a, Option<String>>;
+    fn save<'a>(&'a self, seid: &'a str, encrypted_key: &'a str) -> BoxFutureResult<'a, ()>;
 }
 
 #[derive(Serialize)]
@@ -46,7 +49,14 @@ async fn send_checked<T>(transport: &T, apdu: &str) -> Result<String>
 where
     T: AsyncApduTransport + ?Sized,
 {
-    let response = transport.send_apdu(apdu, 20).await?;
+    send_checked_timeout(transport, apdu, 20).await
+}
+
+async fn send_checked_timeout<T>(transport: &T, apdu: &str, timeout: i32) -> Result<String>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    let response = transport.send_apdu(apdu, timeout).await?;
     ApduCheck::check_response(&response)?;
     Ok(response)
 }
@@ -126,6 +136,16 @@ where
     Ok(String::from_utf8(sn)?)
 }
 
+pub async fn get_ram_size<T>(transport: &T) -> Result<String>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    select_isd(transport).await?;
+    let response = send_checked(transport, "80CB800005DFFF02814600").await?;
+    let hex_ram_size = response.get(4..8).ok_or(ApduError::ImkeyApduWrongLength)?;
+    Ok(i64::from_str_radix(hex_ram_size, 16)?.to_string())
+}
+
 pub async fn get_firmware_version<T>(transport: &T) -> Result<String>
 where
     T: AsyncApduTransport + ?Sized,
@@ -142,6 +162,10 @@ where
     Ok(firmware_version)
 }
 
+pub fn get_sdk_info() -> String {
+    constants::VERSION.to_string()
+}
+
 pub async fn get_battery_power<T>(transport: &T) -> Result<String>
 where
     T: AsyncApduTransport + ?Sized,
@@ -154,6 +178,44 @@ where
     } else {
         Ok(i64::from_str_radix(&hex_power, 16)?.to_string())
     }
+}
+
+pub async fn get_ble_name<T>(transport: &T) -> Result<String>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    let response = send_checked(transport, "FFDB465400").await?;
+    let hex = hex::decode(apdu_payload(&response)?)?;
+    Ok(String::from_utf8(hex)?)
+}
+
+pub async fn set_ble_name<T>(transport: &T, ble_name: &str) -> Result<String>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    let name_verify_regex = Regex::new(r"^[0-9A-Za-z]{1,12}$")?;
+    if !name_verify_regex.is_match(ble_name) {
+        return Err(anyhow!("imkey_device_name_invalid"));
+    }
+    let response = send_checked(transport, &Apdu::set_ble_name(ble_name)).await?;
+    Ok(apdu_payload(&response)?.to_string())
+}
+
+pub async fn get_ble_version<T>(transport: &T) -> Result<String>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    select_isd(transport).await?;
+    let response = send_checked(transport, "80CB800005DFFF02810000").await?;
+    let payload = apdu_payload(&response)?;
+    let chars: Vec<char> = payload.chars().collect();
+    if chars.len() < 4 {
+        return Err(ApduError::ImkeyApduWrongLength.into());
+    }
+    Ok(format!(
+        "{}.{}.{}{}",
+        chars[0], chars[1], chars[2], chars[3]
+    ))
 }
 
 pub async fn get_life_time<T>(transport: &T) -> Result<String>
@@ -182,6 +244,16 @@ where
     Ok(apdu_payload(&response)?.to_string())
 }
 
+pub async fn get_btc_apple_version<T>(transport: &T) -> Result<String>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    select_isd(transport).await?;
+    let response = send_checked(transport, "00a4040005695f62746300").await?;
+    let btc_version = hex::decode(apdu_payload(&response)?)?;
+    Ok(String::from_utf8(btc_version)?)
+}
+
 pub async fn get_device_info<T>(transport: &T) -> Result<DeviceInfo>
 where
     T: AsyncApduTransport + ?Sized,
@@ -201,6 +273,183 @@ where
     select_imk(transport).await?;
     send_checked(transport, &ImkApdu::generate_auth_code()).await?;
     Ok(())
+}
+
+async fn device_cert_check<C>(
+    tsm_client: &C,
+    seid: String,
+    sn: String,
+    device_cert: String,
+) -> Result<()>
+where
+    C: AsyncTsmClient + ?Sized,
+{
+    let request = DeviceCertCheckRequest::build_request_data(seid, sn, device_cert);
+    let req_data = serde_json::to_vec_pretty(&request)?;
+    let response_data = tsm_client
+        .post(constants::TSM_ACTION_DEVICE_CERT_CHECK, req_data)
+        .await?;
+    let return_bean: ServiceResponse<DeviceCertCheckResponse> =
+        serde_json::from_str(&response_data)?;
+
+    return_bean.service_res_check()?;
+    if return_bean.return_data.verify_result.unwrap_or(false) {
+        Ok(())
+    } else {
+        Err(ImkeyError::ImkeySeCertInvalid.into())
+    }
+}
+
+async fn auth_code_storage<C>(tsm_client: &C, seid: String, auth_code: String) -> Result<()>
+where
+    C: AsyncTsmClient + ?Sized,
+{
+    let request = AuthCodeStorageRequest::build_request_data(seid, auth_code);
+    let req_data = serde_json::to_vec_pretty(&request)?;
+    let response_data = tsm_client
+        .post(constants::TSM_ACTION_AUTHCODE_STORAGE, req_data)
+        .await?;
+    let return_bean: ServiceResponse<AuthCodeStorageResponse> =
+        serde_json::from_str(&response_data)?;
+    return_bean.service_res_check()
+}
+
+pub async fn bind_check<T, C, S>(transport: &T, tsm_client: &C, storage: &S) -> Result<String>
+where
+    T: AsyncApduTransport + ?Sized,
+    C: AsyncTsmClient + ?Sized,
+    S: AsyncBindingStorage + ?Sized,
+{
+    let seid = get_se_id(transport).await?;
+    let sn = get_sn(transport).await?;
+    {
+        let mut key_manager = KEY_MANAGER.lock();
+        key_manager.gen_encrypt_key(&seid, &sn);
+    }
+
+    let ciphertext = storage.load(&seid).await?.unwrap_or_default();
+    let (bind_check_apdu, should_save_new_keys) = {
+        let mut key_manager = KEY_MANAGER.lock();
+        let mut should_regenerate = false;
+        if !ciphertext.is_empty() {
+            should_regenerate = !key_manager.decrypt_keys(&ciphertext)?;
+        }
+
+        if ciphertext.is_empty() || should_regenerate {
+            key_manager.gen_local_keys()?;
+            should_regenerate = true;
+        }
+
+        (
+            ImkApdu::bind_check(&key_manager.pub_key)?,
+            should_regenerate,
+        )
+    };
+
+    select_imk(transport).await?;
+    let bind_check_response = send_checked(transport, &bind_check_apdu).await?;
+    let payload_end = bind_check_response
+        .len()
+        .checked_sub(4)
+        .ok_or(BindError::ImkeySdkIllegalArgument)?;
+    let status = bind_check_response
+        .get(..2)
+        .ok_or(BindError::ImkeySdkIllegalArgument)?
+        .to_string();
+    let se_pub_key_cert = bind_check_response
+        .get(2..payload_end)
+        .ok_or(BindError::ImkeySdkIllegalArgument)?
+        .to_string();
+
+    if status == BIND_STATUS_UNBOUND || status == BIND_STATUS_BOUND_OTHER {
+        device_cert_check(tsm_client, seid.clone(), sn, se_pub_key_cert.clone()).await?;
+
+        let se_pub_key = hex::decode(get_se_pubkey(&se_pub_key_cert)?)?;
+        let encrypted_key = {
+            let mut key_manager = KEY_MANAGER.lock();
+            key_manager.se_pub_key = se_pub_key;
+            let pk2 = PublicKey::from_slice(key_manager.se_pub_key.as_slice())?;
+            let sk1 = SecretKey::from_byte_array(key_manager.pri_key.as_slice().try_into()?)?;
+            let shared_secret = ecdh::shared_secret_point(&pk2, &sk1);
+            let sha1_result = sha1::Sha1::digest(&shared_secret[..32]);
+            key_manager.session_key = sha1_result[..16].to_vec();
+
+            if should_save_new_keys {
+                Some(key_manager.encrypt_data()?)
+            } else {
+                None
+            }
+        };
+
+        if let Some(encrypted_key) = encrypted_key {
+            storage.save(&seid, &encrypted_key).await?;
+        }
+    }
+
+    bind_status_message(&status)
+}
+
+pub async fn bind_acquire<T, C>(transport: &T, tsm_client: &C, binding_code: &str) -> Result<String>
+where
+    T: AsyncApduTransport + ?Sized,
+    C: AsyncTsmClient + ?Sized,
+{
+    let temp_binding_code = binding_code.to_uppercase();
+    let bind_code_verify_regex =
+        Regex::new(r"^[A-HJ-NP-Z2-9]{8}$").map_err(|_| BindError::ImkeySdkIllegalArgument)?;
+    if !bind_code_verify_regex.is_match(temp_binding_code.as_ref()) {
+        return Err(BindError::ImkeySdkIllegalArgument.into());
+    }
+
+    let auth_code_ciphertext = auth_code_encrypt(&temp_binding_code)?;
+    let seid = get_se_id(transport).await?;
+    auth_code_storage(tsm_client, seid, auth_code_ciphertext).await?;
+
+    let (pub_key, se_pub_key, session_key) = {
+        let key_manager = KEY_MANAGER.lock();
+        if key_manager.pub_key.is_empty()
+            || key_manager.se_pub_key.is_empty()
+            || key_manager.session_key.is_empty()
+        {
+            return Err(anyhow!("imkey_bind_check_required"));
+        }
+        (
+            key_manager.pub_key.clone(),
+            key_manager.se_pub_key.clone(),
+            key_manager.session_key.clone(),
+        )
+    };
+
+    select_imk(transport).await?;
+    let mut data = Vec::new();
+    data.extend(temp_binding_code.as_bytes());
+    data.extend(&pub_key);
+    data.extend(&se_pub_key);
+    let data_hash = sha256_hash(data.as_slice());
+    let ciphertext = encrypt_pkcs7(
+        data_hash.as_ref(),
+        &session_key,
+        &gen_iv(&temp_binding_code),
+    )?;
+    let mut apdu_data = Vec::new();
+    apdu_data.extend(&pub_key);
+    apdu_data.extend(ciphertext);
+    let identity_verify_apdu = ImkApdu::identity_verify(&apdu_data)?;
+
+    let bind_result =
+        send_checked_timeout(transport, &identity_verify_apdu, TIMEOUT_LONG * 2).await?;
+    let result_code_end = bind_result
+        .len()
+        .checked_sub(4)
+        .ok_or(BindError::ImkeySdkIllegalArgument)?;
+    let result_code = bind_result
+        .get(..result_code_end)
+        .ok_or(BindError::ImkeySdkIllegalArgument)?;
+
+    match result_code {
+        BIND_RESULT_ERROR => Err(BindError::ImkeyAuthcodeError.into()),
+        _ => bind_status_message(result_code),
+    }
 }
 
 pub async fn run_tsm_steps<T, C, R>(

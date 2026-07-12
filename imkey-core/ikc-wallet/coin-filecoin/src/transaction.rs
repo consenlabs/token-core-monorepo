@@ -7,6 +7,7 @@ use ikc_common::apdu::{ApduCheck, Secp256k1Apdu};
 use ikc_common::error::CoinError;
 use ikc_common::utility::{hex_to_bytes, secp256k1_sign};
 use ikc_common::{constants, path, utility, SignParam};
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 
 use anyhow::anyhow;
@@ -139,6 +140,88 @@ impl Transaction {
         })
     }
 
+    fn prepare_signing_payload(
+        message: &FilecoinUnsignedMessage,
+        sign_param: &SignParam,
+    ) -> Result<(Vec<u8>, Vec<u8>, Vec<u8>)> {
+        let cid = unsigned_message_cid(message)?;
+        let data = digest(&cid.to_bytes(), HashSize::Default);
+        let mut data_pack = Vec::new();
+        data_pack.extend([1, data.len() as u8]);
+        data_pack.extend(&data);
+        data_pack.extend([2, sign_param.path.len() as u8]);
+        data_pack.extend(sign_param.path.as_bytes());
+        data_pack.extend([7, sign_param.payment.len() as u8]);
+        data_pack.extend(sign_param.payment.as_bytes());
+        data_pack.extend([8, sign_param.receiver.len() as u8]);
+        data_pack.extend(sign_param.receiver.as_bytes());
+        data_pack.extend([9, sign_param.fee.len() as u8]);
+        data_pack.extend(sign_param.fee.as_bytes());
+
+        let (bind_signature, se_pub_key) = {
+            let key_manager = KEY_MANAGER.lock();
+            (
+                secp256k1_sign(&key_manager.pri_key, &data_pack)?,
+                key_manager.se_pub_key.clone(),
+            )
+        };
+        let mut apdu_pack = Vec::new();
+        apdu_pack.push(0x00);
+        apdu_pack.push(bind_signature.len() as u8);
+        apdu_pack.extend(&bind_signature);
+        apdu_pack.extend(&data_pack);
+        Ok((data, apdu_pack, se_pub_key))
+    }
+
+    fn finish_signing(
+        tx_input: FilecoinTxInput,
+        message: &FilecoinUnsignedMessage,
+        data: &[u8],
+        pubkey_raw: &[u8],
+        se_pub_key: &[u8],
+        sign_response: &str,
+    ) -> Result<FilecoinTxOutput> {
+        let payload_end = sign_response
+            .len()
+            .checked_sub(4)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let sign_source_val = sign_response
+            .get(..132)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let sign_result = sign_response
+            .get(132..payload_end)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        if !utility::secp256k1_sign_verify(
+            se_pub_key,
+            &hex::decode(sign_result)?,
+            &hex::decode(sign_source_val)?,
+        )? {
+            return Err(CoinError::ImkeySignatureVerifyFail.into());
+        }
+
+        let sign_compact = sign_response
+            .get(2..130)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let mut signature_obj = SecpSignature::from_compact(&hex_to_bytes(sign_compact)?)?;
+        signature_obj.normalize_s();
+        let normalized_signature = signature_obj.serialize_compact();
+        let rec_id = utility::retrieve_recid(data, &normalized_signature, pubkey_raw)?;
+        let mut signature = [0; 65];
+        signature[..64].copy_from_slice(&normalized_signature);
+        signature[64] = i32::from(rec_id) as u8;
+        let cid = secp256k1_signed_message_cid(message, &signature)
+            .map_err(|_| anyhow!("forest_message cid error"))?;
+
+        Ok(FilecoinTxOutput {
+            cid: cid.to_string(),
+            message: Some(tx_input),
+            signature: Some(Signature {
+                r#type: 1,
+                data: base64::Engine::encode(&base64::engine::general_purpose::STANDARD, signature),
+            }),
+        })
+    }
+
     pub fn sign_tx(tx_input: FilecoinTxInput, sign_param: &SignParam) -> Result<FilecoinTxOutput> {
         path::check_path_validity(&sign_param.path)?;
 
@@ -162,36 +245,8 @@ impl Transaction {
                 .ok_or_else(|| anyhow!("invalid_param"))?,
         )?;
 
-        let mut cid: Cid = unsigned_message_cid(&unsigned_message)?;
-        let data = &digest(&cid.to_bytes(), HashSize::Default);
-
-        //organize data
-        let mut data_pack: Vec<u8> = Vec::new();
-
-        data_pack.extend([1, data.len() as u8].iter());
-        data_pack.extend(data.iter());
-
-        //path
-        data_pack.extend([2, sign_param.path.len() as u8].iter());
-        data_pack.extend(sign_param.path.as_bytes().iter());
-        //payment info in TLV format
-        data_pack.extend([7, sign_param.payment.len() as u8].iter());
-        data_pack.extend(sign_param.payment.as_bytes().iter());
-        //receiver info in TLV format
-        data_pack.extend([8, sign_param.receiver.len() as u8].iter());
-        data_pack.extend(sign_param.receiver.as_bytes().iter());
-        //fee info in TLV format
-        data_pack.extend([9, sign_param.fee.len() as u8].iter());
-        data_pack.extend(sign_param.fee.as_bytes().iter());
-
-        let key_manager_obj = KEY_MANAGER.lock();
-        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &data_pack)?;
-
-        let mut apdu_pack: Vec<u8> = Vec::new();
-        apdu_pack.push(0x00);
-        apdu_pack.push(bind_signature.len() as u8);
-        apdu_pack.extend(bind_signature.as_slice());
-        apdu_pack.extend(data_pack.as_slice());
+        let (data, apdu_pack, se_pub_key) =
+            Self::prepare_signing_payload(&unsigned_message, sign_param)?;
 
         //sign
         let mut sign_response = "".to_string();
@@ -201,55 +256,62 @@ impl Transaction {
             ApduCheck::check_response(&sign_response)?;
         }
 
-        // verify
-        let payload_end = sign_response
-            .len()
-            .checked_sub(4)
-            .ok_or_else(|| anyhow!("invalid_param"))?;
-        let sign_source_val = sign_response
-            .get(..132)
-            .ok_or_else(|| anyhow!("invalid_param"))?;
-        let sign_result = sign_response
-            .get(132..payload_end)
-            .ok_or_else(|| anyhow!("invalid_param"))?;
-        let sign_verify_result = utility::secp256k1_sign_verify(
-            &key_manager_obj.se_pub_key,
-            hex::decode(sign_result)?.as_slice(),
-            hex::decode(sign_source_val)?.as_slice(),
-        )?;
+        Self::finish_signing(
+            tx_input,
+            &unsigned_message,
+            &data,
+            &pubkey_raw,
+            &se_pub_key,
+            &sign_response,
+        )
+    }
 
-        if !sign_verify_result {
-            return Err(CoinError::ImkeySignatureVerifyFail.into());
+    pub async fn sign_tx_async<T>(
+        transport: &T,
+        tx_input: FilecoinTxInput,
+        sign_param: &SignParam,
+    ) -> Result<FilecoinTxOutput>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        path::check_path_validity(&sign_param.path)?;
+
+        let unsigned_message = Self::convert_message(&tx_input)?;
+        let address = FilecoinAddress::get_address_async(
+            transport,
+            sign_param.path.as_str(),
+            sign_param.network.as_str(),
+        )
+        .await?;
+        if address != sign_param.sender {
+            return Err(CoinError::ImkeyAddressMismatchWithPath.into());
         }
 
-        let sign_compact = sign_response
-            .get(2..130)
-            .ok_or_else(|| anyhow!("invalid_param"))?;
-        let sign_compact_vec = hex_to_bytes(sign_compact)?;
+        let res_msg_pubkey =
+            FilecoinAddress::get_pub_key_async(transport, sign_param.path.as_str()).await?;
+        let pubkey_raw = hex_to_bytes(
+            res_msg_pubkey
+                .get(..130)
+                .ok_or_else(|| anyhow!("invalid_param"))?,
+        )?;
 
-        let mut signature_obj = SecpSignature::from_compact(sign_compact_vec.as_slice())?;
-        signature_obj.normalize_s();
-        let normalizes_sig_vec = signature_obj.serialize_compact();
+        let (data, apdu_pack, se_pub_key) =
+            Self::prepare_signing_payload(&unsigned_message, sign_param)?;
 
-        let rec_id = utility::retrieve_recid(data, &normalizes_sig_vec, &pubkey_raw)?;
+        let mut sign_response = String::new();
+        for apdu in Secp256k1Apdu::sign(&apdu_pack) {
+            sign_response = transport.send_apdu(&apdu, constants::TIMEOUT_LONG).await?;
+            ApduCheck::check_response(&sign_response)?;
+        }
 
-        let mut data_arr = [0; 65];
-        data_arr[0..64].copy_from_slice(&normalizes_sig_vec[0..64]);
-        data_arr[64] = i32::from(rec_id) as u8;
-
-        cid = secp256k1_signed_message_cid(&unsigned_message, &data_arr)
-            .map_err(|_e| anyhow!("{}", "forest_message cid error"))?;
-
-        let signature_type = 1;
-
-        Ok(FilecoinTxOutput {
-            cid: cid.to_string(),
-            message: Some(tx_input.clone()),
-            signature: Some(Signature {
-                r#type: signature_type,
-                data: base64::Engine::encode(&base64::engine::general_purpose::STANDARD, data_arr),
-            }),
-        })
+        Self::finish_signing(
+            tx_input,
+            &unsigned_message,
+            &data,
+            &pubkey_raw,
+            &se_pub_key,
+            &sign_response,
+        )
     }
 }
 

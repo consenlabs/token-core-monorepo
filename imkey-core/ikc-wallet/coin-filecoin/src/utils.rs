@@ -1,4 +1,7 @@
+#[cfg(not(target_arch = "wasm32"))]
 use blake2b_rs::Blake2bBuilder;
+#[cfg(target_arch = "wasm32")]
+use blake2b_simd::Params;
 
 pub enum HashSize {
     Default = 32,
@@ -9,9 +12,17 @@ pub fn digest(ingest: &[u8], hash_size: HashSize) -> Vec<u8> {
     let mut result = [0u8; 32];
 
     let size = hash_size as usize;
-    let mut hasher = Blake2bBuilder::new(size).build();
-    hasher.update(ingest);
-    hasher.finalize(&mut result);
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut hasher = Blake2bBuilder::new(size).build();
+        hasher.update(ingest);
+        hasher.finalize(&mut result);
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let hash = Params::new().hash_length(size).hash(ingest);
+        result[..size].copy_from_slice(hash.as_bytes());
+    }
     result[0..size].to_vec()
 }
 

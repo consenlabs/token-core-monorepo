@@ -8,6 +8,7 @@ use ikc_common::error::CoinError;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{hex_to_bytes, is_valid_hex, secp256k1_sign};
 use ikc_common::{constants, utility, SignParam};
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use keccak_hash::keccak;
@@ -49,6 +50,15 @@ impl Encodable for AccessListItem {
 }
 
 impl Transaction {
+    async fn send_checked<T>(transport: &T, apdu: String, timeout: i32) -> EthResult<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let response = transport.send_apdu(&apdu, timeout).await?;
+        ApduCheck::check_response(&response)?;
+        Ok(response)
+    }
+
     /// Signs the transaction as coming from `sender`.
     pub fn sign(
         &self,
@@ -163,6 +173,109 @@ impl Transaction {
         let tx_sign_result = EthTxOutput { signature, tx_hash };
 
         Ok(tx_sign_result)
+    }
+
+    pub async fn sign_async<T>(
+        &self,
+        transport: &T,
+        chain_id: Option<u64>,
+        path: &str,
+        payment: &str,
+        receiver: &str,
+        sender: &str,
+        fee: &str,
+    ) -> EthResult<EthTxOutput>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let mut data_pack: Vec<u8> = Vec::new();
+        let mut encode_tx = self.rlp_encode_tx(chain_id);
+        if self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+            encode_tx.insert(0, hex::decode(&self.tx_type).unwrap()[0]);
+        }
+        data_pack.extend(
+            [
+                1,
+                ((encode_tx.len() & 0xFF00) >> 8) as u8,
+                (encode_tx.len() & 0x00FF) as u8,
+            ]
+            .iter(),
+        );
+        data_pack.extend(encode_tx.iter());
+        if payment.len() <= constants::ETH_MAX_SUPPORT_PAYMENT_LEN {
+            data_pack.extend([7, payment.len() as u8].iter());
+            data_pack.extend(payment.as_bytes().iter());
+        } else {
+            data_pack.extend([7, constants::ETH_MAX_SUPPORT_PAYMENT_LEN as u8].iter());
+            data_pack.extend(payment.as_bytes()[..constants::ETH_MAX_SUPPORT_PAYMENT_LEN].iter());
+        }
+        data_pack.extend([8, receiver.len() as u8].iter());
+        data_pack.extend(receiver.as_bytes().iter());
+        data_pack.extend([9, fee.len() as u8].iter());
+        data_pack.extend(fee.as_bytes().iter());
+
+        let bind_signature = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            secp256k1_sign(&key_manager_obj.pri_key, &data_pack).unwrap()
+        };
+
+        let mut apdu_pack: Vec<u8> = Vec::new();
+        apdu_pack.push(0x00);
+        apdu_pack.push(bind_signature.len() as u8);
+        apdu_pack.extend(bind_signature.as_slice());
+        apdu_pack.extend(data_pack.as_slice());
+
+        let select_apdu = EthApdu::select_applet()?;
+        Self::send_checked(transport, select_apdu, 20).await?;
+
+        let msg_prepare = EthApdu::prepare_sign(apdu_pack);
+        for msg in msg_prepare {
+            Self::send_checked(transport, msg, constants::TIMEOUT_LONG).await?;
+        }
+
+        let msg_pubkey = EthApdu::get_xpub(path, false)?;
+        let res_msg_pubkey = Self::send_checked(transport, msg_pubkey, 20).await?;
+
+        let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
+
+        let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone()).unwrap();
+        if address_checksummed != *sender {
+            return Err(CoinError::ImkeyAddressMismatchWithPath.into());
+        }
+
+        let msg_sign = EthApdu::sign_digest(path)?;
+        let res_msg_sign = Self::send_checked(transport, msg_sign, 20).await?;
+
+        let sign_compact = &res_msg_sign[2..130];
+        let sign_compact_vec = hex_to_bytes(sign_compact).unwrap();
+
+        let mut signature_obj = SecpSignature::from_compact(sign_compact_vec.as_slice()).unwrap();
+        signature_obj.normalize_s();
+        let normalizes_sig_vec = signature_obj.serialize_compact();
+
+        let msg_hash = self.hash(chain_id);
+        let rec_id =
+            utility::retrieve_recid(&msg_hash[..], &normalizes_sig_vec, &pubkey_raw).unwrap();
+
+        let mut data_arr = [0; 65];
+        data_arr[0..64].copy_from_slice(&normalizes_sig_vec[0..64]);
+        data_arr[64] = i32::from(rec_id) as u8;
+        let sig = Signature(data_arr);
+
+        let signed = self.with_signature(sig, chain_id);
+
+        let mut tx_hash = hex::encode(signed.1.hash);
+        if !tx_hash.starts_with("0x") {
+            tx_hash.insert_str(0, "0x");
+        }
+
+        let mut signature = hex::encode(signed.0);
+        if self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+            signature.insert_str(0, &self.tx_type);
+        }
+        Ok(EthTxOutput { signature, tx_hash })
     }
 
     pub fn rlp_encode_tx(&self, chain_id: Option<u64>) -> Vec<u8> {
@@ -324,6 +437,91 @@ impl Transaction {
         let sign_apdu = EthApdu::personal_sign(&sign_param.path)?;
         let sign_response = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_response)?;
+
+        let sign_compact = hex::decode(&sign_response[2..130]).unwrap();
+        let mut signature_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
+        signature_obj.normalize_s();
+        let normalizes_sig_vec = signature_obj.serialize_compact();
+
+        let mut keccak256 = tiny_keccak::Keccak::v256();
+        keccak256.update(data.as_slice());
+        let mut data_hash = [0u8; 256 / 8];
+        keccak256.finalize(&mut data_hash);
+        let rec_id = utility::retrieve_recid(&data_hash, &normalizes_sig_vec, &pubkey_raw).unwrap();
+        let rec_id = i32::from(rec_id);
+        let v = rec_id + 27;
+
+        let mut signature = hex::encode(normalizes_sig_vec.as_slice());
+        signature.push_str(&format!("{:02x}", &v));
+
+        Ok(EthMessageOutput { signature })
+    }
+
+    pub async fn sign_message_async<T>(
+        transport: &T,
+        input: EthMessageInput,
+        sign_param: &SignParam,
+    ) -> EthResult<EthMessageOutput>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(&sign_param.path)?;
+
+        let message_to_sign = if is_valid_hex(&input.message) {
+            let value = if input.message.to_lowercase().starts_with("0x") {
+                &input.message[2..]
+            } else {
+                &input.message
+            };
+
+            hex::decode(value).unwrap()
+        } else {
+            input.message.into_bytes()
+        };
+
+        let mut data = Vec::new();
+        if input.is_personal_sign {
+            let header = format!("Ethereum Signed Message:\n{}", &message_to_sign.len());
+            data.extend(header.as_bytes());
+        }
+        data.extend(message_to_sign);
+
+        let mut data_to_sign: Vec<u8> = Vec::new();
+        data_to_sign.push(0x01);
+        data_to_sign.push(((data.len() & 0xFF00) >> 8) as u8);
+        data_to_sign.push((data.len() & 0x00FF) as u8);
+        data_to_sign.extend(data.as_slice());
+
+        let bind_signature = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            secp256k1_sign(&key_manager_obj.pri_key, &data_to_sign)?
+        };
+
+        let mut apdu_pack: Vec<u8> = vec![];
+        apdu_pack.push(0x00);
+        apdu_pack.push(bind_signature.len() as u8);
+        apdu_pack.extend(bind_signature.as_slice());
+        apdu_pack.extend(data_to_sign.as_slice());
+
+        let select_apdu = EthApdu::select_applet()?;
+        Self::send_checked(transport, select_apdu, 20).await?;
+
+        let msg_pubkey = EthApdu::get_xpub(&sign_param.path, false)?;
+        let res_msg_pubkey = Self::send_checked(transport, msg_pubkey, 20).await?;
+        let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
+        let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone()).unwrap();
+
+        if address_checksummed != sign_param.sender {
+            return Err(CoinError::ImkeyAddressMismatchWithPath.into());
+        }
+
+        let prepare_apdus = EthApdu::prepare_personal_sign(apdu_pack);
+        for apdu in prepare_apdus {
+            Self::send_checked(transport, apdu, constants::TIMEOUT_LONG).await?;
+        }
+
+        let sign_apdu = EthApdu::personal_sign(&sign_param.path)?;
+        let sign_response = Self::send_checked(transport, sign_apdu, 20).await?;
 
         let sign_compact = hex::decode(&sign_response[2..130]).unwrap();
         let mut signature_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();

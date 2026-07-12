@@ -128,7 +128,10 @@ pub mod molecule {
 pub mod address {
     use bech32::{Bech32, Hrp};
     use bitcoin::secp256k1::PublicKey;
+    #[cfg(not(target_arch = "wasm32"))]
     use blake2b_rs::{Blake2b, Blake2bBuilder};
+    #[cfg(target_arch = "wasm32")]
+    use blake2b_simd::Params;
     use std::error::Error;
     use std::fmt;
 
@@ -142,6 +145,23 @@ pub mod address {
         68, 244, 198, 151, 68, 213, 248, 197, 93, 100, 32, 98, 148, 157, 202, 228, 155, 196, 231,
         239, 67, 211, 136, 197, 161, 47, 66, 181, 99, 61, 22, 62,
     ];
+
+    #[cfg(target_arch = "wasm32")]
+    struct Blake2b {
+        state: blake2b_simd::State,
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    impl Blake2b {
+        fn update(&mut self, input: &[u8]) {
+            self.state.update(input);
+        }
+
+        fn finalize(&self, output: &mut [u8]) {
+            let hash = self.state.finalize();
+            output.copy_from_slice(&hash.as_bytes()[..output.len()]);
+        }
+    }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
     pub struct AddressError(String);
@@ -223,10 +243,21 @@ pub mod address {
         result[..20].to_vec()
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn new_blake2b() -> Blake2b {
         Blake2bBuilder::new(32)
             .personal(CKB_HASH_PERSONALIZATION)
             .build()
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    fn new_blake2b() -> Blake2b {
+        Blake2b {
+            state: Params::new()
+                .hash_length(32)
+                .personal(CKB_HASH_PERSONALIZATION)
+                .to_state(),
+        }
     }
 
     #[cfg(test)]

@@ -1,4 +1,4 @@
-use crate::common::get_xpub_data;
+use crate::common::{get_xpub_data, get_xpub_data_async};
 use crate::Result;
 use core::result;
 use ikc_common::error::CoinError;
@@ -11,6 +11,7 @@ use ikc_common::apdu::{Apdu, ApduCheck, BtcApdu};
 use ikc_common::constants::BTC_AID;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility;
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
 
@@ -117,6 +118,41 @@ impl BchAddress {
         Ok(uncomprs_pubkey)
     }
 
+    pub async fn get_pub_key_async<T>(
+        transport: &T,
+        _network: Network,
+        path: &str,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let select_apdu = Apdu::select_applet(BTC_AID)?;
+        let select_response = transport.send_apdu(&select_apdu, 20).await?;
+        ApduCheck::check_response(&select_response)?;
+
+        let res_msg_pubkey = get_xpub_data_async(transport, path, true).await?;
+
+        let sign_source_val = &res_msg_pubkey[..194];
+        let sign_result = &res_msg_pubkey[194..res_msg_pubkey.len() - 4];
+        let se_pub_key = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            key_manager_obj.se_pub_key.clone()
+        };
+        let sign_verify_result = utility::secp256k1_sign_verify(
+            &se_pub_key,
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(sign_source_val)?.as_slice(),
+        )?;
+        if !sign_verify_result {
+            return Err(CoinError::ImkeySignatureVerifyFail.into());
+        }
+
+        let uncomprs_pubkey: String = res_msg_pubkey.chars().take(130).collect();
+        Ok(uncomprs_pubkey)
+    }
+
     /**
     get btc address by path
     */
@@ -132,6 +168,19 @@ impl BchAddress {
         legacy_to_bch(&addr)
     }
 
+    pub async fn get_address_async<T>(transport: &T, network: Network, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let pub_key = Self::get_pub_key_async(transport, network, path).await?;
+        let mut pub_key_obj = PublicKey::from_str(&pub_key)?;
+        pub_key_obj.compressed = true;
+        let addr = BtcAddress::p2pkh(pub_key_obj, network).to_string();
+        legacy_to_bch(&addr)
+    }
+
     pub fn display_address(network: Network, path: &str) -> Result<String> {
         //path check
         check_path_validity(path)?;
@@ -141,6 +190,25 @@ impl BchAddress {
             &address_str.clone().into_bytes().to_vec(),
         )?)?;
         ApduCheck::check_response(apdu_res.as_str())?;
+        Ok(address_str)
+    }
+
+    pub async fn display_address_async<T>(
+        transport: &T,
+        network: Network,
+        path: &str,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+        let address_str = Self::get_address_async(transport, network, path).await?;
+        let apdu = BtcApdu::register_name_address(
+            "BCH".as_bytes(),
+            &address_str.clone().into_bytes().to_vec(),
+        )?;
+        let response = transport.send_apdu(&apdu, 20).await?;
+        ApduCheck::check_response(response.as_str())?;
         Ok(address_str)
     }
 

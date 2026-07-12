@@ -1,3 +1,4 @@
+pub mod async_transport;
 pub mod error;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub mod hid_api;

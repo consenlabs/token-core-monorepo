@@ -7,6 +7,7 @@ use ikc_common::error::CoinError;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::secp256k1_sign;
 use ikc_common::{constants, utility, SignParam};
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use sp_core::blake2_256;
@@ -115,6 +116,103 @@ impl Transaction {
             signature: format!("0x{}", hex::encode(&sig_with_type)),
         };
         Ok(tx_out)
+    }
+
+    async fn send_checked<T: AsyncApduTransport>(
+        transport: &T,
+        apdu: String,
+        timeout: i32,
+    ) -> Result<String> {
+        let response = transport.send_apdu(&apdu, timeout).await?;
+        ApduCheck::check_response(&response)?;
+        Ok(response)
+    }
+
+    pub async fn sign_transaction_async<T: AsyncApduTransport>(
+        transport: &T,
+        tx: &SubstrateRawTxIn,
+        sign_param: &SignParam,
+    ) -> Result<SubstrateTxOut> {
+        check_path_validity(&sign_param.path)?;
+
+        let aid = match sign_param.chain_type.as_str() {
+            "POLKADOT" => POLKADOT_AID,
+            "KUSAMA" => KUSAMA_AID,
+            _ => return Err(anyhow!("unsupported_chain_type")),
+        };
+        let select_apdu = Apdu::try_select_applet(aid)?;
+        Self::send_checked(transport, select_apdu, 20).await?;
+
+        let raw_data_bytes = if tx.raw_data.starts_with("0x") {
+            tx.raw_data[2..].to_string()
+        } else {
+            tx.raw_data.clone()
+        };
+        let raw_data_bytes = hex::decode(&raw_data_bytes)?;
+        let hash = Transaction::hash_unsigned_payload(&raw_data_bytes)?;
+
+        let mut data_pack: Vec<u8> = Vec::new();
+        data_pack.extend([1, hash.len() as u8].iter());
+        data_pack.extend(hash.iter());
+        data_pack.extend([2, sign_param.path.len() as u8].iter());
+        data_pack.extend(sign_param.path.as_bytes().iter());
+        data_pack.extend([7, sign_param.payment.len() as u8].iter());
+        data_pack.extend(sign_param.payment.as_bytes().iter());
+        data_pack.extend([8, sign_param.receiver.len() as u8].iter());
+        data_pack.extend(sign_param.receiver.as_bytes().iter());
+        data_pack.extend([9, sign_param.fee.len() as u8].iter());
+        data_pack.extend(sign_param.fee.as_bytes().iter());
+
+        let (bind_signature, se_pub_key) = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            (
+                secp256k1_sign(&key_manager_obj.pri_key, &data_pack)?,
+                key_manager_obj.se_pub_key.clone(),
+            )
+        };
+
+        let mut apdu_pack: Vec<u8> = Vec::new();
+        apdu_pack.push(0x00);
+        apdu_pack.push(bind_signature.len() as u8);
+        apdu_pack.extend(bind_signature.as_slice());
+        apdu_pack.extend(data_pack.as_slice());
+
+        let mut sign_response = String::new();
+        let sign_apdus = Ed25519Apdu::sign(&apdu_pack);
+        for apdu in sign_apdus {
+            sign_response = Self::send_checked(transport, apdu, constants::TIMEOUT_LONG).await?;
+        }
+
+        let payload_end = sign_response
+            .len()
+            .checked_sub(4)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let sign_source_val = sign_response
+            .get(..130)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let sign_result = sign_response
+            .get(130..payload_end)
+            .ok_or_else(|| anyhow!("invalid_param"))?;
+        let sign_verify_result = utility::secp256k1_sign_verify(
+            &se_pub_key,
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(sign_source_val)?.as_slice(),
+        )?;
+
+        if !sign_verify_result {
+            return Err(CoinError::ImkeySignatureVerifyFail.into());
+        }
+
+        let sig = hex::decode(
+            sign_response
+                .get(2..130)
+                .ok_or_else(|| anyhow!("invalid_param"))?,
+        )?;
+        let sig_with_type = [vec![SIGNATURE_TYPE_ED25519], sig.to_vec()].concat();
+
+        Ok(SubstrateTxOut {
+            signature: format!("0x{}", hex::encode(&sig_with_type)),
+        })
     }
 }
 

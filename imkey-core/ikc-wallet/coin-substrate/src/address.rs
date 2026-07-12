@@ -4,6 +4,7 @@ use ikc_common::constants::{KUSAMA_AID, POLKADOT_AID};
 use ikc_common::error::CoinError;
 use ikc_common::path::check_path_max_five_depth;
 use ikc_common::utility::{secp256k1_sign, secp256k1_sign_verify};
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
 use sp_core::crypto::{Ss58AddressFormat, Ss58Codec};
@@ -24,6 +25,102 @@ impl SubstrateAddress {
             }
         };
 
+        Ok(address)
+    }
+
+    async fn send_checked<T>(transport: &T, apdu: String) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let response = transport.send_apdu(&apdu, 20).await?;
+        ApduCheck::check_response(&response)?;
+        Ok(response)
+    }
+
+    pub async fn get_public_key_async<T>(
+        transport: &T,
+        path: &str,
+        address_type: &AddressType,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_max_five_depth(path)?;
+
+        let aid = match address_type {
+            AddressType::Polkadot => POLKADOT_AID,
+            AddressType::Kusama => KUSAMA_AID,
+        };
+        let select_apdu = Apdu::try_select_applet(aid)?;
+        Self::send_checked(transport, select_apdu).await?;
+
+        let (bind_signature, se_pub_key) = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            (
+                secp256k1_sign(&key_manager_obj.pri_key, path.as_bytes())?,
+                key_manager_obj.se_pub_key.clone(),
+            )
+        };
+
+        let mut apdu_pack: Vec<u8> = vec![];
+        apdu_pack.push(0x00);
+        apdu_pack.push(bind_signature.len() as u8);
+        apdu_pack.extend(bind_signature.as_slice());
+        apdu_pack.push(0x01);
+        apdu_pack.push(path.len() as u8);
+        apdu_pack.extend(path.as_bytes());
+
+        let msg_pubkey = Ed25519Apdu::try_get_xpub(&apdu_pack)?;
+        let res_msg_pubkey = Self::send_checked(transport, msg_pubkey).await?;
+
+        let pubkey = res_msg_pubkey.get(..64).ok_or(CoinError::InvalidParam)?;
+        let sign_result_end = res_msg_pubkey
+            .len()
+            .checked_sub(4)
+            .ok_or(CoinError::InvalidParam)?;
+        let sign_result = res_msg_pubkey
+            .get(64..sign_result_end)
+            .ok_or(CoinError::InvalidParam)?;
+
+        let sign_verify_result = secp256k1_sign_verify(
+            &se_pub_key,
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(pubkey)?.as_slice(),
+        )?;
+        if !sign_verify_result {
+            return Err(CoinError::ImkeySignatureVerifyFail.into());
+        }
+
+        Ok(pubkey.to_lowercase())
+    }
+
+    pub async fn get_address_async<T>(
+        transport: &T,
+        path: &str,
+        address_type: &AddressType,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let public_key = Self::get_public_key_async(transport, path, address_type).await?;
+        Self::from_public_key(&hex::decode(&public_key)?, address_type)
+    }
+
+    pub async fn display_address_async<T>(
+        transport: &T,
+        path: &str,
+        address_type: &AddressType,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let address = Self::get_address_async(transport, path, address_type).await?;
+        let menu_name = match address_type {
+            AddressType::Polkadot => "DOT",
+            AddressType::Kusama => "KSM",
+        };
+        let reg_apdu = Ed25519Apdu::register_address(menu_name.as_bytes(), address.as_bytes())?;
+        Self::send_checked(transport, reg_apdu).await?;
         Ok(address)
     }
 

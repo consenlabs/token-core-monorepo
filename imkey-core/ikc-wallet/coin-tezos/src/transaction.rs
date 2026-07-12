@@ -8,12 +8,22 @@ use ikc_common::error::CoinError;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{secp256k1_sign, secp256k1_sign_verify, sha256_hash};
 use ikc_common::SignParam;
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 
 pub struct Transaction();
 
 impl Transaction {
+    async fn send_checked<T>(transport: &T, apdu: String, timeout: i32) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let response = transport.send_apdu(&apdu, timeout).await?;
+        ApduCheck::check_response(&response)?;
+        Ok(response)
+    }
+
     pub fn sign_tx(tezos_tx_input: TezosTxInput, sign_param: &SignParam) -> Result<TezosTxOutput> {
         //check path
         check_path_validity(&sign_param.path).expect("check path error");
@@ -99,6 +109,91 @@ impl Transaction {
         };
 
         Ok(tx_out)
+    }
+
+    pub async fn sign_tx_async<T>(
+        transport: &T,
+        tezos_tx_input: TezosTxInput,
+        sign_param: &SignParam,
+    ) -> Result<TezosTxOutput>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(&sign_param.path).expect("check path error");
+        Self::address_check(sign_param.receiver.as_str());
+
+        let raw_data_bytes = if tezos_tx_input.raw_data.starts_with("0x") {
+            tezos_tx_input.raw_data[2..].to_string()
+        } else {
+            tezos_tx_input.raw_data.clone()
+        };
+
+        let mut params = Params::new();
+        params.hash_length(32);
+        let mut hash_message: Vec<u8> = vec![0x03];
+        hash_message.extend(hex::decode(&raw_data_bytes)?.as_slice());
+        let hash_result = params.hash(hash_message.as_slice());
+
+        let mut message_pack: Vec<u8> = vec![];
+        message_pack.push(0x01_u8);
+        message_pack.push(hash_result.as_bytes().len() as u8);
+        message_pack.extend(hash_result.as_bytes());
+        message_pack.push(0x02_u8);
+        message_pack.push(sign_param.path.len() as u8);
+        message_pack.extend(sign_param.path.as_bytes());
+        message_pack.push(0x07_u8);
+        message_pack.push(sign_param.payment.len() as u8);
+        message_pack.extend(sign_param.payment.as_bytes());
+        message_pack.push(0x08_u8);
+        message_pack.push(sign_param.receiver.len() as u8);
+        message_pack.extend(sign_param.receiver.as_bytes());
+        message_pack.push(0x09_u8);
+        message_pack.push(sign_param.fee.len() as u8);
+        message_pack.extend(sign_param.fee.as_bytes());
+
+        let (bind_signature, se_pub_key) = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            (
+                secp256k1_sign(&key_manager_obj.pri_key, &message_pack)?,
+                key_manager_obj.se_pub_key.clone(),
+            )
+        };
+        let mut data_pack: Vec<u8> = vec![];
+        data_pack.push(0x00_u8);
+        data_pack.push(bind_signature.len() as u8);
+        data_pack.extend(bind_signature.iter());
+        data_pack.extend(message_pack.iter());
+
+        let sign_apdus = Ed25519Apdu::sign(data_pack.as_slice());
+        let select_apdu = Apdu::try_select_applet(TEZOS_AID)?;
+        Self::send_checked(transport, select_apdu, 20).await?;
+
+        let mut sign_response = "".to_string();
+        for apdu in sign_apdus {
+            sign_response = Self::send_checked(transport, apdu, TIMEOUT_LONG).await?;
+        }
+
+        let sign_data_len: usize = usize::from_str_radix(&sign_response[..2], 16).unwrap() * 2 + 2;
+        let sign_source_val = &sign_response[..sign_data_len];
+        let sign_result = &sign_response[sign_data_len..sign_response.len() - 4];
+        let sign_verify_result = secp256k1_sign_verify(
+            &se_pub_key,
+            hex::decode(sign_result).unwrap().as_slice(),
+            hex::decode(sign_source_val).unwrap().as_slice(),
+        )?;
+        if !sign_verify_result {
+            return Err(CoinError::ImkeySignatureVerifyFail.into());
+        }
+
+        let edsig_prefix: [u8; 5] = [9, 245, 205, 134, 18];
+        let mut edsig_source_data = vec![];
+        edsig_source_data.extend(&edsig_prefix);
+        edsig_source_data.extend(hex::decode(&sign_source_val[2..])?.iter());
+        Ok(TezosTxOutput {
+            signature: sign_source_val[2..].to_string(),
+            edsig: base58::encode_check(edsig_source_data.as_slice()),
+            sbytes: format!("{}{}", tezos_tx_input.raw_data, sign_source_val),
+        })
     }
 
     fn address_check(address: &str) -> bool {

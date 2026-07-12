@@ -22,6 +22,9 @@ export default function ImKeyPage() {
   const [logs, setLogs] = useState<LogItem[]>([]);
   const [apduCommand, setApduCommand] = useState("");
   const [apduLogs, setApduLogs] = useState<ApduLog[]>([]);
+  const [bindingCode, setBindingCode] = useState("");
+  const [signParams, setSignParams] = useState("{\n  \"chainType\": \"ETHEREUM\",\n  \"path\": \"m/44'/60'/0'/0/0\",\n  \"network\": \"MAINNET\",\n  \"input\": {}\n}");
+  const [appName, setAppName] = useState("");
   const [nextApduLogId, setNextApduLogId] = useState(1);
   const [running, setRunning] = useState(false);
   const [sendingApdu, setSendingApdu] = useState(false);
@@ -155,6 +158,42 @@ export default function ImKeyPage() {
     }
   }, [core]);
 
+  const runBindCheck = useCallback(async () => {
+    if (!core) return;
+    setRunning(true);
+    try {
+      push({ name: "Bind Check", status: "running" });
+      push({ name: "Bind Check", status: "pass", detail: await core.bindCheck() });
+    } catch (error) {
+      push({
+        name: "Bind Check",
+        status: "fail",
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setRunning(false);
+    }
+  }, [core]);
+
+  const runBindAcquire = useCallback(async () => {
+    if (!core) return;
+    const code = bindingCode.trim().toUpperCase();
+    if (!code) return;
+    setRunning(true);
+    try {
+      push({ name: "Bind Acquire", status: "running" });
+      push({ name: "Bind Acquire", status: "pass", detail: await core.bindAcquire(code) });
+    } catch (error) {
+      push({
+        name: "Bind Acquire",
+        status: "fail",
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setRunning(false);
+    }
+  }, [bindingCode, core]);
+
   const activateDevice = useCallback(async () => {
     if (!core) return;
     setRunning(true);
@@ -196,6 +235,51 @@ export default function ImKeyPage() {
       setRunning(false);
     }
   }, [core]);
+
+  const signTransaction = useCallback(async () => {
+    if (!core) return;
+    setRunning(true);
+    try {
+      const params = JSON.parse(signParams) as unknown;
+      push({ name: "Sign Transaction", status: "running" });
+      push({
+        name: "Sign Transaction",
+        status: "pass",
+        detail: JSON.stringify(await core.signTx(params), null, 2),
+      });
+    } catch (error) {
+      push({
+        name: "Sign Transaction",
+        status: "fail",
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setRunning(false);
+    }
+  }, [core, push, signParams]);
+
+  const manageApp = useCallback(async (action: "download" | "update" | "delete") => {
+    if (!core || !appName.trim()) return;
+    setRunning(true);
+    const label = `App ${action[0].toUpperCase()}${action.slice(1)}`;
+    try {
+      push({ name: label, status: "running" });
+      const result = action === "download"
+        ? await core.appDownload(appName.trim())
+        : action === "update"
+          ? await core.appUpdate(appName.trim())
+          : await core.appDelete(appName.trim());
+      push({ name: label, status: "pass", detail: JSON.stringify(result, null, 2) });
+    } catch (error) {
+      push({
+        name: label,
+        status: "fail",
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setRunning(false);
+    }
+  }, [appName, core, push]);
 
   const sendApduCommand = useCallback(async () => {
     if (!core || sendingApdu) return;
@@ -249,7 +333,7 @@ export default function ImKeyPage() {
         <div className="flex flex-wrap gap-3">
           <button
             className="rounded bg-emerald-500 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
-            disabled={running}
+            disabled={running || !webUsbSupported}
             onClick={connect}
           >
             Connect imKey
@@ -276,6 +360,13 @@ export default function ImKeyPage() {
             Display Bind Code
           </button>
           <button
+            className="rounded bg-lime-500 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+            disabled={running || !core}
+            onClick={runBindCheck}
+          >
+            Bind Check
+          </button>
+          <button
             className="rounded bg-rose-500 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
             disabled={running || !core}
             onClick={activateDevice}
@@ -290,6 +381,81 @@ export default function ImKeyPage() {
             Check Update
           </button>
         </div>
+
+        <section className="rounded border border-zinc-800 bg-zinc-900 p-4">
+          <h2 className="text-sm font-medium">Bind Acquire</h2>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <input
+              className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-950 px-3 py-2 font-mono text-sm uppercase text-zinc-100 outline-none placeholder:text-zinc-600 focus:border-sky-500"
+              maxLength={8}
+              placeholder="Enter 8-character bind code"
+              value={bindingCode}
+              onChange={(event) => setBindingCode(event.target.value.toUpperCase())}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  void runBindAcquire();
+                }
+              }}
+            />
+            <button
+              className="rounded bg-zinc-100 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+              disabled={!core || running || bindingCode.trim().length !== 8}
+              onClick={runBindAcquire}
+            >
+              Bind
+            </button>
+          </div>
+        </section>
+
+        <section className="rounded border border-zinc-800 bg-zinc-900 p-4">
+          <h2 className="text-sm font-medium">Sign Transaction</h2>
+          <textarea
+            className="mt-4 min-h-56 w-full resize-y rounded border border-zinc-700 bg-zinc-950 p-3 font-mono text-xs text-zinc-100 outline-none focus:border-sky-500"
+            spellCheck={false}
+            value={signParams}
+            onChange={(event) => setSignParams(event.target.value)}
+          />
+          <button
+            className="mt-3 rounded bg-sky-500 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+            disabled={!core || running || !signParams.trim()}
+            onClick={signTransaction}
+          >
+            Sign
+          </button>
+        </section>
+
+        <section className="rounded border border-zinc-800 bg-zinc-900 p-4">
+          <h2 className="text-sm font-medium">App Management</h2>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <input
+              className="min-w-0 flex-1 rounded border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-zinc-100 outline-none focus:border-sky-500"
+              placeholder="App name"
+              value={appName}
+              onChange={(event) => setAppName(event.target.value)}
+            />
+            <button
+              className="rounded bg-emerald-500 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+              disabled={!core || running || !appName.trim()}
+              onClick={() => void manageApp("download")}
+            >
+              Download
+            </button>
+            <button
+              className="rounded bg-amber-500 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+              disabled={!core || running || !appName.trim()}
+              onClick={() => void manageApp("update")}
+            >
+              Update
+            </button>
+            <button
+              className="rounded bg-rose-500 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+              disabled={!core || running || !appName.trim()}
+              onClick={() => void manageApp("delete")}
+            >
+              Delete
+            </button>
+          </div>
+        </section>
 
         {!webUsbSupported && (
           <div className="rounded border border-amber-400/40 bg-amber-400/10 p-4 text-sm text-amber-100">
