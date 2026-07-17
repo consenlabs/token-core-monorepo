@@ -398,7 +398,7 @@ pub fn init_token_core_x(data: &[u8]) -> Result<()> {
         xpub_common_key,
         xpub_common_iv,
         is_debug,
-    } = InitTokenCoreXParam::decode(data).unwrap();
+    } = InitTokenCoreXParam::decode(data)?;
     *KEYSTORE_BASE_DIR.write() = file_dir.to_string();
 
     let v2_dir = format!("{}/{}", file_dir, WALLET_V2_DIR);

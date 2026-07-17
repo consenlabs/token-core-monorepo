@@ -46,7 +46,6 @@ public class Api {
         @Override
         public String sendApdu(String apdu, int timeout) {
             LogUtil.d("set call back sucess");
-            RustApi.INSTANCE.free_const_string(apdu);
             String result = "";
             try {
                 result = Ble.getInstance().sendApdu(apdu,timeout);
