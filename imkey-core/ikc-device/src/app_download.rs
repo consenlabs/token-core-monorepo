@@ -93,6 +93,7 @@ mod test {
 
     #[test]
     pub fn app_download_test() {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect("imKey Pro").is_ok());
         let seid = get_se_id().unwrap();
         let device_cert = get_cert().unwrap();
@@ -105,6 +106,7 @@ mod test {
 
     #[test]
     pub fn app_download_error_test() {
+        crate::configure_test_tsm_from_env();
         let seid = "00000000000000000000000000000000".to_string();
         let device_cert = "00000000000000000000000000".to_string();
         let instance_aid = "695F627463".to_string();

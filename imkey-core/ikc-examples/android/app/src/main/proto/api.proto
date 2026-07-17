@@ -93,3 +93,7 @@ message InitImKeyCoreXParam {
     string xpubCommonIv = 3;
     bool isDebug = 4;
 }
+
+message ConfigureTsmParam {
+    string baseUrl = 1;
+}

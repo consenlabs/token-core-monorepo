@@ -1,6 +1,10 @@
 pub const VERSION: &str = "2.16.4";
-pub const URL: &str = "https://imkey.online:1000/imkey";
-// pub const URL: &str = "https://imkeyserver.com:10444/imkey";
+/// Compatibility fallback for clients that have not migrated to `configure_tsm` yet.
+pub const DEFAULT_TSM_URL: &str = "https://imkey.online:1000/imkey";
+/// Source-compatible alias for existing Rust consumers. New code must resolve
+/// the endpoint through `ikc_common::tsm`.
+#[doc(hidden)]
+pub const URL: &str = DEFAULT_TSM_URL;
 
 pub const TSM_ACTION_SE_SECURE_CHECK: &str = "/seSecureCheck";
 pub const TSM_ACTION_APP_DOWNLOAD: &str = "/appDownload";

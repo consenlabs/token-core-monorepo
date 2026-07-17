@@ -28,6 +28,15 @@ use serde::{Deserialize, Serialize};
 
 pub mod cos_check_update;
 
+// Called only by hardware-test entry points, including `bind_test` consumers in
+// the coin crates. Production clients configure TSM through `configure_tsm`.
+pub(crate) fn configure_test_tsm_from_env() {
+    if let Ok(base_url) = std::env::var("IMKEY_TSM_TEST_URL") {
+        ikc_common::tsm::configure_tsm_url(&base_url)
+            .expect("IMKEY_TSM_TEST_URL must contain a valid TSM base URL");
+    }
+}
+
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ServiceResponse<T> {

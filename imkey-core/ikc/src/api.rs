@@ -135,6 +135,11 @@ pub struct InitImKeyCoreXParam {
     pub system: ::prost::alloc::string::String,
 }
 #[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct ConfigureTsmParam {
+    #[prost(string, tag = "1")]
+    pub base_url: ::prost::alloc::string::String,
+}
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct BtcForkWallet {
     #[prost(string, tag = "1")]
     pub path: ::prost::alloc::string::String,

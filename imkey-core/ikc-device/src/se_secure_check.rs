@@ -83,6 +83,7 @@ mod test {
 
     #[test]
     pub fn se_secure_check_test() {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect("imKey Pro").is_ok());
         let seid = get_se_id().unwrap();
         let sn: String = get_sn().unwrap();
@@ -96,6 +97,7 @@ mod test {
 
     #[test]
     pub fn se_secure_check_error_test() {
+        crate::configure_test_tsm_from_env();
         let seid = "00000000000000000000000000000000".to_string();
         let sn = "000001".to_string();
         let device_cert = "00000000000000000000000000000000".to_string();

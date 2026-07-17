@@ -183,6 +183,7 @@ mod tests {
     #[test]
     #[cfg(not(tarpaulin))]
     fn cos_upgrade_test() {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect("imKey Pro").is_ok());
         assert!(CosUpgradeRequest::cos_upgrade(None).is_ok());
     }
