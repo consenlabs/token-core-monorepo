@@ -30,13 +30,14 @@ use sp_core::ByteArray;
 use anyhow::anyhow;
 use tcx_common::FromHex;
 
-pub fn _to_c_char(str: &str) -> *const c_char {
-    CString::new(str).unwrap().into_raw()
-}
-
-pub fn _to_str(json_str: *const c_char) -> &'static str {
+pub unsafe fn take_c_string(json_str: *const c_char) -> String {
+    if json_str.is_null() {
+        return String::new();
+    }
     let json_c_str = unsafe { CStr::from_ptr(json_str) };
-    json_c_str.to_str().unwrap()
+    let value = json_c_str.to_string_lossy().into_owned();
+    unsafe { free_const_string(json_str) };
+    value
 }
 
 pub fn setup() {
@@ -150,8 +151,9 @@ pub fn call_api(method: &str, msg: impl Message) -> Result<Vec<u8>> {
     unsafe { clear_err() };
     let param_bytes = encode_message(param).unwrap();
     let param_hex = param_bytes.to_hex();
-    let ret_hex = unsafe { _to_str(call_tcx_api(_to_c_char(&param_hex))) };
-    let err = unsafe { _to_str(get_last_err_message()) };
+    let request = CString::new(param_hex).unwrap();
+    let ret_hex = unsafe { take_c_string(call_tcx_api(request.as_ptr())) };
+    let err = unsafe { take_c_string(get_last_err_message()) };
     if !err.is_empty() {
         let err_bytes = Vec::from_hex(err).unwrap();
         let err_ret: GeneralResult = GeneralResult::decode(err_bytes.as_slice()).unwrap();

@@ -27,7 +27,6 @@ public class Api {
     public static Sender sender = new Sender() {
         @Override
         public String sendApdu(String apdu, int timeout) {
-            RustApi.INSTANCE.free_const_string(apdu);
             String result = "";
             try {
                 result = Ble.getInstance().sendApdu(apdu,timeout);

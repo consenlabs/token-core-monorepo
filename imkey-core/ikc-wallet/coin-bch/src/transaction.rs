@@ -64,6 +64,10 @@ impl BchTransaction {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
 
+        // Validate all caller-controlled transaction values before touching the device.
+        let change_amount = self.get_change_amount()?;
+        let send_to_output = self.build_send_to_output()?;
+
         //get xpub and sign data
         let xpub_data = get_xpub_data(path_str.as_str(), true)?;
         let xpub_data = &xpub_data[..xpub_data.len() - 4].to_string();
@@ -91,21 +95,16 @@ impl BchTransaction {
             network,
         )?;
 
-        //calc utxo total amount
-        if self.get_total_amount() < self.amount {
-            return Err(CoinError::ImkeyInsufficientFunds.into());
-        }
-
         //add send to output
         let mut txouts: Vec<TxOut> = Vec::new();
-        txouts.push(self.build_send_to_output());
+        txouts.push(send_to_output);
 
         //add change output
-        if self.get_change_amount() > BTC_FORK_DUST {
+        if change_amount > BTC_FORK_DUST {
             //add change output
             let change_addr = self.get_change_address(network, path, change_idx, change_address)?;
             txouts.push(TxOut {
-                value: Amount::from_sat(self.get_change_amount()),
+                value: Amount::from_sat(change_amount),
                 script_pubkey: change_addr.script_pubkey(),
             });
         }
@@ -189,7 +188,8 @@ impl BchTransaction {
             data.extend(txhash_data.iter());
 
             //lock script
-            let pub_key_bytes = hex::decode(utxo_pub_key_vec.get(index).unwrap())?;
+            let utxo_pub_key = utxo_pub_key_vec.get(index).ok_or(CoinError::InvalidUtxo)?;
+            let pub_key_bytes = hex::decode(utxo_pub_key)?;
             let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).to_byte_array();
             let script_hex: String = format!("76a914{}88ac", hex::encode(pub_key_hash));
             // let script = Script::from(hex::decode(script_hex)?);
@@ -205,7 +205,7 @@ impl BchTransaction {
             data.extend(utxo_amount.iter());
 
             //set sequence
-            data.extend(hex::decode("FFFFFFFF").unwrap());
+            data.extend(serialize(&Sequence::MAX));
             //set length
             data.insert(0, data.len() as u8);
             //address
@@ -242,28 +242,28 @@ impl BchTransaction {
         for (index, sign_apdu) in sign_apdu_vec.iter().enumerate() {
             //sign data
             let btc_sign_apdu_return = send_apdu(sign_apdu.clone())?;
-            ApduCheck::check_response(&btc_sign_apdu_return)?;
-            let btc_sign_apdu_return =
-                &btc_sign_apdu_return[..btc_sign_apdu_return.len() - 4].to_string();
-            let sign_result_str =
-                btc_sign_apdu_return[2..btc_sign_apdu_return.len() - 2].to_string();
+            let sign_result_str = Self::sign_response_payload(&btc_sign_apdu_return)?;
+            let utxo_pub_key = utxo_pub_key_vec.get(index).ok_or(CoinError::InvalidUtxo)?;
 
-            lock_script_ver.push(self.build_lock_script(
-                sign_result_str.as_str(),
-                utxo_pub_key_vec.get(index).unwrap(),
-            )?);
+            lock_script_ver.push(self.build_lock_script(sign_result_str, utxo_pub_key)?);
         }
 
         let input_with_sigs = tx_to_sign
             .input
             .iter()
             .enumerate()
-            .map(|(i, txin)| TxIn {
-                script_sig: lock_script_ver.get(i).unwrap().clone(),
-                witness: Witness::default(),
-                ..*txin
+            .map(|(i, txin)| {
+                let script_sig = lock_script_ver
+                    .get(i)
+                    .cloned()
+                    .ok_or(CoinError::MissingSignature)?;
+                Ok(TxIn {
+                    script_sig,
+                    witness: Witness::default(),
+                    ..*txin
+                })
             })
-            .collect();
+            .collect::<Result<Vec<_>>>()?;
         let signed_tx = Transaction {
             version: bitcoin::transaction::Version(1i32),
             lock_time: LockTime::ZERO,
@@ -280,27 +280,56 @@ impl BchTransaction {
         })
     }
 
-    pub fn get_total_amount(&self) -> u64 {
-        let mut total_amount = 0;
-        for unspent in &self.unspents {
-            total_amount += unspent.amount;
-        }
+    pub fn get_total_amount(&self) -> Result<u64> {
+        self.unspents.iter().try_fold(0u64, |total, unspent| {
+            total
+                .checked_add(unspent.amount)
+                .ok_or_else(|| CoinError::InvalidNumber.into())
+        })
+    }
+
+    pub fn get_change_amount(&self) -> Result<u64> {
+        let total_amount = self.get_total_amount()?;
+        let required = self
+            .amount
+            .checked_add(self.fee)
+            .ok_or(CoinError::InvalidNumber)?;
         total_amount
+            .checked_sub(required)
+            .ok_or_else(|| CoinError::ImkeyInsufficientFunds.into())
     }
 
-    pub fn get_change_amount(&self) -> u64 {
-        let total_amount = self.get_total_amount();
-
-        total_amount - self.amount - self.fee
-    }
-
-    pub fn build_send_to_output(&self) -> TxOut {
-        let legacy_addr_str = BchAddress::convert_to_legacy_if_need(&self.to).unwrap();
-        let legacy_addr = Address::from_str(&legacy_addr_str).unwrap();
-        TxOut {
+    pub fn build_send_to_output(&self) -> Result<TxOut> {
+        if !BchAddress::is_valid(&self.to) {
+            return Err(CoinError::InvalidAddress.into());
+        }
+        let legacy_addr_str = BchAddress::convert_to_legacy_if_need(&self.to)?;
+        let legacy_addr =
+            Address::from_str(&legacy_addr_str).map_err(|_| CoinError::InvalidAddress)?;
+        Ok(TxOut {
             value: Amount::from_sat(self.amount),
             script_pubkey: legacy_addr.assume_checked().script_pubkey(),
+        })
+    }
+
+    fn sign_response_payload(response: &str) -> Result<&str> {
+        ApduCheck::check_response(response)?;
+        let payload = response
+            .strip_suffix("9000")
+            .ok_or(CoinError::MissingSignature)?;
+        let signature_end = payload
+            .len()
+            .checked_sub(2)
+            .ok_or(CoinError::MissingSignature)?;
+        let signature = payload
+            .get(2..signature_end)
+            .ok_or(CoinError::MissingSignature)?;
+
+        if signature.len() != 128 || !signature.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(CoinError::MissingSignature.into());
         }
+
+        Ok(signature)
     }
 
     pub fn build_op_return_output(&self, extra_data: &[u8]) -> TxOut {
@@ -358,6 +387,103 @@ mod tests {
     use super::*;
     use bitcoin::Network;
     use ikc_device::device_binding::bind_test;
+
+    fn transaction_with_amounts(unspent_amounts: &[u64], amount: u64, fee: u64) -> BchTransaction {
+        let unspents = unspent_amounts
+            .iter()
+            .enumerate()
+            .map(|(index, amount)| Utxo {
+                txhash: format!("{index:064x}"),
+                vout: 0,
+                amount: *amount,
+                address: String::new(),
+                script_pubkey: String::new(),
+                derive_path: String::new(),
+                sequence: 0,
+            })
+            .collect();
+
+        BchTransaction {
+            to: "14v8bLFeGxuQG7NsKVfbk6P3PsazeduWcK".to_string(),
+            amount,
+            unspents,
+            fee,
+        }
+    }
+
+    #[test]
+    fn checked_amounts_reject_insufficient_funds_and_overflow() {
+        let insufficient = transaction_with_amounts(&[100], 95, 6);
+        assert_eq!(
+            insufficient.get_change_amount().unwrap_err().to_string(),
+            CoinError::ImkeyInsufficientFunds.to_string()
+        );
+
+        let total_overflow = transaction_with_amounts(&[u64::MAX, 1], 0, 0);
+        assert_eq!(
+            total_overflow.get_total_amount().unwrap_err().to_string(),
+            CoinError::InvalidNumber.to_string()
+        );
+
+        let required_overflow = transaction_with_amounts(&[u64::MAX], u64::MAX, 1);
+        assert_eq!(
+            required_overflow
+                .get_change_amount()
+                .unwrap_err()
+                .to_string(),
+            CoinError::InvalidNumber.to_string()
+        );
+    }
+
+    #[test]
+    fn checked_amounts_preserve_zero_and_dust_change() {
+        assert_eq!(
+            transaction_with_amounts(&[100], 94, 6)
+                .get_change_amount()
+                .unwrap(),
+            0
+        );
+        assert_eq!(
+            transaction_with_amounts(&[100 + BTC_FORK_DUST], 94, 6)
+                .get_change_amount()
+                .unwrap(),
+            BTC_FORK_DUST
+        );
+    }
+
+    #[test]
+    fn build_send_to_output_rejects_invalid_address() {
+        let mut transaction = transaction_with_amounts(&[100], 90, 10);
+        transaction.to = "not-a-bch-address".to_string();
+
+        assert_eq!(
+            transaction.build_send_to_output().unwrap_err().to_string(),
+            CoinError::InvalidAddress.to_string()
+        );
+    }
+
+    #[test]
+    fn sign_response_payload_requires_a_compact_signature() {
+        let valid = format!("00{}009000", "11".repeat(64));
+        assert_eq!(
+            BchTransaction::sign_response_payload(&valid).unwrap(),
+            "11".repeat(64)
+        );
+
+        for invalid in [
+            "9000".to_string(),
+            "00009000".to_string(),
+            format!("00{}009000", "gg".repeat(64)),
+            format!("00{}009000", "11".repeat(63)),
+        ] {
+            assert_eq!(
+                BchTransaction::sign_response_payload(&invalid)
+                    .unwrap_err()
+                    .to_string(),
+                CoinError::MissingSignature.to_string()
+            );
+        }
+    }
 
     #[test]
     fn get_change_address_accepts_legacy_bch_address() {

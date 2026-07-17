@@ -1129,11 +1129,11 @@ fn test_panic_keystore_locked() {
             )),
         };
         let _ret = call_api("unlock_then_crash", param);
-        let err = unsafe { _to_str(get_last_err_message()) };
-        let err_bytes = Vec::from_hex(err).unwrap();
+        let err = unsafe { take_c_string(get_last_err_message()) };
+        let err_bytes = Vec::from_hex(&err).unwrap();
         let rsp: GeneralResult = GeneralResult::decode(err_bytes.as_slice()).unwrap();
         assert!(!rsp.is_success);
-        assert_eq!(rsp.error, "test_unlock_then_crash");
+        assert_eq!(rsp.error, "internal_error");
         let map = KEYSTORE_MAP.read();
         let keystore: &Keystore = map.get(&wallet.id).unwrap();
         assert!(keystore.is_locked())

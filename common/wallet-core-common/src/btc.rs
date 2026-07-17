@@ -132,6 +132,32 @@ mod tests {
     }
 
     #[test]
+    fn p2pkh_preserves_uncompressed_public_key_serialization() {
+        let compressed =
+            hex::decode("02506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aaba")
+                .unwrap();
+        let uncompressed = secp256k1::PublicKey::from_slice(&compressed)
+            .unwrap()
+            .serialize_uncompressed();
+
+        assert_eq!(
+            p2pkh_hash(&uncompressed).unwrap(),
+            PubkeyHash::hash(&uncompressed)
+        );
+        assert_ne!(
+            p2pkh_hash(&uncompressed).unwrap(),
+            p2pkh_hash(&compressed).unwrap()
+        );
+
+        // SegWit only permits compressed public keys, so its helpers keep
+        // normalizing a valid uncompressed SEC key to compressed form.
+        assert_eq!(
+            p2wpkh_program(&uncompressed).unwrap(),
+            p2wpkh_program(&compressed).unwrap()
+        );
+    }
+
+    #[test]
     fn builds_script_pubkeys_from_payloads() {
         let pubkey_hash = PubkeyHash::from_byte_array(
             hex::decode("ca4d8acded69ce4f05d0925946d261f86c675fd8")

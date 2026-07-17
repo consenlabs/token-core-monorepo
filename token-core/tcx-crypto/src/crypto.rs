@@ -7,24 +7,49 @@ use tcx_common::{random_u8_16, random_u8_32, FromHex, ToHex};
 use tiny_keccak::Hasher;
 
 const CREDENTIAL_LEN: usize = 64usize;
+const KDF_SALT_MIN_LEN: usize = 16;
+const KDF_SALT_MAX_LEN: usize = 64;
+const PBKDF2_MAX_ROUNDS: u32 = 10_000_000;
 const ARGON2ID_MEMORY_COST_KIB: u32 = 19 * 1024;
 const ARGON2ID_TIME_COST: u32 = 2;
 const ARGON2ID_PARALLELISM: u32 = 1;
 const ARGON2ID_MAX_MEMORY_COST_KIB: u32 = 256 * 1024;
 const ARGON2ID_MAX_TIME_COST: u32 = 10;
 const ARGON2ID_MAX_PARALLELISM: u32 = 16;
-const ARGON2ID_SALT_MIN_LEN: usize = 16;
-const ARGON2ID_SALT_MAX_LEN: usize = 64;
+const SCRYPT_MAX_MEMORY_BYTES: u64 = 512 * 1024 * 1024;
+const SCRYPT_MAX_WORK_FACTOR: u64 = 1 << 22;
+const SCRYPT_MAX_R: u32 = 32;
+const SCRYPT_MAX_P: u32 = 16;
 
 pub type Credential = [u8; CREDENTIAL_LEN];
 
 fn default_kdf_rounds() -> u32 {
-    let v = env::var("KDF_ROUNDS");
-    if let Ok(v) = v {
-        v.parse::<u32>().unwrap()
-    } else {
-        *crate::KDF_ROUNDS.read() as u32
+    env::var("KDF_ROUNDS")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok())
+        .filter(|rounds| (1..=PBKDF2_MAX_ROUNDS).contains(rounds))
+        .or_else(|| {
+            u32::try_from(*crate::KDF_ROUNDS.read())
+                .ok()
+                .filter(|rounds| (1..=PBKDF2_MAX_ROUNDS).contains(rounds))
+        })
+        .unwrap_or(600_000)
+}
+
+fn decode_kdf_salt(salt: &str) -> Result<Vec<u8>> {
+    // Bound the encoded length before allocating for untrusted JSON input.
+    if salt.len() > KDF_SALT_MAX_LEN * 2 + 2 {
+        return Err(Error::KdfParamsInvalid.into());
     }
+    let salt = Vec::from_hex_auto(salt).map_err(|_| Error::KdfParamsInvalid)?;
+    if !(KDF_SALT_MIN_LEN..=KDF_SALT_MAX_LEN).contains(&salt.len()) {
+        return Err(Error::KdfParamsInvalid.into());
+    }
+    Ok(salt)
+}
+
+fn valid_dklen(dklen: u32) -> bool {
+    dklen == 32 || dklen == CREDENTIAL_LEN as u32
 }
 
 #[derive(Clone)]
@@ -78,16 +103,18 @@ impl KdfParams for Pbkdf2Params {
     }
 
     fn validate(&self) -> Result<()> {
-        if self.dklen == 0 || self.c == 0 || self.salt.is_empty() || self.prf.is_empty() {
-            Err(Error::KdfParamsInvalid.into())
-        } else {
-            Ok(())
+        if !valid_dklen(self.dklen)
+            || !(1..=PBKDF2_MAX_ROUNDS).contains(&self.c)
+            || self.prf != "hmac-sha256"
+        {
+            return Err(Error::KdfParamsInvalid.into());
         }
+        decode_kdf_salt(&self.salt).map(|_| ())
     }
 
     fn derive_key(&self, password: &[u8], out: &mut [u8]) -> Result<()> {
         self.validate()?;
-        let salt_bytes = Vec::from_hex(&self.salt).map_err(|_| Error::KdfParamsInvalid)?;
+        let salt_bytes = decode_kdf_salt(&self.salt)?;
         pbkdf2::pbkdf2::<hmac::Hmac<sha2::Sha256>>(password, &salt_bytes, self.c, out)
             .map_err(|_| Error::KdfParamsInvalid.into())
     }
@@ -115,27 +142,13 @@ impl Default for Argon2idParams {
     }
 }
 
-impl Argon2idParams {
-    fn salt_bytes(&self) -> Result<Vec<u8>> {
-        // Bound the encoded length before allocating for untrusted JSON input.
-        if self.salt.len() > ARGON2ID_SALT_MAX_LEN * 2 + 2 {
-            return Err(Error::KdfParamsInvalid.into());
-        }
-        let salt = Vec::from_hex_auto(&self.salt).map_err(|_| Error::KdfParamsInvalid)?;
-        if !(ARGON2ID_SALT_MIN_LEN..=ARGON2ID_SALT_MAX_LEN).contains(&salt.len()) {
-            return Err(Error::KdfParamsInvalid.into());
-        }
-        Ok(salt)
-    }
-}
-
 impl KdfParams for Argon2idParams {
     fn name(&self) -> &str {
         "argon2id"
     }
 
     fn validate(&self) -> Result<()> {
-        if !matches!(self.dklen, 32 | 64)
+        if !valid_dklen(self.dklen)
             || self.parallelism == 0
             || self.parallelism > ARGON2ID_MAX_PARALLELISM
             || self.time_cost == 0
@@ -145,7 +158,7 @@ impl KdfParams for Argon2idParams {
         {
             return Err(Error::KdfParamsInvalid.into());
         }
-        self.salt_bytes().map(|_| ())
+        decode_kdf_salt(&self.salt).map(|_| ())
     }
 
     fn derive_key(&self, password: &[u8], out: &mut [u8]) -> Result<()> {
@@ -153,7 +166,7 @@ impl KdfParams for Argon2idParams {
         if out.len() != self.dklen as usize {
             return Err(Error::KdfParamsInvalid.into());
         }
-        let salt_bytes = self.salt_bytes()?;
+        let salt_bytes = decode_kdf_salt(&self.salt)?;
         let params = Params::new(
             self.memory_cost,
             self.time_cost,
@@ -196,19 +209,34 @@ impl KdfParams for SCryptParams {
     }
 
     fn validate(&self) -> Result<()> {
-        if self.dklen == 0 || self.n == 0 || self.salt.is_empty() || self.p == 0 || self.r == 0 {
-            Err(Error::KdfParamsInvalid.into())
-        } else {
-            Ok(())
+        let memory_cost = 128u64
+            .checked_mul(u64::from(self.n))
+            .and_then(|value| value.checked_mul(u64::from(self.r)))
+            .ok_or(Error::KdfParamsInvalid)?;
+        let work_factor = u64::from(self.n)
+            .checked_mul(u64::from(self.p))
+            .ok_or(Error::KdfParamsInvalid)?;
+        if !valid_dklen(self.dklen)
+            || self.n < 2
+            || !self.n.is_power_of_two()
+            || self.r == 0
+            || self.r > SCRYPT_MAX_R
+            || self.p == 0
+            || self.p > SCRYPT_MAX_P
+            || memory_cost > SCRYPT_MAX_MEMORY_BYTES
+            || work_factor > SCRYPT_MAX_WORK_FACTOR
+        {
+            return Err(Error::KdfParamsInvalid.into());
         }
+        decode_kdf_salt(&self.salt).map(|_| ())
     }
 
     fn derive_key(&self, password: &[u8], out: &mut [u8]) -> Result<()> {
         self.validate()?;
-        let salt_bytes = Vec::from_hex(&self.salt).map_err(|_| Error::KdfParamsInvalid)?;
-        let log_n = (self.n as f64).log2().round();
-        let inner_params = scrypt::Params::new(log_n as u8, self.r, self.p)
-            .map_err(|_| Error::KdfParamsInvalid)?;
+        let salt_bytes = decode_kdf_salt(&self.salt)?;
+        let log_n = self.n.trailing_zeros() as u8;
+        let inner_params =
+            scrypt::Params::new(log_n, self.r, self.p).map_err(|_| Error::KdfParamsInvalid)?;
 
         scrypt::scrypt(password, &salt_bytes, &inner_params, out)
             .map_err(|_| Error::KdfParamsInvalid.into())
@@ -264,22 +292,23 @@ pub struct Unlocker<'a> {
 }
 
 fn encrypt(plaintext: &[u8], derived_key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
-    let key = &derived_key[0..16];
+    let key = derived_key.get(..16).ok_or(Error::InvalidKeyIvLength)?;
     super::aes::ctr::encrypt_nopadding(plaintext, key, iv)
 }
 
 fn decrypt(ciphertext: &[u8], derived_key: &[u8], iv: &[u8]) -> Result<Vec<u8>> {
-    let key = &derived_key[0..16];
+    let key = derived_key.get(..16).ok_or(Error::InvalidKeyIvLength)?;
     super::aes::ctr::decrypt_nopadding(ciphertext, key, iv)
 }
 
-fn generate_mac(derived_key: &[u8], ciphertext: &[u8]) -> Vec<u8> {
-    let result = [&derived_key[16..32], ciphertext].concat();
+fn generate_mac(derived_key: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>> {
+    let mac_key = derived_key.get(16..32).ok_or(Error::InvalidKeyIvLength)?;
+    let result = [mac_key, ciphertext].concat();
     let mut keccak = tiny_keccak::Keccak::v256();
     keccak.update(result.as_slice());
     let mut output = [0u8; 32];
     keccak.finalize(&mut output);
-    output.to_vec()
+    Ok(output.to_vec())
 }
 
 fn encrypt_with_random_iv(derived_key: &[u8], plaintext: &[u8]) -> Result<EncPair> {
@@ -292,8 +321,8 @@ fn encrypt_with_random_iv(derived_key: &[u8], plaintext: &[u8]) -> Result<EncPai
 }
 
 fn decrypt_enc_pair(derived_key: &[u8], enc_pair: &EncPair) -> Result<Vec<u8>> {
-    let ciphertext: Vec<u8> = Vec::from_hex(&enc_pair.enc_str).unwrap();
-    let iv: Vec<u8> = Vec::from_hex(&enc_pair.nonce).unwrap();
+    let ciphertext = Vec::from_hex_auto(&enc_pair.enc_str).map_err(|_| Error::InvalidCiphertext)?;
+    let iv = Vec::from_hex_auto(&enc_pair.nonce).map_err(|_| Error::InvalidKeyIvLength)?;
 
     decrypt(&ciphertext, derived_key, &iv)
 }
@@ -386,7 +415,7 @@ impl Crypto {
 
         let derived_key = crypto.derive_key(password)?;
         let ciphertext = crypto.encrypt(&derived_key, plaintext)?;
-        let mac = generate_mac(&derived_key, &ciphertext);
+        let mac = generate_mac(&derived_key, &ciphertext)?;
 
         crypto.ciphertext = ciphertext.to_hex();
         crypto.mac = mac.to_hex();
@@ -402,8 +431,8 @@ impl Crypto {
         derived_key: &[u8],
         plaintext: &[u8],
     ) -> Result<()> {
-        let ciphertext = self.encrypt(derived_key, plaintext).expect("encrypt");
-        let mac = generate_mac(derived_key, &ciphertext);
+        let ciphertext = self.encrypt(derived_key, plaintext)?;
+        let mac = generate_mac(derived_key, &ciphertext)?;
 
         self.ciphertext = ciphertext.to_hex();
         self.mac = mac.to_hex();
@@ -426,25 +455,31 @@ impl Crypto {
     }
 
     fn decrypt(&self, derived_key: &[u8]) -> Result<Vec<u8>> {
-        let ciphertext: Vec<u8> = FromHex::from_hex(&self.ciphertext).expect("ciphertext");
-        let iv: Vec<u8> = FromHex::from_hex(&self.cipherparams.iv).expect("iv");
+        let ciphertext =
+            Vec::from_hex_auto(&self.ciphertext).map_err(|_| Error::InvalidCiphertext)?;
+        let iv =
+            Vec::from_hex_auto(&self.cipherparams.iv).map_err(|_| Error::InvalidKeyIvLength)?;
         decrypt(&ciphertext, derived_key, &iv)
     }
 
     fn encrypt(&self, derived_key: &[u8], plaintext: &[u8]) -> Result<Vec<u8>> {
-        let iv: Vec<u8> = Vec::from_hex(&self.cipherparams.iv).unwrap();
+        let iv =
+            Vec::from_hex_auto(&self.cipherparams.iv).map_err(|_| Error::InvalidKeyIvLength)?;
         encrypt(plaintext, derived_key, &iv)
     }
 
     pub fn verify_password(&self, password: &str) -> bool {
-        let derived_key_ret = self.derive_key(password);
-        derived_key_ret.is_ok() && self.verify_derived_key(&derived_key_ret.expect(""))
+        self.derive_key(password)
+            .map(|derived_key| self.verify_derived_key(&derived_key))
+            .unwrap_or(false)
     }
 
     pub fn verify_derived_key(&self, dk: &[u8]) -> bool {
-        let cipher_bytes = Vec::from_hex(&self.ciphertext).expect("vec::from_hex");
-        let mac = generate_mac(dk, &cipher_bytes);
-        self.mac == mac.to_hex()
+        Vec::from_hex_auto(&self.ciphertext)
+            .ok()
+            .and_then(|ciphertext| generate_mac(dk, &ciphertext).ok())
+            .map(|mac| self.mac == mac.to_hex())
+            .unwrap_or(false)
     }
 }
 
@@ -875,7 +910,7 @@ mod tests {
         );
 
         let params = Pbkdf2Params {
-            salt: "0x1234".to_owned(),
+            salt: "0x01020304010203040102030401020304".to_owned(),
             ..Default::default()
         };
 
@@ -959,6 +994,64 @@ mod tests {
         assert!(param.validate().is_ok());
         param.n = 0;
         assert!(param.validate().is_err());
+    }
+
+    #[test]
+    fn rejects_untrusted_kdf_resource_exhaustion_params() {
+        let salt = "01020304010203040102030401020304".to_owned();
+
+        let pbkdf2 = Pbkdf2Params {
+            c: PBKDF2_MAX_ROUNDS + 1,
+            salt: salt.clone(),
+            ..Default::default()
+        };
+        assert_eq!(
+            pbkdf2.validate().unwrap_err().downcast::<Error>().unwrap(),
+            Error::KdfParamsInvalid
+        );
+
+        let argon2id = Argon2idParams {
+            memory_cost: ARGON2ID_MAX_MEMORY_COST_KIB + 1,
+            salt: salt.clone(),
+            ..Default::default()
+        };
+        assert_eq!(
+            argon2id
+                .validate()
+                .unwrap_err()
+                .downcast::<Error>()
+                .unwrap(),
+            Error::KdfParamsInvalid
+        );
+
+        let scrypt = SCryptParams {
+            n: 1 << 20,
+            r: 8,
+            salt,
+            ..Default::default()
+        };
+        assert_eq!(
+            scrypt.validate().unwrap_err().downcast::<Error>().unwrap(),
+            Error::KdfParamsInvalid
+        );
+    }
+
+    #[test]
+    fn malformed_imported_crypto_returns_errors_instead_of_panicking() {
+        let mut crypto: Crypto = serde_json::from_str(sample_json_str()).unwrap();
+        if let KdfType::Pbkdf2(params) = &mut crypto.kdf {
+            params.salt = "not-hex".to_owned();
+        }
+        let error = match crypto.use_key(&Key::Password(TEST_PASSWORD.to_owned())) {
+            Ok(_) => panic!("malformed KDF salt must be rejected"),
+            Err(error) => error,
+        };
+        assert_eq!(error.downcast::<Error>().unwrap(), Error::KdfParamsInvalid);
+
+        let mut crypto: Crypto = serde_json::from_str(sample_json_str()).unwrap();
+        crypto.ciphertext = "not-hex".to_owned();
+        assert!(!crypto.verify_derived_key(&[0u8; CREDENTIAL_LEN]));
+        assert!(!crypto.verify_password(TEST_PASSWORD));
     }
 
     fn profile_kdf<F>(name: &str, mut f: F) -> Duration

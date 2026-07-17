@@ -11,6 +11,8 @@ import imKeyBleLib
 
 public class API{
   static let _shareManager = API()
+  private static let callbackResponseLock = NSLock()
+  private static var callbackResponse: UnsafeMutablePointer<Int8>?
   
   public class func shared() -> API {
     return _shareManager
@@ -24,7 +26,10 @@ public class API{
   let swiftCallback : @convention(c) (UnsafePointer<Int8>?,Int32) -> UnsafePointer<Int8>? = {
     (apdu,timeout) -> UnsafePointer<Int8>? in
     print("callback miaomiao v v timeout\(timeout)")
-    let swiftApdu = String(cString:apdu!)
+    guard let apdu = apdu else {
+      return nil
+    }
+    let swiftApdu = String(cString: apdu)
     
     var response = "";
     do {
@@ -34,11 +39,17 @@ public class API{
     }catch{
       Log.d(error)
     }
-    let count = response.utf8CString.count
-    let result: UnsafeMutableBufferPointer<Int8> = UnsafeMutableBufferPointer<Int8>.allocate(capacity: count)
-    _ = result.initialize(from: response.utf8CString)
-    let p = UnsafePointer(result.baseAddress!)
-    return p
+    let responseBytes = response.utf8CString
+    API.callbackResponseLock.lock()
+    defer { API.callbackResponseLock.unlock() }
+
+    API.callbackResponse?.deallocate()
+    let buffer = UnsafeMutablePointer<Int8>.allocate(capacity: responseBytes.count)
+    responseBytes.withUnsafeBufferPointer { source in
+      buffer.initialize(from: source.baseAddress!, count: source.count)
+    }
+    API.callbackResponse = buffer
+    return UnsafePointer(buffer)
   }
   
   public class func getSEID() ->String{
