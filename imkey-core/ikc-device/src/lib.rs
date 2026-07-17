@@ -32,6 +32,7 @@ pub mod cos_check_update;
 
 // Called only by hardware-test entry points, including `bind_test` consumers in
 // the coin crates. Production clients configure TSM through `configure_tsm`.
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn configure_test_tsm_from_env() {
     if let Ok(base_url) = std::env::var("IMKEY_TSM_TEST_URL") {
         ikc_common::tsm::configure_tsm_url(&base_url)

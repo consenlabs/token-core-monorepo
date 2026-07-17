@@ -2538,6 +2538,7 @@ dependencies = [
  "byteorder",
  "bytes",
  "hex",
+ "http",
  "http-body-util",
  "hyper",
  "hyper-timeout",

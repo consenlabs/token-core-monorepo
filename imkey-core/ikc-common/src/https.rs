@@ -1,5 +1,6 @@
 #[cfg(not(target_arch = "wasm32"))]
 use crate::constants;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::tsm;
 use crate::Result;
 use anyhow::anyhow;
@@ -41,7 +42,8 @@ async fn async_post(action: &str, req_data: Vec<u8>) -> Result<String> {
     async_post_uri(uri, req_data).await
 }
 
-async fn async_post_uri(uri: hyper::Uri, req_data: Vec<u8>) -> Result<String> {
+#[cfg(not(target_arch = "wasm32"))]
+async fn async_post_uri(uri: http::Uri, req_data: Vec<u8>) -> Result<String> {
     let mut req = Request::new(Full::new(Bytes::from(req_data)));
     *req.method_mut() = Method::POST;
     *req.uri_mut() = uri.clone();
@@ -73,7 +75,7 @@ async fn async_post_uri(uri: hyper::Uri, req_data: Vec<u8>) -> Result<String> {
     Ok(res_data)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod test {
     use crate::constants;
     use crate::https::async_post_uri;
