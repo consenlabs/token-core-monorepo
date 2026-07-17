@@ -8,9 +8,10 @@ capabilities. imKey communication uses WebUSB and supports Chrome and Edge.
 ```ts
 import { createImKeyCore } from "@imtoken/wallet-core-web";
 
-const imkey = createImKeyCore({
-  tsm: { baseUrl: "https://your-tsm-origin.example/imkey" },
-});
+const imkey = createImKeyCore();
+
+// Configure this once, before any activation, binding, update, or app request.
+await imkey.configureTsm("https://your-tsm-origin.example/imkey");
 
 // Must run from a user click because the browser opens a USB permission dialog.
 await imkey.connect();
@@ -26,6 +27,11 @@ The SDK owns the WebUSB session in JavaScript. Rust/WASM generates and validates
 APDUs, while `WebUsbImKeyTransport` performs `transferOut` and `transferIn`.
 `IndexedDbImKeyStorage` and `FetchTsmClient` are the default browser adapters and
 can be replaced through `createImKeyCore` options.
+
+`configureTsm` uses the same Rust validation and process-lifetime rules as the
+native `configure_tsm` API. It accepts an HTTPS base URL, removes trailing
+slashes, is idempotent for the same URL, and rejects switching to another URL in
+the same WASM instance. Call it before the first TSM-backed operation.
 
 Filecoin and Nervos use the same `imkey.signTx(...)` entry as all other chains.
 Their chain-specific transaction inputs and outputs are described by the exported

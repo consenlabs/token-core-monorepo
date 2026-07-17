@@ -115,6 +115,7 @@ export class ImKeyCore {
   disconnect(): Promise<void>;
   diagnostics(): unknown;
   getSdkInfo(): string;
+  configureTsm(baseUrl: string): Promise<string>;
   getSeid(): Promise<string>;
   getSn(): Promise<string>;
   getRamSize(): Promise<string>;

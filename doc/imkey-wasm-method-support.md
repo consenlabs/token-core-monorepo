@@ -5,6 +5,7 @@ list in `imkey-core/ikc/src/types.rs`.
 
 ## Supported Through Async Business Layer
 
+- `configure_tsm` as the `configureTsm(baseUrl)` web facade method
 - `app_download`
 - `app_update`
 - `app_delete`

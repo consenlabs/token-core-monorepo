@@ -11,6 +11,7 @@ import {
   clear_binding_storage,
   clear_transport,
   clear_tsm_client,
+  configure_tsm,
   cos_check_update,
   cos_update,
   derive_accounts_json,
@@ -195,6 +196,17 @@ export class ImKeyCore {
 
   getSdkInfo(): string {
     return get_sdk_info();
+  }
+
+  async configureTsm(baseUrl: string): Promise<string> {
+    await initImKeyWasm();
+    if (typeof this.tsmClient.configure !== "function") {
+      throw new Error("imkey_tsm_client_not_configurable");
+    }
+    const normalizedBaseUrl = configure_tsm(baseUrl);
+    await this.tsmClient.configure(normalizedBaseUrl);
+    set_tsm_client(this.tsmClient);
+    return normalizedBaseUrl;
   }
 
   async getBatteryPower(): Promise<string> {
