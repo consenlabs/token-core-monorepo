@@ -83,6 +83,7 @@ mod test {
 
     #[test]
     pub fn se_activate_test() {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect("imKey Pro").is_ok());
         let seid = get_se_id().unwrap();
         let device_cert = get_cert().unwrap();

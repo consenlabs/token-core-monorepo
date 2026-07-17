@@ -87,6 +87,7 @@ mod tests {
 
     #[test]
     fn se_query_test() {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect("imKey Pro").is_ok());
         let seid = get_se_id().unwrap();
         let sn = get_sn().unwrap();
@@ -97,6 +98,7 @@ mod tests {
 
     #[test]
     pub fn se_query_error_test() {
+        crate::configure_test_tsm_from_env();
         let seid = "00000000000000000000000000000000".to_string();
         let sn = "000001".to_string();
         assert!(SeQueryRequest::build_request_data(seid, sn, None)

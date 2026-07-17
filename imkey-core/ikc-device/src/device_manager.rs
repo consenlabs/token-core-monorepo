@@ -275,6 +275,7 @@ mod test {
 
     #[test]
     fn app_delete_test() {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect(constants::DEVICE_MODEL_NAME).is_ok());
         let result = app_delete("Cosmos");
         assert!(result.is_ok());
@@ -289,6 +290,7 @@ mod test {
 
     #[test]
     fn app_download_test() {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect(constants::DEVICE_MODEL_NAME).is_ok());
         let result = app_download("Cosmos");
         assert!(result.is_ok());
@@ -304,6 +306,7 @@ mod test {
 
     #[test]
     fn app_update_test() {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect(constants::DEVICE_MODEL_NAME).is_ok());
         let result = app_update("Cosmos");
         assert!(result.is_ok());
@@ -319,6 +322,7 @@ mod test {
     #[test]
     #[should_panic(expected = "No such file or directory")]
     fn bind_check_wrong_path_test() {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect(constants::DEVICE_MODEL_NAME).is_ok());
         let result = bind_check("/test/");
         assert!(result.is_ok());
@@ -326,6 +330,7 @@ mod test {
 
     #[test]
     fn active_device_test() {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect(constants::DEVICE_MODEL_NAME).is_ok());
         let result = active_device();
         assert!(result.is_ok());

@@ -1,4 +1,4 @@
-use crate::api::{CommonResponse, InitImKeyCoreXParam};
+use crate::api::{CommonResponse, ConfigureTsmParam, InitImKeyCoreXParam};
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
 use anyhow::anyhow;
@@ -60,6 +60,14 @@ pub fn init_imkey_core(data: &[u8]) -> Result<Vec<u8>> {
     *IS_DEBUG.write() = is_debug;
     *OPERATING_SYSTEM.write() = system;
     Ok(vec![])
+}
+
+pub fn configure_tsm(data: &[u8]) -> Result<Vec<u8>> {
+    let request = decode_message::<ConfigureTsmParam>(data, "imkey_illegal_param")?;
+    ikc_common::tsm::configure_tsm_url(&request.base_url)?;
+    encode_message(CommonResponse {
+        result: "success".to_string(),
+    })
 }
 
 pub fn app_download(data: &[u8]) -> Result<Vec<u8>> {

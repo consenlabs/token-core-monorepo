@@ -12,6 +12,12 @@ pub enum CommonError {
     MissingNetwork,
     #[error("upgrade_applet")]
     UpgradeApplet,
+    #[error("imkey_tsm_url_invalid")]
+    InvalidTsmUrl,
+    #[error("imkey_tsm_url_requires_https")]
+    TsmUrlRequiresHttps,
+    #[error("imkey_tsm_url_already_configured")]
+    TsmUrlAlreadyConfigured,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]

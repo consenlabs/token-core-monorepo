@@ -20,7 +20,7 @@ test-tcx:
 	$(TEST_ENV) cargo test --workspace $(TCX_EXCLUDES)
 
 test-ikc:
-	$(TEST_ENV) cargo test -p ikc-common -- --skip https::test::post_test
+	$(TEST_ENV) cargo test -p ikc-common
 	$(TEST_ENV) cargo test -p ikc-proto
 	$(TEST_ENV) cargo test -p ikc normalize_sign_param
 	$(TEST_ENV) cargo test -p ikc call_imkey_api
@@ -36,6 +36,7 @@ test-workspace:
 
 test-hardware:
 	@echo "Requires a connected and authorized imKey device; hardware tests run serially."
+	@echo "Set IMKEY_TSM_TEST_URL to select a staging or development TSM endpoint."
 	$(TEST_ENV) cargo test --workspace $(IKC_HARDWARE_EXCLUDES) -- --test-threads=1 --nocapture
 
 test-wasm:

@@ -1,6 +1,7 @@
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Method {
     InitImkeyCoreX,
+    ConfigureTsm,
     AppDownload,
     AppUpdate,
     AppDelete,
@@ -41,6 +42,7 @@ impl Method {
     pub(crate) fn from_name(name: &str) -> Option<Self> {
         Some(match name.to_ascii_lowercase().as_str() {
             "init_imkey_core_x" => Self::InitImkeyCoreX,
+            "configure_tsm" => Self::ConfigureTsm,
             "app_download" => Self::AppDownload,
             "app_update" => Self::AppUpdate,
             "app_delete" => Self::AppDelete,
@@ -163,6 +165,10 @@ mod tests {
     #[test]
     fn method_parse_is_case_insensitive() {
         assert_eq!(Some(Method::GetAddress), Method::from_name("GET_ADDRESS"));
+        assert_eq!(
+            Some(Method::ConfigureTsm),
+            Method::from_name("CONFIGURE_TSM")
+        );
         assert_eq!(None, Method::from_name("missing_method"));
     }
 

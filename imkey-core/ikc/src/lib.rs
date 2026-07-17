@@ -174,6 +174,9 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
         Some(Method::InitImkeyCoreX) => {
             landingpad(|| device_manager::init_imkey_core(action_param_value(&action)?))
         }
+        Some(Method::ConfigureTsm) => {
+            landingpad(|| device_manager::configure_tsm(action_param_value(&action)?))
+        }
         // imkey manager
         Some(Method::AppDownload) => {
             landingpad(|| device_manager::app_download(action_param_value(&action)?))
@@ -370,9 +373,10 @@ mod tests {
     use super::*;
     use crate::api::derive_accounts_param::Derivation;
     use crate::api::{
-        AddressResult, DeriveAccountsParam, DeriveAccountsResult, DeriveSubAccountsParam,
-        DeriveSubAccountsResult, GetExtendedPublicKeysParam, GetExtendedPublicKeysResult,
-        GetPublicKeysParam, GetPublicKeysResult, PublicKeyDerivation,
+        AddressResult, CommonResponse, ConfigureTsmParam, DeriveAccountsParam,
+        DeriveAccountsResult, DeriveSubAccountsParam, DeriveSubAccountsResult,
+        GetExtendedPublicKeysParam, GetExtendedPublicKeysResult, GetPublicKeysParam,
+        GetPublicKeysResult, PublicKeyDerivation,
     };
     use coin_bitcoin::btcapi::{
         BtcMessageInput, BtcMessageOutput, BtcTxExtra, BtcTxInput, BtcTxOutput, PsbtInput,
@@ -442,6 +446,19 @@ mod tests {
         )
     }
 
+    fn action_with_param_hex(method: &str, type_url: &str, value: impl Message) -> String {
+        hex::encode(
+            encode_message(ImkeyAction {
+                method: method.to_string(),
+                param: Some(prost_types::Any {
+                    type_url: type_url.to_string(),
+                    value: encode_message(value).unwrap(),
+                }),
+            })
+            .unwrap(),
+        )
+    }
+
     #[test]
     fn normalize_sign_param_defaults_btc_family_to_legacy() {
         for chain_type in ["BITCOIN", "DOGECOIN", "LITECOIN", "BITCOINCASH"] {
@@ -502,6 +519,48 @@ mod tests {
             let ptr = call_imkey_api(std::ptr::null());
             assert_eq!("", take_c_string(ptr));
             assert_eq!("imkey_illegal_param", last_error_message());
+        }
+    }
+
+    #[test]
+    fn call_imkey_api_configures_tsm_through_an_independent_action() {
+        let action = action_with_param_hex(
+            "CONFIGURE_TSM",
+            "api.ConfigureTsmParam",
+            ConfigureTsmParam {
+                base_url: format!("{}/", ikc_common::constants::DEFAULT_TSM_URL),
+            },
+        );
+
+        unsafe {
+            imkey_clear_err();
+            let response = hex::decode(call_api_hex(&action)).unwrap();
+            assert_eq!(
+                "success",
+                CommonResponse::decode(response.as_slice()).unwrap().result
+            );
+            assert_eq!(
+                ikc_common::constants::DEFAULT_TSM_URL,
+                ikc_common::tsm::tsm_base_url()
+            );
+            assert_eq!("", last_error_message());
+        }
+    }
+
+    #[test]
+    fn call_imkey_api_rejects_an_insecure_tsm_url() {
+        let action = action_with_param_hex(
+            "configure_tsm",
+            "api.ConfigureTsmParam",
+            ConfigureTsmParam {
+                base_url: "http://example.com/imkey".to_string(),
+            },
+        );
+
+        unsafe {
+            imkey_clear_err();
+            assert_eq!("", call_api_hex(&action));
+            assert_eq!("imkey_tsm_url_requires_https", last_error_message());
         }
     }
 

@@ -228,6 +228,8 @@ fn get_se_pubkey(se_pubkey_cert: &str) -> Result<String> {
 
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub fn bind_test() {
+    crate::configure_test_tsm_from_env();
+
     //binding device
     let path = TEST_KEY_PATH.to_string();
     let bind_code = TEST_BIND_CODE.to_string();
@@ -269,6 +271,8 @@ mod test {
 
     #[test]
     fn device_bind_test() {
+        crate::configure_test_tsm_from_env();
+
         let path = TEST_KEY_PATH.to_string();
         let bind_code = TEST_BIND_CODE.to_string();
 

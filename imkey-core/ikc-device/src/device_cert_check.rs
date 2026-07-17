@@ -76,6 +76,7 @@ mod test {
     #[test]
     #[cfg(not(tarpaulin))]
     pub fn device_cert_check_test() -> crate::Result<()> {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect("imKey Pro").is_ok());
         let seid = get_se_id().unwrap();
         let sn = get_sn().unwrap();

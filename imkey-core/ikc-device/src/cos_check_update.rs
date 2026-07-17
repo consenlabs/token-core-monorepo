@@ -58,6 +58,7 @@ mod test {
     #[test]
     #[cfg(not(tarpaulin))]
     pub fn cos_check_update_test() {
+        crate::configure_test_tsm_from_env();
         // let seid: String = "18080000000000860001010000000106".to_string();
         assert!(hid_connect("imKey Pro").is_ok());
         let seid = get_se_id().unwrap();
