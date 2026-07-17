@@ -1,7 +1,7 @@
 use crate::constants::DEFAULT_TSM_URL;
 use crate::error::CommonError;
 use crate::Result;
-use hyper::Uri;
+use http::Uri;
 use parking_lot::RwLock;
 
 const MAX_TSM_URL_LENGTH: usize = 2_048;
@@ -50,10 +50,12 @@ pub fn tsm_base_url() -> String {
     TSM_ENDPOINT.resolve()
 }
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn request_uri(action: &str) -> Result<Uri> {
     request_uri_with_base(&tsm_base_url(), action)
 }
 
+#[cfg_attr(target_arch = "wasm32", allow(dead_code))]
 pub(crate) fn request_uri_with_base(base_url: &str, action: &str) -> Result<Uri> {
     if !action.starts_with('/') || action.starts_with("//") || action.contains(['?', '#']) {
         return Err(CommonError::InvalidTsmUrl.into());
