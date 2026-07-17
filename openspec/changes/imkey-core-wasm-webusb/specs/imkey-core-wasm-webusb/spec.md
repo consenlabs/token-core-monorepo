@@ -60,6 +60,10 @@
 ### 需求：Web 端 TSM 请求通过可注入 adapter 完成
 系统必须支持 Web 端通过 `fetch` 或业务方注入的 TSM client 发送 TSM 请求，而不是在浏览器 wasm 中复用 native `hyper/tokio` 网络实现。
 
+#### 场景：前端配置 TSM 服务地址
+- **当** 前端在首个 TSM 业务请求前调用 `configureTsm(baseUrl)`
+- **则** wasm 必须复用 native `configure_tsm` 的 HTTPS 校验、URL 规范化、同值幂等和禁止运行时切换规则，并让 Web TSM adapter 使用规范化后的地址发送后续请求
+
 #### 场景：TSM 服务允许浏览器直连
 - **当** TSM 服务配置允许当前 Web origin 跨域访问
 - **则** 默认 web TSM client 使用 `fetch` 直接向 TSM 服务发送请求，并将响应交回 Rust 业务逻辑处理

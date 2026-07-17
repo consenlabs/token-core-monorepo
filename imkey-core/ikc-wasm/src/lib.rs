@@ -1430,6 +1430,12 @@ pub fn set_transport_profile(profile: &str) -> Result<(), JsValue> {
 }
 
 #[wasm_bindgen]
+pub fn configure_tsm(base_url: &str) -> Result<String, JsValue> {
+    ikc_common::tsm::configure_tsm_url(base_url).map_err(map_err)?;
+    Ok(ikc_common::tsm::tsm_base_url())
+}
+
+#[wasm_bindgen]
 pub fn set_tsm_client(client: JsValue) {
     TSM_CLIENT.with(|slot| {
         *slot.borrow_mut() = Some(client);

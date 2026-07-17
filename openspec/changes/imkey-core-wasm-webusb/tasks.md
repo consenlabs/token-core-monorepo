@@ -32,6 +32,7 @@
 - [x] 4.3 将 `ikc-device` 中 TSM 请求从 native `https::post` 调整为可注入 client
 - [x] 4.4 将绑定 key 文件读写调整为可注入 storage，同时保留 native/mobile 文件系统行为
 - [x] 4.5 补齐 TSM 错误、storage 错误和现有业务错误的兼容映射
+- [x] 4.6 导出 `configure_tsm` wasm 接口，并由 npm facade 同步配置 Web TSM adapter
 
 ## 5. wasm facade 与 npm 包
 

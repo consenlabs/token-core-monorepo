@@ -51,6 +51,17 @@ export class ImKeyCore {
     return wasm.get_sdk_info();
   }
 
+  async configureTsm(baseUrl) {
+    await initImKeyCore();
+    if (typeof this.tsmClient.configure !== "function") {
+      throw new Error("imkey_tsm_client_not_configurable");
+    }
+    const normalizedBaseUrl = wasm.configure_tsm(baseUrl);
+    await this.tsmClient.configure(normalizedBaseUrl);
+    wasm.set_tsm_client(this.tsmClient);
+    return normalizedBaseUrl;
+  }
+
   async getSeid() { return wasm.get_seid(); }
   async getSn() { return wasm.get_sn(); }
   async getRamSize() { return wasm.get_ram_size(); }

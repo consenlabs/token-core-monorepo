@@ -21,6 +21,15 @@ response: api.CommonResponse
 
 token-v2 前端通过现有 `HardWalletAPI.callImKeyApi` 通道调用该 action，不新增 Android 或 iOS NativeModule 方法。TSM URL 来自前端现有 development、staging、production 构建配置。
 
+浏览器 WASM 包通过统一 npm facade 暴露同等能力：
+
+```ts
+const imkey = createImKeyCore();
+await imkey.configureTsm("https://example.com/imkey");
+```
+
+低层 `ikc-wasm` 同时导出 `configure_tsm(baseUrl)`，复用本模块的 URL 校验和进程生命周期规则。正式前端应调用 `configureTsm` facade；facade 会把 Rust 返回的规范化 URL 同步给 `FetchTsmClient`，确保后续浏览器 `fetch` 使用同一地址。
+
 ## Core 配置生命周期
 
 - TSM URL 在 `ikc-common` 中以进程级线程安全状态保存。
