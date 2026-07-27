@@ -75,3 +75,59 @@ test("serializes concurrent APDU exchanges", async () => {
   await Promise.all([transport.sendApduRaw("01"), transport.sendApduRaw("02")]);
   assert.deepEqual(events, ["write:1", "read", "write:2", "read"]);
 });
+
+test("reconnects the same authorized device and reclaims its endpoints", async () => {
+  const endpoints = {
+    interfaceNumber: 0, inEndpoint: 5, outEndpoint: 4, packetSize: 64,
+  };
+  const initial = {
+    opened: true,
+    vendorId: 0x096e,
+    productId: 0x0891,
+    serialNumber: "imkey-1",
+    async releaseInterface() {},
+    async close() { this.opened = false; },
+  };
+  const claimed = [];
+  const replacement = {
+    opened: false,
+    vendorId: 0x096e,
+    productId: 0x0891,
+    serialNumber: "imkey-1",
+    configuration: {
+      interfaces: [{
+        interfaceNumber: 2,
+        alternates: [{
+          interfaceClass: 255,
+          endpoints: [
+            { direction: "in", endpointNumber: 7 },
+            { direction: "out", endpointNumber: 6 },
+          ],
+        }],
+      }],
+    },
+    async open() { this.opened = true; },
+    async claimInterface(value) { claimed.push(value); },
+    async releaseInterface() {},
+    async close() { this.opened = false; },
+  };
+  const listeners = new Set();
+  const api = {
+    async getDevices() { return [replacement]; },
+    addEventListener(_name, listener) { listeners.add(listener); },
+    removeEventListener(_name, listener) { listeners.delete(listener); },
+  };
+  const transport = new WebUsbImKeyTransport(initial, endpoints, api);
+  transport.markDisconnected();
+
+  await transport.reconnect(100);
+
+  assert.equal(transport.device, replacement);
+  assert.deepEqual(claimed, [2]);
+  assert.equal(transport.getDiagnostics().connected, true);
+  assert.deepEqual(transport.endpoints, {
+    interfaceNumber: 2, inEndpoint: 7, outEndpoint: 6, packetSize: 64,
+  });
+  await transport.close();
+  assert.equal(listeners.size, 0);
+});

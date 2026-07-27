@@ -289,6 +289,10 @@ pub fn cos_check_update() -> Result<Vec<u8>> {
         update_type: cos_check_update.return_data.update_type.unwrap_or_default(),
         description: cos_check_update.return_data.description.unwrap_or_default(),
         is_update_success: cos_check_update.return_data.is_update_success,
+        latest_ble_version: cos_check_update
+            .return_data
+            .latest_ble_version
+            .unwrap_or_default(),
     })
 }
 

@@ -52,8 +52,8 @@ use ikc_common::utility::{
 };
 use ikc_common::{SignParam, ToHex};
 use ikc_device::async_device_manager::{
-    self, AsyncApduTransport, AsyncBindingStorage, AsyncTsmClient, BoxFutureResult,
-    TransportProfile,
+    self, AsyncApduTransport, AsyncBindingStorage, AsyncReconnectableTransport, AsyncTsmClient,
+    BoxFutureResult, TransportProfile,
 };
 use js_sys::{Function, Promise, Reflect};
 use serde::{Deserialize, Serialize};
@@ -156,6 +156,20 @@ async fn call_transport(apdu: &str, timeout_ms: Option<u32>) -> Result<String, J
         .ok_or_else(|| js_err("transport response must be a hex string"))
 }
 
+async fn reconnect_transport(timeout_ms: u32) -> Result<(), JsValue> {
+    let transport = transport()?;
+    let method = Reflect::get(&transport, &JsValue::from_str("reconnect"))?;
+    let method = method
+        .dyn_ref::<Function>()
+        .ok_or_else(|| js_err("transport.reconnect is not a function"))?;
+    let promise = method.call1(&transport, &JsValue::from_f64(timeout_ms.max(1) as f64))?;
+    let promise = promise
+        .dyn_into::<Promise>()
+        .map_err(|_| js_err("transport.reconnect must return a Promise"))?;
+    JsFuture::from(promise).await?;
+    Ok(())
+}
+
 async fn call_tsm(action: &str, body_json: &str) -> Result<String, JsValue> {
     let client = tsm_client()?;
     let method = Reflect::get(&client, &JsValue::from_str("post"))?;
@@ -192,6 +206,17 @@ impl AsyncApduTransport for JsApduTransport {
             call_transport(apdu, Some(timeout_ms))
                 .await
                 .map_err(|err| anyhow::anyhow!(js_value_message(&err, "imkey_send_apdu_error")))
+        })
+    }
+}
+
+impl AsyncReconnectableTransport for JsApduTransport {
+    fn reconnect<'a>(&'a self, timeout: i32) -> BoxFutureResult<'a, ()> {
+        Box::pin(async move {
+            let timeout_ms = timeout.max(1) as u32 * 1000;
+            reconnect_transport(timeout_ms).await.map_err(|err| {
+                anyhow::anyhow!(js_value_message(&err, "imkey_transport_reconnect_error"))
+            })
         })
     }
 }
@@ -2240,15 +2265,15 @@ pub async fn device_connect() -> Result<(), JsValue> {
 
 #[wasm_bindgen]
 pub async fn cos_update() -> Result<(), JsValue> {
-    Err(js_err("imkey_cos_update_not_supported_in_webusb_yet"))
+    async_device_manager::cos_upgrade(&js_transport(), &JsTsmClient)
+        .await
+        .map_err(map_err)
 }
 
 #[wasm_bindgen]
 pub async fn cos_check_update() -> Result<String, JsValue> {
-    Err(js_err("imkey_cos_check_update_not_supported_in_webusb_yet"))
-}
-
-#[wasm_bindgen]
-pub async fn is_bl_status() -> Result<bool, JsValue> {
-    Err(js_err("imkey_bl_status_not_supported_in_webusb_yet"))
+    let response = async_device_manager::cos_check_update(&js_transport(), &JsTsmClient)
+        .await
+        .map_err(map_err)?;
+    serde_json::to_string(&response).map_err(|_| js_err("serialize_cos_check_update_error"))
 }

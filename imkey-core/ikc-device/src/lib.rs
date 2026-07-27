@@ -9,7 +9,7 @@ pub mod se_query;
 pub mod se_secure_check;
 extern crate ikc_common;
 pub mod async_device_manager;
-#[cfg(not(target_arch = "wasm32"))]
+pub mod ble_upgrade;
 pub mod cos_upgrade;
 pub mod device_manager;
 pub mod deviceapi;

@@ -16,6 +16,7 @@
 - [x] 2.3 保留并适配 mobile callback transport，确保现有移动端静态库行为不变
 - [x] 2.4 为 wasm 增加 JS bridge transport，使 Rust 业务逻辑可以异步请求 JS 发送 APDU
 - [x] 2.5 将 transport 错误映射到现有 imKey 错误体系，覆盖授权拒绝、设备断开、超时、非法响应
+- [x] 2.6 增加可重连 transport 能力，供 COS/BLE 固件重启后的业务状态机显式依赖
 
 ## 3. WebUSB TypeScript Adapter
 
@@ -24,6 +25,7 @@
 - [x] 3.3 实现断开检测、重连状态清理和超时控制
 - [x] 3.4 增加 transport 级单元测试，覆盖 framing、动态 endpoint、busy deadline 和并发串行化
 - [x] 3.5 暴露低层诊断信息，便于调试 endpoint、超时和设备返回码
+- [x] 3.6 使用已授权设备列表按 VID/PID/serial 自动恢复固件升级后的 WebUSB 连接并重新探测 endpoint
 
 ## 4. TSM 与 Storage Adapter
 
@@ -41,6 +43,7 @@
 - [x] 5.3 处理 wasm target 依赖兼容：`getrandom`、native-only network、native-only filesystem、条件编译
 - [x] 5.4 扩展 `Makefile` / publish 脚本，使统一 npm 包同时包含 token-core wasm 和 imKey wasm，并在开发测试阶段输出本地示例页面可直接引用的 wasm-pack 产物
 - [x] 5.5 生成 TypeScript 类型定义和 README 使用示例，文档以 `@imtoken/wallet-core-web` 的业务 API 为主
+- [x] 5.6 将 `cos_check_update`、COS 升级、应用恢复和 BLE 固件升级迁移到异步 transport/TSM 业务层
 
 ## 6. 验证计划
 
@@ -52,3 +55,4 @@
 - [ ] 6.6 代表性签名验证：ETH/BTC/TRON 至少各一条主路径
 - [ ] 6.7 应用管理验证：check update、app download/update/delete
 - [ ] 6.8 断连、超时、用户拒绝授权、页面刷新后重连等异常场景验证
+- [ ] 6.9 真实设备 COS/BLE 固件升级及两次设备重启后的 WebUSB 自动重连验收

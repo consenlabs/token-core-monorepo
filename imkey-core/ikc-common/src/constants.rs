@@ -16,6 +16,7 @@ pub const TSM_ACTION_AUTHCODE_STORAGE: &str = "/authCodeStorage";
 pub const TSM_ACTION_DEVICE_CERT_CHECK: &str = "/deviceCertCheck";
 pub const TSM_ACTION_COS_UPGRADE: &str = "/seCosUpdate";
 pub const TSM_ACTION_COS_CHECK_UPDATE: &str = "/cosCheckUpdate";
+pub const TSM_ACTION_BLE_UPDATE: &str = "/bleUpdate";
 
 //apud related constant
 pub const LC_MAX: u32 = 245;
@@ -109,6 +110,7 @@ pub const APDU_RSP_IN_MENU_PAGE: &str = "F080";
 pub const APDU_RSP_PIN_NOT_VERIFIED: &str = "F081";
 pub const APDU_BLUETOOTH_CHANNEL_ERROR: &str = "6F01";
 pub const APDU_RSP_SWITCH_BL_STATUS_SUCCESS: &str = "905A";
+pub const APDU_RSP_BLE_UPGRADE_CANCEL: &str = "90A5";
 
 pub const TIMEOUT_LONG: i32 = 120;
 pub const DEVICE_MODEL_NAME: &str = "imKey Pro";

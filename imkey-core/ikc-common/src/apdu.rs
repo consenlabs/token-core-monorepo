@@ -1,4 +1,7 @@
-use crate::constants::{BTC_AID, COSMOS_AID, EOS_AID, ETH_AID, LC_MAX};
+use crate::constants::{
+    APDU_RSP_BLE_UPGRADE_CANCEL, APDU_RSP_SWITCH_BL_STATUS_SUCCESS, BTC_AID, COSMOS_AID, EOS_AID,
+    ETH_AID, LC_MAX,
+};
 use crate::error::ApduError;
 use crate::{Result, ToHex};
 use hex;
@@ -675,6 +678,8 @@ impl ApduCheck {
             "6F01" => Err(ApduError::ImkeyBluetoothChannelError.into()),
             "6943" => Err(ApduError::ImkeyMnemonicCheckFailed.into()),
             "6944" => Err(ApduError::ImkeyCancelMnemonicCheck.into()),
+            APDU_RSP_BLE_UPGRADE_CANCEL => Err(ApduError::ImkeyBleUpgradeCancel.into()),
+            APDU_RSP_SWITCH_BL_STATUS_SUCCESS => Ok(()),
             _ => Err(anyhow!("imkey_command_execute_fail_{}", response_data)), //Err(ApduError::ImkeyCommandExecuteFail.into())
         }
     }
@@ -1102,6 +1107,11 @@ mod tests {
         assert!(ApduCheck::check_response("00F080").is_err());
         assert!(ApduCheck::check_response("00F081").is_err());
         assert!(ApduCheck::check_response("006F01").is_err());
+        assert_eq!(
+            "imkey_ble_upgrade_cancel",
+            ApduCheck::check_response("0090A5").unwrap_err().to_string()
+        );
+        assert!(ApduCheck::check_response("00905A").is_ok());
         assert!(ApduCheck::check_response("000000").is_err());
     }
 }

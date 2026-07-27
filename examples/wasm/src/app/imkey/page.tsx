@@ -236,6 +236,55 @@ export default function ImKeyPage() {
     }
   }, [core]);
 
+  const checkCosUpdate = useCallback(async () => {
+    if (!core) return;
+    setRunning(true);
+    try {
+      push({ name: "Check COS/BLE Update", status: "running" });
+      push({
+        name: "Check COS/BLE Update",
+        status: "pass",
+        detail: JSON.stringify(await core.cosCheckUpdate(), null, 2),
+      });
+    } catch (error) {
+      push({
+        name: "Check COS/BLE Update",
+        status: "fail",
+        detail: error instanceof Error ? error.message : String(error),
+      });
+    } finally {
+      setRunning(false);
+    }
+  }, [core]);
+
+  const updateCos = useCallback(async () => {
+    if (!core) return;
+    if (!window.confirm("Start the COS/BLE firmware update? Keep imKey connected until it finishes.")) {
+      return;
+    }
+    setRunning(true);
+    try {
+      push({ name: "Update COS/BLE", status: "running" });
+      await core.cosUpdate();
+      push({ name: "Update COS/BLE", status: "pass", detail: "Firmware update completed" });
+    } catch (error) {
+      push({
+        name: "Update COS/BLE",
+        status: "fail",
+        detail: JSON.stringify(
+          {
+            error: error instanceof Error ? error.message : String(error),
+            diagnostics: core.diagnostics(),
+          },
+          null,
+          2
+        ),
+      });
+    } finally {
+      setRunning(false);
+    }
+  }, [core]);
+
   const signTransaction = useCallback(async () => {
     if (!core) return;
     setRunning(true);
@@ -379,6 +428,20 @@ export default function ImKeyPage() {
             onClick={checkUpdate}
           >
             Check Update
+          </button>
+          <button
+            className="rounded bg-cyan-500 px-4 py-2 text-sm font-medium text-zinc-950 disabled:opacity-50"
+            disabled={running || !core}
+            onClick={checkCosUpdate}
+          >
+            Check COS/BLE Update
+          </button>
+          <button
+            className="rounded bg-red-500 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+            disabled={running || !core}
+            onClick={updateCos}
+          >
+            Update COS/BLE
           </button>
         </div>
 

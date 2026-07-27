@@ -1,17 +1,29 @@
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use crate::app_download::AppDownloadRequest;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+use crate::ble_upgrade::BleUpgradeRequest;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use crate::device_manager::{
     apdu_status_word, get_bl_version, get_cert, get_firmware_version, get_se_id, get_sn,
 };
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use crate::error::ImkeyError;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use crate::ServiceResponse;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use crate::{tsm_post, Result, TsmService};
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use ikc_common::constants;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use ikc_common::utility::hex_to_bytes;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use ikc_transport::hid_api::hid_connect;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use ikc_transport::message::send_apdu;
 use serde::{Deserialize, Serialize};
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use std::thread;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use std::time::Duration;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -105,6 +117,7 @@ impl CosUpgradeRequest {
                     .clone()
                     .ok_or(ImkeyError::ImkeyTsmServerError)?;
                 if constants::TSM_END_FLAG.eq(next_step_key.as_str()) {
+                    BleUpgradeRequest::ble_upgrade()?;
                     return Ok(());
                 }
 

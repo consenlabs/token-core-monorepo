@@ -28,3 +28,6 @@ prost-types = "=0.14.3"
 bytes = "=1.11.1"
 parking_lot = "=0.12.5"
 thiserror = "=2.0.18"
+
+[dev-dependencies]
+futures-lite = "=2.6.1"

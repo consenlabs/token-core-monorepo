@@ -25,9 +25,16 @@ list in `imkey-core/ikc/src/types.rs`.
 - `set_ble_name`
 - `get_ble_version`
 - `get_sdk_info`
+- `cos_update`, including COS update, post-update app restoration, and chained
+  BLE firmware update
+- `cos_check_update`
 
 `get_device_info` intentionally excludes battery power for WebUSB because wired
 connections do not provide a reliable battery capability.
+
+Bootloader status is intentionally not exposed through the Web business facade.
+`cos_update` detects normal COS and bootloader recovery states from the device
+certificate and owns the state transition internally.
 
 ## Partially Supported
 
@@ -59,12 +66,12 @@ the synchronous native HID transport.
 
 - `device_connect`: native HID connection method. Web uses browser WebUSB
   permission and session setup instead.
-- `cos_update`: not enabled for WebUSB yet.
-- `cos_check_update`: not enabled for WebUSB yet.
-- `is_bl_status`: bootloader status check is not enabled for WebUSB yet.
 
-These wasm exports return explicit unsupported errors instead of silently falling
-back to native HID behavior.
+Firmware update uses a reconnect-capable async transport. After COS or BLE
+firmware restarts the device, the WebUSB adapter searches the browser's already
+authorized devices for the same VID, PID, and serial number, reopens it, and
+claims the newly reported interface and endpoints before the Rust state machine
+continues.
 
 ## Chain-Level Async Migration
 

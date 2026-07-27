@@ -6,6 +6,8 @@ use crate::app_delete::AppDeleteRequest;
 use crate::app_download::{AppDownloadRequest, AppDownloadResponse};
 use crate::app_update::AppUpdateResponse;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+use crate::ble_upgrade::BleUpgradeRequest;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use crate::cos_check_update::{CosCheckUpdateRequest, CosCheckUpdateResponse};
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use crate::cos_upgrade::CosUpgradeRequest;
@@ -239,7 +241,13 @@ pub fn cos_upgrade() -> Result<()> {
 pub fn cos_check_update() -> Result<ServiceResponse<CosCheckUpdateResponse>> {
     let seid = get_se_id()?;
     let cos_version = get_firmware_version()?;
-    CosCheckUpdateRequest::build_request_data(seid, cos_version).send_message()
+    let ble_version = get_ble_version()?;
+    CosCheckUpdateRequest::build_request_data(seid, cos_version, ble_version).send_message()
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+pub fn ble_upgrade() -> Result<()> {
+    BleUpgradeRequest::ble_upgrade()
 }
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub fn is_bl_status() -> Result<bool> {
