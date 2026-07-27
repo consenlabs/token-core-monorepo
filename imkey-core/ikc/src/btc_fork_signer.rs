@@ -6,6 +6,7 @@ use bitcoin::Network;
 use coin_btc_fork::btcforkapi::{BtcForkTxInput, BtcForkTxOutput};
 use coin_btc_fork::transaction::BtcForkTransaction;
 use ikc_common::coin_info::coin_info_from_param;
+use ikc_common::path::resolve_derivation_path;
 use ikc_common::SignParam;
 use prost::Message;
 
@@ -27,8 +28,12 @@ pub fn sign_legacy_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -
         &param.seg_wit,
         "",
     )?;
+    let mut tx_input = param.clone();
+    for utxo in &mut tx_input.unspents {
+        utxo.derived_path = resolve_derivation_path(&sign_param.path, &utxo.derived_path)?;
+    }
     let transaction_req_data = BtcForkTransaction {
-        tx_input: param.clone(),
+        tx_input,
         coin_info,
     };
     let network = if sign_param.network == "TESTNET" {
@@ -49,8 +54,12 @@ pub fn sign_legacy_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -
 pub fn sign_segwit_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
     let extra_data = vec![];
     let coin_info = coin_info_from_param("LITECOIN", "MAINNET", "P2WPKH", "")?;
+    let mut tx_input = param.clone();
+    for utxo in &mut tx_input.unspents {
+        utxo.derived_path = resolve_derivation_path(&sign_param.path, &utxo.derived_path)?;
+    }
     let transaction_req_data = BtcForkTransaction {
-        tx_input: param.clone(),
+        tx_input,
         coin_info,
     };
     let network = if sign_param.network == "TESTNET" {

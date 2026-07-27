@@ -45,7 +45,7 @@ use coin_tron::signer::TronSigner;
 use coin_tron::tronapi::{TronMessageInput, TronTxInput};
 use ethereum_types::{Address as EthRawAddress, H256, U256};
 use ikc_common::coin_info::coin_info_from_param;
-use ikc_common::path::get_account_path;
+use ikc_common::path::{get_account_path, resolve_derivation_path};
 use ikc_common::utility::{
     encrypt_xpub, extended_pub_key_derive, from_ss58check_with_version, get_xpub_prefix,
     to_ss58check_with_version, uncompress_pubkey_2_compress,
@@ -84,6 +84,10 @@ fn js_value_message(value: &JsValue, fallback: &str) -> String {
 
 fn map_err(error: anyhow::Error) -> JsValue {
     js_err(error.to_string())
+}
+
+fn resolve_utxo_path(account_path: &str, derived_path: &str) -> Result<String, JsValue> {
+    resolve_derivation_path(account_path, derived_path).map_err(|error| js_err(error.to_string()))
 }
 
 fn normalize_hex(value: &str) -> String {
@@ -1958,22 +1962,23 @@ pub async fn sign_tx(params_json: &str) -> Result<String, JsValue> {
                 .extra
                 .as_ref()
                 .and_then(|extra| (!extra.op_return.is_empty()).then(|| extra.op_return.clone()));
+            let mut unspents = Vec::with_capacity(input.unspents.len());
+            for utxo in input.unspents {
+                unspents.push(BtcUtxo {
+                    txhash: utxo.tx_hash,
+                    vout: utxo.vout,
+                    amount: utxo.amount,
+                    address: utxo.address,
+                    script_pubkey: utxo.script_pub_key,
+                    derive_path: resolve_utxo_path(&sign_param.path, &utxo.derived_path)?
+                        .to_uppercase(),
+                    sequence: utxo.sequence,
+                });
+            }
             let transaction = BtcTransaction {
                 to: input.to,
                 amount: input.amount,
-                unspents: input
-                    .unspents
-                    .into_iter()
-                    .map(|utxo| BtcUtxo {
-                        txhash: utxo.tx_hash,
-                        vout: utxo.vout,
-                        amount: utxo.amount,
-                        address: utxo.address,
-                        script_pubkey: utxo.script_pub_key,
-                        derive_path: utxo.derived_path,
-                        sequence: utxo.sequence,
-                    })
-                    .collect(),
+                unspents,
                 fee: input.fee,
                 chain_type: sign_param.chain_type.clone(),
             };
@@ -2006,22 +2011,22 @@ pub async fn sign_tx(params_json: &str) -> Result<String, JsValue> {
             let coin_info =
                 coin_info_from_param(&sign_param.chain_type, &sign_param.network, &seg_wit, "")
                     .map_err(map_err)?;
+            let mut unspents = Vec::with_capacity(input.unspents.len());
+            for utxo in input.unspents {
+                unspents.push(BtcForkUtxo {
+                    tx_hash: utxo.tx_hash,
+                    vout: utxo.vout,
+                    amount: utxo.amount,
+                    address: utxo.address,
+                    script_pub_key: utxo.script_pub_key,
+                    derived_path: resolve_utxo_path(&sign_param.path, &utxo.derived_path)?,
+                    sequence: utxo.sequence,
+                });
+            }
             let tx_input = BtcForkTxInput {
                 to: input.to,
                 amount: input.amount,
-                unspents: input
-                    .unspents
-                    .into_iter()
-                    .map(|utxo| BtcForkUtxo {
-                        tx_hash: utxo.tx_hash,
-                        vout: utxo.vout,
-                        amount: utxo.amount,
-                        address: utxo.address,
-                        script_pub_key: utxo.script_pub_key,
-                        derived_path: utxo.derived_path,
-                        sequence: utxo.sequence,
-                    })
-                    .collect(),
+                unspents,
                 fee: input.fee,
                 change_address_index: input.change_address_index.unwrap_or_default(),
                 change_address: input.change_address,
@@ -2062,19 +2067,18 @@ pub async fn sign_tx(params_json: &str) -> Result<String, JsValue> {
         "BITCOINCASH" => {
             let input: BtcTxInputJson = serde_json::from_value(params.input.clone())
                 .map_err(|_| js_err("imkey_illegal_param"))?;
-            let unspents = input
-                .unspents
-                .into_iter()
-                .map(|utxo| BchUtxo {
+            let mut unspents = Vec::with_capacity(input.unspents.len());
+            for utxo in input.unspents {
+                unspents.push(BchUtxo {
                     txhash: utxo.tx_hash,
                     vout: utxo.vout,
                     amount: utxo.amount,
                     address: utxo.address,
                     script_pubkey: utxo.script_pub_key,
-                    derive_path: utxo.derived_path,
+                    derive_path: resolve_utxo_path(&sign_param.path, &utxo.derived_path)?,
                     sequence: utxo.sequence,
-                })
-                .collect();
+                });
+            }
             let transaction = BchTransaction {
                 to: input.to,
                 amount: input.amount,

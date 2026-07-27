@@ -4,6 +4,7 @@ use anyhow::anyhow;
 use bitcoin::Network;
 use coin_bch::transaction::{BchTransaction, Utxo};
 use coin_btc_fork::btcforkapi::{BtcForkTxInput, BtcForkTxOutput};
+use ikc_common::path::resolve_derivation_path;
 use ikc_common::SignParam;
 use prost::Message;
 
@@ -21,7 +22,7 @@ pub fn sign_bch_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -> R
             amount: utxo.amount,
             address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
-            derive_path: utxo.derived_path.to_string(),
+            derive_path: resolve_derivation_path(&sign_param.path, &utxo.derived_path)?,
             sequence: utxo.sequence,
         };
         unspents.push(new_utxo);

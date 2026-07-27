@@ -318,8 +318,8 @@ impl BtcForkTransaction {
         let tx_bytes = serialize(&tx_to_sign);
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: tx_to_sign.compute_txid().to_hex(),
-            wtx_id: tx_to_sign.compute_ntxid().to_hex(),
+            tx_hash: tx_to_sign.compute_txid().to_string(),
+            wtx_id: tx_to_sign.compute_ntxid().to_string(),
         })
     }
 
@@ -500,8 +500,8 @@ impl BtcForkTransaction {
         let tx_bytes = serialize(&tx_to_sign);
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: tx_to_sign.compute_txid().to_hex(),
-            wtx_id: tx_to_sign.compute_ntxid().to_hex(),
+            tx_hash: tx_to_sign.compute_txid().to_string(),
+            wtx_id: tx_to_sign.compute_ntxid().to_string(),
         })
     }
 
@@ -748,8 +748,8 @@ impl BtcForkTransaction {
 
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: tx_to_sign.compute_txid().to_hex(),
-            wtx_id: tx_to_sign.compute_wtxid().to_hex(),
+            tx_hash: tx_to_sign.compute_txid().to_string(),
+            wtx_id: tx_to_sign.compute_wtxid().to_string(),
         })
     }
 
@@ -959,8 +959,8 @@ impl BtcForkTransaction {
 
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: tx_to_sign.compute_txid().to_hex(),
-            wtx_id: tx_to_sign.compute_wtxid().to_hex(),
+            tx_hash: tx_to_sign.compute_txid().to_string(),
+            wtx_id: tx_to_sign.compute_wtxid().to_string(),
         })
     }
 

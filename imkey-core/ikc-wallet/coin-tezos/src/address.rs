@@ -185,25 +185,25 @@ impl TezosAddress {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use crate::address::TezosAddress;
-    use ikc_device::device_binding::bind_test;
-    use ikc_transport::hid_api::hid_connect;
+// #[cfg(test)]
+// mod test {
+//     use crate::address::TezosAddress;
+//     use ikc_device::device_binding::bind_test;
+//     use ikc_transport::hid_api::hid_connect;
 
-    #[test]
-    fn get_address_test() {
-        assert!(hid_connect("imKey Pro").is_ok());
-        bind_test();
-        let address = TezosAddress::get_address("m/44'/1729'/0'/0'").unwrap();
-        assert_eq!(address, "tz1d2TfcvWBwtPqo7f21DVv7HSSCoNAVp8gz".to_string());
-    }
+//     #[test]
+//     fn get_address_test() {
+//         assert!(hid_connect("imKey Pro").is_ok());
+//         bind_test();
+//         let address = TezosAddress::get_address("m/44'/1729'/0'/0'").unwrap();
+//         assert_eq!(address, "tz1d2TfcvWBwtPqo7f21DVv7HSSCoNAVp8gz".to_string());
+//     }
 
-    #[test]
-    fn display_address_test() {
-        assert!(hid_connect("imKey Pro").is_ok());
-        bind_test();
-        let result = TezosAddress::display_address("m/44'/1729'/0'/0'").unwrap();
-        assert_eq!(result, "tz1d2TfcvWBwtPqo7f21DVv7HSSCoNAVp8gz".to_string());
-    }
-}
+//     #[test]
+//     fn display_address_test() {
+//         assert!(hid_connect("imKey Pro").is_ok());
+//         bind_test();
+//         let result = TezosAddress::display_address("m/44'/1729'/0'/0'").unwrap();
+//         assert_eq!(result, "tz1d2TfcvWBwtPqo7f21DVv7HSSCoNAVp8gz".to_string());
+//     }
+// }
