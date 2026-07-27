@@ -54,6 +54,8 @@ pub enum ApduError {
     ImkeyMnemonicCheckFailed,
     #[error("imkey_cancel_mnemonic_check")]
     ImkeyCancelMnemonicCheck,
+    #[error("imkey_ble_upgrade_cancel")]
+    ImkeyBleUpgradeCancel,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]

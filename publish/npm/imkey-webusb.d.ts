@@ -58,6 +58,7 @@ export class ImKeyWebUsbError extends Error {
 export class WebUsbImKeyTransport {
   constructor(device: ImKeyUsbDevice, endpoints: ImKeyEndpointConfig);
   sendApduRaw(apduHex: string, timeoutMs?: number): Promise<string>;
+  reconnect(timeoutMs?: number): Promise<void>;
   close(): Promise<void>;
   markDisconnected(): void;
   getDiagnostics(): {

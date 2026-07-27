@@ -2,6 +2,9 @@ use crate::app_delete::AppDeleteRequest;
 use crate::app_download::{AppDownloadRequest, AppDownloadResponse};
 use crate::app_update::{AppUpdateRequest, AppUpdateResponse};
 use crate::auth_code_storage::{AuthCodeStorageRequest, AuthCodeStorageResponse};
+use crate::ble_upgrade::{BleUpgradeRequest, BleUpgradeResponse};
+use crate::cos_check_update::{CosCheckUpdateRequest, CosCheckUpdateResponse};
+use crate::cos_upgrade::{CosUpgradeRequest, CosUpgradeResponse};
 use crate::device_binding::{
     auth_code_encrypt, bind_status_message, gen_iv, get_se_pubkey, KEY_MANAGER,
 };
@@ -19,14 +22,18 @@ use ikc_common::constants::{
     self, BIND_RESULT_ERROR, BIND_STATUS_BOUND_OTHER, BIND_STATUS_UNBOUND, TIMEOUT_LONG,
 };
 use ikc_common::error::ApduError;
-use ikc_common::utility::sha256_hash;
-pub use ikc_transport::async_transport::{AsyncApduTransport, BoxFutureResult, TransportProfile};
+use ikc_common::utility::{hex_to_bytes, sha256_hash};
+pub use ikc_transport::async_transport::{
+    AsyncApduTransport, AsyncReconnectableTransport, BoxFutureResult, TransportProfile,
+};
 use regex::Regex;
 use secp256k1::{ecdh, PublicKey, SecretKey};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use sha1::Digest;
-use std::convert::TryInto;
+use std::convert::{TryFrom, TryInto};
+
+const FIRMWARE_RECONNECT_TIMEOUT: i32 = 30;
 
 pub trait AsyncTsmClient {
     fn post<'a>(&'a self, action: &'a str, body: Vec<u8>) -> BoxFutureResult<'a, String>;
@@ -160,6 +167,21 @@ where
         payload.get(2..).ok_or(ApduError::ImkeyApduWrongLength)?
     );
     Ok(firmware_version)
+}
+
+pub async fn get_bl_version<T>(transport: &T) -> Result<String>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    select_isd(transport).await?;
+    let response = send_checked(transport, "80CA800900").await?;
+    let payload = apdu_payload(&response)?;
+    Ok(format!(
+        "{}.{}.{}",
+        payload.get(0..1).ok_or(ApduError::ImkeyApduWrongLength)?,
+        payload.get(1..2).ok_or(ApduError::ImkeyApduWrongLength)?,
+        payload.get(2..).ok_or(ApduError::ImkeyApduWrongLength)?
+    ))
 }
 
 pub fn get_sdk_info() -> String {
@@ -626,4 +648,414 @@ where
     run_tsm_steps(&mut request, transport, tsm_client)
         .await
         .map(|_| ())
+}
+
+pub async fn cos_check_update<T, C>(
+    transport: &T,
+    tsm_client: &C,
+) -> Result<ServiceResponse<CosCheckUpdateResponse>>
+where
+    T: AsyncApduTransport + ?Sized,
+    C: AsyncTsmClient + ?Sized,
+{
+    let seid = get_se_id(transport).await?;
+    let cos_version = get_firmware_version(transport).await?;
+    let ble_version = get_ble_version(transport).await?;
+    let request = CosCheckUpdateRequest::build_request_data(seid, cos_version, ble_version);
+    let req_data = serde_json::to_vec_pretty(&request)?;
+    let response_data = tsm_client
+        .post(constants::TSM_ACTION_COS_CHECK_UPDATE, req_data)
+        .await?;
+    let return_bean: ServiceResponse<CosCheckUpdateResponse> =
+        serde_json::from_str(&response_data)?;
+    return_bean.service_res_check()?;
+    Ok(return_bean)
+}
+
+async fn download_instance<T, C>(
+    transport: &T,
+    tsm_client: &C,
+    seid: String,
+    instance_aid: String,
+    device_cert: String,
+    sdk_version: Option<String>,
+) -> Result<()>
+where
+    T: AsyncApduTransport + ?Sized,
+    C: AsyncTsmClient + ?Sized,
+{
+    let mut request =
+        AppDownloadRequest::build_request_data(seid, instance_aid, device_cert, sdk_version);
+    run_tsm_steps(&mut request, transport, tsm_client)
+        .await
+        .map(|_| ())
+}
+
+pub async fn cos_upgrade<T, C>(transport: &T, tsm_client: &C) -> Result<()>
+where
+    T: AsyncReconnectableTransport + ?Sized,
+    C: AsyncTsmClient + ?Sized,
+{
+    let mut device_cert = get_cert(transport).await?;
+    let mut se_cos_version = String::new();
+    let mut se_bl_version = None;
+    let (seid, sn, is_bl_status, step_key) = if device_cert
+        .get(..4)
+        .is_some_and(|value| value.eq_ignore_ascii_case("bf21"))
+    {
+        se_cos_version = get_firmware_version(transport).await?;
+        (
+            get_se_id(transport).await?,
+            get_sn(transport).await?,
+            false,
+            "01".to_string(),
+        )
+    } else if device_cert
+        .get(..4)
+        .is_some_and(|value| value.eq_ignore_ascii_case("7f21"))
+    {
+        let seid = device_cert
+            .get(12..44)
+            .ok_or(ImkeyError::ImkeyTsmCosUpgradeFail)?
+            .to_string();
+        let cert_length =
+            u8::try_from(device_cert.len() / 2).map_err(|_| ImkeyError::ImkeyTsmCosUpgradeFail)?;
+        let mut wrapped_cert = hex_to_bytes("bf2181")?;
+        wrapped_cert.push(cert_length);
+        wrapped_cert.extend(hex_to_bytes(&device_cert)?);
+        device_cert = hex::encode_upper(wrapped_cert);
+        se_bl_version = Some(get_bl_version(transport).await?);
+        (seid, "0000000000000000".to_string(), true, "03".to_string())
+    } else {
+        return Err(ImkeyError::ImkeyTsmCosUpgradeFail.into());
+    };
+
+    let mut request = CosUpgradeRequest {
+        seid: seid.clone(),
+        sn,
+        device_cert: device_cert.clone(),
+        se_cos_version,
+        is_bl_status,
+        step_key,
+        status_word: None,
+        command_id: constants::TSM_ACTION_COS_UPGRADE.to_string(),
+        card_ret_data_list: None,
+        se_bl_version,
+    };
+
+    loop {
+        let req_data = serde_json::to_vec_pretty(&request)?;
+        let response_data = tsm_client
+            .post(constants::TSM_ACTION_COS_UPGRADE, req_data)
+            .await?;
+        let return_bean: ServiceResponse<CosUpgradeResponse> =
+            serde_json::from_str(&response_data)?;
+        if return_bean.return_code != constants::TSM_RETURN_CODE_SUCCESS {
+            return_bean.service_res_check()?;
+            continue;
+        }
+
+        let next_step_key = return_bean
+            .return_data
+            .next_step_key
+            .clone()
+            .ok_or(ImkeyError::ImkeyTsmServerError)?;
+        if next_step_key == constants::TSM_END_FLAG {
+            return ble_upgrade(transport, tsm_client).await;
+        }
+
+        if let Some(apdu_list) = return_bean.return_data.apdu_list.clone() {
+            let mut apdu_results = Vec::with_capacity(apdu_list.len());
+            for (index, apdu) in apdu_list.iter().enumerate() {
+                let response = transport.send_apdu(apdu, 20).await?;
+                if index == apdu_list.len() - 1 {
+                    let status_word = apdu_status_word(&response)?.to_uppercase();
+                    request.status_word = Some(status_word.clone());
+                    if status_word == constants::APDU_RSP_SUCCESS
+                        || status_word == constants::APDU_RSP_SWITCH_BL_STATUS_SUCCESS
+                    {
+                        if next_step_key == "03" {
+                            transport.reconnect(FIRMWARE_RECONNECT_TIMEOUT).await?;
+                            request.se_bl_version = Some(get_bl_version(transport).await?);
+                        } else if next_step_key == "05" {
+                            transport.reconnect(FIRMWARE_RECONNECT_TIMEOUT).await?;
+                            request.se_cos_version = get_firmware_version(transport).await?;
+                        }
+                    }
+                }
+                apdu_results.push(response);
+            }
+            request.card_ret_data_list = Some(apdu_results);
+        }
+
+        if next_step_key == "06" {
+            if let Some(instance_aids) = return_bean.return_data.instance_aid_list.as_deref() {
+                for instance_aid in instance_aids {
+                    download_instance(
+                        transport,
+                        tsm_client,
+                        seid.clone(),
+                        instance_aid.clone(),
+                        device_cert.clone(),
+                        Some(constants::VERSION.to_string()),
+                    )
+                    .await?;
+                }
+            }
+        }
+        request.step_key = next_step_key;
+    }
+}
+
+pub async fn ble_upgrade<T, C>(transport: &T, tsm_client: &C) -> Result<()>
+where
+    T: AsyncReconnectableTransport + ?Sized,
+    C: AsyncTsmClient + ?Sized,
+{
+    let mut request = BleUpgradeRequest {
+        seid: get_se_id(transport).await?,
+        sn: get_sn(transport).await?,
+        device_cert: get_cert(transport).await?,
+        cos_version: get_firmware_version(transport).await?,
+        ble_version: get_ble_version(transport).await?,
+        step_key: "01".to_string(),
+        status_word: None,
+        command_id: constants::TSM_ACTION_BLE_UPDATE.to_string(),
+        card_ret_data_list: None,
+    };
+
+    loop {
+        let req_data = serde_json::to_vec_pretty(&request)?;
+        let response_data = tsm_client
+            .post(constants::TSM_ACTION_BLE_UPDATE, req_data)
+            .await?;
+        let return_bean: ServiceResponse<BleUpgradeResponse> =
+            serde_json::from_str(&response_data)?;
+        if return_bean.return_code != constants::TSM_RETURN_CODE_SUCCESS {
+            return_bean.service_res_check()?;
+            continue;
+        }
+
+        let next_step_key = return_bean
+            .return_data
+            .next_step_key
+            .ok_or(ImkeyError::ImkeyTsmServerError)?;
+        if next_step_key == constants::TSM_END_FLAG {
+            return Ok(());
+        }
+
+        if let Some(apdu_list) = return_bean.return_data.apdu_list {
+            let mut apdu_results = Vec::with_capacity(apdu_list.len());
+            let mut last_status_word = None;
+            for (index, apdu) in apdu_list.iter().enumerate() {
+                let response = transport.send_apdu(apdu, 20).await?;
+                let status_word = apdu_status_word(&response)?.to_uppercase();
+                if next_step_key == "03" {
+                    if index == 0 {
+                        ApduCheck::check_response(&response)?;
+                    } else if index == 5 && status_word == constants::APDU_RSP_APPLET_WRONG_DATA {
+                        return Err(anyhow!("imkey_ble_upgrade_fail"));
+                    }
+                }
+                last_status_word = Some(status_word);
+                apdu_results.push(response);
+            }
+
+            if let Some(status_word) = last_status_word {
+                request.status_word = Some(status_word.clone());
+                if next_step_key == "03" && status_word == constants::APDU_RSP_SUCCESS {
+                    transport.reconnect(FIRMWARE_RECONNECT_TIMEOUT).await?;
+                    request.ble_version = get_ble_version(transport).await?;
+                }
+            }
+            request.card_ret_data_list = Some(apdu_results);
+        }
+        request.step_key = next_step_key;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use parking_lot::Mutex;
+    use serde_json::Value;
+    use std::collections::VecDeque;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct MockTransport {
+        responses: Mutex<VecDeque<String>>,
+        reconnects: AtomicUsize,
+    }
+
+    impl MockTransport {
+        fn new(responses: &[&str]) -> Self {
+            Self {
+                responses: Mutex::new(responses.iter().map(|value| value.to_string()).collect()),
+                reconnects: AtomicUsize::new(0),
+            }
+        }
+
+        fn assert_drained(&self) {
+            assert!(self.responses.lock().is_empty());
+        }
+    }
+
+    impl AsyncApduTransport for MockTransport {
+        fn profile(&self) -> TransportProfile {
+            TransportProfile::WebUsb
+        }
+
+        fn send_apdu<'a>(&'a self, _apdu: &'a str, _timeout: i32) -> BoxFutureResult<'a, String> {
+            Box::pin(async move {
+                self.responses
+                    .lock()
+                    .pop_front()
+                    .ok_or_else(|| anyhow!("missing_mock_apdu_response"))
+            })
+        }
+    }
+
+    impl AsyncReconnectableTransport for MockTransport {
+        fn reconnect<'a>(&'a self, _timeout: i32) -> BoxFutureResult<'a, ()> {
+            Box::pin(async move {
+                self.reconnects.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            })
+        }
+    }
+
+    struct MockTsmClient {
+        responses: Mutex<VecDeque<String>>,
+        requests: Mutex<Vec<(String, Value)>>,
+    }
+
+    impl MockTsmClient {
+        fn new(responses: &[&str]) -> Self {
+            Self {
+                responses: Mutex::new(responses.iter().map(|value| value.to_string()).collect()),
+                requests: Mutex::new(Vec::new()),
+            }
+        }
+    }
+
+    impl AsyncTsmClient for MockTsmClient {
+        fn post<'a>(&'a self, action: &'a str, body: Vec<u8>) -> BoxFutureResult<'a, String> {
+            Box::pin(async move {
+                self.requests
+                    .lock()
+                    .push((action.to_string(), serde_json::from_slice(&body)?));
+                self.responses
+                    .lock()
+                    .pop_front()
+                    .ok_or_else(|| anyhow!("missing_mock_tsm_response"))
+            })
+        }
+    }
+
+    const COS_CHECK_RESPONSE: &str = r#"{
+        "_ReturnCode":"000000",
+        "_ReturnMsg":"success",
+        "_ReturnData":{
+            "seid":"ABCD",
+            "isLatest":false,
+            "latestCosVersion":"1.2.4",
+            "latestBleVersion":"3.0.04",
+            "updateType":"mandatory",
+            "description":"update",
+            "isUpdateSuccess":true
+        }
+    }"#;
+
+    const BLE_STEP_RESPONSE: &str = r#"{
+        "_ReturnCode":"000000",
+        "_ReturnMsg":"success",
+        "_ReturnData":{"nextStepKey":"03","apduList":["AA"]}
+    }"#;
+
+    const END_RESPONSE: &str = r#"{
+        "_ReturnCode":"000000",
+        "_ReturnMsg":"success",
+        "_ReturnData":{"nextStepKey":"end"}
+    }"#;
+
+    #[test]
+    fn async_cos_check_upgrade_contract_sends_cos_and_ble_versions() {
+        let transport =
+            MockTransport::new(&["9000", "ABCD9000", "9000", "1239000", "9000", "30039000"]);
+        let tsm = MockTsmClient::new(&[COS_CHECK_RESPONSE]);
+
+        let response = futures_lite::future::block_on(cos_check_update(&transport, &tsm)).unwrap();
+
+        assert_eq!(
+            response.return_data.latest_ble_version.as_deref(),
+            Some("3.0.04")
+        );
+        let requests = tsm.requests.lock();
+        assert_eq!(requests[0].0, constants::TSM_ACTION_COS_CHECK_UPDATE);
+        assert_eq!(requests[0].1["cosVersion"], "1.2.3");
+        assert_eq!(requests[0].1["bleVersion"], "3.0.03");
+        transport.assert_drained();
+    }
+
+    #[test]
+    fn async_ble_upgrade_contract_reconnects_and_refreshes_version() {
+        let transport = MockTransport::new(&[
+            "9000",
+            "ABCD9000",
+            "9000",
+            "534E9000",
+            "9000",
+            "BF2100009000",
+            "9000",
+            "1239000",
+            "9000",
+            "30039000",
+            "9000",
+            "9000",
+            "30049000",
+        ]);
+        let tsm = MockTsmClient::new(&[BLE_STEP_RESPONSE, END_RESPONSE]);
+
+        futures_lite::future::block_on(ble_upgrade(&transport, &tsm)).unwrap();
+
+        assert_eq!(transport.reconnects.load(Ordering::SeqCst), 1);
+        let requests = tsm.requests.lock();
+        assert_eq!(requests.len(), 2);
+        assert_eq!(requests[1].1["stepKey"], "03");
+        assert_eq!(requests[1].1["statusWord"], "9000");
+        assert_eq!(requests[1].1["bleVersion"], "3.0.04");
+        transport.assert_drained();
+    }
+
+    #[test]
+    fn async_cos_upgrade_contract_chains_ble_update() {
+        let transport = MockTransport::new(&[
+            "9000",
+            "BF2100009000",
+            "9000",
+            "1239000",
+            "9000",
+            "ABCD9000",
+            "9000",
+            "534E9000",
+            "9000",
+            "ABCD9000",
+            "9000",
+            "534E9000",
+            "9000",
+            "BF2100009000",
+            "9000",
+            "1239000",
+            "9000",
+            "30039000",
+        ]);
+        let tsm = MockTsmClient::new(&[END_RESPONSE, END_RESPONSE]);
+
+        futures_lite::future::block_on(cos_upgrade(&transport, &tsm)).unwrap();
+
+        let requests = tsm.requests.lock();
+        assert_eq!(requests[0].0, constants::TSM_ACTION_COS_UPGRADE);
+        assert_eq!(requests[1].0, constants::TSM_ACTION_BLE_UPDATE);
+        transport.assert_drained();
+    }
 }

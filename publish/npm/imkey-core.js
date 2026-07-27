@@ -126,7 +126,6 @@ export class ImKeyCore {
 
   async cosUpdate() { await wasm.cos_update(); }
   async cosCheckUpdate() { return parseJson(await wasm.cos_check_update()); }
-  async isBlStatus() { return wasm.is_bl_status(); }
 }
 
 export function createImKeyCore(options = {}) {

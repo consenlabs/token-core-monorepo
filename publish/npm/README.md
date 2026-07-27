@@ -21,12 +21,23 @@ const address = await imkey.getAddress({
   path: "m/44'/60'/0'/0/0",
   network: "MAINNET",
 });
+
+const update = await imkey.cosCheckUpdate();
+if (!update._ReturnData.isLatest) {
+  await imkey.cosUpdate();
+}
 ```
 
 The SDK owns the WebUSB session in JavaScript. Rust/WASM generates and validates
 APDUs, while `WebUsbImKeyTransport` performs `transferOut` and `transferIn`.
 `IndexedDbImKeyStorage` and `FetchTsmClient` are the default browser adapters and
 can be replaced through `createImKeyCore` options.
+
+`cosUpdate()` runs the complete COS update and chained BLE firmware update. When
+the device restarts during either stage, the WebUSB transport reopens the same
+previously authorized device and dynamically claims its current endpoints. A
+browser permission dialog cannot be opened during this automatic reconnect, so
+the original device authorization and serial number must remain available.
 
 `configureTsm` uses the same Rust validation and process-lifetime rules as the
 native `configure_tsm` API. It accepts an HTTPS base URL, removes trailing

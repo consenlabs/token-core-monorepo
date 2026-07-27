@@ -30,6 +30,22 @@ export interface ImKeyDeviceInfo {
   life_time: string;
 }
 
+export interface ImKeyTsmResponse<T> {
+  _ReturnCode: string;
+  _ReturnMsg: string;
+  _ReturnData: T;
+}
+
+export interface ImKeyCosCheckUpdateData {
+  seid: string;
+  isLatest: boolean;
+  latestCosVersion?: string;
+  latestBleVersion?: string;
+  updateType?: string;
+  description?: string;
+  isUpdateSuccess: boolean;
+}
+
 export interface ImKeyAddressParams {
   chainType: ImKeyChainType;
   path: string;
@@ -153,8 +169,7 @@ export class ImKeyCore {
   appUpdate(appName: string): Promise<unknown>;
   appDelete(appName: string): Promise<unknown>;
   cosUpdate(): Promise<void>;
-  cosCheckUpdate(): Promise<unknown>;
-  isBlStatus(): Promise<boolean>;
+  cosCheckUpdate(): Promise<ImKeyTsmResponse<ImKeyCosCheckUpdateData>>;
 }
 
 export function initImKeyCore(): Promise<void>;

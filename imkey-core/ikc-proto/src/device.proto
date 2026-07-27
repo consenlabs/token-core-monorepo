@@ -102,6 +102,8 @@ message CosCheckUpdateRes {
     string update_type = 4;
     string description = 5;
     bool is_update_success = 6;
+    // Appended to preserve the existing field numbers used by native clients.
+    string latest_ble_version = 7;
 }
 
 message IsBlStatusRes {

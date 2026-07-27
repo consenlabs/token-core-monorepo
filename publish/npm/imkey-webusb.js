@@ -201,10 +201,50 @@ export class WebUsbImKeyTransport {
   #lock = Promise.resolve();
   #connected = true;
   #lastTrace = null;
+  #usbApi = null;
+  #disconnectListener = null;
+  #identity;
 
-  constructor(device, endpoints) {
+  constructor(device, endpoints, usbApi = null) {
     this.device = device;
     this.endpoints = endpoints;
+    this.#identity = descriptor(device);
+    if (usbApi) this.#attachUsbApi(usbApi);
+  }
+
+  #attachUsbApi(api) {
+    if (this.#usbApi && this.#disconnectListener) {
+      this.#usbApi.removeEventListener("disconnect", this.#disconnectListener);
+    }
+    this.#usbApi = api;
+    this.#disconnectListener = (event) => {
+      if (event.device === this.device) this.markDisconnected();
+    };
+    api.addEventListener("disconnect", this.#disconnectListener);
+  }
+
+  #matchesIdentity(device) {
+    if (
+      device.vendorId !== this.#identity.vendorId ||
+      device.productId !== this.#identity.productId
+    ) {
+      return false;
+    }
+    return !this.#identity.serialNumber || device.serialNumber === this.#identity.serialNumber;
+  }
+
+  async #exclusive(operation) {
+    const previous = this.#lock;
+    let release;
+    this.#lock = new Promise((resolve) => {
+      release = resolve;
+    });
+    try {
+      await previous;
+      return await operation();
+    } finally {
+      release();
+    }
   }
 
   getDiagnostics() {
@@ -221,20 +261,20 @@ export class WebUsbImKeyTransport {
   }
 
   async close() {
-    this.#connected = false;
-    if (!this.device.opened) return;
-    await this.device.releaseInterface(this.endpoints.interfaceNumber).catch(() => undefined);
-    await this.device.close().catch(() => undefined);
+    await this.#exclusive(async () => {
+      this.#connected = false;
+      if (this.#usbApi && this.#disconnectListener) {
+        this.#usbApi.removeEventListener("disconnect", this.#disconnectListener);
+      }
+      this.#disconnectListener = null;
+      if (!this.device.opened) return;
+      await this.device.releaseInterface(this.endpoints.interfaceNumber).catch(() => undefined);
+      await this.device.close().catch(() => undefined);
+    });
   }
 
   async sendApduRaw(apduHex, timeoutMs = DEFAULT_TIMEOUT_MS) {
-    const previous = this.#lock;
-    let release;
-    this.#lock = new Promise((resolve) => {
-      release = resolve;
-    });
-    try {
-      await previous;
+    return this.#exclusive(async () => {
       if (!this.#connected || !this.device.opened) {
         throw new ImKeyWebUsbError("Device disconnected.", "webusb_device_disconnected");
       }
@@ -264,9 +304,53 @@ export class WebUsbImKeyTransport {
           error instanceof ImKeyWebUsbError ? error.code : "webusb_apdu_error"
         );
       }
-    } finally {
-      release();
-    }
+    });
+  }
+
+  async reconnect(timeoutMs = 30_000) {
+    return this.#exclusive(async () => {
+      const api = this.#usbApi ?? usb();
+      if (!this.#usbApi) this.#attachUsbApi(api);
+      if (typeof api.getDevices !== "function") {
+        throw new ImKeyWebUsbError(
+          "WebUSB reconnect is unavailable.",
+          "webusb_reconnect_unsupported"
+        );
+      }
+
+      this.#connected = false;
+      if (this.device.opened) {
+        await this.device
+          .releaseInterface(this.endpoints.interfaceNumber)
+          .catch(() => undefined);
+        await this.device.close().catch(() => undefined);
+      }
+
+      const deadline = Date.now() + Math.max(1, timeoutMs);
+      while (Date.now() < deadline) {
+        const devices = await api.getDevices().catch(() => []);
+        const candidates = devices.filter((device) => this.#matchesIdentity(device));
+        for (const candidate of candidates) {
+          try {
+            if (!candidate.opened) await candidate.open();
+            const endpoints = await findAndClaimEndpoints(candidate);
+            this.device = candidate;
+            this.endpoints = endpoints;
+            this.#connected = true;
+            this.#lastTrace = null;
+            return;
+          } catch {
+            await candidate.close().catch(() => undefined);
+          }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+
+      throw new ImKeyWebUsbError(
+        "Timed out while reconnecting to imKey after firmware restart.",
+        "webusb_reconnect_timeout"
+      );
+    });
   }
 }
 
@@ -283,20 +367,19 @@ export async function connectImKeyWebUsb(filters = []) {
   }
   if (!device.opened) await device.open();
   const endpoints = await findAndClaimEndpoints(device);
-  const transport = new WebUsbImKeyTransport(device, endpoints);
-  const onDisconnect = (event) => {
-    if (event.device !== device) return;
-    transport.markDisconnected();
-    api.removeEventListener("disconnect", onDisconnect);
-  };
-  api.addEventListener("disconnect", onDisconnect);
+  const transport = new WebUsbImKeyTransport(device, endpoints, api);
   return {
-    device,
+    get device() {
+      return transport.device;
+    },
     transport,
-    descriptors: descriptor(device),
-    endpoints,
+    get descriptors() {
+      return descriptor(transport.device);
+    },
+    get endpoints() {
+      return transport.endpoints;
+    },
     async disconnect() {
-      api.removeEventListener("disconnect", onDisconnect);
       await transport.close();
     },
   };

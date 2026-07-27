@@ -31,7 +31,6 @@ import {
   get_sdk_info,
   get_seid,
   get_sn,
-  is_bl_status,
   initImKeyWasm,
   register_address,
   register_pub_key,
@@ -353,9 +352,6 @@ export class ImKeyCore {
     return JSON.parse(await cos_check_update());
   }
 
-  async isBlStatus(): Promise<boolean> {
-    return is_bl_status();
-  }
 }
 
 export function createImKeyCore(options: ImKeyCoreOptions = {}): ImKeyCore {

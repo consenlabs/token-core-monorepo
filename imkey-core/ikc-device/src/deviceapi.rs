@@ -137,6 +137,9 @@ pub struct CosCheckUpdateRes {
     pub description: ::prost::alloc::string::String,
     #[prost(bool, tag = "6")]
     pub is_update_success: bool,
+    /// Appended to preserve the existing field numbers used by native clients.
+    #[prost(string, tag = "7")]
+    pub latest_ble_version: ::prost::alloc::string::String,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
 pub struct IsBlStatusRes {

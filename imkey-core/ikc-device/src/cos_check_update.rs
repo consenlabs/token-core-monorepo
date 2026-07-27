@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct CosCheckUpdateRequest {
     pub seid: String,
     pub cos_version: String,
+    pub ble_version: String,
     #[serde(rename = "commandID")]
     pub command_id: String,
 }
@@ -18,6 +19,7 @@ pub struct CosCheckUpdateResponse {
     pub seid: String,
     pub is_latest: bool,
     pub latest_cos_version: Option<String>,
+    pub latest_ble_version: Option<String>,
     pub update_type: Option<String>,
     pub description: Option<String>,
     pub is_update_success: bool,
@@ -39,10 +41,11 @@ impl TsmService for CosCheckUpdateRequest {
 }
 
 impl CosCheckUpdateRequest {
-    pub fn build_request_data(seid: String, cos_version: String) -> Self {
+    pub fn build_request_data(seid: String, cos_version: String, ble_version: String) -> Self {
         CosCheckUpdateRequest {
             seid,
             cos_version,
+            ble_version,
             command_id: String::from(constants::TSM_ACTION_COS_CHECK_UPDATE),
         }
     }
@@ -56,6 +59,19 @@ mod test {
     use ikc_transport::hid_api::hid_connect;
 
     #[test]
+    fn cos_check_update_upgrade_contract_includes_ble_version() {
+        let request = CosCheckUpdateRequest::build_request_data(
+            "seid".to_string(),
+            "1.0.10".to_string(),
+            "3.0.03".to_string(),
+        );
+        let value = serde_json::to_value(request).unwrap();
+        assert_eq!(value["commandID"], "/cosCheckUpdate");
+        assert_eq!(value["cosVersion"], "1.0.10");
+        assert_eq!(value["bleVersion"], "3.0.03");
+    }
+
+    #[test]
     #[cfg(not(tarpaulin))]
     pub fn cos_check_update_test() {
         crate::configure_test_tsm_from_env();
@@ -64,8 +80,11 @@ mod test {
         let seid = get_se_id().unwrap();
 
         let cos_version: String = "1.0.10".to_string();
-        assert!(CosCheckUpdateRequest::build_request_data(seid, cos_version)
-            .send_message()
-            .is_ok());
+        let ble_version: String = "3.0.03".to_string();
+        assert!(
+            CosCheckUpdateRequest::build_request_data(seid, cos_version, ble_version)
+                .send_message()
+                .is_ok()
+        );
     }
 }
