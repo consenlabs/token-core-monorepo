@@ -28,6 +28,14 @@ pub fn p2pkh_hash(pub_key: &[u8]) -> Result<PubkeyHash, AddressError> {
     Ok(pub_key.pubkey_hash())
 }
 
+/// Derives a P2PKH hash from the compressed SEC serialization of a public key.
+///
+/// Both compressed and uncompressed public key inputs produce the same hash.
+pub fn compressed_p2pkh_hash(pub_key: &[u8]) -> Result<PubkeyHash, AddressError> {
+    let pub_key = compressed_public_key(pub_key)?;
+    Ok(pub_key.pubkey_hash())
+}
+
 pub fn p2shwpkh_hash(pub_key: &[u8]) -> Result<ScriptHash, AddressError> {
     let pub_key = compressed_public_key(pub_key)?;
     let script = ScriptBuf::new_p2wpkh(
@@ -118,6 +126,10 @@ mod tests {
         assert_ne!(
             p2pkh_hash(&uncompressed).unwrap(),
             p2pkh_hash(&compressed).unwrap()
+        );
+        assert_eq!(
+            compressed_p2pkh_hash(&uncompressed).unwrap(),
+            compressed_p2pkh_hash(&compressed).unwrap()
         );
 
         // SegWit only permits compressed public keys, so its helpers keep

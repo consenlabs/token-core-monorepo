@@ -5,7 +5,7 @@ use bitcoin::Network;
 use coin_bitcoin::btcapi::{BtcMessageInput, BtcTxInput, BtcTxOutput};
 use coin_bitcoin::message::MessageSinger;
 use coin_bitcoin::transaction::{BtcTransaction, Utxo};
-use ikc_common::path::get_account_path;
+use ikc_common::path::{get_account_path, resolve_derivation_path};
 use ikc_common::SignParam;
 use prost::Message;
 
@@ -32,7 +32,8 @@ pub fn btc_sign(param: &BtcTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
             amount: utxo.amount,
             address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
-            derive_path: utxo.derived_path.to_uppercase(),
+            derive_path: resolve_derivation_path(&sign_param.path, &utxo.derived_path)?
+                .to_uppercase(),
             sequence: utxo.sequence,
         };
         unspents.push(new_utxo);
@@ -72,7 +73,7 @@ pub fn sign_usdt_transaction(input: &BtcTxInput, sign_param: &SignParam) -> Resu
             amount: utxo.amount,
             address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
-            derive_path: utxo.derived_path.to_string(),
+            derive_path: resolve_derivation_path(&sign_param.path, &utxo.derived_path)?,
             sequence: utxo.sequence,
         };
         unspents.push(new_utxo);
@@ -114,7 +115,7 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
             amount: utxo.amount,
             address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
-            derive_path: utxo.derived_path.to_string(),
+            derive_path: resolve_derivation_path(&sign_param.path, &utxo.derived_path)?,
             sequence: utxo.sequence,
         };
         unspents.push(new_utxo);

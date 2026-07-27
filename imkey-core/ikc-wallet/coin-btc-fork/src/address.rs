@@ -168,7 +168,7 @@ impl BtcForkAddress {
         let pub_key = &xpub_data[..130];
 
         let btc_fork_address = BtcForkAddress {
-            payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::p2pkh_hash(
+            payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::compressed_p2pkh_hash(
                 &hex::decode(pub_key)?,
             )?),
             network: network.clone(),
@@ -191,7 +191,7 @@ impl BtcForkAddress {
         let pub_key = &xpub_data[..130];
 
         let btc_fork_address = BtcForkAddress {
-            payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::p2pkh_hash(
+            payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::compressed_p2pkh_hash(
                 &hex::decode(pub_key)?,
             )?),
             network: network.clone(),
@@ -350,7 +350,9 @@ impl BtcForkAddress {
                 network: btc_fork_network,
             },
             _ => BtcForkAddress {
-                payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::p2pkh_hash(&pub_key)?),
+                payload: BtcForkPayload::PubkeyHash(
+                    wallet_core_common::btc::compressed_p2pkh_hash(&pub_key)?,
+                ),
                 network: btc_fork_network,
             },
         };
@@ -582,6 +584,27 @@ mod test {
         assert!(get_address_result.is_ok());
         let addr = get_address_result.ok().unwrap();
         assert_eq!("ltc1qefxc4n0dd88y7pwsjfv5d5nplpkxwh7cl75fny", addr);
+    }
+
+    #[test]
+    fn test_p2pkh_from_pub_key_uses_compressed_serialization() {
+        let network = network_from_param("LITECOIN", "MAINNET", "NONE").unwrap();
+        let compressed =
+            hex::decode("0289ca41680edbc5594ee6378ebd937e42cd6b4b969e40dd82c20ef2a8aa5bad7b")
+                .unwrap();
+        let uncompressed = bitcoin::secp256k1::PublicKey::from_slice(&compressed)
+            .unwrap()
+            .serialize_uncompressed()
+            .to_vec();
+
+        assert_eq!(
+            "Ldfdegx3hJygDuFDUA7Rkzjjx8gfFhP9DP",
+            BtcForkAddress::from_pub_key(compressed, network.clone()).unwrap()
+        );
+        assert_eq!(
+            "Ldfdegx3hJygDuFDUA7Rkzjjx8gfFhP9DP",
+            BtcForkAddress::from_pub_key(uncompressed, network).unwrap()
+        );
     }
 
     #[test]

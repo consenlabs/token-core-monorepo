@@ -205,7 +205,6 @@ mod tests {
 
     #[test]
     fn sign_tx_error_chainid_test() {
-        bind_test();
         let path = "m/44'/60'/0'/0/0".to_string();
         let data = hex::decode("0a0134120a353030303030303030301a0730783430343964222a3078396564306335333530626331376666343535323937323265623037353830666635363463336137382a0c3078653864346135313030303a03787878").unwrap();
         let sign_param = SignParam {
@@ -219,8 +218,8 @@ mod tests {
             fee: "0.001316 ETH".to_string(),
             seg_wit: "".to_string(),
         };
-        let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
-        println!("sign");
+        let error = sign_eth_transaction(data.as_slice(), &sign_param).unwrap_err();
+        assert_eq!("unpack eth argument error", error.to_string());
     }
 
     #[test]

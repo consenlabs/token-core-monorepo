@@ -72,6 +72,37 @@ pub fn normalize_path(path: &str, trim_trailing_slash: bool) -> &str {
     }
 }
 
+/// Resolves a UTXO derivation path against its account path.
+///
+/// Hardware signing APIs historically accept both full paths (`m/.../0/0`) and
+/// account-relative paths (`0/0`). Empty paths are preserved because callers
+/// use them to indicate that the account-level public key should be used.
+pub fn resolve_derivation_path(
+    account_path: &str,
+    derived_path: &str,
+) -> Result<String, PathError> {
+    if derived_path.is_empty() {
+        return Ok(String::new());
+    }
+
+    let derived_path = normalize_path(derived_path, true);
+    if derived_path == "m"
+        || derived_path == "M"
+        || derived_path.starts_with("m/")
+        || derived_path.starts_with("M/")
+    {
+        let normalized = format!("m{}", &derived_path[1..]);
+        validate_bip32_path(&normalized)?;
+        return Ok(normalized);
+    }
+
+    let account_path = normalize_path(account_path, true);
+    validate_bip32_path(account_path)?;
+    let resolved = format!("{account_path}/{derived_path}");
+    validate_bip32_path(&resolved)?;
+    Ok(resolved)
+}
+
 pub fn validate_depth(path: &str, min_depth: usize, max_depth: usize) -> Result<(), PathError> {
     let depth = path.split('/').count();
     if depth < min_depth || depth > max_depth {
@@ -187,5 +218,19 @@ mod tests {
         );
         assert!(check_path_max_five_depth("m/44'/0'/0'/0/0/").is_ok());
         assert_eq!(get_account_path("m/44'/0'/0'/0/0/").unwrap(), "m/44'/0'/0'");
+    }
+
+    #[test]
+    fn resolves_relative_derivation_paths_against_the_account_path() {
+        assert_eq!(
+            resolve_derivation_path("m/44'/2'/0'/", "0/0").unwrap(),
+            "m/44'/2'/0'/0/0"
+        );
+        assert_eq!(
+            resolve_derivation_path("m/44'/145'/0'", "m/44'/145'/0'/0/1/").unwrap(),
+            "m/44'/145'/0'/0/1"
+        );
+        assert_eq!(resolve_derivation_path("m/44'/0'/0'", "").unwrap(), "");
+        assert!(resolve_derivation_path("m/44'/2'/0'", "not-a-path").is_err());
     }
 }
