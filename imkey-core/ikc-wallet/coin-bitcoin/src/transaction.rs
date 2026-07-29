@@ -189,7 +189,9 @@ impl BtcTransaction {
 
         let btc_version = get_btc_apple_version_async(transport).await?;
         let utxo_pub_key_vec = get_utxo_pub_key_async(transport, &self.unspents).await?;
-        let output = self.tx_output(change_idx, path, network, seg_wit, extra_data)?;
+        let output = self
+            .tx_output_async(transport, change_idx, path, network, seg_wit, extra_data)
+            .await?;
 
         let mut tx_to_sign = Transaction {
             version: Version(1i32),
@@ -1058,6 +1060,49 @@ impl BtcTransaction {
         Ok(outputs)
     }
 
+    pub async fn tx_output_async<T: AsyncApduTransport + ?Sized>(
+        &self,
+        transport: &T,
+        change_idx: Option<u32>,
+        change_path: &str,
+        network: &str,
+        seg_wit: &str,
+        extra_data: Option<&str>,
+    ) -> Result<Vec<TxOut>> {
+        let mut outputs = vec![self.build_send_to_output()?];
+
+        if self.get_change_amount() >= MIN_NONDUST_OUTPUT {
+            let change_script = if let Some(change_address_index) = change_idx {
+                let change_path = format!(
+                    "{}{}{}",
+                    get_account_path(change_path)?,
+                    "/1/",
+                    change_address_index
+                );
+                let pub_key = BtcKinAddress::get_pub_key_async(transport, &change_path).await?;
+                let network = BtcKinNetwork::find_by_coin(&self.chain_type, network)
+                    .ok_or(CommonError::MissingNetwork)?;
+                BtcKinAddress::from_public_key(&pub_key, network, seg_wit)?.script_pubkey()
+            } else {
+                BtcKinAddress::from_str(&self.unspents[0].address)?.script_pubkey()
+            };
+            outputs.push(TxOut {
+                value: Amount::from_sat(self.get_change_amount()),
+                script_pubkey: change_script,
+            });
+        }
+
+        if let Some(extra_data) = extra_data {
+            let op_return = hex_to_bytes(extra_data)?;
+            if op_return.len() > MAX_OPRETURN_SIZE {
+                return Err(CoinError::ImkeySdkIllegalArgument.into());
+            }
+            outputs.push(self.build_op_return_output(&op_return)?);
+        }
+
+        Ok(outputs)
+    }
+
     pub fn calc_tx_hash(
         &self,
         transaction: &mut Transaction,
@@ -1351,10 +1396,78 @@ mod tests {
     use bitcoin::secp256k1::schnorr::Signature;
     use bitcoin::secp256k1::{Message, Secp256k1, XOnlyPublicKey};
     use bitcoin::Transaction;
+    use futures_lite::future::block_on;
     use hex::FromHex;
     use ikc_common::utility::hex_to_bytes;
     use ikc_common::ToHex;
+    use ikc_device::async_device_manager::{AsyncApduTransport, BoxFutureResult, TransportProfile};
     use ikc_device::device_binding::bind_test;
+    use std::cell::Cell;
+
+    struct ChangeAddressTransport {
+        call_count: Cell<usize>,
+    }
+
+    impl AsyncApduTransport for ChangeAddressTransport {
+        fn profile(&self) -> TransportProfile {
+            TransportProfile::WebUsb
+        }
+
+        fn send_apdu<'a>(&'a self, _apdu: &'a str, _timeout: i32) -> BoxFutureResult<'a, String> {
+            let call_count = self.call_count.get();
+            self.call_count.set(call_count + 1);
+            let response = if call_count == 0 {
+                "9000".to_string()
+            } else {
+                concat!(
+                    "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+                    "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8",
+                    "9000"
+                )
+                .to_string()
+            };
+            Box::pin(async move { Ok(response) })
+        }
+    }
+
+    #[test]
+    fn async_tx_output_uses_async_transport_for_taproot_change_address() {
+        let transaction = BtcTransaction {
+            to: "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4".to_string(),
+            amount: 10_000,
+            unspents: vec![Utxo {
+                txhash: "00".repeat(32),
+                vout: 0,
+                amount: 210_705,
+                address: "tb1p3ax2dfecfag2rlsqewje84dgxj6gp3jkj2nk4e3q9cwwgm93cgesa0zwj4"
+                    .to_string(),
+                script_pubkey:
+                    "51208f4ca6a7384f50a1fe00cba593d5a834b480c65692a76ae6202e1ce46cb1c233"
+                        .to_string(),
+                derive_path: "m/86'/1'/0'/0/0".to_string(),
+                sequence: 0xffff_ffff,
+            }],
+            fee: 500,
+            chain_type: "BITCOIN".to_string(),
+        };
+        let transport = ChangeAddressTransport {
+            call_count: Cell::new(0),
+        };
+
+        let outputs = block_on(transaction.tx_output_async(
+            &transport,
+            Some(0),
+            "m/86'/1'/0'",
+            "TESTNET",
+            "VERSION_1",
+            None,
+        ))
+        .unwrap();
+
+        assert_eq!(outputs.len(), 2);
+        assert!(outputs[1].script_pubkey.is_p2tr());
+        assert_eq!(transport.call_count.get(), 2);
+    }
 
     #[test]
     fn test_sign_p2pkh() {

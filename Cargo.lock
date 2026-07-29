@@ -988,6 +988,7 @@ dependencies = [
  "bitcoin",
  "bitcoin_hashes 0.20.0",
  "bytes",
+ "futures-lite",
  "hex",
  "ikc-common",
  "ikc-device",
