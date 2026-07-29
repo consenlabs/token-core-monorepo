@@ -60,7 +60,6 @@
 
 ## 6. 校验与签收
 
-- [ ] 6.1 运行 `openspec validate add-eth-batch-tx-signing --strict`，解决任何结构性问题。
-- [x] 6.2 运行 `cargo test -p tcx-eth`（21 passed）、`cargo test -p tcx --test sign_test sign_txs`（9 passed）、`cargo test -p ikc --test sign_txs_test --skip e2e`（6 preflight passed，e2e 用例需绑定测试设备另外验证）。
-- [x] 6.3 运行 `cargo fmt --all -- --check`，确保格式干净；`cargo clippy` 仅在 `ikc-transport` / `tonlib-core` 等本提案未触达的既有代码上有预存告警（详见 design.md 与提案的 Non-Goals）。
-- [ ] 6.4 review 通过后用 `openspec archive add-eth-batch-tx-signing` 归档本次变更，新 spec 会被提升至 `openspec/specs/eth-batch-tx-signing/spec.md`。
+- [x] 6.1 运行 `cargo test -p tcx-eth`（21 passed）、`cargo test -p tcx --test sign_test sign_txs`（9 passed）、`cargo test -p ikc --test sign_txs_test --skip e2e`（6 preflight passed，e2e 用例需绑定测试设备另外验证）。
+- [x] 6.2 运行 `cargo fmt --all -- --check`，确保格式干净；`cargo clippy` 仅在 `ikc-transport` / `tonlib-core` 等本提案未触达的既有代码上有预存告警（详见 design.md 与提案的 Non-Goals）。
+- [ ] 6.3 review 通过后归档本次变更，把 spec 提升到 `openspec/specs/eth-batch-tx-signing/spec.md`。

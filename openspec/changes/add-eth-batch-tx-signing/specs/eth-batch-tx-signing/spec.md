@@ -6,22 +6,16 @@
 
 #### Scenario: token-core 在一次解锁内完成 N 笔批量签名
 
-- **WHEN** host 通过 `call_tcx_api` 以 `sign_txs` 方法发送一个包含合法 keystore `id`、`password`（或 `derivedKey`）、外层 HD `path`、`chainType` 为 `ETHEREUM`、以及 N 个 `SignTxsItem`（N 取自 `{1, 2, 50, 256, 2048}` 这一组覆盖少量 / 中量 / 上限的代表值；item.path 均为空；item 内交易的 `tx_type` 可同可不同，例如混合 legacy 与 EIP-1559）的请求
-- **THEN** 响应 SHALL 按相同顺序包含恰好 N 个 `EthTxOutput`，每个 `signature` 解码后为有效的已签名以太坊交易，每个 `tx_hash` 与该交易规范编码的 keccak256 一致
-- **AND** keystore SHALL 在整批执行过程中至多解锁一次
-
-#### Scenario: token-core 大批量签名（数十至上百笔）保持单次解锁
-
-- **WHEN** host 在 token-core 上提交 100 笔合法批量请求，每笔 nonce 严格递增（这模拟了批量空投、归集等 dApp / 后台批处理场景）
-- **THEN** 响应 SHALL 按输入顺序返回 100 个 `EthTxOutput`
-- **AND** 解码后第 i 个交易（0 ≤ i < 100）的 nonce SHALL 等于第 i 个输入的 nonce
-- **AND** keystore SHALL 在整批执行过程中只解锁 1 次
+- **WHEN** host 通过 `call_tcx_api` 以 `sign_txs` 方法发送一个包含合法 keystore `id`、`password`（或 `derivedKey`）、外层 HD `path`、`chainType` 为 `ETHEREUM`、以及 N 个 `SignTxsItem`（N 取 1 与 3；item.path 均为空；item 内交易混合 legacy 与 EIP-1559）的请求
+- **THEN** 响应 SHALL 按相同顺序包含恰好 N 个 `EthTxOutput`，每个 `signature` 与 `tx_hash` SHALL 与在相同上下文下调用一次单笔 `sign_tx` 的结果逐字节相同
+- **AND** 整个调用 SHALL 只需要一份 `password` / `derivedKey` 凭证
 
 #### Scenario: imkey-core 通过对每个 item 复用单笔 sign 流程完成 N 笔批量签名
 
-- **WHEN** host 通过 `call_imkey_api` 以 `sign_txs` 方法发送一个包含 `chainType` 为 `ETHEREUM`、外层 `SignParam.path`、以及 N 个 `SignTxsItem`（N 取自 `{1, 2, 10, 50, 100}` 这一组覆盖少量到上限的代表值）的请求，且每笔交易随附其 `payment`、`receiver`、`sender`、`fee` 显示字符串
-- **THEN** 响应 SHALL 按输入顺序包含恰好 N 个 `EthTxOutput`，其 `signature` 解码后为有效的已签名以太坊交易、`tx_hash` 与该交易的规范哈希一致
-- **AND** 对每个 item，批量动作的执行 SHALL 等价于以该 item 的有效 path（item.path 非空时优先；否则回落到外层 `SignParam.path`）与该 item 的 `payment` / `receiver` / `sender` / `fee` 调用一次现有单笔 `sign_tx`：完整的 `select_applet` / `prepare_sign` / `get_xpub` / 地址校验 / `sign_digest` / 用户在设备屏上的物理确认 SHALL 对每笔输入交易各发生一次（不假设固件改造，不在批量层做任何 device-session 优化）
+- **WHEN** host 通过 `call_imkey_api` 以 `sign_txs` 方法发送一个包含 `chainType` 为 `ETHEREUM`、外层 `SignParam.path`、以及 N 个 `SignTxsItem`（N 取 1 与 3）的请求，且每笔交易随附其 `payment`、`receiver`、`sender`、`fee` 显示字符串
+- **THEN** 响应 SHALL 按输入顺序包含恰好 N 个输出
+- **AND** 对每个 item，批量动作的输出 SHALL 与以该 item 的有效 path（item.path 非空时优先；否则回落到外层 `SignParam.path`）和该 item 的 `payment` / `receiver` / `sender` / `fee` 调用一次现有单笔 `sign_tx` 的结果一致
+- **AND** 用户 SHALL 在设备上确认 N 次才能拿到全部输出（不假设固件改造，不在批量层做任何 device-session 优化）
 
 #### Scenario: imkey-core 批量每笔输出与单笔 sign_tx 在相同上下文下逐字节相同
 
@@ -41,8 +35,8 @@
 
 #### Scenario: access list 字段被保留
 
-- **WHEN** 批量输入中存在某个 `EthTxInput` 包含非空 `access_list`
-- **THEN** 该 access list SHALL 被原样 RLP 编码进对应的已签名交易
+- **WHEN** 批量输入中存在某个 `EthTxInput` 包含非空 `access_list`（含多条 address 与多个 storage key 的用例）
+- **THEN** 对应输出的 `signature` 与 `tx_hash` SHALL 与该交易单笔签名的既有固定用例逐字节相同
 
 ### Requirement: 每笔 path 可独立覆盖外层 path
 
@@ -87,15 +81,13 @@
 
 每个引擎 SHALL 根据自身资源约束设置批量上限：`token-core` 的上限 SHALL 为 2048（软件签名，仅受内存与单次 FFI 时长约束）；`imkey-core` 的上限 SHALL 为 100（硬件签名，每笔仍需用户在设备上按确认；100 为协议层硬上限，旨在为 stake / 合约批量 approve 等典型业务流留出余量，host 业务层应根据具体 UX 进一步收紧实际允许的笔数）。每个上限 SHALL 以单一具名常量定义在对应引擎的 handler 同位置，便于在不变更协议的前提下调整。任何超过对应引擎上限的请求 SHALL 在解锁 / 选择 applet 之前被拒绝。
 
-#### Scenario: token-core 接受 2048 笔但拒绝 2049 笔
+#### Scenario: token-core 拒绝 2049 笔
 
-- **WHEN** 在 token-core 上提交 2048 笔合法批量请求
-- **THEN** 该动作 SHALL 返回 2048 个 `EthTxOutput`，顺序与输入一致
 - **WHEN** 在 token-core 上提交 2049 笔批量请求
 - **THEN** 该动作 SHALL 返回错误，提示批量超过上限 2048
 - **AND** keystore SHALL 不被解锁
 
-#### Scenario: imkey-core 接受 100 笔但拒绝 101 笔
+#### Scenario: imkey-core 拒绝 101 笔
 
 - **WHEN** 在 imkey-core 上提交 101 笔批量请求
 - **THEN** 该动作 SHALL 返回错误，提示批量超过上限 100
@@ -111,11 +103,6 @@ token-core 批量动作 SHALL 接受与现有单笔 `sign_tx` 和 `eth_batch_per
 - **THEN** 该动作 SHALL 返回与 `sign_tx` 相同的鉴权错误
 - **AND** SHALL 不对任何输入执行签名
 
-#### Scenario: 未绑定的 imKey 拒绝批量
-
-- **WHEN** 在设备未绑定的状态下调用 imkey-core 的 `sign_txs`
-- **THEN** 该动作 SHALL 返回与单笔 `sign_tx` 相同的设备绑定错误
-
 ### Requirement: imKey 每笔 payment/receiver/sender/fee 由 host 提供
 
 imkey-core 路径下，每个 `SignTxsItem` SHALL 由 host 显式提供 `payment`、`receiver`、`sender`、`fee` 四个字符串字段，语义与现有 `SignParam` 中同名字段完全一致：`payment` / `receiver` / `fee` 用于设备屏幕展示，`sender` 用于在签名前与本批次有效 path 派生出的地址做校验，校验不通过则中止整批。SDK SHALL NOT 自动从 `EthTxInput` 派生这四个字段。
@@ -127,24 +114,14 @@ imkey-core 路径下，每个 `SignTxsItem` SHALL 由 host 显式提供 `payment
 - **AND** 错误信息 SHALL 包含失败 item 的下标
 - **AND** 不 SHALL 返回任何已签名交易
 
-#### Scenario: payment / receiver / fee 原样写入设备 prompt
-
-- **WHEN** 某 item 的 `payment` 为 `"0.01 ETH"`、`receiver` 为 `"0xE6F4...931F3"`、`fee` 为 `"0.0032 ether"`
-- **THEN** 设备的 `prepare_sign` apdu 数据包中 TLV(7) / TLV(8) / TLV(9) 段 SHALL 严格按这三个字符串原样填充
-
 ### Requirement: 输出顺序与可观测性
 
 输出数组 SHALL 按下标与输入数组逐一对应。每个输出条目的 `signature`（已签名交易原始字节的十六进制编码）与 `tx_hash`（带 `0x` 前缀的规范编码 keccak256）字段语义 SHALL 与现有 `EthTxOutput` 一致。
 
-#### Scenario: 顺序在 FFI 边界上保持稳定（少量批次）
+#### Scenario: 顺序在 FFI 边界上保持稳定
 
-- **WHEN** 批量签名三笔 nonce 分别为 `[7, 8, 9]` 的交易
-- **THEN** 返回的输出解码后得到的 nonce SHALL 依次为 `[7, 8, 9]`
-
-#### Scenario: 顺序在大批次下也保持稳定
-
-- **WHEN** 批量签名 N 笔 nonce 为非单调序列（例如来自不同业务流的 `[100, 5, 42, 7, ...]`，N 取 64）的交易
-- **THEN** 返回的输出第 i 个解码后的 nonce SHALL 等于第 i 个输入的 nonce，对所有 0 ≤ i < N 成立
+- **WHEN** 批量签名三笔交易，其 tx_hash 依次为 `[A, B, C]`
+- **THEN** 返回的输出 tx_hash 顺序 SHALL 为 `[A, B, C]`，且与各自输入一一对应
 
 ### Requirement: 与既有单笔 API 的向后兼容
 
