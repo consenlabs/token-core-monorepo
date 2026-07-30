@@ -329,6 +329,45 @@ fn test_sign_txs_missing_sender_rejected() {
     );
 }
 
+#[test]
+fn test_sign_txs_second_item_invalid_transaction_rejected_preflight() {
+    let mut items = vec![make_valid_item(), make_valid_item()];
+    items[1].tx.as_mut().unwrap().to = "invalid-address".to_string();
+
+    let data = SignTxsInput { items }.encode_to_vec();
+    let err = sign_txs(&data, &make_sign_param(ETH_PATH))
+        .expect_err("all transactions must be parsed before any device interaction");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("failed at index 1") && msg.contains("invalid `to` address"),
+        "expected index-aware preflight error for item 1, got: {}",
+        msg
+    );
+}
+
+#[test]
+fn test_sign_txs_malformed_storage_keys_rejected_with_index() {
+    for malformed_key in ["not-hex", "00"] {
+        let mut invalid_item = eip1559_with_access_list_item();
+        invalid_item.tx.as_mut().unwrap().access_list[0].storage_keys =
+            vec![malformed_key.to_string()];
+
+        let data = SignTxsInput {
+            items: vec![make_valid_item(), invalid_item],
+        }
+        .encode_to_vec();
+        let err = sign_txs(&data, &make_sign_param(ETH_PATH))
+            .expect_err("malformed storage key must return an index-aware error");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("failed at index 1") && msg.contains("access_list storage key"),
+            "expected index-aware storage-key error for `{}`, got: {}",
+            malformed_key,
+            msg
+        );
+    }
+}
+
 /// Per-item batch outputs are now wrapped as `SignTxsItemOutput { tx, from_address }`.
 /// This helper centralises the unwrap so the on-chain canonical assertions stay
 /// readable.

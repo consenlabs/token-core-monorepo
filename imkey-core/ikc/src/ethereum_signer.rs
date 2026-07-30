@@ -82,7 +82,7 @@ fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
                         storage_keys: {
                             let mut storage_keys: Vec<H256> = Vec::new();
                             for key in &access.storage_keys {
-                                storage_keys.push(Transaction::hexstring_to_hex256(remove_0x(key)));
+                                storage_keys.push(parse_access_list_storage_key(key)?);
                             }
                             storage_keys
                         },
@@ -130,6 +130,21 @@ fn build_eth_transaction(input: &EthTxInput) -> Result<(Transaction, u64)> {
     Ok((eth_tx, chain_id))
 }
 
+fn parse_access_list_storage_key(key: &str) -> Result<H256> {
+    let decoded = hex::decode(remove_0x(key))
+        .map_err(|e| anyhow!("invalid access_list storage key hex: {}", e))?;
+    if decoded.len() != 32 {
+        return Err(anyhow!(
+            "invalid access_list storage key length: expected 32 bytes, got {}",
+            decoded.len()
+        ));
+    }
+
+    let mut result = [0u8; 32];
+    result.copy_from_slice(&decoded);
+    Ok(H256(result))
+}
+
 pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
     let input: EthTxInput = EthTxInput::decode(data).expect("imkey_illegal_param");
     let (eth_tx, chain_id) = build_eth_transaction(&input)?;
@@ -166,21 +181,15 @@ pub fn sign_txs(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
         check_path_validity(&sign_param.path)
             .map_err(|e| anyhow!("sign_txs failed at index 0: {}", e))?;
     }
-    // Fold effective path per item in the preflight pass. Two reasons:
-    //   1. `Transaction::sign` already rejects an empty path internally, but
-    //      only *after* `select_applet` + APDU staging. If the host accidentally
-    //      sent every item with an empty path (or sent an empty outer
-    //      `sign_param.path` and empty per-item path), the user would still see
-    //      a confusing device prompt before the rejection. We catch it before
-    //      any device session.
-    //   2. The single-tx imkey path doesn't have this footgun (path is always
-    //      taken from `sign_param.path`); but the batch path multiplies the
-    //      surface by N, so it's worth explicitly checking. See security review
-    //      H-2.
+    // Fold effective paths and fully parse every transaction before the first
+    // call to `Transaction::sign`. This keeps all host-controlled static input
+    // errors ahead of applet selection, APDU exchange and physical approval.
+    let mut prepared_items = Vec::with_capacity(input.items.len());
     for (i, item) in input.items.iter().enumerate() {
-        if item.tx.is_none() {
-            return Err(anyhow!("sign_txs failed at index {}: missing tx", i));
-        }
+        let tx_input = item
+            .tx
+            .as_ref()
+            .ok_or_else(|| anyhow!("sign_txs failed at index {}: missing tx", i))?;
         // `sender` is required for the device-side address
         // verification step inside `Transaction::sign`. Catching it
         // here keeps the failure ordering (and error message) parallel
@@ -203,21 +212,19 @@ pub fn sign_txs(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
                 i
             ));
         }
+
+        let (eth_tx, chain_id) = build_eth_transaction(tx_input)
+            .map_err(|e| anyhow!("sign_txs failed at index {}: {}", i, e))?;
+        prepared_items.push((eth_tx, chain_id, effective_path.to_string()));
     }
 
     let mut outputs = Vec::with_capacity(input.items.len());
-    for (i, item) in input.items.iter().enumerate() {
-        // `is_none()` already short-circuited above, so unwrap is safe.
-        let tx_input = item.tx.as_ref().unwrap();
-        let (eth_tx, chain_id) = build_eth_transaction(tx_input)
-            .map_err(|e| anyhow!("sign_txs failed at index {}: {}", i, e))?;
-
-        let effective_path: &str = if item.path.is_empty() {
-            &sign_param.path
-        } else {
-            &item.path
-        };
-
+    for (i, (item, (eth_tx, chain_id, effective_path))) in input
+        .items
+        .iter()
+        .zip(prepared_items.into_iter())
+        .enumerate()
+    {
         // Direct call to the existing single-tx sign — `coin-ethereum`
         // has no notion of "batch". Every device session APDU happens
         // here, exactly as it would for a standalone `sign_tx`.
@@ -230,7 +237,7 @@ pub fn sign_txs(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
         let tx_out = eth_tx
             .sign(
                 Some(chain_id),
-                effective_path,
+                &effective_path,
                 &item.payment,
                 &item.receiver,
                 &item.sender,
