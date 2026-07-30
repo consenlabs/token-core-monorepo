@@ -163,13 +163,13 @@ jobs:
           # For posting a rich message using Block Kit
           payload: |
             {
-              "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.build.outputs.tokencore_sha256 }}\nGPG Key SHA256: ${{ steps.gpg_info.outputs.gpg_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}\n@Brian Shi @xyz @xiaoguang Please review the build results.",
+              "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.build.outputs.tokencore_sha256 }}\nGPG Key SHA256: ${{ steps.gpg_info.outputs.gpg_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}\n<@U028F0STY58> <@U7DR36N81> <@UD8C97GMN> Please review the build results.",
               "blocks": [
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.build.outputs.tokencore_sha256 }}\nGPG Key SHA256: ${{ steps.gpg_info.outputs.gpg_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}\n@Brian Shi @xyz @xiaoguang Please review the build results."
+                    "text": "New build of android-token-core: ${{ job.status }}\nVERSION: ${{ steps.getversion.outputs.version }}\nTokenCore Sha256: ${{ steps.build.outputs.tokencore_sha256 }}\nGPG Key SHA256: ${{ steps.gpg_info.outputs.gpg_sha256 }}\nCheck more: ${{ github.event.pull_request.html_url || github.event.head_commit.url }}\nCommits:\n${{ steps.getcommits.outputs.commits }}\n<@U028F0STY58> <@U7DR36N81> <@UD8C97GMN> Please review the build results."
                   }
                 }
               ]
