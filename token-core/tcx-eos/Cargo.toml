@@ -13,7 +13,7 @@ tcx-primitive = { path = "../tcx-primitive" }
 tcx-constants = { path = "../tcx-constants" }
 tcx-common = {path = "../tcx-common"}
 
-anyhow = { version = "=1.0.102", features = [] }
+anyhow = { version = "=1.0.103", features = [] }
 regex = "=1.12.3"
 bitcoin = "=0.32.9"
 

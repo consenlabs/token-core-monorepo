@@ -34,7 +34,7 @@ libc = "=0.2.186"
 log = "=0.4.29"
 serde_json = "=1.0.149"
 serde = { version = "=1.0.228", features = ["derive"] }
-anyhow = { version = "=1.0.102", features = [] }
+anyhow = { version = "=1.0.103", features = [] }
 lazy_static = "=1.5.0"
 hex = "=0.4.3"
 base64 = "=0.22.1"

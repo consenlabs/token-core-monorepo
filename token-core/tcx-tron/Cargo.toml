@@ -24,7 +24,7 @@ bitcoin_hashes = "=0.20.0"
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.149"
 uuid = { version = "=1.23.1", features = ["serde", "v4"] }
-anyhow = { version = "=1.0.102", features = [] }
+anyhow = { version = "=1.0.103", features = [] }
 num-bigint = "=0.4.6"
 num-traits = "=0.2.19"
 num-integer = "=0.1.46"
