@@ -175,6 +175,8 @@ impl Transaction {
         Ok(tx_sign_result)
     }
 
+    // Keep the async API aligned with the existing synchronous signing API.
+    #[allow(clippy::too_many_arguments)]
     pub async fn sign_async<T>(
         &self,
         transport: &T,

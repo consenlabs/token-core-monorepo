@@ -21,7 +21,7 @@ sha1 = "=0.11.0"
 rsa = { version = "=0.9.10", features = ["getrandom"] }
 lazy_static = "=1.5.0"
 regex = "=1.12.3"
-anyhow = "=1.0.102"
+anyhow = "=1.0.103"
 log = {version = "=0.4.29", features = ["std"]}
 prost = "=0.14.3"
 prost-types = "=0.14.3"

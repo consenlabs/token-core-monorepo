@@ -31,7 +31,7 @@ utility = [
 
 [dependencies]
 aes = { version = "=0.9.1", optional = true }
-anyhow = "=1.0.102"
+anyhow = "=1.0.103"
 base32 = { version = "=0.5.1", optional = true }
 bech32 = { version = "=0.11.1", optional = true }
 bitcoin = { version = "=0.32.9", optional = true }

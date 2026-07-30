@@ -14,7 +14,7 @@ tcx-constants = { path = "../tcx-constants" }
 tcx-common = { path = "../tcx-common" }
 wallet-core-common = { path = "../../common/wallet-core-common", features = ["cosmos"] }
 
-anyhow = { version = "=1.0.102", features = [] }
+anyhow = { version = "=1.0.103", features = [] }
 
 prost = "=0.14.3"
 bytes = "=1.11.1"

@@ -21,7 +21,7 @@ hmac = "=0.13.0"
 pbkdf2 = "=0.13.0"
 argon2 = "=0.5.3"
 bitcoin_hashes = "=0.20.0"
-anyhow = { version = "=1.0.102", features = [] }
+anyhow = { version = "=1.0.103", features = [] }
 secp256k1 = {version = "=0.31.1", features = ["rand", "recovery"] }
 hex = "=0.4.3"
 lazy_static = "=1.5.0"
