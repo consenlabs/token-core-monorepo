@@ -17,7 +17,7 @@ impl Script {
 
     pub fn serialize(&self) -> Result<Vec<u8>> {
         let args_bytes = hex_to_bytes(&self.args)?;
-        Ok(Serializer::serialize_dynamic_vec(&vec![
+        Ok(Serializer::serialize_dynamic_vec(&[
             hex_to_bytes(&self.code_hash)?.as_slice(),
             self.serialize_hash_type()?.as_slice(),
             Serializer::serialize_fixed_vec(vec![args_bytes.as_slice()].as_slice()).as_slice(),
@@ -32,15 +32,15 @@ impl Script {
 impl Witness {
     pub fn serialize(&self) -> Result<Vec<u8>> {
         let inner_serialize = |x: &str| -> Result<Vec<u8>> {
-            let bytes = hex_to_bytes(&x)?;
-            if bytes.len() > 0 {
-                Ok(Serializer::serialize_fixed_vec(&vec![bytes.as_slice()]))
+            let bytes = hex_to_bytes(x)?;
+            if !bytes.is_empty() {
+                Ok(Serializer::serialize_fixed_vec(&[bytes.as_slice()]))
             } else {
                 Ok(vec![])
             }
         };
 
-        Ok(Serializer::serialize_dynamic_vec(&vec![
+        Ok(Serializer::serialize_dynamic_vec(&[
             inner_serialize(&self.lock)?.as_slice(),
             inner_serialize(&self.input_type)?.as_slice(),
             inner_serialize(&self.output_type)?.as_slice(),

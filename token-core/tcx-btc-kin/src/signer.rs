@@ -32,6 +32,7 @@ use super::Error;
 use anyhow::ensure;
 
 const MIN_TX_FEE: u64 = 546;
+type PreparedTx = (Script, Vec<Secp256k1PrivateKey>, i32, Vec<TxOut>, Vec<TxIn>);
 
 pub struct TxSigner {
     tx: Transaction,
@@ -253,7 +254,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
         &self,
         keystore: &mut Keystore,
         params: &SignatureParameters,
-    ) -> Result<(Script, Vec<Secp256k1PrivateKey>, i32, Vec<TxOut>, Vec<TxIn>)> {
+    ) -> Result<PreparedTx> {
         let mut prevouts = vec![];
         let mut tx_inputs: Vec<TxIn> = vec![];
 
@@ -1407,7 +1408,7 @@ mod tests {
             )
             .unwrap();
             let _coin_info = coin_info_from_param("LITECOIN", "TESTNET", "NONE", "").unwrap();
-            let _ = keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+            keystore.unlock_by_password(TEST_PASSWORD).unwrap();
             let params = SignatureParameters {
                 curve: CurveType::SECP256k1,
                 chain_type: LITECOIN.to_string(),

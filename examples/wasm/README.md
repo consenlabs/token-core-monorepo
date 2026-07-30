@@ -19,6 +19,32 @@ make dev-wasm          # build + start Next.js dev server
 
 Then open [http://localhost:3000](http://localhost:3000) and click **Run Tests**.
 
+To test the imKey WebUSB proof of concept, build both wasm packages and open the imKey page:
+
+```bash
+# From repo root
+make build-wasm-all
+cd examples/wasm && npm run dev
+```
+
+Then open [http://localhost:3000/imkey](http://localhost:3000/imkey) in Chrome or Edge. The page uses `createImKeyCore()` to connect through browser WebUSB, inject the JS transport into `ikc-wasm`, read device information, run secure check through the Web TSM client, and exercise early onboarding/device-management flows.
+
+The Web facade is intentionally business-oriented:
+
+```ts
+import { createImKeyCore } from "@/lib/imkey-core";
+
+const imkey = createImKeyCore();
+await imkey.connect();
+
+const info = await imkey.getDeviceInfo();
+await imkey.secureCheck();
+await imkey.activateDevice();
+await imkey.bindDisplayCode();
+```
+
+`bindAcquire`, hardware address derivation, signing, and full app-management hardware validation still require the next migration step: moving the corresponding Rust business flows from synchronous `send_apdu` to the async wasm transport boundary.
+
 ## Manual Steps
 
 ```bash

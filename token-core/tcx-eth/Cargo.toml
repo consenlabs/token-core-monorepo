@@ -13,7 +13,7 @@ tcx-constants = {path = "../tcx-constants"}
 tcx-common = {path = "../tcx-common"}
 wallet-core-common = { path = "../../common/wallet-core-common", features = ["eth"] }
 
-anyhow = { version = "=1.0.102", features = [] }
+anyhow = { version = "=1.0.103", features = [] }
 hex = "=0.4.3"
 ethereum-types = "=0.16.0"
 rlp = "=0.6.1"

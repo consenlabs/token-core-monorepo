@@ -142,13 +142,12 @@ impl BtcKinAddress {
 fn bech32_network(bech32: &str) -> Option<&BtcKinNetwork> {
     let bech32_prefix = bech32.rfind('1').map(|sep| bech32.split_at(sep).0);
 
-    if bech32_prefix.is_some() {
-        let prefix = bech32_prefix.unwrap();
+    if let Some(prefix) = bech32_prefix {
         if !prefix.is_empty() {
             return BtcKinNetwork::find_by_hrp(prefix);
         }
     }
-    return None;
+    None
 }
 
 fn decode_base58(addr: &str) -> Result<Vec<u8>> {
@@ -262,39 +261,35 @@ mod tests {
         let pub_key_str = "02506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aaba";
         let pub_key = Vec::from_hex(pub_key_str).unwrap();
         let network = BtcKinNetwork::find_by_coin("LITECOIN", "MAINNET").unwrap();
-        let addr = BtcKinAddress::p2shwpkh(&pub_key, &network)
+        let addr = BtcKinAddress::p2shwpkh(&pub_key, network)
             .unwrap()
             .to_string();
         assert_eq!(addr, "MR5Hu9zXPX3o9QuYNJGft1VMpRP418QDfW");
 
         let network = BtcKinNetwork::find_by_coin("LITECOIN", "MAINNET").unwrap();
-        let addr = BtcKinAddress::p2wpkh(&pub_key, &network)
+        let addr = BtcKinAddress::p2wpkh(&pub_key, network)
             .unwrap()
             .to_string();
         assert_eq!(addr, "ltc1qum864wd9nwsc0u9ytkctz6wzrw6g7zdn08yddf");
 
         let network = BtcKinNetwork::find_by_coin("BITCOIN", "MAINNET").unwrap();
-        let addr = BtcKinAddress::p2shwpkh(&pub_key, &network)
+        let addr = BtcKinAddress::p2shwpkh(&pub_key, network)
             .unwrap()
             .to_string();
         assert_eq!(addr, "3Js9bGaZSQCNLudeGRHL4NExVinc25RbuG");
 
         let network = BtcKinNetwork::find_by_coin("BITCOIN", "MAINNET").unwrap();
-        let addr = BtcKinAddress::p2wpkh(&pub_key, &network)
+        let addr = BtcKinAddress::p2wpkh(&pub_key, network)
             .unwrap()
             .to_string();
         assert_eq!(addr, "bc1qum864wd9nwsc0u9ytkctz6wzrw6g7zdntm7f4e");
 
         let network = BtcKinNetwork::find_by_coin("DOGECOIN", "MAINNET").unwrap();
-        let addr = BtcKinAddress::p2pkh(&pub_key, &network)
-            .unwrap()
-            .to_string();
+        let addr = BtcKinAddress::p2pkh(&pub_key, network).unwrap().to_string();
         assert_eq!(addr, "DSBWjKzZtz7fPzu4N6mBRwQFHCQ6KQSjue");
 
         let network = BtcKinNetwork::find_by_coin("DOGECOIN", "TESTNET").unwrap();
-        let addr = BtcKinAddress::p2pkh(&pub_key, &network)
-            .unwrap()
-            .to_string();
+        let addr = BtcKinAddress::p2pkh(&pub_key, network).unwrap().to_string();
         assert_eq!(addr, "nqEaTLjUpxaPGyUFPvQdgLzYX4nPLCD1Py");
     }
 

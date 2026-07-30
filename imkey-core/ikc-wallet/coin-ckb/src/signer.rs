@@ -11,6 +11,7 @@ use ikc_common::constants::NERVOS_AID;
 use ikc_common::error::CoinError;
 use ikc_common::utility::{secp256k1_sign, uncompress_pubkey_2_compress};
 use ikc_common::{constants, utility, SignParam};
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use lazy_static::lazy_static;
@@ -27,6 +28,207 @@ lazy_static! {
 }
 
 impl<'a> CkbTxSigner<'a> {
+    fn witness_hash(tx_hash: &[u8], witness_group: &[&Witness]) -> Result<(Witness, [u8; 32])> {
+        let first = witness_group.first().ok_or(Error::WitnessGroupEmpty)?;
+        let empty_witness = Witness {
+            lock: SIGNATURE_PLACEHOLDER.clone(),
+            input_type: first.input_type.clone(),
+            output_type: first.output_type.clone(),
+        };
+        let serialized = empty_witness.serialize()?;
+        let mut hasher = new_blake2b();
+        hasher.update(tx_hash);
+        hasher.update(&Serializer::serialize_u64(serialized.len() as u64));
+        hasher.update(&serialized);
+        for witness in &witness_group[1..] {
+            let bytes = witness.to_raw()?;
+            hasher.update(&Serializer::serialize_u64(bytes.len() as u64));
+            hasher.update(&bytes);
+        }
+        let mut hash = [0u8; 32];
+        hasher.finalize(&mut hash);
+        Ok((empty_witness, hash))
+    }
+
+    fn validate_sender(&self, pub_key: &str) -> Result<()> {
+        let compressed_pubkey = uncompress_pubkey_2_compress(pub_key);
+        let pubkey_bytes = hex::decode(compressed_pubkey)?;
+        let testnet_address = CkbAddress::from_public_key("TESTNET", &pubkey_bytes)?;
+        let mainnet_address = CkbAddress::from_public_key("MAINNET", &pubkey_bytes)?;
+        if testnet_address != self.sign_param.sender && mainnet_address != self.sign_param.sender {
+            return Err(CoinError::ImkeyAddressMismatchWithPath.into());
+        }
+        Ok(())
+    }
+
+    fn prepare_signing_payload(&self, hash: &[u8], path: &str) -> Result<(Vec<u8>, Vec<u8>)> {
+        let mut data_pack = Vec::new();
+        data_pack.extend([1, hash.len() as u8]);
+        data_pack.extend(hash);
+        data_pack.extend([2, path.len() as u8]);
+        data_pack.extend(path.as_bytes());
+        data_pack.extend([7, self.sign_param.payment.len() as u8]);
+        data_pack.extend(self.sign_param.payment.as_bytes());
+
+        let receiver = if self.sign_param.receiver.len() > 100 {
+            format!(
+                "{}***{}",
+                &self.sign_param.receiver[..47],
+                &self.sign_param.receiver[self.sign_param.receiver.len() - 50..]
+            )
+        } else {
+            self.sign_param.receiver.clone()
+        };
+        data_pack.extend([8, receiver.len() as u8]);
+        data_pack.extend(receiver.as_bytes());
+        data_pack.extend([9, self.sign_param.fee.len() as u8]);
+        data_pack.extend(self.sign_param.fee.as_bytes());
+
+        let (bind_signature, se_pub_key) = {
+            let key_manager = KEY_MANAGER.lock();
+            (
+                secp256k1_sign(&key_manager.pri_key, &data_pack)?,
+                key_manager.se_pub_key.clone(),
+            )
+        };
+        let mut apdu_pack = Vec::new();
+        apdu_pack.push(0x00);
+        apdu_pack.push(bind_signature.len() as u8);
+        apdu_pack.extend(&bind_signature);
+        apdu_pack.extend(&data_pack);
+        Ok((apdu_pack, se_pub_key))
+    }
+
+    fn finish_recoverable_signature(
+        hash: &[u8],
+        pub_key: &str,
+        se_pub_key: &[u8],
+        sign_response: &str,
+    ) -> Result<String> {
+        let payload_end = sign_response
+            .len()
+            .checked_sub(4)
+            .ok_or(CoinError::InvalidParam)?;
+        let sign_source = sign_response.get(..132).ok_or(CoinError::InvalidParam)?;
+        let sign_result = sign_response
+            .get(132..payload_end)
+            .ok_or(CoinError::InvalidParam)?;
+        if !utility::secp256k1_sign_verify(
+            se_pub_key,
+            &hex::decode(sign_result)?,
+            &hex::decode(sign_source)?,
+        )? {
+            return Err(CoinError::ImkeySignatureVerifyFail.into());
+        }
+
+        let compact = sign_response.get(2..130).ok_or(CoinError::InvalidParam)?;
+        let mut signature = Signature::from_compact(&hex::decode(compact)?)?;
+        signature.normalize_s();
+        let normalized = signature.serialize_compact();
+        let rec_id = utility::retrieve_recid(hash, &normalized, &hex::decode(pub_key)?)?;
+        Ok(format!(
+            "{}{:02x}",
+            hex::encode(normalized),
+            i32::from(rec_id)
+        ))
+    }
+
+    pub async fn sign_witnesses_async<T>(
+        &mut self,
+        transport: &T,
+        tx_hash: &[u8],
+        witnesses: &[Witness],
+        input_cells: &[&CachedCell],
+    ) -> Result<Vec<String>>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        if tx_hash.len() != 32 {
+            return Err(Error::InvalidTxHash.into());
+        }
+        if witnesses.is_empty() {
+            return Err(Error::WitnessEmpty.into());
+        }
+
+        let grouped_scripts = self.group_script(input_cells)?;
+        let mut raw_witnesses = witnesses
+            .iter()
+            .map(|witness| {
+                witness
+                    .to_raw()
+                    .map(|raw| format!("0x{}", hex::encode(raw)))
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        for indices in grouped_scripts.values() {
+            let mut witness_group = indices
+                .iter()
+                .map(|index| &witnesses[*index])
+                .collect::<Vec<_>>();
+            if witnesses.len() > input_cells.len() {
+                witness_group.extend(&witnesses[input_cells.len()..]);
+            }
+
+            let derived_path = &input_cells[indices[0]].derived_path;
+            let path = if derived_path.is_empty() {
+                &self.sign_param.path
+            } else {
+                derived_path
+            };
+            let signed_witness = self
+                .sign_witness_group_async(transport, tx_hash, &witness_group, path)
+                .await?;
+            raw_witnesses[indices[0]] = format!("0x{}", hex::encode(signed_witness.serialize()?));
+        }
+
+        Ok(raw_witnesses)
+    }
+
+    async fn sign_witness_group_async<T>(
+        &mut self,
+        transport: &T,
+        tx_hash: &[u8],
+        witness_group: &[&Witness],
+        path: &str,
+    ) -> Result<Witness>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let (mut empty_witness, hash) = Self::witness_hash(tx_hash, witness_group)?;
+        empty_witness.lock = format!(
+            "0x{}",
+            self.sign_recoverable_hash_async(transport, &hash, path)
+                .await?
+        );
+        Ok(empty_witness)
+    }
+
+    async fn sign_recoverable_hash_async<T>(
+        &mut self,
+        transport: &T,
+        hash: &[u8],
+        path: &str,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let select_apdu = Apdu::try_select_applet(NERVOS_AID)?;
+        let select_result = transport.send_apdu(&select_apdu, 20).await?;
+        ApduCheck::check_response(&select_result)?;
+
+        let pub_key = CkbAddress::get_public_key_async(transport, path).await?;
+        self.validate_sender(&pub_key)?;
+        let (apdu_pack, se_pub_key) = self.prepare_signing_payload(hash, path)?;
+
+        let mut sign_response = String::new();
+        for apdu in Secp256k1Apdu::sign(&apdu_pack) {
+            sign_response = transport.send_apdu(&apdu, constants::TIMEOUT_LONG).await?;
+            ApduCheck::check_response(&sign_response)?;
+        }
+
+        Self::finish_recoverable_signature(hash, &pub_key, &se_pub_key, &sign_response)
+    }
+
     pub fn sign_witnesses(
         &mut self,
         tx_hash: &[u8],
@@ -38,7 +240,7 @@ impl<'a> CkbTxSigner<'a> {
             return Err(Error::InvalidTxHash.into());
         }
 
-        if witnesses.len() == 0 {
+        if witnesses.is_empty() {
             return Err(Error::WitnessEmpty.into());
         }
 
@@ -57,7 +259,12 @@ impl<'a> CkbTxSigner<'a> {
                 ws.extend(&witnesses[input_cells.len()..]);
             }
 
-            let path = &input_cells[item.1[0]].derived_path;
+            let derived_path = &input_cells[item.1[0]].derived_path;
+            let path = if derived_path.is_empty() {
+                &self.sign_param.path
+            } else {
+                derived_path
+            };
 
             let signed_witness = self.sign_witness_group(tx_hash, &ws, path)?;
             raw_witnesses[item.1[0]] = format!("0x{}", hex::encode(signed_witness.serialize()?));
@@ -70,95 +277,22 @@ impl<'a> CkbTxSigner<'a> {
         &mut self,
         tx_hash: &[u8],
         witness_group: &[&Witness],
-        _path: &str,
+        path: &str,
     ) -> Result<Witness> {
-        if witness_group.len() == 0 {
-            return Err(Error::WitnessGroupEmpty.into());
-        }
-
-        let first = &witness_group[0];
-
-        let mut empty_witness = Witness {
-            lock: SIGNATURE_PLACEHOLDER.clone(),
-            input_type: first.input_type.clone(),
-            output_type: first.output_type.clone(),
-        };
-
-        let serialized_empty_witness = empty_witness.serialize()?;
-        let serialized_empty_length = serialized_empty_witness.len();
-
-        let mut s = new_blake2b();
-        s.update(tx_hash);
-        s.update(&Serializer::serialize_u64(serialized_empty_length as u64));
-        s.update(&serialized_empty_witness);
-
-        for w in witness_group[1..].iter() {
-            let bytes = w.to_raw()?;
-            s.update(&Serializer::serialize_u64(bytes.len() as u64));
-            s.update(&bytes);
-        }
-
-        let mut result = [0u8; 32];
-        s.finalize(&mut result);
-
-        let signature = self.sign_recoverable_hash(&result)?;
+        let (mut empty_witness, hash) = Self::witness_hash(tx_hash, witness_group)?;
+        let signature = self.sign_recoverable_hash(&hash, path)?;
         empty_witness.lock = format!("0x{}", signature);
-
         Ok(empty_witness)
     }
 
-    fn sign_recoverable_hash(&mut self, hash: &[u8]) -> Result<String> {
-        println!("hash:{}", hex::encode(hash));
-        let select_apdu = Apdu::select_applet(NERVOS_AID);
+    fn sign_recoverable_hash(&mut self, hash: &[u8], path: &str) -> Result<String> {
+        let select_apdu = Apdu::try_select_applet(NERVOS_AID)?;
         let select_result = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_result)?;
 
-        let pub_key = CkbAddress::get_public_key(&self.sign_param.path)?;
-        let comprs_pubkey = uncompress_pubkey_2_compress(&pub_key);
-        let testnet_address =
-            CkbAddress::from_public_key("TESTNET", &hex::decode(&comprs_pubkey)?).unwrap();
-        let mainnet_address =
-            CkbAddress::from_public_key("MAINNET", &hex::decode(&comprs_pubkey)?).unwrap();
-        if testnet_address != self.sign_param.sender && mainnet_address != self.sign_param.sender {
-            return Err(CoinError::ImkeyAddressMismatchWithPath.into());
-        }
-
-        //organize data
-        let mut data_pack: Vec<u8> = Vec::new();
-
-        data_pack.extend([1, hash.len() as u8].iter());
-        data_pack.extend(hash.iter());
-
-        //path
-        data_pack.extend([2, self.sign_param.path.as_bytes().len() as u8].iter());
-        data_pack.extend(self.sign_param.path.as_bytes().iter());
-        //payment info in TLV format
-        data_pack.extend([7, self.sign_param.payment.as_bytes().len() as u8].iter());
-        data_pack.extend(self.sign_param.payment.as_bytes().iter());
-        //receiver info in TLV format
-        let mut receiver_address = self.sign_param.receiver.clone();
-        if receiver_address.len() > 100 {
-            receiver_address = format!(
-                "{}{}{}",
-                &receiver_address[..47].to_string(),
-                "***".to_string(),
-                &receiver_address[receiver_address.len() - 50..]
-            );
-        }
-        data_pack.extend([8, receiver_address.as_bytes().len() as u8].iter());
-        data_pack.extend(receiver_address.as_bytes().iter());
-        //fee info in TLV format
-        data_pack.extend([9, self.sign_param.fee.as_bytes().len() as u8].iter());
-        data_pack.extend(self.sign_param.fee.as_bytes().iter());
-
-        let key_manager_obj = KEY_MANAGER.lock();
-        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &data_pack).unwrap();
-
-        let mut apdu_pack: Vec<u8> = Vec::new();
-        apdu_pack.push(0x00);
-        apdu_pack.push(bind_signature.len() as u8);
-        apdu_pack.extend(bind_signature.as_slice());
-        apdu_pack.extend(data_pack.as_slice());
+        let pub_key = CkbAddress::get_public_key(path)?;
+        self.validate_sender(&pub_key)?;
+        let (apdu_pack, se_pub_key) = self.prepare_signing_payload(hash, path)?;
 
         let mut sign_response = "".to_string();
         let sign_apdus = Secp256k1Apdu::sign(&apdu_pack);
@@ -167,32 +301,7 @@ impl<'a> CkbTxSigner<'a> {
             ApduCheck::check_response(&sign_response)?;
         }
 
-        // verify
-        let sign_source_val = &sign_response[..132];
-        let sign_result = &sign_response[132..sign_response.len() - 4];
-        let sign_verify_result = utility::secp256k1_sign_verify(
-            &key_manager_obj.se_pub_key,
-            hex::decode(sign_result).unwrap().as_slice(),
-            hex::decode(sign_source_val).unwrap().as_slice(),
-        )?;
-
-        if !sign_verify_result {
-            return Err(CoinError::ImkeySignatureVerifyFail.into());
-        }
-
-        let sign_compact = hex::decode(&sign_response[2..130]).unwrap();
-        let mut signnture_obj = Signature::from_compact(sign_compact.as_slice()).unwrap();
-        signnture_obj.normalize_s();
-        let normalizes_sig_vec = signnture_obj.serialize_compact();
-
-        let rec_id =
-            utility::retrieve_recid(&hash, &normalizes_sig_vec, &hex::decode(&pub_key)?).unwrap();
-        let rec_id = i32::from(rec_id);
-
-        let mut signature = hex::encode(normalizes_sig_vec.as_slice());
-        signature.push_str(&format!("{:02x}", &rec_id));
-
-        Ok(signature)
+        Self::finish_recoverable_signature(hash, &pub_key, &se_pub_key, &sign_response)
     }
 
     fn group_script(
@@ -201,16 +310,14 @@ impl<'a> CkbTxSigner<'a> {
     ) -> Result<HashMap<Vec<u8>, Vec<usize>>> {
         let mut map: HashMap<Vec<u8>, Vec<usize>> = HashMap::new();
 
-        for i in 0..input_cells.len() {
-            let item = &input_cells[i];
+        for (i, item) in input_cells.iter().enumerate() {
             if item.lock.is_none() {
                 continue;
             }
 
             let hash = item.lock.as_ref().unwrap().to_hash()?;
-            let indices = map.get_mut(&hash);
-            if indices.is_some() {
-                indices.unwrap().push(i);
+            if let Some(indices) = map.get_mut(&hash) {
+                indices.push(i);
             } else {
                 map.insert(hash, vec![i]);
             }
@@ -221,37 +328,71 @@ impl<'a> CkbTxSigner<'a> {
 }
 
 impl CkbSigner {
-    pub fn sign_transaction(tx: &CkbTxInput, sign_param: &SignParam) -> Result<CkbTxOutput> {
-        if tx.witnesses.len() == 0 {
+    fn input_cells(tx: &CkbTxInput) -> Result<Vec<&CachedCell>> {
+        let find_cache_cell = |out_point: &OutPoint| -> Result<&CachedCell> {
+            tx.cached_cells
+                .iter()
+                .find(|cell| {
+                    cell.out_point.as_ref().is_some_and(|cached_point| {
+                        cached_point.index == out_point.index
+                            && cached_point.tx_hash == out_point.tx_hash
+                    })
+                })
+                .ok_or_else(|| Error::CellInputNotCached.into())
+        };
+        let input_cells = tx
+            .inputs
+            .iter()
+            .map(|input| {
+                input
+                    .previous_output
+                    .as_ref()
+                    .ok_or_else(|| Error::InvalidOutputPoint.into())
+                    .and_then(find_cache_cell)
+            })
+            .collect::<Result<Vec<_>>>()?;
+        if tx.witnesses.len() < input_cells.len() || input_cells.is_empty() {
+            return Err(Error::InvalidInputCells.into());
+        }
+        Ok(input_cells)
+    }
+
+    pub async fn sign_transaction_async<T>(
+        transport: &T,
+        tx: &CkbTxInput,
+        sign_param: &SignParam,
+    ) -> Result<CkbTxOutput>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        if tx.witnesses.is_empty() {
             return Err(Error::RequiredWitness.into());
         }
 
-        let find_cache_cell = |x: &OutPoint| -> Result<&CachedCell> {
-            for y in tx.cached_cells.iter() {
-                if y.out_point.is_some() {
-                    let point = y.out_point.as_ref().unwrap();
-                    if point.index == x.index && point.tx_hash == x.tx_hash {
-                        return Ok(y);
-                    }
-                }
-            }
+        let input_cells = Self::input_cells(tx)?;
 
-            Err(Error::CellInputNotCached.into())
-        };
+        let mut signer = CkbTxSigner { sign_param };
+        let signed_witnesses = signer
+            .sign_witnesses_async(
+                transport,
+                &hex_to_bytes(&tx.tx_hash)?,
+                &tx.witnesses,
+                &input_cells,
+            )
+            .await?;
 
-        let mut input_cells: Vec<&CachedCell> = vec![];
+        Ok(CkbTxOutput {
+            tx_hash: tx.tx_hash.clone(),
+            witnesses: signed_witnesses,
+        })
+    }
 
-        for x in tx.inputs.iter() {
-            if x.previous_output.is_none() {
-                return Err(Error::InvalidOutputPoint.into());
-            }
-
-            input_cells.push(find_cache_cell(x.previous_output.as_ref().unwrap())?);
+    pub fn sign_transaction(tx: &CkbTxInput, sign_param: &SignParam) -> Result<CkbTxOutput> {
+        if tx.witnesses.is_empty() {
+            return Err(Error::RequiredWitness.into());
         }
 
-        if tx.witnesses.len() < input_cells.len() || input_cells.len() == 0 {
-            return Err(Error::InvalidInputCells.into());
-        }
+        let input_cells = Self::input_cells(tx)?;
 
         let mut signer = CkbTxSigner { sign_param };
 
@@ -367,7 +508,6 @@ mod tests {
             witnesses,
             tx_hash: tx_hash.to_owned(),
             cached_cells,
-            ..CkbTxInput::default()
         };
 
         let sign_param = SignParam {

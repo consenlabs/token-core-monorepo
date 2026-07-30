@@ -7,6 +7,8 @@ use tcx_keystore::{tcx_ensure, Address};
 use anyhow::anyhow;
 use byteorder::LittleEndian;
 use byteorder::{ReadBytesExt, WriteBytesExt};
+use crypto_secretbox::aead::Aead;
+use crypto_secretbox::{KeyInit, Nonce, XSalsa20Poly1305};
 use regex::Regex;
 use schnorrkel::SECRET_KEY_LENGTH;
 use std::fmt;
@@ -17,8 +19,6 @@ use tcx_common::{random_u8_32, FromHex};
 use tcx_constants::{CoinInfo, Result};
 use tcx_primitive::{PrivateKey, PublicKey, Sr25519PrivateKey, TypedPublicKey};
 use thiserror::Error;
-use xsalsa20poly1305::aead::Aead;
-use xsalsa20poly1305::{KeyInit, Nonce, XSalsa20Poly1305};
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]
 pub enum Error {
@@ -419,7 +419,7 @@ mod test_super {
         let ks: SubstrateKeystore = serde_json::from_str(KEYSTORE_STR_V3).unwrap();
         assert_eq!(ks.encoding.encoding_type.len(), 2);
         assert_eq!(ks.encoding.encoding_type[0], "scrypt");
-        let decrypted = decode_substrate_keystore(&ks, &TEST_PASSWORD).unwrap();
+        let decrypted = decode_substrate_keystore(&ks, TEST_PASSWORD).unwrap();
         assert_eq!(decrypted.to_hex(), "00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd");
         let decrypted = decode_substrate_keystore(&ks, "wrong_password");
         assert_eq!(
@@ -465,7 +465,7 @@ mod test_super {
     fn test_export_from_secret_key() {
         let prv_key = Vec::from_hex("00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd").unwrap();
         let coin_info = coin_info_from_param("KUSAMA", "", "", "").unwrap();
-        let keystore = encode_substrate_keystore(&TEST_PASSWORD, &prv_key, &coin_info).unwrap();
+        let keystore = encode_substrate_keystore(TEST_PASSWORD, &prv_key, &coin_info).unwrap();
         assert_eq!(
             keystore.address,
             "JHBkzZJnLZ3S3HLvxjpFAjd6ywP7WAk5miL7MwVCn9a7jHS"

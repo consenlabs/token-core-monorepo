@@ -1,4 +1,7 @@
+#[cfg(not(target_arch = "wasm32"))]
 use blake2b_rs::{Blake2b, Blake2bBuilder};
+#[cfg(target_arch = "wasm32")]
+use blake2b_simd::Params;
 
 pub const CKB_HASH_PERSONALIZATION: &[u8] = b"ckb-default-hash";
 pub const BLANK_HASH: [u8; 32] = [
@@ -6,10 +9,38 @@ pub const BLANK_HASH: [u8; 32] = [
     67, 211, 136, 197, 161, 47, 66, 181, 99, 61, 22, 62,
 ];
 
+#[cfg(target_arch = "wasm32")]
+pub struct Blake2b {
+    state: blake2b_simd::State,
+}
+
+#[cfg(target_arch = "wasm32")]
+impl Blake2b {
+    pub fn update(&mut self, input: &[u8]) {
+        self.state.update(input);
+    }
+
+    pub fn finalize(&self, output: &mut [u8]) {
+        let hash = self.state.finalize();
+        output.copy_from_slice(&hash.as_bytes()[..output.len()]);
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 pub fn new_blake2b() -> Blake2b {
     Blake2bBuilder::new(32)
         .personal(CKB_HASH_PERSONALIZATION)
         .build()
+}
+
+#[cfg(target_arch = "wasm32")]
+pub fn new_blake2b() -> Blake2b {
+    Blake2b {
+        state: Params::new()
+            .hash_length(32)
+            .personal(CKB_HASH_PERSONALIZATION)
+            .to_state(),
+    }
 }
 
 pub fn blake2b_256<T: AsRef<[u8]>>(s: T) -> Vec<u8> {

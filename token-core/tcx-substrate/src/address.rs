@@ -46,9 +46,9 @@ impl FromStr for SubstrateAddress {
     }
 }
 
-impl ToString for SubstrateAddress {
-    fn to_string(&self) -> String {
-        self.0.clone()
+impl std::fmt::Display for SubstrateAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
     }
 }
 
@@ -99,7 +99,7 @@ mod test_super {
         }
 
         let sec_key_data = &Vec::<u8>::from_hex_auto("00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd").unwrap();
-        let sec_key = Sr25519PrivateKey::from_slice(&sec_key_data).unwrap();
+        let sec_key = Sr25519PrivateKey::from_slice(sec_key_data).unwrap();
         let pub_key = sec_key.public_key();
         let typed_key = TypedPublicKey::SR25519(pub_key);
         let mut kusama_coin_info = CoinInfo {

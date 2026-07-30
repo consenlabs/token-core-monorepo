@@ -9,6 +9,7 @@ use bitcoin::{Address, PublicKey, ScriptBuf};
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
 use ikc_common::utility::{hex_to_bytes, sha256_hash};
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_transport::message::send_apdu;
 use std::convert::TryFrom;
 use std::str::FromStr;
@@ -27,8 +28,8 @@ pub fn address_verify(
     for utxo in utxos {
         let extend_public_key = if !utxo.derived_path.is_empty() {
             let xpub_data = get_xpub_data(&utxo.derived_path, false)?;
-            let public_key = &xpub_data[..130];
-            let chain_code = &xpub_data[130..194];
+            let public_key = public_key_from_xpub_response(&xpub_data)?;
+            let chain_code = chain_code_from_xpub_response(&xpub_data)?;
             Xpub {
                 network: network.into(),
                 depth: 0,
@@ -52,14 +53,14 @@ pub fn address_verify(
 
         let public_key = PublicKey::from_str(extend_public_key.public_key.to_string().as_str())?;
         let se_script = match trans_type_flg {
-            TransTypeFlg::BTC => Address::p2pkh(&public_key, network).script_pubkey(),
+            TransTypeFlg::BTC => Address::p2pkh(public_key, network).script_pubkey(),
             TransTypeFlg::SEGWIT => {
                 let witness_script = ScriptBuf::new_p2wpkh(&public_key.wpubkey_hash()?);
                 ScriptBuf::new_p2sh(&witness_script.script_hash())
             }
         };
 
-        let utxo_address = BtcForkAddress::from_str(&utxo.address).unwrap();
+        let utxo_address = BtcForkAddress::from_str(&utxo.address)?;
         let utxo_script = utxo_address.script_pubkey();
 
         if se_script != utxo_script {
@@ -70,9 +71,80 @@ pub fn address_verify(
     Ok(utxo_pub_key_vec)
 }
 
+pub async fn address_verify_async<T>(
+    transport: &T,
+    utxos: &Vec<Utxo>,
+    public_key: &str,
+    chain_code: &[u8],
+    network: Network,
+    trans_type_flg: TransTypeFlg,
+) -> Result<Vec<String>>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    let mut utxo_pub_key_vec: Vec<String> = vec![];
+    for utxo in utxos {
+        let extend_public_key = if !utxo.derived_path.is_empty() {
+            let xpub_data = get_xpub_data_async(transport, &utxo.derived_path, false).await?;
+            let public_key = public_key_from_xpub_response(&xpub_data)?;
+            let chain_code = chain_code_from_xpub_response(&xpub_data)?;
+            Xpub {
+                network: network.into(),
+                depth: 0,
+                parent_fingerprint: Default::default(),
+                child_number: ChildNumber::from_normal_idx(0)?,
+                public_key: Secp256k1PublicKey::from_str(public_key)?,
+                chain_code: ChainCode::try_from(hex_to_bytes(chain_code)?.as_slice())?,
+            }
+        } else {
+            let public_key_obj = Secp256k1PublicKey::from_str(public_key)?;
+            let chain_code_obj = ChainCode::try_from(chain_code)?;
+            Xpub {
+                network: network.into(),
+                depth: 0,
+                parent_fingerprint: Default::default(),
+                child_number: ChildNumber::from_normal_idx(0)?,
+                public_key: public_key_obj,
+                chain_code: chain_code_obj,
+            }
+        };
+
+        let public_key = PublicKey::from_str(extend_public_key.public_key.to_string().as_str())?;
+        let se_script = match trans_type_flg {
+            TransTypeFlg::BTC => Address::p2pkh(public_key, network).script_pubkey(),
+            TransTypeFlg::SEGWIT => {
+                let witness_script = ScriptBuf::new_p2wpkh(&public_key.wpubkey_hash()?);
+                ScriptBuf::new_p2sh(&witness_script.script_hash())
+            }
+        };
+
+        let utxo_address = BtcForkAddress::from_str(&utxo.address)?;
+        let utxo_script = utxo_address.script_pubkey();
+
+        if se_script != utxo_script {
+            return Err(CoinError::ImkeyAddressMismatchWithPath.into());
+        }
+        utxo_pub_key_vec.push(extend_public_key.public_key.to_string());
+    }
+    Ok(utxo_pub_key_vec)
+}
+
+pub fn public_key_from_xpub_response(xpub_data: &str) -> Result<&str> {
+    xpub_data
+        .get(..130)
+        .ok_or_else(|| CoinError::GetXpubError.into())
+}
+
+pub fn chain_code_from_xpub_response(xpub_data: &str) -> Result<&str> {
+    xpub_data
+        .get(130..194)
+        .ok_or_else(|| CoinError::GetXpubError.into())
+}
+
 /**
 Transaction type identification
 */
+#[derive(Clone, Copy)]
 pub enum TransTypeFlg {
     BTC,
     SEGWIT,
@@ -82,9 +154,23 @@ pub enum TransTypeFlg {
 get xpub
 */
 pub fn get_xpub_data(path: &str, verify_flag: bool) -> Result<String> {
-    let select_response = send_apdu(BtcApdu::select_applet())?;
+    let select_response = send_apdu(BtcApdu::select_applet()?)?;
     ApduCheck::check_response(&select_response)?;
-    let xpub_data = send_apdu(BtcApdu::get_xpub(path, verify_flag))?;
+    let xpub_data = send_apdu(BtcApdu::get_xpub(path, verify_flag)?)?;
+    ApduCheck::check_response(&xpub_data)?;
+    Ok(xpub_data)
+}
+
+pub async fn get_xpub_data_async<T>(transport: &T, path: &str, verify_flag: bool) -> Result<String>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    let select_apdu = BtcApdu::select_applet()?;
+    let select_response = transport.send_apdu(&select_apdu, 20).await?;
+    ApduCheck::check_response(&select_response)?;
+
+    let xpub_apdu = BtcApdu::get_xpub(path, verify_flag)?;
+    let xpub_data = transport.send_apdu(&xpub_apdu, 20).await?;
     ApduCheck::check_response(&xpub_data)?;
     Ok(xpub_data)
 }

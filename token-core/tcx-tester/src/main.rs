@@ -2,18 +2,13 @@ use bytes::BytesMut;
 use prost::Message;
 use std::env;
 use std::ffi::CString;
-use std::os::raw::c_char;
 use tcx::api::InitTokenCoreXParam;
-use tcx::{call_tcx_api, get_last_err_message};
+use tcx::{call_tcx_api, free_const_string, get_last_err_message};
 
 pub fn encode_message(msg: impl Message) -> Vec<u8> {
     let mut buf = BytesMut::with_capacity(msg.encoded_len());
     msg.encode(&mut buf).unwrap();
     buf.to_vec()
-}
-
-fn _to_c_char(str: &str) -> *const c_char {
-    CString::new(str).unwrap().into_raw()
 }
 
 fn main() {
@@ -31,6 +26,11 @@ fn main() {
     let hex = &args[1];
     // let bytes = Vec::from_hex(hex).expect("decode hex");
     // let param_buf = wrap_buffer(bytes);
-    unsafe { call_tcx_api(_to_c_char(hex)) };
-    unsafe { get_last_err_message() };
+    let request = CString::new(hex.as_str()).unwrap();
+    unsafe {
+        let response = call_tcx_api(request.as_ptr());
+        let error = get_last_err_message();
+        free_const_string(response);
+        free_const_string(error);
+    }
 }

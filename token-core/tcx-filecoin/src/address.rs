@@ -57,9 +57,9 @@ impl FromStr for FilecoinAddress {
     }
 }
 
-impl ToString for FilecoinAddress {
-    fn to_string(&self) -> String {
-        self.0.clone()
+impl std::fmt::Display for FilecoinAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
     }
 }
 
@@ -77,21 +77,21 @@ mod tests {
     #[test]
     fn test_is_valid() {
         let coin_info = coin_info_from_param("FILECOIN", "TESTNET", "", "").unwrap();
-        assert_eq!(
-            FilecoinAddress::is_valid("t12i3bop43tprlnymx2c75u6uvlq7iur2rcd7qsey", &coin_info),
-            true
-        );
-        assert_eq!(FilecoinAddress::is_valid("t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa",&coin_info), true);
-        assert_eq!(FilecoinAddress::is_valid("t3rynpyphoo6pxfzb4ljy3zmf224vjihlok4oewbpjii3uq2mgl7jgrpxsiddaowsxccnnbi2p4ei4sdmsxfaq",&coin_info), true);
-        assert_eq!(FilecoinAddress::is_valid("t3rynpyphoo6pxfzb4ljy3zmf224vjihlok4oewbpjii3uq2mgl7jgrpxsiddaowsxccnnbi2p4ei4sdmsxfaqt",&coin_info), false);
+        assert!(FilecoinAddress::is_valid(
+            "t12i3bop43tprlnymx2c75u6uvlq7iur2rcd7qsey",
+            &coin_info
+        ));
+        assert!(FilecoinAddress::is_valid("t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa",&coin_info));
+        assert!(FilecoinAddress::is_valid("t3rynpyphoo6pxfzb4ljy3zmf224vjihlok4oewbpjii3uq2mgl7jgrpxsiddaowsxccnnbi2p4ei4sdmsxfaq",&coin_info));
+        assert!(!FilecoinAddress::is_valid("t3rynpyphoo6pxfzb4ljy3zmf224vjihlok4oewbpjii3uq2mgl7jgrpxsiddaowsxccnnbi2p4ei4sdmsxfaqt",&coin_info));
 
         let coin_info = coin_info_from_param("FILECOIN", "MAINNET", "", "").unwrap();
-        assert_eq!(
-            FilecoinAddress::is_valid("t12i3bop43tprlnymx2c75u6uvlq7iur2rcd7qsey", &coin_info),
-            false
-        );
-        assert_eq!(FilecoinAddress::is_valid("t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa",&coin_info), false);
-        assert_eq!(FilecoinAddress::is_valid("t3rynpyphoo6pxfzb4ljy3zmf224vjihlok4oewbpjii3uq2mgl7jgrpxsiddaowsxccnnbi2p4ei4sdmsxfaq",&coin_info), false);
+        assert!(!FilecoinAddress::is_valid(
+            "t12i3bop43tprlnymx2c75u6uvlq7iur2rcd7qsey",
+            &coin_info
+        ));
+        assert!(!FilecoinAddress::is_valid("t3qdyntx5snnwgmjkp2ztd6tf6hhcmurxfj53zylrqyympwvzvbznx6vnvdqloate5eviphnzrkupno4wheesa",&coin_info));
+        assert!(!FilecoinAddress::is_valid("t3rynpyphoo6pxfzb4ljy3zmf224vjihlok4oewbpjii3uq2mgl7jgrpxsiddaowsxccnnbi2p4ei4sdmsxfaq",&coin_info));
     }
 
     #[test]

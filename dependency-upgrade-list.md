@@ -22,12 +22,17 @@ The remaining `cargo-deny` advisory exceptions are recorded in `deny.toml` becau
 
 | Advisory | Crate | Current blocker |
 |---|---|---|
-| `RUSTSEC-2020-0036` | `failure` | Pulled by `bch_addr/cash_addr 0.1.0`; no newer `bch_addr` release exists. Replacing the BCH address codec requires compatibility tests. |
 | `RUSTSEC-2023-0071` | `rsa` | Direct `ikc-device` dependency. `rsa 0.10.0-rc.18` was tested and is still affected; the advisory has no safe upgrade yet. |
-| `RUSTSEC-2023-0037` | `xsalsa20poly1305` | Replacement `crypto_secretbox 0.2.0-pre.0` conflicts with the workspace RustCrypto `cipher 0.5.2` stack. |
 | `RUSTSEC-2024-0370` | `proc-macro-error` | Pulled by the legacy Filecoin `forest_cid/cid/multihash` dependency stack. |
 | `RUSTSEC-2024-0436` | `paste` | Pulled by the Substrate `sp-core 41.0.0` dependency stack. |
 | `RUSTSEC-2025-0161` | `libsecp256k1` | Pulled by `sp-core 41.0.0`; the advisory has no safe direct upgrade and implies a larger Substrate/k256 migration. |
+
+Resolved:
+
+| Advisory | Crate | Resolution |
+|---|---|---|
+| `RUSTSEC-2020-0036` | `failure` | Removed by replacing `bch_addr/cash_addr 0.1.0` with `bitcoincash-addr 0.5.2` in BCH address conversion code. |
+| `RUSTSEC-2023-0037` | `xsalsa20poly1305` | Removed by replacing it with `crypto_secretbox 0.1.1`; `tcx-substrate` keystore v2/v3 compatibility tests pass. |
 
 ## Additional 12 Dependencies Completed
 
@@ -127,7 +132,7 @@ Changed dependency names: 76
 | `tiny-bip39` | `=1.0.0` | `=2.0.0` |
 | `tokio` | `=1.28.2` | `=1.52.3` |
 | `uuid` | `=1.2.2` | `=1.23.1` |
-| `xsalsa20poly1305` | `=0.9.0` | `=0.9.1` |
+| `xsalsa20poly1305` | `=0.9.0` | replaced by `crypto_secretbox =0.1.1` |
 
 ## Current Cargo.toml Registry Requirements
 
@@ -140,10 +145,10 @@ Current registry dependency names declared in Cargo.toml files: 94
 | `base32` | `=0.5.1` |
 | `base58` | `=0.2.0` |
 | `base64` | `=0.22.1` |
-| `bch_addr` | `=0.1.0` |
 | `bech32` | `=0.11.1` |
 | `bitcoin` | `=0.32.9` |
 | `bitcoin_hashes` | `=0.20.0` |
+| `bitcoincash-addr` | `=0.5.2` |
 | `bitstream-io` | `=4.10.0` |
 | `blake2b-rs` | `=0.2.0` |
 | `blake2b_simd` | `=1.0.4` |
@@ -155,6 +160,7 @@ Current registry dependency names declared in Cargo.toml files: 94
 | `cbc` | `=0.2.1` |
 | `cc` | `=1.2.62` |
 | `crc` | `=3.4.0` |
+| `crypto_secretbox` | `=0.1.1` |
 | `ctr` | `=0.10.1` |
 | `derivation-path` | `=0.2.0` |
 | `digest` | `=0.11.3` |
@@ -228,7 +234,6 @@ Current registry dependency names declared in Cargo.toml files: 94
 | `tokio` | `=1.52.3` |
 | `typenum` | `=1.20.0` |
 | `uuid` | `=1.23.1` |
-| `xsalsa20poly1305` | `=0.9.1` |
 
 ## Still Behind crates.io Latest
 

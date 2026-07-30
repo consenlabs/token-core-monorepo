@@ -3,6 +3,7 @@ use crate::api::{
 };
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
+use crate::types::SegWit;
 use bitcoin::Network;
 use coin_bitcoin::address::BtcAddress;
 use coin_bitcoin::btc_kin_address::BtcKinAddress;
@@ -19,10 +20,10 @@ pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
     if network.is_none() {
         return Err(CommonError::MissingNetwork.into());
     }
-    let network = network.unwrap();
+    let network = network.ok_or(CommonError::MissingNetwork)?;
 
-    match param.seg_wit.as_str() {
-        "P2WPKH" => {
+    match SegWit::from_name(&param.seg_wit) {
+        SegWit::P2wpkh => {
             main_address =
                 BtcKinAddress::p2shwpkh(network, format!("{}/0/0", account_path).as_str())?
                     .to_string();
@@ -30,7 +31,7 @@ pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
                 BtcKinAddress::p2shwpkh(network, format!("{}/0/1", account_path).as_str())?
                     .to_string();
         }
-        "VERSION_0" => {
+        SegWit::Version0 => {
             main_address =
                 BtcKinAddress::p2wpkh(network, format!("{}/0/0", account_path).as_str())?
                     .to_string();
@@ -38,7 +39,7 @@ pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
                 BtcKinAddress::p2wpkh(network, format!("{}/0/1", account_path).as_str())?
                     .to_string();
         }
-        "VERSION_1" => {
+        SegWit::Version1 => {
             main_address =
                 BtcKinAddress::p2tr(network, format!("{}/0/0", account_path).as_str())?.to_string();
             receive_address =
@@ -76,13 +77,10 @@ pub fn calc_external_address(param: &ExternalAddressParam) -> Result<Vec<u8>> {
     let network = network_convert(param.network.as_ref());
     let account_path = param.path.to_string();
     let external_path = format!("{}/0/{}", account_path, param.external_idx);
-    let receive_address: String;
-
-    if param.seg_wit.to_uppercase() == "P2WPKH" {
-        receive_address = BtcAddress::p2shwpkh(network, external_path.as_str())?;
-    } else {
-        receive_address = BtcAddress::p2pkh(network, external_path.as_str())?;
-    }
+    let receive_address = match SegWit::from_name(&param.seg_wit) {
+        SegWit::P2wpkh => BtcAddress::p2shwpkh(network, external_path.as_str())?,
+        _ => BtcAddress::p2pkh(network, external_path.as_str())?,
+    };
 
     let external_address = ExternalAddress {
         address: receive_address,
@@ -99,7 +97,7 @@ pub fn get_enc_xpub(network: Network, path: &str) -> Result<String> {
     let iv = ikc_common::XPUB_COMMON_IV.read();
     let key_bytes = hex::decode(&*key)?;
     let iv_bytes = hex::decode(&*iv)?;
-    let encrypted = ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
+    let encrypted = ikc_common::aes::cbc::encrypt_pkcs7(xpub.as_bytes(), &key_bytes, &iv_bytes)?;
     Ok(base64::Engine::encode(
         &base64::engine::general_purpose::STANDARD,
         &encrypted,

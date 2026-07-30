@@ -1,4 +1,4 @@
-use crate::common::get_xpub_data;
+use crate::common::{get_xpub_data, get_xpub_data_async};
 use crate::Result;
 use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
 use bitcoin::key::UntweakedPublicKey;
@@ -10,6 +10,7 @@ use ikc_common::constants;
 use ikc_common::error::CommonError;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::hex_to_bytes;
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_transport::message::send_apdu;
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
@@ -56,7 +57,53 @@ impl BtcAddress {
             network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
-            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            child_number: *chain_number_vec.last().unwrap(),
+            public_key: pub_key_obj,
+            chain_code: chain_code_obj,
+        };
+        Ok(extend_public_key.to_string())
+    }
+
+    pub async fn get_xpub_async<T>(transport: &T, network: Network, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data_async(transport, path, true).await?;
+        let xpub_data = &xpub_data[..194].to_string();
+
+        let pub_key = &xpub_data[..130];
+        let chain_code = &xpub_data[130..];
+
+        let parent_xpub =
+            get_xpub_data_async(transport, Self::get_parent_path(path)?, true).await?;
+        let parent_xpub = &parent_xpub[..130].to_string();
+        let parent_pub_key_obj = Secp256k1PublicKey::from_str(parent_xpub)?;
+
+        let pub_key_obj = Secp256k1PublicKey::from_str(pub_key)?;
+
+        let chain_code_bytes: [u8; 32] = hex::decode(chain_code).unwrap()[..32].try_into().unwrap();
+        let chain_code_obj = ChainCode::from(chain_code_bytes);
+        let parent_ext_pub_key = Xpub {
+            network: network.into(),
+            depth: 0u8,
+            parent_fingerprint: Fingerprint::default(),
+            child_number: ChildNumber::from_normal_idx(0).unwrap(),
+            public_key: parent_pub_key_obj,
+            chain_code: chain_code_obj,
+        };
+        let fingerprint_obj = parent_ext_pub_key.fingerprint();
+
+        let chain_code_bytes2: [u8; 32] =
+            hex::decode(chain_code).unwrap()[..32].try_into().unwrap();
+        let chain_code_obj = ChainCode::from(chain_code_bytes2);
+        let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
+        let extend_public_key = Xpub {
+            network: network.into(),
+            depth: chain_number_vec.len() as u8,
+            parent_fingerprint: fingerprint_obj,
+            child_number: *chain_number_vec.last().unwrap(),
             public_key: pub_key_obj,
             chain_code: chain_code_obj,
         };
@@ -72,6 +119,21 @@ impl BtcAddress {
 
         //get xpub
         let xpub_data = get_xpub_data(path, true)?;
+        let pub_key = &xpub_data[..130];
+
+        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
+        pub_key_obj.compressed = true;
+
+        Ok(Address::p2pkh(pub_key_obj, network).to_string())
+    }
+
+    pub async fn p2pkh_async<T>(transport: &T, network: Network, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data_async(transport, path, true).await?;
         let pub_key = &xpub_data[..130];
 
         let mut pub_key_obj = PublicKey::from_str(pub_key)?;
@@ -98,10 +160,41 @@ impl BtcAddress {
         Ok(Address::p2shwpkh(&compressed, network).to_string())
     }
 
+    pub async fn p2shwpkh_async<T>(transport: &T, network: Network, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data_async(transport, path, true).await?;
+        let pub_key = &xpub_data[..130];
+
+        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
+        pub_key_obj.compressed = true;
+        let compressed = CompressedPublicKey::try_from(pub_key_obj)?;
+
+        Ok(Address::p2shwpkh(&compressed, network).to_string())
+    }
+
     pub fn p2wpkh(network: Network, path: &str) -> Result<String> {
         check_path_validity(path)?;
 
         let xpub_data = get_xpub_data(path, true)?;
+        let pub_key = &xpub_data[..130];
+        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
+        pub_key_obj.compressed = true;
+        let compressed = CompressedPublicKey::try_from(pub_key_obj)?;
+
+        Ok(Address::p2wpkh(&compressed, network).to_string())
+    }
+
+    pub async fn p2wpkh_async<T>(transport: &T, network: Network, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data_async(transport, path, true).await?;
         let pub_key = &xpub_data[..130];
         let mut pub_key_obj = PublicKey::from_str(pub_key)?;
         pub_key_obj.compressed = true;
@@ -115,7 +208,23 @@ impl BtcAddress {
 
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
-        let public_key = Secp256k1PublicKey::from_slice(&hex_to_bytes(&pub_key)?)?;
+        let public_key = Secp256k1PublicKey::from_slice(&hex_to_bytes(pub_key)?)?;
+        let (x_only, _) = public_key.x_only_public_key();
+        let untweak_pub_key = UntweakedPublicKey::from(x_only);
+
+        let secp256k1 = Secp256k1::new();
+        Ok(Address::p2tr(&secp256k1, untweak_pub_key, None, network).to_string())
+    }
+
+    pub async fn p2tr_async<T>(transport: &T, network: Network, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data_async(transport, path, true).await?;
+        let pub_key = &xpub_data[..130];
+        let public_key = Secp256k1PublicKey::from_slice(&hex_to_bytes(pub_key)?)?;
         let (x_only, _) = public_key.x_only_public_key();
         let untweak_pub_key = UntweakedPublicKey::from(x_only);
 
@@ -134,6 +243,18 @@ impl BtcAddress {
         Ok(pub_key.to_string())
     }
 
+    pub async fn get_pub_key_async<T>(transport: &T, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data_async(transport, path, true).await?;
+        let pub_key = &xpub_data[..130];
+
+        Ok(pub_key.to_string())
+    }
+
     /**
     get parent public key path
     */
@@ -143,8 +264,7 @@ impl BtcAddress {
         }
 
         let mut end_flg = path.rfind("/").unwrap();
-        if path.ends_with("/") {
-            let path = &path[..path.len() - 1];
+        if let Some(path) = path.strip_suffix("/") {
             end_flg = path.rfind("/").unwrap();
         }
         Ok(&path[..end_flg])
@@ -160,7 +280,38 @@ impl BtcAddress {
             _ => Self::p2pkh(network, path)?,
         };
 
-        let apdu_res = send_apdu(BtcApdu::register_address(&address.as_bytes()))?;
+        let apdu_res = send_apdu(BtcApdu::register_address(address.as_bytes())?)?;
+        ApduCheck::check_response(apdu_res.as_str())?;
+        Ok(address)
+    }
+
+    pub async fn display_address_async<T>(
+        transport: &T,
+        network: Network,
+        path: &str,
+        seg_wit: &str,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let address = match seg_wit {
+            constants::BTC_SEG_WIT_TYPE_P2WPKH => {
+                Self::p2shwpkh_async(transport, network, path).await?
+            }
+            constants::BTC_SEG_WIT_TYPE_VERSION_0 => {
+                Self::p2wpkh_async(transport, network, path).await?
+            }
+            constants::BTC_SEG_WIT_TYPE_VERSION_1 => {
+                Self::p2tr_async(transport, network, path).await?
+            }
+            _ => Self::p2pkh_async(transport, network, path).await?,
+        };
+
+        let apdu_res = transport
+            .send_apdu(&BtcApdu::register_address(address.as_bytes())?, 20)
+            .await?;
         ApduCheck::check_response(apdu_res.as_str())?;
         Ok(address)
     }
@@ -178,7 +329,7 @@ impl BtcAddress {
                 Address::p2wpkh(&compressed, network).to_string()
             }
             constants::BTC_SEG_WIT_TYPE_VERSION_1 => {
-                let public_key = Secp256k1PublicKey::from_slice(&hex_to_bytes(&public_key)?)?;
+                let public_key = Secp256k1PublicKey::from_slice(&hex_to_bytes(public_key)?)?;
                 let (x_only, _) = public_key.x_only_public_key();
                 let untweak_pub_key = UntweakedPublicKey::from(x_only);
                 let secp256k1 = Secp256k1::new();

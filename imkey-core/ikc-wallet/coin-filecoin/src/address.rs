@@ -11,55 +11,197 @@ use ikc_common::path;
 use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::utility;
 use ikc_common::utility::network_convert;
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message;
 use std::convert::TryFrom;
 use wallet_core_common::filecoin;
 
-const MAINNET_PREFIX: &'static str = "f";
-const TESTNET_PREFIX: &'static str = "t";
+const MAINNET_PREFIX: &str = "f";
+const TESTNET_PREFIX: &str = "t";
 
 #[derive(Debug)]
 pub struct FilecoinAddress {}
 
 impl FilecoinAddress {
-    pub fn get_pub_key(path: &str) -> Result<String> {
+    async fn send_checked<T>(transport: &T, apdu: String) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let response = transport.send_apdu(&apdu, 20).await?;
+        ApduCheck::check_response(&response)?;
+        Ok(response)
+    }
+
+    pub async fn get_pub_key_async<T>(transport: &T, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
         path::check_path_validity(path)?;
 
-        let select_apdu = Apdu::select_applet(FILECOIN_AID);
-        let select_response = message::send_apdu(select_apdu)?;
-        ApduCheck::check_response(&select_response)?;
+        let select_apdu = Apdu::try_select_applet(FILECOIN_AID)?;
+        Self::send_checked(transport, select_apdu).await?;
 
-        let key_manager_obj = KEY_MANAGER.lock();
-        let bind_signature = utility::secp256k1_sign(&key_manager_obj.pri_key, &path.as_bytes())?;
+        let (bind_signature, se_pub_key) = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            (
+                utility::secp256k1_sign(&key_manager_obj.pri_key, path.as_bytes())?,
+                key_manager_obj.se_pub_key.clone(),
+            )
+        };
 
         let mut apdu_pack: Vec<u8> = vec![];
         apdu_pack.push(0x00);
         apdu_pack.push(bind_signature.len() as u8);
         apdu_pack.extend(bind_signature.as_slice());
         apdu_pack.push(0x01);
-        apdu_pack.push(path.as_bytes().len() as u8);
+        apdu_pack.push(path.len() as u8);
         apdu_pack.extend(path.as_bytes());
 
-        //get public
-        let msg_pubkey = Secp256k1Apdu::get_xpub(&apdu_pack);
-        let res_msg_pubkey = message::send_apdu(msg_pubkey)?;
-        ApduCheck::check_response(&res_msg_pubkey)?;
+        let msg_pubkey = Secp256k1Apdu::try_get_xpub(&apdu_pack)?;
+        let res_msg_pubkey = Self::send_checked(transport, msg_pubkey).await?;
 
-        let sign_source_val = &res_msg_pubkey[..194];
-        let sign_result = &res_msg_pubkey[194..res_msg_pubkey.len() - 4];
+        let sign_source_val = res_msg_pubkey.get(..194).ok_or(CoinError::InvalidParam)?;
+        let sign_result_end = res_msg_pubkey
+            .len()
+            .checked_sub(4)
+            .ok_or(CoinError::InvalidParam)?;
+        let sign_result = res_msg_pubkey
+            .get(194..sign_result_end)
+            .ok_or(CoinError::InvalidParam)?;
 
         let sign_verify_result = utility::secp256k1_sign_verify(
-            &key_manager_obj.se_pub_key,
-            hex::decode(sign_result).unwrap().as_slice(),
-            hex::decode(sign_source_val).unwrap().as_slice(),
+            &se_pub_key,
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(sign_source_val)?.as_slice(),
         )?;
         if !sign_verify_result {
             return Err(CoinError::ImkeySignatureVerifyFail.into());
         }
 
-        let uncomprs_pubkey: String = res_msg_pubkey.chars().take(194).collect();
-        Ok(uncomprs_pubkey)
+        Ok(sign_source_val.to_string())
+    }
+
+    pub async fn get_address_async<T>(transport: &T, path: &str, network: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let ntwk = match network {
+            "TESTNET" => TESTNET_PREFIX,
+            _ => MAINNET_PREFIX,
+        };
+
+        let uncomprs_pubkey = Self::get_pub_key_async(transport, path).await?;
+        let pub_key_hex = uncomprs_pubkey.get(..130).ok_or(CoinError::InvalidParam)?;
+        let pub_key_bytes = hex::decode(pub_key_hex)?;
+        Ok(filecoin::secp256k1_address_from_uncompressed_pubkey(
+            ntwk,
+            &pub_key_bytes,
+        ))
+    }
+
+    pub async fn display_address_async<T>(
+        transport: &T,
+        path: &str,
+        network: &str,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let address = Self::get_address_async(transport, path, network).await?;
+        let filecoin_menu_name = "FIL".as_bytes();
+        let reg_apdu = Secp256k1Apdu::register_address(filecoin_menu_name, address.as_bytes())?;
+        Self::send_checked(transport, reg_apdu).await?;
+        Ok(address)
+    }
+
+    pub async fn get_xpub_async<T>(transport: &T, network: &str, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = Self::get_pub_key_async(transport, path).await?;
+        let xpub_data = &xpub_data[..194];
+
+        let pub_key = &xpub_data[..130];
+        let sub_chain_code = &xpub_data[130..];
+        let pub_key_obj = PublicKey::from_str(pub_key)?;
+
+        let parent_xpub_data = Self::get_pub_key_async(transport, get_parent_path(path)?).await?;
+        let parent_xpub_data = &parent_xpub_data[..194];
+        let parent_pub_key = &parent_xpub_data[..130];
+        let parent_chain_code = &parent_xpub_data[130..];
+        let parent_pub_key_obj = PublicKey::from_str(parent_pub_key)?;
+
+        let parent_chain_code = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
+        let network = network_convert(network);
+        let parent_ext_pub_key = Xpub {
+            network: network.into(),
+            depth: 0_u8,
+            parent_fingerprint: Fingerprint::default(),
+            child_number: ChildNumber::from_normal_idx(0).unwrap(),
+            public_key: parent_pub_key_obj,
+            chain_code: parent_chain_code,
+        };
+        let fingerprint_obj = parent_ext_pub_key.fingerprint();
+
+        let sub_chain_code_obj = ChainCode::try_from(hex::decode(sub_chain_code)?.as_slice())?;
+
+        let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
+        let extend_public_key = Xpub {
+            network: network.into(),
+            depth: chain_number_vec.len() as u8,
+            parent_fingerprint: fingerprint_obj,
+            child_number: *chain_number_vec.last().unwrap(),
+            public_key: pub_key_obj,
+            chain_code: sub_chain_code_obj,
+        };
+        Ok(extend_public_key.to_string())
+    }
+
+    pub fn get_pub_key(path: &str) -> Result<String> {
+        path::check_path_validity(path)?;
+
+        let select_apdu = Apdu::try_select_applet(FILECOIN_AID)?;
+        let select_response = message::send_apdu(select_apdu)?;
+        ApduCheck::check_response(&select_response)?;
+
+        let key_manager_obj = KEY_MANAGER.lock();
+        let bind_signature = utility::secp256k1_sign(&key_manager_obj.pri_key, path.as_bytes())?;
+
+        let mut apdu_pack: Vec<u8> = vec![];
+        apdu_pack.push(0x00);
+        apdu_pack.push(bind_signature.len() as u8);
+        apdu_pack.extend(bind_signature.as_slice());
+        apdu_pack.push(0x01);
+        apdu_pack.push(path.len() as u8);
+        apdu_pack.extend(path.as_bytes());
+
+        //get public
+        let msg_pubkey = Secp256k1Apdu::try_get_xpub(&apdu_pack)?;
+        let res_msg_pubkey = message::send_apdu(msg_pubkey)?;
+        ApduCheck::check_response(&res_msg_pubkey)?;
+
+        let sign_source_val = res_msg_pubkey.get(..194).ok_or(CoinError::InvalidParam)?;
+        let sign_result_end = res_msg_pubkey
+            .len()
+            .checked_sub(4)
+            .ok_or(CoinError::InvalidParam)?;
+        let sign_result = res_msg_pubkey
+            .get(194..sign_result_end)
+            .ok_or(CoinError::InvalidParam)?;
+
+        let sign_verify_result = utility::secp256k1_sign_verify(
+            &key_manager_obj.se_pub_key,
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(sign_source_val)?.as_slice(),
+        )?;
+        if !sign_verify_result {
+            return Err(CoinError::ImkeySignatureVerifyFail.into());
+        }
+
+        Ok(sign_source_val.to_string())
     }
 
     pub fn get_address(path: &str, network: &str) -> Result<String> {
@@ -68,8 +210,9 @@ impl FilecoinAddress {
             _ => MAINNET_PREFIX,
         };
 
-        let uncomprs_pubkey = Self::get_pub_key(path).unwrap();
-        let pub_key_bytes = hex::decode(&uncomprs_pubkey[..130]).unwrap();
+        let uncomprs_pubkey = Self::get_pub_key(path)?;
+        let pub_key_hex = uncomprs_pubkey.get(..130).ok_or(CoinError::InvalidParam)?;
+        let pub_key_bytes = hex::decode(pub_key_hex)?;
         Ok(filecoin::secp256k1_address_from_uncompressed_pubkey(
             ntwk,
             &pub_key_bytes,
@@ -77,9 +220,9 @@ impl FilecoinAddress {
     }
 
     pub fn display_address(path: &str, network: &str) -> Result<String> {
-        let address = Self::get_address(path, network).unwrap();
+        let address = Self::get_address(path, network)?;
         let filecoin_menu_name = "FIL".as_bytes();
-        let reg_apdu = Secp256k1Apdu::register_address(filecoin_menu_name, address.as_bytes());
+        let reg_apdu = Secp256k1Apdu::register_address(filecoin_menu_name, address.as_bytes())?;
         let res_reg = message::send_apdu(reg_apdu)?;
         ApduCheck::check_response(&res_reg)?;
         Ok(address)
@@ -110,7 +253,7 @@ impl FilecoinAddress {
         let network = network_convert(network);
         let parent_ext_pub_key = Xpub {
             network: network.into(),
-            depth: 0 as u8,
+            depth: 0_u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
             public_key: parent_pub_key_obj,
@@ -126,7 +269,7 @@ impl FilecoinAddress {
             network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
-            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            child_number: *chain_number_vec.last().unwrap(),
             public_key: pub_key_obj,
             chain_code: sub_chain_code_obj,
         };

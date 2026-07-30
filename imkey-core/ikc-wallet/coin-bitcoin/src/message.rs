@@ -1,6 +1,6 @@
 use crate::address::BtcAddress;
 use crate::btcapi::{BtcMessageInput, BtcMessageOutput, BtcSignatureType};
-use crate::common::select_btc_applet;
+use crate::common::{select_btc_applet, select_btc_applet_async};
 use crate::psbt::PsbtSigner;
 use crate::Result;
 use bitcoin::consensus::serialize as btc_serialize;
@@ -16,6 +16,9 @@ use ikc_common::error::{CoinError, CommonError};
 use ikc_common::utility::{
     hex_to_bytes, network_convert, secp256k1_sign, sha256_hash, utf8_or_hex_to_bytes,
     version_at_least,
+};
+use ikc_device::async_device_manager::{
+    get_btc_apple_version as get_btc_apple_version_async, AsyncApduTransport,
 };
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_device::device_manager::get_btc_apple_version;
@@ -86,6 +89,56 @@ impl MessageSinger {
                 }
                 "VERSION_0" => self.sign_message_bip322_simple(&data)?,
                 "VERSION_1" => self.sign_message_bip322_full(&data)?,
+                _ => {
+                    return Err(CoinError::Bip322NotSupportedForAddressType.into());
+                }
+            },
+            _ => return Err(CoinError::InvalidSignatureType.into()),
+        };
+
+        Ok(BtcMessageOutput { signature })
+    }
+
+    async fn send_checked<T: AsyncApduTransport + ?Sized>(
+        transport: &T,
+        apdu: String,
+        timeout: i32,
+    ) -> Result<String> {
+        let response = transport.send_apdu(&apdu, timeout).await?;
+        ApduCheck::check_response(&response)?;
+        Ok(response)
+    }
+
+    pub async fn sign_message_async<T: AsyncApduTransport + ?Sized>(
+        &self,
+        transport: &T,
+        input: BtcMessageInput,
+    ) -> Result<BtcMessageOutput> {
+        let data = utf8_or_hex_to_bytes(&input.message)?;
+        let seg_wit = self.seg_wit.as_str();
+        let sig_type = input.signature_type;
+
+        let signature = match sig_type {
+            t if t == BtcSignatureType::Standard as i32 || t == BtcSignatureType::Bip137 as i32 => {
+                if seg_wit == "VERSION_1" {
+                    return Err(CoinError::Bip137NotSupportedForTaproot.into());
+                }
+                let is_standard = t == BtcSignatureType::Standard as i32;
+                self.sign_message_bip137_async(transport, &data, is_standard)
+                    .await?
+            }
+            t if t == BtcSignatureType::Bip322 as i32 => match seg_wit {
+                "NONE" | "P2WPKH" => {
+                    return Err(CoinError::Bip322NotSupportedForAddressType.into());
+                }
+                "VERSION_0" => {
+                    self.sign_message_bip322_simple_async(transport, &data)
+                        .await?
+                }
+                "VERSION_1" => {
+                    self.sign_message_bip322_full_async(transport, &data)
+                        .await?
+                }
                 _ => {
                     return Err(CoinError::Bip322NotSupportedForAddressType.into());
                 }
@@ -199,6 +252,91 @@ impl MessageSinger {
         ))
     }
 
+    async fn sign_message_bip137_async<T: AsyncApduTransport + ?Sized>(
+        &self,
+        transport: &T,
+        data: &[u8],
+        is_standard: bool,
+    ) -> Result<String> {
+        let btc_version = get_btc_apple_version_async(transport).await?;
+        if !version_at_least(&btc_version, (1, 6, 11)) {
+            return Err(CommonError::UpgradeApplet.into());
+        }
+
+        let msg_hash = bip137_message_hash(data);
+        let path = format!("{}/0/0", self.derivation_path);
+        let path_bytes = path.as_bytes();
+
+        let mut raw_data_value = Vec::with_capacity(2 + msg_hash.len() + 2 + path_bytes.len());
+        raw_data_value.push(PRE_TAG_TXHASH);
+        raw_data_value.push(msg_hash.len() as u8);
+        raw_data_value.extend_from_slice(&msg_hash);
+        raw_data_value.push(PRE_TAG_PATH);
+        raw_data_value.push(path_bytes.len() as u8);
+        raw_data_value.extend_from_slice(path_bytes);
+
+        let mut raw_data_tlv = Vec::with_capacity(2 + raw_data_value.len());
+        raw_data_tlv.push(TAG_RAW_DATA);
+        raw_data_tlv.push(raw_data_value.len() as u8);
+        raw_data_tlv.extend_from_slice(&raw_data_value);
+
+        let host_sig = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            secp256k1_sign(&key_manager_obj.pri_key, &raw_data_tlv)?
+        };
+
+        let mut prep_data = Vec::with_capacity(2 + host_sig.len() + raw_data_tlv.len());
+        prep_data.push(TAG_SIGNATURE);
+        prep_data.push(host_sig.len() as u8);
+        prep_data.extend_from_slice(&host_sig);
+        prep_data.extend_from_slice(&raw_data_tlv);
+
+        select_btc_applet_async(transport).await?;
+
+        let apdus = BtcApdu::btc_prepare(BTC_MSG_SIGN_INS, 0x00, &prep_data);
+        let last_idx = apdus.len() - 1;
+        let mut sign_result = String::new();
+        for (i, apdu) in apdus.into_iter().enumerate() {
+            if i == last_idx {
+                sign_result = Self::send_checked(transport, apdu, TIMEOUT_LONG).await?;
+            } else {
+                Self::send_checked(transport, apdu, 20).await?;
+            }
+        }
+
+        let sign_bytes = hex_to_bytes(&sign_result[2..(sign_result.len() - 4)])?;
+        if sign_bytes.len() != 65 {
+            return Err(CoinError::MissingSignature.into());
+        }
+
+        let r = &sign_bytes[0..32];
+        let s = &sign_bytes[32..64];
+        let v = sign_bytes[64];
+
+        let mut compact = [0u8; 64];
+        compact[..32].copy_from_slice(r);
+        compact[32..].copy_from_slice(s);
+        let mut sig = EcdsaSignature::from_compact(&compact)?;
+        sig.normalize_s();
+        let final_compact = sig.serialize_compact();
+        let s_changed = final_compact[32..] != compact[32..];
+        let final_v = if s_changed { 1 - v } else { v };
+
+        let flag_base = if is_standard {
+            31
+        } else {
+            flag_base_for_bip137(&self.seg_wit)?
+        };
+
+        let mut result_sig = vec![flag_base + final_v];
+        result_sig.extend_from_slice(&final_compact);
+
+        Ok(base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            &result_sig,
+        ))
+    }
+
     fn sign_message_bip322_simple(&self, data: &[u8]) -> Result<String> {
         let path = format!("{}/0/0", self.derivation_path);
         let pub_key = BtcAddress::get_pub_key(&path)?;
@@ -221,6 +359,50 @@ impl MessageSinger {
         psbt_signer.get_preview_info()?;
         psbt_signer.tx_preview(network)?;
         psbt_signer.sign(&pub_keys)?;
+
+        if let Some(witness) = &psbt.inputs[0].final_script_witness {
+            Ok(base64::Engine::encode(
+                &base64::engine::general_purpose::STANDARD,
+                witness_to_vec(witness.to_vec()),
+            ))
+        } else {
+            Err(CoinError::MissingSignature.into())
+        }
+    }
+
+    async fn sign_message_bip322_simple_async<T: AsyncApduTransport + ?Sized>(
+        &self,
+        transport: &T,
+        data: &[u8],
+    ) -> Result<String> {
+        let path = format!("{}/0/0", self.derivation_path);
+        let pub_key = BtcAddress::get_pub_key_async(transport, &path).await?;
+        let network = network_convert(&self.network);
+        let address = BtcAddress::from_public_key(&pub_key, network, &self.seg_wit)?;
+        let script_pubkey = Address::from_str(&address)?
+            .assume_checked()
+            .script_pubkey();
+        let tx_id = get_spend_tx_id(data, script_pubkey.clone())?;
+
+        select_btc_applet_async(transport).await?;
+
+        let mut psbt = create_to_sign_empty(tx_id, script_pubkey)?;
+        let mut psbt_signer = PsbtSigner::new_async(
+            transport,
+            &mut psbt,
+            &self.derivation_path,
+            true,
+            network,
+            true,
+        )
+        .await?;
+
+        psbt_signer.prevouts()?;
+        let pub_keys = psbt_signer.get_pub_key_async(transport).await?;
+        psbt_signer.calc_tx_hash_async(transport).await?;
+        psbt_signer.get_preview_info()?;
+        psbt_signer.tx_preview_async(transport, network).await?;
+        psbt_signer.sign_async(transport, &pub_keys).await?;
 
         if let Some(witness) = &psbt.inputs[0].final_script_witness {
             Ok(base64::Engine::encode(
@@ -262,13 +444,55 @@ impl MessageSinger {
             serialized,
         ))
     }
+
+    async fn sign_message_bip322_full_async<T: AsyncApduTransport + ?Sized>(
+        &self,
+        transport: &T,
+        data: &[u8],
+    ) -> Result<String> {
+        let path = format!("{}/0/0", self.derivation_path);
+        let pub_key = BtcAddress::get_pub_key_async(transport, &path).await?;
+        let network = network_convert(&self.network);
+        let address = BtcAddress::from_public_key(&pub_key, network, &self.seg_wit)?;
+        let script_pubkey = Address::from_str(&address)?
+            .assume_checked()
+            .script_pubkey();
+        let tx_id = get_spend_tx_id(data, script_pubkey.clone())?;
+
+        select_btc_applet_async(transport).await?;
+
+        let mut psbt = create_to_sign_empty(tx_id, script_pubkey)?;
+        let mut psbt_signer = PsbtSigner::new_async(
+            transport,
+            &mut psbt,
+            &self.derivation_path,
+            true,
+            network,
+            true,
+        )
+        .await?;
+
+        psbt_signer.prevouts()?;
+        let pub_keys = psbt_signer.get_pub_key_async(transport).await?;
+        psbt_signer.calc_tx_hash_async(transport).await?;
+        psbt_signer.get_preview_info()?;
+        psbt_signer.tx_preview_async(transport, network).await?;
+        psbt_signer.sign_async(transport, &pub_keys).await?;
+
+        let tx = psbt.extract_tx()?;
+        let serialized = btc_serialize(&tx);
+        Ok(base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            serialized,
+        ))
+    }
 }
 
 const UTXO: &str = "0000000000000000000000000000000000000000000000000000000000000000";
 const TAG: &str = "BIP0322-signed-message";
 
 fn get_spend_tx_id(data: &[u8], script_pub_key: Script) -> Result<Txid> {
-    let tag_hash = sha256_hash(&TAG.as_bytes().to_vec());
+    let tag_hash = sha256_hash(TAG.as_bytes());
     let mut to_sign = Vec::new();
     to_sign.extend(tag_hash.clone());
     to_sign.extend(tag_hash);

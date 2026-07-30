@@ -172,17 +172,17 @@ fn import_private_key_internal(
         let map = KEYSTORE_MAP.read();
         if let Some(founded) = map.values().find(|keystore| {
             keystore.fingerprint() == fingerprint
-                && keystore.id() != overwrite_id.to_string()
+                && keystore.id() != overwrite_id
                 && exist_migrated_file(&keystore.id())
         }) {
             target_id = Some(founded.id());
         }
     }
 
-    if target_id.is_some() {
+    if let Some(target_id) = target_id {
         return Ok(crate::api::ImportPrivateKeyResult {
             is_existed: true,
-            existed_id: target_id.unwrap().to_string(),
+            existed_id: target_id.to_string(),
             ..Default::default()
         });
     }
@@ -398,7 +398,7 @@ pub fn init_token_core_x(data: &[u8]) -> Result<()> {
         xpub_common_key,
         xpub_common_iv,
         is_debug,
-    } = InitTokenCoreXParam::decode(data).unwrap();
+    } = InitTokenCoreXParam::decode(data)?;
     *KEYSTORE_BASE_DIR.write() = file_dir.to_string();
 
     let v2_dir = format!("{}/{}", file_dir, WALLET_V2_DIR);
@@ -507,9 +507,7 @@ pub fn scan_keystores() -> Result<ScannedKeystoresResult> {
     //Indicates whether the walletV2 directory or keystore file is empty
     let is_empty_v2_keystore = p.exists() && p.read_dir()?.all(|_| false);
     //Legacy keystore, v2 keystone are both empty or only legacy keystore is empty, return legacy keystores
-    if (keystores.is_empty() && is_empty_v2_keystore)
-        || (!keystores.is_empty() && is_empty_v2_keystore)
-    {
+    if is_empty_v2_keystore {
         return Ok(ScannedKeystoresResult { keystores });
     }
 
@@ -759,17 +757,17 @@ pub fn import_mnemonic(data: &[u8]) -> Result<Vec<u8>> {
         let map = KEYSTORE_MAP.read();
         if let Some(founded) = map.values().find(|keystore| {
             keystore.fingerprint() == fingerprint
-                && keystore.id() != param.overwrite_id.to_string()
+                && keystore.id() != param.overwrite_id
                 && exist_migrated_file(&keystore.id())
         }) {
             target_id = Some(founded.id());
         }
     }
 
-    if target_id.is_some() {
+    if let Some(target_id) = target_id {
         let result = KeystoreResult {
             is_existed: true,
-            existed_id: target_id.unwrap().to_string(),
+            existed_id: target_id.to_string(),
             ..Default::default()
         };
         let ret = encode_message(result)?;
@@ -1155,8 +1153,7 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
         .collect();
 
     let mut public_key_strs: Vec<String> = vec![];
-    for idx in 0..param.derivations.len() {
-        let pub_key = &public_keys[idx];
+    for (idx, pub_key) in public_keys.iter().enumerate().take(param.derivations.len()) {
         let derivation = &param.derivations[idx];
         let coin_info = CoinInfo {
             chain_id: "".to_string(),
@@ -1166,7 +1163,7 @@ pub(crate) fn get_public_keys(data: &[u8]) -> Result<Vec<u8>> {
             ..Default::default()
         };
 
-        let public_key_str_ret = encode_public_key_internal(&pub_key, &coin_info);
+        let public_key_str_ret = encode_public_key_internal(pub_key, &coin_info);
 
         let pub_key_str = public_key_str_ret?;
         public_key_strs.push(pub_key_str);
@@ -1377,9 +1374,9 @@ pub(crate) fn import_json(data: &[u8]) -> Result<Vec<u8>> {
         ret.identified_chain_types = vec!["KUSAMA".to_string(), "POLKADOT".to_string()];
         ret.identified_curve = CurveType::SR25519.as_str().to_string();
         ret.identified_network = "".to_string();
-        return encode_message(ret);
+        encode_message(ret)
     } else {
-        return Err(anyhow!("unsupport_chain"));
+        Err(anyhow!("unsupport_chain"))
     }
 }
 
@@ -1530,7 +1527,7 @@ pub(crate) fn encrypt_data_to_ipfs(data: &[u8]) -> Result<Vec<u8>> {
         identity_ks.identity().encrypt_ipfs(&param.content)?
     } else {
         let legacy_identify_path = &format!("{}/identity.json", LEGACY_WALLET_FILE_DIR.read());
-        let legacy_ipfs_info = legacy_ipfs::read_legacy_ipfs_info(&legacy_identify_path)?;
+        let legacy_ipfs_info = legacy_ipfs::read_legacy_ipfs_info(legacy_identify_path)?;
         ensure!(
             legacy_ipfs_info.identifier == param.identifier,
             "wallet_not_found"
@@ -1557,7 +1554,7 @@ pub(crate) fn decrypt_data_from_ipfs(data: &[u8]) -> Result<Vec<u8>> {
         identity_ks.identity().decrypt_ipfs(&param.encrypted)?
     } else {
         let legacy_identify_path = &format!("{}/identity.json", LEGACY_WALLET_FILE_DIR.read());
-        let legacy_ipfs_data = legacy_ipfs::read_legacy_ipfs_info(&legacy_identify_path)?;
+        let legacy_ipfs_data = legacy_ipfs::read_legacy_ipfs_info(legacy_identify_path)?;
         identity::decrypt_ipfs_with_enc_key(
             &param.encrypted,
             &legacy_ipfs_data.ipfs_id,
@@ -1732,7 +1729,7 @@ mod tests {
     #[serial]
     fn test_decode_private_key() {
         let private_key = "cPrsVCDgzf7FLG2NyCrfudbAav4DQt2vs1ZcAqcjZWQ6wi1kp3Uc";
-        let decoded = decode_private_key(&private_key).unwrap();
+        let decoded = decode_private_key(private_key).unwrap();
         assert_eq!(
             decoded.chain_types,
             vec![
@@ -1747,7 +1744,7 @@ mod tests {
         assert_eq!(decoded.source, Source::Wif);
 
         let private_key = "KyVt2HDqZbQzApZ7ao3YYK66xgkokRwEnyR94RAE4Pk6gxtMdsrA";
-        let decoded = decode_private_key(&private_key).unwrap();
+        let decoded = decode_private_key(private_key).unwrap();
         assert_eq!(
             decoded.chain_types,
             vec!["BITCOIN".to_string(), "BITCOINCASH".to_string()]
@@ -1757,21 +1754,21 @@ mod tests {
         assert_eq!(decoded.source, Source::Wif);
 
         let private_key = "T5L9U2X1xyPawfBz8RzQkfdUuYQ7pWx8cBKPvDnmdMvGCrR7TZEw";
-        let decoded = decode_private_key(&private_key).unwrap();
+        let decoded = decode_private_key(private_key).unwrap();
         assert_eq!(decoded.chain_types, vec!["LITECOIN".to_string()]);
         assert_eq!(decoded.curve, CurveType::SECP256k1);
         assert_eq!(decoded.network, "MAINNET".to_string());
         assert_eq!(decoded.source, Source::Wif);
 
         let private_key = "edskRgu8wHxjwayvnmpLDDijzD3VZDoAH7ZLqJWuG4zg7LbxmSWZWhtkSyM5Uby41rGfsBGk4iPKWHSDniFyCRv3j7YFCknyHH";
-        let decoded = decode_private_key(&private_key).unwrap();
+        let decoded = decode_private_key(private_key).unwrap();
         assert_eq!(decoded.chain_types, vec!["TEZOS".to_string()]);
         assert_eq!(decoded.curve, CurveType::ED25519);
         assert_eq!(decoded.network, "".to_string());
         assert_eq!(decoded.source, Source::Private);
 
         let private_key = "0x43fe394358d14f2e096f4efe80894b4e51a3fdcb73c06b77e937b80deb8c746b";
-        let decoded = decode_private_key(&private_key).unwrap();
+        let decoded = decode_private_key(private_key).unwrap();
         assert_eq!(
             decoded.chain_types,
             vec![
@@ -1789,21 +1786,21 @@ mod tests {
         assert_eq!(decoded.source, Source::Private);
 
         let private_key = "0x7b2254797065223a22736563703235366b31222c22507269766174654b6579223a226f354a6754767776725a774c5061513758326d4b4c6a386e4478634e685a6b537667315564434a317866593d227d";
-        let decoded = decode_private_key(&private_key).unwrap();
+        let decoded = decode_private_key(private_key).unwrap();
         assert_eq!(decoded.chain_types, vec!["FILECOIN".to_string()]);
         assert_eq!(decoded.curve, CurveType::SECP256k1);
         assert_eq!(decoded.network, "".to_string());
         assert_eq!(decoded.source, Source::Private);
 
         let private_key = "0x7b2254797065223a22626c73222c22507269766174654b6579223a2269376b4f2b7a78633651532b7637597967636d555968374d55595352657336616e6967694c684b463830383d227d";
-        let decoded = decode_private_key(&private_key).unwrap();
+        let decoded = decode_private_key(private_key).unwrap();
         assert_eq!(decoded.chain_types, vec!["FILECOIN".to_string()]);
         assert_eq!(decoded.curve, CurveType::BLS);
         assert_eq!(decoded.network, "".to_string());
         assert_eq!(decoded.source, Source::Private);
 
         let private_key = "5JLENb318PJDVxdjGp8pvmRigMLSYbCPA4GSPXPwANvGLZE3ukq";
-        let decoded = decode_private_key(&private_key).unwrap();
+        let decoded = decode_private_key(private_key).unwrap();
         assert_eq!(decoded.chain_types, vec!["EOS".to_string()]);
         assert_eq!(decoded.curve, CurveType::SECP256k1);
         assert_eq!(decoded.network, "".to_string());

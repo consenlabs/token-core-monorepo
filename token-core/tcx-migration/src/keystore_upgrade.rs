@@ -86,7 +86,7 @@ impl KeystoreUpgrade {
                 json["identity"] = json!(Identity::from_private_key(
                     &private_key.to_hex(),
                     &unlocker,
-                    &identity_network,
+                    identity_network,
                 )?);
 
                 json["fingerprint"] = json!(fingerprint_from_private_key(&private_key)?);
@@ -98,7 +98,7 @@ impl KeystoreUpgrade {
                     let old_curve_name = account_json["curve"]
                         .as_str()
                         .expect("activeAccounts need contains curve");
-                    let new_curve_name = mapping_curve_name(&old_curve_name);
+                    let new_curve_name = mapping_curve_name(old_curve_name);
                     json["curve"] = json!(new_curve_name);
                     let chain_type = account_json["coin"]
                         .as_str()
@@ -122,8 +122,7 @@ impl KeystoreUpgrade {
 
                 json["fingerprint"] = json!(fingerprint_from_seed(&seed)?);
                 json["version"] = json!(HdKeystore::VERSION);
-                json["identity"] =
-                    json!(Identity::from_seed(&seed, &unlocker, &identity_network,)?);
+                json["identity"] = json!(Identity::from_seed(&seed, &unlocker, identity_network,)?);
                 let enc_pair = unlocker.encrypt_with_random_iv(mnemonic.as_bytes())?;
                 json["encOriginal"] = json!(enc_pair);
             }
@@ -149,7 +148,7 @@ impl KeystoreUpgrade {
                 };
 
                 let mut substrate_ks =
-                    encode_substrate_keystore(&password, &private_key_bytes, &coin)?;
+                    encode_substrate_keystore(password, private_key_bytes, &coin)?;
                 let name = self.json["imTokenMeta"]["name"]
                     .as_str()
                     .unwrap_or_default();
@@ -163,17 +162,17 @@ impl KeystoreUpgrade {
             }
             "TEZOS" => Ok(encode_tezos_private_key(&private_key_bytes.to_hex())?),
             "FILECOIN" => {
-                let curve_type = CurveType::from_curve_name(&new_curve_name);
-                Ok(KeyInfo::from_private_key(curve_type, &private_key_bytes)?
+                let curve_type = CurveType::from_curve_name(new_curve_name);
+                Ok(KeyInfo::from_private_key(curve_type, private_key_bytes)?
                     .to_json()?
                     .to_hex())
             }
             "BITCOINCASH" | "LITECOIN" => {
                 let network = account_json["network"].as_str().unwrap_or("MAINNET");
                 let seg_wit = account_json["segWit"].as_str().unwrap_or("");
-                let coin_info = coin_info_from_param(&chain_type, network, seg_wit, "secp256k1")?;
+                let coin_info = coin_info_from_param(chain_type, network, seg_wit, "secp256k1")?;
                 let typed_pk =
-                    TypedPrivateKey::from_slice(CurveType::SECP256k1, &private_key_bytes)?;
+                    TypedPrivateKey::from_slice(CurveType::SECP256k1, private_key_bytes)?;
                 typed_pk.fmt(&coin_info)
             }
             _ => Ok(private_key_bytes.to_hex()),

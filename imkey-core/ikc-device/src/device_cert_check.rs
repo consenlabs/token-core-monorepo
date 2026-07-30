@@ -1,8 +1,7 @@
 use crate::error::ImkeyError;
 use crate::ServiceResponse;
-use crate::{Result, TsmService};
+use crate::{tsm_post, Result, TsmService};
 use ikc_common::constants;
-use ikc_common::https;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -31,14 +30,14 @@ impl TsmService for DeviceCertCheckRequest {
     type ReturnData = ();
 
     fn send_message(&mut self) -> Result<()> {
-        let req_data = serde_json::to_vec_pretty(&self).unwrap();
-        let response_data = https::post(constants::TSM_ACTION_DEVICE_CERT_CHECK, req_data)?;
+        let req_data = serde_json::to_vec_pretty(&self)?;
+        let response_data = tsm_post(constants::TSM_ACTION_DEVICE_CERT_CHECK, req_data)?;
         let return_bean: ServiceResponse<DeviceCertCheckResponse> =
             serde_json::from_str(response_data.as_str())?;
 
         match return_bean.service_res_check() {
             Ok(()) => {
-                if return_bean.return_data.verify_result.unwrap() {
+                if return_bean.return_data.verify_result.unwrap_or(false) {
                     return Ok(());
                 }
                 Err(ImkeyError::ImkeySeCertInvalid.into())
@@ -75,7 +74,8 @@ mod test {
 
     #[test]
     #[cfg(not(tarpaulin))]
-    pub fn device_cert_check_test() {
+    pub fn device_cert_check_test() -> crate::Result<()> {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect("imKey Pro").is_ok());
         let seid = get_se_id().unwrap();
         let sn = get_sn().unwrap();
@@ -85,9 +85,9 @@ mod test {
 
         let key_manager_obj = KEY_MANAGER.lock();
         //gen bindchec apdu
-        let bind_check_apdu = ImkApdu::bind_check(&key_manager_obj.pub_key);
+        let bind_check_apdu = ImkApdu::bind_check(&key_manager_obj.pub_key)?;
         //send bindcheck command and get return data
-        let _ = send_apdu(Apdu::select_applet(IMK_AID));
+        let _ = send_apdu(Apdu::select_applet(IMK_AID)?);
         let bind_check_apdu_resp_data = send_apdu(bind_check_apdu).unwrap();
         let se_pub_key_cert: String =
             String::from(&bind_check_apdu_resp_data[2..(bind_check_apdu_resp_data.len() - 4)]);
@@ -96,5 +96,6 @@ mod test {
                 .send_message()
                 .is_ok()
         );
+        Ok(())
     }
 }

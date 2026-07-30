@@ -23,6 +23,15 @@ impl fmt::Display for AddressError {
 impl Error for AddressError {}
 
 pub fn p2pkh_hash(pub_key: &[u8]) -> Result<PubkeyHash, AddressError> {
+    let pub_key =
+        PublicKey::from_slice(pub_key).map_err(|err| AddressError::new(err.to_string()))?;
+    Ok(pub_key.pubkey_hash())
+}
+
+/// Derives a P2PKH hash from the compressed SEC serialization of a public key.
+///
+/// Both compressed and uncompressed public key inputs produce the same hash.
+pub fn compressed_p2pkh_hash(pub_key: &[u8]) -> Result<PubkeyHash, AddressError> {
     let pub_key = compressed_public_key(pub_key)?;
     Ok(pub_key.pubkey_hash())
 }
@@ -98,6 +107,36 @@ mod tests {
         assert_eq!(
             hex::encode(p2wpkh_program(&pubkey).unwrap()),
             "e6cfaab9a59ba187f0a45db0b169c21bb48f09b3"
+        );
+    }
+
+    #[test]
+    fn p2pkh_preserves_uncompressed_public_key_serialization() {
+        let compressed =
+            hex::decode("02506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aaba")
+                .unwrap();
+        let uncompressed = secp256k1::PublicKey::from_slice(&compressed)
+            .unwrap()
+            .serialize_uncompressed();
+
+        assert_eq!(
+            p2pkh_hash(&uncompressed).unwrap(),
+            PubkeyHash::hash(&uncompressed)
+        );
+        assert_ne!(
+            p2pkh_hash(&uncompressed).unwrap(),
+            p2pkh_hash(&compressed).unwrap()
+        );
+        assert_eq!(
+            compressed_p2pkh_hash(&uncompressed).unwrap(),
+            compressed_p2pkh_hash(&compressed).unwrap()
+        );
+
+        // SegWit only permits compressed public keys, so its helpers keep
+        // normalizing a valid uncompressed SEC key to compressed form.
+        assert_eq!(
+            p2wpkh_program(&uncompressed).unwrap(),
+            p2wpkh_program(&compressed).unwrap()
         );
     }
 

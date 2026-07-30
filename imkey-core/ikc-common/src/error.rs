@@ -12,6 +12,12 @@ pub enum CommonError {
     MissingNetwork,
     #[error("upgrade_applet")]
     UpgradeApplet,
+    #[error("imkey_tsm_url_invalid")]
+    InvalidTsmUrl,
+    #[error("imkey_tsm_url_requires_https")]
+    TsmUrlRequiresHttps,
+    #[error("imkey_tsm_url_already_configured")]
+    TsmUrlAlreadyConfigured,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]
@@ -48,6 +54,8 @@ pub enum ApduError {
     ImkeyMnemonicCheckFailed,
     #[error("imkey_cancel_mnemonic_check")]
     ImkeyCancelMnemonicCheck,
+    #[error("imkey_ble_upgrade_cancel")]
+    ImkeyBleUpgradeCancel,
 }
 
 #[derive(Error, Debug, PartialOrd, PartialEq)]
@@ -100,6 +108,10 @@ pub enum CoinError {
     InvalidUtxo,
     #[error("missing_signature")]
     MissingSignature,
+    #[error("tap_leaf_not_found")]
+    TapLeafNotFound,
+    #[error("ambiguous_tap_leaf")]
+    AmbiguousTapLeaf,
     #[error("bip322_not_supported_for_address_type")]
     Bip322NotSupportedForAddressType,
     #[error("bip137_not_supported_for_taproot")]

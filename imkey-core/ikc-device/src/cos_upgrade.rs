@@ -1,15 +1,29 @@
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use crate::app_download::AppDownloadRequest;
-use crate::device_manager::{get_bl_version, get_cert, get_firmware_version, get_se_id, get_sn};
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+use crate::ble_upgrade::BleUpgradeRequest;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+use crate::device_manager::{
+    apdu_status_word, get_bl_version, get_cert, get_firmware_version, get_se_id, get_sn,
+};
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use crate::error::ImkeyError;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use crate::ServiceResponse;
-use crate::{Result, TsmService};
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+use crate::{tsm_post, Result, TsmService};
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+use ikc_common::constants;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use ikc_common::utility::hex_to_bytes;
-use ikc_common::{constants, https};
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use ikc_transport::hid_api::hid_connect;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use ikc_transport::message::send_apdu;
 use serde::{Deserialize, Serialize};
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use std::thread;
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 use std::time::Duration;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -58,16 +72,15 @@ impl CosUpgradeRequest {
             //read se cos version
             se_cos_version = get_firmware_version()?;
         } else if device_cert.starts_with("7f21") || device_cert.starts_with("7F21") {
-            seid = device_cert[12..44].to_string();
+            seid = device_cert
+                .get(12..44)
+                .ok_or(ImkeyError::ImkeyTsmCosUpgradeFail)?
+                .to_string();
             sn = "0000000000000000".to_string();
             is_jump = true;
-            let mut temp_device_cert = hex_to_bytes("bf2181").unwrap();
+            let mut temp_device_cert = hex_to_bytes("bf2181")?;
             temp_device_cert.push(((device_cert.len()) / 2) as u8);
-            temp_device_cert.extend(
-                hex_to_bytes(&device_cert[..device_cert.len()])
-                    .unwrap()
-                    .iter(),
-            );
+            temp_device_cert.extend(hex_to_bytes(&device_cert)?.iter());
             device_cert = hex::encode_upper(temp_device_cert);
             se_bl_version = Some(get_bl_version()?);
         } else {
@@ -92,14 +105,19 @@ impl CosUpgradeRequest {
         };
 
         loop {
-            let req_data = serde_json::to_vec_pretty(&request_data).unwrap();
-            let response_data = https::post(constants::TSM_ACTION_COS_UPGRADE, req_data)?;
+            let req_data = serde_json::to_vec_pretty(&request_data)?;
+            let response_data = tsm_post(constants::TSM_ACTION_COS_UPGRADE, req_data)?;
             let return_bean: ServiceResponse<CosUpgradeResponse> =
                 serde_json::from_str(response_data.as_str())?;
             if return_bean.return_code == constants::TSM_RETURN_CODE_SUCCESS {
                 //check if end
-                let next_step_key = return_bean.return_data.next_step_key.unwrap();
+                let next_step_key = return_bean
+                    .return_data
+                    .next_step_key
+                    .clone()
+                    .ok_or(ImkeyError::ImkeyTsmServerError)?;
                 if constants::TSM_END_FLAG.eq(next_step_key.as_str()) {
+                    BleUpgradeRequest::ble_upgrade()?;
                     return Ok(());
                 }
 
@@ -110,10 +128,10 @@ impl CosUpgradeRequest {
                         let res = send_apdu(apdu_val.to_string())?;
                         apdu_res.push(res.clone());
                         if index_val == apdu_list.len() - 1 {
-                            request_data.status_word = Some(String::from(&res[res.len() - 4..]));
-                            if constants::APDU_RSP_SUCCESS.eq(&res[res.len() - 4..])
-                                || constants::APDU_RSP_SWITCH_BL_STATUS_SUCCESS
-                                    .eq(&res[res.len() - 4..])
+                            let status_word = apdu_status_word(&res)?;
+                            request_data.status_word = Some(status_word.to_string());
+                            if constants::APDU_RSP_SUCCESS.eq(status_word)
+                                || constants::APDU_RSP_SWITCH_BL_STATUS_SUCCESS.eq(status_word)
                             {
                                 if "03".eq(next_step_key.as_str()) {
                                     reconnect()?;
@@ -178,6 +196,7 @@ mod tests {
     #[test]
     #[cfg(not(tarpaulin))]
     fn cos_upgrade_test() {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect("imKey Pro").is_ok());
         assert!(CosUpgradeRequest::cos_upgrade(None).is_ok());
     }

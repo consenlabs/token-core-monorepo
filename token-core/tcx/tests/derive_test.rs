@@ -480,7 +480,7 @@ pub fn test_get_pubkey_keys() {
         };
         let result_bytes = call_api("get_public_keys", param).unwrap();
         let result = GetPublicKeysResult::decode(result_bytes.as_slice()).unwrap();
-        assert_eq!(result.public_keys.get(0).unwrap(), "0x941c2ab3d28b0fe37fde727e3178738a475696aed7335c7f4c2d91d06a1540acadb8042f119fb5f8029e7765de21fac2");
+        assert_eq!(result.public_keys.first().unwrap(), "0x941c2ab3d28b0fe37fde727e3178738a475696aed7335c7f4c2d91d06a1540acadb8042f119fb5f8029e7765de21fac2");
 
         remove_created_wallet(&import_result.id);
     })
@@ -789,7 +789,7 @@ pub fn test_get_extended_public_keys() {
         let ret = call_api("get_extended_public_keys", param).unwrap();
         let resp: GetExtendedPublicKeysResult =
             GetExtendedPublicKeysResult::decode(ret.as_slice()).unwrap();
-        assert_eq!(resp.extended_public_keys.get(0).unwrap(), "xpub6GZjFnyumLtEwC4KQkigvc3vXJdZvy71QxHTsFQQv1YtEUWNEwynKWsK2LBFZNLWdTk3w1Y9cRv4NN7V2pnDBoWgH3PkVE9r9Q2kSQL2zkH");
+        assert_eq!(resp.extended_public_keys.first().unwrap(), "xpub6GZjFnyumLtEwC4KQkigvc3vXJdZvy71QxHTsFQQv1YtEUWNEwynKWsK2LBFZNLWdTk3w1Y9cRv4NN7V2pnDBoWgH3PkVE9r9Q2kSQL2zkH");
     })
 }
 
@@ -889,7 +889,7 @@ fn polkadotjs_cross_test() {
             )),
             derivations,
         };
-        let expected = vec![
+        let expected = [
             "148fArFqHEtURxdvYAtLkSUkuHxqzPGsaC7Ro1zaUWFJ5dNF",
             "15YFBQp1kUWEXm22QXySuWyVZckk7QCZiuBfENLAfmbevstt",
             "16hsF1UW1kob7vUR7tymVNCmp1eo18uhhtc4szetH4xbYpbd",

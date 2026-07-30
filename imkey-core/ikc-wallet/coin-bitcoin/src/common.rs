@@ -6,6 +6,7 @@ use bitcoin::{Network, PublicKey};
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
 use ikc_common::utility::sha256_hash;
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_transport::message::send_apdu;
 use std::str::FromStr;
 
@@ -17,7 +18,7 @@ pub fn get_utxo_pub_key(utxos: &Vec<Utxo>) -> Result<Vec<String>> {
     for utxo in utxos {
         let xpub_data = get_xpub_data(&utxo.derive_path, false)?;
         //parsing xpub data
-        let derive_pub_key = &xpub_data[..130];
+        let derive_pub_key = public_key_from_xpub_response(&xpub_data)?;
 
         let mut public_key = PublicKey::from_str(derive_pub_key)?;
         public_key.compressed = true;
@@ -27,13 +28,50 @@ pub fn get_utxo_pub_key(utxos: &Vec<Utxo>) -> Result<Vec<String>> {
     Ok(utxo_pub_key_vec)
 }
 
+pub async fn get_utxo_pub_key_async<T>(transport: &T, utxos: &Vec<Utxo>) -> Result<Vec<String>>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    let mut utxo_pub_key_vec: Vec<String> = vec![];
+    for utxo in utxos {
+        let xpub_data = get_xpub_data_async(transport, &utxo.derive_path, false).await?;
+        let derive_pub_key = public_key_from_xpub_response(&xpub_data)?;
+
+        let mut public_key = PublicKey::from_str(derive_pub_key)?;
+        public_key.compressed = true;
+
+        utxo_pub_key_vec.push(public_key.to_string());
+    }
+    Ok(utxo_pub_key_vec)
+}
+
+pub fn public_key_from_xpub_response(xpub_data: &str) -> Result<&str> {
+    xpub_data
+        .get(..130)
+        .ok_or_else(|| CoinError::GetXpubError.into())
+}
+
 /**
 get xpub
 */
 pub fn get_xpub_data(path: &str, verify_flag: bool) -> Result<String> {
-    let select_response = send_apdu(BtcApdu::select_applet())?;
+    let select_response = send_apdu(BtcApdu::select_applet()?)?;
     ApduCheck::check_response(&select_response)?;
-    let xpub_data = send_apdu(BtcApdu::get_xpub(path, verify_flag))?;
+    let xpub_data = send_apdu(BtcApdu::get_xpub(path, verify_flag)?)?;
+    ApduCheck::check_response(&xpub_data)?;
+    Ok(xpub_data)
+}
+
+pub async fn get_xpub_data_async<T>(transport: &T, path: &str, verify_flag: bool) -> Result<String>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    let select_apdu = BtcApdu::select_applet()?;
+    let select_response = transport.send_apdu(&select_apdu, 20).await?;
+    ApduCheck::check_response(&select_response)?;
+
+    let xpub_apdu = BtcApdu::get_xpub(path, verify_flag)?;
+    let xpub_data = transport.send_apdu(&xpub_apdu, 20).await?;
     ApduCheck::check_response(&xpub_data)?;
     Ok(xpub_data)
 }
@@ -42,7 +80,17 @@ pub fn get_xpub_data(path: &str, verify_flag: bool) -> Result<String> {
 select btc applet
  */
 pub fn select_btc_applet() -> Result<()> {
-    let select_response = send_apdu(BtcApdu::select_applet())?;
+    let select_response = send_apdu(BtcApdu::select_applet()?)?;
+    ApduCheck::check_response(&select_response)?;
+    Ok(())
+}
+
+pub async fn select_btc_applet_async<T>(transport: &T) -> Result<()>
+where
+    T: AsyncApduTransport + ?Sized,
+{
+    let select_apdu = BtcApdu::select_applet()?;
+    let select_response = transport.send_apdu(&select_apdu, 20).await?;
     ApduCheck::check_response(&select_response)?;
     Ok(())
 }
@@ -80,7 +128,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
                 let address_bytes = base58::decode(address)?;
                 address_bytes.as_slice()[0]
             } else if address.starts_with("bc1") {
-                'b' as u8
+                b'b'
             } else {
                 return Err(CoinError::AddressTypeMismatch.into());
             }
@@ -90,7 +138,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
                 let address_bytes = base58::decode(address)?;
                 address_bytes.as_slice()[0]
             } else if address.starts_with("tb1") {
-                't' as u8
+                b't'
             } else {
                 return Err(CoinError::AddressTypeMismatch.into());
             }

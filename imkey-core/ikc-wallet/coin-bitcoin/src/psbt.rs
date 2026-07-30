@@ -1,6 +1,9 @@
 use crate::address::BtcAddress;
 use crate::btcapi::{PsbtInput, PsbtOutput};
-use crate::common::{get_address_version, get_xpub_data, select_btc_applet};
+use crate::common::{
+    get_address_version, get_xpub_data, get_xpub_data_async, public_key_from_xpub_response,
+    select_btc_applet, select_btc_applet_async,
+};
 use crate::Result;
 use anyhow::anyhow;
 use bitcoin::blockdata::script::Builder;
@@ -8,12 +11,12 @@ use bitcoin::blockdata::script::PushBytesBuf;
 use bitcoin::consensus::{serialize, Encodable};
 use bitcoin::ecdsa::Signature as EcdsaSig;
 use bitcoin::hashes::{hash160, Hash};
-use bitcoin::key::UntweakedPublicKey;
 use bitcoin::psbt::Psbt;
 use bitcoin::secp256k1::{
     ecdsa::Signature, schnorr::Signature as SchnorrSignature, PublicKey as Secp256k1PublicKey,
+    Secp256k1, XOnlyPublicKey,
 };
-use bitcoin::taproot::{Signature as SchnorrSig, TapLeafHash, TapTweakHash};
+use bitcoin::taproot::{ControlBlock, Signature as SchnorrSig, TapLeafHash, TapTweakHash};
 use bitcoin::{
     Address, EcdsaSighashType, Network, PublicKey, ScriptBuf as Script, TapSighashType, TxOut,
     WPubkeyHash, Witness,
@@ -27,12 +30,12 @@ use ikc_common::error::CoinError;
 use ikc_common::path::{check_path_validity, get_account_path};
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign, sha256_hash};
 use ikc_common::ToHex;
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::str::FromStr;
-use std::usize;
 
 pub struct PsbtSigner<'a> {
     psbt: &'a mut Psbt,
@@ -44,6 +47,19 @@ pub struct PsbtSigner<'a> {
     is_sign_message: bool,
 }
 
+#[derive(Clone)]
+struct SelectedTapLeaf {
+    control_block: ControlBlock,
+    script: Script,
+    leaf_hash: TapLeafHash,
+    xonly_public_key: XOnlyPublicKey,
+}
+
+enum TaprootSpend {
+    KeyPath,
+    ScriptPath(Box<SelectedTapLeaf>),
+}
+
 fn normalize_derivation_path(path: &str) -> String {
     if path.is_empty() || path == "m" || path.starts_with("m/") {
         path.to_string()
@@ -53,6 +69,16 @@ fn normalize_derivation_path(path: &str) -> String {
 }
 
 impl<'a> PsbtSigner<'a> {
+    async fn send_checked<T: AsyncApduTransport + ?Sized>(
+        transport: &T,
+        apdu: String,
+        timeout: i32,
+    ) -> Result<String> {
+        let response = transport.send_apdu(&apdu, timeout).await?;
+        ApduCheck::check_response(&response)?;
+        Ok(response)
+    }
+
     pub fn new(
         psbt: &'a mut Psbt,
         derivation_path: &str,
@@ -73,53 +99,158 @@ impl<'a> PsbtSigner<'a> {
         Ok(psbt_signer)
     }
 
-    pub fn sign(&mut self, pub_keys: &Vec<String>) -> Result<()> {
-        for idx in 0..self.prevouts.len() {
+    pub async fn new_async<T: AsyncApduTransport + ?Sized>(
+        transport: &T,
+        psbt: &'a mut Psbt,
+        derivation_path: &str,
+        auto_finalize: bool,
+        network: Network,
+        is_sign_message: bool,
+    ) -> Result<Self> {
+        let mut psbt_signer = PsbtSigner {
+            psbt,
+            derivation_path: derivation_path.to_string(),
+            prevouts: vec![],
+            auto_finalize,
+            network,
+            preview_output: vec![],
+            is_sign_message,
+        };
+        psbt_signer.get_preview_output_async(transport).await?;
+        Ok(psbt_signer)
+    }
+
+    pub fn sign(&mut self, pub_keys: &[String]) -> Result<()> {
+        if pub_keys.len() < self.prevouts.len() {
+            return Err(CoinError::InvalidParam.into());
+        }
+
+        for (idx, pub_key) in pub_keys.iter().enumerate().take(self.prevouts.len()) {
             let prevout = &self.prevouts[idx];
 
-            if prevout.script_pubkey.is_p2pkh() {
-                self.sign_p2pkh(idx, &pub_keys[idx])?;
+            let finalized = if prevout.script_pubkey.is_p2pkh() {
+                self.sign_p2pkh(idx, pub_key)?;
 
                 if self.auto_finalize {
-                    self.finalize_p2pkh(idx);
+                    self.finalize_p2pkh(idx)?;
+                    true
+                } else {
+                    false
                 }
             } else if prevout.script_pubkey.is_p2sh() {
-                self.sign_p2sh_nested_p2wpkh(idx, &pub_keys[idx])?;
+                self.sign_p2sh_nested_p2wpkh(idx, pub_key)?;
 
                 if self.auto_finalize {
-                    self.finalize_p2sh_nested_p2wpkh(idx);
+                    self.finalize_p2sh_nested_p2wpkh(idx)?;
+                    true
+                } else {
+                    false
                 }
             } else if prevout.script_pubkey.is_p2wpkh() {
-                self.sign_p2wpkh(idx, &pub_keys[idx])?;
+                self.sign_p2wpkh(idx, pub_key)?;
 
                 if self.auto_finalize {
-                    self.finalize_p2wpkh(idx);
-                }
-            } else if !self.psbt.inputs.first().unwrap().tap_scripts.is_empty() {
-                let input = self.psbt.inputs[idx].clone();
-                let (_, script_leaf) = input.tap_scripts.first_key_value().unwrap();
-                let (script, leaf_version) = script_leaf;
-                self.sign_p2tr_script(
-                    idx,
-                    &pub_keys[idx],
-                    Some((
-                        TapLeafHash::from_script(script, leaf_version.clone()).into(),
-                        0xFFFFFFFF,
-                    )),
-                )?;
-
-                if self.auto_finalize {
-                    self.finalize_p2tr(idx);
+                    self.finalize_p2wpkh(idx)?;
+                    true
+                } else {
+                    false
                 }
             } else if prevout.script_pubkey.is_p2tr() {
-                self.sign_p2tr(idx, &pub_keys[idx])?;
+                match self.taproot_spend(idx, pub_key)? {
+                    TaprootSpend::KeyPath => {
+                        self.sign_p2tr(idx, pub_key)?;
+                        if self.auto_finalize {
+                            self.finalize_p2tr_key_path(idx)?
+                        } else {
+                            false
+                        }
+                    }
+                    TaprootSpend::ScriptPath(selected_leaf) => {
+                        self.sign_p2tr_script(idx, &selected_leaf)?;
+                        if self.auto_finalize {
+                            self.finalize_p2tr_script_path(idx, &selected_leaf)?
+                        } else {
+                            false
+                        }
+                    }
+                }
+            } else {
+                return Err(CoinError::InvalidParam.into());
+            };
+
+            if finalized {
+                self.clear_finalized_input(idx);
+            }
+        }
+
+        Ok(())
+    }
+
+    pub async fn sign_async<T: AsyncApduTransport + ?Sized>(
+        &mut self,
+        transport: &T,
+        pub_keys: &[String],
+    ) -> Result<()> {
+        if pub_keys.len() < self.prevouts.len() {
+            return Err(CoinError::InvalidParam.into());
+        }
+
+        for (idx, pub_key) in pub_keys.iter().enumerate().take(self.prevouts.len()) {
+            let prevout = &self.prevouts[idx];
+
+            let finalized = if prevout.script_pubkey.is_p2pkh() {
+                self.sign_p2pkh_async(transport, idx, pub_key).await?;
 
                 if self.auto_finalize {
-                    self.finalize_p2tr(idx);
+                    self.finalize_p2pkh(idx)?;
+                    true
+                } else {
+                    false
                 }
-            }
+            } else if prevout.script_pubkey.is_p2sh() {
+                self.sign_p2sh_nested_p2wpkh_async(transport, idx, pub_key)
+                    .await?;
 
-            if self.auto_finalize {
+                if self.auto_finalize {
+                    self.finalize_p2sh_nested_p2wpkh(idx)?;
+                    true
+                } else {
+                    false
+                }
+            } else if prevout.script_pubkey.is_p2wpkh() {
+                self.sign_p2wpkh_async(transport, idx, pub_key).await?;
+
+                if self.auto_finalize {
+                    self.finalize_p2wpkh(idx)?;
+                    true
+                } else {
+                    false
+                }
+            } else if prevout.script_pubkey.is_p2tr() {
+                match self.taproot_spend(idx, pub_key)? {
+                    TaprootSpend::KeyPath => {
+                        self.sign_p2tr_async(transport, idx, pub_key).await?;
+                        if self.auto_finalize {
+                            self.finalize_p2tr_key_path(idx)?
+                        } else {
+                            false
+                        }
+                    }
+                    TaprootSpend::ScriptPath(selected_leaf) => {
+                        self.sign_p2tr_script_async(transport, idx, &selected_leaf)
+                            .await?;
+                        if self.auto_finalize {
+                            self.finalize_p2tr_script_path(idx, &selected_leaf)?
+                        } else {
+                            false
+                        }
+                    }
+                }
+            } else {
+                return Err(CoinError::InvalidParam.into());
+            };
+
+            if finalized {
                 self.clear_finalized_input(idx);
             }
         }
@@ -181,7 +312,28 @@ impl<'a> PsbtSigner<'a> {
             };
 
             let xpub_data = get_xpub_data(&path, false)?;
-            let derive_pub_key = &xpub_data[..130];
+            let derive_pub_key = public_key_from_xpub_response(&xpub_data)?;
+            let public_key = Secp256k1PublicKey::from_str(derive_pub_key)?;
+            pub_key_vec.push(public_key.to_string())
+        }
+
+        Ok(pub_key_vec)
+    }
+
+    pub async fn get_pub_key_async<T: AsyncApduTransport + ?Sized>(
+        &self,
+        transport: &T,
+    ) -> Result<Vec<String>> {
+        let mut pub_key_vec = vec![];
+        for (idx, tx_out) in self.prevouts.iter().enumerate() {
+            let path = if tx_out.script_pubkey.is_p2tr() {
+                self.get_path(idx, true)?
+            } else {
+                self.get_path(idx, false)?
+            };
+
+            let xpub_data = get_xpub_data_async(transport, &path, false).await?;
+            let derive_pub_key = public_key_from_xpub_response(&xpub_data)?;
             let public_key = Secp256k1PublicKey::from_str(derive_pub_key)?;
             pub_key_vec.push(public_key.to_string())
         }
@@ -197,7 +349,7 @@ impl<'a> PsbtSigner<'a> {
                 .unsigned_tx
                 .input
                 .get(x)
-                .expect("get_input_error")
+                .ok_or(CoinError::InvalidUtxo)?
                 .clone();
             if x == idx {
                 temp_serialize_txin.script_sig = prevout.script_pubkey.clone();
@@ -215,9 +367,53 @@ impl<'a> PsbtSigner<'a> {
 
         let btc_sign_apdu_return = send_apdu(btc_sign_apdu)?;
         ApduCheck::check_response(&btc_sign_apdu_return)?;
-        let btc_sign_apdu_return =
-            &btc_sign_apdu_return[..btc_sign_apdu_return.len() - 4].to_string();
-        let sign_result_str = btc_sign_apdu_return[2..btc_sign_apdu_return.len() - 2].to_string();
+        let sign_result_str =
+            crate::transaction::BtcTransaction::sign_response_payload(&btc_sign_apdu_return)?
+                .to_string();
+
+        let mut signature_obj = Signature::from_compact(&hex::decode(&sign_result_str)?)?;
+        signature_obj.normalize_s();
+        let pub_key = PublicKey::from_str(pub_key)?;
+        self.psbt.inputs[idx]
+            .partial_sigs
+            .insert(pub_key, EcdsaSig::sighash_all(signature_obj));
+
+        Ok(())
+    }
+
+    async fn sign_p2pkh_async<T: AsyncApduTransport + ?Sized>(
+        &mut self,
+        transport: &T,
+        idx: usize,
+        pub_key: &str,
+    ) -> Result<()> {
+        let mut input_data_vec = vec![];
+        for (x, prevout) in self.prevouts.iter().enumerate() {
+            let mut temp_serialize_txin = self
+                .psbt
+                .unsigned_tx
+                .input
+                .get(x)
+                .ok_or(CoinError::InvalidUtxo)?
+                .clone();
+            if x == idx {
+                temp_serialize_txin.script_sig = prevout.script_pubkey.clone();
+            }
+            input_data_vec.extend_from_slice(serialize(&temp_serialize_txin).as_slice());
+        }
+        input_data_vec.extend(serialize(&self.psbt.unsigned_tx.output));
+        let btc_perpare_apdu_list = BtcApdu::btc_single_utxo_sign_prepare(0x50, &input_data_vec);
+        for apdu in btc_perpare_apdu_list {
+            Self::send_checked(transport, apdu, 20).await?;
+        }
+        let path = self.get_path(idx, false)?;
+        let btc_sign_apdu =
+            BtcApdu::btc_single_utxo_sign(idx as u8, EcdsaSighashType::All.to_u32() as u8, &path);
+
+        let btc_sign_apdu_return = Self::send_checked(transport, btc_sign_apdu, 20).await?;
+        let sign_result_str =
+            crate::transaction::BtcTransaction::sign_response_payload(&btc_sign_apdu_return)?
+                .to_string();
 
         let mut signature_obj = Signature::from_compact(&hex::decode(&sign_result_str)?)?;
         signature_obj.normalize_s();
@@ -235,7 +431,7 @@ impl<'a> PsbtSigner<'a> {
             .unsigned_tx
             .input
             .get(idx)
-            .expect("get_input_error")
+            .ok_or(CoinError::InvalidUtxo)?
             .clone();
         let prevout = &self.prevouts[idx];
         // let pub_key = &self.get_pub_key(idx, false)?;
@@ -247,7 +443,7 @@ impl<'a> PsbtSigner<'a> {
         let script = Script::new_p2wpkh(&WPubkeyHash::from_raw_hash(hash160::Hash::hash(
             &hex_to_bytes(pub_key)?,
         )));
-        let script = script.p2wpkh_script_code().expect("must be v0_p2wpkh");
+        let script = script.p2wpkh_script_code().ok_or(CoinError::InvalidUtxo)?;
         data.extend(serialize(&script).iter());
         //amount
         let mut utxo_amount = num_bigint::BigInt::from(prevout.value.to_sat()).to_signed_bytes_le();
@@ -263,21 +459,21 @@ impl<'a> PsbtSigner<'a> {
         //address
         let mut address_data: Vec<u8> = vec![];
         let sign_path = self.get_path(idx, false)?;
-        address_data.push(sign_path.as_bytes().len() as u8);
+        address_data.push(sign_path.len() as u8);
         address_data.extend_from_slice(sign_path.as_bytes());
         data.extend(address_data.iter());
 
         let sign_apdu = if idx == (self.psbt.unsigned_tx.input.len() - 1) {
-            BtcApdu::btc_segwit_sign(true, 0x01, data)
+            BtcApdu::try_btc_segwit_sign(true, 0x01, data)?
         } else {
-            BtcApdu::btc_segwit_sign(false, 0x01, data)
+            BtcApdu::try_btc_segwit_sign(false, 0x01, data)?
         };
         let sign_apdu_return_data = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_apdu_return_data)?;
 
         //build signature obj
         let sign_result_vec =
-            Vec::from_hex(&sign_apdu_return_data[2..sign_apdu_return_data.len() - 6]).unwrap();
+            crate::transaction::BtcTransaction::segwit_sign_response_bytes(&sign_apdu_return_data)?;
         let mut signature_obj = Signature::from_compact(sign_result_vec.as_slice())?;
         signature_obj.normalize_s();
         //generator der sign data
@@ -291,13 +487,67 @@ impl<'a> PsbtSigner<'a> {
         Ok(())
     }
 
+    async fn sign_p2sh_nested_p2wpkh_async<T: AsyncApduTransport + ?Sized>(
+        &mut self,
+        transport: &T,
+        idx: usize,
+        pub_key: &str,
+    ) -> Result<()> {
+        let temp_serialize_txin = self
+            .psbt
+            .unsigned_tx
+            .input
+            .get(idx)
+            .ok_or(CoinError::InvalidUtxo)?
+            .clone();
+        let prevout = &self.prevouts[idx];
+        let mut data: Vec<u8> = vec![];
+        let txhash_data = serialize(&temp_serialize_txin.previous_output);
+        data.extend(txhash_data.iter());
+        let script = Script::new_p2wpkh(&WPubkeyHash::from_raw_hash(hash160::Hash::hash(
+            &hex_to_bytes(pub_key)?,
+        )));
+        let script = script.p2wpkh_script_code().ok_or(CoinError::InvalidUtxo)?;
+        data.extend(serialize(&script).iter());
+        let mut utxo_amount = num_bigint::BigInt::from(prevout.value.to_sat()).to_signed_bytes_le();
+        while utxo_amount.len() < 8 {
+            utxo_amount.push(0x00);
+        }
+        data.extend(utxo_amount.iter());
+        let sequence = serialize(&temp_serialize_txin.sequence).to_vec();
+        data.extend(sequence);
+        data.insert(0, data.len() as u8);
+        let mut address_data: Vec<u8> = vec![];
+        let sign_path = self.get_path(idx, false)?;
+        address_data.push(sign_path.len() as u8);
+        address_data.extend_from_slice(sign_path.as_bytes());
+        data.extend(address_data.iter());
+
+        let sign_apdu = if idx == (self.psbt.unsigned_tx.input.len() - 1) {
+            BtcApdu::try_btc_segwit_sign(true, 0x01, data)?
+        } else {
+            BtcApdu::try_btc_segwit_sign(false, 0x01, data)?
+        };
+        let sign_apdu_return_data = Self::send_checked(transport, sign_apdu, 20).await?;
+
+        let sign_result_vec =
+            crate::transaction::BtcTransaction::segwit_sign_response_bytes(&sign_apdu_return_data)?;
+        let mut signature_obj = Signature::from_compact(sign_result_vec.as_slice())?;
+        signature_obj.normalize_s();
+        let pub_key = PublicKey::from_str(pub_key)?;
+        self.psbt.inputs[idx]
+            .partial_sigs
+            .insert(pub_key, EcdsaSig::sighash_all(signature_obj));
+        Ok(())
+    }
+
     fn sign_p2wpkh(&mut self, idx: usize, pub_key: &str) -> Result<()> {
         let temp_serialize_txin = self
             .psbt
             .unsigned_tx
             .input
             .get(idx)
-            .expect("get_input_error")
+            .ok_or(CoinError::InvalidUtxo)?
             .clone();
         let prevout = &self.prevouts[idx];
         let mut data: Vec<u8> = vec![];
@@ -308,7 +558,7 @@ impl<'a> PsbtSigner<'a> {
         let script = prevout
             .script_pubkey
             .p2wpkh_script_code()
-            .expect("must be v0_p2wpkh");
+            .ok_or(CoinError::InvalidUtxo)?;
         data.extend(serialize(&script).iter());
         //amount
         let mut utxo_amount = num_bigint::BigInt::from(prevout.value.to_sat()).to_signed_bytes_le();
@@ -324,20 +574,149 @@ impl<'a> PsbtSigner<'a> {
         //address
         let mut address_data: Vec<u8> = vec![];
         let sign_path = self.get_path(idx, false)?;
-        address_data.push(sign_path.as_bytes().len() as u8);
+        address_data.push(sign_path.len() as u8);
         address_data.extend_from_slice(sign_path.as_bytes());
         data.extend(address_data.iter());
 
         let sign_apdu = if idx == (self.psbt.unsigned_tx.input.len() - 1) {
-            BtcApdu::btc_segwit_sign(true, 0x01, data)
+            BtcApdu::try_btc_segwit_sign(true, 0x01, data)?
         } else {
-            BtcApdu::btc_segwit_sign(false, 0x01, data)
+            BtcApdu::try_btc_segwit_sign(false, 0x01, data)?
         };
         let sign_apdu_return_data = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_apdu_return_data)?;
         //build signature obj
         let sign_result_vec =
-            Vec::from_hex(&sign_apdu_return_data[2..sign_apdu_return_data.len() - 6]).unwrap();
+            crate::transaction::BtcTransaction::segwit_sign_response_bytes(&sign_apdu_return_data)?;
+        let mut signature_obj = Signature::from_compact(sign_result_vec.as_slice())?;
+        signature_obj.normalize_s();
+        let pub_key = PublicKey::from_str(pub_key)?;
+        self.psbt.inputs[idx]
+            .partial_sigs
+            .insert(pub_key, EcdsaSig::sighash_all(signature_obj));
+        Ok(())
+    }
+
+    fn taproot_spend(&self, idx: usize, pub_key: &str) -> Result<TaprootSpend> {
+        let input = self.psbt.inputs.get(idx).ok_or(CoinError::InvalidParam)?;
+        if input.tap_scripts.is_empty() {
+            return Ok(TaprootSpend::KeyPath);
+        }
+
+        Ok(TaprootSpend::ScriptPath(Box::new(
+            self.select_tap_leaf(idx, pub_key)?,
+        )))
+    }
+
+    fn select_tap_leaf(&self, idx: usize, pub_key: &str) -> Result<SelectedTapLeaf> {
+        let input = self.psbt.inputs.get(idx).ok_or(CoinError::InvalidParam)?;
+        let prevout = self.prevouts.get(idx).ok_or(CoinError::InvalidUtxo)?;
+        let public_key = Secp256k1PublicKey::from_str(pub_key)?;
+        let (xonly_public_key, _) = public_key.x_only_public_key();
+        let matching_leaf_hashes = input
+            .tap_key_origins
+            .get(&xonly_public_key)
+            .map(|(leaf_hashes, _)| leaf_hashes.as_slice())
+            .unwrap_or_default();
+
+        let mut candidates =
+            input
+                .tap_scripts
+                .iter()
+                .filter_map(|(control_block, (script, leaf_version))| {
+                    let leaf_hash = TapLeafHash::from_script(script, *leaf_version);
+                    let matches =
+                        input.tap_scripts.len() == 1 || matching_leaf_hashes.contains(&leaf_hash);
+                    matches.then(|| SelectedTapLeaf {
+                        control_block: control_block.clone(),
+                        script: script.clone(),
+                        leaf_hash,
+                        xonly_public_key,
+                    })
+                });
+
+        let selected = candidates.next().ok_or(CoinError::TapLeafNotFound)?;
+        if candidates.next().is_some() {
+            return Err(CoinError::AmbiguousTapLeaf.into());
+        }
+        if !matching_leaf_hashes.is_empty() && !matching_leaf_hashes.contains(&selected.leaf_hash) {
+            return Err(CoinError::TapLeafNotFound.into());
+        }
+
+        let output_key_bytes = prevout
+            .script_pubkey
+            .as_bytes()
+            .get(2..34)
+            .ok_or(CoinError::InvalidParam)?;
+        let output_key = XOnlyPublicKey::from_slice(output_key_bytes)?;
+        if !selected.control_block.verify_taproot_commitment(
+            &Secp256k1::verification_only(),
+            output_key,
+            &selected.script,
+        ) {
+            return Err(CoinError::InvalidParam.into());
+        }
+
+        Ok(selected)
+    }
+
+    fn schnorr_signature_from_response(response: &str) -> Result<SchnorrSignature> {
+        ApduCheck::check_response(response)?;
+        let signature_end = response
+            .len()
+            .checked_sub(4)
+            .ok_or(CoinError::MissingSignature)?;
+        let signature = response
+            .get(2..signature_end)
+            .ok_or(CoinError::MissingSignature)?;
+        let sign_bytes = hex_to_bytes(signature)?;
+        SchnorrSignature::from_slice(&sign_bytes).map_err(Into::into)
+    }
+
+    async fn sign_p2wpkh_async<T: AsyncApduTransport + ?Sized>(
+        &mut self,
+        transport: &T,
+        idx: usize,
+        pub_key: &str,
+    ) -> Result<()> {
+        let temp_serialize_txin = self
+            .psbt
+            .unsigned_tx
+            .input
+            .get(idx)
+            .ok_or(CoinError::InvalidUtxo)?
+            .clone();
+        let prevout = &self.prevouts[idx];
+        let mut data: Vec<u8> = vec![];
+        let txhash_data = serialize(&temp_serialize_txin.previous_output);
+        data.extend(txhash_data.iter());
+        let script = prevout
+            .script_pubkey
+            .p2wpkh_script_code()
+            .ok_or(CoinError::InvalidUtxo)?;
+        data.extend(serialize(&script).iter());
+        let mut utxo_amount = num_bigint::BigInt::from(prevout.value.to_sat()).to_signed_bytes_le();
+        while utxo_amount.len() < 8 {
+            utxo_amount.push(0x00);
+        }
+        data.extend(utxo_amount.iter());
+        let sequence = serialize(&temp_serialize_txin.sequence).to_vec();
+        data.extend(sequence);
+        data.insert(0, data.len() as u8);
+        let mut address_data: Vec<u8> = vec![];
+        let sign_path = self.get_path(idx, false)?;
+        address_data.push(sign_path.len() as u8);
+        address_data.extend_from_slice(sign_path.as_bytes());
+        data.extend(address_data.iter());
+
+        let sign_apdu = if idx == (self.psbt.unsigned_tx.input.len() - 1) {
+            BtcApdu::try_btc_segwit_sign(true, 0x01, data)?
+        } else {
+            BtcApdu::try_btc_segwit_sign(false, 0x01, data)?
+        };
+        let sign_apdu_return_data = Self::send_checked(transport, sign_apdu, 20).await?;
+        let sign_result_vec =
+            crate::transaction::BtcTransaction::segwit_sign_response_bytes(&sign_apdu_return_data)?;
         let mut signature_obj = Signature::from_compact(sign_result_vec.as_slice())?;
         signature_obj.normalize_s();
         let pub_key = PublicKey::from_str(pub_key)?;
@@ -365,28 +744,32 @@ impl<'a> PsbtSigner<'a> {
 
         let mut path_data: Vec<u8> = vec![];
         let sign_path = self.get_path(idx, true)?;
-        path_data.push(sign_path.as_bytes().len() as u8);
+        path_data.push(sign_path.len() as u8);
         path_data.extend_from_slice(sign_path.as_bytes());
         data.extend(path_data.iter());
 
         let mut tweaked_pub_key_data: Vec<u8> = vec![];
-        let untweaked_public_key = UntweakedPublicKey::from_str(&pub_key[2..66])?;
+        let public_key = Secp256k1PublicKey::from_str(pub_key)?;
+        let (untweaked_public_key, _) = public_key.x_only_public_key();
+        let merkle_root = self
+            .psbt
+            .inputs
+            .get(idx)
+            .ok_or(CoinError::InvalidParam)?
+            .tap_merkle_root;
         let tweaked_pub_key =
-            TapTweakHash::from_key_and_tweak(untweaked_public_key, None).to_byte_array();
+            TapTweakHash::from_key_and_tweak(untweaked_public_key, merkle_root).to_byte_array();
         tweaked_pub_key_data.push(tweaked_pub_key.len() as u8);
         tweaked_pub_key_data.extend_from_slice(&tweaked_pub_key);
         data.extend(tweaked_pub_key_data.iter());
 
         let sign_apdu = if idx == (self.psbt.unsigned_tx.input.len() - 1) {
-            BtcApdu::btc_taproot_sign(true, data)
+            BtcApdu::try_btc_taproot_sign(true, data)?
         } else {
-            BtcApdu::btc_taproot_sign(false, data)
+            BtcApdu::try_btc_taproot_sign(false, data)?
         };
         let sign_result = send_apdu(sign_apdu)?;
-        ApduCheck::check_response(&sign_result)?;
-
-        let sign_bytes = hex_to_bytes(&sign_result[2..(sign_result.len() - 4)])?;
-        let sig = SchnorrSignature::from_slice(&sign_bytes)?;
+        let sig = Self::schnorr_signature_from_response(&sign_result)?;
         self.psbt.inputs[idx].tap_key_sig = Some(SchnorrSig {
             sighash_type: TapSighashType::Default,
             signature: sig,
@@ -395,12 +778,56 @@ impl<'a> PsbtSigner<'a> {
         Ok(())
     }
 
-    fn sign_p2tr_script(
+    async fn sign_p2tr_async<T: AsyncApduTransport + ?Sized>(
         &mut self,
+        transport: &T,
         idx: usize,
         pub_key: &str,
-        leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
     ) -> Result<()> {
+        let mut data: Vec<u8> = vec![];
+        data.push(0x00u8);
+        data.push(TapSighashType::Default as u8);
+        data.extend(serialize(&self.psbt.unsigned_tx.lock_time));
+        data.push(0x00u8);
+        data.extend(serialize(&(idx as u32)));
+
+        let mut path_data: Vec<u8> = vec![];
+        let sign_path = self.get_path(idx, true)?;
+        path_data.push(sign_path.len() as u8);
+        path_data.extend_from_slice(sign_path.as_bytes());
+        data.extend(path_data.iter());
+
+        let mut tweaked_pub_key_data: Vec<u8> = vec![];
+        let public_key = Secp256k1PublicKey::from_str(pub_key)?;
+        let (untweaked_public_key, _) = public_key.x_only_public_key();
+        let merkle_root = self
+            .psbt
+            .inputs
+            .get(idx)
+            .ok_or(CoinError::InvalidParam)?
+            .tap_merkle_root;
+        let tweaked_pub_key =
+            TapTweakHash::from_key_and_tweak(untweaked_public_key, merkle_root).to_byte_array();
+        tweaked_pub_key_data.push(tweaked_pub_key.len() as u8);
+        tweaked_pub_key_data.extend_from_slice(&tweaked_pub_key);
+        data.extend(tweaked_pub_key_data.iter());
+
+        let sign_apdu = if idx == (self.psbt.unsigned_tx.input.len() - 1) {
+            BtcApdu::try_btc_taproot_sign(true, data)?
+        } else {
+            BtcApdu::try_btc_taproot_sign(false, data)?
+        };
+        let sign_result = Self::send_checked(transport, sign_apdu, 20).await?;
+        let sig = Self::schnorr_signature_from_response(&sign_result)?;
+        self.psbt.inputs[idx].tap_key_sig = Some(SchnorrSig {
+            sighash_type: TapSighashType::Default,
+            signature: sig,
+        });
+
+        Ok(())
+    }
+
+    fn sign_p2tr_script(&mut self, idx: usize, selected_leaf: &SelectedTapLeaf) -> Result<()> {
         let mut data: Vec<u8> = vec![];
         // epoch (1).
         data.push(0x00u8);
@@ -412,50 +839,84 @@ impl<'a> PsbtSigner<'a> {
         data.extend(serialize(&self.psbt.unsigned_tx.lock_time));
         //prevouts_hash + amounts_hash + script_pubkeys_hash + sequences_hash + sha_outputs (32)
         //spend_type (1)
-        let mut spend_type = 0u8;
-        if leaf_hash_code_separator.is_some() {
-            spend_type |= 2u8;
-        }
-        data.push(spend_type);
+        data.push(2u8);
         //input_index (4)
         data.extend(serialize(&(idx as u32)));
         //leaf hash code separator
-        if let Some((hash, code_separator_pos)) = leaf_hash_code_separator {
-            let mut temp_data = hash.to_byte_array().to_vec();
-            temp_data.push(0x00u8); //key_version_0
-            let code_separator_pos = code_separator_pos.to_be_bytes();
-            temp_data.extend(code_separator_pos);
-            data.push(temp_data.len() as u8);
-            data.extend(temp_data);
-        }
+        let mut temp_data = selected_leaf.leaf_hash.to_byte_array().to_vec();
+        temp_data.push(0x00u8); // key_version_0
+        temp_data.extend(0xFFFFFFFFu32.to_be_bytes());
+        data.push(temp_data.len() as u8);
+        data.extend(temp_data);
         let mut path_data: Vec<u8> = vec![];
         let sign_path = self.get_path(idx, true)?;
-        path_data.push(sign_path.as_bytes().len() as u8);
+        path_data.push(sign_path.len() as u8);
         path_data.extend_from_slice(sign_path.as_bytes());
         data.extend(path_data.iter());
-        let mut tweaked_pub_key_data: Vec<u8> = vec![];
-        let untweaked_public_key = UntweakedPublicKey::from_str(&pub_key[2..66])?;
-        let tweaked_pub_key =
-            TapTweakHash::from_key_and_tweak(untweaked_public_key, None).to_byte_array();
-        tweaked_pub_key_data.push(tweaked_pub_key.len() as u8);
-        tweaked_pub_key_data.extend_from_slice(&tweaked_pub_key);
-        data.extend(tweaked_pub_key_data.iter());
+        let script_public_key = selected_leaf.xonly_public_key.serialize();
+        data.push(script_public_key.len() as u8);
+        data.extend(script_public_key);
 
         let sign_apdu = if idx == (self.psbt.unsigned_tx.input.len() - 1) {
-            BtcApdu::btc_taproot_script_sign(true, data)
+            BtcApdu::btc_taproot_script_sign(true, data)?
         } else {
-            BtcApdu::btc_taproot_script_sign(false, data)
+            BtcApdu::btc_taproot_script_sign(false, data)?
         };
 
         let sign_result = send_apdu(sign_apdu)?;
-        ApduCheck::check_response(&sign_result)?;
+        let sig = Self::schnorr_signature_from_response(&sign_result)?;
+        self.psbt.inputs[idx].tap_script_sigs.insert(
+            (selected_leaf.xonly_public_key, selected_leaf.leaf_hash),
+            SchnorrSig {
+                sighash_type: TapSighashType::Default,
+                signature: sig,
+            },
+        );
 
-        let sign_bytes = hex_to_bytes(&sign_result[2..(sign_result.len() - 4)])?;
-        let sig = SchnorrSignature::from_slice(&sign_bytes)?;
-        self.psbt.inputs[idx].tap_key_sig = Some(SchnorrSig {
-            sighash_type: TapSighashType::Default,
-            signature: sig,
-        });
+        Ok(())
+    }
+
+    async fn sign_p2tr_script_async<T: AsyncApduTransport + ?Sized>(
+        &mut self,
+        transport: &T,
+        idx: usize,
+        selected_leaf: &SelectedTapLeaf,
+    ) -> Result<()> {
+        let mut data: Vec<u8> = vec![];
+        data.push(0x00u8);
+        data.push(TapSighashType::Default as u8);
+        data.extend(serialize(&self.psbt.unsigned_tx.lock_time));
+        data.push(2u8);
+        data.extend(serialize(&(idx as u32)));
+        let mut temp_data = selected_leaf.leaf_hash.to_byte_array().to_vec();
+        temp_data.push(0x00u8);
+        temp_data.extend(0xFFFFFFFFu32.to_be_bytes());
+        data.push(temp_data.len() as u8);
+        data.extend(temp_data);
+        let mut path_data: Vec<u8> = vec![];
+        let sign_path = self.get_path(idx, true)?;
+        path_data.push(sign_path.len() as u8);
+        path_data.extend_from_slice(sign_path.as_bytes());
+        data.extend(path_data.iter());
+        let script_public_key = selected_leaf.xonly_public_key.serialize();
+        data.push(script_public_key.len() as u8);
+        data.extend(script_public_key);
+
+        let sign_apdu = if idx == (self.psbt.unsigned_tx.input.len() - 1) {
+            BtcApdu::btc_taproot_script_sign(true, data)?
+        } else {
+            BtcApdu::btc_taproot_script_sign(false, data)?
+        };
+
+        let sign_result = Self::send_checked(transport, sign_apdu, 20).await?;
+        let sig = Self::schnorr_signature_from_response(&sign_result)?;
+        self.psbt.inputs[idx].tap_script_sigs.insert(
+            (selected_leaf.xonly_public_key, selected_leaf.leaf_hash),
+            SchnorrSig {
+                sighash_type: TapSighashType::Default,
+                signature: sig,
+            },
+        );
 
         Ok(())
     }
@@ -483,6 +944,32 @@ impl<'a> PsbtSigner<'a> {
         Ok(())
     }
 
+    pub async fn calc_tx_hash_async<T: AsyncApduTransport + ?Sized>(
+        &self,
+        transport: &T,
+    ) -> Result<()> {
+        let mut txhash_vout_vec = vec![];
+        let mut sequence_vec = vec![];
+        let mut amount_vec = vec![];
+        let mut script_pubkeys_vec = vec![];
+        for (idx, tx_in) in self.psbt.unsigned_tx.input.iter().enumerate() {
+            let prevout = &self.prevouts[idx];
+            txhash_vout_vec.extend(serialize(&tx_in.previous_output));
+            sequence_vec.extend(serialize(&tx_in.sequence));
+            amount_vec.extend(serialize(&prevout.value.to_sat()));
+            script_pubkeys_vec.extend(serialize(&prevout.script_pubkey));
+        }
+        let mut calc_hash_apdu = vec![];
+        calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x40, &txhash_vout_vec));
+        calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x80, &sequence_vec));
+        calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x20, &amount_vec));
+        calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x21, &script_pubkeys_vec));
+        for apdu in calc_hash_apdu {
+            Self::send_checked(transport, apdu, 20).await?;
+        }
+        Ok(())
+    }
+
     pub fn tx_preview(&self, network: Network) -> Result<()> {
         let (total_amount, fee, _outputs) = self.get_preview_info()?;
         let mut preview_data = vec![];
@@ -493,8 +980,7 @@ impl<'a> PsbtSigner<'a> {
         let mut sign_hash_type = Vec::new();
         let len = EcdsaSighashType::All
             .to_u32()
-            .consensus_encode(&mut sign_hash_type)
-            .unwrap();
+            .consensus_encode(&mut sign_hash_type)?;
         debug_assert_eq!(len, sign_hash_type.len());
         preview_data.extend(&sign_hash_type); //hash type
         preview_data.extend(bigint_to_byte_vec(total_amount)); //total payment amount
@@ -539,9 +1025,9 @@ impl<'a> PsbtSigner<'a> {
             output_pareper_data.insert(0, 0x00);
             output_pareper_data.extend(outputs_data.iter());
             let sign_confirm = if self.is_sign_message {
-                BtcApdu::btc_psbt_preview(&output_pareper_data, 0x80)
+                BtcApdu::try_btc_psbt_preview(&output_pareper_data, 0x80)?
             } else {
-                BtcApdu::btc_psbt_preview(&output_pareper_data, 0x00)
+                BtcApdu::try_btc_psbt_preview(&output_pareper_data, 0x00)?
             };
             let response = &send_apdu_timeout(sign_confirm, TIMEOUT_LONG)?;
             ApduCheck::check_response(response)?;
@@ -555,33 +1041,110 @@ impl<'a> PsbtSigner<'a> {
         Ok(())
     }
 
-    fn finalize_p2pkh(&mut self, index: usize) {
+    pub async fn tx_preview_async<T: AsyncApduTransport + ?Sized>(
+        &self,
+        transport: &T,
+        network: Network,
+    ) -> Result<()> {
+        let (total_amount, fee, _outputs) = self.get_preview_info()?;
+        let mut preview_data = vec![];
+        preview_data.extend(&serialize(&self.psbt.unsigned_tx.version));
+        let input_number = self.psbt.unsigned_tx.input.len();
+        preview_data.push(input_number as u8);
+        preview_data.extend(&serialize(&self.psbt.unsigned_tx.lock_time));
+        let mut sign_hash_type = Vec::new();
+        let len = EcdsaSighashType::All
+            .to_u32()
+            .consensus_encode(&mut sign_hash_type)?;
+        debug_assert_eq!(len, sign_hash_type.len());
+        preview_data.extend(&sign_hash_type);
+        preview_data.extend(bigint_to_byte_vec(total_amount));
+        preview_data.extend(bigint_to_byte_vec(fee));
+        let mut output_serialize = vec![];
+        for tx_out in self.psbt.unsigned_tx.output.iter() {
+            output_serialize.extend(serialize(tx_out));
+        }
+        let hash = &sha256_hash(&output_serialize);
+        preview_data.extend_from_slice(hash);
+        let display_number = self.preview_output.len() as u16;
+        preview_data.extend(display_number.to_be_bytes());
+
+        preview_data.insert(0, preview_data.len() as u8);
+        preview_data.insert(0, 0x01);
+
+        let host_signature = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            secp256k1_sign(&key_manager_obj.pri_key, &preview_data)?
+        };
+        let mut output_pareper_data = host_signature;
+        output_pareper_data.insert(0, output_pareper_data.len() as u8);
+        output_pareper_data.insert(0, 0x00);
+        output_pareper_data.extend(preview_data.iter());
+        let btc_prepare_apdu_vec = BtcApdu::btc_prepare(0x4B, 0x00, &output_pareper_data);
+        for temp_str in btc_prepare_apdu_vec {
+            Self::send_checked(transport, temp_str, 20).await?;
+        }
+
+        let mut page_number = 0;
+        loop {
+            let mut outputs_data = if self.is_sign_message {
+                vec![0xFF, 0xFF]
+            } else {
+                self.serizalize_page_data(page_number, network)?
+            };
+            outputs_data.insert(0, outputs_data.len() as u8);
+            outputs_data.insert(0, 0x01);
+            let page_signature = {
+                let key_manager_obj = KEY_MANAGER.lock();
+                secp256k1_sign(&key_manager_obj.pri_key, &outputs_data)?
+            };
+            let mut output_pareper_data = page_signature;
+            output_pareper_data.insert(0, output_pareper_data.len() as u8);
+            output_pareper_data.insert(0, 0x00);
+            output_pareper_data.extend(outputs_data.iter());
+            let sign_confirm = if self.is_sign_message {
+                BtcApdu::try_btc_psbt_preview(&output_pareper_data, 0x80)?
+            } else {
+                BtcApdu::try_btc_psbt_preview(&output_pareper_data, 0x00)?
+            };
+            let response = Self::send_checked(transport, sign_confirm, TIMEOUT_LONG).await?;
+            if response.len() > 4 {
+                let page_index = &response[..response.len() - 4];
+                page_number = u16::from_str_radix(page_index, 16)? as usize;
+            } else {
+                break;
+            }
+        }
+        Ok(())
+    }
+
+    fn finalize_p2pkh(&mut self, index: usize) -> Result<()> {
         let input = &mut self.psbt.inputs[index];
 
-        if !input.partial_sigs.is_empty() {
-            let sig = input.partial_sigs.first_key_value().unwrap();
+        if let Some(sig) = input.partial_sigs.first_key_value() {
+            let sig_push = PushBytesBuf::try_from(sig.1.to_vec())?;
+            let pubkey_push = PushBytesBuf::try_from(sig.0.to_bytes())?;
 
             input.final_script_sig = Some(
                 Builder::new()
-                    .push_slice(PushBytesBuf::try_from(sig.1.to_vec()).unwrap())
-                    .push_slice(PushBytesBuf::try_from(sig.0.to_bytes()).unwrap())
+                    .push_slice(sig_push)
+                    .push_slice(pubkey_push)
                     .into_script(),
             );
         }
+
+        Ok(())
     }
 
-    fn finalize_p2sh_nested_p2wpkh(&mut self, index: usize) {
+    fn finalize_p2sh_nested_p2wpkh(&mut self, index: usize) -> Result<()> {
         let input = &mut self.psbt.inputs[index];
 
-        if !input.partial_sigs.is_empty() {
-            let sig = input.partial_sigs.first_key_value().unwrap();
-
+        if let Some(sig) = input.partial_sigs.first_key_value() {
             let script = Script::new_p2wpkh(&WPubkeyHash::from_raw_hash(Self::hash160(
                 &sig.0.to_bytes(),
             )));
-            let script = Builder::new()
-                .push_slice(PushBytesBuf::try_from(script.to_bytes()).unwrap())
-                .into_script();
+            let script_push = PushBytesBuf::try_from(script.to_bytes())?;
+            let script = Builder::new().push_slice(script_push).into_script();
             input.final_script_sig = Some(script);
 
             let mut witness = Witness::new();
@@ -590,13 +1153,14 @@ impl<'a> PsbtSigner<'a> {
 
             input.final_script_witness = Some(witness);
         }
+
+        Ok(())
     }
 
-    fn finalize_p2wpkh(&mut self, index: usize) {
+    fn finalize_p2wpkh(&mut self, index: usize) -> Result<()> {
         let input = &mut self.psbt.inputs[index];
 
-        if !input.partial_sigs.is_empty() {
-            let sig = input.partial_sigs.first_key_value().unwrap();
+        if let Some(sig) = input.partial_sigs.first_key_value() {
             let mut witness = Witness::new();
 
             witness.push(sig.1.to_vec());
@@ -604,25 +1168,52 @@ impl<'a> PsbtSigner<'a> {
 
             input.final_script_witness = Some(witness)
         }
+
+        Ok(())
     }
 
-    fn finalize_p2tr(&mut self, index: usize) {
+    fn finalize_p2tr_key_path(&mut self, index: usize) -> Result<bool> {
         let input = &mut self.psbt.inputs[index];
-
-        if input.tap_key_sig.is_some() {
-            let mut witness = Witness::new();
-            witness.push(input.tap_key_sig.unwrap().to_vec());
-
-            if !input.tap_scripts.is_empty() {
-                let (control_block, script_leaf) = input.tap_scripts.first_key_value().unwrap();
-
-                let (script, _) = script_leaf;
-                witness.push(script.as_bytes().to_vec());
-                witness.push(control_block.serialize())
-            }
-
-            input.final_script_witness = Some(witness);
+        if !input.tap_scripts.is_empty() {
+            return Err(CoinError::InvalidParam.into());
         }
+
+        let tap_key_sig = input.tap_key_sig.ok_or(CoinError::MissingSignature)?;
+        input.final_script_witness = Some(Witness::from_slice(&[tap_key_sig.to_vec()]));
+        Ok(true)
+    }
+
+    fn finalize_p2tr_script_path(
+        &mut self,
+        index: usize,
+        selected_leaf: &SelectedTapLeaf,
+    ) -> Result<bool> {
+        let input = &mut self.psbt.inputs[index];
+        let signature = input
+            .tap_script_sigs
+            .get(&(selected_leaf.xonly_public_key, selected_leaf.leaf_hash))
+            .ok_or(CoinError::MissingSignature)?;
+
+        if !Self::is_single_key_tapscript(&selected_leaf.script, selected_leaf.xonly_public_key) {
+            // A generic tapscript may require multiple stack arguments. Keep
+            // the BIP371 fields intact for a standard finalizer.
+            return Ok(false);
+        }
+
+        input.final_script_witness = Some(Witness::from_slice(&[
+            signature.to_vec(),
+            selected_leaf.script.as_bytes().to_vec(),
+            selected_leaf.control_block.serialize(),
+        ]));
+        Ok(true)
+    }
+
+    fn is_single_key_tapscript(script: &Script, public_key: XOnlyPublicKey) -> bool {
+        let bytes = script.as_bytes();
+        bytes.len() == 34
+            && bytes[0] == 0x20
+            && bytes[1..33] == public_key.serialize()
+            && bytes[33] == 0xAC
     }
 
     fn clear_finalized_input(&mut self, index: usize) {
@@ -707,6 +1298,69 @@ impl<'a> PsbtSigner<'a> {
         Ok(())
     }
 
+    async fn get_preview_output_async<T: AsyncApduTransport + ?Sized>(
+        &mut self,
+        transport: &T,
+    ) -> Result<()> {
+        let mut preview_output: Vec<TxOut> = vec![];
+
+        for tx_out in self.psbt.unsigned_tx.output.iter() {
+            if tx_out.script_pubkey.is_empty() || tx_out.script_pubkey.is_op_return() {
+                continue;
+            }
+            let tx_out_script = &tx_out.script_pubkey;
+            let address = if tx_out_script.is_p2pkh() {
+                let change_path =
+                    Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_LEGACY)?;
+                let pub_key = BtcAddress::get_pub_key_async(transport, &change_path).await?;
+                BtcAddress::from_public_key(
+                    &pub_key,
+                    self.network,
+                    constants::BTC_SEG_WIT_TYPE_LEGACY,
+                )?
+            } else if tx_out_script.is_p2wpkh() {
+                let change_path =
+                    Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_VERSION_0)?;
+                let pub_key = BtcAddress::get_pub_key_async(transport, &change_path).await?;
+                BtcAddress::from_public_key(
+                    &pub_key,
+                    self.network,
+                    constants::BTC_SEG_WIT_TYPE_VERSION_0,
+                )?
+            } else if tx_out_script.is_p2sh() {
+                let change_path =
+                    Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_P2WPKH)?;
+                let pub_key = BtcAddress::get_pub_key_async(transport, &change_path).await?;
+                BtcAddress::from_public_key(
+                    &pub_key,
+                    self.network,
+                    constants::BTC_SEG_WIT_TYPE_P2WPKH,
+                )?
+            } else if tx_out_script.is_p2tr() {
+                let change_path =
+                    Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_VERSION_1)?;
+                let pub_key = BtcAddress::get_pub_key_async(transport, &change_path).await?;
+                BtcAddress::from_public_key(
+                    &pub_key,
+                    self.network,
+                    constants::BTC_SEG_WIT_TYPE_VERSION_1,
+                )?
+            } else {
+                continue;
+            };
+            let script_hex = Address::from_str(&address)?
+                .assume_checked()
+                .script_pubkey()
+                .to_hex();
+            if script_hex.eq(&tx_out.script_pubkey.to_hex()) {
+                continue;
+            }
+            preview_output.push(tx_out.clone());
+        }
+        self.preview_output = preview_output;
+        Ok(())
+    }
+
     pub fn get_preview_info(&self) -> Result<(u64, u64, Vec<TxOut>)> {
         let outputs = &self.preview_output;
         let payment_total_amount = outputs.iter().map(|tx_out| tx_out.value.to_sat()).sum();
@@ -727,8 +1381,7 @@ impl<'a> PsbtSigner<'a> {
     }
 
     fn get_page_indices(total_number: usize, page_number: usize) -> Result<(usize, usize)> {
-        let total_pages = (total_number + constants::BTC_PSBT_TRX_PER_PAGE_NUMBER - 1)
-            / constants::BTC_PSBT_TRX_PER_PAGE_NUMBER;
+        let total_pages = total_number.div_ceil(constants::BTC_PSBT_TRX_PER_PAGE_NUMBER);
         if page_number >= total_pages {
             return Err(anyhow!("page_number_out_of_range"));
         }
@@ -814,9 +1467,50 @@ pub fn sign_psbt(
 
     let vec = psbt.serialize();
 
-    return Ok(PsbtOutput {
+    Ok(PsbtOutput {
         psbt: hex::encode(vec),
-    });
+    })
+}
+
+pub async fn sign_psbt_async<T: AsyncApduTransport + ?Sized>(
+    transport: &T,
+    derivation_path: &str,
+    psbt_input: PsbtInput,
+    network: Network,
+) -> Result<PsbtOutput> {
+    check_path_validity(derivation_path)?;
+
+    select_btc_applet_async(transport).await?;
+
+    let psbt_bytes = Vec::<u8>::from_hex(psbt_input.psbt)?;
+    let mut psbt = Psbt::deserialize(&psbt_bytes)?;
+    let mut signer = PsbtSigner::new_async(
+        transport,
+        &mut psbt,
+        derivation_path,
+        psbt_input.auto_finalize,
+        network,
+        false,
+    )
+    .await?;
+
+    signer.prevouts()?;
+
+    let pub_keys = signer.get_pub_key_async(transport).await?;
+
+    signer.calc_tx_hash_async(transport).await?;
+
+    signer.get_preview_info()?;
+
+    signer.tx_preview_async(transport, network).await?;
+
+    signer.sign_async(transport, &pub_keys).await?;
+
+    let vec = psbt.serialize();
+
+    Ok(PsbtOutput {
+        psbt: hex::encode(vec),
+    })
 }
 
 #[cfg(test)]
@@ -825,16 +1519,264 @@ mod test {
     use crate::common::select_btc_applet;
     use crate::psbt::PsbtSigner;
     use bitcoin::bip32::DerivationPath;
+    use bitcoin::blockdata::{opcodes, script::Builder};
     use bitcoin::consensus::deserialize;
     use bitcoin::key::TapTweak;
     use bitcoin::psbt::Psbt;
     use bitcoin::secp256k1::schnorr::Signature;
-    use bitcoin::secp256k1::{Message, Secp256k1, XOnlyPublicKey};
-    use bitcoin::{Address, Amount, Network, Transaction, TxOut};
+    use bitcoin::secp256k1::{Message, PublicKey, Secp256k1, SecretKey, XOnlyPublicKey};
+    use bitcoin::taproot::{LeafVersion, Signature as SchnorrSig, TapLeafHash, TaprootBuilder};
+    use bitcoin::{
+        absolute::LockTime, transaction::Version, Address, Amount, Network, OutPoint, Sequence,
+        Transaction, TxIn, TxOut, Witness,
+    };
     use hex::FromHex;
     use ikc_common::ToHex;
     use ikc_device::device_binding::bind_test;
     use std::str::FromStr;
+
+    #[test]
+    fn sign_rejects_missing_pub_keys_before_partial_signing() {
+        let unsigned_tx = Transaction {
+            version: Version(2),
+            lock_time: LockTime::ZERO,
+            input: vec![
+                TxIn {
+                    previous_output: OutPoint::null(),
+                    script_sig: Default::default(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::default(),
+                },
+                TxIn {
+                    previous_output: OutPoint::null(),
+                    script_sig: Default::default(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::default(),
+                },
+            ],
+            output: vec![],
+        };
+        let mut psbt = Psbt::from_unsigned_tx(unsigned_tx).unwrap();
+        let prevout = TxOut {
+            value: Amount::from_sat(1_000),
+            script_pubkey: Default::default(),
+        };
+        let mut signer = PsbtSigner {
+            psbt: &mut psbt,
+            derivation_path: String::new(),
+            auto_finalize: true,
+            prevouts: vec![prevout.clone(), prevout],
+            network: Network::Bitcoin,
+            preview_output: vec![],
+            is_sign_message: false,
+        };
+
+        let err = signer.sign(&["pubkey".to_string()]).unwrap_err();
+
+        assert_eq!("invalid_param", err.to_string());
+    }
+
+    #[test]
+    fn taproot_path_selection_is_scoped_to_the_current_input() {
+        let secp = Secp256k1::new();
+        let script_secret = SecretKey::from_slice(&[1u8; 32]).unwrap();
+        let script_public_key = PublicKey::from_secret_key(&secp, &script_secret);
+        let (script_xonly, _) = script_public_key.x_only_public_key();
+        let internal_secret = SecretKey::from_slice(&[2u8; 32]).unwrap();
+        let internal_key = PublicKey::from_secret_key(&secp, &internal_secret)
+            .x_only_public_key()
+            .0;
+        let script = Builder::new()
+            .push_x_only_key(&script_xonly)
+            .push_opcode(opcodes::all::OP_CHECKSIG)
+            .into_script();
+        let leaf_hash = TapLeafHash::from_script(&script, LeafVersion::TapScript);
+        let spend_info = TaprootBuilder::new()
+            .add_leaf(0, script.clone())
+            .unwrap()
+            .finalize(&secp, internal_key)
+            .unwrap();
+        let control_block = spend_info
+            .control_block(&(script.clone(), LeafVersion::TapScript))
+            .unwrap();
+
+        let unsigned_tx = Transaction {
+            version: Version(2),
+            lock_time: LockTime::ZERO,
+            input: vec![
+                TxIn {
+                    previous_output: OutPoint::null(),
+                    script_sig: Default::default(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::default(),
+                },
+                TxIn {
+                    previous_output: OutPoint::null(),
+                    script_sig: Default::default(),
+                    sequence: Sequence::MAX,
+                    witness: Witness::default(),
+                },
+            ],
+            output: vec![],
+        };
+        let mut psbt = Psbt::from_unsigned_tx(unsigned_tx).unwrap();
+        psbt.inputs[1]
+            .tap_scripts
+            .insert(control_block, (script.clone(), LeafVersion::TapScript));
+        psbt.inputs[1]
+            .tap_key_origins
+            .insert(script_xonly, (vec![leaf_hash], Default::default()));
+
+        let key_path_prevout = TxOut {
+            value: Amount::from_sat(1_000),
+            script_pubkey: bitcoin::ScriptBuf::new_p2tr(&secp, internal_key, None),
+        };
+        let script_path_prevout = TxOut {
+            value: Amount::from_sat(1_000),
+            script_pubkey: bitcoin::ScriptBuf::new_p2tr(
+                &secp,
+                spend_info.internal_key(),
+                spend_info.merkle_root(),
+            ),
+        };
+        let mut signer = PsbtSigner {
+            psbt: &mut psbt,
+            derivation_path: String::new(),
+            auto_finalize: true,
+            prevouts: vec![key_path_prevout, script_path_prevout],
+            network: Network::Bitcoin,
+            preview_output: vec![],
+            is_sign_message: false,
+        };
+        let public_key = script_public_key.to_string();
+
+        assert!(matches!(
+            signer.taproot_spend(0, &public_key).unwrap(),
+            super::TaprootSpend::KeyPath
+        ));
+        let selected_leaf = match signer.taproot_spend(1, &public_key).unwrap() {
+            super::TaprootSpend::ScriptPath(selected_leaf) => selected_leaf,
+            super::TaprootSpend::KeyPath => panic!("expected script-path input"),
+        };
+        assert_eq!(selected_leaf.leaf_hash, leaf_hash);
+
+        let signature = SchnorrSig {
+            signature: Signature::from_slice(&[1u8; 64]).unwrap(),
+            sighash_type: bitcoin::TapSighashType::Default,
+        };
+        signer.psbt.inputs[0].tap_key_sig = Some(signature);
+        assert!(signer.finalize_p2tr_key_path(0).unwrap());
+        assert_eq!(
+            signer.psbt.inputs[0]
+                .final_script_witness
+                .as_ref()
+                .unwrap()
+                .len(),
+            1
+        );
+
+        signer.psbt.inputs[1].tap_script_sigs.insert(
+            (selected_leaf.xonly_public_key, selected_leaf.leaf_hash),
+            signature,
+        );
+        assert!(signer.finalize_p2tr_script_path(1, &selected_leaf).unwrap());
+        assert!(signer.psbt.inputs[1].tap_key_sig.is_none());
+        assert_eq!(
+            signer.psbt.inputs[1]
+                .final_script_witness
+                .as_ref()
+                .unwrap()
+                .len(),
+            3
+        );
+    }
+
+    #[test]
+    fn taproot_multi_leaf_selection_uses_bip371_key_origins() {
+        let secp = Secp256k1::new();
+        let signing_key =
+            PublicKey::from_secret_key(&secp, &SecretKey::from_slice(&[3u8; 32]).unwrap());
+        let other_key =
+            PublicKey::from_secret_key(&secp, &SecretKey::from_slice(&[4u8; 32]).unwrap());
+        let (signing_xonly, _) = signing_key.x_only_public_key();
+        let (other_xonly, _) = other_key.x_only_public_key();
+        let internal_key =
+            PublicKey::from_secret_key(&secp, &SecretKey::from_slice(&[5u8; 32]).unwrap())
+                .x_only_public_key()
+                .0;
+        let signing_script = Builder::new()
+            .push_x_only_key(&signing_xonly)
+            .push_opcode(opcodes::all::OP_CHECKSIG)
+            .into_script();
+        let other_script = Builder::new()
+            .push_x_only_key(&other_xonly)
+            .push_opcode(opcodes::all::OP_CHECKSIG)
+            .into_script();
+        let signing_leaf_hash = TapLeafHash::from_script(&signing_script, LeafVersion::TapScript);
+        let other_leaf_hash = TapLeafHash::from_script(&other_script, LeafVersion::TapScript);
+        let spend_info = TaprootBuilder::new()
+            .add_leaf(1, signing_script.clone())
+            .unwrap()
+            .add_leaf(1, other_script.clone())
+            .unwrap()
+            .finalize(&secp, internal_key)
+            .unwrap();
+
+        let unsigned_tx = Transaction {
+            version: Version(2),
+            lock_time: LockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: OutPoint::null(),
+                script_sig: Default::default(),
+                sequence: Sequence::MAX,
+                witness: Witness::default(),
+            }],
+            output: vec![],
+        };
+        let mut psbt = Psbt::from_unsigned_tx(unsigned_tx).unwrap();
+        for script in [&signing_script, &other_script] {
+            let control_block = spend_info
+                .control_block(&(script.clone(), LeafVersion::TapScript))
+                .unwrap();
+            psbt.inputs[0]
+                .tap_scripts
+                .insert(control_block, (script.clone(), LeafVersion::TapScript));
+        }
+        psbt.inputs[0]
+            .tap_key_origins
+            .insert(signing_xonly, (vec![signing_leaf_hash], Default::default()));
+
+        let prevout = TxOut {
+            value: Amount::from_sat(1_000),
+            script_pubkey: bitcoin::ScriptBuf::new_p2tr(
+                &secp,
+                spend_info.internal_key(),
+                spend_info.merkle_root(),
+            ),
+        };
+        let signer = PsbtSigner {
+            psbt: &mut psbt,
+            derivation_path: String::new(),
+            auto_finalize: false,
+            prevouts: vec![prevout],
+            network: Network::Bitcoin,
+            preview_output: vec![],
+            is_sign_message: false,
+        };
+
+        let selected = signer.select_tap_leaf(0, &signing_key.to_string()).unwrap();
+        assert_eq!(selected.leaf_hash, signing_leaf_hash);
+
+        signer.psbt.inputs[0].tap_key_origins.insert(
+            signing_xonly,
+            (vec![signing_leaf_hash, other_leaf_hash], Default::default()),
+        );
+        let error = match signer.select_tap_leaf(0, &signing_key.to_string()) {
+            Ok(_) => panic!("ambiguous tap leaves must be rejected"),
+            Err(error) => error,
+        };
+        assert_eq!(error.to_string(), "ambiguous_tap_leaf");
+    }
 
     #[test]
     fn test_sign_psbt_no_script() {
@@ -872,32 +1814,16 @@ mod test {
 
         let psbt_input = PsbtInput {
             psbt: "70736274ff01005e02000000012bd2f6479f3eeaffe95c03b5fdd76a873d346459114dec99c59192a0cb6409e90000000000ffffffff01409c000000000000225120677cc88dc36a75707b370e27efff3e454d446ad55004dac1685c1725ee1a89ea000000000001012b50c3000000000000225120a9a3350206de400f09a73379ec1bcfa161fc11ac095e5f3d7354126f0ec8e87f6215c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0d2956573f010fa1a3c135279c5eb465ec2250205dcdfe2122637677f639b1021356c963cd9c458508d6afb09f3fa2f9b48faec88e75698339a4bbb11d3fc9b0efd570120aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29bad200aee0509b16db71c999238a4827db945526859b13c95487ab46725357c9a9f25ac20113c3a32a9d320b72190a04a020a0db3976ef36972673258e9a38a364f3dc3b0ba2017921cf156ccb4e73d428f996ed11b245313e37e27c978ac4d2cc21eca4672e4ba203bb93dfc8b61887d771f3630e9a63e97cbafcfcc78556a474df83a31a0ef899cba2040afaf47c4ffa56de86410d8e47baa2bb6f04b604f4ea24323737ddc3fe092dfba2079a71ffd71c503ef2e2f91bccfc8fcda7946f4653cef0d9f3dde20795ef3b9f0ba20d21faf78c6751a0d38e6bd8028b907ff07e9a869a43fc837d6b3f8dff6119a36ba20f5199efae3f28bb82476163a7e458c7ad445d9bffb0682d10d3bdb2cb41f8e8eba20fa9d882d45f4060bdb8042183828cd87544f1ea997380e586cab77d5fd698737ba569cc001172050929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac00000".to_string(),
-            auto_finalize: true,
+            auto_finalize: false,
         };
 
         let psbt_output = super::sign_psbt("m/86'/1'/0'", psbt_input, Network::Bitcoin).unwrap();
         let psbt = Psbt::deserialize(&Vec::<u8>::from_hex(&psbt_output.psbt).unwrap()).unwrap();
-        let tx = psbt.extract_tx().unwrap();
-        let witness = tx.input[0].witness.to_vec();
-        let _sig = Signature::from_slice(&witness[0]).unwrap();
-
-        let data =
-            Vec::<u8>::from_hex("56b6c5fd09753fbbbeb8f530308e4f7d2f404e02da767f033e926d27fcc2f37e")
-                .unwrap();
-        let _msg = Message::from_digest_slice(&data).unwrap();
-        let _x_pub_key = XOnlyPublicKey::from_slice(
-            Vec::<u8>::from_hex("66f873ad53d80688c7739d0d268acd956366275004fdceab9e9fc30034a4229e")
-                .unwrap()
-                .as_slice(),
-        )
-        .unwrap();
-
-        let script = hex::encode(&witness[1]);
-        let control_block = hex::encode(&witness[2]);
-        assert_eq!(script, "20aff94eb65a2fe773a57c5bd54e62d8436a5467573565214028422b41bd43e29bad200aee0509b16db71c999238a4827db945526859b13c95487ab46725357c9a9f25ac20113c3a32a9d320b72190a04a020a0db3976ef36972673258e9a38a364f3dc3b0ba2017921cf156ccb4e73d428f996ed11b245313e37e27c978ac4d2cc21eca4672e4ba203bb93dfc8b61887d771f3630e9a63e97cbafcfcc78556a474df83a31a0ef899cba2040afaf47c4ffa56de86410d8e47baa2bb6f04b604f4ea24323737ddc3fe092dfba2079a71ffd71c503ef2e2f91bccfc8fcda7946f4653cef0d9f3dde20795ef3b9f0ba20d21faf78c6751a0d38e6bd8028b907ff07e9a869a43fc837d6b3f8dff6119a36ba20f5199efae3f28bb82476163a7e458c7ad445d9bffb0682d10d3bdb2cb41f8e8eba20fa9d882d45f4060bdb8042183828cd87544f1ea997380e586cab77d5fd698737ba569c");
-        assert_eq!(control_block, "c150929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0d2956573f010fa1a3c135279c5eb465ec2250205dcdfe2122637677f639b1021356c963cd9c458508d6afb09f3fa2f9b48faec88e75698339a4bbb11d3fc9b0e");
-
-        // assert!(sig.sig.verify(&msg, &x_pub_key).is_ok());
+        let input = &psbt.inputs[0];
+        assert!(input.tap_key_sig.is_none());
+        assert_eq!(input.tap_script_sigs.len(), 1);
+        assert!(input.final_script_witness.is_none());
+        assert!(!input.tap_scripts.is_empty());
     }
 
     #[test]
@@ -905,7 +1831,7 @@ mod test {
         bind_test();
 
         let raw_tx = "02000000054adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0000000000ffffffff4adc61444e5a4dd7021e52dc6f5adadd9a3286d346f5d9f023ebcde2af80a0ae0100000000ffffffff12cc8049bf85b5e18cb2be8aa7aefc3afb8df4ec5c1f766750014cc95ca2dc130000000000ffffffff729e6570928cc65200f1d53def65a7934d2e9b543059d90598ed1d166af422010100000000ffffffffa126724475cd2f3252352b3543c8455c7999a8283883bd7a712a7d66609d92d80100000000ffffffff02409c00000000000022512036079c540758a51a86eeaf9e17668d4d8543d8b1b7e56fe2da0982c390c5655ef8fa0700000000002251209303a116174dd21ea473766659568ac24eb6b828c3ee998982d2ba070ea0615500000000";
-        let tx: Transaction = deserialize(&Vec::from_hex(&raw_tx).unwrap()).unwrap();
+        let tx: Transaction = deserialize(&Vec::from_hex(raw_tx).unwrap()).unwrap();
 
         let mut psbt = Psbt::from_unsigned_tx(tx).unwrap();
         let fake_pub_key = bitcoin::secp256k1::PublicKey::from_slice(

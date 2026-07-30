@@ -15,7 +15,7 @@ pub fn get_address(param: &AddressParam) -> Result<Vec<u8>> {
     let address_message = BtcForkWallet {
         path: param.path.to_owned(),
         chain_type: param.chain_type.to_string(),
-        address: address,
+        address,
         enc_x_pub: enc_xpub,
     };
 

@@ -313,9 +313,5 @@ pub fn coin_info_from_param(
         .cloned()
         .collect::<Vec<CoinInfo>>();
 
-    if coins.is_empty() {
-        Err(anyhow!("unsupported_chain"))
-    } else {
-        Ok(coins.pop().expect("coin_info_from_param"))
-    }
+    coins.pop().ok_or_else(|| anyhow!("unsupported_chain"))
 }

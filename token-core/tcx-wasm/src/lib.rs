@@ -1,12 +1,14 @@
 use std::cell::RefCell;
 
+use chacha20poly1305::aead::{Aead, KeyInit, Payload};
+use chacha20poly1305::{ChaCha20Poly1305, Nonce};
 use secp256k1::SecretKey;
 use wasm_bindgen::prelude::*;
 
 mod nostr;
 mod types;
 
-use tcx_common::{random_u8_16, FromHex, ToHex};
+use tcx_common::{FromHex, ToHex};
 use tcx_constants::CurveType;
 use tcx_eth::address::EthAddress;
 use tcx_eth::transaction::{
@@ -14,7 +16,9 @@ use tcx_eth::transaction::{
     SignatureType,
 };
 use tcx_keystore::keystore::IdentityNetwork;
-use tcx_keystore::{Keystore, MessageSigner, Metadata, SignatureParameters, TransactionSigner};
+use tcx_keystore::{
+    Keystore, MessageSigner, Metadata, SignatureParameters, Source, TransactionSigner,
+};
 use tcx_primitive::{generate_mnemonic, TypedPublicKey};
 use tcx_tron::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
 use tcx_tron::TronAddress;
@@ -23,8 +27,12 @@ use types::*;
 
 thread_local! {
     static CACHED_KEYSTORE_JSON: RefCell<Option<String>> = const { RefCell::new(None) };
-    static CACHED_MESSAGE_SECRET_KEY: RefCell<Option<SecretKey>> = RefCell::new(None);
+    static CACHED_MESSAGE_SECRET_KEY: RefCell<Option<SecretKey>> = const { RefCell::new(None) };
 }
+
+const PASSKEY_KEYSTORE_VERSION: u32 = 2;
+const PASSKEY_KEYSTORE_CIPHER: &str = "chacha20-poly1305";
+const PASSKEY_NONCE_LEN: usize = 12;
 
 fn to_js_err(e: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&e.to_string())
@@ -46,29 +54,122 @@ fn now_timestamp() -> i64 {
     (js_sys::Date::now() / 1000.0) as i64
 }
 
-fn decrypt_mnemonic(
-    encrypted_mnemonic: &str,
-    iv_hex: &str,
-    prf_key_hex: &str,
-) -> Result<String, JsValue> {
+fn passkey_metadata(network: IdentityNetwork) -> Metadata {
+    Metadata {
+        name: "Unknown".to_string(),
+        password_hint: None,
+        timestamp: now_timestamp(),
+        source: Source::Mnemonic,
+        network,
+        identified_chain_types: None,
+    }
+}
+
+fn parse_prf_key(prf_key_hex: &str) -> Result<[u8; 32], JsValue> {
     let prf_key = Vec::from_hex(prf_key_hex).map_err(to_js_err)?;
     if prf_key.len() != 32 {
         return Err(JsValue::from_str("PRF key must be 32 bytes"));
     }
-    let key = &prf_key[..16];
-    let iv = Vec::from_hex(iv_hex).map_err(to_js_err)?;
-    let encrypted = Vec::from_hex(encrypted_mnemonic).map_err(to_js_err)?;
-    let decrypted =
-        tcx_crypto::aes::ctr::decrypt_nopadding(&encrypted, key, &iv).map_err(to_js_err)?;
+
+    prf_key
+        .try_into()
+        .map_err(|_| JsValue::from_str("PRF key must be 32 bytes"))
+}
+
+fn keystore_aad(keystore: &PasskeyKeystore) -> Result<Vec<u8>, JsValue> {
+    serde_json::to_vec(&(
+        keystore.version,
+        keystore.cipher.as_str(),
+        keystore.user_id.as_str(),
+        keystore.credential_id.as_str(),
+        keystore.rp_id.as_str(),
+        keystore.created_at,
+        keystore.network.as_str(),
+        &keystore.identity,
+    ))
+    .map_err(to_js_err)
+}
+
+fn encrypt_mnemonic_v2(
+    mnemonic: &str,
+    prf_key: &[u8; 32],
+    keystore: &PasskeyKeystore,
+) -> Result<(String, String), JsValue> {
+    let mut nonce = [0u8; PASSKEY_NONCE_LEN];
+    getrandom::fill(&mut nonce).map_err(to_js_err)?;
+    let cipher_nonce = Nonce::from(nonce);
+    let encrypted = ChaCha20Poly1305::new(prf_key.into())
+        .encrypt(
+            &cipher_nonce,
+            Payload {
+                msg: mnemonic.as_bytes(),
+                aad: &keystore_aad(keystore)?,
+            },
+        )
+        .map_err(|_| JsValue::from_str("keystore_encryption_failed"))?;
+    Ok((encrypted.to_hex(), nonce.to_hex()))
+}
+
+fn decrypt_mnemonic(keystore: &PasskeyKeystore, prf_key_hex: &str) -> Result<String, JsValue> {
+    let prf_key = parse_prf_key(prf_key_hex)?;
+    let encrypted = Vec::from_hex(&keystore.encrypted_mnemonic).map_err(to_js_err)?;
+
+    let decrypted = if keystore.version == PASSKEY_KEYSTORE_VERSION {
+        if keystore.cipher != PASSKEY_KEYSTORE_CIPHER {
+            return Err(JsValue::from_str("unsupported_passkey_keystore_cipher"));
+        }
+        let nonce: [u8; PASSKEY_NONCE_LEN] = Vec::from_hex(&keystore.mnemonic_nonce)
+            .map_err(to_js_err)?
+            .try_into()
+            .map_err(|_| JsValue::from_str("invalid_passkey_keystore_nonce"))?;
+        let nonce = Nonce::from(nonce);
+        ChaCha20Poly1305::new((&prf_key).into())
+            .decrypt(
+                &nonce,
+                Payload {
+                    msg: &encrypted,
+                    aad: &keystore_aad(keystore)?,
+                },
+            )
+            .map_err(|_| JsValue::from_str("keystore_authentication_failed"))?
+    } else if keystore.version <= 1
+        && (keystore.cipher.is_empty() || keystore.cipher == "aes-128-ctr")
+    {
+        let iv = Vec::from_hex(&keystore.mnemonic_iv).map_err(to_js_err)?;
+        tcx_crypto::aes::ctr::decrypt_nopadding(&encrypted, &prf_key[..16], &iv)
+            .map_err(to_js_err)?
+    } else {
+        return Err(JsValue::from_str("unsupported_passkey_keystore_version"));
+    };
+
     String::from_utf8(decrypted).map_err(to_js_err)
 }
 
-fn unlock_keystore_from_mnemonic(mnemonic: &str) -> Result<Keystore, JsValue> {
+fn unlock_validated_keystore(
+    mnemonic: &str,
+    expected: &PasskeyKeystore,
+) -> Result<(Keystore, &'static str), JsValue> {
     let password = "";
-    let mut keystore =
-        Keystore::from_mnemonic(mnemonic, password, Metadata::default()).map_err(to_js_err)?;
-    keystore.unlock_by_password(password).map_err(to_js_err)?;
-    Ok(keystore)
+    let networks: &[(&str, IdentityNetwork)] = match expected.network.as_str() {
+        "MAINNET" => &[("MAINNET", IdentityNetwork::Mainnet)],
+        "TESTNET" => &[("TESTNET", IdentityNetwork::Testnet)],
+        _ => &[
+            ("MAINNET", IdentityNetwork::Mainnet),
+            ("TESTNET", IdentityNetwork::Testnet),
+        ],
+    };
+
+    for (network_name, network) in networks {
+        let metadata = passkey_metadata(*network);
+        if let Ok(mut keystore) = Keystore::from_mnemonic(mnemonic, password, metadata) {
+            if keystore.store().identity.identifier == expected.identity.identifier {
+                keystore.unlock_by_password(password).map_err(to_js_err)?;
+                return Ok((keystore, network_name));
+            }
+        }
+    }
+
+    Err(JsValue::from_str("passkey_keystore_identity_mismatch"))
 }
 
 fn clear_message_key_pair() {
@@ -105,10 +206,7 @@ pub fn clear_cached_keystore() {
 pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
     let param: CreateKeystoreParam = serde_json::from_str(param_json).map_err(to_js_err)?;
 
-    let prf_key = Vec::from_hex(&param.prf_key).map_err(to_js_err)?;
-    if prf_key.len() != 32 {
-        return Err(JsValue::from_str("PRF key must be 32 bytes"));
-    }
+    let prf_key = parse_prf_key(&param.prf_key)?;
 
     let mnemonic = match (param.mnemonic, param.entropy) {
         (Some(m), _) => m,
@@ -121,31 +219,78 @@ pub fn create_keystore(param_json: &str) -> Result<String, JsValue> {
         (None, None) => generate_mnemonic(),
     };
 
-    let iv = random_u8_16();
-    let encrypted =
-        tcx_crypto::aes::ctr::encrypt_nopadding(mnemonic.as_bytes(), &prf_key[..16], &iv)
-            .map_err(to_js_err)?;
-
-    let network = match param.network.as_deref() {
-        Some("TESTNET") => IdentityNetwork::Testnet,
-        _ => IdentityNetwork::Mainnet,
+    let (network_name, network) = match param.network.as_deref() {
+        Some("TESTNET") => ("TESTNET", IdentityNetwork::Testnet),
+        _ => ("MAINNET", IdentityNetwork::Mainnet),
     };
-    let mut meta = Metadata::default();
-    meta.network = network;
+    let meta = passkey_metadata(network);
     let keystore = Keystore::from_mnemonic(&mnemonic, "", meta).map_err(to_js_err)?;
     let identity = keystore.store().identity.clone();
 
-    let result = PasskeyKeystore {
+    let mut result = PasskeyKeystore {
+        version: PASSKEY_KEYSTORE_VERSION,
+        cipher: PASSKEY_KEYSTORE_CIPHER.to_string(),
         user_id: param.user_id,
         credential_id: param.credential_id,
         rp_id: param.rp_id,
-        encrypted_mnemonic: encrypted.to_hex(),
-        mnemonic_iv: iv.to_hex(),
+        encrypted_mnemonic: String::new(),
+        mnemonic_iv: String::new(),
+        mnemonic_nonce: String::new(),
+        network: network_name.to_string(),
         created_at: now_timestamp(),
         identity,
     };
+    let (encrypted_mnemonic, mnemonic_nonce) = encrypt_mnemonic_v2(&mnemonic, &prf_key, &result)?;
+    result.encrypted_mnemonic = encrypted_mnemonic;
+    result.mnemonic_nonce = mnemonic_nonce;
 
     serde_json::to_string(&result).map_err(to_js_err)
+}
+
+#[wasm_bindgen]
+pub fn migrate_keystore(param_json: &str) -> Result<String, JsValue> {
+    let param: MigrateKeystoreParam = serde_json::from_str(param_json).map_err(to_js_err)?;
+    let original_value: serde_json::Value =
+        serde_json::from_str(&param.keystore_json).map_err(to_js_err)?;
+    let old_keystore: PasskeyKeystore =
+        serde_json::from_value(original_value.clone()).map_err(to_js_err)?;
+    let mnemonic = decrypt_mnemonic(&old_keystore, &param.prf_key)?;
+    let (mut validated_keystore, network) = unlock_validated_keystore(&mnemonic, &old_keystore)?;
+    validated_keystore.lock();
+
+    if old_keystore.version == PASSKEY_KEYSTORE_VERSION {
+        return Ok(param.keystore_json);
+    }
+
+    let prf_key = parse_prf_key(&param.prf_key)?;
+    let mut migrated = PasskeyKeystore {
+        version: PASSKEY_KEYSTORE_VERSION,
+        cipher: PASSKEY_KEYSTORE_CIPHER.to_string(),
+        user_id: old_keystore.user_id,
+        credential_id: old_keystore.credential_id,
+        rp_id: old_keystore.rp_id,
+        encrypted_mnemonic: String::new(),
+        mnemonic_iv: String::new(),
+        mnemonic_nonce: String::new(),
+        network: network.to_string(),
+        created_at: old_keystore.created_at,
+        identity: old_keystore.identity,
+    };
+    let (encrypted_mnemonic, mnemonic_nonce) = encrypt_mnemonic_v2(&mnemonic, &prf_key, &migrated)?;
+    migrated.encrypted_mnemonic = encrypted_mnemonic;
+    migrated.mnemonic_nonce = mnemonic_nonce;
+
+    let mut migrated_value = serde_json::to_value(migrated).map_err(to_js_err)?;
+    if let (Some(original), Some(output)) =
+        (original_value.as_object(), migrated_value.as_object_mut())
+    {
+        for (key, value) in original {
+            output.entry(key.clone()).or_insert_with(|| value.clone());
+        }
+        output.remove("mnemonicIv");
+    }
+
+    serde_json::to_string(&migrated_value).map_err(to_js_err)
 }
 
 #[wasm_bindgen]
@@ -158,13 +303,8 @@ pub fn derive_accounts(param_json: &str) -> Result<String, JsValue> {
 
     let keystore_json = resolve_keystore_json(param.keystore_json)?;
     let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(
-        &ks_data.encrypted_mnemonic,
-        &ks_data.mnemonic_iv,
-        &param.prf_key,
-    )?;
-
-    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+    let mnemonic = decrypt_mnemonic(&ks_data, &param.prf_key)?;
+    let (mut keystore, _) = unlock_validated_keystore(&mnemonic, &ks_data)?;
 
     let mut results: Vec<AccountResponse> = Vec::with_capacity(param.derivations.len());
 
@@ -213,11 +353,9 @@ pub fn export_mnemonic(param_json: &str) -> Result<String, JsValue> {
 
     let keystore_json = resolve_keystore_json(param.keystore_json)?;
     let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(
-        &ks_data.encrypted_mnemonic,
-        &ks_data.mnemonic_iv,
-        &param.prf_key,
-    )?;
+    let mnemonic = decrypt_mnemonic(&ks_data, &param.prf_key)?;
+    let (mut keystore, _) = unlock_validated_keystore(&mnemonic, &ks_data)?;
+    keystore.lock();
 
     serde_json::to_string(&serde_json::json!({ "mnemonic": mnemonic })).map_err(to_js_err)
 }
@@ -299,13 +437,8 @@ pub fn sign_tx(param_json: &str) -> Result<String, JsValue> {
 
     let keystore_json = resolve_keystore_json(param.keystore_json)?;
     let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(
-        &ks_data.encrypted_mnemonic,
-        &ks_data.mnemonic_iv,
-        &param.prf_key,
-    )?;
-
-    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+    let mnemonic = decrypt_mnemonic(&ks_data, &param.prf_key)?;
+    let (mut keystore, _) = unlock_validated_keystore(&mnemonic, &ks_data)?;
     let chain = param.chain.as_deref().unwrap_or("ETHEREUM");
     let json_result = sign_single_tx(&mut keystore, chain, param.derivation_path, param.input)?;
 
@@ -323,13 +456,8 @@ pub fn sign_txs(param_json: &str) -> Result<String, JsValue> {
 
     let keystore_json = resolve_keystore_json(param.keystore_json)?;
     let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(
-        &ks_data.encrypted_mnemonic,
-        &ks_data.mnemonic_iv,
-        &param.prf_key,
-    )?;
-
-    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+    let mnemonic = decrypt_mnemonic(&ks_data, &param.prf_key)?;
+    let (mut keystore, _) = unlock_validated_keystore(&mnemonic, &ks_data)?;
 
     let mut results: Vec<serde_json::Value> = Vec::with_capacity(param.txs.len());
     for tx in param.txs {
@@ -348,13 +476,8 @@ pub fn sign_message(param_json: &str) -> Result<String, JsValue> {
 
     let keystore_json = resolve_keystore_json(param.keystore_json)?;
     let ks_data: PasskeyKeystore = serde_json::from_str(&keystore_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(
-        &ks_data.encrypted_mnemonic,
-        &ks_data.mnemonic_iv,
-        &param.prf_key,
-    )?;
-
-    let mut keystore = unlock_keystore_from_mnemonic(&mnemonic)?;
+    let mnemonic = decrypt_mnemonic(&ks_data, &param.prf_key)?;
+    let (mut keystore, _) = unlock_validated_keystore(&mnemonic, &ks_data)?;
 
     let chain = param.chain.as_deref().unwrap_or("ETHEREUM");
     let default_path = match chain {
@@ -425,7 +548,9 @@ fn derive_message_key(
 ) -> Result<secp256k1::SecretKey, JsValue> {
     let ks_json = resolve_keystore_json(keystore_json)?;
     let ks_data: PasskeyKeystore = serde_json::from_str(&ks_json).map_err(to_js_err)?;
-    let mnemonic = decrypt_mnemonic(&ks_data.encrypted_mnemonic, &ks_data.mnemonic_iv, prf_key)?;
+    let mnemonic = decrypt_mnemonic(&ks_data, prf_key)?;
+    let (mut keystore, _) = unlock_validated_keystore(&mnemonic, &ks_data)?;
+    keystore.lock();
     let path = derivation_path.unwrap_or(nostr::DEFAULT_PATH);
     nostr::derive_secret_key(&mnemonic, path).map_err(to_js_err)
 }
@@ -549,4 +674,102 @@ pub fn decrypt_message(param_json: &str) -> Result<String, JsValue> {
     let plaintext =
         nostr::nip44_decrypt(&conversation_key, &param.encrypted_content).map_err(to_js_err)?;
     serde_json::to_string(&serde_json::json!({ "plaintext": plaintext })).map_err(to_js_err)
+}
+
+#[cfg(all(test, target_arch = "wasm32"))]
+mod passkey_keystore_tests {
+    use super::*;
+    use wasm_bindgen_test::wasm_bindgen_test;
+
+    const MNEMONIC: &str =
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    const PRF_KEY: &str = "0707070707070707070707070707070707070707070707070707070707070707";
+
+    fn create_test_keystore() -> PasskeyKeystore {
+        let json = create_keystore(
+            &serde_json::json!({
+                "credentialId": "credential",
+                "mnemonic": MNEMONIC,
+                "prfKey": PRF_KEY,
+                "rpId": "wallet.example",
+                "userId": "user"
+            })
+            .to_string(),
+        )
+        .unwrap();
+        serde_json::from_str(&json).unwrap()
+    }
+
+    fn mutate_hex(hex: &mut String) {
+        let replacement = if hex.starts_with('0') { "1" } else { "0" };
+        hex.replace_range(..1, replacement);
+    }
+
+    #[wasm_bindgen_test]
+    fn aead_rejects_ciphertext_nonce_and_aad_tampering() {
+        let keystore = create_test_keystore();
+        assert_eq!(decrypt_mnemonic(&keystore, PRF_KEY).unwrap(), MNEMONIC);
+
+        let mut mutations: Vec<Box<dyn Fn(&mut PasskeyKeystore)>> = vec![
+            Box::new(|ks| mutate_hex(&mut ks.encrypted_mnemonic)),
+            Box::new(|ks| mutate_hex(&mut ks.mnemonic_nonce)),
+            Box::new(|ks| ks.user_id.push('x')),
+            Box::new(|ks| ks.credential_id.push('x')),
+            Box::new(|ks| ks.rp_id.push('x')),
+            Box::new(|ks| ks.identity.identifier.push('x')),
+        ];
+
+        for mutation in mutations.drain(..) {
+            let mut tampered: PasskeyKeystore =
+                serde_json::from_str(&serde_json::to_string(&keystore).unwrap()).unwrap();
+            mutation(&mut tampered);
+            assert!(decrypt_mnemonic(&tampered, PRF_KEY).is_err());
+        }
+    }
+
+    #[wasm_bindgen_test]
+    fn legacy_keystore_migrates_only_after_identity_validation() {
+        let prf_key = parse_prf_key(PRF_KEY).unwrap();
+        let iv = [3u8; 16];
+        let encrypted =
+            tcx_crypto::aes::ctr::encrypt_nopadding(MNEMONIC.as_bytes(), &prf_key[..16], &iv)
+                .unwrap();
+        let keystore =
+            Keystore::from_mnemonic(MNEMONIC, "", passkey_metadata(IdentityNetwork::Mainnet))
+                .unwrap();
+        let legacy = PasskeyKeystore {
+            version: 0,
+            cipher: String::new(),
+            user_id: "user".to_string(),
+            credential_id: "credential".to_string(),
+            rp_id: "wallet.example".to_string(),
+            encrypted_mnemonic: encrypted.to_hex(),
+            mnemonic_iv: iv.to_hex(),
+            mnemonic_nonce: String::new(),
+            network: String::new(),
+            created_at: 1,
+            identity: keystore.store().identity.clone(),
+        };
+        let legacy_json = serde_json::to_string(&legacy).unwrap();
+        let migrated_json = migrate_keystore(
+            &serde_json::json!({ "keystoreJson": legacy_json, "prfKey": PRF_KEY }).to_string(),
+        )
+        .unwrap();
+        let migrated: PasskeyKeystore = serde_json::from_str(&migrated_json).unwrap();
+
+        assert_eq!(migrated.version, PASSKEY_KEYSTORE_VERSION);
+        assert!(migrated.mnemonic_iv.is_empty());
+        assert_eq!(decrypt_mnemonic(&migrated, PRF_KEY).unwrap(), MNEMONIC);
+
+        let mut invalid_legacy = legacy;
+        invalid_legacy.identity.identifier.push('x');
+        assert!(migrate_keystore(
+            &serde_json::json!({
+                "keystoreJson": serde_json::to_string(&invalid_legacy).unwrap(),
+                "prfKey": PRF_KEY
+            })
+            .to_string()
+        )
+        .is_err());
+    }
 }

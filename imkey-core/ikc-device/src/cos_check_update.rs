@@ -1,6 +1,6 @@
 use crate::ServiceResponse;
-use crate::{Result, TsmService};
-use ikc_common::{constants, https};
+use crate::{tsm_post, Result, TsmService};
+use ikc_common::constants;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct CosCheckUpdateRequest {
     pub seid: String,
     pub cos_version: String,
+    pub ble_version: String,
     #[serde(rename = "commandID")]
     pub command_id: String,
 }
@@ -18,6 +19,7 @@ pub struct CosCheckUpdateResponse {
     pub seid: String,
     pub is_latest: bool,
     pub latest_cos_version: Option<String>,
+    pub latest_ble_version: Option<String>,
     pub update_type: Option<String>,
     pub description: Option<String>,
     pub is_update_success: bool,
@@ -27,8 +29,8 @@ impl TsmService for CosCheckUpdateRequest {
     type ReturnData = ServiceResponse<CosCheckUpdateResponse>;
 
     fn send_message(&mut self) -> Result<ServiceResponse<CosCheckUpdateResponse>> {
-        let req_data = serde_json::to_vec_pretty(&self).unwrap();
-        let response_data = https::post(constants::TSM_ACTION_COS_CHECK_UPDATE, req_data)?;
+        let req_data = serde_json::to_vec_pretty(&self)?;
+        let response_data = tsm_post(constants::TSM_ACTION_COS_CHECK_UPDATE, req_data)?;
         let return_bean: ServiceResponse<CosCheckUpdateResponse> =
             serde_json::from_str(response_data.as_str())?;
         match return_bean.service_res_check() {
@@ -39,10 +41,11 @@ impl TsmService for CosCheckUpdateRequest {
 }
 
 impl CosCheckUpdateRequest {
-    pub fn build_request_data(seid: String, cos_version: String) -> Self {
+    pub fn build_request_data(seid: String, cos_version: String, ble_version: String) -> Self {
         CosCheckUpdateRequest {
             seid,
             cos_version,
+            ble_version,
             command_id: String::from(constants::TSM_ACTION_COS_CHECK_UPDATE),
         }
     }
@@ -56,15 +59,32 @@ mod test {
     use ikc_transport::hid_api::hid_connect;
 
     #[test]
+    fn cos_check_update_upgrade_contract_includes_ble_version() {
+        let request = CosCheckUpdateRequest::build_request_data(
+            "seid".to_string(),
+            "1.0.10".to_string(),
+            "3.0.03".to_string(),
+        );
+        let value = serde_json::to_value(request).unwrap();
+        assert_eq!(value["commandID"], "/cosCheckUpdate");
+        assert_eq!(value["cosVersion"], "1.0.10");
+        assert_eq!(value["bleVersion"], "3.0.03");
+    }
+
+    #[test]
     #[cfg(not(tarpaulin))]
     pub fn cos_check_update_test() {
+        crate::configure_test_tsm_from_env();
         // let seid: String = "18080000000000860001010000000106".to_string();
         assert!(hid_connect("imKey Pro").is_ok());
         let seid = get_se_id().unwrap();
 
         let cos_version: String = "1.0.10".to_string();
-        assert!(CosCheckUpdateRequest::build_request_data(seid, cos_version)
-            .send_message()
-            .is_ok());
+        let ble_version: String = "3.0.03".to_string();
+        assert!(
+            CosCheckUpdateRequest::build_request_data(seid, cos_version, ble_version)
+                .send_message()
+                .is_ok()
+        );
     }
 }

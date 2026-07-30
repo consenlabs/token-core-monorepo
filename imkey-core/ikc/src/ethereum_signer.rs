@@ -12,11 +12,11 @@ use prost::Message;
 use std::str::FromStr;
 
 pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: EthTxInput = EthTxInput::decode(data).expect("imkey_illegal_param");
+    let input: EthTxInput = EthTxInput::decode(data).map_err(|_| anyhow!("imkey_illegal_param"))?;
     let data_vec = if input.data.starts_with("0x") {
-        hex::decode(&input.data[2..]).unwrap()
+        hex::decode(&input.data[2..]).map_err(|_| anyhow!("imkey_illegal_param"))?
     } else {
-        hex::decode(&input.data).unwrap()
+        hex::decode(&input.data).map_err(|_| anyhow!("imkey_illegal_param"))?
     };
 
     let to = if input.to.is_empty() || input.to == "0x" {
@@ -35,7 +35,7 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
             nonce: parse_eth_argument(&input.nonce)?,
             gas_price: U256::from(0),
             gas_limit: parse_eth_argument(&input.gas_limit)?,
-            to: Action::Call(Address::from_str(&to).unwrap()),
+            to: Action::Call(Address::from_str(to).map_err(|_| anyhow!("invalid_address"))?),
             value: parse_eth_argument(&input.value)?,
             data: Vec::from(data_vec.as_slice()),
             tx_type: ETH_TRANSACTION_TYPE_EIP1559.to_string(),
@@ -45,7 +45,8 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
                 let mut access_list: Vec<AccessListItem> = Vec::new();
                 for access in input.access_list {
                     let item = AccessListItem {
-                        address: Address::from_str(remove_0x(&access.address)).unwrap(),
+                        address: Address::from_str(remove_0x(&access.address))
+                            .map_err(|_| anyhow!("invalid_address"))?,
                         storage_keys: {
                             let mut storage_keys: Vec<H256> = Vec::new();
                             for key in access.storage_keys {
@@ -65,7 +66,7 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
             nonce: parse_eth_argument(&input.nonce)?,
             gas_price: parse_eth_argument(&input.gas_price)?,
             gas_limit: parse_eth_argument(&input.gas_limit)?,
-            to: Action::Call(Address::from_str(&to).unwrap()),
+            to: Action::Call(Address::from_str(to).map_err(|_| anyhow!("invalid_address"))?),
             value: parse_eth_argument(&input.value)?,
             data: Vec::from(data_vec.as_slice()),
             tx_type: input.r#type,
@@ -81,9 +82,11 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
         Err(_error) => {
             if input.chain_id.to_lowercase().starts_with("0x") {
                 let without_prefix = &input.chain_id.trim_start_matches("0x");
-                u64::from_str_radix(without_prefix, 16).unwrap()
+                u64::from_str_radix(without_prefix, 16)
+                    .map_err(|_| anyhow!("unpack eth argument error"))?
             } else {
-                u64::from_str_radix(&input.chain_id, 16).unwrap()
+                u64::from_str_radix(&input.chain_id, 16)
+                    .map_err(|_| anyhow!("unpack eth argument error"))?
             }
         }
     };
@@ -101,7 +104,7 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
 
 fn parse_eth_argument(str: &str) -> Result<U256> {
     if str.to_lowercase().starts_with("0x") {
-        U256::from_str(&str[2..].to_string()).map_err(|_err| anyhow!("unpack eth argument error"))
+        U256::from_str(&str[2..]).map_err(|_err| anyhow!("unpack eth argument error"))
     } else {
         U256::from_dec_str(str).map_err(|_err| anyhow!("unpack eth argument dec error"))
     }
@@ -111,12 +114,13 @@ fn remove_0x(str: &str) -> &str {
     if str.to_lowercase().starts_with("0x") {
         &str[2..]
     } else {
-        &str
+        str
     }
 }
 
 pub fn sign_eth_message(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: EthMessageInput = EthMessageInput::decode(data).expect("imkey_illegal_param");
+    let input: EthMessageInput =
+        EthMessageInput::decode(data).map_err(|_| anyhow!("imkey_illegal_param"))?;
     let signed = Transaction::sign_message(input, sign_param)?;
     encode_message(signed)
 }
@@ -201,7 +205,6 @@ mod tests {
 
     #[test]
     fn sign_tx_error_chainid_test() {
-        bind_test();
         let path = "m/44'/60'/0'/0/0".to_string();
         let data = hex::decode("0a0134120a353030303030303030301a0730783430343964222a3078396564306335333530626331376666343535323937323265623037353830666635363463336137382a0c3078653864346135313030303a03787878").unwrap();
         let sign_param = SignParam {
@@ -215,8 +218,8 @@ mod tests {
             fee: "0.001316 ETH".to_string(),
             seg_wit: "".to_string(),
         };
-        let _x = sign_eth_transaction(data.as_slice(), &sign_param).unwrap();
-        println!("sign");
+        let error = sign_eth_transaction(data.as_slice(), &sign_param).unwrap_err();
+        assert_eq!("unpack eth argument error", error.to_string());
     }
 
     #[test]
@@ -257,7 +260,7 @@ mod tests {
         };
 
         let data = encode_message(tx).unwrap();
-        let res = sign_eth_transaction(&data.as_ref(), &sign_param);
+        let res = sign_eth_transaction(data.as_ref(), &sign_param);
         let output: EthTxOutput =
             EthTxOutput::decode(res.unwrap().as_ref()).expect("imkey_illegal_param");
         assert_eq!(
@@ -302,7 +305,7 @@ mod tests {
 
         let data = encode_message(tx).unwrap();
 
-        let res = sign_eth_transaction(&data.as_ref(), &sign_param);
+        let res = sign_eth_transaction(data.as_ref(), &sign_param);
 
         let output: EthTxOutput =
             EthTxOutput::decode(res.unwrap().as_ref()).expect("imkey_illegal_param");
@@ -371,7 +374,7 @@ mod tests {
 
         let data = encode_message(tx).unwrap();
 
-        let res = sign_eth_transaction(&data.as_ref(), &sign_param);
+        let res = sign_eth_transaction(data.as_ref(), &sign_param);
 
         let output: EthTxOutput =
             EthTxOutput::decode(res.unwrap().as_ref()).expect("imkey_illegal_param");
@@ -440,7 +443,7 @@ mod tests {
 
         let data = encode_message(tx).unwrap();
 
-        let res = sign_eth_transaction(&data.as_ref(), &sign_param);
+        let res = sign_eth_transaction(data.as_ref(), &sign_param);
 
         let output: EthTxOutput =
             EthTxOutput::decode(res.unwrap().as_ref()).expect("imkey_illegal_param");
@@ -481,7 +484,7 @@ mod tests {
         };
 
         let data = hex::decode("0a0138120b32303030303030303030381a063138393030302228333533353335333533353335333533353335333533353335333533353335333533353335333533352a033531323a023238").unwrap();
-        let res = sign_eth_transaction(&data.as_ref(), &sign_param);
+        let res = sign_eth_transaction(data.as_ref(), &sign_param);
         let output: EthTxOutput =
             EthTxOutput::decode(res.unwrap().as_ref()).expect("imkey_illegal_param");
         assert_eq!(

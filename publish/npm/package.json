@@ -1,0 +1,40 @@
+{
+  "name": "@imtoken/wallet-core-web",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    }
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "token-core.js",
+    "token-core.d.ts",
+    "imkey-core.js",
+    "imkey-core.d.ts",
+    "imkey-webusb.js",
+    "imkey-webusb.d.ts",
+    "imkey-tsm.js",
+    "imkey-tsm.d.ts",
+    "imkey-storage.js",
+    "imkey-storage.d.ts",
+    "tcx_wasm.js",
+    "tcx_wasm.d.ts",
+    "tcx_wasm_bg.wasm",
+    "tcx_wasm_bg.wasm.d.ts",
+    "ikc_wasm.js",
+    "ikc_wasm.d.ts",
+    "ikc_wasm_bg.wasm",
+    "ikc_wasm_bg.wasm.d.ts",
+    "README.md"
+  ],
+  "sideEffects": false
+}

@@ -1,5 +1,5 @@
 use crate::btc_fork_network::{network_form_hrp, network_from_coin, BtcForkNetwork};
-use crate::common::get_xpub_data;
+use crate::common::{get_xpub_data, get_xpub_data_async};
 use crate::Result;
 use bitcoin::base58;
 use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
@@ -14,6 +14,7 @@ use ikc_common::error::{CoinError, CommonError};
 use ikc_common::path::check_path_validity;
 
 use ikc_common::utility::uncompress_pubkey_2_compress;
+use ikc_device::async_device_manager::AsyncApduTransport;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 
@@ -41,7 +42,7 @@ impl BtcForkAddress {
         let key_bytes = hex::decode(&*key)?;
         let iv_bytes = hex::decode(&*iv)?;
         let encrypted =
-            ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
+            ikc_common::aes::cbc::encrypt_pkcs7(xpub.as_bytes(), &key_bytes, &iv_bytes)?;
         Ok(base64::Engine::encode(
             &base64::engine::general_purpose::STANDARD,
             &encrypted,
@@ -76,7 +77,7 @@ impl BtcForkAddress {
         let chain_code_obj = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
         let parent_ext_pub_key = Xpub {
             network: network.into(),
-            depth: 0 as u8,
+            depth: 0_u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
             public_key: parent_pub_key_obj,
@@ -91,11 +92,55 @@ impl BtcForkAddress {
             network: network.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
-            child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
+            child_number: *chain_number_vec.last().unwrap(),
             public_key: pub_key_obj,
             chain_code: chain_code_obj,
         };
         //get and return xpub
+        Ok(extend_public_key.to_string())
+    }
+
+    pub async fn get_xpub_async<T>(transport: &T, network: Network, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data_async(transport, path, true).await?;
+        let xpub_data = &xpub_data[..194];
+        let pub_key = &xpub_data[..130];
+        let chain_code = &xpub_data[130..];
+
+        let parent_xpub =
+            get_xpub_data_async(transport, Self::get_parent_path(path)?, true).await?;
+        let parent_xpub = &parent_xpub[..194];
+        let parent_pub_key = &parent_xpub[..130];
+        let parent_chain_code = &parent_xpub[130..];
+
+        let parent_pub_key_obj = Secp256k1PublicKey::from_str(parent_pub_key)?;
+        let pub_key_obj = Secp256k1PublicKey::from_str(pub_key)?;
+
+        let chain_code_obj = ChainCode::try_from(hex::decode(parent_chain_code)?.as_slice())?;
+        let parent_ext_pub_key = Xpub {
+            network: network.into(),
+            depth: 0_u8,
+            parent_fingerprint: Fingerprint::default(),
+            child_number: ChildNumber::from_normal_idx(0).unwrap(),
+            public_key: parent_pub_key_obj,
+            chain_code: chain_code_obj,
+        };
+        let fingerprint_obj = parent_ext_pub_key.fingerprint();
+
+        let chain_code_obj = ChainCode::try_from(hex::decode(chain_code)?.as_slice())?;
+        let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
+        let extend_public_key = Xpub {
+            network: network.into(),
+            depth: chain_number_vec.len() as u8,
+            parent_fingerprint: fingerprint_obj,
+            child_number: *chain_number_vec.last().unwrap(),
+            public_key: pub_key_obj,
+            chain_code: chain_code_obj,
+        };
         Ok(extend_public_key.to_string())
     }
 
@@ -108,8 +153,7 @@ impl BtcForkAddress {
         }
 
         let mut end_flg = path.rfind("/").unwrap();
-        if path.ends_with("/") {
-            let path = &path[..path.len() - 1];
+        if let Some(path) = path.strip_suffix("/") {
             end_flg = path.rfind("/").unwrap();
         }
         Ok(&path[..end_flg])
@@ -124,7 +168,30 @@ impl BtcForkAddress {
         let pub_key = &xpub_data[..130];
 
         let btc_fork_address = BtcForkAddress {
-            payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::p2pkh_hash(
+            payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::compressed_p2pkh_hash(
+                &hex::decode(pub_key)?,
+            )?),
+            network: network.clone(),
+        };
+
+        Ok(btc_fork_address.to_string())
+    }
+
+    pub async fn p2pkh_async<T>(
+        transport: &T,
+        network: &BtcForkNetwork,
+        path: &str,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data_async(transport, path, true).await?;
+        let pub_key = &xpub_data[..130];
+
+        let btc_fork_address = BtcForkAddress {
+            payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::compressed_p2pkh_hash(
                 &hex::decode(pub_key)?,
             )?),
             network: network.clone(),
@@ -139,6 +206,29 @@ impl BtcForkAddress {
 
         //get xpub
         let xpub_data = get_xpub_data(path, true)?;
+        let pub_key = &xpub_data[..130];
+
+        let btc_fork_address = BtcForkAddress {
+            payload: BtcForkPayload::ScriptHash(wallet_core_common::btc::p2shwpkh_hash(
+                &hex::decode(pub_key)?,
+            )?),
+            network: network.clone(),
+        };
+
+        Ok(btc_fork_address.to_string())
+    }
+
+    pub async fn p2shwpkh_async<T>(
+        transport: &T,
+        network: &BtcForkNetwork,
+        path: &str,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data_async(transport, path, true).await?;
         let pub_key = &xpub_data[..130];
 
         let btc_fork_address = BtcForkAddress {
@@ -170,14 +260,34 @@ impl BtcForkAddress {
         Ok(btc_fork_address.to_string())
     }
 
+    pub async fn p2wpkh_async<T>(
+        transport: &T,
+        network: &BtcForkNetwork,
+        path: &str,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data_async(transport, path, true).await?;
+        let pub_key = &xpub_data[..130];
+
+        let btc_fork_address = BtcForkAddress {
+            payload: BtcForkPayload::WitnessProgram {
+                version: WitnessVersion::V0,
+                program: wallet_core_common::btc::p2wpkh_program(&hex::decode(pub_key)?)?,
+            },
+            network: network.clone(),
+        };
+
+        Ok(btc_fork_address.to_string())
+    }
+
     pub fn is_valid(address: &str, coin: &CoinInfo) -> bool {
-        let ret = BtcForkAddress::from_str(address);
-        if ret.is_err() {
-            false
-        } else {
-            let addr: BtcForkAddress = ret.unwrap();
-            addr.network.network == coin.network
-        }
+        BtcForkAddress::from_str(address)
+            .map(|addr| addr.network.network == coin.network)
+            .unwrap_or(false)
     }
 
     pub fn get_pub_key(path: &str) -> Result<String> {
@@ -193,6 +303,44 @@ impl BtcForkAddress {
         }
     }
 
+    pub async fn get_pub_key_async<T>(transport: &T, path: &str) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let xpub_data = get_xpub_data_async(transport, path, true).await?;
+        let pub_key = uncompress_pubkey_2_compress(&xpub_data[..130]);
+
+        if pub_key.starts_with("0x") {
+            Ok(pub_key)
+        } else {
+            Ok(format!("0x{}", pub_key))
+        }
+    }
+
+    pub async fn display_address_async<T>(
+        transport: &T,
+        network: &BtcForkNetwork,
+        path: &str,
+    ) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let address = match network.seg_wit.to_uppercase().as_str() {
+            "P2WPKH" => Self::p2shwpkh_async(transport, network, path).await?,
+            "SEGWIT" => Self::p2wpkh_async(transport, network, path).await?,
+            _ => Self::p2pkh_async(transport, network, path).await?,
+        };
+        let apdu = ikc_common::apdu::BtcApdu::register_name_address(
+            network.coin.as_bytes(),
+            &address.clone().into_bytes().to_vec(),
+        )?;
+        let response = transport.send_apdu(&apdu, 20).await?;
+        ikc_common::apdu::ApduCheck::check_response(&response)?;
+        Ok(address)
+    }
+
     pub fn from_pub_key(pub_key: Vec<u8>, btc_fork_network: BtcForkNetwork) -> Result<String> {
         let address = match btc_fork_network.seg_wit.to_uppercase().as_str() {
             "P2WPKH" => BtcForkAddress {
@@ -202,7 +350,9 @@ impl BtcForkAddress {
                 network: btc_fork_network,
             },
             _ => BtcForkAddress {
-                payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::p2pkh_hash(&pub_key)?),
+                payload: BtcForkPayload::PubkeyHash(
+                    wallet_core_common::btc::compressed_p2pkh_hash(&pub_key)?,
+                ),
                 network: btc_fork_network,
             },
         };
@@ -347,10 +497,7 @@ impl Display for BtcForkAddress {
 
 /// Extract the bech32 prefix.
 fn bech32_network(bech32: &str) -> Option<BtcForkNetwork> {
-    let bech32_prefix = match bech32.rfind('1') {
-        None => None,
-        Some(sep) => Some(bech32.split_at(sep).0),
-    };
+    let bech32_prefix = bech32.rfind('1').map(|sep| bech32.split_at(sep).0);
     match bech32_prefix {
         Some(prefix) => network_form_hrp(prefix),
         None => None,
@@ -362,9 +509,9 @@ fn decode_base58(addr: &str) -> Result<Vec<u8>> {
     if addr.len() > 50 {
         return Err(CoinError::InvalidAddrLength.into());
     }
-    let data = base58::decode_check(&addr)?;
+    let data = base58::decode_check(addr)?;
     if data.len() != 21 {
-        return Err(CoinError::InvalidAddrLength.into());
+        Err(CoinError::InvalidAddrLength.into())
     } else {
         Ok(data)
     }
@@ -437,6 +584,27 @@ mod test {
         assert!(get_address_result.is_ok());
         let addr = get_address_result.ok().unwrap();
         assert_eq!("ltc1qefxc4n0dd88y7pwsjfv5d5nplpkxwh7cl75fny", addr);
+    }
+
+    #[test]
+    fn test_p2pkh_from_pub_key_uses_compressed_serialization() {
+        let network = network_from_param("LITECOIN", "MAINNET", "NONE").unwrap();
+        let compressed =
+            hex::decode("0289ca41680edbc5594ee6378ebd937e42cd6b4b969e40dd82c20ef2a8aa5bad7b")
+                .unwrap();
+        let uncompressed = bitcoin::secp256k1::PublicKey::from_slice(&compressed)
+            .unwrap()
+            .serialize_uncompressed()
+            .to_vec();
+
+        assert_eq!(
+            "Ldfdegx3hJygDuFDUA7Rkzjjx8gfFhP9DP",
+            BtcForkAddress::from_pub_key(compressed, network.clone()).unwrap()
+        );
+        assert_eq!(
+            "Ldfdegx3hJygDuFDUA7Rkzjjx8gfFhP9DP",
+            BtcForkAddress::from_pub_key(uncompressed, network).unwrap()
+        );
     }
 
     #[test]

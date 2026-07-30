@@ -13,10 +13,44 @@ lazy_static! {
     pub static ref APDU: RwLock<String> = RwLock::new("".to_string());
     pub static ref APDU_RETURN: RwLock<String> = RwLock::new("".to_string());
     pub static ref STRING: Mutex<String> = Mutex::new("".to_string());
-    // pub static ref CALLBACK: Mutex<extern "C" fn(*const u8) -> *const u8> = Mutex::new(default_callback);
-    pub static ref CALLBACK: Mutex<extern "C" fn(*const c_char, i32) -> *const c_char> = Mutex::new(default_callback);
+    static ref CALLBACK: Mutex<Option<Callback>> = Mutex::new(None);
+    pub static ref TEST: RwLock<String> = RwLock::new("".to_string());
+}
 
-    pub static ref TEST:RwLock<String> = RwLock::new("".to_string());
+type Callback = extern "C" fn(*const c_char, i32) -> *const c_char;
+
+pub trait ApduTransport {
+    fn send_apdu_timeout(&self, apdu: &str, timeout: i32) -> Result<String>;
+}
+
+fn c_string_ptr(value: &str) -> *const c_char {
+    let sanitized = value.replace('\0', "");
+    match CString::new(sanitized) {
+        Ok(value) => value.into_raw(),
+        Err(_) => CString::new("")
+            .expect("static empty string contains no NUL byte")
+            .into_raw(),
+    }
+}
+
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+pub struct HidApduTransport;
+
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
+impl ApduTransport for HidApduTransport {
+    fn send_apdu_timeout(&self, apdu: &str, timeout: i32) -> Result<String> {
+        hid_api::hid_send(apdu, timeout)
+    }
+}
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+pub struct CallbackApduTransport;
+
+#[cfg(any(target_os = "android", target_os = "ios"))]
+impl ApduTransport for CallbackApduTransport {
+    fn send_apdu_timeout(&self, apdu: &str, timeout: i32) -> Result<String> {
+        send_apdu_with_callback(apdu, timeout)
+    }
 }
 
 //#[cfg(any(target_os = "macos", target_os = "windows"))]
@@ -26,19 +60,18 @@ lazy_static! {
 
 #[no_mangle]
 pub extern "C" fn default_callback(_apdu: *const c_char, _timeout: i32) -> *const c_char {
-    CString::new("need set callback!".to_owned())
-        .unwrap()
-        .into_raw()
+    static RESPONSE: &[u8] = b"need set callback!\0";
+    RESPONSE.as_ptr() as *const c_char
 }
 
-pub fn set_callback(callback: extern "C" fn(apdu: *const c_char, timeout: i32) -> *const c_char) {
+pub fn set_callback(callback: Callback) {
     let mut _callback = CALLBACK.lock();
-    *_callback = callback;
+    *_callback = Some(callback);
 }
 
 pub fn get_apdu() -> *const c_char {
     let apdu = APDU.read();
-    CString::new(apdu.to_owned()).unwrap().into_raw()
+    c_string_ptr(&apdu)
 }
 
 #[allow(dead_code)]
@@ -62,10 +95,12 @@ fn set_apdu_r(apdu: String) {
 ///
 /// `apdu` must be a valid, non-null pointer to a NUL-terminated C string.
 pub unsafe fn set_apdu(apdu: *const c_char) {
+    if apdu.is_null() {
+        return;
+    }
     let mut _apdu = APDU.write();
     let c_str: &CStr = unsafe { CStr::from_ptr(apdu) };
-    let str_slice: &str = c_str.to_str().unwrap();
-    let str_buf: String = str_slice.to_owned();
+    let str_buf: String = c_str.to_string_lossy().into_owned();
     *_apdu = str_buf;
     drop(_apdu);
 }
@@ -99,17 +134,19 @@ fn get_apdu_return_r() -> Result<String> {
 
 pub fn get_apdu_return() -> *const c_char {
     let apdu = APDU_RETURN.read();
-    CString::new(apdu.to_owned()).unwrap().into_raw()
+    c_string_ptr(&apdu)
 }
 
 /// # Safety
 ///
 /// `apdu_return` must be a valid, non-null pointer to a NUL-terminated C string.
 pub unsafe fn set_apdu_return(apdu_return: *const c_char) {
+    if apdu_return.is_null() {
+        return;
+    }
     let mut _apdu_return = APDU_RETURN.write();
     let c_str: &CStr = unsafe { CStr::from_ptr(apdu_return) };
-    let str_slice: &str = c_str.to_str().unwrap();
-    let str_buf: String = str_slice.to_owned();
+    let str_buf: String = c_str.to_string_lossy().into_owned();
     *_apdu_return = str_buf;
     drop(_apdu_return);
 }
@@ -121,7 +158,8 @@ pub fn send_apdu(apdu: String) -> Result<String> {
 
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub fn send_apdu_timeout(apdu: String, timeout: i32) -> Result<String> {
-    hid_api::hid_send(&apdu, timeout)
+    let transport = HidApduTransport;
+    transport.send_apdu_timeout(&apdu, timeout)
 }
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -131,32 +169,45 @@ pub fn send_apdu(apdu: String) -> Result<String> {
 
 #[cfg(any(target_os = "android", target_os = "ios"))]
 pub fn send_apdu_timeout(apdu: String, timeout: i32) -> Result<String> {
-    // set_apdu_r(apdu);
-    // get_apdu_return_r().unwrap()
+    let transport = CallbackApduTransport;
+    transport.send_apdu_timeout(&apdu, timeout)
+}
 
-    let callback = CALLBACK.lock();
-    let ptr = callback(CString::new(apdu).unwrap().into_raw(), timeout);
+#[cfg(target_arch = "wasm32")]
+pub fn send_apdu(apdu: String) -> Result<String> {
+    send_apdu_timeout(apdu, 20)
+}
 
-    // let mut res = unsafe { Ok(CStr::from_ptr(ptr).to_string_lossy().into_owned()) }?;
-    // let prefix = "communication_error_";
-    // if res.starts_with(prefix){
-    //     let error = &res[..prefix.len()-1];
-    //     return Err(anyhow!("{}", error))
-    // }else {
-    //     return Ok(res)
-    // }
+#[cfg(target_arch = "wasm32")]
+pub fn send_apdu_timeout(_apdu: String, _timeout: i32) -> Result<String> {
+    Err(anyhow!("imkey_sync_apdu_not_supported_in_wasm"))
+}
 
-    unsafe {
-        let res = CStr::from_ptr(ptr).to_string_lossy().into_owned();
-        let prefix = "communication_error_";
-        return if res.starts_with(prefix) {
-            let error = &res[prefix.len()..];
-            println!("{}", error);
-            Err(anyhow!("{}", error))
-        } else {
-            println!("{}", res);
-            Ok(res)
-        };
+#[cfg(any(target_os = "android", target_os = "ios", test))]
+fn send_apdu_with_callback(apdu: &str, timeout: i32) -> Result<String> {
+    let callback_guard = CALLBACK.lock();
+    let callback = callback_guard
+        .as_ref()
+        .copied()
+        .ok_or_else(|| anyhow!("callback_not_registered"))?;
+    invoke_callback(apdu, timeout, callback)
+}
+
+#[cfg(any(target_os = "android", target_os = "ios", test))]
+fn invoke_callback(apdu: &str, timeout: i32, callback: Callback) -> Result<String> {
+    let c_apdu = CString::new(apdu).map_err(|_| anyhow!("imkey_invalid_apdu"))?;
+    let response_ptr = callback(c_apdu.as_ptr(), timeout);
+    if response_ptr.is_null() {
+        return Err(anyhow!("imkey_send_apdu_timeout"));
+    }
+
+    // The mobile side owns the response. Copy it while callback response
+    // storage is protected by the caller's callback lock.
+    let response = unsafe { CStr::from_ptr(response_ptr).to_string_lossy().into_owned() };
+    if let Some(error) = response.strip_prefix("communication_error_") {
+        Err(anyhow!("{}", error))
+    } else {
+        Ok(response)
     }
 }
 
@@ -178,11 +229,71 @@ fn test_rwlock() {
 
 #[test]
 fn test_callback() {
-    let callback = CALLBACK.lock();
-    let ptr = callback(
-        CString::new("00A4040000".to_owned()).unwrap().into_raw(),
-        20,
-    );
+    let apdu = CString::new("00A4040000").unwrap();
+    let ptr = default_callback(apdu.as_ptr(), 20);
     let result = unsafe { CStr::from_ptr(ptr).to_string_lossy().into_owned() };
-    println!("callback result:{:#?}", result);
+    assert_eq!(result, "need set callback!");
+}
+
+#[test]
+fn callback_input_is_borrowed_and_response_is_copied() {
+    extern "C" fn callback(apdu: *const c_char, timeout: i32) -> *const c_char {
+        assert_eq!(timeout, 20);
+        let apdu = unsafe { CStr::from_ptr(apdu) }.to_str().unwrap();
+        assert_eq!(apdu, "00A4040000");
+        static RESPONSE: &[u8] = b"9000\0";
+        RESPONSE.as_ptr() as *const c_char
+    }
+
+    set_callback(callback);
+    for _ in 0..100_000 {
+        assert_eq!(send_apdu_with_callback("00A4040000", 20).unwrap(), "9000");
+    }
+}
+
+#[test]
+fn callback_errors_are_explicit() {
+    extern "C" fn null_callback(_apdu: *const c_char, _timeout: i32) -> *const c_char {
+        std::ptr::null()
+    }
+    extern "C" fn error_callback(_apdu: *const c_char, _timeout: i32) -> *const c_char {
+        static RESPONSE: &[u8] = b"communication_error_disconnected\0";
+        RESPONSE.as_ptr() as *const c_char
+    }
+
+    assert_eq!(
+        invoke_callback("00\0A4", 20, null_callback)
+            .unwrap_err()
+            .to_string(),
+        "imkey_invalid_apdu"
+    );
+    assert_eq!(
+        invoke_callback("00A4", 20, null_callback)
+            .unwrap_err()
+            .to_string(),
+        "imkey_send_apdu_timeout"
+    );
+    assert_eq!(
+        invoke_callback("00A4", 20, error_callback)
+            .unwrap_err()
+            .to_string(),
+        "disconnected"
+    );
+}
+
+#[test]
+fn test_apdu_transport_trait_can_be_mocked() {
+    struct EchoTransport;
+
+    impl ApduTransport for EchoTransport {
+        fn send_apdu_timeout(&self, apdu: &str, timeout: i32) -> Result<String> {
+            Ok(format!("{apdu}:{timeout}"))
+        }
+    }
+
+    let transport = EchoTransport;
+    assert_eq!(
+        "00A4040000:20",
+        transport.send_apdu_timeout("00A4040000", 20).unwrap()
+    );
 }

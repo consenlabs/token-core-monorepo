@@ -5,6 +5,7 @@ use ikc_common::constants;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{hex_to_bytes, secp256k1_sign, sha256_hash};
 use ikc_common::ToHex;
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::{self, ecdsa::Signature as SecpSignature};
@@ -19,35 +20,44 @@ pub struct CosmosTransaction {
 }
 
 impl CosmosTransaction {
+    async fn send_checked<T>(transport: &T, apdu: String, timeout: i32) -> Result<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let response = transport.send_apdu(&apdu, timeout).await?;
+        ApduCheck::check_response(&response)?;
+        Ok(response)
+    }
+
     pub fn sign(self) -> Result<CosmosTxOutput> {
         check_path_validity(&self.path).unwrap();
         let sign_hash = sha256_hash(hex_to_bytes(&self.sign_data)?.as_slice());
         let mut sign_pack = "0120".to_string();
         sign_pack.push_str(&sign_hash.to_hex());
-        if self.payment_dis == "" {
+        if self.payment_dis.is_empty() {
             sign_pack.push_str("070008000900");
         } else {
             sign_pack.push_str("07");
-            sign_pack.push_str(&format!("{:02x}", self.payment_dis.as_bytes().len()));
+            sign_pack.push_str(&format!("{:02x}", self.payment_dis.len()));
             sign_pack.push_str(&hex::encode(&self.payment_dis));
             sign_pack.push_str("08");
-            sign_pack.push_str(&format!("{:02x}", self.to_dis.as_bytes().len()));
+            sign_pack.push_str(&format!("{:02x}", self.to_dis.len()));
             sign_pack.push_str(&hex::encode(&self.to_dis));
             sign_pack.push_str("09");
-            sign_pack.push_str(&format!("{:02x}", self.fee_dis.as_bytes().len()));
+            sign_pack.push_str(&format!("{:02x}", self.fee_dis.len()));
             sign_pack.push_str(&hex::encode(&self.fee_dis));
         }
 
         let sign_pack_vec = hex::decode(sign_pack).expect("Decoding failed");
 
         let key_manager_obj = KEY_MANAGER.lock();
-        let mut prepare_data = secp256k1_sign(&key_manager_obj.pri_key, &sign_pack_vec.as_slice())?;
+        let mut prepare_data = secp256k1_sign(&key_manager_obj.pri_key, sign_pack_vec.as_slice())?;
         std::mem::drop(key_manager_obj);
         prepare_data.insert(0, prepare_data.len() as u8);
         prepare_data.insert(0, 0x00);
         prepare_data.extend(sign_pack_vec.iter());
 
-        let select_apdu = CosmosApdu::select_applet();
+        let select_apdu = CosmosApdu::select_applet()?;
         let select_response = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_response)?;
 
@@ -58,7 +68,7 @@ impl CosmosTransaction {
             ApduCheck::check_response(&response)?;
         }
 
-        let sign_apdu = CosmosApdu::sign_digest(&self.path);
+        let sign_apdu = CosmosApdu::sign_digest(&self.path)?;
 
         let sign_result = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_result)?;
@@ -74,6 +84,63 @@ impl CosmosTransaction {
 
         let output = CosmosTxOutput { signature };
         Ok(output)
+    }
+
+    pub async fn sign_async<T>(self, transport: &T) -> Result<CosmosTxOutput>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(&self.path).unwrap();
+        let sign_hash = sha256_hash(hex_to_bytes(&self.sign_data)?.as_slice());
+        let mut sign_pack = "0120".to_string();
+        sign_pack.push_str(&sign_hash.to_hex());
+        if self.payment_dis.is_empty() {
+            sign_pack.push_str("070008000900");
+        } else {
+            sign_pack.push_str("07");
+            sign_pack.push_str(&format!("{:02x}", self.payment_dis.len()));
+            sign_pack.push_str(&hex::encode(&self.payment_dis));
+            sign_pack.push_str("08");
+            sign_pack.push_str(&format!("{:02x}", self.to_dis.len()));
+            sign_pack.push_str(&hex::encode(&self.to_dis));
+            sign_pack.push_str("09");
+            sign_pack.push_str(&format!("{:02x}", self.fee_dis.len()));
+            sign_pack.push_str(&hex::encode(&self.fee_dis));
+        }
+
+        let sign_pack_vec = hex::decode(sign_pack).expect("Decoding failed");
+
+        let mut prepare_data = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            secp256k1_sign(&key_manager_obj.pri_key, sign_pack_vec.as_slice())?
+        };
+        prepare_data.insert(0, prepare_data.len() as u8);
+        prepare_data.insert(0, 0x00);
+        prepare_data.extend(sign_pack_vec.iter());
+
+        let select_apdu = CosmosApdu::select_applet()?;
+        Self::send_checked(transport, select_apdu, 20).await?;
+
+        let prepare_apdus = CosmosApdu::prepare_sign(prepare_data);
+
+        for apdu in prepare_apdus {
+            Self::send_checked(transport, apdu, constants::TIMEOUT_LONG).await?;
+        }
+
+        let sign_apdu = CosmosApdu::sign_digest(&self.path)?;
+
+        let sign_result = Self::send_checked(transport, sign_apdu, 20).await?;
+
+        let sign_compact = hex::decode(&sign_result[2..130]).unwrap();
+        let mut signature_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
+        signature_obj.normalize_s();
+        let normalizes_sig_vec = signature_obj.serialize_compact();
+        let signature = base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            normalizes_sig_vec.as_slice(),
+        );
+
+        Ok(CosmosTxOutput { signature })
     }
 }
 
@@ -93,7 +160,7 @@ mod tests {
         let private_key =
             hex_to_bytes("F85B222058BBEFFF888AAF7AD1D08B0C9C5FF719027F7DB69859B72A17B28749")
                 .unwrap();
-        let prepare_data = secp256k1_sign(&private_key, &sign_pack.as_slice()).unwrap();
+        let prepare_data = secp256k1_sign(&private_key, sign_pack.as_slice()).unwrap();
         let prepare_data_hex = hex::encode(&prepare_data);
         assert_eq!(prepare_data_hex,
                    "3045022100a773a750391978586598843f89921d33083f670049906dc68ad312867df2826d0220312d22dcc102d8ba2a86972c7c73f082c53b29ef0a04ac630def935ed996d9c2"
@@ -142,14 +209,9 @@ mod tests {
 
     #[test]
     fn test_sort_vec() {
-        let mut vec = Vec::new();
-        vec.push("richard");
-        vec.push("charles");
-        vec.push("peter");
-        vec.push("from");
-        vec.push("to");
-        vec.push("delegate");
-        vec.push("valide");
+        let mut vec = vec![
+            "richard", "charles", "peter", "from", "to", "delegate", "valide",
+        ];
 
         vec.sort();
         assert_eq!(
