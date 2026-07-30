@@ -148,13 +148,16 @@ pub fn sign_eth_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u
 pub fn sign_txs(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
     let input: SignTxsInput = SignTxsInput::decode(data).expect("imkey_illegal_param");
 
+    // Batch-level rejections carry no item index: an empty or over-sized batch
+    // is a property of the request, not of item 0. Same wording as the
+    // token-core batch handlers and the TRON batch path so hosts parse one
+    // format per failure class regardless of engine or chain.
     if input.items.is_empty() {
-        return Err(anyhow!("sign_txs failed at index 0: invalid_param"));
+        return Err(anyhow!("sign_txs batch is empty"));
     }
     if input.items.len() > ETH_MAX_BATCH_SIZE {
         return Err(anyhow!(
-            "sign_txs failed at index 0: batch size {} exceeds limit {}",
-            input.items.len(),
+            "sign_txs batch exceeds max size of {}",
             ETH_MAX_BATCH_SIZE
         ));
     }

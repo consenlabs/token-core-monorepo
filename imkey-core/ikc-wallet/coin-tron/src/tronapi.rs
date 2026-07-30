@@ -42,6 +42,42 @@ pub struct TronTxOutput {
 /// Reference: <https://github.com/tronprotocol/tips/blob/master/tip-712.md>
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignTxsInput {
+    #[prost(message, repeated, tag = "1")]
+    pub items: ::prost::alloc::vec::Vec<SignTxsItem>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignTxsItem {
+    #[prost(message, optional, tag = "1")]
+    pub tx: ::core::option::Option<TronTxInput>,
+    #[prost(string, tag = "2")]
+    pub payment: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub receiver: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub sender: ::prost::alloc::string::String,
+    #[prost(string, tag = "6")]
+    pub path: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignTxsItemOutput {
+    #[prost(message, optional, tag = "1")]
+    pub tx: ::core::option::Option<TronTxOutput>,
+    #[prost(string, tag = "2")]
+    pub from_address: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub tx_hash: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignTxsOutput {
+    #[prost(message, repeated, tag = "1")]
+    pub outputs: ::prost::alloc::vec::Vec<SignTxsItemOutput>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TronMessageInput {
     /// The message to sign
     /// - For version 1/2: Raw message string or hex string (with 0x prefix)

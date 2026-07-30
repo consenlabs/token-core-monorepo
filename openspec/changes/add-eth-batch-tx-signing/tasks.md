@@ -45,18 +45,13 @@
   - `test_sign_txs_from_address_populated`（H-3）：含 per-item path 的批量返回的每个 `Output.from_address` 都是 `0x` + 40 hex 字符；distinct effective path 产出 distinct from_address。
 - [x] 4.3 在 `imkey-core/ikc/tests/sign_txs_test.rs` 添加由 `bind_test()` 守护的批量端到端测试：复用现有 fixture 作为 item，分别构造 N=1 / N=1 / N=3（混合 legacy + EIP-1559 + access-list）的批量请求；断言批量 `outputs[i].tx` 与单笔 `sign_eth_transaction` 输出逐字节相同，且 `outputs[i].from_address` 等于该 item 的 `sender`（H-3）。
 - [x] 4.4 在 `imkey-core/ikc/tests/sign_txs_test.rs` 添加无设备依赖的批量 wrapper 单测（不需要 `bind_test()`，因为以下分支都在 `select_applet` 之前返回）：
-  - 空批量：`items` 为空时返回错误，错误信息匹配 `invalid_param`。
-  - 超限批量：101 笔（哑数据即可）时返回错误，错误信息含上限 100。
+  - 空批量：`items` 为空时返回 `sign_txs batch is empty`（批级错误不带下标）。
+  - 超限批量：101 笔（哑数据即可）时返回 `sign_txs batch exceeds max size of 100`。
   - 非法 item.path：某个 item 的 path 不符合 BIP-32 时整批被拒，错误信息含 `failed at index N`。
   - 缺失 tx 字段：item.tx 为 `None` 时整批被拒，错误信息含失败下标。
   - sender 为空：item.sender 为空字符串时整批被拒（与单笔 `sign_tx` 在该字段缺失时的行为对齐），错误信息含失败下标。
   - 空 effective path（H-2）：外层 `sign_param.path: ""` + item.path: `""` 时整批被拒，错误信息含 `failed at index 0` + `empty derivation path`。
 
-## 5. 文档
-
-- [ ] 5.1 更新 `token-core/tcx-docs`（markdown / mdbook）：新动作的请求/响应、共享 path 与 per-item path 用法、批量上限 2048、错误格式（`"sign_txs failed at index {i}: {source}"`）、`Output.fromAddress` 字段的语义与 host UX 推荐做法（密码弹框前展示 `{path → from_address}` 集合），以及 stake 流程的完整调用样例。
-- [ ] 5.2 同步更新 `imkey-core/ikc-docs`：新动作的请求/响应、`SignTxsItem` 中 `payment` / `receiver` / `sender` / `fee` 由 host 提供的契约、`SignTxsItemOutput.from_address` 与设备 sender-校验的强等价关系、共享 path 与 per-item path 用法、批量上限 100，并明确注明本次变更不修改固件——imKey 设备仍要求逐笔在物理键上确认（host UX 应据此提示用户准备按 N 次确认，并自行评估业务可接受的最大笔数）。
-- [ ] 5.3 在既有 `eth_batch_personal_sign` 文档段落处交叉链接到新动作，便于调用方一并发现两类批量入口。
 
 ## 6. 校验与签收
 

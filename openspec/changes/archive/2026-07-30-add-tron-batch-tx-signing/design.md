@@ -132,7 +132,7 @@ token-core 将单笔 signer 中的 TRON path 检查抽成可复用且返回 `Res
 - 空批量：`sign_txs batch is empty`
 - 超过上限：`sign_txs batch exceeds max size of {max}`
 
-这与 token-core 侧 ETH 批签现有文案一致。imkey-core 侧 ETH 批签目前把这两类批级错误也写成了 `sign_txs failed at index 0: ...`，而空批量并不存在下标 0；TRON 不沿用该写法，是否回头统一 ETH 侧文案留给单独的变更处理。
+这与 token-core 侧 ETH 批签现有文案一致。imkey-core 侧 ETH 批签原本把这两类批级错误也写成 `sign_txs failed at index 0: ...`，而空批量并不存在下标 0；随本变更一并把 `ikc/src/ethereum_signer.rs` 的这两条文案改成同一形式，使 `sign_txs` 在两个引擎、两条链上对同一类失败只有一种文案。
 
 ### 5. token-core 一次解锁、顺序薄循环
 

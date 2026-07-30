@@ -2054,9 +2054,8 @@ pub fn test_sign_txs_wrong_password_rejected() {
 // ---------------------------------------------------------------------------
 // Security-review-driven tests (issue consenlabs/infrastructure#312).
 //
-// H-1: handler must reject non-ETHEREUM `chain_type` symmetrically with
-//      imkey-core, even though the underlying signer hard-codes ETHEREUM
-//      and `sign_txs` is intentionally chain-neutral on the action name.
+// H-1: handler must reject chain types other than the explicitly supported
+//      ETHEREUM and TRON routes.
 //
 // H-2: an empty *effective* path (outer empty + per-item empty) must be
 //      rejected before unlocking, instead of silently signing with the
@@ -2083,8 +2082,8 @@ pub fn test_sign_txs_unsupported_chain_rejected() {
             seg_wit: "".to_string(),
             items: vec![make_batch_item(legacy_eth_tx_input(), "")],
         };
-        let err =
-            call_api("sign_txs", param).expect_err("non-ETHEREUM chain_type must be rejected");
+        let err = call_api("sign_txs", param)
+            .expect_err("chain types other than ETHEREUM/TRON must be rejected");
         assert!(
             err.to_string().contains("unsupported_chain"),
             "expected `unsupported_chain` error, got: {err}"
@@ -2164,6 +2163,323 @@ pub fn test_sign_txs_from_address_populated() {
         assert_ne!(
             batch_result.outputs[0].from_address, batch_result.outputs[1].from_address,
             "from_address must differ across distinct effective paths"
+        );
+
+        remove_created_wallet(&wallet.id);
+    });
+}
+
+// ---- TRON sign_txs end-to-end tests ------------------------------------
+
+const TRON_BATCH_PATH: &str = "m/44'/195'/0'/0/0";
+const TRON_BATCH_RAW_DATA: &str = "0a0202a22208e216e254e43ee10840c8cbe4e3df2d5a67080112630a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412320a15415c68cc82c87446f602f019e5fd797437f5b79cc212154156a6076cd1537fa317c2606e4edfa4acd3e8e92e18a08d06709084e1e3df2d";
+
+fn tron_batch_input() -> TronTxInput {
+    TronTxInput {
+        raw_data: TRON_BATCH_RAW_DATA.to_string(),
+    }
+}
+
+fn make_tron_batch_item(input: TronTxInput, path: &str) -> SignTxsItem {
+    SignTxsItem {
+        input: encode_message(input).unwrap(),
+        path: path.to_string(),
+    }
+}
+
+fn make_tron_sign_param(
+    wallet_id: &str,
+    path: &str,
+    input: TronTxInput,
+    key: sign_param::Key,
+) -> SignParam {
+    SignParam {
+        id: wallet_id.to_string(),
+        key: Some(key),
+        chain_type: "TRON".to_string(),
+        path: path.to_string(),
+        curve: "secp256k1".to_string(),
+        network: "".to_string(),
+        seg_wit: "".to_string(),
+        input: Some(::prost_types::Any {
+            type_url: "imtoken".to_string(),
+            value: encode_message(input).unwrap(),
+        }),
+    }
+}
+
+#[test]
+#[serial]
+pub fn test_tron_sign_txs_matches_single_and_preserves_order() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+        let input = tron_batch_input();
+        let override_path = "m/44'/195'/0'/0/1";
+        let paths = [TRON_BATCH_PATH, override_path];
+
+        let single_outputs = paths
+            .iter()
+            .map(|path| {
+                let encoded = call_api(
+                    "sign_tx",
+                    make_tron_sign_param(
+                        &wallet.id,
+                        path,
+                        input.clone(),
+                        Key::Password(TEST_PASSWORD.to_string()),
+                    ),
+                )
+                .unwrap();
+                TronTxOutput::decode(encoded.as_slice()).unwrap()
+            })
+            .collect::<Vec<_>>();
+
+        let batch = SignTxsParam {
+            id: wallet.id.clone(),
+            key: Some(sign_txs_param::Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TRON".to_string(),
+            path: TRON_BATCH_PATH.to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items: vec![
+                make_tron_batch_item(input.clone(), ""),
+                make_tron_batch_item(input.clone(), override_path),
+            ],
+        };
+        let encoded = call_api("sign_txs", batch).unwrap();
+        let result = SignTxsResult::decode(encoded.as_slice()).unwrap();
+        let expected_tx_id = tcx_tron::signer::transaction_hash(&input).unwrap();
+
+        assert_eq!(result.outputs.len(), 2);
+        for (index, output) in result.outputs.iter().enumerate() {
+            assert_eq!(output.signature, single_outputs[index].signatures[0]);
+            assert_eq!(output.tx_hash, expected_tx_id);
+            assert_eq!(output.tx_hash.len(), 64);
+            assert!(!output.tx_hash.starts_with("0x"));
+            assert!(output.from_address.starts_with('T'));
+        }
+        assert_ne!(
+            result.outputs[0].from_address,
+            result.outputs[1].from_address
+        );
+
+        remove_created_wallet(&wallet.id);
+    });
+}
+
+#[test]
+#[serial]
+pub fn test_tron_sign_txs_static_validation_and_limits() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+        let base = |items: Vec<SignTxsItem>, path: &str| SignTxsParam {
+            id: wallet.id.clone(),
+            key: Some(sign_txs_param::Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TRON".to_string(),
+            path: path.to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items,
+        };
+
+        let empty = call_api("sign_txs", base(vec![], TRON_BATCH_PATH)).unwrap_err();
+        assert_eq!(empty.to_string(), "sign_txs batch is empty");
+
+        let item = make_tron_batch_item(tron_batch_input(), "");
+        let oversized = call_api("sign_txs", base(vec![item; 2049], TRON_BATCH_PATH)).unwrap_err();
+        assert_eq!(
+            oversized.to_string(),
+            "sign_txs batch exceeds max size of 2048"
+        );
+
+        let bad_proto = SignTxsItem {
+            input: vec![0xff, 0xff],
+            path: String::new(),
+        };
+        assert!(call_api("sign_txs", base(vec![bad_proto], TRON_BATCH_PATH))
+            .unwrap_err()
+            .to_string()
+            .contains("sign_txs failed at index 0: invalid TronTxInput"));
+
+        let bad_raw_data = TronTxInput {
+            raw_data: "not-hex".to_string(),
+        };
+        let indexed = call_api(
+            "sign_txs",
+            base(
+                vec![
+                    make_tron_batch_item(tron_batch_input(), ""),
+                    make_tron_batch_item(bad_raw_data, ""),
+                ],
+                TRON_BATCH_PATH,
+            ),
+        )
+        .unwrap_err();
+        assert!(indexed.to_string().contains("sign_txs failed at index 1"));
+
+        let empty_path = call_api(
+            "sign_txs",
+            base(vec![make_tron_batch_item(tron_batch_input(), "")], ""),
+        )
+        .unwrap_err();
+        assert!(empty_path
+            .to_string()
+            .contains("sign_txs failed at index 0: empty derivation path"));
+
+        let invalid_path = call_api(
+            "sign_txs",
+            base(
+                vec![make_tron_batch_item(tron_batch_input(), "m/44'/60'/0'/0/0")],
+                TRON_BATCH_PATH,
+            ),
+        )
+        .unwrap_err();
+        assert!(invalid_path
+            .to_string()
+            .contains("sign_txs failed at index 0: invalid_sign_path"));
+
+        // Static validation is deliberately performed before credential
+        // verification, so this must report raw_data rather than password.
+        let mut invalid_before_unlock = base(
+            vec![make_tron_batch_item(
+                TronTxInput {
+                    raw_data: "not-hex".to_string(),
+                },
+                "",
+            )],
+            TRON_BATCH_PATH,
+        );
+        invalid_before_unlock.key = Some(sign_txs_param::Key::Password("wrong".to_string()));
+        assert!(call_api("sign_txs", invalid_before_unlock)
+            .unwrap_err()
+            .to_string()
+            .contains("sign_txs failed at index 0"));
+
+        remove_created_wallet(&wallet.id);
+    });
+}
+
+#[test]
+#[serial]
+pub fn test_tron_sign_txs_password_and_derived_key() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+        let input = tron_batch_input();
+
+        let wallet_key = WalletKeyParam {
+            id: wallet.id.clone(),
+            key: Some(api::wallet_key_param::Key::Password(
+                TEST_PASSWORD.to_string(),
+            )),
+        };
+        let derived = DerivedKeyResult::decode(
+            get_derived_key(&encode_message(wallet_key).unwrap())
+                .unwrap()
+                .as_slice(),
+        )
+        .unwrap();
+
+        let single = call_api(
+            "sign_tx",
+            make_tron_sign_param(
+                &wallet.id,
+                TRON_BATCH_PATH,
+                input.clone(),
+                Key::DerivedKey(derived.derived_key.clone()),
+            ),
+        )
+        .unwrap();
+        let single = TronTxOutput::decode(single.as_slice()).unwrap();
+
+        let batch = SignTxsParam {
+            id: wallet.id.clone(),
+            key: Some(sign_txs_param::Key::DerivedKey(derived.derived_key)),
+            chain_type: "TRON".to_string(),
+            path: TRON_BATCH_PATH.to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items: vec![make_tron_batch_item(input, "")],
+        };
+        let result =
+            SignTxsResult::decode(call_api("sign_txs", batch).unwrap().as_slice()).unwrap();
+        assert_eq!(result.outputs[0].signature, single.signatures[0]);
+
+        let wrong_password = SignTxsParam {
+            id: wallet.id.clone(),
+            key: Some(sign_txs_param::Key::Password("wrong".to_string())),
+            chain_type: "TRON".to_string(),
+            path: TRON_BATCH_PATH.to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items: vec![make_tron_batch_item(tron_batch_input(), "")],
+        };
+        assert_eq!(
+            call_api("sign_txs", wrong_password)
+                .unwrap_err()
+                .to_string(),
+            "password_incorrect"
+        );
+
+        remove_created_wallet(&wallet.id);
+    });
+}
+
+#[test]
+#[serial]
+pub fn test_tron_sign_txs_private_key_requires_placeholder_path() {
+    run_test(|| {
+        let wallet = import_default_pk_store();
+        let input = tron_batch_input();
+
+        let single = call_api(
+            "sign_tx",
+            make_tron_sign_param(
+                &wallet.id,
+                "",
+                input.clone(),
+                Key::Password(TEST_PASSWORD.to_string()),
+            ),
+        )
+        .unwrap();
+        let single = TronTxOutput::decode(single.as_slice()).unwrap();
+
+        let empty_path_batch = SignTxsParam {
+            id: wallet.id.clone(),
+            key: Some(sign_txs_param::Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TRON".to_string(),
+            path: "".to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items: vec![make_tron_batch_item(input.clone(), "")],
+        };
+        let empty_path_error = call_api("sign_txs", empty_path_batch).unwrap_err();
+        assert!(empty_path_error
+            .to_string()
+            .contains("sign_txs failed at index 0: empty derivation path"));
+
+        let batch = SignTxsParam {
+            id: wallet.id.clone(),
+            key: Some(sign_txs_param::Key::Password(TEST_PASSWORD.to_string())),
+            chain_type: "TRON".to_string(),
+            path: TRON_BATCH_PATH.to_string(),
+            network: "".to_string(),
+            seg_wit: "".to_string(),
+            items: vec![
+                make_tron_batch_item(input.clone(), ""),
+                make_tron_batch_item(input, "m/44'/195'/0'/0/1"),
+            ],
+        };
+        let result =
+            SignTxsResult::decode(call_api("sign_txs", batch).unwrap().as_slice()).unwrap();
+
+        assert_eq!(result.outputs.len(), 2);
+        assert!(result
+            .outputs
+            .iter()
+            .all(|output| output.signature == single.signatures[0]));
+        assert_eq!(
+            result.outputs[0].from_address,
+            result.outputs[1].from_address
         );
 
         remove_created_wallet(&wallet.id);

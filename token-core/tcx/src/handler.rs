@@ -72,6 +72,12 @@ use tcx_eth::signer::{
 };
 use tcx_eth::transaction::EthTxInput;
 use tcx_keystore::{MessageSigner, TransactionSigner};
+use tcx_tron::signer::{
+    sign_txs as tron_sign_txs, transaction_hash as tron_transaction_hash,
+    validate_sign_path as validate_tron_sign_path, SignTxsItem as TronSignTxsItem,
+    TRON_MAX_BATCH_SIZE,
+};
+use tcx_tron::transaction::TronTxInput;
 
 use tcx_primitive::Ss58Codec;
 use tcx_substrate::{decode_substrate_keystore, encode_substrate_keystore, SubstrateKeystore};
@@ -1702,16 +1708,14 @@ impl_to_key!(crate::api::sign_txs_param::Key);
 pub(crate) fn sign_txs(data: &[u8]) -> Result<Vec<u8>> {
     let param: SignTxsParam = SignTxsParam::decode(data)?;
 
-    // Reject anything that isn't ETHEREUM up-front. The proto comment promises
-    // `chain_type == "ETHEREUM"` and the underlying signer hard-codes the
-    // chain type, but without this guard a host that mis-fills `chain_type`
-    // would silently route through the ETH path. This also matches imkey-core's
-    // `call_imkey_api`'s `"sign_txs"` branch, which already returns
-    // `unsupported_chain` for non-ETH. See security review H-1.
-    if param.chain_type != "ETHEREUM" {
-        return Err(anyhow!("sign_txs unsupported_chain"));
+    match param.chain_type.as_str() {
+        "ETHEREUM" => sign_eth_txs(&param),
+        "TRON" => sign_tron_txs(&param),
+        _ => Err(anyhow!("sign_txs unsupported_chain")),
     }
+}
 
+fn sign_eth_txs(param: &SignTxsParam) -> Result<Vec<u8>> {
     if param.items.is_empty() {
         return Err(anyhow!("sign_txs batch is empty"));
     }
@@ -1775,6 +1779,74 @@ pub(crate) fn sign_txs(data: &[u8]) -> Result<Vec<u8>> {
         .map(|signed| sign_txs_result::Output {
             signature: signed.output.signature,
             tx_hash: signed.output.tx_hash,
+            from_address: signed.from_address,
+        })
+        .collect();
+
+    encode_message(SignTxsResult { outputs })
+}
+
+fn sign_tron_txs(param: &SignTxsParam) -> Result<Vec<u8>> {
+    if param.items.is_empty() {
+        return Err(anyhow!("sign_txs batch is empty"));
+    }
+    if param.items.len() > TRON_MAX_BATCH_SIZE {
+        return Err(anyhow!(
+            "sign_txs batch exceeds max size of {}",
+            TRON_MAX_BATCH_SIZE
+        ));
+    }
+
+    let mut items: Vec<TronSignTxsItem> = Vec::with_capacity(param.items.len());
+    for (index, raw) in param.items.iter().enumerate() {
+        let input = TronTxInput::decode(raw.input.as_slice()).map_err(|err| {
+            anyhow!(
+                "sign_txs failed at index {}: invalid TronTxInput: {}",
+                index,
+                err
+            )
+        })?;
+        let effective_path = if raw.path.is_empty() {
+            param.path.clone()
+        } else {
+            raw.path.clone()
+        };
+        if effective_path.is_empty() {
+            return Err(anyhow!(
+                "sign_txs failed at index {}: empty derivation path",
+                index
+            ));
+        }
+        validate_tron_sign_path(&effective_path)
+            .map_err(|err| anyhow!("sign_txs failed at index {}: {}", index, err))?;
+        tron_transaction_hash(&input)
+            .map_err(|err| anyhow!("sign_txs failed at index {}: {}", index, err))?;
+        items.push(TronSignTxsItem {
+            input,
+            path: effective_path,
+        });
+    }
+
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
+    }?;
+
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
+
+    let outputs = tron_sign_txs(guard.keystore_mut(), &items)?
+        .into_iter()
+        .map(|signed| sign_txs_result::Output {
+            signature: signed.signature,
+            tx_hash: signed.tx_hash,
             from_address: signed.from_address,
         })
         .collect();

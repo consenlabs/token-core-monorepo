@@ -1,5 +1,8 @@
-## ADDED Requirements
+# eth-batch-tx-signing Specification
 
+## Purpose
+TBD - created by archiving change add-eth-batch-tx-signing. Update Purpose after archive.
+## Requirements
 ### Requirement: ETH 交易批量签名入口
 
 两个签名引擎 SHALL 各自暴露一个 SDK 动作，接受任意 N 笔（其中 N ≥ 1）有序的 ETH 交易输入列表，并按相同顺序返回对应的已签名交易。N 的合法上界由各引擎的批量上限 Requirement 单独约束，不限定具体业务场景：N 既可以是少量（如 staking 流程的 prepay + stake 两笔、合约批量 approve 数笔），也可以是数十乃至上百笔（如批量空投、归集出账、dApp 一次性下发的多笔 meta-tx）。该动作 SHALL 在 `call_tcx_api`（token-core）与 `call_imkey_api`（imkey-core）中均命名为 `sign_txs`。
@@ -64,6 +67,8 @@
 
 批量动作 SHALL 采用 all-or-nothing 语义。若任意一笔输入在校验、派生或签名阶段失败，该动作 SHALL 中止整批、不返回任何部分签名结果，并通过与 `sign_tx` / `eth_batch_personal_sign` 相同的字符串错误返回路径抛出错误。该错误信息 SHALL 形如 `"sign_txs failed at index {i}: {source}"`，其中 `{i}` 为失败 item 的零基下标，`{source}` 为底层错误原文。
 
+批级错误（空批量、超过上限）不关联任何 item，因此 MUST NOT 带下标，两个引擎 MUST 使用相同文案：空批量为 `sign_txs batch is empty`，超限为 `sign_txs batch exceeds max size of {max}`。
+
 #### Scenario: 非法 `to` 导致整批中止
 
 - **WHEN** 批量请求中第一笔合法、第二笔的 `to` 为非法地址
@@ -74,7 +79,7 @@
 #### Scenario: 拒绝空批量
 
 - **WHEN** 提交一个不含任何 item 的批量请求
-- **THEN** 该动作 SHALL 返回错误，提示批量为空
+- **THEN** 该动作 SHALL 返回 `sign_txs batch is empty`
 - **AND** SHALL 不返回任何签名
 
 ### Requirement: 不同引擎不同的批量上限
@@ -84,13 +89,13 @@
 #### Scenario: token-core 拒绝 2049 笔
 
 - **WHEN** 在 token-core 上提交 2049 笔批量请求
-- **THEN** 该动作 SHALL 返回错误，提示批量超过上限 2048
+- **THEN** 该动作 SHALL 返回 `sign_txs batch exceeds max size of 2048`
 - **AND** keystore SHALL 不被解锁
 
 #### Scenario: imkey-core 拒绝 101 笔
 
 - **WHEN** 在 imkey-core 上提交 101 笔批量请求
-- **THEN** 该动作 SHALL 返回错误，提示批量超过上限 100
+- **THEN** 该动作 SHALL 返回 `sign_txs batch exceeds max size of 100`
 - **AND** imKey ETH applet SHALL 不被 select
 
 ### Requirement: 与单笔 sign_tx 的鉴权对等

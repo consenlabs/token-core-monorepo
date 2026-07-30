@@ -156,7 +156,7 @@
 - **非法 item.path 测试**：item.path 不符合 BIP-32 时整批被拒，错误带下标。
 - **端到端测试（`tcx/tests/sign_test.rs`）**：参考 `test_eth_batch_personal_sign`（约第 1415 行），但针对交易，调用 FFI dispatcher，覆盖 prepay + stake 这一对组合及错误密码反例，并加入一个 per-item path 的端到端用例。
 - **imkey 测试（`imkey-core/ikc/src/ethereum_signer.rs`）**：把现有 fixture（`test_sign_eth_transaction_eip1559`、`..._legacy`、`..._multi_access_list`）按下标 0 和下标 1 各封装成 1 笔批量与 2 笔批量后再跑，断言每个 `outputs[i]` 与对应单笔调用 `sign_eth_transaction(item.tx, sign_param_i)` 的结果逐字节一致；与该文件其余用例一样以 `bind_test()` 守护。这一断言的含义就是"批量 = N 次单笔"——任何偏差都意味着我们错误地引入了 batch-only 路径。
-- **批量 wrapper 的无设备单测（`imkey-core/ikc/src/ethereum_signer.rs`）**：批量层引入的新逻辑（前置校验、path 折叠、错误下标包装、上限拒绝）应当在 select_applet 之前发生，可以做无设备依赖的单测覆盖：空批量 / 101 笔批量 / 非法 item.path / 缺失 tx 字段——断言错误信息分别匹配 `invalid_param` / `oversized batch` / `failed at index N` 等模式，且分支不会触发任何 APDU。这部分的 `Transaction::sign` 路径不被进入，因此无需 `bind_test()`。
+- **批量 wrapper 的无设备单测（`imkey-core/ikc/src/ethereum_signer.rs`）**：批量层引入的新逻辑（前置校验、path 折叠、错误下标包装、上限拒绝）应当在 select_applet 之前发生，可以做无设备依赖的单测覆盖：空批量 / 101 笔批量 / 非法 item.path / 缺失 tx 字段——断言错误信息分别等于 `sign_txs batch is empty` / `sign_txs batch exceeds max size of 100`，或匹配 `failed at index N`（批级错误不带下标，逐 item 错误带下标），且分支不会触发任何 APDU。这部分的 `Transaction::sign` 路径不被进入，因此无需 `bind_test()`。
 
 ### 7. 文档
 

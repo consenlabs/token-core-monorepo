@@ -76,6 +76,48 @@ tronWeb.transactionBuilder.sendTrx(address1, 100, address).then( resp => {
 
 注：TRON 的 txID 并不包括签名信息
 
+### 批量签名
+
+token-core 通过链无关动作 `sign_txs` 批量签署 TRON 交易。外层使用
+`SignTxsParam`，其中 `chainType` 为 `TRON`；每个 `SignTxsItem.input`
+是 protobuf 编码后的 `TronTxInput`。调用方使用 `password` 或
+`derivedKey` 鉴权，整批只解锁 keystore 一次。
+
+```text
+SignTxsParam {
+  id: wallet_id,
+  key: password 或 derivedKey,
+  chainType: "TRON",
+  path: "m/44'/195'/0'/0/0",
+  items: [
+    { input: encode(TronTxInput { rawData }), path: "" },
+    { input: encode(TronTxInput { rawData }), path: "m/44'/195'/0'/0/1" }
+  ]
+}
+```
+
+item 的 `path` 非空时覆盖外层 path，否则继承外层 path。批签要求每笔
+effective path 都非空且符合 TRON coin type `195'` 的约束；历史单签中
+允许 `path: ""` 的调用方（包括私钥 keystore）迁移到批签时，也必须显式
+提供合法占位 path，例如 `m/44'/195'/0'/0/0`。私钥 keystore 不使用该
+path 派生密钥，但仍执行相同的批签输入校验。
+
+一次请求最多包含 2048 笔交易。结果严格保持输入顺序：
+
+- `signature` 与相同输入、path 的 `sign_tx` 结果一致；
+- `txHash` 是 `SHA256(raw_data)` 的 64 位小写十六进制 txID，不带 `0x`；
+- `fromAddress` 是签名 key 对应的 Base58Check TRON 地址。
+
+任一 item 失败时整批不返回部分结果，错误格式为
+`sign_txs failed at index {i}: {source}`。调用方应按输出下标把签名写回
+对应交易，并在整个批量成功、核对 txID 与 fromAddress 后再广播；不得
+提前广播已处理的前缀交易。
+
+空批量和超限属于批级错误，分别返回 `sign_txs batch is empty` 和
+`sign_txs batch exceeds max size of 2048`，不附带 item 下标。非法
+protobuf、非法 `raw_data` hex、空或非法 effective path 会在查找或解锁
+keystore 之前完成整批预检。
+
 ### 发送交易流程
 
 - tronWeb.transactionBuilder.sendTx 创建一个未签名的交易
@@ -176,4 +218,3 @@ impl TransactionSigner for Wallet {
 
 }
 ```
-

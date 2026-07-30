@@ -260,11 +260,11 @@ pub struct EthBatchPersonalSignResult {
 }
 /// FUNCTION: sign_txs(SignTxsParam): SignTxsResult
 ///
-/// Sign a batch of Ethereum transactions in a single SDK call. The action name
-/// `sign_txs` is intentionally chain-neutral so future per-chain batch backends
-/// can plug in via `chainType` without an additional dispatcher entry. The
-/// keystore is unlocked exactly once for the whole batch. Up to
-/// ETH_MAX_BATCH_SIZE (2048) items per call. All-or-nothing: any per-item
+/// Sign a batch of Ethereum or TRON transactions in a single SDK call. Each
+/// SignTxsItem.input contains the protobuf-encoded chain-specific input selected
+/// by chainType (transaction.EthTxInput or transaction.TronTxInput). The
+/// keystore is unlocked exactly once for the whole batch. Both initial
+/// backends accept up to 2048 items per call. All-or-nothing: any per-item
 /// failure aborts the batch and returns an error of the form
 /// "sign_txs failed at index {i}: {source}".
 #[allow(clippy::derive_partial_eq_without_eq)]
@@ -272,7 +272,7 @@ pub struct EthBatchPersonalSignResult {
 pub struct SignTxsParam {
     #[prost(string, tag = "1")]
     pub id: ::prost::alloc::string::String,
-    /// must be "ETHEREUM"
+    /// "ETHEREUM" or "TRON"
     #[prost(string, tag = "4")]
     pub chain_type: ::prost::alloc::string::String,
     /// outer default HD derivation path
@@ -301,8 +301,8 @@ pub mod sign_txs_param {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SignTxsItem {
-    /// Prost-encoded transaction.EthTxInput. Hosts encode an EthTxInput
-    /// (defined in eth.proto) and place the bytes here.
+    /// Prost-encoded chain input. Hosts encode transaction.EthTxInput or
+    /// transaction.TronTxInput according to SignTxsParam.chainType.
     #[prost(bytes = "vec", tag = "1")]
     pub input: ::prost::alloc::vec::Vec<u8>,
     /// Optional per-item HD derivation path; empty string means inherit
@@ -324,10 +324,13 @@ pub mod sign_txs_result {
     pub struct Output {
         #[prost(string, tag = "1")]
         pub signature: ::prost::alloc::string::String,
+        /// Chain-specific transaction id: ETH returns 0x-prefixed keccak256;
+        /// TRON returns lowercase SHA-256 without a 0x prefix.
         #[prost(string, tag = "2")]
         pub tx_hash: ::prost::alloc::string::String,
-        /// The from address derived from the *effective* HD path (after merging
-        /// SignTxsParam.path with SignTxsItem.path) used to sign this item.
+        /// The signing address derived from the effective path. ETH returns an
+        /// EIP-55 address; TRON returns a Base58Check address. For a private-key
+        /// keystore the address is determined by that key, independent of path.
         /// Hosts SHOULD cross-check this against the user-intended account
         /// before treating the signed transaction as authorised — this turns
         /// the "host UI shows correct from-address" property from an implicit

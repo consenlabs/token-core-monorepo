@@ -264,12 +264,7 @@ fn test_sign_txs_empty_rejected() {
     let data = SignTxsInput { items: vec![] }.encode_to_vec();
     let err = sign_txs(&data, &make_sign_param(ETH_PATH))
         .expect_err("empty batch must be rejected pre-flight");
-    let msg = err.to_string();
-    assert!(
-        msg.contains("invalid_param"),
-        "expected `invalid_param`, got: {}",
-        msg
-    );
+    assert_eq!(err.to_string(), "sign_txs batch is empty");
 }
 
 #[test]
@@ -280,12 +275,7 @@ fn test_sign_txs_size_limit_rejected() {
     let data = SignTxsInput { items }.encode_to_vec();
     let err = sign_txs(&data, &make_sign_param(ETH_PATH))
         .expect_err("over-limit batch must be rejected pre-flight");
-    let msg = err.to_string();
-    assert!(
-        msg.contains("exceeds limit 100"),
-        "expected size-limit error mentioning 100, got: {}",
-        msg
-    );
+    assert_eq!(err.to_string(), "sign_txs batch exceeds max size of 100");
 }
 
 #[test]
