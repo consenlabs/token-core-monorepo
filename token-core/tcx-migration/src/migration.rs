@@ -423,6 +423,13 @@ mod tests {
             .unwrap();
 
         assert_eq!(unlocker1.derived_key(), unlocker2.derived_key());
+
+        let legacy_crypto = serde_json::to_value(&ks.crypto).unwrap();
+        let migrated_crypto = serde_json::to_value(&keystore.store().crypto).unwrap();
+        assert_ne!(
+            legacy_crypto["cipherparams"]["iv"], migrated_crypto["cipherparams"]["iv"],
+            "v44 migration must refresh the AES-CTR IV when reusing the derived key"
+        );
     }
 
     #[test]

@@ -398,16 +398,20 @@ impl Crypto {
     }
 
     /*
-     * used to update the ciphertext, but without changing the the derived key.
+     * Used to update the ciphertext without changing the derived key.
+     * A fresh IV is required because AES-CTR must never reuse the same
+     * key/IV pair for different plaintexts.
      */
     pub fn dangerous_rewrite_plaintext(
         &mut self,
         derived_key: &[u8],
         plaintext: &[u8],
     ) -> Result<()> {
-        let ciphertext = self.encrypt(derived_key, plaintext)?;
+        let iv = random_u8_16();
+        let ciphertext = encrypt(plaintext, derived_key, &iv)?;
         let mac = generate_mac(derived_key, &ciphertext)?;
 
+        self.cipherparams.iv = iv.to_hex();
         self.ciphertext = ciphertext.to_hex();
         self.mac = mac.to_hex();
 
@@ -612,20 +616,25 @@ mod tests {
     #[test]
     fn test_dangerous_rewrite_plaintext() {
         let mut crypto: Crypto = Crypto::new(TEST_PASSWORD, "TokenCoreX".as_bytes());
+        let original_iv = crypto.cipherparams.iv.clone();
         let derived_key = crypto
             .use_key(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap()
             .derived_key()
             .to_vec();
         crypto
-            .dangerous_rewrite_plaintext(&derived_key, "TokenCoreX".as_bytes())
+            .dangerous_rewrite_plaintext(&derived_key, "RewrittenTokenCoreX".as_bytes())
             .unwrap();
         let cipher_bytes = crypto
             .use_key(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap()
             .plaintext()
             .unwrap();
-        assert_eq!("TokenCoreX", String::from_utf8(cipher_bytes).unwrap());
+        assert_eq!(
+            "RewrittenTokenCoreX",
+            String::from_utf8(cipher_bytes).unwrap()
+        );
+        assert_ne!(original_iv, crypto.cipherparams.iv);
     }
 
     #[test]
