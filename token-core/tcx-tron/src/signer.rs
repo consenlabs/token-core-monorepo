@@ -1,6 +1,7 @@
 use crate::transaction::{TronMessageInput, TronMessageOutput, TronTxInput, TronTxOutput};
+use crate::TronAddress;
 use tcx_keystore::{
-    Keystore, MessageSigner as TraitMessageSigner, Result, SignatureParameters, Signer,
+    Address, Keystore, MessageSigner as TraitMessageSigner, Result, SignatureParameters, Signer,
     TransactionSigner as TraitTransactionSigner,
 };
 
@@ -9,6 +10,104 @@ use bitcoin_hashes::Hash as TraitHash;
 
 use anyhow::anyhow;
 use tcx_common::{keccak256, FromHex, ToHex};
+use tcx_constants::{CoinInfo, CurveType};
+
+/// Maximum number of TRON transactions accepted by one software-signing call.
+pub const TRON_MAX_BATCH_SIZE: usize = 2048;
+
+/// One preflighted TRON transaction in a batch-signing request.
+#[derive(Clone, Debug)]
+pub struct SignTxsItem {
+    pub input: TronTxInput,
+    pub path: String,
+}
+
+/// Chain-neutral fields returned for one successfully signed TRON transaction.
+#[derive(Clone, Debug)]
+pub struct SignedTx {
+    pub signature: String,
+    pub tx_hash: String,
+    pub from_address: String,
+}
+
+/// Preserve the path policy used by the existing TRON transaction signer.
+///
+/// An empty path remains valid for the legacy single-transaction API. Batch
+/// handlers impose the stronger non-empty requirement before calling this
+/// helper.
+pub fn validate_sign_path(path: &str) -> Result<()> {
+    if !path.is_empty() {
+        let path_parts = path.split('/').collect::<Vec<_>>();
+        if path_parts.len() < 4 || path_parts[2] != "195'" {
+            return Err(anyhow!("invalid_sign_path"));
+        }
+    }
+    Ok(())
+}
+
+/// Return the canonical TRON transaction id: lowercase SHA-256 without `0x`.
+pub fn transaction_hash(tx: &TronTxInput) -> Result<String> {
+    let data = Vec::from_hex(&tx.raw_data)?;
+    let hash = Hash::hash(&data);
+    Ok(hash[..].to_hex())
+}
+
+fn tron_coin_info() -> CoinInfo {
+    CoinInfo {
+        chain_id: "".to_string(),
+        coin: "TRON".to_string(),
+        derivation_path: "".to_string(),
+        curve: CurveType::SECP256k1,
+        network: "".to_string(),
+        seg_wit: "".to_string(),
+        contract_code: "".to_string(),
+    }
+}
+
+/// Sign an ordered batch inside an already-unlocked keystore.
+///
+/// The handler performs all static validation before unlocking. This thin
+/// loop deliberately reuses the existing single-transaction signer so batch
+/// signatures stay byte-identical to `sign_tx`.
+pub fn sign_txs(keystore: &mut Keystore, items: &[SignTxsItem]) -> Result<Vec<SignedTx>> {
+    let coin_info = tron_coin_info();
+    let mut outputs = Vec::with_capacity(items.len());
+
+    for (index, item) in items.iter().enumerate() {
+        let params = SignatureParameters {
+            curve: CurveType::SECP256k1,
+            derivation_path: item.path.clone(),
+            chain_type: "TRON".to_string(),
+            ..Default::default()
+        };
+        let output = keystore
+            .sign_transaction(&params, &item.input)
+            .map_err(|err| anyhow!("sign_txs failed at index {}: {}", index, err))?;
+        if output.signatures.len() != 1 {
+            return Err(anyhow!(
+                "sign_txs failed at index {}: expected exactly one TRON signature",
+                index
+            ));
+        }
+
+        let tx_hash = transaction_hash(&item.input)
+            .map_err(|err| anyhow!("sign_txs failed at index {}: {}", index, err))?;
+        let public_key = keystore
+            .get_public_key(CurveType::SECP256k1, &item.path)
+            .map_err(|err| anyhow!("sign_txs failed at index {}: {}", index, err))?;
+        let from_address = TronAddress::from_public_key(&public_key, &coin_info)
+            .map_err(|err| anyhow!("sign_txs failed at index {}: {}", index, err))?
+            .to_string();
+
+        outputs.push(SignedTx {
+            signature: output.signatures[0].clone(),
+            tx_hash,
+            from_address,
+        });
+    }
+
+    Ok(outputs)
+}
 
 // http://jsoneditoronline.org/index.html?id=2b86a8503ba641bebed73f32b4ac9c42
 //{
@@ -46,12 +145,7 @@ impl TraitTransactionSigner<TronTxInput, TronTxOutput> for Keystore {
         sign_context: &SignatureParameters,
         tx: &TronTxInput,
     ) -> Result<TronTxOutput> {
-        if !sign_context.derivation_path.is_empty() {
-            let path_parts = sign_context.derivation_path.split('/').collect::<Vec<_>>();
-            if path_parts.len() < 4 || path_parts[2] != "195'" {
-                return Err(anyhow!("invalid_sign_path"));
-            }
-        }
+        validate_sign_path(&sign_context.derivation_path)?;
 
         let data = Vec::from_hex(&tx.raw_data)?;
         let hash = Hash::hash(&data);
@@ -141,6 +235,77 @@ mod tests {
         assert_eq!(signed_tx.signatures[0], "c65b4bde808f7fcfab7b0ef9c1e3946c83311f8ac0a5e95be2d8b6d2400cfe8b5e24dc8f0883132513e422f2aaad8a4ecc14438eae84b2683eefa626e3adffc601");
 
         Ok(())
+    }
+
+    #[test]
+    fn test_batch_sign_matches_single_and_returns_metadata(
+    ) -> core::result::Result<(), anyhow::Error> {
+        let tx = TronTxInput {
+            raw_data: "0a0208312208b02efdc02638b61e40f083c3a7c92d5a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a1541a1e81654258bf14f63feb2e8d1380075d45b0dac1215410b3e84ec677b3e63c99affcadb91a6b4e086798f186470a0bfbfa7c92d".to_string(),
+        };
+        let paths = ["m/44'/195'/0'/0/0", "m/44'/195'/0'/0/1"];
+        let items = paths
+            .iter()
+            .map(|path| SignTxsItem {
+                input: tx.clone(),
+                path: (*path).to_string(),
+            })
+            .collect::<Vec<_>>();
+
+        let mut keystore = Keystore::Hd(
+            HdKeystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, Metadata::default()).unwrap(),
+        );
+        let mut guard = KeystoreGuard::unlock_by_password(&mut keystore, TEST_PASSWORD).unwrap();
+        let ks = guard.keystore_mut();
+
+        let batch = sign_txs(ks, &items)?;
+        assert_eq!(batch.len(), items.len());
+        assert_eq!(batch[0].tx_hash, transaction_hash(&tx)?);
+        assert_eq!(batch[1].tx_hash, batch[0].tx_hash);
+        assert!(batch
+            .iter()
+            .all(|output| output.from_address.starts_with('T')));
+        assert_ne!(batch[0].from_address, batch[1].from_address);
+
+        for (index, item) in items.iter().enumerate() {
+            let params = SignatureParameters {
+                curve: CurveType::SECP256k1,
+                derivation_path: item.path.clone(),
+                chain_type: "TRON".to_string(),
+                ..Default::default()
+            };
+            let single: TronTxOutput = ks.sign_transaction(&params, &item.input)?;
+            assert_eq!(batch[index].signature, single.signatures[0]);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_batch_sign_reports_failing_index() {
+        let valid_tx = TronTxInput {
+            raw_data: "0a0208312208b02efdc02638b61e40f083c3a7c92d5a65080112610a2d747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e5472616e73666572436f6e747261637412300a1541a1e81654258bf14f63feb2e8d1380075d45b0dac1215410b3e84ec677b3e63c99affcadb91a6b4e086798f186470a0bfbfa7c92d".to_string(),
+        };
+        let items = vec![
+            SignTxsItem {
+                input: valid_tx,
+                path: "m/44'/195'/0'/0/0".to_string(),
+            },
+            SignTxsItem {
+                input: TronTxInput {
+                    raw_data: "not-hex".to_string(),
+                },
+                path: "m/44'/195'/0'/0/1".to_string(),
+            },
+        ];
+
+        let mut keystore = Keystore::Hd(
+            HdKeystore::from_mnemonic(&TEST_MNEMONIC, &TEST_PASSWORD, Metadata::default()).unwrap(),
+        );
+        let mut guard = KeystoreGuard::unlock_by_password(&mut keystore, TEST_PASSWORD).unwrap();
+        let error = sign_txs(guard.keystore_mut(), &items).unwrap_err();
+
+        assert!(error.to_string().contains("sign_txs failed at index 1"));
     }
 
     #[test]

@@ -232,6 +232,20 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
             }
         }),
 
+        "sign_txs" => landingpad(|| {
+            let param: SignParam = SignParam::decode(action.param.unwrap().value.as_slice())
+                .expect("sign_txs unpack error");
+            // ETHEREUM and TRON share the chain-neutral batch action while
+            // retaining chain-specific protobuf payloads and signers.
+            match param.chain_type.as_str() {
+                "ETHEREUM" => {
+                    ethereum_signer::sign_txs(&param.clone().input.unwrap().value, &param)
+                }
+                "TRON" => tron_signer::sign_txs(&param.clone().input.unwrap().value, &param),
+                _ => Err(anyhow!("sign_txs unsupported_chain")),
+            }
+        }),
+
         "sign_message" => landingpad(|| {
             let param: SignParam = SignParam::decode(action.param.unwrap().value.as_slice())
                 .expect("unpack sign_message param error");

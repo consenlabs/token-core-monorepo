@@ -54,3 +54,48 @@ pub struct EthMessageOutput {
     #[prost(string, tag = "1")]
     pub signature: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignTxsInput {
+    #[prost(message, repeated, tag = "1")]
+    pub items: ::prost::alloc::vec::Vec<SignTxsItem>,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignTxsItem {
+    #[prost(message, optional, tag = "1")]
+    pub tx: ::core::option::Option<EthTxInput>,
+    #[prost(string, tag = "2")]
+    pub payment: ::prost::alloc::string::String,
+    #[prost(string, tag = "3")]
+    pub receiver: ::prost::alloc::string::String,
+    #[prost(string, tag = "4")]
+    pub sender: ::prost::alloc::string::String,
+    #[prost(string, tag = "5")]
+    pub fee: ::prost::alloc::string::String,
+    /// Per-item HD path override. Empty string falls back to
+    /// `SignParam.path` (the outer batch-shared default).
+    #[prost(string, tag = "6")]
+    pub path: ::prost::alloc::string::String,
+}
+/// `SignTxsItemOutput.from_address` is the device-verified from address for
+/// this item: `Transaction::sign` rejects with `ImkeyAddressMismatchWithPath`
+/// when the on-device derived address differs from `SignTxsItem.sender`, so a
+/// returned `from_address` is, by construction, the address the device
+/// confirmed (matches `SignTxsItem.sender`). Surfacing it explicitly lets the
+/// host re-verify the {path → from_address} mapping for every item without
+/// having to re-derive locally — see security review H-3.
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignTxsItemOutput {
+    #[prost(message, optional, tag = "1")]
+    pub tx: ::core::option::Option<EthTxOutput>,
+    #[prost(string, tag = "2")]
+    pub from_address: ::prost::alloc::string::String,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignTxsOutput {
+    #[prost(message, repeated, tag = "1")]
+    pub outputs: ::prost::alloc::vec::Vec<SignTxsItemOutput>,
+}

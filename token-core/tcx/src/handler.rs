@@ -43,7 +43,10 @@ use crate::api::{
     SignAuthenticationMessageParam, SignAuthenticationMessageResult, SignHashesParam,
     SignHashesResult, WalletKeyParam,
 };
-use crate::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult};
+use crate::api::{
+    sign_txs_result, EthBatchPersonalSignParam, EthBatchPersonalSignResult, SignTxsParam,
+    SignTxsResult,
+};
 use crate::api::{InitTokenCoreXParam, SignParam};
 use crate::error_handling::Result;
 use crate::filemanager::{
@@ -63,8 +66,18 @@ use tcx_constants::coin_info::coin_info_from_param;
 use tcx_constants::{CoinInfo, CurveType};
 use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::KDF_ROUNDS;
-use tcx_eth::signer::batch_personal_sign;
+use tcx_eth::signer::{
+    batch_personal_sign, sign_txs as eth_sign_txs, SignTxsItem as EthSignTxsItem,
+    ETH_MAX_BATCH_SIZE,
+};
+use tcx_eth::transaction::EthTxInput;
 use tcx_keystore::{MessageSigner, TransactionSigner};
+use tcx_tron::signer::{
+    sign_txs as tron_sign_txs, transaction_hash as tron_transaction_hash,
+    validate_sign_path as validate_tron_sign_path, SignTxsItem as TronSignTxsItem,
+    TRON_MAX_BATCH_SIZE,
+};
+use tcx_tron::transaction::TronTxInput;
 
 use tcx_primitive::Ss58Codec;
 use tcx_substrate::{decode_substrate_keystore, encode_substrate_keystore, SubstrateKeystore};
@@ -1689,6 +1702,156 @@ pub(crate) fn eth_batch_personal_sign(data: &[u8]) -> Result<Vec<u8>> {
     let signatures = batch_personal_sign(keystore.keystore_mut(), param.data, &param.path)?;
 
     encode_message(EthBatchPersonalSignResult { signatures })
+}
+
+impl_to_key!(crate::api::sign_txs_param::Key);
+pub(crate) fn sign_txs(data: &[u8]) -> Result<Vec<u8>> {
+    let param: SignTxsParam = SignTxsParam::decode(data)?;
+
+    match param.chain_type.as_str() {
+        "ETHEREUM" => sign_eth_txs(&param),
+        "TRON" => sign_tron_txs(&param),
+        _ => Err(anyhow!("sign_txs unsupported_chain")),
+    }
+}
+
+fn sign_eth_txs(param: &SignTxsParam) -> Result<Vec<u8>> {
+    if param.items.is_empty() {
+        return Err(anyhow!("sign_txs batch is empty"));
+    }
+    if param.items.len() > ETH_MAX_BATCH_SIZE {
+        return Err(anyhow!(
+            "sign_txs batch exceeds max size of {}",
+            ETH_MAX_BATCH_SIZE
+        ));
+    }
+
+    let mut items: Vec<EthSignTxsItem> = Vec::with_capacity(param.items.len());
+    for (index, raw) in param.items.iter().enumerate() {
+        let input = EthTxInput::decode(raw.input.as_slice()).map_err(|err| {
+            anyhow!(
+                "sign_txs failed at index {}: invalid EthTxInput: {}",
+                index,
+                err
+            )
+        })?;
+        let effective_path = if raw.path.is_empty() {
+            param.path.clone()
+        } else {
+            raw.path.clone()
+        };
+        // Reject empty effective path before unlocking. HD keystores would
+        // otherwise silently fall back to the BIP-32 master key `m`, producing
+        // a signed tx whose `from` is the master-key address — almost never
+        // what the host meant. Fail fast (and with an index) instead of
+        // emitting a "valid but unwanted" signature. See security review H-2.
+        if effective_path.is_empty() {
+            return Err(anyhow!(
+                "sign_txs failed at index {}: empty derivation path",
+                index
+            ));
+        }
+        items.push(EthSignTxsItem {
+            input,
+            path: effective_path,
+        });
+    }
+
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
+    }?;
+
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
+
+    let signed = eth_sign_txs(guard.keystore_mut(), &items)?;
+
+    let outputs = signed
+        .into_iter()
+        .map(|signed| sign_txs_result::Output {
+            signature: signed.output.signature,
+            tx_hash: signed.output.tx_hash,
+            from_address: signed.from_address,
+        })
+        .collect();
+
+    encode_message(SignTxsResult { outputs })
+}
+
+fn sign_tron_txs(param: &SignTxsParam) -> Result<Vec<u8>> {
+    if param.items.is_empty() {
+        return Err(anyhow!("sign_txs batch is empty"));
+    }
+    if param.items.len() > TRON_MAX_BATCH_SIZE {
+        return Err(anyhow!(
+            "sign_txs batch exceeds max size of {}",
+            TRON_MAX_BATCH_SIZE
+        ));
+    }
+
+    let mut items: Vec<TronSignTxsItem> = Vec::with_capacity(param.items.len());
+    for (index, raw) in param.items.iter().enumerate() {
+        let input = TronTxInput::decode(raw.input.as_slice()).map_err(|err| {
+            anyhow!(
+                "sign_txs failed at index {}: invalid TronTxInput: {}",
+                index,
+                err
+            )
+        })?;
+        let effective_path = if raw.path.is_empty() {
+            param.path.clone()
+        } else {
+            raw.path.clone()
+        };
+        if effective_path.is_empty() {
+            return Err(anyhow!(
+                "sign_txs failed at index {}: empty derivation path",
+                index
+            ));
+        }
+        validate_tron_sign_path(&effective_path)
+            .map_err(|err| anyhow!("sign_txs failed at index {}: {}", index, err))?;
+        tron_transaction_hash(&input)
+            .map_err(|err| anyhow!("sign_txs failed at index {}: {}", index, err))?;
+        items.push(TronSignTxsItem {
+            input,
+            path: effective_path,
+        });
+    }
+
+    let mut map = KEYSTORE_MAP.write();
+    let keystore: &mut Keystore = match map.get_mut(&param.id) {
+        Some(keystore) => Ok(keystore),
+        _ => Err(anyhow!("{}", "wallet_not_found")),
+    }?;
+
+    let mut guard = KeystoreGuard::unlock(
+        keystore,
+        param
+            .key
+            .clone()
+            .expect("need_password_or_derived_key")
+            .into(),
+    )?;
+
+    let outputs = tron_sign_txs(guard.keystore_mut(), &items)?
+        .into_iter()
+        .map(|signed| sign_txs_result::Output {
+            signature: signed.signature,
+            tx_hash: signed.tx_hash,
+            from_address: signed.from_address,
+        })
+        .collect();
+
+    encode_message(SignTxsResult { outputs })
 }
 
 pub(crate) fn private_key_to_account_dynamic(

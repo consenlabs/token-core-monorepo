@@ -9,6 +9,29 @@ message TronTxOutput {
     string signature = 1;
 }
 
+message SignTxsInput {
+    repeated SignTxsItem items = 1;
+}
+
+message SignTxsItem {
+    TronTxInput tx = 1;
+    string payment = 2;
+    string receiver = 3;
+    string sender = 4;
+    reserved 5;
+    string path = 6;
+}
+
+message SignTxsItemOutput {
+    TronTxOutput tx = 1;
+    string from_address = 2;
+    string tx_hash = 3;
+}
+
+message SignTxsOutput {
+    repeated SignTxsItemOutput outputs = 1;
+}
+
 // Message signing input for TRON
 //
 // Message signing versions:
