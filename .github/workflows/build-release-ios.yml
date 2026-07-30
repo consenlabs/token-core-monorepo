@@ -204,15 +204,24 @@ jobs:
           cp $PACKAGE_NAME ../
           popd
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
+      - name: Create draft release and upload assets
+        uses: softprops/action-gh-release@v3
         with:
+          draft: true
           name: "Release ${{ steps.getversion.outputs.version }}"
           tag_name: "v${{ steps.getversion.outputs.version }}"
+          target_commitish: "${{ steps.sha.outputs.result }}"
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
             ios-ikc-${{ steps.getversion.outputs.version }}.zip
             ios-tcx-${{ steps.getversion.outputs.version }}.zip
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release edit "v${{ steps.getversion.outputs.version }}" --draft=false
 
       - name: Send custom JSON data to Slack workflow
         id: slack
