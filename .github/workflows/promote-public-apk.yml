@@ -1,0 +1,375 @@
+name: Promote public imToken APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      firebase_release_id:
+        description: Firebase App Distribution release ID to promote
+        required: true
+        type: string
+      release_notes_zh_cn:
+        description: Public release notes in Simplified Chinese
+        required: true
+        type: string
+      release_notes_en:
+        description: Public release notes in English
+        required: true
+        type: string
+      dry_run:
+        description: Verify only; do not create a GitHub Release
+        required: true
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: public-apk-${{ inputs.firebase_release_id }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Verify and publish public APK
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: public-apk-publish
+    env:
+      EXPECTED_PACKAGE: im.token.app
+      FIREBASE_RELEASE_ID: ${{ inputs.firebase_release_id }}
+      WIF_PROVIDER: ${{ vars.PUBLIC_APK_WIF_PROVIDER }}
+      FIREBASE_READER_SERVICE_ACCOUNT: ${{ vars.PUBLIC_APK_FIREBASE_READER_SERVICE_ACCOUNT }}
+      FIREBASE_PROJECT_NUMBER: ${{ vars.PUBLIC_APK_FIREBASE_PROJECT_NUMBER }}
+      FIREBASE_APP_ID: ${{ vars.PUBLIC_APK_FIREBASE_APP_ID }}
+      EXPECTED_CERT_SHA256: ${{ vars.PUBLIC_APK_CERT_SHA256 }}
+      IMMUTABLE_RELEASES_ENABLED: ${{ vars.PUBLIC_APK_IMMUTABLE_RELEASES_ENABLED }}
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Validate protected configuration
+        shell: bash
+        env:
+          RELEASE_NOTES_ZH_CN: ${{ inputs.release_notes_zh_cn }}
+          RELEASE_NOTES_EN: ${{ inputs.release_notes_en }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/main" ]]
+          [[ "$FIREBASE_RELEASE_ID" =~ ^[A-Za-z0-9_-]+$ ]] || {
+            echo "firebase_release_id contains unsupported characters" >&2
+            exit 1
+          }
+          [[ -n "$RELEASE_NOTES_ZH_CN" && -n "$RELEASE_NOTES_EN" ]] || {
+            echo "Both Chinese and English public release notes are required" >&2
+            exit 1
+          }
+          for variable_name in \
+            WIF_PROVIDER \
+            FIREBASE_READER_SERVICE_ACCOUNT \
+            FIREBASE_PROJECT_NUMBER \
+            FIREBASE_APP_ID \
+            EXPECTED_CERT_SHA256 \
+            IMMUTABLE_RELEASES_ENABLED; do
+            [[ -n "${!variable_name}" ]] || {
+              echo "Missing protected environment variable: ${variable_name}" >&2
+              exit 1
+            }
+          done
+          normalized_cert="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr '[:upper:]' '[:lower:]' | tr -d ':[:space:]')"
+          [[ "$normalized_cert" =~ ^[0-9a-f]{64}$ ]] || {
+            echo "PUBLIC_APK_CERT_SHA256 must be a SHA-256 certificate fingerprint" >&2
+            exit 1
+          }
+          [[ "$IMMUTABLE_RELEASES_ENABLED" == "true" ]] || {
+            echo "A repository administrator must confirm immutable releases in the protected environment" >&2
+            exit 1
+          }
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@7c5672355aaa8fde5f97a91aa9a99616d1ace6bc # v2
+
+      - name: Install APK verification tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager "build-tools;36.0.0"
+          echo "${ANDROID_HOME}/build-tools/36.0.0" >> "$GITHUB_PATH"
+
+      - name: Authenticate to Google Cloud
+        id: google-auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ env.WIF_PROVIDER }}
+          service_account: ${{ env.FIREBASE_READER_SERVICE_ACCOUNT }}
+          token_format: access_token
+          create_credentials_file: true
+
+      - name: Fetch the fixed Firebase release and APK
+        shell: bash
+        env:
+          FIREBASE_ACCESS_TOKEN: ${{ steps.google-auth.outputs.access_token }}
+        run: |
+          set -euo pipefail
+          mkdir -p staging
+          release_url="https://firebaseappdistribution.googleapis.com/v1/projects/${FIREBASE_PROJECT_NUMBER}/apps/${FIREBASE_APP_ID}/releases/${FIREBASE_RELEASE_ID}"
+          curl --fail --silent --show-error \
+            --header "Authorization: Bearer ${FIREBASE_ACCESS_TOKEN}" \
+            --header 'Accept: application/json' \
+            "$release_url" \
+            --output staging/firebase-release.json
+          expected_release_name="projects/${FIREBASE_PROJECT_NUMBER}/apps/${FIREBASE_APP_ID}/releases/${FIREBASE_RELEASE_ID}"
+          jq -e --arg expected "$expected_release_name" '.name == $expected' \
+            staging/firebase-release.json >/dev/null || {
+            echo "Firebase returned a different release resource" >&2
+            exit 1
+          }
+          binary_download_uri="$(jq -er '.binaryDownloadUri | strings | select(length > 0)' staging/firebase-release.json)" || {
+            echo "Firebase release does not contain a binaryDownloadUri" >&2
+            exit 1
+          }
+          curl --fail --silent --show-error --location \
+            "$binary_download_uri" \
+            --output staging/source.apk
+
+      - name: Verify APK identity and provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          imtoken-downloads/scripts/verify-apk.sh \
+            --apk staging/source.apk \
+            --release-json staging/firebase-release.json \
+            --expected-package "$EXPECTED_PACKAGE" \
+            --expected-cert-sha256 "$EXPECTED_CERT_SHA256" \
+            --output staging/verification.json
+
+      - name: Prepare release assets
+        id: prepare
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_NOTES_ZH_CN: ${{ inputs.release_notes_zh_cn }}
+          RELEASE_NOTES_EN: ${{ inputs.release_notes_en }}
+        run: |
+          set -euo pipefail
+          version_name="$(jq -er '.versionName' staging/verification.json)"
+          version_code="$(jq -er '.versionCode' staging/verification.json)"
+          [[ "$version_name" =~ ^[0-9A-Za-z][0-9A-Za-z._-]*$ ]] || {
+            echo "APK versionName cannot be represented safely in a release tag" >&2
+            exit 1
+          }
+          [[ "$version_code" =~ ^[0-9]+$ ]]
+
+          tag="imtoken-android-v${version_name}+${version_code}"
+          title="imToken Android ${version_name} (${version_code})"
+          apk_name="imToken-${version_name}.${version_code}-release.apk"
+          manifest_name="imtoken-${version_name}.${version_code}.manifest.json"
+          release_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${tag}"
+          published_at="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          already_published=false
+
+          if gh api \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" \
+              > staging/existing-release.json 2>/dev/null; then
+            [[ "$(jq -r '.draft' staging/existing-release.json)" == "false" ]] || {
+              echo "An incomplete draft already exists for ${tag}; manual reconciliation is required" >&2
+              exit 1
+            }
+            [[ "$(jq -r '.immutable' staging/existing-release.json)" == "true" ]] || {
+              echo "An existing release for ${tag} is not immutable" >&2
+              exit 1
+            }
+            existing_assets="$(jq -r '.assets[].name' staging/existing-release.json | sort)"
+            required_assets="$(printf '%s\n' "$apk_name" SHA256SUMS "$manifest_name" | sort)"
+            [[ "$existing_assets" == "$required_assets" ]] || {
+              echo "Existing release assets do not match the required set; manual reconciliation is required" >&2
+              exit 1
+            }
+            mkdir -p existing-release
+            gh release download "$tag" \
+              --dir existing-release \
+              --pattern "$apk_name" \
+              --pattern SHA256SUMS \
+              --pattern "$manifest_name"
+            published_at="$(jq -er '.publishedAt | strings | select(length > 0)' "existing-release/${manifest_name}")" || {
+              echo "Existing release manifest has no reproducible publishedAt value" >&2
+              exit 1
+            }
+            already_published=true
+          elif git ls-remote --exit-code --tags origin "refs/tags/${tag}" >/dev/null 2>&1; then
+            echo "Tag ${tag} exists without a complete published Release; manual reconciliation is required" >&2
+            exit 1
+          fi
+
+          if [[ "$already_published" == "false" ]]; then
+            published_apk_tags="$(gh api --paginate \
+              -H 'X-GitHub-Api-Version: 2026-03-10' \
+              "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              --jq '.[] | select(.draft == false) | .tag_name')"
+            highest_published_build="$(printf '%s\n' "$published_apk_tags" | sed -nE \
+              's/^imtoken-android-v[^+]+\+([0-9]+)$/\1/p' | sort -n | tail -1)"
+            if [[ -n "$highest_published_build" && "$version_code" -le "$highest_published_build" ]]; then
+              echo "APK versionCode ${version_code} must be greater than published build ${highest_published_build}" >&2
+              exit 1
+            fi
+          fi
+
+          mkdir -p release-assets
+          cp staging/source.apk "release-assets/${apk_name}"
+          imtoken-downloads/scripts/render-manifest.sh \
+            --verification staging/verification.json \
+            --github-tag "$tag" \
+            --published-at "$published_at" \
+            --release-url "$release_url" \
+            --output "release-assets/${manifest_name}"
+          (
+            cd release-assets
+            sha256sum "$apk_name" "$manifest_name" > SHA256SUMS
+          )
+          if [[ "$already_published" == "true" ]]; then
+            cmp "release-assets/${apk_name}" "existing-release/${apk_name}"
+            cmp release-assets/SHA256SUMS existing-release/SHA256SUMS
+            cmp "release-assets/${manifest_name}" "existing-release/${manifest_name}"
+          fi
+          # shellcheck disable=SC2016
+          {
+            printf '## 简体中文\n\n%s\n\n' "$RELEASE_NOTES_ZH_CN"
+            printf '## English\n\n%s\n\n' "$RELEASE_NOTES_EN"
+            printf '### Verification / 校验\n\n'
+            printf -- '- Version / 版本: `%s` (`%s`)\n' "$version_name" "$version_code"
+            printf -- '- Package / 包名: `%s`\n' "$EXPECTED_PACKAGE"
+            printf -- '- SHA-256: `%s`\n' "$(jq -r '.sha256' staging/verification.json)"
+            printf -- '- See `SHA256SUMS` and `%s` for complete verification metadata.\n' "$manifest_name"
+            printf '\n<!-- public-apk-promotion-run:%s:%s -->\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT"
+          } > staging/release-notes.md
+
+          {
+            echo "tag=${tag}"
+            echo "title=${title}"
+            echo "apk_name=${apk_name}"
+            echo "manifest_name=${manifest_name}"
+            echo "already_published=${already_published}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Report dry-run verification
+        if: inputs.dry_run
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "Dry run succeeded; no GitHub Release was created."
+          jq '{packageName, versionName, versionCode, sha256, signingCertificateSha256}' staging/verification.json
+
+      - name: Create immutable release draft
+        if: ${{ !inputs.dry_run && steps.prepare.outputs.already_published != 'true' }}
+        id: create-release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.prepare.outputs.tag }}
+          RELEASE_TITLE: ${{ steps.prepare.outputs.title }}
+        run: |
+          set -euo pipefail
+          gh release create "$RELEASE_TAG" \
+            --draft \
+            --latest=false \
+            --target "$GITHUB_SHA" \
+            --title "$RELEASE_TITLE" \
+            --notes-file staging/release-notes.md
+          releases_json="$(gh api --paginate \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/${GITHUB_REPOSITORY}/releases?per_page=100" | jq -s 'add')"
+          ownership_marker="public-apk-promotion-run:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}"
+          release_id="$(jq -er --arg tag "$RELEASE_TAG" --arg marker "$ownership_marker" --arg sha "$GITHUB_SHA" \
+            '.[] | select(.draft == true and .tag_name == $tag and .target_commitish == $sha and ((.body // "") | contains($marker))) | .id' \
+            <<< "$releases_json")"
+          echo "created=true" >> "$GITHUB_OUTPUT"
+          echo "release_id=${release_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload and read back release assets
+        if: ${{ !inputs.dry_run && steps.prepare.outputs.already_published != 'true' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.prepare.outputs.tag }}
+          RELEASE_ID: ${{ steps.create-release.outputs.release_id }}
+          APK_NAME: ${{ steps.prepare.outputs.apk_name }}
+          MANIFEST_NAME: ${{ steps.prepare.outputs.manifest_name }}
+        run: |
+          set -euo pipefail
+          gh release upload "$RELEASE_TAG" \
+            "release-assets/${APK_NAME}" \
+            release-assets/SHA256SUMS \
+            "release-assets/${MANIFEST_NAME}"
+          expected_assets="$(printf '%s\n' "$APK_NAME" SHA256SUMS "$MANIFEST_NAME" | sort)"
+          release_json="$(gh api \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}")"
+          actual_assets="$(jq -r '.assets[].name' <<< "$release_json" | sort)"
+          [[ "$actual_assets" == "$expected_assets" ]] || {
+            echo "Draft release assets do not match the required set" >&2
+            exit 1
+          }
+          mkdir -p readback
+          for asset_name in "$APK_NAME" SHA256SUMS "$MANIFEST_NAME"; do
+            asset_id="$(jq -er --arg name "$asset_name" '.assets[] | select(.name == $name) | .id' <<< "$release_json")"
+            gh api \
+              -H 'Accept: application/octet-stream' \
+              "repos/${GITHUB_REPOSITORY}/releases/assets/${asset_id}" \
+              > "readback/${asset_name}"
+          done
+          cmp "release-assets/${APK_NAME}" "readback/${APK_NAME}"
+          cmp release-assets/SHA256SUMS readback/SHA256SUMS
+          cmp "release-assets/${MANIFEST_NAME}" "readback/${MANIFEST_NAME}"
+
+      - name: Publish release
+        if: ${{ !inputs.dry_run && steps.prepare.outputs.already_published != 'true' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          gh release edit "$RELEASE_TAG" --draft=false --latest=false
+          immutable="$(gh api \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}" \
+            --jq '.immutable' 2>/dev/null || true)"
+          if [[ "$immutable" != "true" ]]; then
+            echo "Could not confirm that the published release is immutable; attempting to return it to draft" >&2
+            if ! gh release edit "$RELEASE_TAG" --draft=true; then
+              echo "CRITICAL: release rollback failed; manual reconciliation is required immediately" >&2
+            fi
+            exit 1
+          fi
+
+      - name: Report idempotent success
+        if: ${{ !inputs.dry_run && steps.prepare.outputs.already_published == 'true' }}
+        env:
+          RELEASE_TAG: ${{ steps.prepare.outputs.tag }}
+        run: echo "${RELEASE_TAG} is already published, immutable, and byte-for-byte identical."
+
+      - name: Remove an incomplete draft after failure
+        if: ${{ failure() && !inputs.dry_run && steps.prepare.outputs.tag != '' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.prepare.outputs.tag }}
+        run: |
+          set -euo pipefail
+          releases_json="$(gh api --paginate \
+            -H 'X-GitHub-Api-Version: 2026-03-10' \
+            "repos/${GITHUB_REPOSITORY}/releases?per_page=100" | jq -s 'add')"
+          ownership_marker="public-apk-promotion-run:${GITHUB_RUN_ID}:${GITHUB_RUN_ATTEMPT}"
+          draft_id="$(jq -r --arg tag "$RELEASE_TAG" --arg marker "$ownership_marker" --arg sha "$GITHUB_SHA" \
+            '.[] | select(.draft == true and .tag_name == $tag and .target_commitish == $sha and ((.body // "") | contains($marker))) | .id' \
+            <<< "$releases_json")"
+          if [[ "$draft_id" =~ ^[0-9]+$ ]]; then
+            gh api --method DELETE "repos/${GITHUB_REPOSITORY}/releases/${draft_id}"
+            tag_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" --jq '.object.sha' 2>/dev/null || true)"
+            if [[ "$tag_sha" == "$GITHUB_SHA" ]]; then
+              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${RELEASE_TAG}"
+            fi
+          fi
