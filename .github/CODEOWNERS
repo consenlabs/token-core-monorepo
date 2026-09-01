@@ -1,4 +1,4 @@
 .github/**/*  @consenlabs/token-core
-imtoken-downloads/**/*  @consenlabs/token-core
+imtoken-downloads/**/*  @XuNeal @xwartz
 script/**/*  @consenlabs/token-core
 Makefile  @consenlabs/token-core
