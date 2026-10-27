@@ -4,6 +4,7 @@ pub mod address;
 pub mod bch_address;
 mod bch_sighash;
 mod sighash;
+mod signing_policy;
 
 pub mod network;
 pub mod signer;

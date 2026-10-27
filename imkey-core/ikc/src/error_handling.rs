@@ -22,17 +22,6 @@ fn notify_err(err: Error) -> Error {
 pub unsafe fn landingpad<F: FnOnce() -> Result<T> + panic::UnwindSafe, T>(f: F) -> Result<T> {
     match panic::catch_unwind(f) {
         Ok(rv) => rv.map_err(notify_err),
-        Err(err) => {
-            use std::any::Any;
-            let err = &*err as &dyn Any;
-            let msg = match err.downcast_ref::<&str>() {
-                Some(s) => *s,
-                None => match err.downcast_ref::<String>() {
-                    Some(s) => &**s,
-                    None => "Box<Any>",
-                },
-            };
-            Err(notify_err(anyhow!("{}", msg)))
-        }
+        Err(_) => Err(notify_err(anyhow!("internal_error"))),
     }
 }

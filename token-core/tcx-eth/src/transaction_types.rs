@@ -29,9 +29,10 @@ impl FromStr for TransactionType {
 
     fn from_str(tx_type: &str) -> Result<Self> {
         match tx_type {
+            "" | "0" | "00" | "0x00" | "0x0" => Ok(TransactionType::Legacy),
             "0x01" | "1" | "01" => Ok(TransactionType::Eip2930),
             "0x02" | "2" | "02" => Ok(TransactionType::Eip1559),
-            _ => Ok(TransactionType::Legacy),
+            _ => Err(anyhow!("unsupported_transaction_type")),
         }
     }
 }
@@ -272,6 +273,16 @@ mod test {
     use ethereum_types::{Address, H160, H256, U256, U64};
     use std::str::FromStr;
     use tcx_common::ToHex;
+
+    #[test]
+    fn rejects_unknown_transaction_types() {
+        for value in ["03", "0x03", "-1", "legacy", " 0", "ff"] {
+            assert_eq!(
+                TransactionType::from_str(value).unwrap_err().to_string(),
+                "unsupported_transaction_type"
+            );
+        }
+    }
 
     fn test_encode_transaction() {
         let inputs = vec![

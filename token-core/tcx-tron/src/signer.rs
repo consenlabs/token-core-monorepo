@@ -10,6 +10,16 @@ use bitcoin_hashes::Hash as TraitHash;
 use anyhow::anyhow;
 use tcx_common::{keccak256, FromHex, ToHex};
 
+fn validate_signing_path(keystore: &Keystore, path: &str) -> Result<()> {
+    // Imported private keys have no derivation path; HD wallets must never sign
+    // with the master key or with a key belonging to another chain.
+    if keystore.derivable() || !path.is_empty() {
+        tcx_primitive::signing_path::validate_bip44_signing_path(path, &[195], &[44])
+            .map_err(|_| anyhow!("invalid_sign_path"))?;
+    }
+    Ok(())
+}
+
 // http://jsoneditoronline.org/index.html?id=2b86a8503ba641bebed73f32b4ac9c42
 //{
 //"visible": false,
@@ -46,12 +56,7 @@ impl TraitTransactionSigner<TronTxInput, TronTxOutput> for Keystore {
         sign_context: &SignatureParameters,
         tx: &TronTxInput,
     ) -> Result<TronTxOutput> {
-        if !sign_context.derivation_path.is_empty() {
-            let path_parts = sign_context.derivation_path.split('/').collect::<Vec<_>>();
-            if path_parts.len() < 4 || path_parts[2] != "195'" {
-                return Err(anyhow!("invalid_sign_path"));
-            }
-        }
+        validate_signing_path(self, &sign_context.derivation_path)?;
 
         let data = Vec::from_hex(&tx.raw_data)?;
         let hash = Hash::hash(&data);
@@ -71,6 +76,7 @@ impl TraitMessageSigner<TronMessageInput, TronMessageOutput> for Keystore {
         sign_context: &SignatureParameters,
         message: &TronMessageInput,
     ) -> Result<TronMessageOutput> {
+        validate_signing_path(self, &sign_context.derivation_path)?;
         let data = if message.value.to_lowercase().starts_with("0x") {
             Vec::from_hex_auto(&message.value)?
         } else {
@@ -117,6 +123,48 @@ mod tests {
     use tcx_constants::{coin_info_from_param, CurveType, TEST_MNEMONIC, TEST_PASSWORD};
     use tcx_keystore::{HdKeystore, Keystore, KeystoreGuard, Metadata};
     use tcx_primitive::Secp256k1PrivateKey;
+
+    #[test]
+    fn hd_signing_rejects_empty_root_and_cross_chain_paths() {
+        let mut keystore =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        for path in [
+            "",
+            "m",
+            "m/44'/195'/0'",
+            "m/44'/60'/0'/0/0",
+            "m/44/195'/0'/0/0",
+            "m/44'/195'/0'/0'/0",
+        ] {
+            let params = SignatureParameters {
+                derivation_path: path.to_owned(),
+                ..Default::default()
+            };
+            let tx = TronTxInput {
+                raw_data: "00".to_owned(),
+            };
+            assert_eq!(
+                keystore
+                    .sign_transaction(&params, &tx)
+                    .unwrap_err()
+                    .to_string(),
+                "invalid_sign_path"
+            );
+            let message = TronMessageInput {
+                value: "hello".to_owned(),
+                header: "TRON".to_owned(),
+                version: 2,
+            };
+            assert_eq!(
+                keystore
+                    .sign_message(&params, &message)
+                    .unwrap_err()
+                    .to_string(),
+                "invalid_sign_path"
+            );
+        }
+    }
 
     #[test]
     fn test_sign_transaction() -> core::result::Result<(), anyhow::Error> {

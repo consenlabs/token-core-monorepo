@@ -9,6 +9,23 @@ import Foundation
 import SwiftProtobuf
 import imKeyBleLib
 
+// Native results are Rust-owned; copy first and release exactly once.
+private func copyImkeyOwned(_ pointer: UnsafePointer<Int8>?) -> String {
+  guard let pointer = pointer else { return "" }
+  defer { imkey_free_const_string(pointer) }
+  return String(cString: pointer)
+}
+
+@discardableResult
+private func callImkeyHex(_ request: String) -> String {
+  return request.withCString { copyImkeyOwned(call_imkey_api($0)) }
+}
+
+private func lastImkeyError() -> String {
+  return copyImkeyOwned(imkey_get_last_err_message())
+}
+
+
 public class API{
   public class func startMessageDeamon(){
     DispatchQueue.global().async {
@@ -18,7 +35,7 @@ public class API{
           //get apdu
           var apdu = ""
           while true{
-            apdu = String(cString:get_apdu())
+            apdu = copyImkeyOwned(get_apdu())
             if apdu != ""{
               let count = "".utf8CString.count
               let result: UnsafeMutableBufferPointer<Int8> = UnsafeMutableBufferPointer<Int8>.allocate(capacity: count)
@@ -36,7 +53,7 @@ public class API{
           //set return
           var apduRet = ""
           while true{
-            apduRet = String(cString:get_apdu_return())
+            apduRet = copyImkeyOwned(get_apdu_return())
             if apduRet == ""{
               let count = res.utf8CString.count
               let result: UnsafeMutableBufferPointer<Int8> = UnsafeMutableBufferPointer<Int8>.allocate(capacity: count)
@@ -82,9 +99,9 @@ public class API{
     action.param = Google_Protobuf_Any()
     action.param.value = try! action.serializedData()
     let paramHex = try! action.serializedData().toHexString()
-    call_imkey_api(paramHex)
-    let res = call_imkey_api(paramHex)
-    let strRes = String(cString:res!)
+    callImkeyHex(paramHex)
+    let res = callImkeyHex(paramHex)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let ouput = try! Deviceapi_GetSeidRes(serializedData: dataRes)
     return ouput.seid
@@ -96,9 +113,9 @@ public class API{
     action.param = Google_Protobuf_Any()
     action.param.value = try! action.serializedData()
     let paramHex = try! action.serializedData().toHexString()
-    call_imkey_api(paramHex)
-    let res = call_imkey_api(paramHex)
-    let strRes = String(cString:res!)
+    callImkeyHex(paramHex)
+    let res = callImkeyHex(paramHex)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let ouput = try! Deviceapi_GetSeidRes(serializedData: dataRes)
     return ouput.seid
@@ -110,9 +127,9 @@ public class API{
     action.param = Google_Protobuf_Any()
     action.param.value = try! action.serializedData()
     let paramHex = try! action.serializedData().toHexString()
-    call_imkey_api(paramHex)
-    let res = call_imkey_api(paramHex)
-    let strRes = String(cString:res!)
+    callImkeyHex(paramHex)
+    let res = callImkeyHex(paramHex)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let ouput = try! Deviceapi_GetSeidRes(serializedData: dataRes)
     return ouput.seid
@@ -124,9 +141,9 @@ public class API{
     action.param = Google_Protobuf_Any()
     action.param.value = try! action.serializedData()
     let paramHex = try! action.serializedData().toHexString()
-    call_imkey_api(paramHex)
-    let res = call_imkey_api(paramHex)
-    let strRes = String(cString:res!)
+    callImkeyHex(paramHex)
+    let res = callImkeyHex(paramHex)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let ouput = try! Deviceapi_GetSeidRes(serializedData: dataRes)
     return ouput.seid
@@ -138,9 +155,9 @@ public class API{
     action.param = Google_Protobuf_Any()
     action.param.value = try! action.serializedData()
     let paramHex = try! action.serializedData().toHexString()
-    call_imkey_api(paramHex)
-    let res = call_imkey_api(paramHex)
-    let strRes = String(cString:res!)
+    callImkeyHex(paramHex)
+    let res = callImkeyHex(paramHex)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let ouput = try! Deviceapi_GetSeidRes(serializedData: dataRes)
     return ouput.seid
@@ -158,7 +175,7 @@ public class API{
 //    action.param.value = try! deviceParam.serializedData()
 //
 //    let paramHex = try! action.serializedData().toHexString()
-//    call_imkey_api(paramHex)
+//    callImkeyHex(paramHex)
   }
   
   public class func activeDevice(){
@@ -199,7 +216,7 @@ public class API{
     action.param.value = try! param.serializedData()
     
     let paramHex = try! action.serializedData().toHexString()
-    call_imkey_api(paramHex)
+    callImkeyHex(paramHex)
   }
   
   public class func updateApp(appletName:String){
@@ -212,7 +229,7 @@ public class API{
     action.param.value = try! param.serializedData()
     
     let paramHex = try! action.serializedData().toHexString()
-    call_imkey_api(paramHex)
+    callImkeyHex(paramHex)
   }
   
   public class func deleteApp(appletName:String){
@@ -225,7 +242,7 @@ public class API{
     action.param.value = try! param.serializedData()
     
     let paramHex = try! action.serializedData().toHexString()
-    call_imkey_api(paramHex)
+    callImkeyHex(paramHex)
   }
   
 //  public class func getAddress(){
@@ -245,8 +262,8 @@ public class API{
     let paramHex = try! action.serializedData().toHexString()
     
     Log.d("eth param ready..")
-    let res = call_imkey_api(paramHex)
-    let strRes = String(cString:res!)
+    let res = callImkeyHex(paramHex)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let ouput = try! Ethapi_EthTxOutput(serializedData: dataRes)
     return ouput
@@ -262,12 +279,12 @@ public class API{
     
     imkey_clear_err()
     Log.d("eth param ready..")
-    let res = call_imkey_api(paramHex)
+    let res = callImkeyHex(paramHex)
     
     //error
-    let error = imkey_get_last_err_message()
-    if error != nil{
-      let dataError = String(cString:error!).key_dataFromHexString()!
+    let error = lastImkeyError()
+    if !error.isEmpty{
+      let dataError = error.key_dataFromHexString()!
       let response = try! Api_ErrorResponse(serializedData: dataError)
       if !response.isSuccess {
         print(response.error)
@@ -275,7 +292,7 @@ public class API{
     }
     
     //success
-    let strRes = String(cString:res!)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let ouput = try! Ethapi_EthMessageOutput(serializedData: dataRes)
     return ouput
@@ -290,8 +307,8 @@ public class API{
     let paramHex = try! action.serializedData().toHexString()
     
     Log.d("eth param ready..")
-    let res = call_imkey_api(paramHex)
-    let strRes = String(cString:res!)
+    let res = callImkeyHex(paramHex)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let ouput = try! Eosapi_EosMessageOutput(serializedData: dataRes)
     return ouput
@@ -306,8 +323,8 @@ public class API{
     let paramHex = try! action.serializedData().toHexString()
     
     Log.d("eos param ready..")
-    let res = call_imkey_api(paramHex)
-    let strRes = String(cString:res!)
+    let res = callImkeyHex(paramHex)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let eosOutput = try! Eosapi_EosTxOutput(serializedData: dataRes)
     return eosOutput
@@ -322,8 +339,8 @@ public class API{
     
     //response
     Log.d("cosmos param ready..")
-    let res = call_imkey_api(paramHex)
-    let strRes = String(cString:res!)
+    let res = callImkeyHex(paramHex)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let cosmosOutput = try! Cosmosapi_CosmosTxOutput(serializedData: dataRes)
     return cosmosOutput
@@ -339,9 +356,9 @@ public class API{
     action.param.value = try! req.serializedData()
     
     let paramHex = try! action.serializedData().toHexString()
-    let res = call_imkey_api(paramHex)
+    let res = callImkeyHex(paramHex)
     
-    let strRes = String(cString:res!)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let eosPubkeyResponse = try! Api_EosWallet(serializedData: dataRes)
     return eosPubkeyResponse.publicKeys[0].publicKey
@@ -357,9 +374,9 @@ public class API{
     action.param.value = try! req.serializedData()
     
     let paramHex = try! action.serializedData().toHexString()
-    let res = call_imkey_api(paramHex)
+    let res = callImkeyHex(paramHex)
     
-    let strRes = String(cString:res!)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let eosPubkeyResponse = try! Api_EosWallet(serializedData: dataRes)
     return eosPubkeyResponse.publicKeys[0].publicKey
@@ -375,9 +392,9 @@ public class API{
     action.param.value = try! req.serializedData()
     
     let paramHex = try! action.serializedData().toHexString()
-    let res = call_imkey_api(paramHex)
+    let res = callImkeyHex(paramHex)
     
-    let strRes = String(cString:res!)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let eosPubkeyResponse = try! Api_AddressResult(serializedData: dataRes)
     return eosPubkeyResponse.address
@@ -393,9 +410,9 @@ public class API{
     action.param.value = try! req.serializedData()
     
     let paramHex = try! action.serializedData().toHexString()
-    let res = call_imkey_api(paramHex)
+    let res = callImkeyHex(paramHex)
     
-    let strRes = String(cString:res!)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let eosPubkeyResponse = try! Api_AddressResult(serializedData: dataRes)
     return eosPubkeyResponse.address
@@ -411,9 +428,9 @@ public class API{
     action.param.value = try! req.serializedData()
     
     let paramHex = try! action.serializedData().toHexString()
-    let res = call_imkey_api(paramHex)
+    let res = callImkeyHex(paramHex)
     
-    let strRes = String(cString:res!)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let ethAddressResponse = try! Api_AddressResult(serializedData: dataRes)
     return ethAddressResponse.address
@@ -429,9 +446,9 @@ public class API{
     action.param.value = try! req.serializedData()
     
     let paramHex = try! action.serializedData().toHexString()
-    let res = call_imkey_api(paramHex)
+    let res = callImkeyHex(paramHex)
     
-    let strRes = String(cString:res!)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let ethAddressResponse = try! Api_AddressResult(serializedData: dataRes)
     return ethAddressResponse.address
@@ -457,7 +474,7 @@ public class API{
     
     let actionBytes = try action.serializedData()
     let hex = actionBytes.toHexString()
-    _ = call_imkey_api(hex)
+    _ = callImkeyHex(hex)
   }
   
   public class func bindCheck() -> String{
@@ -482,11 +499,11 @@ public class API{
     
     imkey_clear_err()
     let paramHex = try! action.serializedData().toHexString()
-    let res = call_imkey_api(paramHex)
-    let error = imkey_get_last_err_message()
+    let res = callImkeyHex(paramHex)
+    let error = lastImkeyError()
     print(error!)
     
-    let strRes = String(cString:res!)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let bindResponse = try! Deviceapi_BindCheckRes(serializedData: dataRes)
     return bindResponse.bindStatus
@@ -503,11 +520,11 @@ public class API{
     
     //    imkey_clear_err()
     let paramHex = try! action.serializedData().toHexString()
-    let res = call_imkey_api(paramHex)
-    //    let error = imkey_get_last_err_message()
+    let res = callImkeyHex(paramHex)
+    //    let error = lastImkeyError()
     //    print(error)
     
-    let strRes = String(cString:res!)
+    let strRes = res
     let dataRes = strRes.key_dataFromHexString()!
     let bindResponse = try! Deviceapi_BindAcquireRes(serializedData: dataRes)
     return bindResponse.bindResult
@@ -530,8 +547,8 @@ public class API{
     action.method = "sign_tx"
     
     let paramHex = try! action.serializedData().toHexString()
-    let res = call_imkey_api(paramHex)
-//    let hexRes = String(cString:res!).toHexString()
+    let res = callImkeyHex(paramHex)
+//    let hexRes = res.toHexString()
 //    Log.d(hexRes)
   }
   
@@ -593,8 +610,8 @@ public class API{
     let paramHex = try! action.serializedData().toHexString()
     
     Log.d("eos param ready..")
-    let res = call_imkey_api(paramHex)
-//    let hexRes = String(cString:res!).toHexString()
+    let res = callImkeyHex(paramHex)
+//    let hexRes = res.toHexString()
 //    Log.d(hexRes)
   }
   

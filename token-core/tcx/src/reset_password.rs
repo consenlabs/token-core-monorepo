@@ -1,8 +1,6 @@
-use std::ascii::AsciiExt;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
-use std::str::FromStr;
 
 use anyhow::anyhow;
 use serde_json::Value;
@@ -12,7 +10,7 @@ use tcx_eos::address::EosPublicKeyEncoder;
 use tcx_keystore::{fingerprint_from_mnemonic, PublicKeyEncoder};
 use tcx_migration::keystore_upgrade::mapping_curve_name;
 use tcx_migration::migration::LegacyKeystore;
-use tcx_primitive::{Derive, PrivateKey, TypedDeterministicPrivateKey, TypedPrivateKey};
+use tcx_primitive::{Derive, TypedDeterministicPrivateKey, TypedPrivateKey};
 
 use crate::error_handling::Result;
 use crate::filemanager::{LEGACY_WALLET_FILE_DIR, WALLET_FILE_DIR};
@@ -23,11 +21,13 @@ use crate::handler::{
 fn parse_coin_info_from_legacy_ks(value: Value) -> Result<(CoinInfo, String)> {
     let legacy_ks_ret = serde_json::from_value::<LegacyKeystore>(value);
     if let Ok(legacy_ks) = legacy_ks_ret {
-        let meta = legacy_ks.im_token_meta.unwrap();
-        let chain_str = if meta.chain.is_some() {
-            meta.chain.unwrap().to_string()
+        let meta = legacy_ks
+            .im_token_meta
+            .ok_or_else(|| anyhow!("invalid_keystore"))?;
+        let chain_str = if let Some(chain) = meta.chain {
+            chain.to_string()
         } else {
-            meta.chain_type.unwrap().to_string()
+            meta.chain_type.ok_or_else(|| anyhow!("invalid_keystore"))?
         };
         let seg_wit = meta.seg_wit.unwrap_or_default();
         let network = meta.network.unwrap_or("MAINNET".to_string());
@@ -42,14 +42,20 @@ fn parse_coin_info_from_legacy_ks(value: Value) -> Result<(CoinInfo, String)> {
                 ("".to_string(), legacy_ks.address.unwrap_or_default())
             } else {
                 (
-                    format!("{}/0/0", legacy_ks.mnemonic_path.clone().unwrap()),
+                    format!(
+                        "{}/0/0",
+                        legacy_ks
+                            .mnemonic_path
+                            .clone()
+                            .ok_or_else(|| anyhow!("invalid_keystore"))?
+                    ),
                     legacy_ks.address.unwrap_or_default(),
                 )
             }
         } else if chain_str.eq_ignore_ascii_case("eos") {
             if let Some(key_pair) = legacy_ks
                 .key_path_privates
-                .unwrap()
+                .ok_or_else(|| anyhow!("invalid_keystore"))?
                 .iter()
                 .find(|x| x.derived_mode.eq(&Some("PATH_DIRECTLY".to_string())))
             {
@@ -80,9 +86,9 @@ fn parse_coin_info_from_legacy_ks(value: Value) -> Result<(CoinInfo, String)> {
             seg_wit,
             contract_code: "".to_string(),
         };
-        return Ok((coin_info, address));
+        Ok((coin_info, address))
     } else {
-        return Err(anyhow!("parse legacy keystore failed"));
+        Err(anyhow!("parse legacy keystore failed"))
     }
 }
 
@@ -96,7 +102,7 @@ fn parse_coin_info_from_ks(old_ks_id: &str) -> Result<(CoinInfo, String)> {
         Path::new(&old_path_str)
     };
 
-    let mut f = fs::File::open(old_path).expect("open file");
+    let mut f = fs::File::open(old_path)?;
     let mut contents = String::new();
     f.read_to_string(&mut contents)?;
 
@@ -112,17 +118,17 @@ fn parse_coin_info_from_ks(old_ks_id: &str) -> Result<(CoinInfo, String)> {
 fn parse_coin_info_from_legacy_tcx_ks(legacy_tcx_ks: Value) -> Result<(CoinInfo, String)> {
     if let Some(account_json) = legacy_tcx_ks["activeAccounts"]
         .as_array()
-        .expect("tcx keystore missing accounts")
+        .ok_or_else(|| anyhow!("invalid_keystore"))?
         .first()
     {
         let old_curve_name = account_json["curve"]
             .as_str()
-            .expect("activeAccounts need contains curve");
-        let new_curve_name = mapping_curve_name(&old_curve_name);
+            .ok_or_else(|| anyhow!("invalid_keystore"))?;
+        let new_curve_name = mapping_curve_name(old_curve_name)?;
         let curve = CurveType::from_str(&new_curve_name);
         let coin = account_json["coin"]
             .as_str()
-            .expect("activeAccounts need contains chainType")
+            .ok_or_else(|| anyhow!("invalid_keystore"))?
             .to_string();
         let derivation_path = account_json["derivationPath"]
             .as_str()
@@ -135,7 +141,7 @@ fn parse_coin_info_from_legacy_tcx_ks(legacy_tcx_ks: Value) -> Result<(CoinInfo,
 
         let address = account_json["address"]
             .as_str()
-            .expect("activeAccounts need contains address")
+            .ok_or_else(|| anyhow!("invalid_keystore"))?
             .to_string();
 
         let seg_wit = account_json["segWit"]
@@ -151,19 +157,19 @@ fn parse_coin_info_from_legacy_tcx_ks(legacy_tcx_ks: Value) -> Result<(CoinInfo,
             seg_wit,
             contract_code: "".to_string(),
         };
-        return Ok((coin_info, address));
+        Ok((coin_info, address))
     } else {
-        return Err(anyhow!("tcx keystore missing accounts"));
+        Err(anyhow!("tcx keystore missing accounts"))
     }
 }
 
 fn read_json_from_file(file_path: &Path) -> Result<Value> {
-    let mut f = fs::File::open(file_path).expect("open file");
+    let mut f = fs::File::open(file_path)?;
     let mut contents = String::new();
     f.read_to_string(&mut contents)?;
 
     let value: Value = serde_json::from_str(&contents)?;
-    return Ok(value);
+    Ok(value)
 }
 
 pub(crate) fn assert_seed_equals(overwrite_id: &str, input: &str, is_mnemonic: bool) -> Result<()> {
@@ -177,27 +183,27 @@ pub(crate) fn assert_seed_equals(overwrite_id: &str, input: &str, is_mnemonic: b
         let ks_json = read_json_from_file(migrated_ks_path)?;
         let fingerprint_in_ks = ks_json["sourceFingerprint"]
             .as_str()
-            .expect("fingerprint must in new ks");
+            .ok_or_else(|| anyhow!("invalid_keystore"))?;
         let fp_form_user = if is_mnemonic {
-            fingerprint_from_mnemonic(&input)?
+            fingerprint_from_mnemonic(input)?
         } else {
-            fingerprint_from_any_format_pk(&input)?
+            fingerprint_from_any_format_pk(input)?
         };
         if fp_form_user.eq_ignore_ascii_case(fingerprint_in_ks) {
-            return Ok(());
+            Ok(())
         } else {
-            return Err(anyhow!("seed_not_equals"));
+            Err(anyhow!("seed_not_equals"))
         }
     } else {
         let (coin_info, address) = parse_coin_info_from_ks(overwrite_id)?;
         let secret_key: Vec<u8> = if is_mnemonic {
             let valid_mnemonic = &input.split_whitespace().collect::<Vec<&str>>().join(" ");
             let tdp: TypedDeterministicPrivateKey =
-                TypedDeterministicPrivateKey::from_mnemonic(coin_info.curve, &valid_mnemonic)?;
+                TypedDeterministicPrivateKey::from_mnemonic(coin_info.curve, valid_mnemonic)?;
             let child_key = tdp.derive(&coin_info.derivation_path)?;
             child_key.private_key().to_bytes()
         } else {
-            decode_private_key(&input)?.bytes
+            decode_private_key(input)?.bytes
         };
 
         // EOS can only compare public key
@@ -207,11 +213,11 @@ pub(crate) fn assert_seed_equals(overwrite_id: &str, input: &str, is_mnemonic: b
         } else {
             Ok(private_key_to_account_dynamic(&coin_info, &secret_key)?.address)
         }?;
-        return if strip_0x_prefix(&calc_address).eq_ignore_ascii_case(&strip_0x_prefix(&address)) {
+        if strip_0x_prefix(&calc_address).eq_ignore_ascii_case(&strip_0x_prefix(&address)) {
             Ok(())
         } else {
             Err(anyhow!("seed_not_equals"))
-        };
+        }
     }
 }
 

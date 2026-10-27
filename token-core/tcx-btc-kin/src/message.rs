@@ -214,6 +214,14 @@ impl MessageSigner<BtcMessageInput, BtcMessageOutput> for Keystore {
         params: &SignatureParameters,
         message_input: &BtcMessageInput,
     ) -> tcx_keystore::Result<BtcMessageOutput> {
+        if self.derivable() {
+            let signing_path = format!("{}/0/0", params.derivation_path);
+            crate::signing_policy::validate_path(
+                &signing_path,
+                &params.chain_type,
+                Some(&params.network),
+            )?;
+        }
         let data = utf8_or_hex_to_bytes(&message_input.message)?;
         let seg_wit = params.seg_wit.as_str();
         let sig_type = message_input.signature_type;
@@ -267,6 +275,55 @@ mod tests {
             seg_wit: seg_wit.to_string(),
             derivation_path: derivation_path.to_string(),
         }
+    }
+
+    #[test]
+    fn security_message_hd_paths_reject_root_and_cross_chain_accounts() {
+        let mut keystore = sample_hd_keystore();
+        for (kind, segwit) in [
+            (BtcSignatureType::Standard, "NONE"),
+            (BtcSignatureType::Bip137, "NONE"),
+            (BtcSignatureType::Bip322, "VERSION_0"),
+        ] {
+            for path in [
+                "",
+                "m",
+                "m/44'/60'/0'",
+                "m/44/0'/0'",
+                "m/44'/0/0'",
+                "m/44'/0'/0",
+            ] {
+                let params = make_params(segwit, path);
+                let input = BtcMessageInput {
+                    message: "hello world".to_string(),
+                    signature_type: kind as i32,
+                };
+                assert_eq!(
+                    keystore
+                        .sign_message(&params, &input)
+                        .unwrap_err()
+                        .to_string(),
+                    "invalid_sign_path"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn security_message_private_key_preserves_empty_path() {
+        let mut keystore = wif_keystore("L4F5BYm82Bck6VEY64EbqQkoBXqkegq9X9yc6iLTV3cyJoqUasnY");
+        let input = BtcMessageInput {
+            message: "hello world".to_string(),
+            signature_type: BtcSignatureType::Standard as i32,
+        };
+        let empty = keystore
+            .sign_message(&make_params("NONE", ""), &input)
+            .unwrap();
+        let account = keystore
+            .sign_message(&make_params("NONE", "m/44'/0'/0'"), &input)
+            .unwrap();
+        assert_eq!(empty.signature, account.signature);
+        assert_eq!(base64::decode(empty.signature).unwrap().len(), 65);
     }
 
     #[test]

@@ -67,6 +67,12 @@ fn flag_base_for_bip137(seg_wit: &str) -> Result<u8> {
 
 impl MessageSinger {
     pub fn sign_message(&self, input: BtcMessageInput) -> Result<BtcMessageOutput> {
+        let signing_path = format!("{}/0/0", self.derivation_path);
+        ikc_common::path::validate_btc_signing_path(
+            &signing_path,
+            &self.chain_type,
+            &self.network,
+        )?;
         let data = utf8_or_hex_to_bytes(&input.message)?;
         let seg_wit = self.seg_wit.as_str();
         let sig_type = input.signature_type;
@@ -362,6 +368,34 @@ mod tests {
             })
             .unwrap_err()
             .to_string()
+    }
+
+    #[test]
+    fn security_message_paths_reject_before_device_access() {
+        for path in [
+            "",
+            "m",
+            "m/44'/60'/0'",
+            "m/44/0'/0'",
+            "m/44'/0/0'",
+            "m/44'/0'/0",
+        ] {
+            for (kind, segwit) in [
+                (BtcSignatureType::Standard, "NONE"),
+                (BtcSignatureType::Bip137, "NONE"),
+                (BtcSignatureType::Bip322, "VERSION_0"),
+            ] {
+                let signer = make_signer(segwit, path);
+                let input = BtcMessageInput {
+                    message: "hello world".to_string(),
+                    signature_type: kind as i32,
+                };
+                assert_eq!(
+                    signer.sign_message(input).unwrap_err().to_string(),
+                    "imkey_path_illegal"
+                );
+            }
+        }
     }
 
     #[test]

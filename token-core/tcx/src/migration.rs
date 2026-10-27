@@ -11,21 +11,20 @@ use anyhow::anyhow;
 use ethereum_types::H160;
 use prost::Message;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
-use std::collections::{HashMap, HashSet};
+use serde_json::Value;
+use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
 use std::path::Path;
 use std::str::FromStr;
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::coin_info::get_xpub_prefix;
-use tcx_constants::CoinInfo;
 use tcx_eth::address::to_checksum;
 use tcx_keystore::keystore::IdentityNetwork;
+use tcx_keystore::Keystore;
 use tcx_keystore::Metadata;
-use tcx_keystore::{Keystore, Source};
 use tcx_migration::keystore_upgrade::{mapping_curve_name, KeystoreUpgrade};
-use tcx_migration::migration::{LegacyKeystore, NumberOrNumberStr};
+use tcx_migration::migration::LegacyKeystore;
 use tcx_primitive::{Bip32DeterministicPublicKey, Ss58Codec};
 
 const IDENTITY_WALLET_IDS_FILE: &str = "identity-wallet-ids.json";
@@ -45,7 +44,7 @@ pub fn read_migrated_map() -> (String, HashMap<String, Vec<String>>) {
 
     let migrated_file = format!("{}/_migrated.json", legacy_file_dir);
     let map = if let Ok(json_str) = fs::read_to_string(&migrated_file) {
-        serde_json::from_str::<HashMap<String, Vec<String>>>(&json_str).unwrap_or(HashMap::new())
+        serde_json::from_str::<HashMap<String, Vec<String>>>(&json_str).unwrap_or_default()
     } else {
         HashMap::new()
     };
@@ -65,7 +64,7 @@ fn remove_old_keystore_file(id: &str) {
     }
 
     if Path::new(&file_path).exists() {
-        fs::remove_file(&file_path);
+        let _ = fs::remove_file(&file_path);
     }
 }
 
@@ -74,10 +73,10 @@ pub fn remove_old_keystore_by_id(id: &str) -> Option<Vec<String>> {
 
     let migrated_file = result.0;
     let mut map = result.1;
-    let marked_files = map.get(id).and_then(|x| Some(x.to_vec())).clone();
+    let marked_files = map.get(id).map(|x| x.to_vec()).clone();
     if let Some(files) = map.get(id) {
         for file_id in files.iter() {
-            remove_old_keystore_file(&file_id);
+            remove_old_keystore_file(file_id);
         }
     }
 
@@ -85,32 +84,31 @@ pub fn remove_old_keystore_by_id(id: &str) -> Option<Vec<String>> {
 
     if !map.is_empty() {
         let json_str = serde_json::to_string(&map).unwrap();
-        fs::write(&migrated_file, json_str);
+        let _ = fs::write(&migrated_file, json_str);
     } else {
-        fs::remove_file(&migrated_file);
+        let _ = fs::remove_file(&migrated_file);
     }
     marked_files
 }
 
-fn mark_keystore_as_migrated(legacy_file_id: &str, migrated_file_id: &str) {
+fn mark_keystore_as_migrated(legacy_file_id: &str, migrated_file_id: &str) -> Result<()> {
     let result = read_migrated_map();
     let mut map: HashMap<String, Vec<String>> = result.1;
     let migrated_file = result.0;
 
     let file_ids = map.entry(migrated_file_id.to_string()).or_insert(vec![]);
     if file_ids.contains(&legacy_file_id.to_string()) {
-        return;
+        return Ok(());
     }
 
     file_ids.push(legacy_file_id.to_string());
 
-    let json_str = serde_json::to_string(&map).unwrap();
-    fs::write(&migrated_file, json_str).expect("write migrated.json");
+    fs::write(&migrated_file, serde_json::to_string(&map)?)?;
+    Ok(())
 }
 
 pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
-    let param: MigrateKeystoreParam =
-        MigrateKeystoreParam::decode(data).expect("param: MigrateKeystoreParam");
+    let param: MigrateKeystoreParam = MigrateKeystoreParam::decode(data)?;
     let legacy_file_dir = {
         let dir = LEGACY_WALLET_FILE_DIR.read();
         dir.to_string()
@@ -123,7 +121,11 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
     let json_str = fs::read_to_string(file_path)?;
     let json = serde_json::from_str::<Value>(&json_str)?;
 
-    let key = match param.key.clone().expect("need_password_or_derived_key") {
+    let key = match param
+        .key
+        .clone()
+        .ok_or_else(|| anyhow!("need_password_or_derived_key"))?
+    {
         migrate_keystore_param::Key::Password(password) => tcx_crypto::Key::Password(password),
         migrate_keystore_param::Key::DerivedKey(derived_key) => {
             tcx_crypto::Key::DerivedKey(derived_key)
@@ -155,12 +157,12 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
                 .values()
                 .filter(|ks| ks.fingerprint() == fingerprint)
                 .collect();
-            if existed_ks.len() > 0 {
+            if !existed_ks.is_empty() {
                 is_existed = true;
                 existed_id = existed_ks
                     .iter()
                     .find(|ks| existed_keystore_file(&ks.id()))
-                    .expect("At least one keystore file should be existed")
+                    .ok_or_else(|| anyhow!("keystore_file_not_found"))?
                     .id();
                 // Note: Temporary retention of the old ID,
                 // so that users can continue to use the old ID for subsequent operations.
@@ -169,16 +171,14 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
         }
 
         if is_existed {
-            mark_keystore_as_migrated(&id, &existed_id);
+            mark_keystore_as_migrated(&id, &existed_id)?;
 
-            return encode_message(MigrateKeystoreResult {
+            encode_message(MigrateKeystoreResult {
                 is_existed: true,
                 existed_id,
                 keystore: None,
-            });
+            })
         } else {
-            mark_keystore_as_migrated(&id, &keystore.id());
-
             let identity = keystore.identity();
 
             let keystore_result = KeystoreResult {
@@ -199,8 +199,9 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
                 keystore: Some(keystore_result),
             });
             flush_keystore(&keystore)?;
+            mark_keystore_as_migrated(&id, &keystore.id())?;
             cache_keystore(keystore);
-            return ret;
+            ret
         }
     } else {
         Err(anyhow!("unknown_version_when_upgrade_keystore"))
@@ -208,8 +209,7 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
 }
 
 pub(crate) fn mark_identity_wallets(data: &[u8]) -> Result<Vec<u8>> {
-    let param: MarkIdentityWalletsParam =
-        MarkIdentityWalletsParam::decode(data).expect("param: MarkIdentityWalletsParam");
+    let param: MarkIdentityWalletsParam = MarkIdentityWalletsParam::decode(data)?;
     let json = AllIdentityWallets {
         wallet_ids: param.ids,
         source: param.source,
@@ -226,11 +226,11 @@ pub(crate) fn mark_identity_wallets(data: &[u8]) -> Result<Vec<u8>> {
         is_success: true,
         error: "".to_string(),
     };
-    return encode_message(ret);
+    encode_message(ret)
 }
 
 pub(crate) fn read_legacy_keystore_mnemonic_path(data: &[u8]) -> Result<Vec<u8>> {
-    let param: WalletId = WalletId::decode(data).expect("param: WalletId");
+    let param: WalletId = WalletId::decode(data)?;
 
     let legacy_file_dir = {
         let dir = LEGACY_WALLET_FILE_DIR.read();
@@ -253,9 +253,9 @@ pub(crate) fn read_legacy_keystore_mnemonic_path(data: &[u8]) -> Result<Vec<u8>>
         }
     }
 
-    return encode_message(ReadKeystoreMnemonicPathResult {
+    encode_message(ReadKeystoreMnemonicPathResult {
         path: "".to_string(),
-    });
+    })
 }
 
 pub fn read_all_identity_wallet_ids() -> Option<AllIdentityWallets> {
@@ -265,11 +265,9 @@ pub fn read_all_identity_wallet_ids() -> Option<AllIdentityWallets> {
         IDENTITY_WALLET_IDS_FILE
     );
     let file_path = Path::new(&file_path_str);
-    if Path::exists(&file_path) {
-        let json_str = fs::read_to_string(file_path).expect("read identity-wallet-ids");
-        let all_identity_wallets =
-            serde_json::from_str::<AllIdentityWallets>(&json_str).expect("AllIdentityWallets");
-        return Some(all_identity_wallets);
+    if Path::exists(file_path) {
+        let json_str = fs::read_to_string(file_path).ok()?;
+        serde_json::from_str::<AllIdentityWallets>(&json_str).ok()
     } else {
         None
     }
@@ -278,7 +276,7 @@ pub fn read_all_identity_wallet_ids() -> Option<AllIdentityWallets> {
 pub fn remove_all_identity_wallets() -> Option<Vec<String>> {
     if let Some(all_identity_wallets) = read_all_identity_wallet_ids() {
         for id in &all_identity_wallets.wallet_ids {
-            remove_old_keystore_file(&id);
+            remove_old_keystore_file(id);
         }
         let legacy_file_dir = {
             let dir = LEGACY_WALLET_FILE_DIR.read();
@@ -325,10 +323,13 @@ pub(crate) fn scan_legacy_keystores() -> Result<ScanLegacyKeystoresResult> {
     let mut result = ScanLegacyKeystoresResult::default();
 
     for entry in walk_dir {
-        let entry = entry.expect("DirEntry");
+        let entry = entry?;
         let fp = entry.path();
 
-        let mut f = fs::File::open(fp).expect("open file");
+        if !fp.is_file() {
+            continue;
+        }
+        let mut f = fs::File::open(fp)?;
 
         let mut contents = String::new();
         let read_ret = f.read_to_string(&mut contents);
@@ -338,7 +339,7 @@ pub(crate) fn scan_legacy_keystores() -> Result<ScanLegacyKeystoresResult> {
         }
 
         let v_result = serde_json::from_str::<Value>(&contents);
-        let Ok(v) = v_result  else {
+        let Ok(v) = v_result else {
             continue;
         };
 
@@ -356,36 +357,46 @@ pub(crate) fn scan_legacy_keystores() -> Result<ScanLegacyKeystoresResult> {
             let keystore_result = parse_legacy_kesytore(contents)?;
             keystores.push(keystore_result);
         } else if version == 10000 {
-            parse_identity_keystore(&mut result, v);
+            parse_identity_keystore(&mut result, v)?;
         }
     }
     result.keystores = keystores;
     Ok(result)
 }
 
-fn parse_identity_keystore(result: &mut ScanLegacyKeystoresResult, v: Value) {
+fn parse_identity_keystore(result: &mut ScanLegacyKeystoresResult, v: Value) -> Result<()> {
     result.identifier = v["identifier"].as_str().unwrap_or("").to_string();
 
     result.ipfs_id = v["ipfsId"].as_str().unwrap_or("").to_string();
     result.network = v["imTokenMeta"]["network"]
         .as_str()
-        .expect("identity.json network")
+        .ok_or_else(|| anyhow!("invalid_keystore"))?
         .to_string();
     result.source = v["imTokenMeta"]["source"]
         .as_str()
-        .expect("identity.json source")
+        .ok_or_else(|| anyhow!("invalid_keystore"))?
         .to_string();
+    Ok(())
+}
+
+fn checksum_legacy_eth_address(address: &str) -> Result<String> {
+    let bytes = Vec::from_hex_auto(address)?;
+    if bytes.len() != 20 {
+        return Err(anyhow!("invalid_keystore"));
+    }
+    Ok(to_checksum(&H160::from_slice(&bytes), None))
 }
 
 fn parse_legacy_kesytore(contents: String) -> Result<LegacyKeystoreResult> {
     let legacy_keystore = LegacyKeystore::from_json_str(&contents)?;
     let meta = legacy_keystore
         .im_token_meta
-        .expect("imToken keystore need meta");
+        .ok_or_else(|| anyhow!("invalid_keystore"))?;
+    let created_at = meta.to_metadata()?.timestamp;
     let chain_type = if let Some(chain_type) = meta.chain_type {
         chain_type
     } else {
-        meta.chain.unwrap()
+        meta.chain.ok_or_else(|| anyhow!("invalid_keystore"))?
     };
     let seg_wit = if let Some(seg_wit) = meta.seg_wit {
         seg_wit
@@ -424,8 +435,8 @@ fn parse_legacy_kesytore(contents: String) -> Result<LegacyKeystoreResult> {
     };
 
     let mut address = legacy_keystore.address.unwrap_or("".to_string());
-    if chain_type.eq("ETHEREUM") && !address.eq("") {
-        address = to_checksum(&H160::from_slice(&hex::decode(&address)?), None);
+    if chain_type.eq("ETHEREUM") && !address.is_empty() {
+        address = checksum_legacy_eth_address(&address)?;
     }
 
     let account = AccountResponse {
@@ -437,10 +448,6 @@ fn parse_legacy_kesytore(contents: String) -> Result<LegacyKeystoreResult> {
         extended_public_key,
         encrypted_extended_public_key,
         seg_wit,
-    };
-    let created_at = match meta.timestamp.clone() {
-        NumberOrNumberStr::Number(t) => t,
-        NumberOrNumberStr::NumberStr(t) => f64::from_str(&t).expect("f64 from timestamp") as i64,
     };
     let keystore_result = LegacyKeystoreResult {
         id: legacy_keystore.id.to_string(),
@@ -464,41 +471,44 @@ fn parse_tcx_keystore(v: &Value) -> Result<LegacyKeystoreResult> {
             "".to_string()
         };
 
-        let (extended_public_key, encrypted_extended_public_key) = if !legacy_account
-            .ext_pub_key
-            .is_empty()
-        {
-            let Ok(hd_key) = Bip32DeterministicPublicKey::from_hex_auto(&legacy_account.ext_pub_key) else {
+        let (extended_public_key, encrypted_extended_public_key) =
+            if !legacy_account.ext_pub_key.is_empty() {
+                let Ok(hd_key) =
+                    Bip32DeterministicPublicKey::from_hex_auto(&legacy_account.ext_pub_key)
+                else {
                     continue;
                 };
-            let xpub_prefix = get_xpub_prefix(&legacy_account.network);
-            let extended_public_key = hd_key.to_ss58check_with_version(&xpub_prefix);
+                let xpub_prefix = get_xpub_prefix(&legacy_account.network);
+                let extended_public_key = hd_key.to_ss58check_with_version(&xpub_prefix);
 
-            (
-                extended_public_key,
-                encrypt_xpub(&legacy_account.ext_pub_key).unwrap_or("".to_string()),
-            )
-        } else {
-            ("".to_string(), "".to_string())
-        };
+                (
+                    extended_public_key,
+                    encrypt_xpub(&legacy_account.ext_pub_key).unwrap_or("".to_string()),
+                )
+            } else {
+                ("".to_string(), "".to_string())
+            };
 
         let mut address = legacy_account.address.to_string();
         if legacy_account.coin.eq("ETHEREUM") {
-            address = to_checksum(&H160::from_slice(&hex::decode(&address)?), None);
+            address = checksum_legacy_eth_address(&address)?;
         }
 
         account_responses.push(AccountResponse {
             chain_type: legacy_account.coin.to_string(),
             address,
             path: legacy_account.derivation_path.to_string(),
-            curve: mapping_curve_name(legacy_account.curve.as_str()).to_string(),
+            curve: mapping_curve_name(legacy_account.curve.as_str())?,
             public_key,
             extended_public_key,
             encrypted_extended_public_key,
             seg_wit: legacy_account.seg_wit.to_string(),
         })
     }
-    let id = v["id"].as_str().expect("keystore id").to_string();
+    let id = v["id"]
+        .as_str()
+        .ok_or_else(|| anyhow!("invalid_keystore"))?
+        .to_string();
     let meta: Metadata = serde_json::from_value(v["imTokenMeta"].clone())?;
     let keystore_result = LegacyKeystoreResult {
         id,
@@ -534,7 +544,37 @@ mod tests {
         migration::{mark_identity_wallets, scan_legacy_keystores},
     };
     use serial_test::serial;
-    use tcx_keystore::keystore::IdentityNetwork;
+
+    #[test]
+    fn malformed_migration_and_scan_inputs_return_errors_without_panicking() {
+        for payload in [vec![0xFF], vec![0x0A, 0xFF], vec![0x80]] {
+            for handler in [
+                super::migrate_keystore,
+                super::mark_identity_wallets,
+                super::read_legacy_keystore_mnemonic_path,
+            ] {
+                let result = std::panic::catch_unwind(|| handler(&payload));
+                assert!(result.is_ok());
+                assert!(result.unwrap().is_err());
+            }
+        }
+        for address in ["", "0x", "01", "0x1122", "zz", &"11".repeat(21)] {
+            let result = std::panic::catch_unwind(|| super::checksum_legacy_eth_address(address));
+            assert!(result.is_ok());
+            assert!(result.unwrap().is_err());
+        }
+        for value in [
+            serde_json::json!(null),
+            serde_json::json!({}),
+            serde_json::json!({"imTokenMeta":{"network":1}}),
+        ] {
+            let result = std::panic::catch_unwind(|| {
+                super::parse_identity_keystore(&mut Default::default(), value)
+            });
+            assert!(result.is_ok());
+            assert!(result.unwrap().is_err());
+        }
+    }
 
     #[test]
     #[serial]
@@ -545,7 +585,7 @@ mod tests {
             ids: vec!["0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string()],
             source: "RECOVERED_IDENTITY".to_string(),
         };
-        mark_identity_wallets(&encode_message(param).unwrap());
+        let _ = mark_identity_wallets(&encode_message(param).unwrap());
 
         let result = scan_legacy_keystores().unwrap();
 
@@ -553,7 +593,6 @@ mod tests {
             .keystores
             .iter()
             .find(|x| x.id.eq("0a2756cd-ff70-437b-9bdb-ad46b8bb0819"))
-            .clone()
             .unwrap();
         assert_eq!(keystore.source, "RECOVERED_IDENTITY");
 
@@ -561,7 +600,7 @@ mod tests {
             ids: vec!["0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string()],
             source: "NEW_IDENTITY".to_string(),
         };
-        mark_identity_wallets(&encode_message(param).unwrap());
+        let _ = mark_identity_wallets(&encode_message(param).unwrap());
 
         let result = scan_legacy_keystores().unwrap();
 
@@ -569,7 +608,6 @@ mod tests {
             .keystores
             .iter()
             .find(|x| x.id.eq("0a2756cd-ff70-437b-9bdb-ad46b8bb0819"))
-            .clone()
             .unwrap();
         assert_eq!(keystore.source, "NEW_IDENTITY");
         fs::remove_file("../test-data/wallets-ios-2_14_1/identity-wallet-ids.json").unwrap();
@@ -599,7 +637,6 @@ mod tests {
             .keystores
             .iter()
             .find(|x| x.id.eq("0a2756cd-ff70-437b-9bdb-ad46b8bb0819"))
-            .clone()
             .unwrap();
         assert_eq!(keystore.id, "0a2756cd-ff70-437b-9bdb-ad46b8bb0819");
         let account = keystore.accounts.first().unwrap();
@@ -635,7 +672,6 @@ mod tests {
             .keystores
             .iter()
             .find(|x| x.id.eq("4d5cbfcf-aee1-4908-9991-9d060eb68a0e"))
-            .clone()
             .unwrap();
         assert_eq!(keystore.id, "4d5cbfcf-aee1-4908-9991-9d060eb68a0e");
         let account = keystore.accounts.first().unwrap();
@@ -654,7 +690,6 @@ mod tests {
             .keystores
             .iter()
             .find(|x| x.id.eq("fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb"))
-            .clone()
             .unwrap();
         assert_eq!(keystore.id, "fbdc2a0b-58d5-4e43-b368-a0cb1a2d17cb");
         let account = keystore.accounts.first().unwrap();
@@ -682,7 +717,6 @@ mod tests {
             .keystores
             .iter()
             .find(|x| x.id.eq("00fc0804-7cea-46d8-9e95-ed1efac65358"))
-            .clone()
             .unwrap();
         assert_eq!(keystore.id, "00fc0804-7cea-46d8-9e95-ed1efac65358");
         let account = keystore.accounts.first().unwrap();
@@ -699,7 +733,6 @@ mod tests {
             .keystores
             .iter()
             .find(|x| x.id.eq("6c3eae60-ad03-48db-a5e5-61a6f72aef8d"))
-            .clone()
             .unwrap();
         assert_eq!(keystore.id, "6c3eae60-ad03-48db-a5e5-61a6f72aef8d");
         let account = keystore.accounts.first().unwrap();
@@ -719,7 +752,6 @@ mod tests {
             .keystores
             .iter()
             .find(|x| x.id.eq("9b696367-69c1-4cfe-8325-e5530399fc3f"))
-            .clone()
             .unwrap();
         assert_eq!(keystore.id, "9b696367-69c1-4cfe-8325-e5530399fc3f");
         let account = keystore.accounts.first().unwrap();
@@ -735,7 +767,6 @@ mod tests {
             .keystores
             .iter()
             .find(|x| x.id.eq("60573d8d-8e83-45c3-85a5-34fbb2aad5e1"))
-            .clone()
             .unwrap();
         assert_eq!(keystore.id, "60573d8d-8e83-45c3-85a5-34fbb2aad5e1");
         let account = keystore.accounts.first().unwrap();
@@ -752,7 +783,6 @@ mod tests {
             .keystores
             .iter()
             .find(|x| x.id.eq("792a0051-16d7-44a7-921a-9b4a0c893b8f"))
-            .clone()
             .unwrap();
         assert_eq!(keystore.id, "792a0051-16d7-44a7-921a-9b4a0c893b8f");
         let account = keystore.accounts.first().unwrap();

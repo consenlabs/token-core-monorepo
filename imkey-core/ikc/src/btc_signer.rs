@@ -4,12 +4,12 @@ use bitcoin::Network;
 use coin_bitcoin::btcapi::{BtcMessageInput, BtcTxInput, BtcTxOutput};
 use coin_bitcoin::message::MessageSinger;
 use coin_bitcoin::transaction::{BtcTransaction, Utxo};
-use ikc_common::path::get_account_path;
+use ikc_common::path::{get_account_path, resolve_derivation_path};
 use ikc_common::SignParam;
 use prost::Message;
 
 pub fn sign_btc_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: BtcTxInput = BtcTxInput::decode(data).expect("BtcTxInput");
+    let input: BtcTxInput = BtcTxInput::decode(data)?;
 
     if input.protocol.to_uppercase() == "OMNI" {
         if input.seg_wit.to_uppercase() == "P2WPKH" {
@@ -31,7 +31,7 @@ pub fn btc_sign(param: &BtcTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
             amount: utxo.amount,
             address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
-            derive_path: utxo.derived_path.to_uppercase(),
+            derive_path: resolve_derivation_path(&sign_param.path, &utxo.derived_path)?,
             sequence: utxo.sequence,
         };
         unspents.push(new_utxo);
@@ -74,7 +74,7 @@ pub fn sign_usdt_transaction(input: &BtcTxInput, sign_param: &SignParam) -> Resu
             amount: utxo.amount,
             address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
-            derive_path: utxo.derived_path.to_string(),
+            derive_path: resolve_derivation_path(&sign_param.path, &utxo.derived_path)?,
             sequence: utxo.sequence,
         };
         unspents.push(new_utxo);
@@ -116,7 +116,7 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
             amount: utxo.amount,
             address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
-            derive_path: utxo.derived_path.to_string(),
+            derive_path: resolve_derivation_path(&sign_param.path, &utxo.derived_path)?,
             sequence: utxo.sequence,
         };
         unspents.push(new_utxo);
@@ -162,4 +162,34 @@ pub fn btc_sign_message(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> 
     };
     let signed = singer.sign_message(input)?;
     encode_message(signed)
+}
+
+#[cfg(test)]
+mod security_message_tests {
+    use super::*;
+    #[test]
+    fn security_btc_message_wrapper_rejects_before_device_access() {
+        let input = BtcMessageInput {
+            message: "hello world".to_string(),
+            signature_type: coin_bitcoin::btcapi::BtcSignatureType::Standard as i32,
+        };
+        let bytes = input.encode_to_vec();
+        for path in [
+            "",
+            "m",
+            "m/44'/60'/0'",
+            "m/44/0'/0'",
+            "m/44'/0/0'",
+            "m/44'/0'/0",
+        ] {
+            let params = SignParam {
+                chain_type: "BITCOIN".to_string(),
+                path: path.to_string(),
+                network: "MAINNET".to_string(),
+                seg_wit: "NONE".to_string(),
+                ..Default::default()
+            };
+            assert!(btc_sign_message(&bytes, &params).is_err());
+        }
+    }
 }

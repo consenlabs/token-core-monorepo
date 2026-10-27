@@ -1,4 +1,5 @@
 use crate::Result;
+use anyhow::anyhow;
 use bech32::{encode, ToBase32, Variant};
 use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
 use bitcoin::Network;
@@ -31,20 +32,36 @@ impl CosmosAddress {
         let res_msg_pubkey = message::send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
-        let sign_source_val = &res_msg_pubkey[..194];
-        let sign_result = &res_msg_pubkey[194..res_msg_pubkey.len() - 4];
+        let body_end = res_msg_pubkey
+            .len()
+            .checked_sub(4)
+            .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+        let body = res_msg_pubkey
+            .get(..body_end)
+            .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+        let sign_source_val = body
+            .get(..194)
+            .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+        let sign_result = body
+            .get(194..)
+            .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
 
         let key_manager_obj = KEY_MANAGER.lock();
 
         let sign_verify_result = utility::secp256k1_sign_verify(
             &key_manager_obj.se_pub_key,
-            hex::decode(sign_result).unwrap().as_slice(),
-            hex::decode(sign_source_val).unwrap().as_slice(),
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(sign_source_val)?.as_slice(),
         )?;
         if !sign_verify_result {
             return Err(CoinError::ImkeySignatureVerifyFail.into());
         }
 
+        PublicKey::from_str(
+            sign_source_val
+                .get(..130)
+                .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?,
+        )?;
         Ok(sign_source_val.to_string())
     }
 
@@ -60,7 +77,7 @@ impl CosmosAddress {
     }
 
     pub fn display_address(path: &str) -> Result<String> {
-        let address = CosmosAddress::get_address(path).unwrap();
+        let address = CosmosAddress::get_address(path)?;
         let reg_apdu = CosmosApdu::register_address(address.as_bytes());
         let res_reg = message::send_apdu(reg_apdu)?;
         ApduCheck::check_response(&res_reg)?;

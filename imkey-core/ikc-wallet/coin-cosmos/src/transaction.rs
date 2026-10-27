@@ -1,13 +1,16 @@
+use crate::address::CosmosAddress;
 use crate::cosmosapi::CosmosTxOutput;
+use crate::display;
 use crate::Result;
-use bitcoin_hashes::hex::ToHex;
+use anyhow::anyhow;
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, CosmosApdu};
 use ikc_common::constants;
-use ikc_common::path::check_path_validity;
+use ikc_common::path::validate_bip44_signing_path;
 use ikc_common::utility::{hex_to_bytes, secp256k1_sign, sha256_hash};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::{self, ecdsa::Signature as SecpSignature};
+use std::convert::TryFrom;
 
 #[derive(Debug)]
 pub struct CosmosTransaction {
@@ -20,28 +23,17 @@ pub struct CosmosTransaction {
 
 impl CosmosTransaction {
     pub fn sign(self) -> Result<CosmosTxOutput> {
-        check_path_validity(&self.path).unwrap();
-        let sign_hash = sha256_hash(hex_to_bytes(&self.sign_data)?.as_slice());
-        let mut sign_pack = "0120".to_string();
-        sign_pack.push_str(&sign_hash.to_hex());
-        if self.payment_dis == "" {
-            sign_pack.push_str("070008000900");
-        } else {
-            sign_pack.push_str("07");
-            sign_pack.push_str(&format!("{:02x}", self.payment_dis.as_bytes().len()));
-            sign_pack.push_str(&hex::encode(&self.payment_dis));
-            sign_pack.push_str("08");
-            sign_pack.push_str(&format!("{:02x}", self.to_dis.as_bytes().len()));
-            sign_pack.push_str(&hex::encode(&self.to_dis));
-            sign_pack.push_str("09");
-            sign_pack.push_str(&format!("{:02x}", self.fee_dis.as_bytes().len()));
-            sign_pack.push_str(&hex::encode(&self.fee_dis));
-        }
-
-        let sign_pack_vec = hex::decode(sign_pack).expect("Decoding failed");
+        validate_bip44_signing_path(&self.path, &[118], &[44])?;
+        let sign_data = hex_to_bytes(&self.sign_data)?;
+        let display = display::derive(&sign_data)?;
+        display::validate_assertions(&display, &self.payment_dis, &self.to_dis, &self.fee_dis)?;
+        let sign_hash = sha256_hash(&sign_data);
+        let sign_pack_vec = signing_pack(&sign_hash, &display)?;
+        let public_key = CosmosAddress::get_pub_key(&self.path)?;
+        let public_key = verify_sender(&display, &public_key)?;
 
         let key_manager_obj = KEY_MANAGER.lock();
-        let mut prepare_data = secp256k1_sign(&key_manager_obj.pri_key, &sign_pack_vec.as_slice())?;
+        let mut prepare_data = secp256k1_sign(&key_manager_obj.pri_key, sign_pack_vec.as_slice())?;
         std::mem::drop(key_manager_obj);
         prepare_data.insert(0, prepare_data.len() as u8);
         prepare_data.insert(0, 0x00);
@@ -63,15 +55,81 @@ impl CosmosTransaction {
         let sign_result = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_result)?;
 
-        let sign_compact = hex::decode(&sign_result[2..130]).unwrap();
-        let mut signature_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
+        let mut signature_obj = parse_signature(&sign_result)?;
+        let digest = <[u8; 32]>::try_from(sign_hash.as_slice())
+            .map_err(|_| anyhow!("imkey_illegal_param"))?;
         signature_obj.normalize_s();
+        secp256k1::Secp256k1::verification_only().verify_ecdsa(
+            &secp256k1::Message::from_slice(&digest)?,
+            &signature_obj,
+            &public_key,
+        )?;
         let normalizes_sig_vec = signature_obj.serialize_compact();
-        let signature = base64::encode(&normalizes_sig_vec.as_ref());
+        let signature = base64::encode(&normalizes_sig_vec);
 
         let output = CosmosTxOutput { signature };
         Ok(output)
     }
+}
+
+fn signing_pack(hash: &[u8], display: &display::Display) -> Result<Vec<u8>> {
+    let mut pack = vec![1, 32];
+    pack.extend_from_slice(hash);
+    for (tag, value) in [
+        (7, &display.payment),
+        (8, &display.receiver),
+        (9, &display.fee),
+    ] {
+        let len = u8::try_from(value.len()).map_err(|_| anyhow!("imkey_illegal_param"))?;
+        pack.extend_from_slice(&[tag, len]);
+        pack.extend_from_slice(value.as_bytes());
+    }
+    Ok(pack)
+}
+
+fn address_from_pubkey(prefix: &str, public_key: &secp256k1::PublicKey) -> Result<String> {
+    use bech32::ToBase32;
+    use bitcoin_hashes::{hash160, Hash};
+    let hash = hash160::Hash::hash(&public_key.serialize());
+    Ok(bech32::encode(
+        prefix,
+        hash.as_ref().to_base32(),
+        bech32::Variant::Bech32,
+    )?)
+}
+
+fn verify_sender(display: &display::Display, public_key: &str) -> Result<secp256k1::PublicKey> {
+    let sender = display.sender.as_str();
+    let public_key = public_key
+        .get(..130)
+        .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+    let public_key = secp256k1::PublicKey::from_slice(&hex::decode(public_key)?)?;
+    if display
+        .declared_public_key
+        .as_deref()
+        .is_some_and(|declared| declared != public_key.serialize())
+    {
+        return Err(anyhow!("imkey_address_mismatch_with_path"));
+    }
+    let (prefix, _, _) = bech32::decode(sender)?;
+    let derived = address_from_pubkey(&prefix, &public_key)?;
+    if derived != sender {
+        return Err(anyhow!("imkey_address_mismatch_with_path"));
+    }
+    Ok(public_key)
+}
+
+fn parse_signature(response: &str) -> Result<SecpSignature> {
+    ApduCheck::check_response(response)?;
+    let body_end = response
+        .len()
+        .checked_sub(4)
+        .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+    let compact = response
+        .get(..body_end)
+        .and_then(|body| body.get(2..130))
+        .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+    Ok(SecpSignature::from_compact(&hex::decode(compact)?)?)
 }
 
 #[cfg(test)]
@@ -153,5 +211,44 @@ mod tests {
             format!("{:?}", vec),
             "[\"charles\", \"delegate\", \"from\", \"peter\", \"richard\", \"to\", \"valide\"]"
         );
+    }
+}
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+
+    #[test]
+    fn sender_and_declared_key_must_match_the_device_key() {
+        let context = secp256k1::Secp256k1::new();
+        let key = secp256k1::SecretKey::from_slice(&[1; 32]).unwrap();
+        let key = secp256k1::PublicKey::from_secret_key(&context, &key);
+        let sender = address_from_pubkey("cosmos", &key).unwrap();
+        let mut display = display::Display {
+            payment: "1 uatom".into(),
+            receiver: sender.clone(),
+            fee: "0".into(),
+            sender,
+            declared_public_key: Some(key.serialize().to_vec()),
+        };
+        let device = hex::encode(key.serialize_uncompressed());
+        verify_sender(&display, &device).unwrap();
+        let other = secp256k1::SecretKey::from_slice(&[2; 32]).unwrap();
+        let other = secp256k1::PublicKey::from_secret_key(&context, &other);
+        display.declared_public_key = Some(other.serialize().to_vec());
+        assert!(verify_sender(&display, &device).is_err());
+        display.declared_public_key = None;
+        display.sender = address_from_pubkey("cosmos", &other).unwrap();
+        assert!(verify_sender(&display, &device).is_err());
+    }
+
+    #[test]
+    fn malformed_signature_responses_cannot_panic() {
+        for len in 0..134 {
+            let response = format!("{}9000", "0".repeat(len));
+            assert!(std::panic::catch_unwind(|| parse_signature(&response)).is_ok());
+        }
+        for response in ["", "9000", "zz9000", "汉9000", "😀9000"] {
+            assert!(parse_signature(response).is_err());
+        }
     }
 }

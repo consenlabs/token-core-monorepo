@@ -31,14 +31,14 @@ impl TsmService for DeviceCertCheckRequest {
     type ReturnData = ();
 
     fn send_message(&mut self) -> Result<()> {
-        let req_data = serde_json::to_vec_pretty(&self).unwrap();
+        let req_data = serde_json::to_vec_pretty(&self)?;
         let response_data = https::post(constants::TSM_ACTION_DEVICE_CERT_CHECK, req_data)?;
         let return_bean: ServiceResponse<DeviceCertCheckResponse> =
             serde_json::from_str(response_data.as_str())?;
 
         match return_bean.service_res_check() {
             Ok(()) => {
-                if return_bean.return_data.verify_result.unwrap() {
+                if return_bean.return_data.verify_result.unwrap_or(false) {
                     return Ok(());
                 }
                 Err(ImkeyError::ImkeySeCertInvalid.into())

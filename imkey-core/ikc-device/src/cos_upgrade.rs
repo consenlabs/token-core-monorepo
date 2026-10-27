@@ -9,6 +9,7 @@ use ikc_common::{constants, https};
 use ikc_transport::hid_api::hid_connect;
 use ikc_transport::message::send_apdu;
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
 use std::thread;
 use std::time::Duration;
 
@@ -58,16 +59,17 @@ impl CosUpgradeRequest {
             //read se cos version
             se_cos_version = get_firmware_version()?;
         } else if device_cert.starts_with("7f21") || device_cert.starts_with("7F21") {
-            seid = device_cert[12..44].to_string();
+            seid = device_cert
+                .get(12..44)
+                .ok_or(ImkeyError::ImkeyTsmCosUpgradeFail)?
+                .to_string();
             sn = "0000000000000000".to_string();
             is_jump = true;
-            let mut temp_device_cert = hex_to_bytes("bf2181").unwrap();
-            temp_device_cert.push(((device_cert.len()) / 2) as u8);
-            temp_device_cert.extend(
-                hex_to_bytes(&device_cert[..device_cert.len()])
-                    .unwrap()
-                    .iter(),
-            );
+            let mut temp_device_cert = hex_to_bytes("bf2181")?;
+            let cert_len = u8::try_from(device_cert.len() / 2)
+                .map_err(|_| ImkeyError::ImkeyTsmCosUpgradeFail)?;
+            temp_device_cert.push(cert_len);
+            temp_device_cert.extend(hex_to_bytes(&device_cert)?.iter());
             device_cert = hex::encode_upper(temp_device_cert);
             se_bl_version = Some(get_bl_version()?);
         } else {
@@ -92,13 +94,17 @@ impl CosUpgradeRequest {
         };
 
         loop {
-            let req_data = serde_json::to_vec_pretty(&request_data).unwrap();
+            let req_data = serde_json::to_vec_pretty(&request_data)?;
             let response_data = https::post(constants::TSM_ACTION_COS_UPGRADE, req_data)?;
             let return_bean: ServiceResponse<CosUpgradeResponse> =
                 serde_json::from_str(response_data.as_str())?;
             if return_bean.return_code == constants::TSM_RETURN_CODE_SUCCESS {
                 //check if end
-                let next_step_key = return_bean.return_data.next_step_key.unwrap();
+                let next_step_key = return_bean
+                    .return_data
+                    .next_step_key
+                    .clone()
+                    .ok_or(crate::error::ImkeyError::ImkeyTsmServerError)?;
                 if constants::TSM_END_FLAG.eq(next_step_key.as_str()) {
                     return Ok(());
                 }
@@ -106,16 +112,17 @@ impl CosUpgradeRequest {
                 let mut apdu_res: Vec<String> = vec![];
                 match return_bean.return_data.apdu_list {
                     Some(apdu_list) => {
+                        crate::validate_tsm_apdus(&apdu_list)?;
                         for (index_val, apdu_val) in apdu_list.iter().enumerate() {
                             //send apdu command and get return data
                             let res = send_apdu(apdu_val.to_string())?;
+                            crate::apdu_status_word(&res)?;
                             apdu_res.push(res.clone());
                             if index_val == apdu_list.len() - 1 {
-                                request_data.status_word =
-                                    Some(String::from(&res[res.len() - 4..]));
-                                if constants::APDU_RSP_SUCCESS.eq(&res[res.len() - 4..])
-                                    || constants::APDU_RSP_SWITCH_BL_STATUS_SUCCESS
-                                        .eq(&res[res.len() - 4..])
+                                let status_word = crate::apdu_status_word(&res)?;
+                                request_data.status_word = Some(status_word.to_owned());
+                                if constants::APDU_RSP_SUCCESS.eq(status_word)
+                                    || constants::APDU_RSP_SWITCH_BL_STATUS_SUCCESS.eq(status_word)
                                 {
                                     if "03".eq(next_step_key.as_str()) {
                                         reconnect()?;
@@ -131,7 +138,8 @@ impl CosUpgradeRequest {
                         }
                         request_data.card_ret_data_list = Some(apdu_res);
                     }
-                    None => (),
+                    None if next_step_key == "06" => (),
+                    None => return Err(ImkeyError::ImkeyTsmServerError.into()),
                 }
 
                 if "06".eq(next_step_key.as_str()) {

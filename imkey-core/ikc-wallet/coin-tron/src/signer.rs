@@ -6,12 +6,13 @@ use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::TRON_AID;
 use ikc_common::error::CoinError;
 use ikc_common::hex::FromHex;
-use ikc_common::path::check_path_validity;
+use ikc_common::path::validate_bip44_signing_path;
 use ikc_common::utility::{secp256k1_sign, sha256_hash};
 use ikc_common::{constants, utility, SignParam};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::{self, ecdsa::Signature as SecpSignature};
+use std::convert::TryFrom;
 use tiny_keccak::Hasher;
 
 #[derive(Debug)]
@@ -22,7 +23,7 @@ impl TronSigner {
         input: TronMessageInput,
         sign_param: &SignParam,
     ) -> Result<TronMessageOutput> {
-        check_path_validity(&sign_param.path).unwrap();
+        validate_tron_param(sign_param)?;
 
         if input.version == 3 && input.header.to_uppercase() != "TRON" {
             return Err(anyhow!("tip712_header_must_be_tron"));
@@ -69,14 +70,15 @@ impl TronSigner {
 
         let path = sign_param.path.as_bytes();
         data_pack.push(0x02);
-        data_pack.push(path.len() as u8);
+        data_pack.push(u8::try_from(path.len()).map_err(|_| anyhow!("imkey_illegal_param"))?);
         data_pack.extend(path);
 
         let key_manager_obj = KEY_MANAGER.lock();
         let msg_sig = secp256k1_sign(&key_manager_obj.pri_key, &data_pack)?;
         let mut data_pack_with_sig = Vec::new();
         data_pack_with_sig.push(0x00);
-        data_pack_with_sig.push(msg_sig.len() as u8);
+        data_pack_with_sig
+            .push(u8::try_from(msg_sig.len()).map_err(|_| anyhow!("imkey_illegal_param"))?);
         data_pack_with_sig.extend(msg_sig);
         data_pack_with_sig.extend(&data_pack);
 
@@ -91,11 +93,14 @@ impl TronSigner {
     }
 
     pub fn sign_transaction(input: TronTxInput, sign_param: &SignParam) -> Result<TronTxOutput> {
-        check_path_validity(&sign_param.path).unwrap();
+        validate_tron_param(sign_param)?;
 
         let mut data_pack = Vec::new();
 
         let raw_data = hex::decode(input.raw_data)?;
+        if raw_data.is_empty() {
+            return Err(anyhow!("imkey_illegal_param"));
+        }
         let hash = sha256_hash(&raw_data);
         data_pack.push(0x01);
         data_pack.push(hash.len() as u8);
@@ -103,17 +108,18 @@ impl TronSigner {
 
         let path = sign_param.path.as_bytes();
         data_pack.push(0x02);
-        data_pack.push(path.len() as u8);
+        data_pack.push(u8::try_from(path.len()).map_err(|_| anyhow!("imkey_illegal_param"))?);
         data_pack.extend(path);
 
-        let payment = sign_param.payment.as_bytes();
+        let (payment, receiver) = opaque_display(&hash, sign_param)?;
+        let payment = payment.as_bytes();
         data_pack.push(0x07);
-        data_pack.push(payment.len() as u8);
+        data_pack.push(u8::try_from(payment.len()).map_err(|_| anyhow!("imkey_illegal_param"))?);
         data_pack.extend(payment);
 
-        let to = sign_param.receiver.as_bytes();
+        let to = receiver.as_bytes();
         data_pack.push(0x08);
-        data_pack.push(to.len() as u8);
+        data_pack.push(u8::try_from(to.len()).map_err(|_| anyhow!("imkey_illegal_param"))?);
         data_pack.extend(to);
 
         let key_manager_obj = KEY_MANAGER.lock();
@@ -122,7 +128,8 @@ impl TronSigner {
 
         let mut data_pack_with_sig = Vec::new();
         data_pack_with_sig.push(0x00);
-        data_pack_with_sig.push(data_pack_sig.len() as u8);
+        data_pack_with_sig
+            .push(u8::try_from(data_pack_sig.len()).map_err(|_| anyhow!("imkey_illegal_param"))?);
         data_pack_with_sig.extend(&data_pack_sig);
         data_pack_with_sig.extend(&data_pack);
 
@@ -136,6 +143,10 @@ impl TronSigner {
     }
 
     pub fn sign(path: &str, data_pack: &[u8], hash: &[u8], sender: &str) -> Result<String> {
+        validate_bip44_signing_path(path, &[195], &[44])?;
+        if hash.len() != 32 {
+            return Err(anyhow!("imkey_illegal_param"));
+        }
         let select_apdu = Apdu::select_applet(TRON_AID);
         let select_result = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_result)?;
@@ -144,16 +155,26 @@ impl TronSigner {
         let path_signature = secp256k1_sign(&key_manager_obj.pri_key, &path.as_bytes())?;
         let mut path_pack: Vec<u8> = vec![];
         path_pack.push(0x00);
-        path_pack.push(path_signature.len() as u8);
+        path_pack
+            .push(u8::try_from(path_signature.len()).map_err(|_| anyhow!("imkey_illegal_param"))?);
         path_pack.extend(path_signature.as_slice());
         path_pack.push(0x01);
-        path_pack.push(path.as_bytes().len() as u8);
+        path_pack.push(u8::try_from(path.len()).map_err(|_| anyhow!("imkey_illegal_param"))?);
         path_pack.extend(path.as_bytes());
 
         let msg_pubkey = Secp256k1Apdu::get_xpub(&path_pack);
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
-        let pubkey_raw = hex::decode(&res_msg_pubkey[..130]).unwrap();
-        let address = TronAddress::from_pub_key(pubkey_raw.as_slice()).unwrap();
+        ApduCheck::check_response(&res_msg_pubkey)?;
+        let body_end = res_msg_pubkey
+            .len()
+            .checked_sub(4)
+            .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+        let pubkey_hex = res_msg_pubkey
+            .get(..body_end)
+            .and_then(|body| body.get(..130))
+            .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+        let pubkey_raw = hex::decode(pubkey_hex)?;
+        let address = TronAddress::from_pub_key(pubkey_raw.as_slice())?;
         if !sender.to_string().is_empty() && &address != sender {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());
         }
@@ -166,24 +187,39 @@ impl TronSigner {
         }
 
         // verify
-        let sign_source_val = &sign_response[..132];
-        let sign_result = &sign_response[132..sign_response.len() - 4];
+        let body_end = sign_response
+            .len()
+            .checked_sub(4)
+            .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+        let body = sign_response
+            .get(..body_end)
+            .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+        let sign_source_val = body
+            .get(..132)
+            .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+        let sign_result = body
+            .get(132..)
+            .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
         let sign_verify_result = utility::secp256k1_sign_verify(
             &key_manager_obj.se_pub_key,
-            hex::decode(sign_result).unwrap().as_slice(),
-            hex::decode(sign_source_val).unwrap().as_slice(),
+            hex::decode(sign_result)?.as_slice(),
+            hex::decode(sign_source_val)?.as_slice(),
         )?;
 
         if !sign_verify_result {
             return Err(CoinError::ImkeySignatureVerifyFail.into());
         }
 
-        let sign_compact = hex::decode(&sign_response[2..130]).unwrap();
-        let mut signnture_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
+        let sign_compact = hex::decode(
+            sign_response
+                .get(2..130)
+                .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?,
+        )?;
+        let mut signnture_obj = SecpSignature::from_compact(sign_compact.as_slice())?;
         signnture_obj.normalize_s();
         let normalizes_sig_vec = signnture_obj.serialize_compact();
 
-        let rec_id = utility::retrieve_recid(&hash, &normalizes_sig_vec, &pubkey_raw).unwrap();
+        let rec_id = utility::retrieve_recid(&hash, &normalizes_sig_vec, &pubkey_raw)?;
         let rec_id = rec_id.to_i32();
         let v = rec_id + 27;
 
@@ -192,6 +228,29 @@ impl TronSigner {
 
         Ok(signature)
     }
+}
+
+fn validate_tron_param(param: &SignParam) -> Result<()> {
+    validate_bip44_signing_path(&param.path, &[195], &[44])?;
+    if !param.chain_type.eq_ignore_ascii_case("TRON") {
+        return Err(anyhow!("unsupported_chain_type"));
+    }
+    for value in [&param.path, &param.payment, &param.receiver, &param.fee] {
+        u8::try_from(value.len()).map_err(|_| anyhow!("imkey_illegal_param"))?;
+    }
+    Ok(())
+}
+
+fn opaque_display(hash: &[u8], param: &SignParam) -> Result<(String, String)> {
+    let payment = "Opaque signing".to_string();
+    let receiver = format!("hash:{}", hex::encode(hash));
+    if (!param.payment.is_empty() && param.payment != payment)
+        || (!param.receiver.is_empty() && param.receiver != receiver)
+        || !param.fee.is_empty()
+    {
+        return Err(anyhow!("imkey_transaction_display_mismatch"));
+    }
+    Ok((payment, receiver))
 }
 
 #[cfg(test)]
@@ -350,5 +409,81 @@ mod tests {
 
         let res = TronSigner::sign_transaction(input, &sign_param).unwrap();
         assert_eq!("c65b4bde808f7fcfab7b0ef9c1e3946c83311f8ac0a5e95be2d8b6d2400cfe8b5e24dc8f0883132513e422f2aaad8a4ecc14438eae84b2683eefa626e3adffc61c", &res.signature);
+    }
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+    fn param(path: &str) -> SignParam {
+        SignParam {
+            chain_type: "TRON".into(),
+            path: path.into(),
+            ..Default::default()
+        }
+    }
+    #[test]
+    fn invalid_paths_are_rejected_before_device_access() {
+        for path in [
+            "",
+            "m",
+            "44'/195'/0'/0/0",
+            "m/44'/0'/0'/0/0",
+            "m/44'/195'/0'",
+            "m/44'/195'/0'/0'/0'",
+            "m/44a'/195'/0'/0/0",
+        ] {
+            let param = param(path);
+            assert_eq!(
+                TronSigner::sign_transaction(
+                    TronTxInput {
+                        raw_data: "00".into()
+                    },
+                    &param
+                )
+                .unwrap_err()
+                .to_string(),
+                "imkey_path_illegal"
+            );
+            assert_eq!(
+                TronSigner::sign_message(
+                    TronMessageInput {
+                        message: "hello".into(),
+                        header: "TRON".into(),
+                        version: 1
+                    },
+                    &param
+                )
+                .unwrap_err()
+                .to_string(),
+                "imkey_path_illegal"
+            );
+        }
+        validate_tron_param(&param("m/44'/195'/0'/0/0")).unwrap();
+    }
+    #[test]
+    fn rejects_unverified_transfer_assertions_and_tlv_overflow_before_device_access() {
+        let mut param = param("m/44'/195'/0'/0/0");
+        assert_eq!(
+            opaque_display(&[7; 32], &param).unwrap(),
+            ("Opaque signing".into(), format!("hash:{}", "07".repeat(32)))
+        );
+        param.payment = "999 TRX".into();
+        assert_eq!(
+            TronSigner::sign_transaction(
+                TronTxInput {
+                    raw_data: "00".into()
+                },
+                &param
+            )
+            .unwrap_err()
+            .to_string(),
+            "imkey_transaction_display_mismatch"
+        );
+        param.payment = "a".repeat(256);
+        assert_eq!(
+            validate_tron_param(&param).unwrap_err().to_string(),
+            "imkey_illegal_param"
+        );
     }
 }

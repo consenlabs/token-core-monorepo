@@ -10,14 +10,11 @@ use tokio::runtime::Runtime;
 
 pub fn post(action: &str, req_data: Vec<u8>) -> Result<String> {
     let f = async_post(action, req_data);
-    Runtime::new().unwrap().block_on(f)
+    Runtime::new()?.block_on(f)
 }
 
 async fn async_post(action: &str, req_data: Vec<u8>) -> Result<String> {
-    let uri: hyper::Uri = format!("{}{}", constants::URL.to_string(), action)
-        .to_string()
-        .parse()
-        .unwrap();
+    let uri = tsm_uri(action)?;
     let mut req = Request::new(Body::from(req_data));
     *req.method_mut() = Method::POST;
     *req.uri_mut() = uri.clone();
@@ -40,10 +37,30 @@ async fn async_post(action: &str, req_data: Vec<u8>) -> Result<String> {
     let client = Client::builder().build::<_, hyper::Body>(connector);
 
     let resp = client.request(req).await?;
+    if !resp.status().is_success() {
+        return Err(anyhow::anyhow!("imkey_tsm_server_error"));
+    }
 
     let bytes = hyper::body::to_bytes(resp.into_body()).await?;
-    let res_data = std::str::from_utf8(&bytes).unwrap().to_string();
+    let res_data = std::str::from_utf8(&bytes)
+        .map_err(|_| anyhow::anyhow!("imkey_tsm_server_error"))?
+        .to_string();
     Ok(res_data)
+}
+
+fn tsm_uri(action: &str) -> Result<hyper::Uri> {
+    if !action.starts_with('/')
+        || action.starts_with("//")
+        || action.contains('?')
+        || action.contains('#')
+    {
+        return Err(anyhow::anyhow!("imkey_tsm_server_error"));
+    }
+    let uri: hyper::Uri = format!("{}{}", constants::URL, action).parse()?;
+    if uri.scheme_str() != Some("https") {
+        return Err(anyhow::anyhow!("imkey_tsm_server_error"));
+    }
+    Ok(uri)
 }
 
 #[cfg(test)]
@@ -56,5 +73,28 @@ mod test {
     fn post_test() {
         let data = Vec::from_hex("7b0a20202273656964223a20223139303630303030303030323030383630303031303130303030303030303134222c0a202022736e223a2022696d4b65793031313931323030303031222c0a20202273646b56657273696f6e223a206e756c6c2c0a202022737465704b6579223a20223031222c0a202022737461747573576f7264223a206e756c6c2c0a202022636f6d6d616e644944223a20222f7365496e666f5175657279222c0a20202263617264526574446174614c697374223a206e756c6c0a7d").unwrap();
         assert!(post(constants::TSM_ACTION_SE_QUERY, data).is_ok());
+    }
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+    #[test]
+    fn tsm_actions_are_fixed_https_paths() {
+        assert_eq!(
+            tsm_uri(constants::TSM_ACTION_SE_QUERY)
+                .unwrap()
+                .scheme_str(),
+            Some("https")
+        );
+        for action in [
+            "",
+            "//attacker.test",
+            "/query?x=1",
+            "/query#x",
+            "http://attacker.test",
+        ] {
+            assert!(tsm_uri(action).is_err());
+        }
     }
 }
