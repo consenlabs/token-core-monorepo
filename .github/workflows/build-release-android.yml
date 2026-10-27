@@ -65,8 +65,16 @@ jobs:
         run: |
           brew install protobuf
 
+      - name: Setup Java
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
+        uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4
+        with:
+          packages: 'platform-tools'
 
       - name: Install Android Tools
         run: sdkmanager "build-tools;29.0.3" "platforms;android-31" "ndk;25.2.9519653"
@@ -96,12 +104,6 @@ jobs:
           pushd ${{github.workspace}}/script
           ./build-android.sh
           popd
-
-      - name: Setup Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'temurin'
-          java-version: '17'
 
       - name: Setup Gradle
         uses: gradle/gradle-build-action@v3
