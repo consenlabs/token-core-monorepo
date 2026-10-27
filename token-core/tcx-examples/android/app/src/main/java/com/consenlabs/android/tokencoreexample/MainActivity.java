@@ -7,8 +7,6 @@ import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
 
-import com.sun.jna.Library;
-import com.sun.jna.Native;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -76,19 +74,6 @@ public class MainActivity extends AppCompatActivity {
       file.mkdirs();
     }
     return file.getAbsolutePath();
-  }
-
-  interface TokenCore extends Library {
-    TokenCore INSTANCE = Native.load("tcx", TokenCore.class);
-
-    void init_token_core_x(String jsonStr);
-
-    String call_tcx_api(String hex);
-
-    void clear_err();
-    void free_const_string();
-
-    String get_last_err_message();
   }
 
 }

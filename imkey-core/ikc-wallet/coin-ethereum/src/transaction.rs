@@ -2,10 +2,11 @@ use crate::address::EthAddress;
 use crate::ethapi::{EthMessageInput, EthMessageOutput, EthTxOutput};
 use crate::types::{Action, Signature};
 use crate::Result as EthResult;
+use anyhow::anyhow;
 use ethereum_types::{Address, H256, U256};
 use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EthApdu};
 use ikc_common::error::CoinError;
-use ikc_common::path::check_path_validity;
+use ikc_common::path::validate_bip44_signing_path;
 use ikc_common::utility::{hex_to_bytes, is_valid_hex, secp256k1_sign};
 use ikc_common::{constants, utility, SignParam};
 use ikc_device::device_binding::KEY_MANAGER;
@@ -14,6 +15,8 @@ use keccak_hash::keccak;
 use lazy_static::lazy_static;
 use rlp::{self, Encodable, RlpStream};
 use secp256k1::{self, ecdsa::Signature as SecpSignature};
+use std::convert::TryFrom;
+use std::str::FromStr;
 use tiny_keccak::Hasher;
 
 lazy_static! {
@@ -61,45 +64,12 @@ impl Transaction {
     ) -> EthResult<EthTxOutput> {
         // ) {
         //check path
-        check_path_validity(path)?;
+        validate_bip44_signing_path(path, &[60], &[44])?;
 
-        //organize data
-        let mut data_pack: Vec<u8> = Vec::new();
-        let mut encode_tx = self.rlp_encode_tx(chain_id);
-        if &self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
-            encode_tx.insert(0, hex::decode(&self.tx_type).unwrap()[0]);
-        }
-        //rlp encoded tx in TLV format
-        data_pack.extend(
-            [
-                1,
-                ((encode_tx.len() & 0xFF00) >> 8) as u8,
-                (encode_tx.len() & 0x00FF) as u8,
-            ]
-            .iter(),
-        );
-        data_pack.extend(encode_tx.iter());
-        //payment info in TLV format
-        if payment.len() <= constants::ETH_MAX_SUPPORT_PAYMENT_LEN {
-            data_pack.extend([7, payment.as_bytes().len() as u8].iter());
-            data_pack.extend(payment.as_bytes().iter());
-        } else {
-            data_pack.extend([7, constants::ETH_MAX_SUPPORT_PAYMENT_LEN as u8].iter());
-            data_pack.extend(
-                payment[..constants::ETH_MAX_SUPPORT_PAYMENT_LEN]
-                    .as_bytes()
-                    .iter(),
-            );
-        }
-        //receiver info in TLV format
-        data_pack.extend([8, receiver.as_bytes().len() as u8].iter());
-        data_pack.extend(receiver.as_bytes().iter());
-        //fee info in TLV format
-        data_pack.extend([9, fee.as_bytes().len() as u8].iter());
-        data_pack.extend(fee.as_bytes().iter());
+        let data_pack = self.signing_pack(chain_id, payment, receiver, fee)?;
 
         let key_manager_obj = KEY_MANAGER.lock();
-        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &data_pack).unwrap();
+        let bind_signature = secp256k1_sign(&key_manager_obj.pri_key, &data_pack)?;
 
         let mut apdu_pack: Vec<u8> = Vec::new();
         apdu_pack.push(0x00);
@@ -124,9 +94,9 @@ impl Transaction {
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
-        let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
+        let pubkey_raw = parse_public_key_response(&res_msg_pubkey)?;
 
-        let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone()).unwrap();
+        let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone())?;
         //compare address
         if address_checksummed != *sender {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());
@@ -136,17 +106,13 @@ impl Transaction {
         let res_msg_sign = send_apdu(msg_sign)?;
         ApduCheck::check_response(&res_msg_sign)?;
 
-        let sign_compact = &res_msg_sign[2..130];
-        let sign_compact_vec = hex_to_bytes(sign_compact).unwrap(); //todo error
-
-        let mut signature_obj = SecpSignature::from_compact(sign_compact_vec.as_slice()).unwrap();
+        let mut signature_obj = parse_signature_response(&res_msg_sign)?;
         signature_obj.normalize_s();
         let normalizes_sig_vec = signature_obj.serialize_compact();
 
         let msg_hash = self.hash(chain_id);
 
-        let rec_id =
-            utility::retrieve_recid(&msg_hash[..], &normalizes_sig_vec, &pubkey_raw).unwrap();
+        let rec_id = utility::retrieve_recid(&msg_hash[..], &normalizes_sig_vec, &pubkey_raw)?;
 
         let mut data_arr = [0; 65];
         data_arr[0..64].copy_from_slice(&normalizes_sig_vec[0..64]);
@@ -167,6 +133,81 @@ impl Transaction {
         let tx_sign_result = EthTxOutput { signature, tx_hash };
 
         Ok(tx_sign_result)
+    }
+
+    /// Builds display fields from the exact transaction bytes. Untrusted caller text
+    /// may only assert the canonical fields; it can never replace them.
+    fn signing_pack(
+        &self,
+        chain_id: Option<u64>,
+        payment: &str,
+        receiver: &str,
+        fee: &str,
+    ) -> EthResult<Vec<u8>> {
+        let gas_price = match self.tx_type.as_str() {
+            "" | "00" => {
+                if self.max_fee_per_gas.is_some()
+                    || self.max_priority_fee_per_gas.is_some()
+                    || !self.access_list.is_empty()
+                    || chain_id.is_some_and(|id| id > (u64::MAX - 38) / 2)
+                {
+                    return Err(anyhow!("imkey_illegal_param"));
+                }
+                self.gas_price
+            }
+            constants::ETH_TRANSACTION_TYPE_EIP1559 => {
+                let max_fee = self
+                    .max_fee_per_gas
+                    .ok_or_else(|| anyhow!("imkey_illegal_param"))?;
+                let priority = self
+                    .max_priority_fee_per_gas
+                    .ok_or_else(|| anyhow!("imkey_illegal_param"))?;
+                if chain_id.is_none() || priority > max_fee {
+                    return Err(anyhow!("imkey_illegal_param"));
+                }
+                max_fee
+            }
+            _ => return Err(anyhow!("unsupported_transaction_type")),
+        };
+        // This applet has no authenticated contract/token metadata. Reject opaque
+        // calldata rather than displaying a caller-supplied transfer description.
+        if !self.data.is_empty() {
+            return Err(anyhow!("imkey_unsupported_transaction_display"));
+        }
+        let address = match &self.to {
+            Action::Call(address) => address,
+            Action::Create => return Err(anyhow!("imkey_unsupported_transaction_display")),
+        };
+        let canonical_payment = format!("{} wei", self.value);
+        let canonical_receiver = format!("{address:#x}");
+        let maximum_fee = gas_price
+            .checked_mul(self.gas_limit)
+            .ok_or_else(|| anyhow!("imkey_illegal_param"))?;
+        let canonical_fee = format!("{maximum_fee} wei");
+        if (!payment.is_empty() && payment != canonical_payment)
+            || (!fee.is_empty() && fee != canonical_fee)
+            || (!receiver.is_empty() && Address::from_str(receiver).ok().as_ref() != Some(address))
+        {
+            return Err(anyhow!("imkey_transaction_display_mismatch"));
+        }
+        let mut encoded = self.rlp_encode_tx(chain_id);
+        if self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+            encoded.insert(0, 2);
+        }
+        let len = u16::try_from(encoded.len()).map_err(|_| anyhow!("imkey_illegal_param"))?;
+        let mut pack = vec![1];
+        pack.extend_from_slice(&len.to_be_bytes());
+        pack.extend_from_slice(&encoded);
+        for (tag, value) in [
+            (7, canonical_payment),
+            (8, canonical_receiver),
+            (9, canonical_fee),
+        ] {
+            let len = u8::try_from(value.len()).map_err(|_| anyhow!("imkey_illegal_param"))?;
+            pack.extend_from_slice(&[tag, len]);
+            pack.extend_from_slice(value.as_bytes());
+        }
+        Ok(pack)
     }
 
     pub fn rlp_encode_tx(&self, chain_id: Option<u64>) -> Vec<u8> {
@@ -270,7 +311,7 @@ impl Transaction {
         input: EthMessageInput,
         sign_param: &SignParam,
     ) -> EthResult<EthMessageOutput> {
-        check_path_validity(&sign_param.path)?;
+        validate_bip44_signing_path(&sign_param.path, &[60], &[44])?;
 
         let message_to_sign;
         if is_valid_hex(&input.message) {
@@ -293,9 +334,9 @@ impl Transaction {
         data.extend(message_to_sign);
 
         let mut data_to_sign: Vec<u8> = Vec::new();
+        let len = u16::try_from(data.len()).map_err(|_| anyhow!("imkey_illegal_param"))?;
         data_to_sign.push(0x01);
-        data_to_sign.push(((data.len() & 0xFF00) >> 8) as u8);
-        data_to_sign.push((data.len() & 0x00FF) as u8);
+        data_to_sign.extend_from_slice(&len.to_be_bytes());
         data_to_sign.extend(data.as_slice());
 
         let key_manager_obj = KEY_MANAGER.lock();
@@ -313,8 +354,8 @@ impl Transaction {
 
         let msg_pubkey = EthApdu::get_xpub(&sign_param.path, false);
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
-        let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
-        let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone()).unwrap();
+        let pubkey_raw = parse_public_key_response(&res_msg_pubkey)?;
+        let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone())?;
 
         if &address_checksummed != &sign_param.sender {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());
@@ -330,8 +371,7 @@ impl Transaction {
         let sign_response = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_response)?;
 
-        let sign_compact = hex::decode(&sign_response[2..130]).unwrap();
-        let mut signature_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
+        let mut signature_obj = parse_signature_response(&sign_response)?;
         signature_obj.normalize_s();
         let normalizes_sig_vec = signature_obj.serialize_compact();
 
@@ -339,7 +379,7 @@ impl Transaction {
         keccak256.update(data.as_slice());
         let mut data_hash = [0u8; 256 / 8];
         keccak256.finalize(&mut data_hash);
-        let rec_id = utility::retrieve_recid(&data_hash, &normalizes_sig_vec, &pubkey_raw).unwrap();
+        let rec_id = utility::retrieve_recid(&data_hash, &normalizes_sig_vec, &pubkey_raw)?;
         let rec_id = rec_id.to_i32();
         let v = rec_id + 27;
 
@@ -348,6 +388,34 @@ impl Transaction {
 
         Ok(EthMessageOutput { signature })
     }
+}
+
+fn parse_public_key_response(response: &str) -> EthResult<Vec<u8>> {
+    ApduCheck::check_response(response)?;
+    let body_end = response
+        .len()
+        .checked_sub(4)
+        .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+    let public_key = response
+        .get(..body_end)
+        .and_then(|body| body.get(..130))
+        .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+    let public_key = hex_to_bytes(public_key)?;
+    secp256k1::PublicKey::from_slice(&public_key)?;
+    Ok(public_key)
+}
+
+fn parse_signature_response(response: &str) -> EthResult<SecpSignature> {
+    ApduCheck::check_response(response)?;
+    let body_end = response
+        .len()
+        .checked_sub(4)
+        .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+    let compact = response
+        .get(..body_end)
+        .and_then(|body| body.get(2..130))
+        .ok_or_else(|| anyhow!("imkey_apdu_wrong_length"))?;
+    Ok(SecpSignature::from_compact(&hex_to_bytes(compact)?)?)
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1268,5 +1336,86 @@ mod tests {
             tx_result.tx_hash,
             "0x09fa41c4d6b92482506c8c56f65b217cc3398821caec7695683110997426db01".to_string()
         );
+    }
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+
+    fn transfer() -> Transaction {
+        Transaction {
+            to: Action::Call(Address::from_low_u64_be(1)),
+            value: U256::from(123),
+            gas_price: U256::from(7),
+            gas_limit: U256::from(21_000),
+            tx_type: "00".into(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn display_is_derived_from_payload_and_assertions_cannot_override_it() {
+        let tx = transfer();
+        let pack = tx.signing_pack(Some(1), "", "", "").unwrap();
+        let receiver = format!("{:#x}", Address::from_low_u64_be(1));
+        assert!(pack.windows(7).any(|part| part == b"123 wei"));
+        assert!(pack.windows(10).any(|part| part == b"147000 wei"));
+        tx.signing_pack(Some(1), "123 wei", &receiver, "147000 wei")
+            .unwrap();
+        for (payment, to, fee) in [
+            ("1 ETH", receiver.as_str(), "147000 wei"),
+            (
+                "123 wei",
+                "0x0000000000000000000000000000000000000002",
+                "147000 wei",
+            ),
+            ("123 wei", receiver.as_str(), "1 wei"),
+        ] {
+            assert_eq!(
+                tx.signing_pack(Some(1), payment, to, fee)
+                    .unwrap_err()
+                    .to_string(),
+                "imkey_transaction_display_mismatch"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_unknown_type_opaque_data_and_overflow_before_device_access() {
+        let mut tx = transfer();
+        tx.tx_type = "03".into();
+        assert_eq!(
+            tx.sign(Some(1), "m/44'/60'/0'/0/0", "", "", "", "")
+                .unwrap_err()
+                .to_string(),
+            "unsupported_transaction_type"
+        );
+        tx.tx_type = "00".into();
+        tx.data = vec![1];
+        assert_eq!(
+            tx.signing_pack(Some(1), "", "", "")
+                .unwrap_err()
+                .to_string(),
+            "imkey_unsupported_transaction_display"
+        );
+        tx.data.clear();
+        tx.gas_price = U256::max_value();
+        assert!(tx.signing_pack(Some(1), "", "", "").is_err());
+        tx.tx_type = "02".into();
+        assert!(tx.signing_pack(None, "", "", "").is_err());
+    }
+
+    #[test]
+    fn malformed_responses_never_slice_or_parse_unchecked() {
+        for len in 0..134 {
+            let response = format!("{}9000", "0".repeat(len));
+            assert!(std::panic::catch_unwind(|| parse_public_key_response(&response)).is_ok());
+            assert!(std::panic::catch_unwind(|| parse_signature_response(&response)).is_ok());
+        }
+        for response in ["", "9000", "zz9000", "汉9000", "😀9000"] {
+            assert!(parse_public_key_response(response).is_err());
+            assert!(parse_signature_response(response).is_err());
+        }
     }
 }

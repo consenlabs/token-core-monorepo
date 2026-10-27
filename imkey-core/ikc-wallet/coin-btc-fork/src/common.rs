@@ -26,9 +26,9 @@ pub fn address_verify(
     let mut utxo_pub_key_vec: Vec<String> = vec![];
     for utxo in utxos {
         let extend_public_key = if !utxo.derived_path.is_empty() {
-            let xpub_data = get_xpub_data(&utxo.derived_path, false)?;
-            let public_key = &xpub_data[..130];
-            let chain_code = &xpub_data[130..194];
+            let xpub_data = get_xpub_data(&utxo.derived_path, true)?;
+            let public_key = public_key_from_xpub_response(&xpub_data)?;
+            let chain_code = chain_code_from_xpub_response(&xpub_data)?;
             ExtendedPubKey {
                 network,
                 depth: 0,
@@ -62,7 +62,7 @@ pub fn address_verify(
         };
 
         let se_script = se_gen_address.script_pubkey();
-        let utxo_address = BtcForkAddress::from_str(&utxo.address).unwrap();
+        let utxo_address = BtcForkAddress::from_str(&utxo.address)?;
         let utxo_script = utxo_address.payload.script_pubkey();
 
         if se_script != utxo_script {
@@ -89,6 +89,13 @@ pub fn get_xpub_data(path: &str, verify_flag: bool) -> Result<String> {
     ApduCheck::check_response(&select_response)?;
     let xpub_data = send_apdu(BtcApdu::get_xpub(path, verify_flag))?;
     ApduCheck::check_response(&xpub_data)?;
+    if verify_flag {
+        let se_pubkey = ikc_device::device_binding::KEY_MANAGER
+            .lock()
+            .se_pub_key
+            .clone();
+        verify_xpub_response(&xpub_data, &se_pubkey)?;
+    }
     Ok(xpub_data)
 }
 
@@ -123,4 +130,71 @@ pub struct TxSignResult {
     pub signature: String,
     pub tx_hash: String,
     pub wtx_id: String,
+}
+
+pub fn public_key_from_xpub_response(xpub_data: &str) -> Result<&str> {
+    xpub_data
+        .get(..130)
+        .ok_or_else(|| CoinError::GetXpubError.into())
+}
+
+pub fn chain_code_from_xpub_response(xpub_data: &str) -> Result<&str> {
+    xpub_data
+        .get(130..194)
+        .ok_or_else(|| CoinError::GetXpubError.into())
+}
+
+pub(crate) fn verify_xpub_response(response: &str, se_pubkey: &[u8]) -> Result<()> {
+    let checked = || -> Result<bool> {
+        let end = response
+            .len()
+            .checked_sub(4)
+            .ok_or(CoinError::GetXpubError)?;
+        let source = response.get(..194).ok_or(CoinError::GetXpubError)?;
+        let signature = response.get(194..end).ok_or(CoinError::GetXpubError)?;
+        secp256k1_sign_verify(se_pubkey, &hex::decode(signature)?, &hex::decode(source)?)
+    };
+    if checked().unwrap_or(false) {
+        Ok(())
+    } else {
+        Err(CoinError::ImkeySignatureVerifyFail.into())
+    }
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+    #[test]
+    fn security_xpub_requires_valid_se_signature() {
+        let secp = Secp256k1::new();
+        let secret = secp256k1::SecretKey::from_slice(&[9; 32]).unwrap();
+        let trusted = Secp256k1PublicKey::from_secret_key(&secp, &secret);
+        let public = Secp256k1PublicKey::from_secret_key(
+            &secp,
+            &secp256k1::SecretKey::from_slice(&[1; 32]).unwrap(),
+        );
+        let mut source = public.serialize_uncompressed().to_vec();
+        source.extend([0u8; 32]);
+        let digest = sha256_hash(&source);
+        let signature = secp
+            .sign_ecdsa(&Message::from_slice(&digest).unwrap(), &secret)
+            .serialize_der();
+        let response = format!("{}{}9000", hex::encode(&source), hex::encode(signature));
+        assert!(verify_xpub_response(&response, &trusted.serialize()).is_ok());
+        assert!(verify_xpub_response(
+            &format!("{}9000", hex::encode(&source)),
+            &trusted.serialize()
+        )
+        .is_err());
+        let mut forged = source.clone();
+        forged[65] ^= 1;
+        assert!(verify_xpub_response(
+            &format!("{}{}9000", hex::encode(forged), hex::encode(signature)),
+            &trusted.serialize()
+        )
+        .is_err());
+        for short in ["", "9000", "049000", "invalid9000"] {
+            assert!(verify_xpub_response(short, &trusted.serialize()).is_err());
+        }
+    }
 }

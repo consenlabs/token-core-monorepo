@@ -9,6 +9,27 @@
 import UIKit
 import imKeyBleLib
 
+// Rust serializes callbacks until it has copied this host-owned response.
+// Keep one bounded allocation alive rather than leaking a buffer per APDU.
+private enum ImkeyCallbackResponseBuffer {
+  private static let capacity = 131089
+  private static let storage: UnsafeMutablePointer<Int8> = {
+    let pointer = UnsafeMutablePointer<Int8>.allocate(capacity: capacity)
+    pointer.initialize(repeating: 0, count: capacity)
+    return pointer
+  }()
+
+  static func store(_ response: String) -> UnsafePointer<Int8> {
+    var bytes = response.utf8CString
+    if bytes.count > capacity {
+      bytes = "communication_error_imkey_transport_illegal_response".utf8CString
+    }
+    for index in 0..<bytes.count { storage[index] = bytes[index] }
+    return UnsafePointer(storage)
+  }
+}
+
+
 
 class ViewController: UIViewController,BLEDelegate {
   @IBOutlet weak var tbDevices: UITableView!
@@ -33,21 +54,20 @@ class ViewController: UIViewController,BLEDelegate {
   let swiftCallback : @convention(c) (UnsafePointer<Int8>?,Int32) -> UnsafePointer<Int8>? = {
     (apdu,timeout) -> UnsafePointer<Int8>? in
     print("callback miaomiao v v timeout\(timeout)")
-    let swiftApdu = String(cString:apdu!)
+    guard let apdu = apdu, timeout > 0, timeout <= Int32(UInt32.max / 1000) else {
+      return ImkeyCallbackResponseBuffer.store("communication_error_imkey_sdk_illegal_argument")
+    }
+    let swiftApdu = String(cString: apdu)
     
     var response = "";
     do {
-      response = try BLE.shared().sendApdu(apdu: swiftApdu,timeout: UInt32(timeout * 1000))
+      response = try BLE.shared().sendApdu(apdu: swiftApdu,timeout: UInt32(timeout) * 1000)
     }catch let e as ImkeyError {
       response = "communication_error_" + e.message
     }catch{
       Log.d(error)
     }
-    let count = response.utf8CString.count
-    let result: UnsafeMutableBufferPointer<Int8> = UnsafeMutableBufferPointer<Int8>.allocate(capacity: count)
-    _ = result.initialize(from: response.utf8CString)
-    let p = UnsafePointer(result.baseAddress!)
-    return p
+    return ImkeyCallbackResponseBuffer.store(response)
   }
   
   // bind ble devices

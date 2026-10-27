@@ -42,6 +42,39 @@ pub trait TsmService {
     fn send_message(&mut self) -> Result<Self::ReturnData>;
 }
 
+/// Validate the whole batch before the first command is sent. This validates
+/// framing only, and does not establish TSM response authenticity.
+pub(crate) fn validate_tsm_apdus(apdus: &[String]) -> Result<()> {
+    if apdus.is_empty()
+        || apdus.iter().any(|apdu| {
+            apdu.len() < 8
+                || apdu.len() > 131_088
+                || apdu.len() % 2 != 0
+                || !apdu.bytes().all(|byte| byte.is_ascii_hexdigit())
+        })
+    {
+        return Err(ImkeyError::ImkeyTsmServerError.into());
+    }
+    Ok(())
+}
+
+pub(crate) fn apdu_status_word(response: &str) -> Result<&str> {
+    if response.len() < 4
+        || response.len() % 2 != 0
+        || !response.bytes().all(|byte| byte.is_ascii_hexdigit())
+    {
+        return Err(ImkeyError::ImkeyTsmServerError.into());
+    }
+    response
+        .get(
+            response
+                .len()
+                .checked_sub(4)
+                .ok_or(ImkeyError::ImkeyTsmServerError)?..,
+        )
+        .ok_or_else(|| ImkeyError::ImkeyTsmServerError.into())
+}
+
 impl<T> ServiceResponse<T> {
     pub fn service_res_check(&self) -> Result<()> {
         match self.return_code.as_str() {
@@ -109,17 +142,16 @@ impl<T> ServiceResponse<T> {
     }
 
     pub fn apdu_handle(apdu_list: Vec<String>) -> Result<(Vec<String>, String)> {
-        if apdu_list.is_empty() {
-            ()
-        }
+        validate_tsm_apdus(&apdu_list)?;
         let mut apdu_res: Vec<String> = vec![];
         let mut status_word: String = String::new();
         for (index_val, apdu_val) in apdu_list.iter().enumerate() {
             //sende apdu command
             let res = message::send_apdu(apdu_val.to_string())?;
+            let response_status = apdu_status_word(&res)?;
             apdu_res.push(res.clone());
             if index_val == apdu_list.len() - 1 {
-                status_word = String::from(&res[res.len() - 4..]);
+                status_word = response_status.to_string();
             }
         }
         Ok((apdu_res, status_word))
@@ -140,5 +172,34 @@ mod tests {
             "00a404000600000000000100".to_string(),
         ];
         assert!(ServiceResponse::<AppDownloadResponse>::apdu_handle(apdu_list).is_ok());
+    }
+}
+
+#[cfg(test)]
+mod security_tsm_tests {
+    use super::*;
+    #[test]
+    fn rejects_entire_malformed_batch_before_device_access() {
+        for apdus in [
+            vec![],
+            vec!["00".into()],
+            vec!["00A404000".into()],
+            vec!["00A4040000".into(), "invalid".into()],
+        ] {
+            assert_eq!(
+                ServiceResponse::<()>::apdu_handle(apdus)
+                    .unwrap_err()
+                    .to_string(),
+                "imkey_tsm_server_error"
+            );
+        }
+        assert!(validate_tsm_apdus(&["00A4040000".into()]).is_ok());
+    }
+    #[test]
+    fn rejects_malformed_response_statuses() {
+        for response in ["", "900", "zz9000", "汉9000"] {
+            assert!(apdu_status_word(response).is_err());
+        }
+        assert_eq!(apdu_status_word("abcd9000").unwrap(), "9000");
     }
 }

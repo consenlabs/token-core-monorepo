@@ -210,14 +210,17 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
         let mut total_amount = 0u64;
 
         for input in &self.inputs {
-            total_amount += input.amount;
+            total_amount = total_amount
+                .checked_add(input.amount)
+                .ok_or(Error::InvalidUtxo)?;
         }
 
         ensure!(self.amount >= MIN_TX_FEE, "amount_less_than_minimum");
-        ensure!(
-            total_amount >= (self.amount + self.fee),
-            "total amount must ge amount + fee"
-        );
+        let spend = self
+            .amount
+            .checked_add(self.fee)
+            .ok_or(Error::InvalidUtxo)?;
+        ensure!(total_amount >= spend, "total amount must ge amount + fee");
 
         let mut tx_outs: Vec<TxOut> = vec![];
 
@@ -228,7 +231,7 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
             script_pubkey: to,
         });
 
-        let change_amount = total_amount - self.amount - self.fee;
+        let change_amount = total_amount.checked_sub(spend).ok_or(Error::InvalidUtxo)?;
 
         if change_amount >= MIN_TX_FEE {
             tx_outs.push(TxOut {
@@ -257,6 +260,15 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
 
         if self.inputs.is_empty() {
             return Err(Error::InvalidUtxo.into());
+        }
+
+        T::from_str(&self.to)?;
+        if keystore.derivable() {
+            crate::signing_policy::validate_path(
+                &params.derivation_path,
+                &params.chain_type,
+                Some(&params.network),
+            )?;
         }
 
         let coin_info = CoinInfo {
@@ -307,21 +319,23 @@ impl<T: Address + ScriptPubkey + FromStr<Err = anyhow::Error>> KinTransaction<T>
                 witness: Witness::default(),
             });
 
-            if !x.derived_path.is_empty() && keystore.derivable() {
-                sks.push(
-                    keystore
-                        .get_private_key(CurveType::SECP256k1, &x.derived_path)?
-                        .as_secp256k1()?
-                        .clone(),
-                );
+            let path = if keystore.derivable() {
+                crate::signing_policy::validate_path(
+                    &x.derived_path,
+                    &params.chain_type,
+                    Some(&params.network),
+                )?;
+                crate::signing_policy::same_account(&x.derived_path, &params.derivation_path)?;
+                x.derived_path.as_str()
             } else {
-                sks.push(
-                    keystore
-                        .get_private_key(CurveType::SECP256k1, "")?
-                        .as_secp256k1()?
-                        .clone(),
-                );
-            }
+                ""
+            };
+            let key = keystore
+                .get_private_key(CurveType::SECP256k1, path)?
+                .as_secp256k1()?
+                .clone();
+            crate::signing_policy::validate_key(&script_pubkey, &key)?;
+            sks.push(key);
         }
 
         Ok((change_script, sks, version, prevouts, tx_inputs))
@@ -460,6 +474,60 @@ mod tests {
     use crate::{BITCOIN, LITECOIN};
 
     use super::*;
+
+    #[test]
+    fn rejects_hd_root_cross_chain_and_overflow_inputs() {
+        let mut keystore = crate::tests::sample_hd_keystore();
+        let params = SignatureParameters {
+            chain_type: BITCOIN.to_owned(),
+            network: "TESTNET".to_owned(),
+            derivation_path: "m/44'/1'/0'/0/0".to_owned(),
+            ..Default::default()
+        };
+        let mut tx = BtcKinTxInput {
+            inputs: vec![Utxo {
+                tx_hash: "00".repeat(32),
+                vout: 0,
+                amount: 100_000,
+                address: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_owned(),
+                derived_path: String::new(),
+            }],
+            to: "mkeNU5nVnozJiaACDELLCsVUc8Wxoh1rQN".to_owned(),
+            amount: 50_000,
+            fee: 1000,
+            change_address_index: None,
+            op_return: None,
+        };
+        for path in ["", "m", "m/44'/60'/0'/0/0", "m/44'/1'/1'/0/0"] {
+            tx.inputs[0].derived_path = path.to_owned();
+            assert_eq!(
+                keystore
+                    .sign_transaction(&params, &tx)
+                    .unwrap_err()
+                    .to_string(),
+                "invalid_sign_path"
+            );
+        }
+        tx.inputs[0].derived_path = params.derivation_path.clone();
+        tx.inputs[0].amount = u64::MAX;
+        tx.inputs.push(tx.inputs[0].clone());
+        assert_eq!(
+            keystore
+                .sign_transaction(&params, &tx)
+                .unwrap_err()
+                .to_string(),
+            "invalid_utxo"
+        );
+        tx.inputs.pop();
+        tx.amount = u64::MAX;
+        assert_eq!(
+            keystore
+                .sign_transaction(&params, &tx)
+                .unwrap_err()
+                .to_string(),
+            "invalid_utxo"
+        );
+    }
 
     mod kin {
         use super::*;
@@ -1286,12 +1354,14 @@ mod tests {
                 derivation_path: "m/44'/1'/0'/0/0".to_string(),
             };
 
-            let actual = keystore.sign_transaction(&params, &tx_input).unwrap();
-            assert_ne!(
-                actual.tx_hash,
-                "f90dd185c2a14fa29b9644f4087eecf64fd87d5c60f8e36f790054a4b55450e1"
+            assert_eq!(
+                keystore
+                    .sign_transaction(&params, &tx_input)
+                    .err()
+                    .unwrap()
+                    .to_string(),
+                "invalid_utxo"
             );
-            assert_ne!(actual.raw_tx, "010000000101a1d4a6b051e732341c0101a62488051bb5bf969d1f15324bbf6a1d2035c957000000006b48304502210090beb741ec38b0931a457c40086ba183c0cc85542bce5e5811a2377e954a113b022029a37ba9ccfe57fc77f639c7599d4fcf35f2fb921a610967a88dba0a800ee9ae0121033d710ab45bb54ac99618ad23b3c1da661631aa25f23bfe9d22b41876f1d46e4effffffff02a0860100000000001976a914461bf9360ec1bc9fe438df19ef36c7c2bb26ef8288ac92a40d00000000001976a914383fb81cb0a3fc724b5e08cf8bbd404336d711f688ac00000000");
         }
 
         #[test]
@@ -1323,10 +1393,7 @@ mod tests {
             };
             let ret = keystore.sign_transaction(&params, &tx_input);
             assert!(ret.is_err());
-            assert_eq!(
-                format!("{}", ret.err().unwrap()),
-                "invalid child number format"
-            );
+            assert_eq!(format!("{}", ret.err().unwrap()), "invalid_sign_path");
         }
 
         #[test]

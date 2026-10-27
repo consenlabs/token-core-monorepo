@@ -5,11 +5,12 @@ use bitcoin::Network;
 use coin_btc_fork::btcforkapi::{BtcForkTxInput, BtcForkTxOutput};
 use coin_btc_fork::transaction::BtcForkTransaction;
 use ikc_common::coin_info::coin_info_from_param;
+use ikc_common::path::resolve_derivation_path;
 use ikc_common::SignParam;
 use prost::Message;
 
 pub fn sign_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: BtcForkTxInput = BtcForkTxInput::decode(data).expect("BtcForkTxInput");
+    let input: BtcForkTxInput = BtcForkTxInput::decode(data)?;
     if input.seg_wit.to_uppercase() == "P2WPKH" {
         sign_segwit_transaction(&input, sign_param)
     } else {
@@ -24,10 +25,13 @@ pub fn sign_legacy_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -
         &sign_param.network,
         &param.seg_wit,
         "",
-    )
-    .unwrap();
+    )?;
+    let mut input = param.clone();
+    for utxo in &mut input.unspents {
+        utxo.derived_path = resolve_derivation_path(&sign_param.path, &utxo.derived_path)?;
+    }
     let transaction_req_data = BtcForkTransaction {
-        tx_input: param.clone(),
+        tx_input: input,
         coin_info,
     };
     let network = if sign_param.network == "TESTNET".to_string() {
@@ -47,9 +51,14 @@ pub fn sign_legacy_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -
 
 pub fn sign_segwit_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
     let extra_data = vec![];
-    let coin_info = coin_info_from_param("LITECOIN", "MAINNET", "P2WPKH", "").unwrap();
+    let coin_info =
+        coin_info_from_param(&sign_param.chain_type, &sign_param.network, "P2WPKH", "")?;
+    let mut input = param.clone();
+    for utxo in &mut input.unspents {
+        utxo.derived_path = resolve_derivation_path(&sign_param.path, &utxo.derived_path)?;
+    }
     let transaction_req_data = BtcForkTransaction {
-        tx_input: param.clone(),
+        tx_input: input,
         coin_info,
     };
     let network = if sign_param.network == "TESTNET".to_string() {
@@ -72,6 +81,7 @@ pub fn sign_segwit_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -
 mod tests {
     use crate::btc_fork_signer::{sign_legacy_transaction, sign_segwit_transaction};
     use coin_btc_fork::btcforkapi::{BtcForkTxInput, Utxo};
+    use ikc_common::path::resolve_derivation_path;
     use ikc_common::SignParam;
     use ikc_device::device_binding::bind_test;
 

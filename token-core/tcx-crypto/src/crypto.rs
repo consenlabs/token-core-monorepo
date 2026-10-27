@@ -292,9 +292,16 @@ impl Crypto {
         derived_key: &[u8],
         plaintext: &[u8],
     ) -> Result<()> {
-        let ciphertext = self.encrypt(derived_key, plaintext).expect("encrypt");
+        // Rewriting a different plaintext must never reuse an AES-CTR key/IV.
+        // Prepare every fallible value before replacing the stored ciphertext.
+        if derived_key.len() != 32 && derived_key.len() != 64 {
+            return Err(Error::KdfParamsInvalid.into());
+        }
+        let iv = random_u8_16();
+        let ciphertext = encrypt(plaintext, derived_key, &iv)?;
         let mac = generate_mac(derived_key, &ciphertext);
 
+        self.cipherparams.iv = iv.to_hex();
         self.ciphertext = ciphertext.to_hex();
         self.mac = mac.to_hex();
 

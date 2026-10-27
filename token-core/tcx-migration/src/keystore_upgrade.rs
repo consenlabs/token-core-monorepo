@@ -15,16 +15,16 @@ use tcx_primitive::TypedPrivateKey;
 use tcx_substrate::encode_substrate_keystore;
 use tcx_tezos::encode_tezos_private_key;
 
-pub fn mapping_curve_name(old_curve_name: &str) -> String {
+pub fn mapping_curve_name(old_curve_name: &str) -> Result<String> {
     let new_curve_name = match old_curve_name {
         "ED25519" => CurveType::ED25519,
         "SECP256k1" => CurveType::SECP256k1,
         "ED25519Blake2bNano" => CurveType::ED25519Blake2bNano,
         "SubSr25519" => CurveType::SR25519,
         "BLS" => CurveType::BLS,
-        _ => panic!("unsupported_curve_name"),
+        _ => return Err(anyhow!("unsupported_curve_name")),
     };
-    new_curve_name.as_str().to_string()
+    Ok(new_curve_name.as_str().to_string())
 }
 
 pub struct KeystoreUpgrade {
@@ -45,6 +45,28 @@ impl KeystoreUpgrade {
 
     pub fn upgrade(&self, key: &Key, identity_network: &IdentityNetwork) -> Result<Keystore> {
         let version = self.json["version"].as_i64().unwrap_or(0);
+        if version != 11000 && version != 11001 {
+            return Err(anyhow!("unknown_version_when_upgrade_keystore"));
+        }
+        if !self.need_upgrade() {
+            return Err(anyhow!("invalid_keystore"));
+        }
+        let first_account = if version == 11001 {
+            let account = self.json["activeAccounts"]
+                .as_array()
+                .and_then(|accounts| accounts.first())
+                .ok_or_else(|| anyhow!("invalid_keystore"))?;
+            let curve = account["curve"]
+                .as_str()
+                .ok_or_else(|| anyhow!("invalid_keystore"))?;
+            mapping_curve_name(curve)?;
+            account["coin"]
+                .as_str()
+                .ok_or_else(|| anyhow!("invalid_keystore"))?;
+            Some(account)
+        } else {
+            None
+        };
 
         let mut json = self.json.clone();
 
@@ -54,11 +76,8 @@ impl KeystoreUpgrade {
             (11000, "RECOVERED_IDENTITY") => json!(Source::Mnemonic.to_string()),
             (11000, _) => json!(Source::Mnemonic.to_string()),
             (11001, "PRIVATE") => {
-                let accounts = json["activeAccounts"]
-                    .as_array()
-                    .expect("tcx pk keystore accounts");
-                let first_account = accounts.first().expect("first tcx activeAccounts");
-                if first_account["curve"].as_str().expect("account curve") == "SubSr25519" {
+                if first_account.and_then(|account| account["curve"].as_str()) == Some("SubSr25519")
+                {
                     json!(Source::SubstrateKeystore.to_string())
                 } else {
                     json!(Source::Private.to_string())
@@ -86,23 +105,19 @@ impl KeystoreUpgrade {
                 json["identity"] = json!(Identity::from_private_key(
                     &private_key.to_hex(),
                     &unlocker,
-                    &identity_network,
+                    identity_network,
                 )?);
 
                 json["fingerprint"] = json!(fingerprint_from_private_key(&private_key)?);
-                if let Some(account_json) = self.json["activeAccounts"]
-                    .as_array()
-                    .expect("tcx keystore missing accounts")
-                    .first()
-                {
+                if let Some(account_json) = first_account {
                     let old_curve_name = account_json["curve"]
                         .as_str()
-                        .expect("activeAccounts need contains curve");
-                    let new_curve_name = mapping_curve_name(&old_curve_name);
+                        .ok_or_else(|| anyhow!("invalid_keystore"))?;
+                    let new_curve_name = mapping_curve_name(old_curve_name)?;
                     json["curve"] = json!(new_curve_name);
                     let chain_type = account_json["coin"]
                         .as_str()
-                        .expect("activeAccounts need contains chainType");
+                        .ok_or_else(|| anyhow!("invalid_keystore"))?;
                     json["imTokenMeta"]["identifiedChainTypes"] = json!(vec![chain_type]);
                     // tcx pk keystore has lost the original private key
                     let original = self.restore_private_key_original(
@@ -122,8 +137,7 @@ impl KeystoreUpgrade {
 
                 json["fingerprint"] = json!(fingerprint_from_seed(&seed)?);
                 json["version"] = json!(HdKeystore::VERSION);
-                json["identity"] =
-                    json!(Identity::from_seed(&seed, &unlocker, &identity_network,)?);
+                json["identity"] = json!(Identity::from_seed(&seed, &unlocker, identity_network,)?);
                 let enc_pair = unlocker.encrypt_with_random_iv(mnemonic.as_bytes())?;
                 json["encOriginal"] = json!(enc_pair);
             }
@@ -149,7 +163,7 @@ impl KeystoreUpgrade {
                 };
 
                 let mut substrate_ks =
-                    encode_substrate_keystore(&password, &private_key_bytes, &coin)?;
+                    encode_substrate_keystore(password, private_key_bytes, &coin)?;
                 let name = self.json["imTokenMeta"]["name"]
                     .as_str()
                     .unwrap_or_default();
@@ -163,17 +177,17 @@ impl KeystoreUpgrade {
             }
             "TEZOS" => Ok(encode_tezos_private_key(&private_key_bytes.to_hex())?),
             "FILECOIN" => {
-                let curve_type = CurveType::from_str(&new_curve_name);
-                Ok(KeyInfo::from_private_key(curve_type, &private_key_bytes)?
+                let curve_type = CurveType::from_str(new_curve_name);
+                Ok(KeyInfo::from_private_key(curve_type, private_key_bytes)?
                     .to_json()?
                     .to_hex())
             }
             "BITCOINCASH" | "LITECOIN" => {
                 let network = account_json["network"].as_str().unwrap_or("MAINNET");
                 let seg_wit = account_json["segWit"].as_str().unwrap_or("");
-                let coin_info = coin_info_from_param(&chain_type, network, seg_wit, "secp256k1")?;
+                let coin_info = coin_info_from_param(chain_type, network, seg_wit, "secp256k1")?;
                 let typed_pk =
-                    TypedPrivateKey::from_slice(CurveType::SECP256k1, &private_key_bytes)?;
+                    TypedPrivateKey::from_slice(CurveType::SECP256k1, private_key_bytes)?;
                 typed_pk.fmt(&coin_info)
             }
             _ => Ok(private_key_bytes.to_hex()),
@@ -191,6 +205,35 @@ mod tests {
     use tcx_keystore::{keystore::IdentityNetwork, Source};
 
     use super::KeystoreUpgrade;
+
+    #[test]
+    fn malformed_upgrade_schema_returns_error_without_panicking() {
+        let valid = pk_json(11001, "PRIVATE", "test");
+        let mut cases = vec![
+            json!(null),
+            json!({"version":11001,"imTokenMeta":"invalid"}),
+        ];
+        for accounts in [
+            json!(null),
+            json!([]),
+            json!([{}]),
+            json!([{"curve":"unknown","coin":"ETHEREUM"}]),
+            json!([{"curve":"SECP256k1"}]),
+        ] {
+            let mut malformed = valid.clone();
+            malformed["activeAccounts"] = accounts;
+            cases.push(malformed);
+        }
+        for value in cases {
+            let outcome = std::panic::catch_unwind(|| {
+                KeystoreUpgrade::new(value)
+                    .upgrade(&Key::Password("unused".into()), &IdentityNetwork::Mainnet)
+            });
+            assert!(outcome.is_ok());
+            assert!(outcome.unwrap().is_err());
+        }
+        assert!(super::mapping_curve_name("unknown").is_err());
+    }
 
     fn pk_json(version: i64, source: &str, name: &str) -> Value {
         json!(

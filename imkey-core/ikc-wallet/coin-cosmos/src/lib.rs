@@ -1,5 +1,6 @@
 pub mod address;
 pub mod cosmosapi;
+mod display;
 pub mod transaction;
 extern crate anyhow;
 use core::result;

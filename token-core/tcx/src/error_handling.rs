@@ -36,18 +36,9 @@ pub unsafe fn landingpad<F: FnOnce() -> Result<T> + panic::UnwindSafe, T>(f: F) 
             lock_all_keystore();
             rv.map_err(notify_err)
         }
-        Err(err) => {
+        Err(_) => {
             lock_all_keystore();
-            use std::any::Any;
-            let err = &*err as &dyn Any;
-            let msg = match err.downcast_ref::<&str>() {
-                Some(s) => *s,
-                None => match err.downcast_ref::<String>() {
-                    Some(s) => &**s,
-                    None => "Box<Any>",
-                },
-            };
-            Err(notify_err(anyhow!("{}", msg)))
+            Err(notify_err(anyhow!("internal_error")))
         }
     }
 }

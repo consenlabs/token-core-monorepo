@@ -224,10 +224,10 @@ pub fn test_sign_tron_tx() {
             }),
         };
 
-        let ret = call_api("sign_tx", tx).unwrap();
-        let output: TronTxOutput = TronTxOutput::decode(ret.as_slice()).unwrap();
-        let expected_sign = "61a3b1c7bf099696193d7a71da1be12aead5acb5821d4e7d705f70762993c6a65713e55d7ec5f08e8fc47441ca810428b4bb40ee5fde84a3a8c726220e17375601";
-        assert_eq!(expected_sign, output.signatures[0]);
+        assert_eq!(
+            call_api("sign_tx", tx).unwrap_err().to_string(),
+            "invalid_sign_path"
+        );
 
         let tx = SignParam {
             id: wallet.id.to_string(),

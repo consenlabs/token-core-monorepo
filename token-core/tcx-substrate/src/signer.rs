@@ -23,6 +23,9 @@ impl TraitTransactionSigner<SubstrateRawTxIn, SubstrateTxOut> for Keystore {
         params: &SignatureParameters,
         tx: &SubstrateRawTxIn,
     ) -> Result<SubstrateTxOut> {
+        if self.derivable() && params.derivation_path.is_empty() {
+            return Err(anyhow::anyhow!("substrate_path_invalid"));
+        }
         let raw_data_bytes = if tx.raw_data.starts_with("0x") {
             tx.raw_data[2..].to_string()
         } else {
@@ -46,6 +49,34 @@ impl TraitTransactionSigner<SubstrateRawTxIn, SubstrateTxOut> for Keystore {
 mod test_super {
     use super::*;
     use tcx_common::ToHex;
+
+    #[test]
+    fn hd_transaction_rejects_empty_path_but_accepts_custom_junctions() {
+        use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
+        use tcx_keystore::Metadata;
+        let mut keystore =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        keystore.unlock_by_password(TEST_PASSWORD).unwrap();
+        let mut params = SignatureParameters::default();
+        let tx = SubstrateRawTxIn {
+            raw_data: "00".to_string(),
+        };
+        assert_eq!(
+            keystore
+                .sign_transaction(&params, &tx)
+                .unwrap_err()
+                .to_string(),
+            "substrate_path_invalid"
+        );
+        for path in ["//polkadot//imToken/0", "//custom//42"] {
+            params.derivation_path = path.to_string();
+            assert!(keystore.sign_transaction(&params, &tx).is_ok());
+        }
+        for path in ["///password", "//account/", "not_a_path"] {
+            params.derivation_path = path.to_string();
+            assert!(keystore.sign_transaction(&params, &tx).is_err());
+        }
+    }
 
     #[test]
     fn test_payload_hash() {

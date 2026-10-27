@@ -33,13 +33,17 @@ impl TsmService for AppUpdateRequest {
 
     fn send_message(&mut self) -> Result<ServiceResponse<AppUpdateResponse>> {
         loop {
-            let req_data = serde_json::to_vec_pretty(&self).unwrap();
+            let req_data = serde_json::to_vec_pretty(&self)?;
             let response_data = https::post(constants::TSM_ACTION_APP_UPDATE, req_data)?;
             let return_bean: ServiceResponse<AppUpdateResponse> =
                 serde_json::from_str(response_data.as_str())?;
             if return_bean.return_code == constants::TSM_RETURN_CODE_SUCCESS {
                 //check if end
-                let next_step_key = return_bean.clone().return_data.next_step_key.unwrap();
+                let next_step_key = return_bean
+                    .return_data
+                    .next_step_key
+                    .clone()
+                    .ok_or(crate::error::ImkeyError::ImkeyTsmServerError)?;
                 if constants::TSM_END_FLAG.eq(next_step_key.as_str()) {
                     return Ok(return_bean);
                 }
@@ -52,7 +56,7 @@ impl TsmService for AppUpdateRequest {
                         self.status_word = Some(handle_result.1);
                         self.step_key = next_step_key;
                     }
-                    None => (),
+                    None => return Err(crate::error::ImkeyError::ImkeyTsmServerError.into()),
                 }
             } else {
                 return_bean.service_res_check()?;

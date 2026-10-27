@@ -15,7 +15,6 @@ use bitcoin_hashes::Hash;
 use ikc_common::apdu::{ApduCheck, BtcApdu};
 use ikc_common::constants::{EACH_ROUND_NUMBER, MAX_UTXO_NUMBER, MIN_NONDUST_OUTPUT, TIMEOUT_LONG};
 use ikc_common::error::CoinError;
-use ikc_common::path::check_path_validity;
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
@@ -30,7 +29,14 @@ impl BtcTransaction {
         property_id: i32,
     ) -> Result<TxSignResult> {
         //path check
-        check_path_validity(path)?;
+        self.validate_signing_inputs(
+            if network == Network::Bitcoin {
+                "MAINNET"
+            } else {
+                "TESTNET"
+            },
+            path,
+        )?;
 
         //check uxto number
         if &self.unspents.len() > &MAX_UTXO_NUMBER {
@@ -38,7 +44,12 @@ impl BtcTransaction {
         }
 
         //check change amount
-        if self.amount - self.fee < MIN_NONDUST_OUTPUT {
+        if self
+            .amount
+            .checked_sub(self.fee)
+            .ok_or(CoinError::ImkeyAmountLessThanMinimum)?
+            < MIN_NONDUST_OUTPUT
+        {
             return Err(CoinError::ImkeyAmountLessThanMinimum.into());
         }
 
@@ -47,7 +58,11 @@ impl BtcTransaction {
 
         //add change output
         let mut txouts: Vec<TxOut> = Vec::new();
-        let change_amount = self.get_total_amount() - MIN_NONDUST_OUTPUT - self.fee;
+        let change_amount = self
+            .get_total_amount()?
+            .checked_sub(MIN_NONDUST_OUTPUT)
+            .and_then(|amount| amount.checked_sub(self.fee))
+            .ok_or(CoinError::ImkeyAmountLessThanMinimum)?;
         let txout_send_output = TxOut {
             value: change_amount as u64,
             script_pubkey: Address::from_str(&self.unspents.get(0).unwrap().address)?
@@ -188,13 +203,24 @@ impl BtcTransaction {
         property_id: i32,
     ) -> Result<TxSignResult> {
         //path check
-        check_path_validity(path)?;
+        self.validate_signing_inputs(
+            if network == Network::Bitcoin {
+                "MAINNET"
+            } else {
+                "TESTNET"
+            },
+            path,
+        )?;
 
         //check uxto number
         if &self.unspents.len() > &MAX_UTXO_NUMBER {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
-        let change_amount = self.get_total_amount() - self.fee - MIN_NONDUST_OUTPUT;
+        let change_amount = self
+            .get_total_amount()?
+            .checked_sub(self.fee)
+            .and_then(|amount| amount.checked_sub(MIN_NONDUST_OUTPUT))
+            .ok_or(CoinError::ImkeyAmountLessThanMinimum)?;
         //check change amount
         if change_amount < MIN_NONDUST_OUTPUT {
             return Err(CoinError::ImkeyAmountLessThanMinimum.into());
