@@ -92,20 +92,20 @@ pub fn remove_old_keystore_by_id(id: &str) -> Option<Vec<String>> {
     marked_files
 }
 
-fn mark_keystore_as_migrated(legacy_file_id: &str, migrated_file_id: &str) {
+fn mark_keystore_as_migrated(legacy_file_id: &str, migrated_file_id: &str) -> Result<()> {
     let result = read_migrated_map();
     let mut map: HashMap<String, Vec<String>> = result.1;
     let migrated_file = result.0;
 
     let file_ids = map.entry(migrated_file_id.to_string()).or_insert(vec![]);
     if file_ids.contains(&legacy_file_id.to_string()) {
-        return;
+        return Ok(());
     }
 
     file_ids.push(legacy_file_id.to_string());
 
-    let json_str = serde_json::to_string(&map).unwrap();
-    fs::write(&migrated_file, json_str).expect("write migrated.json");
+    fs::write(&migrated_file, serde_json::to_string(&map)?)?;
+    Ok(())
 }
 
 pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
@@ -135,6 +135,68 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
     if let Some(version) = json["version"].as_i64() {
         let network = IdentityNetwork::from_str(&param.network.to_uppercase())?;
         match version {
+            10000 if param.id == "identity" => {
+                // Legacy identity.json is a standalone mnemonic vault. Do not
+                // enable arbitrary v10000 imports or reuse its plaintext encKey.
+                let tcx_crypto::Key::Password(password) = &key else {
+                    return Err(anyhow!("kdf_upgrade_requires_password"));
+                };
+                let crypto: tcx_crypto::Crypto = serde_json::from_value(json["crypto"].clone())?;
+                let encrypted_mnemonic: tcx_crypto::EncPair =
+                    serde_json::from_value(json["encMnemonic"].clone())?;
+                let unlocker = crypto.use_key(&key)?;
+                let mnemonic = String::from_utf8(unlocker.decrypt_enc_pair(&encrypted_mnemonic)?)?;
+                let id = json["id"]
+                    .as_str()
+                    .ok_or_else(|| anyhow!("invalid_identity_keystore"))?;
+                anyhow::ensure!(
+                    !id.is_empty()
+                        && id.len() <= 128
+                        && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'),
+                    "invalid_identity_keystore"
+                );
+                let timestamp_value = &json["imTokenMeta"]["timestamp"];
+                let timestamp = timestamp_value
+                    .as_i64()
+                    .or_else(|| {
+                        timestamp_value
+                            .as_str()?
+                            .parse::<f64>()
+                            .ok()
+                            .filter(|value| {
+                                value.is_finite() && *value >= 0.0 && *value < i64::MAX as f64
+                            })
+                            .map(|value| value as i64)
+                    })
+                    .ok_or_else(|| anyhow!("invalid_identity_keystore"))?;
+                let name = json["imTokenMeta"]["name"]
+                    .as_str()
+                    .ok_or_else(|| anyhow!("invalid_identity_keystore"))?;
+                let source = match json["imTokenMeta"]["source"].as_str() {
+                    Some("NEW_IDENTITY") => tcx_keystore::Source::NewMnemonic,
+                    Some("RECOVERED_IDENTITY") | None => tcx_keystore::Source::Mnemonic,
+                    _ => return Err(anyhow!("invalid_identity_keystore")),
+                };
+                let metadata = tcx_keystore::Metadata {
+                    name: name.to_owned(),
+                    timestamp,
+                    network,
+                    source,
+                    password_hint: json["imTokenMeta"]["passwordHint"]
+                        .as_str()
+                        .map(str::to_owned),
+                    ..tcx_keystore::Metadata::default()
+                };
+                let mut recovered =
+                    tcx_keystore::HdKeystore::from_mnemonic(&mnemonic, password, metadata)?;
+                anyhow::ensure!(
+                    json["identifier"].as_str() == Some(recovered.identity().identifier.as_str())
+                        && json["ipfsId"].as_str() == Some(recovered.identity().ipfs_id.as_str()),
+                    "identity_not_match"
+                );
+                recovered.store_mut().id = id.to_owned();
+                keystore = Keystore::Hd(recovered);
+            }
             11000 | 11001 => {
                 let keystore_upgrade = KeystoreUpgrade::new(json);
                 keystore = keystore_upgrade.upgrade(&key, &network)?;
@@ -169,7 +231,7 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
         }
 
         if is_existed {
-            mark_keystore_as_migrated(&id, &existed_id);
+            mark_keystore_as_migrated(&id, &existed_id)?;
 
             return encode_message(MigrateKeystoreResult {
                 is_existed: true,
@@ -177,8 +239,6 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
                 keystore: None,
             });
         } else {
-            mark_keystore_as_migrated(&id, &keystore.id());
-
             let identity = keystore.identity();
 
             let keystore_result = KeystoreResult {
@@ -199,6 +259,7 @@ pub(crate) fn migrate_keystore(data: &[u8]) -> Result<Vec<u8>> {
                 keystore: Some(keystore_result),
             });
             flush_keystore(&keystore)?;
+            mark_keystore_as_migrated(&id, &keystore.id())?;
             cache_keystore(keystore);
             return ret;
         }
@@ -536,6 +597,15 @@ mod tests {
     use serial_test::serial;
     use tcx_keystore::keystore::IdentityNetwork;
 
+    fn assert_scan_encrypted_xpub(legacy: &str, current: &str) {
+        let key = hex::decode("B888D25EC8C12BD5043777B1AC49F872").unwrap();
+        let iv = hex::decode("9C0C30889CBCC5E01AB5B2BB88715799").unwrap();
+        let legacy_ciphertext = base64::decode(legacy).unwrap();
+        let expected = tcx_crypto::aes::cbc::decrypt_pkcs7(&legacy_ciphertext, &key, &iv).unwrap();
+        let actual = tcx_crypto::aead::open(&key, b"token-core/xpub/v1", current).unwrap();
+        assert_eq!(actual, expected);
+    }
+
     #[test]
     #[serial]
 
@@ -579,6 +649,7 @@ mod tests {
     #[serial]
 
     fn test_scan_tcx_legacy_keystores() {
+        *tcx_crypto::XPUB_COMMON_KEY_128.write() = "B888D25EC8C12BD5043777B1AC49F872".to_owned();
         *LEGACY_WALLET_FILE_DIR.write() = "../test-data/wallets-ios-2_14_1/".to_string();
         let param = MarkIdentityWalletsParam {
             ids: vec!["0a2756cd-ff70-437b-9bdb-ad46b8bb0819".to_string()],
@@ -612,7 +683,7 @@ mod tests {
             "037b5253c24ce2a293566f9e066051366cda5073e4a43b25f07c990d7c9ac0aab5"
         );
         assert_eq!(account.extended_public_key, "tpubDCxD6k9PreNhSacpfSZ3iErESZnncY1n7qU7e3stZXLPh84xVVt5ERMAqKeefUU8jswx2GpCkQpeYow4xH3PGx2iim6ftPa32GNvTKAtknz");
-        assert_eq!(account.encrypted_extended_public_key, "b78BOM632Fph4a2xIzWH7Y2fUbHbkYVr2OgJ4WuNxubppAue5npoXgG1kjB7ATxYxpjxYqu/0TgRM1Dz8QO3cT1GPVASzzt4U+f2qeiQcUSj3pnYneGRDcTnY9JsXZmshVbmX7s1He9a0j8x7UeUCS61JM3S9nATdx6YVU/+ViD2tDdRHk6v8IwGnh1uoKb2a/CCsYQbPs5taZoLfwS3BA==");
+        assert_scan_encrypted_xpub("b78BOM632Fph4a2xIzWH7Y2fUbHbkYVr2OgJ4WuNxubppAue5npoXgG1kjB7ATxYxpjxYqu/0TgRM1Dz8QO3cT1GPVASzzt4U+f2qeiQcUSj3pnYneGRDcTnY9JsXZmshVbmX7s1He9a0j8x7UeUCS61JM3S9nATdx6YVU/+ViD2tDdRHk6v8IwGnh1uoKb2a/CCsYQbPs5taZoLfwS3BA==", &account.encrypted_extended_public_key);
         assert_eq!(keystore.source, "RECOVERED_IDENTITY");
 
         let account = keystore
@@ -629,7 +700,7 @@ mod tests {
             "03bd460186d29fd9ac68ee88b110c3acc4a4443648a1ec7607af9ce306ad76f785"
         );
         assert_eq!(account.extended_public_key, "tpubDDaEZaaDDmwnZTP6u7m3yTKFgnbSx2uTaxp1hKM5oiVZo6iBB46rWnWpdkpbPxtfdYiyLbyhqgbXRXYff3LfW4rCpYyfpb5pC67CPZdKkZB");
-        assert_eq!(account.encrypted_extended_public_key, "PyK/ofjxHbRbZlOE7N4Au7LZIzM5DoV6SgHbfrQvaOsWv5ZwXL2s3nQk6eCj1SIRL6A3s9STpPz7Y3KdggApnOgUpIw7v6ZB3kTKbH4Y8RPH8e1Nlkg2J1CDaf5US1nBmWCxKD4gDh9GEI8H41/MaRWIBnyyw+vwCf5hvVpSvpL9b/sUe8boZmw/VfNpbF5MkGMtFyaZnxd80qFqxgc8fA==");
+        assert_scan_encrypted_xpub("PyK/ofjxHbRbZlOE7N4Au7LZIzM5DoV6SgHbfrQvaOsWv5ZwXL2s3nQk6eCj1SIRL6A3s9STpPz7Y3KdggApnOgUpIw7v6ZB3kTKbH4Y8RPH8e1Nlkg2J1CDaf5US1nBmWCxKD4gDh9GEI8H41/MaRWIBnyyw+vwCf5hvVpSvpL9b/sUe8boZmw/VfNpbF5MkGMtFyaZnxd80qFqxgc8fA==", &account.encrypted_extended_public_key);
 
         let keystore = result
             .keystores
@@ -675,6 +746,7 @@ mod tests {
     #[test]
     #[serial]
     fn test_scan_legacy_keystores() {
+        *tcx_crypto::XPUB_COMMON_KEY_128.write() = "B888D25EC8C12BD5043777B1AC49F872".to_owned();
         *LEGACY_WALLET_FILE_DIR.write() = "../test-data/wallets-ios-2_14_1/".to_string();
         let result = scan_legacy_keystores().unwrap();
 
@@ -692,7 +764,7 @@ mod tests {
         assert_eq!(account.public_key, "");
         assert_eq!(account.path, "m/49'/1'/0'/0/0");
         assert_eq!(account.extended_public_key, "tpubDCwNET9ErXmBracx3ZBfi6rXQZRjYkpitFe23FAW9M3RcCw4aveNC4SAV5yYrFDjtP3b46eFfv4VtiYP3EXoTZsbnJia2yNznExS8EEcACv");
-        assert_eq!(account.encrypted_extended_public_key, "re1xUqBS63Dybo7YZi60QdPm9MC7VdCoHABo7T1qf+btzCUROCND0HxmrShSZEy08QzLoiXxvZBO20/wS7OGjNXmI9wH2i7554S1ol5kwTKoid3Qhk12U6s1zHKCuInAdcNW+/jh4ttp6cO3hosjQGJRCQu8Ts43/TFsN+I0A/8DtyJlSbg1YYz5Xn9R83IRc4R8EvdHj0M2Mrfnae4T0g==");
+        assert_scan_encrypted_xpub("re1xUqBS63Dybo7YZi60QdPm9MC7VdCoHABo7T1qf+btzCUROCND0HxmrShSZEy08QzLoiXxvZBO20/wS7OGjNXmI9wH2i7554S1ol5kwTKoid3Qhk12U6s1zHKCuInAdcNW+/jh4ttp6cO3hosjQGJRCQu8Ts43/TFsN+I0A/8DtyJlSbg1YYz5Xn9R83IRc4R8EvdHj0M2Mrfnae4T0g==", &account.encrypted_extended_public_key);
         assert_eq!(keystore.source, "RECOVERED_IDENTITY");
 
         let keystore = result

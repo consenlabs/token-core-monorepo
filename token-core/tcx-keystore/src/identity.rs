@@ -4,21 +4,26 @@ use crate::Result;
 use bip39::Seed;
 use bitcoin::blockdata::constants::PUBKEY_ADDRESS_PREFIX_MAIN;
 use bitcoin::blockdata::constants::PUBKEY_ADDRESS_PREFIX_TEST;
-use bitcoin::consensus::{Decodable, Encodable};
+use bitcoin::consensus::Decodable;
+#[cfg(test)]
+use bitcoin::consensus::Encodable;
 use bitcoin::network::constants::Network;
 use bitcoin::util::base58;
-use bitcoin::util::bip32::ExtendedPrivKey;
+use bitcoin::util::bip32::ExtendedPrivKey as Xpriv;
 use bitcoin::util::key::PrivateKey;
 use bitcoin::VarInt;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use hmac_sha256::HMAC;
 use multihash::{Code, MultihashDigest};
+use secp256k1 as bitcoin_secp256k1;
 use secp256k1::ecdsa::{RecoverableSignature, RecoveryId};
-use secp256k1::{Message, PublicKey, Secp256k1};
+use secp256k1::{Message, PublicKey, Secp256k1 as DirectSecp256k1};
 use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read, Write};
-use tcx_common::{keccak256, merkle_hash, random_u8_16, unix_timestamp, FromHex, ToHex};
-use tcx_crypto::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
+use tcx_common::{keccak256, merkle_hash, FromHex, ToHex};
+use tcx_crypto::aes::cbc::decrypt_pkcs7;
+#[cfg(test)]
+use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::{crypto::Unlocker, EncPair};
 use tcx_primitive::{PrivateKey as TraitPrivateKey, Secp256k1PrivateKey};
 
@@ -26,7 +31,13 @@ use tcx_primitive::{PrivateKey as TraitPrivateKey, Secp256k1PrivateKey};
 #[serde(rename_all = "camelCase")]
 pub struct Identity {
     pub enc_auth_key: EncPair,
+    /// Only accepted while reading historical JSON; never written back.
+    #[serde(default, skip_serializing)]
     pub enc_key: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub enc_backup_key: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub enc_legacy_backup_key: String,
     pub identifier: String,
     pub ipfs_id: String,
 }
@@ -50,7 +61,7 @@ impl Identity {
         let authentication_key = HMAC::mac("Authentication Key".as_bytes(), backup_key);
 
         let auth_private_key = PrivateKey::from_slice(authentication_key.as_ref(), network_type)?;
-        let secp = Secp256k1::new();
+        let secp = bitcoin_secp256k1::Secp256k1::new();
         let auth_pubkey_hash = auth_private_key.public_key(&secp).pubkey_hash();
 
         let network_header = if network == &IdentityNetwork::Mainnet {
@@ -71,7 +82,7 @@ impl Identity {
         let enc_key_bytes = HMAC::mac("Encryption Key".as_bytes(), backup_key);
 
         let enc_private_key = PrivateKey::new_uncompressed(
-            secp256k1::SecretKey::from_slice(enc_key_bytes.as_ref())?,
+            bitcoin_secp256k1::SecretKey::from_slice(enc_key_bytes.as_ref())?,
             network_type,
         );
         let multihash =
@@ -81,7 +92,13 @@ impl Identity {
 
         Ok(Identity {
             enc_auth_key,
-            enc_key: enc_key_bytes.to_hex(),
+            enc_key: String::new(),
+            enc_backup_key: unlocker.seal(
+                b"identity/backup-key/v4",
+                &tcx_crypto::aead::derive_key(master_private_key, b"identity/backup-key/v4")?,
+            )?,
+            enc_legacy_backup_key: unlocker
+                .seal(b"identity/legacy-backup-key/v3", &enc_key_bytes)?,
             identifier,
             ipfs_id,
         })
@@ -94,7 +111,7 @@ impl Identity {
             Network::Testnet
         };
 
-        let master_key = ExtendedPrivKey::new_master(network_type, seed.as_ref())?;
+        let master_key = Xpriv::new_master(network_type, seed.as_ref())?;
         Self::new(&master_key.private_key.secret_bytes(), unlocker, network)
     }
 
@@ -112,12 +129,35 @@ impl Identity {
         base58::encode_slice(&multihash.to_bytes())
     }
 
-    pub fn encrypt_ipfs(&self, plaintext: &str) -> Result<String> {
-        encrypt_ipfs_with_enc_key(&self.enc_key, plaintext)
+    pub fn has_protected_backup_keys(&self) -> bool {
+        !self.enc_backup_key.is_empty() && !self.enc_legacy_backup_key.is_empty()
     }
 
-    pub fn decrypt_ipfs(&self, ciphertext: &str) -> Result<String> {
-        decrypt_ipfs_with_enc_key(ciphertext, &self.ipfs_id, &self.enc_key)
+    pub fn encrypt_ipfs(&self, plaintext: &str, unlocker: &Unlocker) -> Result<String> {
+        let key = unlocker.open(b"identity/backup-key/v4", &self.enc_backup_key)?;
+        let purpose = format!("ipfs/backup/v4/{}", self.identifier);
+        Ok(format!(
+            "04{}",
+            tcx_crypto::aead::seal(&key, purpose.as_bytes(), plaintext.as_bytes())?
+        ))
+    }
+
+    pub fn decrypt_ipfs(&self, ciphertext: &str, unlocker: &Unlocker) -> Result<String> {
+        if let Some(envelope) = ciphertext.strip_prefix("04") {
+            let key = unlocker.open(b"identity/backup-key/v4", &self.enc_backup_key)?;
+            let purpose = format!("ipfs/backup/v4/{}", self.identifier);
+            Ok(String::from_utf8(tcx_crypto::aead::open(
+                &key,
+                purpose.as_bytes(),
+                envelope,
+            )?)?)
+        } else {
+            let key = unlocker.open(
+                b"identity/legacy-backup-key/v3",
+                &self.enc_legacy_backup_key,
+            )?;
+            decrypt_ipfs_with_enc_key(ciphertext, &self.ipfs_id, &key.to_hex())
+        }
     }
 
     pub fn sign_authentication_message(
@@ -156,11 +196,16 @@ pub fn decrypt_ipfs_with_enc_key(ciphertext: &str, ipfs_id: &str, enc_key: &str)
     header.write_all(&iv)?;
 
     let var_len = VarInt::consensus_decode(&mut rdr)?;
-    if var_len.0 as usize != ciphertext.len() - 21 - 65 - var_len.len() {
+    let data_len = usize::try_from(var_len.0).map_err(|_| Error::InvalidEncryptionData)?;
+    let expected_len = ciphertext
+        .len()
+        .checked_sub(21 + 65 + var_len.len())
+        .ok_or(Error::InvalidEncryptionData)?;
+    if data_len != expected_len || data_len == 0 || data_len % 16 != 0 {
         return Err(Error::InvalidEncryptionData.into());
     }
 
-    let mut enc_data = vec![0u8; var_len.0 as usize];
+    let mut enc_data = vec![0u8; data_len];
     rdr.read_exact(&mut enc_data)?;
 
     let mut signature = [0u8; 64];
@@ -176,24 +221,21 @@ pub fn decrypt_ipfs_with_enc_key(ciphertext: &str, ipfs_id: &str, enc_key: &str)
 
     let message = Message::from_slice(&hash)?;
     let sig = RecoverableSignature::from_compact(&signature, recover_id)?;
-    let pub_key = Secp256k1::new().recover_ecdsa(&message, &sig)?;
+    let pub_key = DirectSecp256k1::new().recover_ecdsa(&message, &sig)?;
     let calculated_ipfs_id = Identity::calculate_ipfs_id(&pub_key);
 
     if ipfs_id != calculated_ipfs_id {
         return Err(Error::InvalidEncryptionDataSignature.into());
     }
 
-    let enc_key = Vec::from_hex(&enc_key)?;
-    let plaintext = decrypt_pkcs7(&enc_data, &enc_key[..16], &iv)?;
+    let enc_key = Vec::from_hex(enc_key)?;
+    let key = enc_key.get(..16).ok_or(Error::InvalidEncryptionData)?;
+    let plaintext = decrypt_pkcs7(&enc_data, key, &iv)?;
 
     Ok(String::from_utf8(plaintext)?)
 }
 
-pub fn encrypt_ipfs_with_enc_key(enc_key: &str, plaintext: &str) -> Result<String> {
-    let iv: [u8; 16] = random_u8_16();
-    encrypt_ipfs_wth_timestamp_iv(&enc_key, plaintext, unix_timestamp(), &iv)
-}
-
+#[cfg(test)]
 fn encrypt_ipfs_wth_timestamp_iv(
     enc_key: &str,
     plaintext: &str,
@@ -206,9 +248,10 @@ fn encrypt_ipfs_wth_timestamp_iv(
     header.write_all(&timestamp.to_le_bytes()[..4])?;
     header.write_all(iv)?;
 
-    let enc_key = Vec::from_hex_auto(&enc_key)?;
+    let enc_key = Vec::from_hex_auto(enc_key)?;
 
-    let ciphertext = encrypt_pkcs7(plaintext.as_bytes(), &enc_key[0..16], iv)?;
+    let key = enc_key.get(..16).ok_or(Error::InvalidEncryptionData)?;
+    let ciphertext = encrypt_pkcs7(plaintext.as_bytes(), key, iv)?;
     let hash = keccak256(&[header.clone(), merkle_hash(&ciphertext).to_vec()].concat());
     let mut signature = Secp256k1PrivateKey::from_slice(&enc_key)?.sign_recoverable(&hash)?;
     //ETH-compatible ec_recover, in chain_id = 1 case, v = 27 + rec_id
@@ -228,7 +271,7 @@ fn encrypt_ipfs_wth_timestamp_iv(
 #[cfg(test)]
 mod test {
 
-    use tcx_common::FromHex;
+    use tcx_common::{FromHex, ToHex};
     use tcx_constants::sample_key::{MNEMONIC, PASSWORD, PRIVATE_KEY};
     use tcx_constants::CurveType;
     use tcx_crypto::Key;
@@ -238,13 +281,17 @@ mod test {
 
     #[test]
     fn test_encrypt_ipfs() {
-        let mut meta = Metadata::default();
-        meta.network = IdentityNetwork::Testnet;
-        let mut keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
+        let meta = Metadata {
+            network: IdentityNetwork::Testnet,
+            ..Default::default()
+        };
+        let mut keystore = HdKeystore::from_mnemonic(MNEMONIC, PASSWORD, meta).unwrap();
         keystore
             .unlock(&Key::Password(PASSWORD.to_owned()))
             .unwrap();
         let identity = keystore.identity();
+        let key = Key::Password(PASSWORD.to_owned());
+        let unlocker = keystore.store().crypto.use_key(&key).unwrap();
 
         let tests = [
             "imToken",
@@ -256,8 +303,8 @@ mod test {
         ];
 
         for t in tests {
-            let encrypted = identity.encrypt_ipfs(t).unwrap();
-            let plaintext = identity.decrypt_ipfs(&encrypted).unwrap();
+            let encrypted = identity.encrypt_ipfs(t, &unlocker).unwrap();
+            let plaintext = identity.decrypt_ipfs(&encrypted, &unlocker).unwrap();
 
             assert_eq!(plaintext, t);
         }
@@ -265,13 +312,17 @@ mod test {
 
     #[test]
     fn test_decrypt_ipfs_failure() {
-        let mut meta = Metadata::default();
-        meta.network = IdentityNetwork::Testnet;
-        let mut keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
+        let meta = Metadata {
+            network: IdentityNetwork::Testnet,
+            ..Default::default()
+        };
+        let mut keystore = HdKeystore::from_mnemonic(MNEMONIC, PASSWORD, meta).unwrap();
         keystore
             .unlock(&Key::Password(PASSWORD.to_owned()))
             .unwrap();
         let identity = keystore.identity();
+        let key = Key::Password(PASSWORD.to_owned());
+        let unlocker = keystore.store().crypto.use_key(&key).unwrap();
 
         let tests = [
             ("imToken",
@@ -294,7 +345,11 @@ mod test {
 
         for t in tests {
             assert_eq!(
-                identity.decrypt_ipfs(t.2).err().unwrap().to_string(),
+                identity
+                    .decrypt_ipfs(t.2, &unlocker)
+                    .err()
+                    .unwrap()
+                    .to_string(),
                 t.3.to_string(),
             );
         }
@@ -302,13 +357,17 @@ mod test {
 
     #[test]
     fn test_ipfs_with_timestamp_iv() {
-        let mut meta = Metadata::default();
-        meta.network = IdentityNetwork::Testnet;
-        let mut keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
+        let meta = Metadata {
+            network: IdentityNetwork::Testnet,
+            ..Default::default()
+        };
+        let mut keystore = HdKeystore::from_mnemonic(MNEMONIC, PASSWORD, meta).unwrap();
         keystore
             .unlock(&Key::Password(PASSWORD.to_owned()))
             .unwrap();
         let identity = keystore.identity();
+        let key = Key::Password(PASSWORD.to_owned());
+        let unlocker = keystore.store().crypto.use_key(&key).unwrap();
 
         let test_cases = [
             ("imToken", "11111111111111111111111111111111", "0340b2495a1111111111111111111111111111111110b6602c68084bdd08dae796657aa6854ad13312fedc88f5b6f16c56b3e755dde125a1c4775db536ac0442ac942f9634c777f3ae5ca39f6abcae4bd6c87e54ab29ae0062b04d917b32e8d7c88eeb6261301b"),
@@ -323,10 +382,40 @@ mod test {
         for t in test_cases {
             let iv: [u8; 16] = Vec::from_hex(t.1).unwrap().try_into().unwrap();
             assert_eq!(
-                encrypt_ipfs_wth_timestamp_iv(&identity.enc_key, t.0, unix_timestamp, &iv).unwrap(),
+                encrypt_ipfs_wth_timestamp_iv(
+                    &unlocker
+                        .open(
+                            b"identity/legacy-backup-key/v3",
+                            &identity.enc_legacy_backup_key
+                        )
+                        .unwrap()
+                        .to_hex(),
+                    t.0,
+                    unix_timestamp,
+                    &iv
+                )
+                .unwrap(),
                 t.2
             );
-            assert_eq!(identity.decrypt_ipfs(t.2).unwrap(), t.0);
+            assert_eq!(identity.decrypt_ipfs(t.2, &unlocker).unwrap(), t.0);
+        }
+    }
+
+    #[test]
+    fn malformed_legacy_backups_do_not_panic() {
+        for length in 0..300 {
+            for byte in [0u8, 3, 0xfd, 0xfe, 0xff] {
+                let mut input = vec![byte; length];
+                if let Some(version) = input.first_mut() {
+                    *version = 3;
+                }
+                let encoded = input.to_hex();
+                let result = std::panic::catch_unwind(|| {
+                    super::decrypt_ipfs_with_enc_key(&encoded, "invalid-id", "")
+                });
+                assert!(result.is_ok());
+                assert!(result.unwrap().is_err());
+            }
         }
     }
 
@@ -340,10 +429,12 @@ mod test {
         ];
 
         for t in tests {
-            let mut meta = Metadata::default();
-            meta.network = IdentityNetwork::Testnet;
+            let meta = Metadata {
+                network: IdentityNetwork::Testnet,
+                ..Default::default()
+            };
 
-            let hd = HdKeystore::from_mnemonic(t, &PASSWORD, meta);
+            let hd = HdKeystore::from_mnemonic(t, PASSWORD, meta);
             assert!(hd.is_err());
         }
     }
@@ -356,9 +447,11 @@ mod test {
         ];
 
         for item in test_cases {
-            let mut meta = Metadata::default();
-            meta.network = item.0;
-            let keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
+            let meta = Metadata {
+                network: item.0,
+                ..Default::default()
+            };
+            let keystore = HdKeystore::from_mnemonic(MNEMONIC, PASSWORD, meta).unwrap();
             let key = Key::Password(PASSWORD.to_string());
             let unlocker = keystore.store().crypto.use_key(&key).unwrap();
             let identity = keystore.identity();
@@ -371,7 +464,7 @@ mod test {
     #[test]
     fn test_create_identity_from_mnemonic() {
         let meta = Metadata::default();
-        let keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
+        let keystore = HdKeystore::from_mnemonic(MNEMONIC, PASSWORD, meta).unwrap();
         let identity = keystore.identity();
 
         assert_eq!(
@@ -388,8 +481,8 @@ mod test {
     fn test_create_identity_from_private_key() {
         let meta = Metadata::default();
         let keystore = PrivateKeystore::from_private_key(
-            &PRIVATE_KEY,
-            &PASSWORD,
+            PRIVATE_KEY,
+            PASSWORD,
             tcx_constants::CurveType::SECP256k1,
             meta,
             None,
@@ -409,11 +502,13 @@ mod test {
 
     #[test]
     fn test_create_identity_from_private_key_testnet() {
-        let mut meta = Metadata::default();
-        meta.network = IdentityNetwork::Testnet;
+        let meta = Metadata {
+            network: IdentityNetwork::Testnet,
+            ..Default::default()
+        };
         let keystore = PrivateKeystore::from_private_key(
-            &PRIVATE_KEY,
-            &PASSWORD,
+            PRIVATE_KEY,
+            PASSWORD,
             CurveType::SECP256k1,
             meta,
             None,

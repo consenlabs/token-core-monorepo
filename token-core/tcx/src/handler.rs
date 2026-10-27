@@ -9,7 +9,6 @@ use std::str::FromStr;
 use tcx_eos::encode_eos_wif;
 use tcx_eth2::transaction::{SignBlsToExecutionChangeParam, SignBlsToExecutionChangeResult};
 use tcx_keystore::keystore::IdentityNetwork;
-use tcx_migration::legacy_ipfs;
 
 use tcx_common::{FromHex, ToHex};
 use tcx_primitive::{
@@ -19,7 +18,7 @@ use tcx_primitive::{
 
 use tcx_btc_kin::WIFDisplay;
 use tcx_keystore::{
-    fingerprint_from_mnemonic, fingerprint_from_private_key, identity, Keystore, KeystoreGuard,
+    fingerprint_from_mnemonic, fingerprint_from_private_key, Keystore, KeystoreGuard,
     SignatureParameters, Signer,
 };
 use tcx_keystore::{Account, HdKeystore, Metadata, PrivateKeystore, Source};
@@ -61,7 +60,6 @@ use tcx_keystore::tcx_ensure;
 
 use tcx_constants::coin_info::coin_info_from_param;
 use tcx_constants::{CoinInfo, CurveType};
-use tcx_crypto::aes::cbc::encrypt_pkcs7;
 use tcx_crypto::KDF_ROUNDS;
 use tcx_eth::signer::batch_personal_sign;
 use tcx_keystore::{MessageSigner, TransactionSigner};
@@ -118,11 +116,12 @@ fn derive_account(keystore: &mut Keystore, derivation: &Derivation) -> Result<Ac
 
 pub fn encrypt_xpub(xpub: &str) -> Result<String> {
     let key = tcx_crypto::XPUB_COMMON_KEY_128.read();
-    let iv = tcx_crypto::XPUB_COMMON_IV.read();
-    let key_bytes = Vec::from_hex(&*key)?;
-    let iv_bytes = Vec::from_hex(&*iv)?;
-    let encrypted = encrypt_pkcs7(xpub.as_bytes(), &key_bytes, &iv_bytes)?;
-    Ok(base64::encode(encrypted))
+    let key = Vec::from_hex(&*key)?;
+    ensure!(
+        key.len() == 16 || key.len() == 32,
+        "xpub_key_not_configured"
+    );
+    tcx_crypto::aead::seal(&key, b"token-core/xpub/v1", xpub.as_bytes())
 }
 
 fn key_data_from_any_format_pk(pk: &str) -> Result<Vec<u8>> {
@@ -1502,58 +1501,70 @@ pub(crate) fn unlock_then_crash(data: &[u8]) -> Result<Vec<u8>> {
     panic!("test_unlock_then_crash");
 }
 
+impl_to_key!(crate::api::encrypt_data_to_ipfs_param::Key);
+impl_to_key!(crate::api::decrypt_data_from_ipfs_param::Key);
+
+pub(crate) fn upgrade_keystore_security(data: &[u8]) -> Result<Vec<u8>> {
+    let param = WalletKeyParam::decode(data)?;
+    let key: tcx_crypto::Key = param.key.ok_or_else(|| anyhow!("missing_key"))?.into();
+    let mut map = KEYSTORE_MAP.write();
+    let keystore = map
+        .get_mut(&param.id)
+        .ok_or_else(|| anyhow!("wallet_not_found"))?;
+    let mut migrated = keystore.clone();
+    migrated.upgrade_security(&key)?;
+    flush_keystore(&migrated)?;
+    *keystore = migrated;
+    encode_message(GeneralResult {
+        is_success: true,
+        error: String::new(),
+    })
+}
+
 pub(crate) fn encrypt_data_to_ipfs(data: &[u8]) -> Result<Vec<u8>> {
-    let param = EncryptDataToIpfsParam::decode(data).expect("EncryptDataToIpfsParam");
-
-    let map = KEYSTORE_MAP.read();
-    let cipher_text = if let Some(identity_ks) = map
-        .values()
+    let param = EncryptDataToIpfsParam::decode(data)?;
+    let key: tcx_crypto::Key = param.key.ok_or_else(|| anyhow!("missing_key"))?.into();
+    let mut map = KEYSTORE_MAP.write();
+    let keystore = map
+        .values_mut()
         .find(|ks| ks.identity().identifier == param.identifier)
-    {
-        identity_ks.identity().encrypt_ipfs(&param.content)?
-    } else {
-        let legacy_identify_path = &format!("{}/identity.json", LEGACY_WALLET_FILE_DIR.read());
-        let legacy_ipfs_info = legacy_ipfs::read_legacy_ipfs_info(&legacy_identify_path)?;
-        ensure!(
-            legacy_ipfs_info.identifier == param.identifier,
-            "wallet_not_found"
-        );
-        identity::encrypt_ipfs_with_enc_key(&legacy_ipfs_info.enc_key, &param.content)?
-    };
-
-    let output = EncryptDataToIpfsResult {
-        identifier: param.identifier.to_string(),
-        encrypted: cipher_text,
-    };
-
-    encode_message(output)
+        .ok_or_else(|| anyhow!("backup_security_migration_required"))?;
+    let mut migrated = keystore.clone();
+    if migrated.upgrade_security(&key)? {
+        flush_keystore(&migrated)?;
+        *keystore = migrated;
+    }
+    let unlocker = keystore.store().crypto.use_key(&key)?;
+    let encrypted = keystore
+        .identity()
+        .encrypt_ipfs(&param.content, &unlocker)?;
+    encode_message(EncryptDataToIpfsResult {
+        identifier: param.identifier,
+        encrypted,
+    })
 }
 
 pub(crate) fn decrypt_data_from_ipfs(data: &[u8]) -> Result<Vec<u8>> {
-    let param = DecryptDataFromIpfsParam::decode(data).expect("DecryptDataFromIpfsParam");
-
-    let map = KEYSTORE_MAP.read();
-    let content = if let Some(identity_ks) = map
-        .values()
+    let param = DecryptDataFromIpfsParam::decode(data)?;
+    let key: tcx_crypto::Key = param.key.ok_or_else(|| anyhow!("missing_key"))?.into();
+    let mut map = KEYSTORE_MAP.write();
+    let keystore = map
+        .values_mut()
         .find(|ks| ks.identity().identifier == param.identifier)
-    {
-        identity_ks.identity().decrypt_ipfs(&param.encrypted)?
-    } else {
-        let legacy_identify_path = &format!("{}/identity.json", LEGACY_WALLET_FILE_DIR.read());
-        let legacy_ipfs_data = legacy_ipfs::read_legacy_ipfs_info(&legacy_identify_path)?;
-        identity::decrypt_ipfs_with_enc_key(
-            &param.encrypted,
-            &legacy_ipfs_data.ipfs_id,
-            &legacy_ipfs_data.enc_key,
-        )?
-    };
-
-    let output = DecryptDataFromIpfsResult {
-        identifier: param.identifier.to_string(),
+        .ok_or_else(|| anyhow!("backup_security_migration_required"))?;
+    let mut migrated = keystore.clone();
+    if migrated.upgrade_security(&key)? {
+        flush_keystore(&migrated)?;
+        *keystore = migrated;
+    }
+    let unlocker = keystore.store().crypto.use_key(&key)?;
+    let content = keystore
+        .identity()
+        .decrypt_ipfs(&param.encrypted, &unlocker)?;
+    encode_message(DecryptDataFromIpfsResult {
+        identifier: param.identifier,
         content,
-    };
-
-    encode_message(output)
+    })
 }
 
 impl_to_key!(crate::api::sign_authentication_message_param::Key);
