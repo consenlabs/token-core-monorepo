@@ -1,4 +1,3 @@
-use crate::aes::cbc::encrypt_pkcs7;
 use crate::constants::SECP256K1_ENGINE;
 use crate::error::CommonError;
 use crate::hex::FromHex;
@@ -191,12 +190,28 @@ pub fn get_xpub_prefix(network: &str) -> Vec<u8> {
 }
 
 pub fn encrypt_xpub(xpub: &str) -> Result<String> {
-    let key = crate::XPUB_COMMON_KEY_128.read();
-    let iv = crate::XPUB_COMMON_IV.read();
-    let key_bytes = hex::decode(&*key)?;
-    let iv_bytes = hex::decode(&*iv)?;
-    let encrypted = encrypt_pkcs7(xpub.as_bytes(), &key_bytes, &iv_bytes)?;
-    anyhow::Ok(base64::encode(encrypted))
+    let key = hex::decode(&*crate::XPUB_COMMON_KEY_128.read())?;
+    anyhow::ensure!(
+        key.len() == 16 || key.len() == 32,
+        "xpub_key_not_configured"
+    );
+    crate::aead::seal(&key, b"token-core/xpub/v1", xpub.as_bytes())
+}
+
+pub fn decrypt_xpub_with_key_iv(encrypted: &str, key_hex: &str, iv_hex: &str) -> Result<String> {
+    let key = hex::decode(key_hex)?;
+    anyhow::ensure!(
+        key.len() == 16 || key.len() == 32,
+        "xpub_key_not_configured"
+    );
+    let plaintext = if encrypted.starts_with(crate::aead::PREFIX) {
+        crate::aead::open(&key, b"token-core/xpub/v1", encrypted)?
+    } else {
+        let iv = hex::decode(iv_hex)?;
+        let ciphertext = base64::decode(encrypted)?;
+        crate::aes::cbc::decrypt_pkcs7(&ciphertext, &key, &iv)?
+    };
+    Ok(String::from_utf8(plaintext)?)
 }
 
 pub fn network_convert(network: &str) -> Network {
@@ -358,5 +373,34 @@ mod tests {
         assert_eq!(network, Network::Bitcoin);
         let network = network_convert("ERRORNET");
         assert_eq!(network, Network::Testnet);
+    }
+}
+
+#[cfg(test)]
+mod authenticated_xpub_tests {
+    use super::*;
+    #[test]
+    fn new_xpub_is_randomized_and_legacy_ciphertext_remains_readable() {
+        let key = "11111111111111111111111111111111";
+        let iv = "22222222222222222222222222222222";
+        let legacy = crate::aes::cbc::encrypt_pkcs7(
+            b"xpub-test",
+            &hex::decode(key).unwrap(),
+            &hex::decode(iv).unwrap(),
+        )
+        .unwrap();
+        let legacy = base64::encode(legacy);
+        assert_eq!(
+            decrypt_xpub_with_key_iv(&legacy, key, iv).unwrap(),
+            "xpub-test"
+        );
+        let secret = hex::decode(key).unwrap();
+        let a = crate::aead::seal(&secret, b"token-core/xpub/v1", b"xpub-test").unwrap();
+        let b = crate::aead::seal(&secret, b"token-core/xpub/v1", b"xpub-test").unwrap();
+        assert_ne!(a, b);
+        assert_eq!(decrypt_xpub_with_key_iv(&a, key, iv).unwrap(), "xpub-test");
+        assert!(decrypt_xpub_with_key_iv(&a, "33333333333333333333333333333333", iv).is_err());
+        assert!(decrypt_xpub_with_key_iv("AA==", key, iv).is_err());
+        assert!(decrypt_xpub_with_key_iv(&a, "", iv).is_err());
     }
 }

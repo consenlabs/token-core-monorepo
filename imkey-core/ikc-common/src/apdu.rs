@@ -35,7 +35,8 @@ impl CoinCommonApdu for BtcApdu {
 impl BtcApdu {
     pub fn btc_prepare(ins: u8, p1: u8, data: &Vec<u8>) -> Vec<String> {
         let mut apdu_vec = Vec::new();
-        let apdu_number = (data.len() - 1) / LC_MAX as usize + 1;
+        let apdu_number =
+            data.len() / LC_MAX as usize + usize::from(data.len() % LC_MAX as usize != 0);
         for index in 0..apdu_number {
             if index == apdu_number - 1 {
                 let length = if data.len() % LC_MAX as usize == 0 {
@@ -60,7 +61,7 @@ impl BtcApdu {
     }
 
     pub fn btc_perpare_input(p1: u8, data: &Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
+        if data.len() > LC_MAX as usize {
             panic!("data to long");
         }
         let mut apdu = ApduHeader::new(0x80, 0x41, p1, 0x00, data.len() as u8).to_array();
@@ -73,7 +74,7 @@ impl BtcApdu {
      *p2 00:sign psbt transaction  80: sign message
      **/
     pub fn btc_psbt_preview(data: &Vec<u8>, p2: u8) -> String {
-        if data.len() as u32 > LC_MAX {
+        if data.len() > LC_MAX as usize {
             panic!("data to long");
         }
         let mut apdu = ApduHeader::new(0x80, 0x4C, 0x00, p2, data.len() as u8).to_array();
@@ -92,7 +93,7 @@ impl BtcApdu {
     }
 
     pub fn btc_segwit_sign(last_one: bool, hash_type: u8, data: Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
+        if data.len() > LC_MAX as usize {
             panic!("data to long");
         }
 
@@ -107,7 +108,7 @@ impl BtcApdu {
     }
 
     pub fn btc_taproot_sign(last_one: bool, data: Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
+        if data.len() > LC_MAX as usize {
             panic!("data to long");
         }
 
@@ -122,7 +123,7 @@ impl BtcApdu {
     }
 
     pub fn btc_taproot_script_sign(last_one: bool, data: Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
+        if data.len() > LC_MAX as usize {
             panic!("data to long");
         }
 
@@ -137,7 +138,7 @@ impl BtcApdu {
     }
 
     pub fn omni_prepare_data(p1: u8, data: Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
+        if data.len() > LC_MAX as usize {
             panic!("data to long");
         }
         let mut apdu = ApduHeader::new(0x80, 0x44, p1, 0x00, data.len() as u8).to_array();
@@ -157,7 +158,8 @@ impl BtcApdu {
 
     pub fn btc_single_utxo_sign_prepare(ins: u8, data: &Vec<u8>) -> Vec<String> {
         let mut apdu_vec = Vec::new();
-        let apdu_number = (data.len() - 1) / LC_MAX as usize + 1;
+        let apdu_number =
+            data.len() / LC_MAX as usize + usize::from(data.len() % LC_MAX as usize != 0);
         for index in 0..apdu_number {
             if index == 0 && index == apdu_number - 1 {
                 let length = if data.len() % LC_MAX as usize == 0 {
@@ -346,7 +348,7 @@ impl Secp256k1Apdu {
     }
 
     pub fn get_xpub(data: &[u8]) -> String {
-        if data.len() as u32 > LC_MAX {
+        if data.len() > LC_MAX as usize {
             panic!("data to long");
         }
         let mut apdu = ApduHeader::new(0x80, 0x82, 0x00, 0x00, data.len() as u8).to_array();
@@ -379,7 +381,7 @@ impl Ed25519Apdu {
     }
 
     pub fn get_xpub(data: &[u8]) -> String {
-        if data.len() as u32 > LC_MAX {
+        if data.len() > LC_MAX as usize {
             panic!("data to long");
         }
         let mut apdu = ApduHeader::new(0x80, 0x82, 0x00, 0x00, data.len() as u8).to_array();
@@ -423,7 +425,8 @@ impl CoinCommonApdu for BtcForkApdu {
 impl BtcForkApdu {
     pub fn btc_fork_prepare(ins: u8, p1: u8, data: &Vec<u8>) -> Vec<String> {
         let mut apdu_vec = Vec::new();
-        let apdu_number = (data.len() - 1) / LC_MAX as usize + 1;
+        let apdu_number =
+            data.len() / LC_MAX as usize + usize::from(data.len() % LC_MAX as usize != 0);
         for index in 0..apdu_number {
             if index == apdu_number - 1 {
                 let length = if data.len() % LC_MAX as usize == 0 {
@@ -448,7 +451,7 @@ impl BtcForkApdu {
     }
 
     pub fn btc_fork_perpare_input(ins: u8, p1: u8, data: &Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
+        if data.len() > LC_MAX as usize {
             panic!("data to long");
         }
         let mut apdu = ApduHeader::new(0x80, ins, p1, 0x00, data.len() as u8).to_array();
@@ -467,7 +470,7 @@ impl BtcForkApdu {
     }
 
     pub fn btc_fork_segwit_sign(ins: u8, last_one: bool, hash_type: u8, data: Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
+        if data.len() > LC_MAX as usize {
             panic!("data to long");
         }
 
@@ -521,28 +524,14 @@ impl Apdu {
 
     pub fn prepare_sign(ins: u8, data: Vec<u8>) -> Vec<String> {
         let mut apdu_list = Vec::new();
-        let size = data.len() as u32 / LC_MAX as u32
-            + if data.len() as u32 % LC_MAX as u32 != 0 {
-                1
-            } else {
-                0
-            };
-
-        for i in 0..size {
+        let size = data.len() / LC_MAX as usize + usize::from(data.len() % LC_MAX as usize != 0);
+        for (i, payload) in data.chunks(LC_MAX as usize).enumerate() {
             let mut apdu = Vec::new();
             let p1 = if i == 0 { 0x00 } else { 0x80 };
-            let (p2, lc) = if i == size - 1 {
-                (
-                    0x80,
-                    (data.len() as u32 - LC_MAX as u32 * (size - 1 as u32)) as u8,
-                )
-            } else {
-                (0x00, 0xF5)
-            };
+            let p2 = if i == size - 1 { 0x80 } else { 0x00 };
+            let lc = payload.len() as u8;
             let apdu_header = ApduHeader::new(0x80, ins, p1, p2, lc);
             apdu.extend(apdu_header.to_array().iter());
-            let payload =
-                &data[(i as u32 * LC_MAX) as usize..(i as u32 * LC_MAX + lc as u32) as usize];
             apdu.extend(payload.iter()); //payload
             apdu.push(0x00); //le
             apdu_list.push(hex::encode(apdu))
@@ -552,7 +541,7 @@ impl Apdu {
 
     pub fn get_pubkey(ins: u8, path: &str, verify_flag: bool) -> String {
         let path_bytes = path.as_bytes();
-        if path_bytes.len() as u32 > LC_MAX {
+        if path_bytes.len() > LC_MAX as usize {
             panic!("data to long");
         }
         let p1 = if verify_flag { 0x01 } else { 0x00 };
@@ -563,7 +552,7 @@ impl Apdu {
     }
 
     pub fn register_address(ins: u8, data: &[u8]) -> String {
-        if data.len() as u32 > LC_MAX {
+        if data.len() > LC_MAX as usize {
             panic!("data to long");
         }
         let mut apdu = ApduHeader::new(0x80, ins, 0x00, 0x00, data.len() as u8).to_array();
@@ -574,7 +563,7 @@ impl Apdu {
 
     pub fn sign_digest(ins: u8, index: u8, hashtype: u8, path: &str) -> String {
         let path_bytes = path.as_bytes();
-        if path_bytes.len() as u32 > LC_MAX {
+        if path_bytes.len() > LC_MAX as usize {
             panic!("data to long");
         }
 
@@ -605,7 +594,7 @@ impl ImkApdu {
     binding check apdu build
     */
     pub fn bind_check(data: &Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
+        if data.len() > LC_MAX as usize {
             panic!("data to long");
         }
         let mut apdu = ApduHeader::new(0x80, 0x71, 0x00, 0x00, data.len() as u8).to_array();
@@ -626,7 +615,7 @@ impl ImkApdu {
     bind code verify
     */
     pub fn identity_verify(data: &Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
+        if data.len() > LC_MAX as usize {
             panic!("data to long");
         }
         let mut apdu = ApduHeader::new(0x80, 0x73, 0x80, 0x00, data.len() as u8).to_array();
@@ -640,7 +629,18 @@ pub struct ApduCheck {}
 
 impl ApduCheck {
     pub fn check_response(response_data: &str) -> Result<()> {
-        let response_data: &str = &response_data[response_data.len() - 4..];
+        if response_data.len() % 2 != 0
+            || !response_data.bytes().all(|byte| byte.is_ascii_hexdigit())
+        {
+            return Err(ApduError::ImkeyApduWrongLength.into());
+        }
+        let status_start = response_data
+            .len()
+            .checked_sub(4)
+            .ok_or(ApduError::ImkeyApduWrongLength)?;
+        let response_data = response_data
+            .get(status_start..)
+            .ok_or(ApduError::ImkeyApduWrongLength)?;
         match response_data {
             "9000" => Ok(()),
             "6940" => Err(ApduError::ImkeyUserNotConfirmed.into()),
@@ -993,5 +993,33 @@ mod tests {
         assert!(ApduCheck::check_response("00F081").is_err());
         assert!(ApduCheck::check_response("006F01").is_err());
         assert!(ApduCheck::check_response("000000").is_err());
+    }
+}
+
+#[cfg(test)]
+mod security_tests {
+    use super::*;
+    #[test]
+    fn empty_chunks_and_malformed_responses_do_not_panic() {
+        assert!(BtcApdu::btc_prepare(0x41, 0, &vec![]).is_empty());
+        assert!(BtcApdu::btc_single_utxo_sign_prepare(0x41, &vec![]).is_empty());
+        assert!(BtcForkApdu::btc_fork_prepare(0x41, 0, &vec![]).is_empty());
+        assert!(Apdu::prepare_sign(0x51, vec![]).is_empty());
+        for value in ["", "0", "900", "xx9000", "é9000", "💣9000"] {
+            let outcome = std::panic::catch_unwind(|| ApduCheck::check_response(value));
+            assert!(outcome.is_ok());
+            assert!(outcome.unwrap().is_err());
+        }
+        for size in [1, 244, 245, 246, 490, 491] {
+            let data = vec![0xAB; size];
+            let packets = Apdu::prepare_sign(0x51, data.clone());
+            let mut decoded = vec![];
+            for packet in packets {
+                let bytes = hex::decode(packet).unwrap();
+                assert_eq!(bytes[4] as usize, bytes.len() - 6);
+                decoded.extend_from_slice(&bytes[5..bytes.len() - 1]);
+            }
+            assert_eq!(decoded, data);
+        }
     }
 }

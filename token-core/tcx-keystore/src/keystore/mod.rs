@@ -415,6 +415,63 @@ impl Keystore {
         &self.store().identity
     }
 
+    /// Authenticated, atomic-in-memory migration. Rewrap every field using the
+    /// new derived key before replacing the store; a failure leaves it intact.
+    pub fn upgrade_security(&mut self, key: &Key) -> Result<bool> {
+        if self.identity().has_protected_backup_keys() && !self.store().crypto.needs_kdf_upgrade() {
+            // Even an already upgraded wallet must authenticate the caller.
+            self.store().crypto.use_key(key)?;
+            return Ok(false);
+        }
+        let store = self.store();
+        let unlocker = store.crypto.use_key(key)?;
+        let plaintext = unlocker.plaintext()?;
+        let original = unlocker.decrypt_enc_pair(&store.enc_original)?;
+        let crypto = if store.crypto.needs_kdf_upgrade() {
+            let Key::Password(password) = key else {
+                return Err(anyhow!("kdf_upgrade_requires_password"));
+            };
+            Crypto::new(password, &plaintext)
+        } else {
+            store.crypto.clone()
+        };
+        let unlocker = crypto.use_key(key)?;
+        // Older migrations did not always persist the identity network in
+        // metadata. Match the authenticated secret to the existing identity.
+        let derive_identity = |network: &IdentityNetwork| -> Result<Identity> {
+            match self {
+                Keystore::Hd(_) => {
+                    let mnemonic = std::str::from_utf8(&plaintext)?;
+                    let seed = mnemonic_to_seed(mnemonic)?;
+                    Identity::from_seed(&seed, &unlocker, network)
+                }
+                Keystore::PrivateKey(_) => Identity::new(&plaintext, &unlocker, network),
+            }
+        };
+        let mut identity = derive_identity(&store.meta.network)?;
+        let matches = |identity: &Identity| {
+            identity.identifier == store.identity.identifier
+                && identity.ipfs_id == store.identity.ipfs_id
+        };
+        if !matches(&identity) {
+            let other_network = if store.meta.network == IdentityNetwork::Mainnet {
+                IdentityNetwork::Testnet
+            } else {
+                IdentityNetwork::Mainnet
+            };
+            identity = derive_identity(&other_network)?;
+        }
+        if !matches(&identity) {
+            return Err(anyhow!("identity_not_match"));
+        }
+        let enc_original = unlocker.encrypt_with_random_iv(&original)?;
+        let store = self.store_mut();
+        store.crypto = crypto;
+        store.identity = identity;
+        store.enc_original = enc_original;
+        Ok(true)
+    }
+
     pub fn verify_password(&self, key: &Key) -> bool {
         match self {
             Keystore::PrivateKey(ks) => ks.verify_password(key),
@@ -668,20 +725,16 @@ pub(crate) mod tests {
 
     #[test]
     fn test_json() {
-        let keystore: Keystore = Keystore::from_json(HD_KEYSTORE_JSON).unwrap();
-        assert_eq!(
-            Value::from_str(&keystore.to_json()).unwrap(),
-            Value::from_str(HD_KEYSTORE_JSON).unwrap()
-        );
-
-        let keystore: Keystore = Keystore::from_json(PK_KEYSTORE_JSON).unwrap();
-        assert_eq!(
-            Value::from_str(&keystore.to_json()).unwrap(),
-            Value::from_str(PK_KEYSTORE_JSON).unwrap()
-        );
-
-        let ret = Keystore::from_json(OLD_KEYSTORE_JSON);
-        assert!(ret.is_err());
+        for json in [HD_KEYSTORE_JSON, PK_KEYSTORE_JSON] {
+            let keystore = Keystore::from_json(json).unwrap();
+            let mut expected: Value = Value::from_str(json).unwrap();
+            expected["identity"]
+                .as_object_mut()
+                .unwrap()
+                .remove("encKey");
+            assert_eq!(Value::from_str(&keystore.to_json()).unwrap(), expected);
+        }
+        assert!(Keystore::from_json(OLD_KEYSTORE_JSON).is_err());
     }
 
     #[test]
@@ -1101,5 +1154,179 @@ pub(crate) mod tests {
 
         let err = transform_mnemonic_error(anyhow!("test"));
         assert_eq!(err.to_string(), "mnemonic_invalid");
+    }
+}
+
+#[cfg(test)]
+mod security_migration_tests {
+    use super::*;
+    use tcx_common::{FromHex, ToHex};
+    use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
+    use tcx_crypto::crypto::KdfType;
+
+    fn historical_store() -> Keystore {
+        historical_store_with_rounds(1024)
+    }
+
+    fn historical_store_with_rounds(rounds: u32) -> Keystore {
+        let mut ks =
+            Keystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
+        let params = serde_json::from_value(serde_json::json!({
+            "c": rounds, "prf": "hmac-sha256", "dklen": 32, "salt": "11".repeat(32)
+        }))
+        .unwrap();
+        let crypto = Crypto::new_with_kdf(
+            TEST_PASSWORD,
+            TEST_MNEMONIC.as_bytes(),
+            KdfType::Pbkdf2(params),
+        );
+        let key = Key::Password(TEST_PASSWORD.to_owned());
+        let unlocker = crypto.use_key(&key).unwrap();
+        let mut identity = Identity::from_seed(
+            &mnemonic_to_seed(TEST_MNEMONIC).unwrap(),
+            &unlocker,
+            &IdentityNetwork::Mainnet,
+        )
+        .unwrap();
+        identity.enc_key = unlocker
+            .open(
+                b"identity/legacy-backup-key/v3",
+                &identity.enc_legacy_backup_key,
+            )
+            .unwrap()
+            .to_hex();
+        identity.enc_backup_key.clear();
+        identity.enc_legacy_backup_key.clear();
+        let original = unlocker
+            .encrypt_with_random_iv(b"original backup text")
+            .unwrap();
+        ks.store_mut().crypto = crypto;
+        ks.store_mut().identity = identity;
+        ks.store_mut().enc_original = original;
+        ks
+    }
+
+    #[test]
+    fn upgrade_rewraps_keys_and_original_preserving_identity() {
+        let mut ks = historical_store();
+        let key = Key::Password(TEST_PASSWORD.to_owned());
+        let old_identity = ks.identity().clone();
+        let old_crypto = ks.store().crypto.clone();
+        let old_unlocker = old_crypto.use_key(&key).unwrap();
+        let old_auth = old_unlocker
+            .decrypt_enc_pair(&old_identity.enc_auth_key)
+            .unwrap();
+        let old_dk = old_unlocker.derived_key().to_vec();
+        assert!(ks.upgrade_security(&Key::Password("wrong".into())).is_err());
+        assert!(!ks.identity().has_protected_backup_keys());
+        assert!(ks.upgrade_security(&key).unwrap());
+        assert!(!ks.store().crypto.needs_kdf_upgrade());
+        assert!(ks.identity().has_protected_backup_keys());
+        assert_eq!(ks.identity().identifier, old_identity.identifier);
+        assert_eq!(ks.identity().ipfs_id, old_identity.ipfs_id);
+        assert_eq!(ks.backup(&key).unwrap(), "original backup text");
+        let unlocker = ks.store().crypto.use_key(&key).unwrap();
+        assert_eq!(
+            unlocker
+                .decrypt_enc_pair(&ks.identity().enc_auth_key)
+                .unwrap(),
+            old_auth
+        );
+        assert_ne!(unlocker.derived_key(), old_dk);
+        let encrypted = ks.identity().encrypt_ipfs("new backup", &unlocker).unwrap();
+        let exposed_key = Vec::from_hex(&old_identity.enc_key).unwrap();
+        let purpose = format!("ipfs/backup/v4/{}", ks.identity().identifier);
+        assert!(tcx_crypto::aead::open(&exposed_key, purpose.as_bytes(), &encrypted[2..]).is_err());
+        assert_eq!(
+            ks.identity().decrypt_ipfs(&encrypted, &unlocker).unwrap(),
+            "new backup"
+        );
+        let json = ks.to_json();
+        assert!(!json.contains("\"encKey\""));
+        assert!(!json.contains(&old_identity.enc_key));
+        let restored = Keystore::from_json(&json).unwrap();
+        let unlocker = restored.store().crypto.use_key(&key).unwrap();
+        assert_eq!(
+            restored
+                .identity()
+                .decrypt_ipfs(&encrypted, &unlocker)
+                .unwrap(),
+            "new backup"
+        );
+    }
+
+    #[test]
+    fn strong_legacy_derived_keys_preserve_password_backup_access() {
+        let legacy = historical_store_with_rounds(600_000);
+        assert!(!legacy.store().crypto.needs_kdf_upgrade());
+        assert!(!legacy.identity().has_protected_backup_keys());
+        let password = Key::Password(TEST_PASSWORD.to_owned());
+        let unlocker = legacy.store().crypto.use_key(&password).unwrap();
+        let derived = unlocker.derived_key().to_vec();
+        assert_eq!(derived.len(), 64);
+        let original_auth = legacy
+            .identity()
+            .sign_authentication_message(1514736000, "backup-migration", &unlocker)
+            .unwrap();
+        let mut altered_tail = derived.clone();
+        for byte in &mut altered_tail[32..] {
+            *byte ^= 0x5a;
+        }
+        for supplied in [derived[..32].to_vec(), altered_tail] {
+            let mut ks = legacy.clone();
+            assert!(ks.store().crypto.verify_derived_key(&supplied));
+            let credential = Key::DerivedKey(supplied.to_hex());
+            let original_crypto = serde_json::to_value(&ks.store().crypto).unwrap();
+            assert!(ks.upgrade_security(&credential).unwrap());
+            assert_eq!(
+                serde_json::to_value(&ks.store().crypto).unwrap(),
+                original_crypto
+            );
+            assert_eq!(ks.id(), legacy.id());
+            assert_eq!(ks.identity().identifier, legacy.identity().identifier);
+            assert_eq!(ks.identity().ipfs_id, legacy.identity().ipfs_id);
+            let unlocker = ks.store().crypto.use_key(&credential).unwrap();
+            let encrypted = ks
+                .identity()
+                .encrypt_ipfs("backup after DK migration", &unlocker)
+                .unwrap();
+            let restored = Keystore::from_json(&ks.to_json()).unwrap();
+            let password_unlocker = restored.store().crypto.use_key(&password).unwrap();
+            assert_eq!(
+                restored
+                    .identity()
+                    .decrypt_ipfs(&encrypted, &password_unlocker)
+                    .unwrap(),
+                "backup after DK migration"
+            );
+            assert_eq!(
+                restored
+                    .identity()
+                    .sign_authentication_message(1514736000, "backup-migration", &password_unlocker)
+                    .unwrap(),
+                original_auth
+            );
+            assert_eq!(restored.backup(&password).unwrap(), "original backup text");
+        }
+    }
+
+    #[test]
+    fn weak_legacy_derived_key_requires_password_upgrade() {
+        let mut ks = historical_store();
+        let key = Key::Password(TEST_PASSWORD.to_owned());
+        let derived = ks
+            .store()
+            .crypto
+            .use_key(&key)
+            .unwrap()
+            .derived_key()
+            .to_hex();
+        assert_eq!(
+            ks.upgrade_security(&Key::DerivedKey(derived))
+                .unwrap_err()
+                .to_string(),
+            "kdf_upgrade_requires_password"
+        );
+        assert!(!ks.identity().has_protected_backup_keys());
     }
 }

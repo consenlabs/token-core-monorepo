@@ -1,25 +1,20 @@
 use crate::error::CommonError;
 use crate::Result;
+use bitcoin::util::bip32::DerivationPath;
 use std::str::FromStr;
 
 pub fn check_path_validity(path: &str) -> Result<()> {
-    //check depth and length
-    let strings: Vec<&str> = path.split("/").collect();
-    let depth = strings.len();
-    if depth < 3 || depth > 10 {
+    let path = path.trim_end_matches('/');
+    let depth = path.split('/').count();
+    if !(3..=6).contains(&depth) {
         return Err(CommonError::ImkeyPathIllegal.into());
     }
+    DerivationPath::from_str(path).map_err(|_| CommonError::ImkeyPathIllegal)?;
     Ok(())
 }
 
 pub fn check_path_max_five_depth(path: &str) -> Result<()> {
-    //check depth and length
-    let strings: Vec<&str> = path.split("/").collect();
-    let depth = strings.len();
-    if depth < 3 || depth > 6 {
-        return Err(CommonError::ImkeyPathIllegal.into());
-    }
-    Ok(())
+    check_path_validity(path)
 }
 
 pub fn get_account_path(path: &str) -> Result<String> {
@@ -39,16 +34,9 @@ pub fn get_account_path(path: &str) -> Result<String> {
 get parent public key path
  */
 pub fn get_parent_path(path: &str) -> Result<&str> {
-    if path.is_empty() {
-        return Err(CommonError::ImkeyPathIllegal.into());
-    }
-
-    let mut end_flg = path.rfind("/").unwrap();
-    if path.ends_with("/") {
-        let path = &path[..path.len() - 1];
-        end_flg = path.rfind("/").unwrap();
-    }
-    Ok(&path[..end_flg])
+    let path = path.trim_end_matches('/');
+    let end = path.rfind('/').ok_or(CommonError::ImkeyPathIllegal)?;
+    Ok(&path[..end])
 }
 
 #[cfg(test)]

@@ -32,12 +32,34 @@ pub fn cache_keystore(keystore: Keystore) {
 }
 
 pub fn flush_keystore(ks: &Keystore) -> Result<()> {
+    anyhow::ensure!(
+        ks.identity().has_protected_backup_keys(),
+        "backup_security_migration_required"
+    );
     let json = ks.to_json();
     let file_dir = WALLET_FILE_DIR.read();
     let ks_path = format!("{}/{}.json", file_dir, ks.id());
     let path = Path::new(&ks_path);
-    let mut file = fs::File::create(path)?;
-    let _ = file.write_all(json.as_bytes());
+    // A failed migration write must not truncate the only usable wallet copy.
+    let temporary = path.with_extension(format!("{}.tmp", hex::encode(tcx_common::random_u8_16())));
+    let result = (|| -> Result<()> {
+        let mut options = fs::OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let mut file = options.open(&temporary)?;
+        file.write_all(json.as_bytes())?;
+        file.sync_all()?;
+        fs::rename(&temporary, path)?;
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result?;
     Ok(())
 }
 

@@ -176,6 +176,10 @@ message DeriveSubAccountsResult {
 message EncryptDataToIpfsParam {
   string identifier = 1;
   string content = 2;
+  oneof key {
+    string password = 3;
+    string derivedKey = 4;
+  }
 }
 
 message EncryptDataToIpfsResult {
@@ -186,6 +190,10 @@ message EncryptDataToIpfsResult {
 message DecryptDataFromIpfsParam {
   string identifier = 1;
   string encrypted = 2;
+  oneof key {
+    string password = 3;
+    string derivedKey = 4;
+  }
 }
 
 message DecryptDataFromIpfsResult {
