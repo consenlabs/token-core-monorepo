@@ -15,6 +15,9 @@ jobs:
     name: Build iOS Release
     if: github.event.review.state == 'approved'
     runs-on: macos-14
+    concurrency:
+      group: core-release-ios
+      cancel-in-progress: false
     steps:
       - name: Get the latest commit SHA
         id: sha
@@ -204,17 +207,37 @@ jobs:
           cp $PACKAGE_NAME ../
           popd
 
+      - name: Check published version
+        id: publication
+        env:
+          RELEASE_VERSION: ${{ steps.getversion.outputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_COMMIT: ${{ steps.sha.outputs.result }}
+        run: python3 script/check-core-release.py ios
+
+      - name: Report existing publication
+        if: steps.publication.outputs.published == 'true'
+        env:
+          RELEASE_VERSION: ${{ steps.getversion.outputs.version }}
+        run: echo "ios $RELEASE_VERSION is already fully published; skipping publication." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Release
-        uses: softprops/action-gh-release@v1
+        if: steps.publication.outputs.published == 'false'
+        # This version creates a draft, uploads all assets, then publishes it.
+        # Upload failures leave the draft unpublished for immutable releases.
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           name: "Release ${{ steps.getversion.outputs.version }}"
           tag_name: "v${{ steps.getversion.outputs.version }}"
+          target_commitish: ${{ steps.sha.outputs.result }}
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
             ios-ikc-${{ steps.getversion.outputs.version }}.zip
             ios-tcx-${{ steps.getversion.outputs.version }}.zip
 
       - name: Send custom JSON data to Slack workflow
+        if: steps.publication.outputs.published == 'false'
         id: slack
         uses: slackapi/slack-github-action@v1.23.0
         with:
