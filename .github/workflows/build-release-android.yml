@@ -18,6 +18,9 @@ jobs:
     name: Build Android Release
     if: github.event.review.state == 'approved'
     runs-on: macos-14
+    concurrency:
+      group: core-release-android
+      cancel-in-progress: false
     steps:
       - name: Get the latest commit SHA
         id: sha
@@ -130,13 +133,27 @@ jobs:
           echo "tokencore-release.aar sha256: $(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')"
           popd
 
+      - name: Check published version
+        id: publication
+        env:
+          RELEASE_VERSION: ${{ steps.getversion.outputs.version }}
+        run: python3 script/check-core-release.py android
+
+      - name: Report existing publication
+        if: steps.publication.outputs.published == 'true'
+        env:
+          RELEASE_VERSION: ${{ steps.getversion.outputs.version }}
+        run: echo "android $RELEASE_VERSION is already fully published; skipping publication." >> "$GITHUB_STEP_SUMMARY"
+
       - name: Publish to staging
+        if: steps.publication.outputs.published == 'false'
         run: |
           pushd ${{github.workspace}}/publish/android
           VERSION=${{steps.getversion.outputs.version}} ./gradlew publishProductionPublicationToStagingRepository
           popd
 
       - name: Publish with JReleaser
+        if: steps.publication.outputs.published == 'false'
         id: publish
         run: |
           pushd ${{github.workspace}}
@@ -144,7 +161,7 @@ jobs:
           popd
 
       - name: JReleaser output
-        if: always()
+        if: always() && steps.publish.outcome != 'skipped' && steps.publish.outcome != ''
         uses: actions/upload-artifact@v4
         with:
           name: jreleaser-output
@@ -153,11 +170,13 @@ jobs:
             ${{github.workspace}}/publish/android/build/jreleaser/output.properties
 
       - name: Get GPG key SHA256 hash
+        if: steps.publication.outputs.published == 'false'
         id: gpg_info
         run: |
           echo "gpg_sha256=$(echo '${{ secrets.GPG_PUBLIC_KEY }}' | shasum -a 256 | awk '{print $1}')" >> $GITHUB_OUTPUT
 
       - name: Send custom JSON data to Slack workflow
+        if: steps.publication.outputs.published == 'false'
         id: slack
         uses: slackapi/slack-github-action@v1.23.0
         with:
