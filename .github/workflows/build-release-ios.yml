@@ -10,6 +10,8 @@ env:
 
 permissions:
   contents: write
+  actions: read
+  pull-requests: read
 
 jobs:
   build:
@@ -18,19 +20,44 @@ jobs:
     runs-on: macos-15
     environment: release
     steps:
-      - name: Get the latest commit SHA
+      - name: Verify reviewed SHA and quality gates
         id: sha
         uses: actions/github-script@v6
         with:
           result-encoding: string
           script: |
-            const { owner, repo, number } = context.issue
-            const pr = await github.rest.pulls.get({
-              owner,
-              repo,
-              pull_number: number,
-            })
-            return pr.data.head.sha
+            const { owner, repo, number } = context.issue;
+            const reviewedSha = context.payload.review.commit_id;
+            const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: number });
+            const { data: review } = await github.rest.pulls.getReview({
+              owner, repo, pull_number: number, review_id: context.payload.review.id,
+            });
+            if (!reviewedSha || pr.head.sha !== reviewedSha ||
+                review.commit_id !== reviewedSha || review.state.toLowerCase() !== 'approved') {
+              throw new Error('Release requires a current approval of the exact PR head SHA.');
+            }
+            const runs = await github.paginate(github.rest.actions.listWorkflowRunsForRepo, {
+              owner, repo, event: 'pull_request', head_sha: reviewedSha, per_page: 100,
+            });
+            const latest = runs
+              .filter(run => run.head_sha === reviewedSha &&
+                run.path === '.github/workflows/run-unittest.yml' &&
+                run.pull_requests.some(pull => pull.number === number))
+              .sort((a, b) => b.id - a.id)[0];
+            if (!latest || latest.status !== 'completed' || latest.conclusion !== 'success') {
+              throw new Error('CI Quality Gates must pass for the reviewed SHA before release.');
+            }
+            const jobs = await github.paginate(github.rest.actions.listJobsForWorkflowRun, {
+              owner, repo, run_id: latest.id, filter: 'latest', per_page: 100,
+            });
+            const required = ['cargo fmt', 'cargo clippy', 'cargo test --no-run',
+              'host-safe unit tests', 'wasm check', 'dependency audit and licenses'];
+            if (required.some(name => !jobs.some(job =>
+                job.name === name && job.status === 'completed' && job.conclusion === 'success')) ||
+                jobs.some(job => job.status !== 'completed' || job.conclusion !== 'success')) {
+              throw new Error('Release cannot use failed, missing, or skipped quality gates.');
+            }
+            return reviewedSha;
 
       - name: Checkout repository
         uses: actions/checkout@v3

@@ -21,6 +21,16 @@ env:
   KDF_ROUNDS: "1"
 
 jobs:
+  release-policy:
+    name: release policy tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: node --test scripts/release-gate.test.mjs
+
   fmt:
     name: cargo fmt
     runs-on: macos-15
@@ -60,7 +70,7 @@ jobs:
 
       - name: Run clippy
         run: |
-          cargo clippy --workspace --all-targets -- \
+          cargo clippy --locked --workspace --all-targets -- \
             -D warnings \
             -A clippy::redundant_field_names \
             -A clippy::redundant_static_lifetimes \
@@ -150,7 +160,7 @@ jobs:
         run: brew install protobuf
 
       - name: Compile workspace test targets
-        run: cargo test --workspace --no-run
+        run: cargo test --locked --workspace --no-run
 
   host-tests:
     name: host-safe unit tests
