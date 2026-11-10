@@ -31,7 +31,8 @@ pub fn p2pkh_hash(pub_key: &[u8]) -> Result<PubkeyHash, AddressError> {
 ///
 /// Both compressed and uncompressed public key inputs produce the same hash.
 pub fn compressed_p2pkh_hash(pub_key: &[u8]) -> Result<PubkeyHash, AddressError> {
-    let pub_key = compressed_public_key(pub_key)?;
+    let mut pub_key = public_key(pub_key)?;
+    pub_key.compressed = true;
     Ok(pub_key.pubkey_hash())
 }
 

@@ -222,6 +222,9 @@ jobs:
       - name: Run wasm browser session smoke
         run: make test-wasm-browser
 
+      - name: Verify packed npm consumer
+        run: make test-npm-package
+
   docs-links:
     name: markdown links
     runs-on: ubuntu-latest

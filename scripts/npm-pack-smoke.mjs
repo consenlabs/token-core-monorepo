@@ -4,6 +4,7 @@ import { mkdtemp, mkdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pathToFileURL } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const directory = await mkdtemp(join(tmpdir(), 'tcx-npm-smoke-'));
@@ -15,11 +16,18 @@ try {
   const metadata = JSON.parse(execFileSync('cargo', ['metadata', '--offline', '--no-deps', '--format-version', '1'], {
     cwd: root, encoding: 'utf8',
   })).packages.find((pkg) => pkg.name === 'tcx-wasm');
-  assert.equal(packed.name, metadata.name);
-  assert.equal(packed.version, metadata.version);
+  const sourceManifest = JSON.parse(await readFile(join(root, 'publish/npm/package.json'), 'utf8'));
+  const aggregate = sourceManifest.name === '@imtoken/wallet-core-web';
+  assert.equal(packed.name, aggregate ? sourceManifest.name : metadata.name);
+  assert.equal(packed.version, aggregate ? sourceManifest.version : metadata.version);
   const files = new Set(packed.files.map((file) => file.path));
   for (const file of ['package.json', 'tcx_wasm.js', 'tcx_wasm.d.ts', 'tcx_wasm_bg.wasm', 'tcx_wasm_bg.wasm.d.ts']) {
     assert(files.has(file), `missing packed file: ${file}`);
+  }
+  if (aggregate) {
+    for (const file of ['index.js', 'index.d.ts', 'ikc_wasm.js', 'ikc_wasm_bg.wasm', 'imkey-session.js']) {
+      assert(files.has(file), `missing aggregate package file: ${file}`);
+    }
   }
   const consumer = join(directory, 'node_modules', packed.name);
   await mkdir(consumer, { recursive: true });
@@ -30,8 +38,13 @@ try {
   const output = execFileSync(process.execPath, ['--input-type=module', '--eval', `
     import assert from 'node:assert/strict';
     import { readFile } from 'node:fs/promises';
-    const api = await import(${JSON.stringify(packed.name)});
-    const wasm = await readFile(new URL(import.meta.resolve(${JSON.stringify(`${packed.name}/tcx_wasm_bg.wasm`)})));
+    const entry = await import(${JSON.stringify(packed.name)});
+    if (${aggregate}) {
+      assert.equal(typeof entry.initTokenCore, 'function');
+      assert.equal(typeof entry.createImKeyCore, 'function');
+    }
+    const api = ${aggregate} ? await import(${JSON.stringify(pathToFileURL(join(consumer, 'tcx_wasm.js')).href)}) : entry;
+    const wasm = await readFile(${JSON.stringify(join(consumer, 'tcx_wasm_bg.wasm'))});
     await api.default({ module_or_path: wasm });
     const mnemonic = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
     const prfKey = '07'.repeat(32);
