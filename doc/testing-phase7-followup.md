@@ -35,6 +35,16 @@ With `CARGO_TARGET_DIR=/private/tmp/token-quality-target KDF_ROUNDS=1`:
 
 - Passed 42 exact-name coin host tests, 3 callback tests (including 100,000 borrowed-input calls), and the native worker yield/failure recovery test.
 - Passed all 9 npm JS tests, Android SDK/example ownership mocks (JNA 5.6 compile API, 5.10 host runtime) and Swift ownership/parse checks.
-- Passed `cargo check -p ikc-wasm --target wasm32-unknown-unknown`, 2 imKey + 2 TokenCore wasm Node tests and 2 imKey headless Chrome tests with `/usr/bin/clang` and Rust `llvm-ar`.
-- Passed scoped Rust formatting and `git diff --check`.
-- Full `make test-ikc` stopped at the existing local TCP server test because sandbox networking denied the bind. A targeted clippy run found a new test-only no-op waker lint, fixed with `Waker::noop()`; the worker test was rerun successfully. Full workspace/clippy and final integrated gates are left to the phase integrator as requested. No real-device, Android/iOS app integration or Next.js build was run.
+- Passed 2 imKey + 6 TokenCore wasm Node tests and 2 imKey headless Chrome tests with `/usr/bin/clang` and Rust `llvm-ar`.
+- Passed strict `cargo clippy --locked --workspace --all-targets -- -D warnings`, `cargo fmt --check`, and `git diff --check` after integration and compatible dependency patches.
+- Passed all four KDF API feature configurations, the aggregate npm tarball consumer, npm/example TypeScript checks and the Next.js production build.
+- Passed all 10 release-policy tests, 4 AAR policy tests and offline local Markdown link/fragment checks.
+
+Run `make test-workspace` separately from other native TCX integration-test
+processes: the legacy harness shares `/tmp/imtoken` and one process can remove
+another's test data. CI feature-matrix jobs run on separate machines. Local TCP
+mock tests also require permission to bind loopback sockets.
+
+No real-device or complete Android/iOS app integration was run. The remaining
+security advisory is tracked in [QUALITY_DEBT.md](QUALITY_DEBT.md); passing
+functional tests does not resolve that advisory.
