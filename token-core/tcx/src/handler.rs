@@ -29,10 +29,12 @@ use tcx_crypto::{XPUB_COMMON_IV, XPUB_COMMON_KEY_128};
 use tcx_filecoin::KeyInfo;
 
 use crate::api::derive_accounts_param::Derivation;
+#[cfg(feature = "cache_dk")]
+use crate::api::DerivedKeyResult;
 use crate::api::{
-    self, export_private_key_param, AccountResponse, BackupResult, CreateKeystoreParam,
+    export_private_key_param, AccountResponse, BackupResult, CreateKeystoreParam,
     DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DeriveAccountsParam, DeriveAccountsResult,
-    DeriveSubAccountsParam, DeriveSubAccountsResult, DerivedKeyResult, EncryptDataToIpfsParam,
+    DeriveSubAccountsParam, DeriveSubAccountsResult, EncryptDataToIpfsParam,
     EncryptDataToIpfsResult, ExistsJsonParam, ExistsKeystoreResult, ExistsMnemonicParam,
     ExistsPrivateKeyParam, ExportJsonParam, ExportJsonResult, ExportMnemonicParam,
     ExportMnemonicResult, ExportPrivateKeyParam, ExportPrivateKeyResult, GeneralResult,
@@ -1308,6 +1310,7 @@ pub(crate) fn sign_psbts(data: &[u8]) -> Result<Vec<u8>> {
     )?)
 }
 
+#[cfg(feature = "cache_dk")]
 pub fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
     let param: WalletKeyParam = WalletKeyParam::decode(data).expect("get_derived_key param");
     let mut map: parking_lot::lock_api::RwLockWriteGuard<
@@ -1320,7 +1323,7 @@ pub fn get_derived_key(data: &[u8]) -> Result<Vec<u8>> {
         _ => Err(anyhow!("{}", "wallet_not_found")),
     }?;
 
-    let Some(api::wallet_key_param::Key::Password(password)) = param.key else {
+    let Some(crate::api::wallet_key_param::Key::Password(password)) = param.key else {
         return Err(anyhow!("{}", "get_derived_key need password"));
     };
     let dk = keystore.get_derived_key(&password)?;
@@ -1503,6 +1506,7 @@ pub(crate) fn backup(data: &[u8]) -> Result<Vec<u8>> {
     }
 }
 
+#[cfg(feature = "test_api")]
 pub(crate) fn unlock_then_crash(data: &[u8]) -> Result<Vec<u8>> {
     let param: WalletKeyParam = WalletKeyParam::decode(data).unwrap();
     let mut map = KEYSTORE_MAP.write();

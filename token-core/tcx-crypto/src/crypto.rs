@@ -1,11 +1,20 @@
 use crate::Error;
 use crate::Result;
+use argon2::{Algorithm, Argon2, Params, Version};
 use serde::{Deserialize, Serialize};
 use std::env;
 use tcx_common::{random_u8_16, random_u8_32, FromHex, ToHex};
 use tiny_keccak::Hasher;
 
 const CREDENTIAL_LEN: usize = 64usize;
+const ARGON2ID_MEMORY_COST_KIB: u32 = 19 * 1024;
+const ARGON2ID_TIME_COST: u32 = 2;
+const ARGON2ID_PARALLELISM: u32 = 1;
+const ARGON2ID_MAX_MEMORY_COST_KIB: u32 = 256 * 1024;
+const ARGON2ID_MAX_TIME_COST: u32 = 10;
+const ARGON2ID_MAX_PARALLELISM: u32 = 16;
+const ARGON2ID_SALT_MIN_LEN: usize = 16;
+const ARGON2ID_SALT_MAX_LEN: usize = 64;
 
 pub type Credential = [u8; CREDENTIAL_LEN];
 
@@ -40,7 +49,7 @@ struct CipherParams {
 pub trait KdfParams: Default {
     fn name(&self) -> &str;
     fn validate(&self) -> Result<()>;
-    fn derive_key(&self, password: &[u8], out: &mut [u8]);
+    fn derive_key(&self, password: &[u8], out: &mut [u8]) -> Result<()>;
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -76,10 +85,86 @@ impl KdfParams for Pbkdf2Params {
         }
     }
 
-    fn derive_key(&self, password: &[u8], out: &mut [u8]) {
-        let salt_bytes: Vec<u8> = FromHex::from_hex(&self.salt).unwrap();
+    fn derive_key(&self, password: &[u8], out: &mut [u8]) -> Result<()> {
+        self.validate()?;
+        let salt_bytes = Vec::from_hex(&self.salt).map_err(|_| Error::KdfParamsInvalid)?;
         pbkdf2::pbkdf2::<hmac::Hmac<sha2::Sha256>>(password, &salt_bytes, self.c, out)
-            .expect("HMAC-SHA256 PBKDF2 should accept any output length");
+            .map_err(|_| Error::KdfParamsInvalid.into())
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Argon2idParams {
+    memory_cost: u32,
+    time_cost: u32,
+    parallelism: u32,
+    dklen: u32,
+    salt: String,
+}
+
+impl Default for Argon2idParams {
+    fn default() -> Argon2idParams {
+        Argon2idParams {
+            memory_cost: ARGON2ID_MEMORY_COST_KIB,
+            time_cost: ARGON2ID_TIME_COST,
+            parallelism: ARGON2ID_PARALLELISM,
+            dklen: CREDENTIAL_LEN as u32,
+            salt: "".to_owned(),
+        }
+    }
+}
+
+impl Argon2idParams {
+    fn salt_bytes(&self) -> Result<Vec<u8>> {
+        // Bound the encoded length before allocating for untrusted JSON input.
+        if self.salt.len() > ARGON2ID_SALT_MAX_LEN * 2 + 2 {
+            return Err(Error::KdfParamsInvalid.into());
+        }
+        let salt = Vec::from_hex_auto(&self.salt).map_err(|_| Error::KdfParamsInvalid)?;
+        if !(ARGON2ID_SALT_MIN_LEN..=ARGON2ID_SALT_MAX_LEN).contains(&salt.len()) {
+            return Err(Error::KdfParamsInvalid.into());
+        }
+        Ok(salt)
+    }
+}
+
+impl KdfParams for Argon2idParams {
+    fn name(&self) -> &str {
+        "argon2id"
+    }
+
+    fn validate(&self) -> Result<()> {
+        if !matches!(self.dklen, 32 | 64)
+            || self.parallelism == 0
+            || self.parallelism > ARGON2ID_MAX_PARALLELISM
+            || self.time_cost == 0
+            || self.time_cost > ARGON2ID_MAX_TIME_COST
+            || self.memory_cost < 8 * self.parallelism
+            || self.memory_cost > ARGON2ID_MAX_MEMORY_COST_KIB
+        {
+            return Err(Error::KdfParamsInvalid.into());
+        }
+        self.salt_bytes().map(|_| ())
+    }
+
+    fn derive_key(&self, password: &[u8], out: &mut [u8]) -> Result<()> {
+        self.validate()?;
+        if out.len() != self.dklen as usize {
+            return Err(Error::KdfParamsInvalid.into());
+        }
+        let salt_bytes = self.salt_bytes()?;
+        let params = Params::new(
+            self.memory_cost,
+            self.time_cost,
+            self.parallelism,
+            Some(self.dklen as usize),
+        )
+        .map_err(|_| Error::KdfParamsInvalid)?;
+
+        Argon2::new(Algorithm::Argon2id, Version::V0x13, params)
+            .hash_password_into(password, &salt_bytes, out)
+            .map_err(|_| Error::KdfParamsInvalid.into())
     }
 }
 
@@ -118,13 +203,15 @@ impl KdfParams for SCryptParams {
         }
     }
 
-    fn derive_key(&self, password: &[u8], out: &mut [u8]) {
-        let salt_bytes: Vec<u8> = FromHex::from_hex(&self.salt).unwrap();
+    fn derive_key(&self, password: &[u8], out: &mut [u8]) -> Result<()> {
+        self.validate()?;
+        let salt_bytes = Vec::from_hex(&self.salt).map_err(|_| Error::KdfParamsInvalid)?;
         let log_n = (self.n as f64).log2().round();
-        let inner_params =
-            scrypt::Params::new(log_n as u8, self.r, self.p).expect("init scrypt params");
+        let inner_params = scrypt::Params::new(log_n as u8, self.r, self.p)
+            .map_err(|_| Error::KdfParamsInvalid)?;
 
-        scrypt::scrypt(password, &salt_bytes, &inner_params, out).expect("can not execute scrypt");
+        scrypt::scrypt(password, &salt_bytes, &inner_params, out)
+            .map_err(|_| Error::KdfParamsInvalid.into())
     }
 }
 
@@ -258,15 +345,35 @@ impl Crypto {
     }
 
     pub fn new(password: &str, origin: &[u8]) -> Crypto {
+        let param = Argon2idParams {
+            salt: random_u8_32().to_hex(),
+            ..Argon2idParams::default()
+        };
+
+        Self::try_new_with_kdf(password, origin, KdfType::Argon2id(param))
+            .expect("valid default argon2id parameters")
+    }
+
+    pub fn new_v3(password: &str, origin: &[u8]) -> Result<Crypto> {
         let param = Pbkdf2Params {
             salt: random_u8_32().to_hex(),
             ..Pbkdf2Params::default()
         };
-
-        Self::new_with_kdf(password, origin, KdfType::Pbkdf2(param))
+        Self::try_new_with_kdf(password, origin, KdfType::Pbkdf2(param))
     }
 
+    /// Compatibility constructor for trusted, valid parameters only.
+    /// Use `try_new_with_kdf` for caller-supplied or deserialized parameters.
+    ///
+    /// # Panics
+    /// Panics if the trusted parameters are invalid. Untrusted input must use
+    /// `try_new_with_kdf`, which returns `kdf_params_invalid` instead.
     pub fn new_with_kdf(password: &str, plaintext: &[u8], kdf: KdfType) -> Crypto {
+        Self::try_new_with_kdf(password, plaintext, kdf)
+            .expect("new_with_kdf requires trusted valid parameters; use try_new_with_kdf")
+    }
+
+    pub fn try_new_with_kdf(password: &str, plaintext: &[u8], kdf: KdfType) -> Result<Crypto> {
         let iv = random_u8_16();
 
         let mut crypto = Crypto {
@@ -277,14 +384,14 @@ impl Crypto {
             mac: String::from(""),
         };
 
-        let derived_key = crypto.derive_key(password).expect("derive key");
-        let ciphertext = crypto.encrypt(&derived_key, plaintext).expect("encrypt");
+        let derived_key = crypto.derive_key(password)?;
+        let ciphertext = crypto.encrypt(&derived_key, plaintext)?;
         let mac = generate_mac(&derived_key, &ciphertext);
 
         crypto.ciphertext = ciphertext.to_hex();
         crypto.mac = mac.to_hex();
 
-        crypto
+        Ok(crypto)
     }
 
     /*
@@ -305,10 +412,17 @@ impl Crypto {
     }
 
     fn derive_key(&self, password: &str) -> Result<Vec<u8>> {
-        let mut derived_key: Credential = [0u8; CREDENTIAL_LEN];
-        self.kdf.derive_key(password.as_bytes(), &mut derived_key);
+        self.kdf.validate()?;
+        // PBKDF2/scrypt historically expose 64 bytes even for V3 dklen=32.
+        // Their prefixes are length-independent; Argon2's output is not.
+        let dklen = match &self.kdf {
+            KdfType::Argon2id(params) => params.dklen as usize,
+            _ => CREDENTIAL_LEN,
+        };
+        let mut derived_key = vec![0u8; dklen];
+        self.kdf.derive_key(password.as_bytes(), &mut derived_key)?;
 
-        Ok(derived_key.to_vec())
+        Ok(derived_key)
     }
 
     fn decrypt(&self, derived_key: &[u8]) -> Result<Vec<u8>> {
@@ -337,6 +451,9 @@ impl Crypto {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kdf", content = "kdfparams")]
 pub enum KdfType {
+    #[serde(rename = "argon2id")]
+    Argon2id(Argon2idParams),
+
     #[serde(rename = "pbkdf2")]
     Pbkdf2(Pbkdf2Params),
 
@@ -346,13 +463,14 @@ pub enum KdfType {
 
 impl Default for KdfType {
     fn default() -> Self {
-        KdfType::Pbkdf2(Pbkdf2Params::default())
+        KdfType::Argon2id(Argon2idParams::default())
     }
 }
 
 impl KdfParams for KdfType {
     fn name(&self) -> &str {
         match self {
+            KdfType::Argon2id(_) => "argon2id",
             KdfType::Pbkdf2(_) => "pbkdf2",
             KdfType::Scrypt(_) => "scrypt",
         }
@@ -360,12 +478,14 @@ impl KdfParams for KdfType {
 
     fn validate(&self) -> Result<()> {
         match self {
+            KdfType::Argon2id(argon2id) => argon2id.validate(),
             KdfType::Pbkdf2(pbkdf2) => pbkdf2.validate(),
             KdfType::Scrypt(scrypt) => scrypt.validate(),
         }
     }
-    fn derive_key(&self, password: &[u8], out: &mut [u8]) {
+    fn derive_key(&self, password: &[u8], out: &mut [u8]) -> Result<()> {
         match self {
+            KdfType::Argon2id(argon2id) => argon2id.derive_key(password, out),
             KdfType::Pbkdf2(pbkdf2) => pbkdf2.derive_key(password, out),
             KdfType::Scrypt(scrypt) => scrypt.derive_key(password, out),
         }
@@ -376,6 +496,7 @@ impl KdfParams for KdfType {
 mod tests {
     use super::*;
     use std::str::FromStr;
+    use std::time::{Duration, Instant};
     use tcx_common::random_u8_64;
     use tcx_constants::TEST_PASSWORD;
 
@@ -418,12 +539,209 @@ mod tests {
         assert_ne!(crypto.mac, "");
         assert_ne!(crypto.cipherparams.iv, "");
         match &crypto.kdf {
-            KdfType::Pbkdf2(params) => {
+            KdfType::Argon2id(params) => {
                 assert_ne!(params.salt, "")
             }
-            _ => panic!("kdf type must be pbkdf2"),
+            _ => panic!("kdf type must be argon2id"),
         }
-        assert_eq!("pbkdf2", crypto.kdf.name());
+        assert_eq!("argon2id", crypto.kdf.name());
+        assert_eq!(crypto.derive_key(TEST_PASSWORD).unwrap().len(), 64);
+    }
+
+    #[test]
+    fn test_new_v3_uses_standard_pbkdf2() {
+        let crypto = Crypto::new_v3(TEST_PASSWORD, b"TokenCoreX").unwrap();
+        let json = serde_json::to_value(&crypto).unwrap();
+        assert_eq!(json["kdf"], "pbkdf2");
+        assert_eq!(json["kdfparams"]["dklen"], 32);
+        assert_eq!(json["kdfparams"]["prf"], "hmac-sha256");
+
+        // A standard V3 reader derives only the recorded 32 bytes.
+        let params = match &crypto.kdf {
+            KdfType::Pbkdf2(params) => params,
+            _ => panic!("V3 must use PBKDF2"),
+        };
+        let mut dk = [0u8; 32];
+        pbkdf2::pbkdf2::<hmac::Hmac<sha2::Sha256>>(
+            TEST_PASSWORD.as_bytes(),
+            &Vec::from_hex(&params.salt).unwrap(),
+            params.c,
+            &mut dk,
+        )
+        .unwrap();
+        assert!(crypto.verify_derived_key(&dk));
+        assert_eq!(crypto.decrypt(&dk).unwrap(), b"TokenCoreX");
+    }
+
+    fn constant_crypto(kdf: &str, params: serde_json::Value, ct: &str, mac: &str) -> Crypto {
+        serde_json::from_value(serde_json::json!({
+            "cipher": "aes-128-ctr",
+            "cipherparams": {"iv": "000102030405060708090a0b0c0d0e0f"},
+            "ciphertext": ct,
+            "kdf": kdf,
+            "kdfparams": params,
+            "mac": mac,
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn test_argon2id_constant_vectors() {
+        // KDF/AES constants generated independently with Python cryptography/OpenSSL.
+        let vectors = [
+            (32, "d956f86a8815a4ee7eacd92712ed85b204d935c81a216bdd9a88863522045f88",
+             "92fccf00c2a20bda45b9", "8b29d9dad825838510fb0a117145683aba42793e7101b6476c27fa4528c733de"),
+            (64, "d588733f0b9f482908fd7a2f9d48d61c40b01df8016b2ee3b10a51296d7b4e873d0ae92772dd94cce9d1c2ddfbb97fb25b7a66208713313fc04479712086db30",
+             "30e3f26d21a778cb7a8a", "9e3e1b00db14da4960d7714cc7d07f8f0859ca21a9d604e7513fcc64442f931f"),
+        ];
+        for (dklen, dk, ct, mac) in vectors {
+            let crypto = constant_crypto(
+                "argon2id",
+                serde_json::json!({
+                    "memoryCost": 32, "timeCost": 2, "parallelism": 1, "dklen": dklen,
+                    "salt": "01020304010203040102030401020304",
+                }),
+                ct,
+                mac,
+            );
+            let unlocker = crypto
+                .use_key(&Key::Password(TEST_PASSWORD.to_owned()))
+                .unwrap();
+            assert_eq!(unlocker.derived_key().len(), dklen);
+            assert_eq!(unlocker.derived_key().to_hex(), dk);
+            assert_eq!(unlocker.plaintext().unwrap(), b"TokenCoreX");
+            assert!(crypto.verify_password(TEST_PASSWORD));
+            assert_eq!(
+                crypto
+                    .use_key(&Key::Password("wrong".into()))
+                    .err()
+                    .unwrap()
+                    .to_string(),
+                "password_incorrect"
+            );
+            assert_eq!(
+                crypto
+                    .use_key(&Key::DerivedKey(dk.into()))
+                    .unwrap()
+                    .plaintext()
+                    .unwrap(),
+                b"TokenCoreX"
+            );
+
+            let decoded: Crypto =
+                serde_json::from_str(&serde_json::to_string(&crypto).unwrap()).unwrap();
+            assert_eq!(decoded.derive_key(TEST_PASSWORD).unwrap().to_hex(), dk);
+        }
+    }
+
+    #[test]
+    fn test_legacy_kdf_constant_vectors() {
+        // Python hashlib + cryptography/OpenSSL; keep the historical 64-byte credential.
+        let vectors = [
+            ("pbkdf2", serde_json::json!({"c": 1024, "prf": "hmac-sha256"}),
+             "515c00df30d4eb0e5662030ccea231301ce44d685eb29aca04469f4d6b701898e75e51080a482dd46c04cf39308e7d228a0f70a45d7fa17cd4027d04c39f5e17",
+             "02f6d21f07206a9b0089", "48adc2daf71d6287a9bd9fad3ddb3ada7bed0845555d9d606b94bf8518e58dd3"),
+            ("scrypt", serde_json::json!({"n": 1024, "r": 8, "p": 1}),
+             "190fba2c4dcd250b67652b6ea401a286ba4afff692aa9700ce56edd5326cb23b05c9af493f8d3dccb8191437f8cb5d2c3ba718af64aee8a7f318eedf2af5eb3f",
+             "671115873d92c1c85706", "29501a8a5f362b99cf191bfcc09cfb3cdd5d8e493cf77ee58beff80a715e0c82"),
+        ];
+        for (name, mut params, dk, ct, mac) in vectors {
+            params["salt"] = "01020304010203040102030401020304".into();
+            for dklen in [32, 64] {
+                params["dklen"] = dklen.into();
+                let crypto = constant_crypto(name, params.clone(), ct, mac);
+                let unlocker = crypto
+                    .use_key(&Key::Password(TEST_PASSWORD.to_owned()))
+                    .unwrap();
+                assert_eq!(unlocker.derived_key().to_hex(), dk);
+                assert_eq!(unlocker.plaintext().unwrap(), b"TokenCoreX");
+                assert!(crypto.verify_derived_key(&Vec::from_hex(&dk[..64]).unwrap()));
+            }
+        }
+    }
+
+    #[test]
+    fn test_argon2id_rejects_invalid_params_without_panicking() {
+        let valid = serde_json::json!({
+            "memoryCost": 32, "timeCost": 2, "parallelism": 1, "dklen": 64,
+            "salt": "01020304010203040102030401020304",
+        });
+        let cases = [
+            ("dklen", serde_json::json!(0)),
+            ("dklen", serde_json::json!(31)),
+            ("dklen", serde_json::json!(33)),
+            ("dklen", serde_json::json!(65)),
+            ("dklen", serde_json::json!(u32::MAX)),
+            ("memoryCost", serde_json::json!(0)),
+            ("memoryCost", serde_json::json!(7)),
+            (
+                "memoryCost",
+                serde_json::json!(ARGON2ID_MAX_MEMORY_COST_KIB + 1),
+            ),
+            ("memoryCost", serde_json::json!(u32::MAX)),
+            ("timeCost", serde_json::json!(0)),
+            ("timeCost", serde_json::json!(ARGON2ID_MAX_TIME_COST + 1)),
+            ("parallelism", serde_json::json!(0)),
+            ("parallelism", serde_json::json!(5)), // memory < 8 * parallelism
+            (
+                "parallelism",
+                serde_json::json!(ARGON2ID_MAX_PARALLELISM + 1),
+            ),
+            ("parallelism", serde_json::json!(u32::MAX)),
+            ("salt", serde_json::json!("")),
+            ("salt", serde_json::json!("0x1234")),
+            ("salt", serde_json::json!("gg".repeat(16))),
+            ("salt", serde_json::json!("a".repeat(33))),
+            ("salt", serde_json::json!("ab".repeat(15))),
+            ("salt", serde_json::json!("ab".repeat(65))),
+        ];
+        for (field, value) in cases {
+            let mut params = valid.clone();
+            params[field] = value;
+            let crypto = constant_crypto("argon2id", params.clone(), "00", "00");
+            let err = crypto
+                .use_key(&Key::Password(TEST_PASSWORD.into()))
+                .err()
+                .unwrap();
+            assert_eq!(err.to_string(), "kdf_params_invalid", "{params}");
+            assert!(!crypto.verify_password(TEST_PASSWORD));
+            let kdf: Argon2idParams = serde_json::from_value(params).unwrap();
+            let mut out = [0u8; 64];
+            assert_eq!(
+                kdf.derive_key(b"password", &mut out)
+                    .unwrap_err()
+                    .to_string(),
+                "kdf_params_invalid"
+            );
+            assert_eq!(
+                Crypto::try_new_with_kdf("password", b"plaintext", KdfType::Argon2id(kdf))
+                    .unwrap_err()
+                    .to_string(),
+                "kdf_params_invalid"
+            );
+        }
+
+        let params: Argon2idParams = serde_json::from_value(valid).unwrap();
+        assert!(params.derive_key(b"password", &mut [0u8; 32]).is_err());
+        for salt_len in [16, 64] {
+            for dklen in [32, 64] {
+                let params = Argon2idParams {
+                    memory_cost: ARGON2ID_MAX_MEMORY_COST_KIB,
+                    time_cost: ARGON2ID_MAX_TIME_COST,
+                    parallelism: ARGON2ID_MAX_PARALLELISM,
+                    dklen,
+                    salt: format!("0x{}", "ab".repeat(salt_len)),
+                };
+                assert!(params.validate().is_ok());
+            }
+        }
+        let params = Argon2idParams {
+            memory_cost: 16,
+            parallelism: 2,
+            salt: "ab".repeat(16),
+            ..Default::default()
+        };
+        assert!(params.derive_key(b"password", &mut [0u8; 64]).is_ok());
     }
 
     #[test]
@@ -447,6 +765,15 @@ mod tests {
 
     #[test]
     fn test_kdf_type() {
+        let params = Argon2idParams {
+            salt: random_u8_32().to_hex(),
+            ..Default::default()
+        };
+
+        let kdf_type = KdfType::Argon2id(params);
+        assert!(kdf_type.validate().is_ok());
+        assert_eq!(kdf_type.name(), "argon2id");
+
         let params = Pbkdf2Params {
             salt: random_u8_32().to_hex(),
             ..Default::default()
@@ -466,7 +793,7 @@ mod tests {
         assert_eq!(kdf_type.name(), "scrypt");
 
         let kdf_type = KdfType::default();
-        assert_eq!(kdf_type.name(), "pbkdf2");
+        assert_eq!(kdf_type.name(), "argon2id");
     }
 
     #[test]
@@ -527,6 +854,20 @@ mod tests {
 
     #[test]
     fn test_kdfparams_trait_validate() {
+        let err = Argon2idParams::default().validate().err().unwrap();
+        assert_eq!(
+            err.downcast::<crate::Error>().unwrap(),
+            Error::KdfParamsInvalid,
+        );
+
+        let params = Argon2idParams {
+            salt: "0x01020304010203040102030401020304".to_owned(),
+            ..Default::default()
+        };
+
+        assert!(params.validate().is_ok());
+        assert_eq!(params.name(), "argon2id");
+
         let err = Pbkdf2Params::default().validate().err().unwrap();
         assert_eq!(
             err.downcast::<crate::Error>().unwrap(),
@@ -547,15 +888,15 @@ mod tests {
             Error::KdfParamsInvalid
         );
 
-        assert_eq!(*crate::KDF_ROUNDS.read() as u32, 262144);
+        assert_eq!(*crate::KDF_ROUNDS.read() as u32, 600000);
 
         if let Ok(v) = env::var("KDF_ROUNDS") {
             let env_kdf_rounds = u32::from_str(&v).unwrap();
             env::remove_var("KDF_ROUNDS");
-            assert_eq!(default_kdf_rounds(), 262144);
+            assert_eq!(default_kdf_rounds(), 600000);
             env::set_var("KDF_ROUNDS", env_kdf_rounds.to_string());
         } else {
-            assert_eq!(default_kdf_rounds(), 262144);
+            assert_eq!(default_kdf_rounds(), 600000);
         }
     }
 
@@ -567,13 +908,37 @@ mod tests {
             ..Default::default()
         };
         let mut derived_key = [0; CREDENTIAL_LEN];
-        pbkdf2_param.derive_key(TEST_PASSWORD.as_bytes(), &mut derived_key);
+        pbkdf2_param
+            .derive_key(TEST_PASSWORD.as_bytes(), &mut derived_key)
+            .unwrap();
         let dk_hex = derived_key.to_hex();
         assert_eq!("515c00df30d4eb0e5662030ccea231301ce44d685eb29aca04469f4d6b701898e75e51080a482dd46c04cf39308e7d228a0f70a45d7fa17cd4027d04c39f5e17", dk_hex);
 
         assert!(pbkdf2_param.validate().is_ok());
         pbkdf2_param.c = 0;
         assert!(pbkdf2_param.validate().is_err());
+    }
+
+    #[test]
+    fn test_derive_key_argon2id() {
+        let mut param = Argon2idParams {
+            memory_cost: 32,
+            time_cost: 2,
+            parallelism: 1,
+            salt: "01020304010203040102030401020304".to_string(),
+            ..Default::default()
+        };
+        let mut derived_key = [0; CREDENTIAL_LEN];
+        param
+            .derive_key(TEST_PASSWORD.as_bytes(), &mut derived_key)
+            .unwrap();
+        let dk_hex = derived_key.to_hex();
+        assert_eq!("d588733f0b9f482908fd7a2f9d48d61c40b01df8016b2ee3b10a51296d7b4e873d0ae92772dd94cce9d1c2ddfbb97fb25b7a66208713313fc04479712086db30", dk_hex);
+        assert_eq!("argon2id", param.name());
+
+        assert!(param.validate().is_ok());
+        param.memory_cost = 0;
+        assert!(param.validate().is_err());
     }
 
     #[test]
@@ -584,7 +949,9 @@ mod tests {
             ..Default::default()
         };
         let mut derived_key = [0; CREDENTIAL_LEN];
-        param.derive_key(TEST_PASSWORD.as_bytes(), &mut derived_key);
+        param
+            .derive_key(TEST_PASSWORD.as_bytes(), &mut derived_key)
+            .unwrap();
         let dk_hex = derived_key.to_hex();
         assert_eq!("190fba2c4dcd250b67652b6ea401a286ba4afff692aa9700ce56edd5326cb23b05c9af493f8d3dccb8191437f8cb5d2c3ba718af64aee8a7f318eedf2af5eb3f", dk_hex);
         assert_eq!("scrypt", param.name());
@@ -592,6 +959,55 @@ mod tests {
         assert!(param.validate().is_ok());
         param.n = 0;
         assert!(param.validate().is_err());
+    }
+
+    fn profile_kdf<F>(name: &str, mut f: F) -> Duration
+    where
+        F: FnMut(),
+    {
+        let start = Instant::now();
+        f();
+        let elapsed = start.elapsed();
+        eprintln!("{name}: {} ms", elapsed.as_millis());
+        elapsed
+    }
+
+    #[test]
+    #[ignore]
+    fn test_kdf_profile() {
+        let password = TEST_PASSWORD.as_bytes();
+        let salt = "01020304010203040102030401020304".to_string();
+        let mut derived_key = [0; CREDENTIAL_LEN];
+
+        let argon2id = Argon2idParams {
+            salt: salt.clone(),
+            ..Default::default()
+        };
+        let argon2id_elapsed = profile_kdf("argon2id m=19456KiB t=2 p=1", || {
+            argon2id.derive_key(password, &mut derived_key).unwrap()
+        });
+
+        let scrypt = SCryptParams {
+            n: 1 << 17,
+            salt: salt.clone(),
+            ..Default::default()
+        };
+        let scrypt_elapsed = profile_kdf("scrypt n=2^17 r=8 p=1", || {
+            scrypt.derive_key(password, &mut derived_key).unwrap()
+        });
+
+        let pbkdf2 = Pbkdf2Params {
+            c: 600000,
+            salt,
+            ..Default::default()
+        };
+        let pbkdf2_elapsed = profile_kdf("pbkdf2-hmac-sha256 c=600000", || {
+            pbkdf2.derive_key(password, &mut derived_key).unwrap()
+        });
+
+        assert!(argon2id_elapsed.as_nanos() > 0);
+        assert!(scrypt_elapsed.as_nanos() > 0);
+        assert!(pbkdf2_elapsed.as_nanos() > 0);
     }
 
     #[test]

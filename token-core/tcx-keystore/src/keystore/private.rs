@@ -217,13 +217,17 @@ mod tests {
         )
         .unwrap();
 
-        let derived_key = Keystore::PrivateKey(keystore.clone())
-            .get_derived_key(TEST_PASSWORD)
-            .unwrap();
         assert!(keystore.verify_password(&Key::Password(TEST_PASSWORD.to_string())));
-        assert!(keystore.verify_password(&Key::DerivedKey(derived_key.to_string())));
         assert!(!keystore.verify_password(&Key::Password("WRONG PASSWORD".to_string())));
-        assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
+
+        #[cfg(feature = "cache_dk")]
+        {
+            let derived_key = Keystore::PrivateKey(keystore.clone())
+                .get_derived_key(TEST_PASSWORD)
+                .unwrap();
+            assert!(keystore.verify_password(&Key::DerivedKey(derived_key.to_string())));
+            assert!(!keystore.verify_password(&Key::DerivedKey("731dd44109f9897eb39980907161b7531be44714352ddaa40542da22fb4fab7533678f2e132226389174faad4e653c542811a7b0c9391ae3cce4e75039a15adc".to_string())));
+        }
     }
 
     #[test]

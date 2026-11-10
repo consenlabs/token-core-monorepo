@@ -5,7 +5,7 @@ WASM_CC ?= /opt/homebrew/opt/llvm/bin/clang
 WASM_AR ?= /opt/homebrew/opt/llvm/bin/llvm-ar
 WASM_CFLAGS ?= -Wno-implicit-function-declaration
 
-.PHONY: build-tcx-proto check-tcx build-tcx test-tcx test-ikc test-workspace test-hardware test-wasm build-wasm build-wasm-opt dev-wasm build-npm test-npm publish-npm
+.PHONY: build-tcx-proto check-tcx build-tcx test-tcx test-kdf test-kdf-core test-kdf-api test-ikc test-workspace test-hardware test-wasm build-wasm build-wasm-opt dev-wasm build-npm test-npm publish-npm
 
 build-tcx-proto:
 	cargo build -p tcx-proto
@@ -18,6 +18,26 @@ build-tcx:
 
 test-tcx:
 	$(TEST_ENV) cargo test --workspace $(TCX_EXCLUDES)
+
+test-kdf: test-kdf-core test-kdf-api
+
+test-kdf-core:
+	$(TEST_ENV) cargo test --locked -p tcx-crypto
+	$(TEST_ENV) cargo test --locked -p tcx-crypto --features cache_dk
+	$(TEST_ENV) cargo test --locked -p tcx-keystore
+	$(TEST_ENV) cargo test --locked -p tcx-keystore --features cache_dk
+	$(TEST_ENV) cargo test --locked -p tcx-migration test_export_v3_keystore
+	$(TEST_ENV) cargo test --locked -p tcx-migration test_address_not_match
+
+test-kdf-api:
+	$(TEST_ENV) cargo test --locked -p tcx --no-run
+	$(TEST_ENV) cargo test --locked -p tcx --test other_test test_kdf_api_formats_and_feature_gates
+	$(TEST_ENV) cargo test --locked -p tcx --features cache_dk --no-run
+	$(TEST_ENV) cargo test --locked -p tcx --features cache_dk --test other_test test_kdf_api_formats_and_feature_gates
+	$(TEST_ENV) cargo test --locked -p tcx --features test_api --no-run
+	$(TEST_ENV) cargo test --locked -p tcx --features test_api --test other_test test_kdf_api_formats_and_feature_gates
+	$(TEST_ENV) cargo test --locked -p tcx --features cache_dk,test_api --no-run
+	$(TEST_ENV) cargo test --locked -p tcx --features cache_dk,test_api --test other_test test_kdf_api_formats_and_feature_gates
 
 test-ikc:
 	$(TEST_ENV) cargo test -p ikc-common -- --skip https::test::post_test

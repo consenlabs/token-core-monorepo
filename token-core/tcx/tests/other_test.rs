@@ -8,18 +8,148 @@ mod common;
 use tcx::*;
 
 use prost::Message;
+#[cfg(feature = "cache_dk")]
+use tcx::api::DerivedKeyResult;
 use tcx::api::{
-    DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DerivedKeyResult, EncryptDataToIpfsParam,
+    DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, EncryptDataToIpfsParam,
     EncryptDataToIpfsResult, ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam,
     GeneralResult, ImportPrivateKeyParam, KeystoreResult, SignAuthenticationMessageParam,
     SignAuthenticationMessageResult, WalletKeyParam,
 };
 
-use tcx::handler::{encode_message, get_derived_key, import_private_key};
+#[cfg(feature = "cache_dk")]
+use tcx::handler::get_derived_key;
+use tcx::handler::{encode_message, import_private_key};
 
 use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
 
 use crate::common::*;
+
+#[test]
+#[serial]
+pub fn test_kdf_api_formats_and_feature_gates() {
+    run_test(|| {
+        let hd_id = import_default_wallet().id;
+        let pk_id = import_default_pk_store().id;
+        for id in [hd_id, pk_id.clone()] {
+            let map = tcx::filemanager::KEYSTORE_MAP.read();
+            let crypto = &map.get(&id).unwrap().store().crypto;
+            let json = serde_json::to_value(crypto).unwrap();
+            assert_eq!(json["kdf"], "argon2id");
+            assert_eq!(json["kdfparams"]["dklen"], 64);
+            drop(map);
+
+            let param = WalletKeyParam {
+                id,
+                key: Some(api::wallet_key_param::Key::Password(TEST_PASSWORD.into())),
+            };
+            let result = call_api("verify_password", param.clone()).unwrap();
+            assert!(GeneralResult::decode(result.as_slice()).unwrap().is_success);
+            let result = call_api("get_derived_key", param.clone());
+            #[cfg(feature = "cache_dk")]
+            {
+                let result = DerivedKeyResult::decode(result.unwrap().as_slice()).unwrap();
+                assert_eq!(result.derived_key.len(), 128);
+                let mut cached = param.clone();
+                cached.key = Some(api::wallet_key_param::Key::DerivedKey(result.derived_key));
+                let result = call_api("verify_password", cached).unwrap();
+                assert!(GeneralResult::decode(result.as_slice()).unwrap().is_success);
+            }
+            #[cfg(not(feature = "cache_dk"))]
+            assert_eq!(result.unwrap_err().to_string(), "unsupported_method");
+
+            let mut wrong = param;
+            wrong.key = Some(api::wallet_key_param::Key::Password("wrong".into()));
+            assert_eq!(
+                call_api("verify_password", wrong).unwrap_err().to_string(),
+                "password_incorrect"
+            );
+        }
+
+        // Check the test-only route without reaching its deliberate panic.
+        let result = call_api(
+            "unlock_then_crash",
+            WalletKeyParam {
+                id: "missing-kdf-test-wallet".into(),
+                key: Some(api::wallet_key_param::Key::Password(TEST_PASSWORD.into())),
+            },
+        );
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            if cfg!(feature = "test_api") {
+                "wallet_not_found"
+            } else {
+                "unsupported_method"
+            }
+        );
+
+        let result = call_api(
+            "export_json",
+            api::ExportJsonParam {
+                id: pk_id.clone(),
+                password: TEST_PASSWORD.into(),
+                chain_type: "ETHEREUM".into(),
+                path: "".into(),
+            },
+        )
+        .unwrap();
+        let result = api::ExportJsonResult::decode(result.as_slice()).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&result.json).unwrap();
+        assert_eq!(json["version"], 3);
+        assert_eq!(json["crypto"]["kdf"], "pbkdf2");
+        assert_eq!(json["crypto"]["kdfparams"]["dklen"], 32);
+        assert_eq!(json["crypto"]["kdfparams"]["prf"], "hmac-sha256");
+        let legacy = tcx_migration::migration::LegacyKeystore::from_json_str(&result.json).unwrap();
+        legacy.validate_v3(TEST_PASSWORD).unwrap();
+
+        // Preserve the public Rust constructor signature across crate boundaries.
+        let constructor: fn(&str, &[u8], tcx_crypto::crypto::KdfType) -> tcx_crypto::Crypto =
+            tcx_crypto::Crypto::new_with_kdf;
+        let kdf = serde_json::from_value(serde_json::json!({
+            "kdf": "argon2id", "kdfparams": {
+                "memoryCost": 32, "timeCost": 2, "parallelism": 1, "dklen": 32,
+                "salt": "01020304010203040102030401020304",
+            },
+        }))
+        .unwrap();
+        let crypto = constructor(TEST_PASSWORD, b"TokenCoreX", kdf);
+        let expected_dk = "d956f86a8815a4ee7eacd92712ed85b204d935c81a216bdd9a88863522045f88";
+        assert_eq!(
+            crypto
+                .use_key(&tcx_crypto::Key::DerivedKey(expected_dk.into()))
+                .unwrap()
+                .plaintext()
+                .unwrap(),
+            b"TokenCoreX"
+        );
+
+        // Only the crypto body is relevant to password/cache API contracts.
+        tcx::filemanager::KEYSTORE_MAP
+            .write()
+            .get_mut(&pk_id)
+            .unwrap()
+            .store_mut()
+            .crypto = crypto;
+        let param = WalletKeyParam {
+            id: pk_id,
+            key: Some(api::wallet_key_param::Key::Password(TEST_PASSWORD.into())),
+        };
+        let result = call_api("verify_password", param.clone()).unwrap();
+        assert!(GeneralResult::decode(result.as_slice()).unwrap().is_success);
+        let result = call_api("get_derived_key", param.clone());
+        #[cfg(feature = "cache_dk")]
+        {
+            let result = DerivedKeyResult::decode(result.unwrap().as_slice()).unwrap();
+            assert_eq!(result.derived_key, expected_dk); // 32 bytes, never padded to 64
+        }
+        #[cfg(not(feature = "cache_dk"))]
+        assert_eq!(result.unwrap_err().to_string(), "unsupported_method");
+        let mut cached = param;
+        cached.key = Some(api::wallet_key_param::Key::DerivedKey(expected_dk.into()));
+        let result = call_api("verify_password", cached).unwrap();
+        assert!(GeneralResult::decode(result.as_slice()).unwrap().is_success);
+    });
+}
 
 #[test]
 #[serial]
@@ -52,6 +182,42 @@ pub fn test_verify_password() {
             assert!(ret.is_err());
             assert_eq!(format!("{}", ret.err().unwrap()), "password_incorrect");
         }
+    })
+}
+
+#[test]
+#[serial]
+#[cfg(not(feature = "cache_dk"))]
+pub fn test_get_derived_key_is_not_in_default_api_table() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+        let param = WalletKeyParam {
+            id: wallet.id,
+            key: Some(api::wallet_key_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+        };
+
+        let ret = call_api("get_derived_key", param);
+        assert_eq!(format!("{}", ret.err().unwrap()), "unsupported_method");
+    })
+}
+
+#[test]
+#[serial]
+#[cfg(not(feature = "test_api"))]
+pub fn test_unlock_then_crash_is_not_in_default_api_table() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+        let param = WalletKeyParam {
+            id: wallet.id,
+            key: Some(api::wallet_key_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+        };
+
+        let ret = call_api("unlock_then_crash", param);
+        assert_eq!(format!("{}", ret.err().unwrap()), "unsupported_method");
     })
 }
 
@@ -105,6 +271,7 @@ pub fn test_delete_keystore_by_password() {
 
 #[test]
 #[serial]
+#[cfg(feature = "cache_dk")]
 pub fn test_delete_keystore_by_derived_key() {
     run_test(|| {
         let param: ImportPrivateKeyParam = ImportPrivateKeyParam {
