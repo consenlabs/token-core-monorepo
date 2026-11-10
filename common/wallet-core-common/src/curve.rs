@@ -31,6 +31,12 @@ impl CurveType {
         }
     }
 
+    /// Legacy constructor retained for downstream Rust source compatibility.
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(value: &str) -> CurveType {
+        Self::from_curve_name(value)
+    }
+
     pub fn from_curve_name(value: &str) -> CurveType {
         match value {
             "secp256k1" => CurveType::SECP256k1,
@@ -64,6 +70,7 @@ mod tests {
         for (curve, value) in cases {
             assert_eq!(curve.as_str(), value);
             assert_eq!(CurveType::from_curve_name(value), curve);
+            assert_eq!(CurveType::from_str(value), curve);
         }
     }
 }
