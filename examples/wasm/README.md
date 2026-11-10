@@ -31,7 +31,7 @@ npm run dev
 
 ## API Reference
 
-All functions accept / return JSON strings (unless noted). Field names use **camelCase** on the JS side and are automatically mapped to Rust `snake_case` via `serde(rename_all = "camelCase")`.
+All functions accept / return JSON strings (unless noted). API parameters and keystore fields use **camelCase**. Nostr event output follows the wire protocol with **created_at**; event input accepts both `createdAt` (existing API) and `created_at`.
 
 ---
 
@@ -95,11 +95,14 @@ const ks3 = create_keystore(JSON.stringify({
 
 ```json
 {
+  "version": 2,
+  "cipher": "chacha20-poly1305",
   "userId": "user-1",
   "credentialId": "cred-1",
   "rpId": "example.com",
   "encryptedMnemonic": "hex...",
-  "mnemonicIv": "hex...",
+  "mnemonicNonce": "24-char hex...",
+  "network": "MAINNET",
   "createdAt": 1712600000,
   "identity": {
     "identifier": "im...",
@@ -108,6 +111,30 @@ const ks3 = create_keystore(JSON.stringify({
     "encAuthKey": { ... }
   }
 }
+```
+
+New keystores authenticate ciphertext with ChaCha20-Poly1305 using all 32 PRF bytes.
+Version, cipher, user/credential/RP IDs, creation time, network and identity are
+authenticated as associated data. Creation and unlocking use JavaScript `Date.now()`,
+not Rust's unsupported browser `SystemTime::now()`.
+
+Historical unversioned (or version 1) AES-128-CTR keystores remain readable. Every
+export, derivation and signing path validates the decrypted mnemonic against the
+stored deterministic identity fields. CTR metadata has no cryptographic integrity;
+identity checks cannot retroactively authenticate it. Read operations never rewrite
+the keystore or cache. Unknown extension fields are preserved during migration but
+are not authenticated.
+
+### `migrate_keystore(param_json: string): string`
+
+Explicitly validates a legacy keystore and returns a version 2 replacement. The
+caller must persist the returned JSON and replace any cached copy only after success.
+Identity, creation time and extension fields are preserved; a missing legacy network
+is resolved by checking MAINNET/TESTNET identity. Already-v2 input is authenticated,
+identity-checked and returned unchanged. Failures do not modify storage or cache.
+
+```ts
+const migrated = migrate_keystore(JSON.stringify({ keystoreJson: ks, prfKey }));
 ```
 
 ---
@@ -340,7 +367,7 @@ const keyPair = JSON.parse(derive_message_key_pair(JSON.stringify({
 
 Signs a Nostr event (NIP-01) with Schnorr/BIP-340. **Must call `derive_message_key_pair` first** — uses the cached secret key.
 
-When `recipientPubkey` is provided, performs **NIP-59 Gift Wrapping** (seal + wrap) and returns a `kind: 1059` gift-wrapped event instead of the plain signed event.
+When `recipientPubkey` is provided, performs **NIP-59 Gift Wrapping** (seal + wrap) and returns a `kind: 1059` gift-wrapped event instead of the plain signed event. The inner rumor has an ID but **no signature**; only the seal and wrap are signed. Without a recipient, the ordinary event is still signed.
 
 ```ts
 // Basic signing (no seal/wrap)
@@ -372,7 +399,7 @@ const wrappedEvent = JSON.parse(sign_message_event(JSON.stringify({
 {
   "id": "64-char hex event id",
   "pubkey": "64-char hex x-only pubkey",
-  "createdAt": 1712600000,
+  "created_at": 1712600000,
   "kind": 1,
   "tags": [],
   "content": "Hello Nostr!",
@@ -386,7 +413,7 @@ const wrappedEvent = JSON.parse(sign_message_event(JSON.stringify({
 {
   "id": "64-char hex event id",
   "pubkey": "64-char hex ephemeral pubkey",
-  "createdAt": 1712599000,
+  "created_at": 1712599000,
   "kind": 1059,
   "tags": [["p", "64-char hex recipient pubkey"]],
   "content": "base64 NIP-44 encrypted seal",
@@ -425,6 +452,37 @@ const decrypted = JSON.parse(decrypt_message(JSON.stringify({
 ---
 
 ## What It Tests
+
+Focused Rust/WASM regression tests:
+
+```bash
+CARGO_TARGET_DIR=/private/tmp/token-quality-target KDF_ROUNDS=1 cargo test -p tcx-wasm
+KDF_ROUNDS=1 wasm-pack test token-core/tcx-wasm --node
+make test-npm  # builds, npm pack (no publish), imports the tarball and runs WASM APIs
+```
+
+For wasm32 compilation, set `CC_wasm32_unknown_unknown` and
+`AR_wasm32_unknown_unknown` to tools supporting wasm, or override `WASM_CC` /
+`WASM_AR` for Make targets. WASM regression tests reduce KDF rounds only inside
+the test module; published packages keep production defaults.
+
+`make build-npm` generates `publish/npm/package.json` from wasm-pack's manifest
+(name/version from `token-core/tcx-wasm/Cargo.toml`) and adds ESM exports via
+`scripts/prepare-wasm-npm.mjs`. No separately versioned npm manifest is maintained.
+Generated package files are ignored by git. Consumers can initialize the web-target
+ES module in a browser:
+
+```ts
+import init, { create_keystore } from 'tcx-wasm';
+await init();
+```
+
+In Node, pass the bytes of the exported `tcx-wasm/tcx_wasm_bg.wasm` explicitly to
+`init({ module_or_path: bytes })`; the package does not fetch local `file:` URLs.
+
+The Nostr tests include the published [NIP-59 example](https://github.com/nostr-protocol/nips/blob/master/59.md#an-example),
+checking its fixed event ID, seal signature and NIP-44 decryption, independently of
+local roundtrips.
 
 | # | Test Case | API | Description |
 |---|-----------|-----|-------------|

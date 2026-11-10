@@ -17,6 +17,10 @@ security updates without changing wallet formats or signing algorithms:
 
 ## Result
 
+- Phase 2 review #185: `tcx-wasm` adds exact-pinned `chacha20poly1305 =0.10.1`
+  for authenticated Passkey keystore v2; its `chacha20 0.9.1` dependency coexists
+  with NIP-44's existing `chacha20 0.10.0`. No unrelated dependency upgrades.
+
 - `cargo update --verbose` result: `Locking 0 packages to latest compatible versions`; no `behind latest` entries remain.
 - Exact version scan over all `Cargo.toml` dependency sections: 0 non-exact version declarations.
 - Workspace registry dependencies reported by `cargo metadata --no-deps` also all use exact requirements beginning with `=`.

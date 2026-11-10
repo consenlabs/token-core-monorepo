@@ -16,13 +16,30 @@ pub struct CreateKeystoreParam {
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PasskeyKeystore {
+    #[serde(default)]
+    pub version: u32,
+    #[serde(default)]
+    pub cipher: String,
     pub user_id: String,
     pub credential_id: String,
     pub rp_id: String,
     pub encrypted_mnemonic: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     pub mnemonic_iv: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub mnemonic_nonce: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub network: String,
     pub created_at: i64,
     pub identity: Identity,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MigrateKeystoreParam {
+    pub keystore_json: String,
+    #[serde(alias = "key")]
+    pub prf_key: String,
 }
 
 #[derive(Deserialize)]
@@ -159,14 +176,24 @@ pub struct MessageSignEventParam {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageUnsignedEvent {
+    #[serde(alias = "created_at")]
     pub created_at: u64,
     pub kind: u32,
     pub tags: Vec<Vec<String>>,
     pub content: String,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Serialize, Deserialize)]
+pub struct MessageRumor {
+    pub id: String,
+    pub pubkey: String,
+    pub created_at: u64,
+    pub kind: u32,
+    pub tags: Vec<Vec<String>>,
+    pub content: String,
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct MessageSignedEvent {
     pub id: String,
     pub pubkey: String,

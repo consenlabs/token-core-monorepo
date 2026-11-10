@@ -5,7 +5,7 @@ WASM_CC ?= /opt/homebrew/opt/llvm/bin/clang
 WASM_AR ?= /opt/homebrew/opt/llvm/bin/llvm-ar
 WASM_CFLAGS ?= -Wno-implicit-function-declaration
 
-.PHONY: build-tcx-proto check-tcx build-tcx test-tcx test-ikc test-workspace test-hardware test-wasm build-wasm build-wasm-opt dev-wasm build-npm publish-npm
+.PHONY: build-tcx-proto check-tcx build-tcx test-tcx test-ikc test-workspace test-hardware test-wasm build-wasm build-wasm-opt dev-wasm build-npm test-npm publish-npm
 
 build-tcx-proto:
 	cargo build -p tcx-proto
@@ -59,6 +59,7 @@ build-npm:
 	cp .wasm-pack-tmp/tcx_wasm.js publish/npm/
 	cp .wasm-pack-tmp/tcx_wasm.d.ts publish/npm/
 	cp .wasm-pack-tmp/tcx_wasm_bg.wasm.d.ts publish/npm/
+	node scripts/prepare-wasm-npm.mjs .wasm-pack-tmp/package.json publish/npm/package.json
 	@if command -v wasm-opt >/dev/null 2>&1; then \
 		wasm-opt -Oz --all-features publish/npm/tcx_wasm_bg.wasm -o publish/npm/tcx_wasm_bg.wasm; \
 	fi
@@ -69,3 +70,6 @@ build-npm:
 
 publish-npm: build-npm
 	cd publish/npm && npm publish
+
+test-npm: build-npm
+	node scripts/npm-pack-smoke.mjs

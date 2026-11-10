@@ -265,6 +265,57 @@ mod tests {
     }
 
     #[test]
+    fn test_nip59_external_protocol_vectors() {
+        // Published example, not a self-generated roundtrip:
+        // https://github.com/nostr-protocol/nips/blob/master/59.md#an-example
+        use crate::types::{MessageRumor, MessageSignedEvent};
+        let rumor_value: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/fixtures/nip59-rumor.json")).unwrap();
+        let rumor: MessageRumor = serde_json::from_value(rumor_value.clone()).unwrap();
+        assert_eq!(
+            compute_event_id(
+                &rumor.pubkey,
+                rumor.created_at,
+                rumor.kind,
+                &rumor.tags,
+                &rumor.content
+            )
+            .to_hex(),
+            rumor.id
+        );
+        assert_eq!(serde_json::to_value(&rumor).unwrap(), rumor_value);
+
+        let seal_value: serde_json::Value =
+            serde_json::from_str(include_str!("../tests/fixtures/nip59-seal.json")).unwrap();
+        let seal: MessageSignedEvent = serde_json::from_value(seal_value.clone()).unwrap();
+        assert_eq!(serde_json::to_value(&seal).unwrap(), seal_value);
+        let id = compute_event_id(
+            &seal.pubkey,
+            seal.created_at,
+            seal.kind,
+            &seal.tags,
+            &seal.content,
+        );
+        assert_eq!(id.to_hex(), seal.id);
+        let sig: [u8; 64] = Vec::from_hex(&seal.sig).unwrap().try_into().unwrap();
+        let pubkey: XOnlyPublicKey = seal.pubkey.parse().unwrap();
+        Secp256k1::new()
+            .verify_schnorr(
+                &secp256k1::schnorr::Signature::from_byte_array(sig),
+                &id,
+                &pubkey,
+            )
+            .unwrap();
+        let recipient =
+            secret_key_from_hex("e108399bd8424357a710b606ae0c13166d853d327e47a6e5e038197346bdbf45");
+        let key = get_conversation_key(&recipient, &parse_pubkey(&seal.pubkey).unwrap());
+        let plaintext = nip44_decrypt(&key, &seal.content).unwrap();
+        let decrypted: serde_json::Value = serde_json::from_str(&plaintext).unwrap();
+        assert_eq!(decrypted, rumor_value);
+        assert!(decrypted.get("sig").is_none());
+    }
+
+    #[test]
     fn test_calc_padded_len() {
         assert_eq!(calc_padded_len(1), 32);
         assert_eq!(calc_padded_len(16), 32);
