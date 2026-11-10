@@ -16,6 +16,7 @@ const suites = {
     "usdt_transaction::tests::amount_less_than_minimum_test",
   ],
   "coin-btc-fork": [
+    "address::test::public_key_encoding_golden_vectors",
     "address::test::test_p2pkh_from_pub_key_uses_compressed_serialization",
     "address::test::test_btc_fork_address_from_str",
     "transaction::tests::async_change_address_uses_transport_for_ltc_legacy_and_segwit",

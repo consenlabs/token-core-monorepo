@@ -358,6 +358,13 @@ impl BtcForkAddress {
                 )?),
                 network: btc_fork_network,
             },
+            "SEGWIT" => BtcForkAddress {
+                payload: BtcForkPayload::WitnessProgram {
+                    version: WitnessVersion::V0,
+                    program: wallet_core_common::btc::p2wpkh_program(&pub_key)?,
+                },
+                network: btc_fork_network,
+            },
             _ => BtcForkAddress {
                 payload: BtcForkPayload::PubkeyHash(
                     wallet_core_common::btc::compressed_p2pkh_hash(&pub_key)?,
@@ -555,6 +562,17 @@ mod test {
                     expected
                 );
             }
+        }
+        let network = network_from_param("LITECOIN", "MAINNET", "SEGWIT").unwrap();
+        for key in [&compressed, &uncompressed] {
+            let address = BtcForkAddress::from_pub_key(key.clone(), network.clone()).unwrap();
+            let (hrp, version, program) = bech32::segwit::decode(&address).unwrap();
+            assert_eq!(hrp.as_str(), "ltc");
+            assert_eq!(version.to_u8(), 0);
+            assert_eq!(
+                hex::encode(program),
+                "751e76e8199196d454941c45d1b3a323f1433bd6"
+            );
         }
     }
 
