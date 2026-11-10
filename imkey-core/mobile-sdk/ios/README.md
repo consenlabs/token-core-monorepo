@@ -1,6 +1,5 @@
 # imKeyConnector
 
-[![CI Status](https://img.shields.io/travis/Neal Xu/imKeyConnector.svg?style=flat)](https://travis-ci.org/Neal Xu/imKeyConnector)
 [![Version](https://img.shields.io/cocoapods/v/imKeyConnector.svg?style=flat)](https://cocoapods.org/pods/imKeyConnector)
 [![License](https://img.shields.io/cocoapods/l/imKeyConnector.svg?style=flat)](https://cocoapods.org/pods/imKeyConnector)
 [![Platform](https://img.shields.io/cocoapods/p/imKeyConnector.svg?style=flat)](https://cocoapods.org/pods/imKeyConnector)

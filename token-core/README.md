@@ -1,62 +1,101 @@
 # TokenCoreX
 
-[![Build status](https://travis-ci.org/consenlabs/token-core.svg?branch=dev)](https://travis-ci.org/consenlabs/token-core)
-[![Gitter chat](https://badges.gitter.im/gitterHQ/gitter.svg)](https://gitter.im/imtoken-wallet/token-core)
+`token-core` contains the software wallet side of this workspace. It provides
+keystore management, account derivation, chain-specific address generation,
+transaction/message signing, migration helpers, Protobuf request/response
+types, and a C ABI for mobile clients.
 
-Next generation core inside imToken Wallet.
+The external API boundary is the `tcx` crate:
 
-A cross-platform library that implements crypto wallet functions for blockchains, exporting c interfaces in Protobuf
-protocol. This library totally wrote in Rust, and now provides friendly interfaces for the mobile platform including
-ReactNative, iOS, and Android.
+- C ABI entrypoint: `call_tcx_api(hex_str)`
+- Request format: hex-encoded Protobuf `TcxAction`
+- Error boundary: API-facing errors are compatibility-sensitive and should not
+  leak lower-level dependency messages without an explicit compatibility review.
 
-TokenCoreX welcomes contribution from everyone. See [CONTRIBUTING.md](./CONTRIBUTING.md) for help getting started. 
-In all communications and contributions, this project follows the [Code of Conduct](./CODE_OF_CONDUCT.md)
+## Crate Map
 
-## Goals
-* Abstration interfaces that provide crypto wallet common logic with multi blockchain support
-* Cross platform, on mobile, desktop, server side
-* Multi keystore support, with file, HSM, KMS, hardware-wallet
+| Crate or path | Purpose |
+| ------------- | ------- |
+| [`tcx`](./tcx) | TokenCoreX API wrapper and C ABI |
+| [`tcx-proto`](./tcx-proto) | Protobuf-generated API types |
+| [`tcx-common`](./tcx-common) | Shared hex, hash, random, and utility helpers |
+| [`tcx-constants`](./tcx-constants) | Chain, network, and curve constants |
+| [`tcx-primitive`](./tcx-primitive) | Keys, BIP32, BLS, Ed25519, Sr25519, Secp256k1, paths |
+| [`tcx-crypto`](./tcx-crypto) | Encryption, decryption, KDF, and keystore crypto |
+| [`tcx-keystore`](./tcx-keystore) | HD/private keystore, identity, account derivation, signing traits |
+| [`tcx-migration`](./tcx-migration) | Legacy keystore migration and scanning |
+| `tcx-btc-kin`, `tcx-eth`, `tcx-tron`, `tcx-ckb`, `tcx-atom`, `tcx-eos`, `tcx-substrate`, `tcx-filecoin`, `tcx-tezos`, `tcx-ton`, `tcx-eth2` | Chain-specific address and signing implementations |
+| [`tcx-wasm`](./tcx-wasm) | Focused WebAssembly binding surface |
+| [`test-data`](./test-data) | Fixtures for migration, scanning, and password-reset tests |
 
-## Packages
-* `tcx` wallet interface wrapper
-* `tcx-bch` | `tcx-btc-fork` | `tcx-tron` | `tcx-ckb` packages contain particular chain operations
-* `tcx-chain` keystore and signer interface
-* `tcx-proto` protobuf datastructure definition
-* `tcx-constants` blockchain spec definition
-* [`tcx-primitive` | `tcx-crypto`] low level component
+## Build
 
-## Examples
-We provide three example applications, 
+From the repository root:
 
-* [ReactNative](examples/RN), full functions including all expose API, and e2e testing
-* [iOS](examples/iOSExample)
-* [Android](examples/android)
-
-## Test Coverage
-We can use [tarpaulin](https://github.com/xd009642/tarpaulin) to know the coverage rate.
-
-The easy way to run coverage test is using docker,
-
-```
-docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin sh -c "cargo tarpaulin --out Html"
+```bash
+make build-tcx
 ```
 
-After couple minutes, it will generate html report of project root directory named `tarpaulin-report.html`. 
+To compile the TokenCoreX C ABI crate directly:
 
-## Code Styles
-This project is using pre-commit. Please run `cargo clean && cargo test` to install the git pre-commit hooks on you clone.
+```bash
+cargo build -p tcx
+```
 
-Every time you will try to commit, pre-commit will run checks on your files to make sure they follow our style standards
-and they aren't affected by some simple issues. If the checks fail, pre-commit won't let you commit.
+For WebAssembly:
 
-## Read More
-* [How to build project](tcx-docs/BUILD.md)
-* [Crypto keys abstraction design (Chinese)](tcx-docs/KEYS.zh.md)
-* [Keystore KDF strategy (Chinese)](tcx-docs/KDF.zh.md)
-* [Architecture design (Chinese)](tcx-docs/TECH.zh.md)
-* [How to add more blockchain support](tcx-docs/INTEGRATION.md)
-* [Security](SECURITY.md) including the bug bounty program
-* [FAQ](tcx-docs/FAQ.md)
+```bash
+make test-wasm
+make build-wasm
+```
+
+See the workspace build guide at [`../doc/BUILD.md`](../doc/BUILD.md).
+
+## Test
+
+```bash
+# Run token-core unit, integration, and doc tests
+make test-tcx
+
+# Compile all workspace test targets before running narrower test sets
+cargo test --workspace --no-run
+```
+
+`make test-tcx` sets `KDF_ROUNDS=1` to shorten keystore tests. This is a test
+speed setting only.
+
+Migration tests can be slow and may print "has been running for over 60
+seconds"; that message does not necessarily mean the test is stuck.
+
+## WebAssembly
+
+`tcx-wasm` is the web-facing subset for browser/passkey-oriented flows. The
+browser example lives in [`../examples/wasm`](../examples/wasm/README.md).
+
+```bash
+make build-wasm
+make dev-wasm
+```
+
+The full mobile C ABI surface and the wasm surface are intentionally different.
+Do not assume a function is exposed in wasm because it exists in `tcx`.
+
+## Documentation
+
+- [`tcx-docs/BUILD.md`](./tcx-docs/BUILD.md): historical TokenCoreX build notes.
+- [`tcx-docs/API.zh.md`](./tcx-docs/API.zh.md): TokenCoreX API notes.
+- [`tcx-docs/KEYS.zh.md`](./tcx-docs/KEYS.zh.md): key abstraction design.
+- [`tcx-docs/KDF.zh.md`](./tcx-docs/KDF.zh.md): keystore KDF strategy.
+- [`tcx-docs/TECH.zh.md`](./tcx-docs/TECH.zh.md): architecture notes.
+- [`tcx-docs/INTEGRATION.md`](./tcx-docs/INTEGRATION.md): adding chain support.
+- [`tcx-docs/FAQ.md`](./tcx-docs/FAQ.md): TokenCoreX FAQ.
+- [`../doc/TEST.md`](../doc/TEST.md): current workspace test policy.
+- [`../doc/COMPATIBILITY.md`](../doc/COMPATIBILITY.md): current compatibility matrix.
+
+## Security
+
+For vulnerability reports, follow the root policy in [`../SECURITY.md`](../SECURITY.md).
 
 ## License
-Apache Licence v2.0
+
+Apache License, Version 2.0. See [`../LICENSE`](../LICENSE).

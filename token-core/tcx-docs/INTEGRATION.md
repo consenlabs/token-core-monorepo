@@ -12,16 +12,16 @@ Now we only support secp256k1 curve, and will add other curve soon. And import a
 
 Add new package, like `tcx-a-chain`, implement following interfaces:
 
-| Trait Name                                         | Package   | Responbility                                         |
-| -------------------------------------------------- | --------- | ---------------------------------------------------- |
-| [Address](tcx-chain/src/keystore/mod.rs)           | tcx-chain | Convert public key to                                |
-| [ChainSigner](tcx-chain/src/signer.rs)             | tcx-chain | Take binary data to do ecc signing                   |
-| [TransactionSigner](tcx-chain/src/signer.rs)       | tcx-chain | Take input & output to do chain-specify data signing |
-| [MessageSigner](tcx-chain/src/signer.rs)(Optional) | tcx-chain | Take input & output to do chain-specify data signing |
+| Trait Name                                                        | Package      | Responbility                                         |
+| ----------------------------------------------------------------- | ------------ | ---------------------------------------------------- |
+| [Address](../tcx-keystore/src/keystore/mod.rs)                    | tcx-keystore | Convert public key to                                |
+| [Signer](../tcx-keystore/src/signer.rs)                           | tcx-keystore | Take binary data to do ecc signing                   |
+| [TransactionSigner](../tcx-keystore/src/signer.rs)                | tcx-keystore | Take input & output to do chain-specify data signing |
+| [MessageSigner](../tcx-keystore/src/signer.rs)(Optional)          | tcx-keystore | Take input & output to do chain-specify data signing |
 
 ### Chain Wallet Spec
 
-Declare blockchain wallet information to [coin_info.rs](tcx-constans/src/coin_info.rs) like following,
+Declare blockchain wallet information to [coin_info.rs](../tcx-constants/src/coin_info.rs) like following,
 
 ```rust
 coin_infos.push(CoinInfo {

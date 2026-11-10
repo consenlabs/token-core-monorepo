@@ -31,6 +31,14 @@ jobs:
           node-version: '20'
       - run: node --test scripts/release-gate.test.mjs
 
+  packaging-policy:
+    name: Android packaging policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s scripts -p test_android_aar.py
+      - run: bash -n script/build-android.sh
+
   fmt:
     name: cargo fmt
     runs-on: macos-15
@@ -245,6 +253,30 @@ jobs:
 
       - name: Run wasm check
         run: make test-wasm
+
+  docs-links:
+    name: markdown links
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check local Markdown links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --offline
+            --include-fragments
+            --exclude-path vendor
+            --exclude-path node_modules
+            --exclude-path .next
+            --exclude-path token-core/tcx-examples/iOSExample/Pods
+            --exclude-path imkey-core/mobile-sdk/ios/Example/Pods
+            --exclude-path imkey-core/ikc-examples/ios/Pods
+            './**/*.md'
+          fail: true
 
   dependency-policy:
     name: dependency audit and licenses

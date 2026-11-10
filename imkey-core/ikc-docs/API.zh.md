@@ -24,5 +24,5 @@ message BtcAddressReq {
 ## 开发说明
 目前为了方便统一管理，所有proto文件全部放入`proto`项目内管理。目前常用的通讯参数如 api.proto。
 对于链的开发者，因为每个链需要签名结构不同，需要自行编写 _chain_.proto 并且定义链相关的TransactionInput 和 TransactionOutput。
-示例参见[btc.proto](../proto/src/btc.proto), [btc_signer.rs#sign_btc_transaction](../api/src/btc_signer.rs)。
+示例参见[btc.proto](../ikc-proto/src/btc.proto), [btc_signer.rs#sign_btc_transaction](../ikc/src/btc_signer.rs)。
 编写完成之后配置`proto`中`build.rs`文件，将新定义的结构编译到链所在的package中即可使用。

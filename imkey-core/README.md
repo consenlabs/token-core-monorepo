@@ -1,48 +1,80 @@
-# ImKeyCore
+# imKeyCore
 
-Next generation core inside imKey Wallet.
+`imkey-core` contains the hardware wallet side of this workspace. It wraps imKey
+device communication, APDU transport, device management, and chain-specific
+hardware signing commands behind a stable C ABI for mobile SDK integration.
 
-WARNING: not production ready yet.
+The external API boundary is the `ikc` crate:
 
-## Goals
-* Unify interface for wallet common logic with multi blockchain support
-* Cross platform, on mobile, desktop, server side
+- C ABI entrypoint: `call_imkey_api(hex_str)`
+- Request format: hex-encoded Protobuf `ImkeyAction`
+- APDU bridge helpers: `get_apdu`, `set_apdu`, `get_apdu_return`,
+  `set_apdu_return`, and `set_callback`
+- Hardware boundary: functions that call `hid_connect` or `send_apdu` require a
+  connected, authorized imKey device or a callback APDU channel.
 
-## Layout
-* `api` wallet interface wrapper
-* `wallet` packages contain particular chain logic(address & signer)
-* `common` | `transport` common interface
-* `common` imKey management function
-* `mobile-sdk` mobile sdk 
+## Crate Map
 
+| Crate or path | Purpose |
+| ------------- | ------- |
+| [`ikc`](./ikc) | imKeyCore API wrapper and C ABI |
+| [`ikc-proto`](./ikc-proto) | Protobuf-generated API types |
+| [`ikc-common`](./ikc-common) | APDU builders, path validation, hash/crypto helpers, TSM client |
+| [`ikc-transport`](./ikc-transport) | HID transport and APDU sending |
+| [`ikc-device`](./ikc-device) | Device binding, activation, app management, certificates |
+| [`ikc-wallet`](./ikc-wallet) | Chain-specific address and signing command wrappers |
+| [`mobile-sdk`](./mobile-sdk/README.md) | Mobile SDK bridge code |
+| [`blelibrary`](./blelibrary) | BLE libraries for Android and iOS |
+| [`ikc-examples`](./ikc-examples) | Android and iOS example projects |
 
-## Test Coverage
-We can use [tarpaulin](https://github.com/xd009642/tarpaulin) to know the coverage rate.
+## Build
 
-The easy way to run coverage test is using docker,
+From the repository root:
 
+```bash
+cargo build -p ikc
 ```
-docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin sh -c "cargo tarpaulin --out Html"
+
+For mobile release artifacts, use the workspace release documentation instead
+of running crate-level commands directly:
+
+- Android: [`../publish/android/README.md`](../publish/android/README.md)
+- iOS release workflow: [`../doc/RELEASE.md`](../doc/RELEASE.md)
+- Build prerequisites: [`../doc/BUILD.md`](../doc/BUILD.md)
+
+## Test
+
+Host-safe tests do not require a physical imKey device:
+
+```bash
+make test-ikc
 ```
 
-After couple minutes, it will generate html report of project root directory named `tarpaulin-report.html`.
+Hardware tests require a connected and authorized imKey device and run serially:
 
-## Code Styles
-This project is using pre-commit. Please run `cargo clean && cargo test` to install the git pre-commit hooks on you clone.
+```bash
+make test-hardware
+```
 
-Every time you will try to commit, pre-commit will run checks on your files to make sure they follow our style standards
-and they aren't affected by some simple issues. If the checks fail, pre-commit won't let you commit.
+Tests that call `bind_test()`, `hid_connect(...)`, or `send_apdu(...)` should be
+treated as hardware tests. Do not skip these tests silently in CI; keep the
+hardware boundary explicit.
 
-## Mobile-SDK
+See [`../doc/TEST.md`](../doc/TEST.md) for the current workspace test policy.
 
-Mobile-SDK is built to provide an easy interface to the native imkey-core libraries on both iOS and Andoird.
+## Documentation
 
-[Mobile-SDK](mobile-sdk/README.md)
+- [`ikc-docs/BUILD.zh.md`](./ikc-docs/BUILD.zh.md): historical imKeyCore build notes.
+- [`ikc-docs/API.zh.md`](./ikc-docs/API.zh.md): imKeyCore API notes.
+- [`ikc-docs/TECH.zh.md`](./ikc-docs/TECH.zh.md): architecture notes.
+- [`ikc-docs/FAQ.md`](./ikc-docs/FAQ.md): imKeyCore FAQ.
+- [`mobile-sdk/README.md`](./mobile-sdk/README.md): mobile SDK overview.
+- [`../doc/COMPATIBILITY.md`](../doc/COMPATIBILITY.md): current compatibility matrix.
 
-## Read More
-* [How to build project](docs/BUILD.zh.md)
-* [Architecture design](docs/TECH.zh.md)
-* [flow chart](docs/flowchart/)
+## Security
+
+For vulnerability reports, follow the root policy in [`../SECURITY.md`](../SECURITY.md).
 
 ## License
-Apache Licence v2.0
+
+Apache License, Version 2.0. See [`../LICENSE`](../LICENSE).
