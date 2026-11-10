@@ -188,6 +188,38 @@ jobs:
       - name: Run imKey host-safe tests
         run: make test-ikc
 
+  kdf-features:
+    name: KDF contracts (${{ matrix.features || 'default' }})
+    runs-on: macos-14
+    if: github.event_name != 'pull_request' || !github.event.pull_request.draft
+    strategy:
+      fail-fast: false
+      matrix:
+        features: ["", "cache_dk", "test_api", "cache_dk,test_api"]
+    env:
+      TCX_FEATURES: ${{ matrix.features }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-kdf-${{ matrix.features || 'default' }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Install dependency
+        run: brew install protobuf
+
+      - name: Compile API test targets
+        run: cargo test --locked -p tcx --features "$TCX_FEATURES" --no-run
+
+      - name: Run KDF API contracts
+        run: cargo test --locked -p tcx --features "$TCX_FEATURES" --test other_test test_kdf_api_formats_and_feature_gates -- --test-threads=1
+
   wasm-check:
     name: wasm check
     runs-on: macos-15

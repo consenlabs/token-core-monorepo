@@ -110,7 +110,7 @@ pub struct LegacyKeystore {
 
 impl LegacyKeystore {
     pub fn new_v3(private_key: &[u8], password: &str) -> Result<Self> {
-        let crypto = Crypto::new(password, private_key);
+        let crypto = Crypto::new_v3(password, private_key)?;
         let sec_key = Secp256k1PrivateKey::from_slice(private_key)?;
         let pub_key = TypedPublicKey::Secp256k1(sec_key.public_key());
         let coin_info = coin_info_from_param("ETHEREUM", "", "", CurveType::SECP256k1.as_str())?;
@@ -599,6 +599,20 @@ mod tests {
 
         assert_eq!(json["version"], 3);
         assert_eq!(json["address"], "6031564e7b2f5cc33737807b2e58daff870b590b");
+        assert_eq!(json["crypto"]["kdf"], "pbkdf2");
+        assert_eq!(json["crypto"]["kdfparams"]["dklen"], 32);
+        assert_eq!(json["crypto"]["kdfparams"]["prf"], "hmac-sha256");
+        let decoded = LegacyKeystore::from_json_str(&keystore_json).unwrap();
+        decoded.validate_v3(TEST_PASSWORD).unwrap();
+        assert_eq!(
+            decoded
+                .crypto
+                .use_key(&Key::Password(TEST_PASSWORD.to_owned()))
+                .unwrap()
+                .plaintext()
+                .unwrap(),
+            private_key_bytes
+        );
     }
 
     #[test]
