@@ -14,7 +14,7 @@ permissions:
 jobs:
   android:
     if: inputs.platform == 'both' || inputs.platform == 'android'
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
       - run: brew install protobuf
@@ -35,7 +35,7 @@ jobs:
 
   ios:
     if: inputs.platform == 'both' || inputs.platform == 'ios'
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       IPHONEOS_DEPLOYMENT_TARGET: '14.0'
     steps:
