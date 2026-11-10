@@ -270,6 +270,8 @@ jobs:
             --offline
             --include-fragments
             --exclude-path vendor
+            --exclude-path node_modules
+            --exclude-path .next
             --exclude-path token-core/tcx-examples/iOSExample/Pods
             --exclude-path imkey-core/mobile-sdk/ios/Example/Pods
             --exclude-path imkey-core/ikc-examples/ios/Pods
