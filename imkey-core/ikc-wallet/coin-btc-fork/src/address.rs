@@ -5,7 +5,7 @@ use bitcoin::base58;
 use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1::PublicKey as Secp256k1PublicKey;
-use bitcoin::{Network, PubkeyHash, ScriptBuf as Script, ScriptHash, WitnessVersion};
+use bitcoin::{Network, PubkeyHash, PublicKey, ScriptBuf as Script, ScriptHash, WitnessVersion};
 use std::convert::{TryFrom, TryInto};
 
 use ikc_common::coin_info::coin_info_from_param;
@@ -31,6 +31,13 @@ pub enum BtcForkPayload {
         version: WitnessVersion,
         program: Vec<u8>,
     },
+}
+
+// Compression is imKey policy, not part of shared BTC payload derivation.
+fn compressed_public_key_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
+    let mut public_key = PublicKey::from_slice(bytes)?;
+    public_key.compressed = true;
+    Ok(public_key.to_bytes())
 }
 
 impl BtcForkAddress {
@@ -122,11 +129,10 @@ impl BtcForkAddress {
         //get xpub
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
+        let pub_key = compressed_public_key_bytes(&hex::decode(pub_key)?)?;
 
         let btc_fork_address = BtcForkAddress {
-            payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::p2pkh_hash(
-                &hex::decode(pub_key)?,
-            )?),
+            payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::p2pkh_hash(&pub_key)?),
             network: network.clone(),
         };
 
@@ -140,11 +146,10 @@ impl BtcForkAddress {
         //get xpub
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
+        let pub_key = compressed_public_key_bytes(&hex::decode(pub_key)?)?;
 
         let btc_fork_address = BtcForkAddress {
-            payload: BtcForkPayload::ScriptHash(wallet_core_common::btc::p2shwpkh_hash(
-                &hex::decode(pub_key)?,
-            )?),
+            payload: BtcForkPayload::ScriptHash(wallet_core_common::btc::p2shwpkh_hash(&pub_key)?),
             network: network.clone(),
         };
 
@@ -158,11 +163,12 @@ impl BtcForkAddress {
         //get xpub
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
+        let pub_key = compressed_public_key_bytes(&hex::decode(pub_key)?)?;
 
         let btc_fork_address = BtcForkAddress {
             payload: BtcForkPayload::WitnessProgram {
                 version: WitnessVersion::V0,
-                program: wallet_core_common::btc::p2wpkh_program(&hex::decode(pub_key)?)?,
+                program: wallet_core_common::btc::p2wpkh_program(&pub_key)?,
             },
             network: network.clone(),
         };
@@ -194,6 +200,7 @@ impl BtcForkAddress {
     }
 
     pub fn from_pub_key(pub_key: Vec<u8>, btc_fork_network: BtcForkNetwork) -> Result<String> {
+        let pub_key = compressed_public_key_bytes(&pub_key)?;
         let address = match btc_fork_network.seg_wit.to_uppercase().as_str() {
             "P2WPKH" => BtcForkAddress {
                 payload: BtcForkPayload::ScriptHash(wallet_core_common::btc::p2shwpkh_hash(
@@ -377,6 +384,30 @@ mod test {
     use bitcoin::Network;
     use ikc_device::device_binding::bind_test;
     use std::str::FromStr;
+
+    #[test]
+    fn public_key_encoding_golden_vectors() {
+        let uncompressed = hex::decode(concat!(
+            "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+            "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"
+        ))
+        .unwrap();
+        let compressed =
+            hex::decode("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
+                .unwrap();
+        for (segwit, expected) in [
+            ("NONE", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"),
+            ("P2WPKH", "3JvL6Ymt8MVWiCNHC7oWU6nLeHNJKLZGLN"),
+        ] {
+            let network = network_from_param("BITCOIN", "MAINNET", segwit).unwrap();
+            for key in [&compressed, &uncompressed] {
+                assert_eq!(
+                    BtcForkAddress::from_pub_key(key.clone(), network.clone()).unwrap(),
+                    expected
+                );
+            }
+        }
+    }
 
     #[test]
     fn get_xpub_test() {

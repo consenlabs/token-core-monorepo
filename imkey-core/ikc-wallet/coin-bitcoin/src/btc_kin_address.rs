@@ -363,6 +363,32 @@ mod test {
     use ikc_device::device_binding::bind_test;
 
     #[test]
+    fn public_key_encoding_golden_vectors() {
+        use super::AddressTrait;
+
+        let uncompressed = concat!(
+            "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+            "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"
+        );
+        let compressed = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let network = BtcKinNetwork::find_by_coin("BITCOIN", "MAINNET").unwrap();
+        for (segwit, expected) in [
+            ("NONE", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"),
+            ("P2WPKH", "3JvL6Ymt8MVWiCNHC7oWU6nLeHNJKLZGLN"),
+            ("VERSION_0", "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"),
+        ] {
+            for key in [compressed, uncompressed] {
+                assert_eq!(
+                    BtcKinAddress::from_public_key(key, network, segwit)
+                        .unwrap()
+                        .to_string(),
+                    expected
+                );
+            }
+        }
+    }
+
+    #[test]
     fn get_xpub_test() {
         bind_test();
 

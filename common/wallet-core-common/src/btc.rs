@@ -23,12 +23,12 @@ impl fmt::Display for AddressError {
 impl Error for AddressError {}
 
 pub fn p2pkh_hash(pub_key: &[u8]) -> Result<PubkeyHash, AddressError> {
-    let pub_key = compressed_public_key(pub_key)?;
+    let pub_key = public_key(pub_key)?;
     Ok(pub_key.pubkey_hash())
 }
 
 pub fn p2shwpkh_hash(pub_key: &[u8]) -> Result<ScriptHash, AddressError> {
-    let pub_key = compressed_public_key(pub_key)?;
+    let pub_key = public_key(pub_key)?;
     let script = ScriptBuf::new_p2wpkh(
         &pub_key
             .wpubkey_hash()
@@ -38,7 +38,7 @@ pub fn p2shwpkh_hash(pub_key: &[u8]) -> Result<ScriptHash, AddressError> {
 }
 
 pub fn p2wpkh_program(pub_key: &[u8]) -> Result<Vec<u8>, AddressError> {
-    let pub_key = compressed_public_key(pub_key)?;
+    let pub_key = public_key(pub_key)?;
     Ok(pub_key
         .wpubkey_hash()
         .map_err(|err| AddressError::new(err.to_string()))?
@@ -70,16 +70,46 @@ pub fn witness_script_pubkey(version: WitnessVersion, program: &[u8]) -> ScriptB
     ScriptBuf::new_witness_program(&witness_program)
 }
 
-fn compressed_public_key(pub_key: &[u8]) -> Result<PublicKey, AddressError> {
-    let mut pub_key =
-        PublicKey::from_slice(pub_key).map_err(|err| AddressError::new(err.to_string()))?;
-    pub_key.compressed = true;
-    Ok(pub_key)
+fn public_key(pub_key: &[u8]) -> Result<PublicKey, AddressError> {
+    PublicKey::from_slice(pub_key).map_err(|err| AddressError::new(err.to_string()))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn preserves_public_key_encoding_and_rejects_uncompressed_segwit() {
+        let compressed =
+            hex::decode("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
+                .unwrap();
+        let uncompressed = hex::decode(concat!(
+            "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+            "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"
+        ))
+        .unwrap();
+        assert_eq!(
+            p2pkh_hash(&compressed).unwrap().to_string(),
+            "751e76e8199196d454941c45d1b3a323f1433bd6"
+        );
+        assert_eq!(
+            p2pkh_hash(&uncompressed).unwrap().to_string(),
+            "91b24bf9f5288532960ac687abb035127b1d28a5"
+        );
+        let expected = PublicKey::from_slice(&uncompressed)
+            .unwrap()
+            .wpubkey_hash()
+            .unwrap_err()
+            .to_string();
+        assert_eq!(
+            p2shwpkh_hash(&uncompressed).unwrap_err().to_string(),
+            expected
+        );
+        assert_eq!(
+            p2wpkh_program(&uncompressed).unwrap_err().to_string(),
+            expected
+        );
+    }
 
     #[test]
     fn derives_common_btc_payloads_from_public_key() {

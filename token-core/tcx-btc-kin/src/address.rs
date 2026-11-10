@@ -258,6 +258,51 @@ mod tests {
     use crate::BtcKinNetwork;
 
     #[test]
+    fn public_key_encoding_golden_vectors() {
+        let compressed =
+            Vec::from_hex("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
+                .unwrap();
+        let uncompressed = Vec::from_hex(concat!(
+            "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+            "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"
+        ))
+        .unwrap();
+        let network = BtcKinNetwork::find_by_coin("BITCOIN", "MAINNET").unwrap();
+        for (key, expected) in [
+            (&compressed, "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"),
+            (&uncompressed, "1EHNa6Q4Jz2uvNExL497mE43ikXhwF6kZm"),
+        ] {
+            assert_eq!(
+                BtcKinAddress::p2pkh(key, network).unwrap().to_string(),
+                expected
+            );
+        }
+        assert_eq!(
+            BtcKinAddress::p2shwpkh(&compressed, network)
+                .unwrap()
+                .to_string(),
+            "3JvL6Ymt8MVWiCNHC7oWU6nLeHNJKLZGLN"
+        );
+        assert_eq!(
+            BtcKinAddress::p2wpkh(&compressed, network)
+                .unwrap()
+                .to_string(),
+            "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"
+        );
+        for error in [
+            BtcKinAddress::p2shwpkh(&uncompressed, network)
+                .err()
+                .unwrap(),
+            BtcKinAddress::p2wpkh(&uncompressed, network).err().unwrap(),
+        ] {
+            assert_eq!(
+                error.to_string(),
+                "segwit public keys must always be compressed"
+            );
+        }
+    }
+
+    #[test]
     fn test_btc_kin_address() {
         let pub_key_str = "02506bc1dc099358e5137292f4efdd57e400f29ba5132aa5d12b18dac1c1f6aaba";
         let pub_key = Vec::from_hex(pub_key_str).unwrap();

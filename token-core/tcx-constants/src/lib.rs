@@ -7,6 +7,7 @@ pub use btc_fork_network::{
     BtcForkNetwork,
 };
 pub use coin_info::{coin_info_from_param, CoinInfo};
+pub use wallet_core_common::curve;
 pub use wallet_core_common::curve::CurveType;
 
 pub type Result<T> = std::result::Result<T, anyhow::Error>;

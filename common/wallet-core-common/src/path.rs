@@ -17,7 +17,7 @@ impl AccountPathOptions {
 
     pub const IMKEY_COMPAT: Self = Self {
         trim_trailing_slash: true,
-        require_m_prefix: false,
+        require_m_prefix: true,
     };
 }
 
@@ -27,9 +27,6 @@ pub enum PathError {
     PathTooShort(String),
     PathMustStartWithM(String),
 }
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ImkeyPathError;
 
 impl fmt::Display for PathError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -55,14 +52,6 @@ impl From<bitcoin::bip32::Error> for PathError {
         PathError::InvalidBip32Path(err)
     }
 }
-
-impl fmt::Display for ImkeyPathError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("imkey_path_illegal")
-    }
-}
-
-impl Error for ImkeyPathError {}
 
 pub fn normalize_path(path: &str, trim_trailing_slash: bool) -> &str {
     if trim_trailing_slash {
@@ -113,29 +102,30 @@ pub fn parent_path(path: &str) -> Option<&str> {
     Some(&normalized[..end])
 }
 
-pub fn check_path_validity(path: &str) -> Result<(), ImkeyPathError> {
+pub fn check_path_validity(path: &str) -> Result<(), PathError> {
     check_imkey_path(path)
 }
 
-pub fn check_path_max_five_depth(path: &str) -> Result<(), ImkeyPathError> {
+pub fn check_path_max_five_depth(path: &str) -> Result<(), PathError> {
     check_imkey_path(path)
 }
 
-pub fn get_account_path(path: &str) -> Result<String, ImkeyPathError> {
-    account_path(path, AccountPathOptions::IMKEY_COMPAT).map_err(|_| ImkeyPathError)
+pub fn get_account_path(path: &str) -> Result<String, PathError> {
+    account_path(path, AccountPathOptions::IMKEY_COMPAT)
 }
 
-pub fn get_parent_path(path: &str) -> Result<&str, ImkeyPathError> {
-    parent_path(path).ok_or(ImkeyPathError)
+pub fn get_parent_path(path: &str) -> Result<&str, PathError> {
+    parent_path(path).ok_or_else(|| PathError::PathTooShort(path.to_string()))
 }
 
-fn check_imkey_path(path: &str) -> Result<(), ImkeyPathError> {
+fn check_imkey_path(path: &str) -> Result<(), PathError> {
     let path = normalize_path(path, true);
-    let depth = path.split('/').count();
-    if depth < 3 || depth > 6 {
-        return Err(ImkeyPathError);
+    validate_depth(path, 3, 6)?;
+    validate_bip32_path(path)?;
+    if path.split('/').next() != Some("m") {
+        return Err(PathError::PathMustStartWithM(path.to_string()));
     }
-    validate_bip32_path(path).map_err(|_| ImkeyPathError)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -172,19 +162,24 @@ mod tests {
     }
 
     #[test]
-    fn validates_imkey_paths_with_legacy_error() {
+    fn validates_imkey_paths_without_product_errors() {
         assert!(check_path_validity("m/44'/0'/0'").is_ok());
         assert!(check_path_validity("m/44'/0'/0'/0'/0'").is_ok());
-        assert_eq!(
-            check_path_validity("m/44a'/0'/0'").unwrap_err().to_string(),
-            "imkey_path_illegal"
-        );
-        assert_eq!(
-            check_path_validity("m/44'/0'/0'/0'/0'/0'")
-                .unwrap_err()
-                .to_string(),
-            "imkey_path_illegal"
-        );
+        assert!(matches!(
+            check_path_validity("m/44a'/0'/0'"),
+            Err(PathError::InvalidBip32Path(_))
+        ));
+        assert!(matches!(
+            check_path_validity("m/44'/0'/0'/0'/0'/0'"),
+            Err(PathError::PathTooShort(_))
+        ));
+        for path in ["44'/0'/0'", "44'/0'/0'/0/0/"] {
+            assert!(matches!(
+                check_path_validity(path),
+                Err(PathError::PathMustStartWithM(_))
+            ));
+            assert!(account_path(path, AccountPathOptions::IMKEY_COMPAT).is_err());
+        }
         assert!(check_path_max_five_depth("m/44'/0'/0'/0/0/").is_ok());
         assert_eq!(get_account_path("m/44'/0'/0'/0/0/").unwrap(), "m/44'/0'/0'");
     }

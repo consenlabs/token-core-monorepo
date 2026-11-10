@@ -31,7 +31,7 @@ pub trait ToHex {
     }
 }
 
-pub trait FromHex<Error = ::hex::FromHexError>
+pub trait FromHex<Error = anyhow::Error>
 where
     Self: Sized,
 {
@@ -68,8 +68,8 @@ impl ToHex for [u8] {
 }
 
 impl FromHex for Vec<u8> {
-    fn from_hex<T: AsRef<[u8]>>(value: T) -> Result<Self, ::hex::FromHexError> {
-        decode(value)
+    fn from_hex<T: AsRef<[u8]>>(value: T) -> anyhow::Result<Self> {
+        decode(value).map_err(|err| anyhow::anyhow!("{}", err))
     }
 }
 
