@@ -1,11 +1,11 @@
 TEST_ENV := MACOSX_DEPLOYMENT_TARGET=10.12 KDF_ROUNDS=1
 TCX_EXCLUDES := --exclude 'ikc*' --exclude 'coin*'
 IKC_HARDWARE_EXCLUDES := --exclude 'tcx*'
-WASM_CC ?= /opt/homebrew/opt/llvm/bin/clang
-WASM_AR ?= /opt/homebrew/opt/llvm/bin/llvm-ar
+WASM_CC ?= $(shell if test -x /opt/homebrew/opt/llvm/bin/clang; then printf /opt/homebrew/opt/llvm/bin/clang; else command -v clang; fi)
+WASM_AR ?= $(shell rustc --print sysroot)/lib/rustlib/$(shell rustc -vV | sed -n 's/^host: //p')/bin/llvm-ar
 WASM_CFLAGS ?= -Wno-implicit-function-declaration
 
-.PHONY: build-tcx-proto check-tcx build-tcx test-tcx test-kdf test-kdf-core test-kdf-api test-ikc test-workspace test-hardware test-wasm build-wasm build-imkey-wasm build-wasm-all build-wasm-opt dev-wasm build-npm test-npm publish-npm
+.PHONY: build-tcx-proto check-tcx build-tcx test-tcx test-kdf test-kdf-core test-kdf-api test-ikc test-coin-host test-npm test-npm-package test-mobile-ffi test-wasm-node test-wasm-browser test-workspace test-hardware test-wasm build-wasm build-imkey-wasm build-wasm-all build-wasm-opt dev-wasm build-npm publish-npm
 
 build-tcx-proto:
 	cargo build -p tcx-proto
@@ -51,11 +51,31 @@ test-ikc:
 	$(TEST_ENV) cargo test -p ikc-transport apdu_transport_trait
 	$(TEST_ENV) cargo test -p ikc-transport async_transport_trait
 	$(TEST_ENV) cargo test -p ikc-transport transport_errors
+	$(TEST_ENV) cargo test -p ikc-transport callback
+	$(TEST_ENV) cargo test -p ikc-transport native_worker
+	$(MAKE) test-coin-host
+
+test-coin-host:
+	$(TEST_ENV) node scripts/test-coin-host.mjs
+
+test-npm:
+	npm --prefix publish/npm test
+
+test-mobile-ffi:
+	bash imkey-core/mobile-sdk/tests/ffi-ownership.sh
+
+test-wasm-browser:
+	CC_wasm32_unknown_unknown=$(WASM_CC) AR_wasm32_unknown_unknown=$(WASM_AR) CFLAGS_wasm32_unknown_unknown="$(WASM_CFLAGS)" $(TEST_ENV) wasm-pack test --headless --chrome imkey-core/ikc-wasm --features browser-tests
+
+test-wasm-node:
+	CC_wasm32_unknown_unknown=$(WASM_CC) AR_wasm32_unknown_unknown=$(WASM_AR) CFLAGS_wasm32_unknown_unknown="$(WASM_CFLAGS)" $(TEST_ENV) wasm-pack test --node imkey-core/ikc-wasm
+	CC_wasm32_unknown_unknown=$(WASM_CC) AR_wasm32_unknown_unknown=$(WASM_AR) CFLAGS_wasm32_unknown_unknown="$(WASM_CFLAGS)" $(TEST_ENV) wasm-pack test --node token-core/tcx-wasm
 
 test-workspace:
 	$(TEST_ENV) cargo test --workspace --no-run
 	$(MAKE) test-tcx
 	$(MAKE) test-ikc
+	$(MAKE) test-npm
 
 test-hardware:
 	@echo "Requires a connected and authorized imKey device; hardware tests run serially."
@@ -113,5 +133,5 @@ build-npm:
 publish-npm: build-npm
 	cd publish/npm && npm publish
 
-test-npm: build-npm
+test-npm-package: build-npm
 	node scripts/npm-pack-smoke.mjs

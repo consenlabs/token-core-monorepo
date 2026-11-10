@@ -353,7 +353,9 @@ impl BchTransaction {
         txouts.push(send_to_output);
 
         if change_amount > BTC_FORK_DUST {
-            let change_addr = self.get_change_address(network, path, change_idx, change_address)?;
+            let change_addr = self
+                .get_change_address_async(transport, network, path, change_idx, change_address)
+                .await?;
             txouts.push(TxOut {
                 value: Amount::from_sat(change_amount),
                 script_pubkey: change_addr.script_pubkey(),
@@ -584,6 +586,28 @@ impl BchTransaction {
             .into_script())
     }
 
+    async fn get_change_address_async<T: AsyncApduTransport + ?Sized>(
+        &self,
+        transport: &T,
+        network: Network,
+        path: &str,
+        change_idx: i32,
+        change_address: &str,
+    ) -> Result<Address> {
+        let legacy_addr = if !change_address.is_empty() {
+            if !BchAddress::is_valid(change_address) {
+                return Err(CoinError::InvalidAddress.into());
+            }
+            BchAddress::convert_to_legacy_if_need(change_address)?
+        } else {
+            let path_temp = format!("{}/1/{}", path.trim_end_matches('/'), change_idx);
+            let bch_address =
+                BchAddress::get_address_async(transport, network, path_temp.as_str()).await?;
+            BchAddress::convert_to_legacy_if_need(bch_address.as_str())?
+        };
+        Ok(Address::from_str(legacy_addr.as_str())?.assume_checked())
+    }
+
     fn get_change_address(
         &self,
         network: Network,
@@ -632,6 +656,102 @@ mod tests {
             unspents,
             fee,
         }
+    }
+
+    #[test]
+    fn async_change_address_uses_transport_and_propagates_failure() {
+        use ikc_device::async_device_manager::{BoxFutureResult, TransportProfile};
+        use std::cell::RefCell;
+        struct Mock {
+            calls: RefCell<Vec<String>>,
+            response: String,
+            fail: bool,
+        }
+        impl AsyncApduTransport for Mock {
+            fn profile(&self) -> TransportProfile {
+                TransportProfile::WebUsb
+            }
+            fn send_apdu<'a>(&'a self, apdu: &'a str, _: i32) -> BoxFutureResult<'a, String> {
+                self.calls.borrow_mut().push(apdu.to_string());
+                Box::pin(async move {
+                    if self.fail {
+                        return Err(anyhow::anyhow!("mock_disconnected"));
+                    }
+                    Ok(if apdu.starts_with("00A4") {
+                        "9000".into()
+                    } else {
+                        self.response.clone()
+                    })
+                })
+            }
+        }
+        struct Restore(Vec<u8>);
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                KEY_MANAGER.lock().se_pub_key = self.0.clone();
+            }
+        }
+        let secret = [1u8; 32];
+        let public = secp256k1::PublicKey::from_secret_key(
+            &secp256k1::Secp256k1::new(),
+            &secp256k1::SecretKey::from_byte_array(secret).unwrap(),
+        )
+        .serialize_uncompressed();
+        let _restore = Restore(std::mem::replace(
+            &mut KEY_MANAGER.lock().se_pub_key,
+            public.to_vec(),
+        ));
+        let payload = [public.as_slice(), &[0u8; 32]].concat();
+        let mut digest = [0u8; 32];
+        digest.copy_from_slice(&ikc_common::utility::sha256_hash(&payload));
+        let signature = secp256k1::Secp256k1::new()
+            .sign_ecdsa(
+                secp256k1::Message::from_digest(digest),
+                &secp256k1::SecretKey::from_byte_array(secret).unwrap(),
+            )
+            .serialize_der();
+        let mock = Mock {
+            calls: RefCell::new(vec![]),
+            response: format!("{}{}9000", hex::encode(payload), hex::encode(signature)),
+            fail: false,
+        };
+        let transaction = transaction_with_amounts(&[200_000], 10_000, 500);
+        let address = futures_lite::future::block_on(transaction.get_change_address_async(
+            &mock,
+            Network::Testnet,
+            "m/44'/145'/0'",
+            7,
+            "",
+        ))
+        .unwrap();
+        assert!(address.script_pubkey().is_p2pkh());
+        assert_eq!(mock.calls.borrow().len(), 3);
+        assert!(mock.calls.borrow()[2]
+            .to_uppercase()
+            .contains(&hex::encode("m/44'/145'/0'/1/7").to_uppercase()));
+        let explicit = futures_lite::future::block_on(transaction.get_change_address_async(
+            &mock,
+            Network::Testnet,
+            "m/44'/145'/0'",
+            7,
+            &address.to_string(),
+        ))
+        .unwrap();
+        assert_eq!(explicit, address);
+        assert_eq!(mock.calls.borrow().len(), 3);
+        let failed = Mock { fail: true, ..mock };
+        assert_eq!(
+            futures_lite::future::block_on(transaction.get_change_address_async(
+                &failed,
+                Network::Testnet,
+                "m/44'/145'/0'/",
+                7,
+                ""
+            ))
+            .unwrap_err()
+            .to_string(),
+            "mock_disconnected"
+        );
     }
 
     #[test]

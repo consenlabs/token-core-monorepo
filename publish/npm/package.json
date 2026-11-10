@@ -20,6 +20,8 @@
     "token-core.d.ts",
     "imkey-core.js",
     "imkey-core.d.ts",
+    "imkey-session.js",
+    "imkey-session.d.ts",
     "imkey-webusb.js",
     "imkey-webusb.d.ts",
     "imkey-tsm.js",

@@ -1,5 +1,8 @@
 use std::cell::RefCell;
 
+#[cfg(all(test, target_arch = "wasm32"))]
+mod session_tests;
+
 use bitcoin::bip32::Xpub;
 use bitcoin::Network;
 use coin_bch::address::BchAddress;
@@ -66,6 +69,42 @@ thread_local! {
     static TSM_CLIENT: RefCell<Option<JsValue>> = const { RefCell::new(None) };
     static BINDING_STORAGE: RefCell<Option<JsValue>> = const { RefCell::new(None) };
     static TRANSPORT_PROFILE: RefCell<TransportProfile> = const { RefCell::new(TransportProfile::WebUsb) };
+    static ACTIVE_SESSION: RefCell<Option<SessionContext>> = const { RefCell::new(None) };
+}
+
+static DEVICE_SESSION: futures_util::lock::Mutex<()> = futures_util::lock::Mutex::new(());
+
+struct SessionContext {
+    transport: Option<JsValue>,
+    tsm: Option<JsValue>,
+    storage: Option<JsValue>,
+    profile: TransportProfile,
+}
+
+struct DeviceSession {
+    _guard: futures_util::lock::MutexGuard<'static, ()>,
+}
+
+impl DeviceSession {
+    async fn acquire() -> Self {
+        // Snapshot before waiting: configuration changes cannot redirect a
+        // queued or in-flight operation to another client's device/storage.
+        let context = SessionContext {
+            transport: TRANSPORT.with(|slot| slot.borrow().clone()),
+            tsm: TSM_CLIENT.with(|slot| slot.borrow().clone()),
+            storage: BINDING_STORAGE.with(|slot| slot.borrow().clone()),
+            profile: TRANSPORT_PROFILE.with(|slot| *slot.borrow()),
+        };
+        let guard = DEVICE_SESSION.lock().await;
+        ACTIVE_SESSION.with(|slot| *slot.borrow_mut() = Some(context));
+        Self { _guard: guard }
+    }
+}
+
+impl Drop for DeviceSession {
+    fn drop(&mut self) {
+        ACTIVE_SESSION.with(|slot| *slot.borrow_mut() = None);
+    }
 }
 
 fn js_err(message: impl AsRef<str>) -> JsValue {
@@ -95,6 +134,11 @@ fn normalize_hex(value: &str) -> String {
 }
 
 fn transport() -> Result<JsValue, JsValue> {
+    if let Some(value) =
+        ACTIVE_SESSION.with(|slot| slot.borrow().as_ref().map(|s| s.transport.clone()))
+    {
+        return value.ok_or_else(|| js_err("imkey_transport_not_set"));
+    }
     TRANSPORT.with(|transport| {
         transport
             .borrow()
@@ -104,6 +148,9 @@ fn transport() -> Result<JsValue, JsValue> {
 }
 
 fn tsm_client() -> Result<JsValue, JsValue> {
+    if let Some(value) = ACTIVE_SESSION.with(|slot| slot.borrow().as_ref().map(|s| s.tsm.clone())) {
+        return value.ok_or_else(|| js_err("imkey_tsm_client_not_set"));
+    }
     TSM_CLIENT.with(|client| {
         client
             .borrow()
@@ -113,6 +160,11 @@ fn tsm_client() -> Result<JsValue, JsValue> {
 }
 
 fn binding_storage() -> Result<JsValue, JsValue> {
+    if let Some(value) =
+        ACTIVE_SESSION.with(|slot| slot.borrow().as_ref().map(|s| s.storage.clone()))
+    {
+        return value.ok_or_else(|| js_err("imkey_binding_storage_not_set"));
+    }
     BINDING_STORAGE.with(|storage| {
         storage
             .borrow()
@@ -122,6 +174,9 @@ fn binding_storage() -> Result<JsValue, JsValue> {
 }
 
 fn transport_profile() -> TransportProfile {
+    if let Some(profile) = ACTIVE_SESSION.with(|slot| slot.borrow().as_ref().map(|s| s.profile)) {
+        return profile;
+    }
     TRANSPORT_PROFILE.with(|profile| *profile.borrow())
 }
 
@@ -1504,6 +1559,7 @@ pub fn clear_binding_storage() {
 
 #[wasm_bindgen]
 pub async fn send_apdu(apdu_hex: &str, timeout_ms: Option<u32>) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let response = call_transport(&normalize_hex(apdu_hex), timeout_ms).await?;
     ikc_common::apdu::ApduCheck::check_response(&response).map_err(map_err)?;
     Ok(response)
@@ -1514,16 +1570,19 @@ pub async fn send_apdu_unchecked(
     apdu_hex: &str,
     timeout_ms: Option<u32>,
 ) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     call_transport(&normalize_hex(apdu_hex), timeout_ms).await
 }
 
 #[wasm_bindgen]
 pub async fn tsm_post(action: &str, body_json: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     call_tsm(action, body_json).await
 }
 
 #[wasm_bindgen]
 pub async fn get_seid() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::get_se_id(&js_transport())
         .await
         .map_err(map_err)
@@ -1531,6 +1590,7 @@ pub async fn get_seid() -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn get_sn() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::get_sn(&js_transport())
         .await
         .map_err(map_err)
@@ -1538,6 +1598,7 @@ pub async fn get_sn() -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn get_ram_size() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::get_ram_size(&js_transport())
         .await
         .map_err(map_err)
@@ -1545,6 +1606,7 @@ pub async fn get_ram_size() -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn get_firmware_version() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::get_firmware_version(&js_transport())
         .await
         .map_err(map_err)
@@ -1557,6 +1619,7 @@ pub fn get_sdk_info() -> String {
 
 #[wasm_bindgen]
 pub async fn get_battery_power() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::get_battery_power(&js_transport())
         .await
         .map_err(map_err)
@@ -1564,6 +1627,7 @@ pub async fn get_battery_power() -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn get_ble_name() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::get_ble_name(&js_transport())
         .await
         .map_err(map_err)
@@ -1571,6 +1635,7 @@ pub async fn get_ble_name() -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn set_ble_name(ble_name: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::set_ble_name(&js_transport(), ble_name)
         .await
         .map_err(map_err)
@@ -1578,6 +1643,7 @@ pub async fn set_ble_name(ble_name: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn get_ble_version() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::get_ble_version(&js_transport())
         .await
         .map_err(map_err)
@@ -1585,6 +1651,7 @@ pub async fn get_ble_version() -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn get_life_time() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::get_life_time(&js_transport())
         .await
         .map_err(map_err)
@@ -1592,6 +1659,7 @@ pub async fn get_life_time() -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn get_cert() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::get_cert(&js_transport())
         .await
         .map_err(map_err)
@@ -1599,6 +1667,7 @@ pub async fn get_cert() -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn bind_display_code() -> Result<(), JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::bind_display_code(&js_transport())
         .await
         .map_err(map_err)
@@ -1606,6 +1675,7 @@ pub async fn bind_display_code() -> Result<(), JsValue> {
 
 #[wasm_bindgen]
 pub async fn bind_check() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::bind_check(&js_transport(), &JsTsmClient, &JsBindingStorage)
         .await
         .map_err(map_err)
@@ -1613,6 +1683,7 @@ pub async fn bind_check() -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn bind_acquire(binding_code: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::bind_acquire(&js_transport(), &JsTsmClient, binding_code)
         .await
         .map_err(map_err)
@@ -1620,6 +1691,7 @@ pub async fn bind_acquire(binding_code: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn secure_check() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::secure_check(&js_transport(), &JsTsmClient)
         .await
         .map_err(map_err)?;
@@ -1628,6 +1700,7 @@ pub async fn secure_check() -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn activate_device() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::activate(&js_transport(), &JsTsmClient)
         .await
         .map_err(map_err)?;
@@ -1636,6 +1709,7 @@ pub async fn activate_device() -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn check_update() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let response = async_device_manager::check_update(&js_transport(), &JsTsmClient)
         .await
         .map_err(map_err)?;
@@ -1644,6 +1718,7 @@ pub async fn check_update() -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn app_download(app_name: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let response = async_device_manager::app_download(&js_transport(), &JsTsmClient, app_name)
         .await
         .map_err(map_err)?;
@@ -1652,6 +1727,7 @@ pub async fn app_download(app_name: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn app_update(app_name: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let response = async_device_manager::app_update(&js_transport(), &JsTsmClient, app_name)
         .await
         .map_err(map_err)?;
@@ -1660,6 +1736,7 @@ pub async fn app_update(app_name: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn app_delete(app_name: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::app_delete(&js_transport(), &JsTsmClient, app_name)
         .await
         .map_err(map_err)?;
@@ -1668,6 +1745,7 @@ pub async fn app_delete(app_name: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn get_device_info() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let info = async_device_manager::get_device_info(&js_transport())
         .await
         .map_err(map_err)?;
@@ -1676,6 +1754,7 @@ pub async fn get_device_info() -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn get_address(params_json: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let params: AddressParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
     let address = get_chain_address(&params, false).await?;
@@ -1689,6 +1768,7 @@ pub async fn get_address(params_json: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn register_address(params_json: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let params: AddressParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
     let address = get_chain_address(&params, true).await?;
@@ -1702,6 +1782,7 @@ pub async fn register_address(params_json: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn register_pub_key(params_json: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let params: AddressParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
     if !params.chain_type.eq_ignore_ascii_case("EOS") {
@@ -1720,6 +1801,7 @@ pub async fn register_pub_key(params_json: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn get_public_keys(params_json: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let params: PublicKeysParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
     let mut public_keys = Vec::new();
@@ -1732,6 +1814,7 @@ pub async fn get_public_keys(params_json: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn get_extended_public_keys(params_json: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let params: PublicKeysParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
     let mut extended_public_keys = Vec::new();
@@ -1746,6 +1829,7 @@ pub async fn get_extended_public_keys(params_json: &str) -> Result<String, JsVal
 
 #[wasm_bindgen]
 pub async fn derive_accounts(params_json: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let params: DeriveAccountsParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
     let mut accounts = Vec::new();
@@ -1758,6 +1842,7 @@ pub async fn derive_accounts(params_json: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn derive_sub_accounts(params_json: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let params: DeriveSubAccountsParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
     if !params.curve.eq_ignore_ascii_case("secp256k1") {
@@ -1794,6 +1879,7 @@ pub async fn derive_sub_accounts(params_json: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn calc_external_address(params_json: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let params: ExternalAddressParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
     if !params.chain_type.eq_ignore_ascii_case("BITCOIN") {
@@ -1818,6 +1904,7 @@ pub async fn calc_external_address(params_json: &str) -> Result<String, JsValue>
 
 #[wasm_bindgen]
 pub async fn sign_tx(params_json: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let params: SignParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
     let sign_param = sign_param_from_json(&params);
@@ -2151,6 +2238,7 @@ pub async fn sign_tx(params_json: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn sign_message(params_json: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let params: SignParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
     let sign_param = sign_param_from_json(&params);
@@ -2240,6 +2328,7 @@ pub async fn sign_message(params_json: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn sign_psbt(params_json: &str) -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let params: SignParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
     if !params.chain_type.eq_ignore_ascii_case("BITCOIN") {
@@ -2264,11 +2353,13 @@ pub async fn sign_psbt(params_json: &str) -> Result<String, JsValue> {
 
 #[wasm_bindgen]
 pub async fn device_connect() -> Result<(), JsValue> {
+    let _session = DeviceSession::acquire().await;
     Err(js_err("imkey_device_connect_not_applicable_in_webusb"))
 }
 
 #[wasm_bindgen]
 pub async fn cos_update() -> Result<(), JsValue> {
+    let _session = DeviceSession::acquire().await;
     async_device_manager::cos_upgrade(&js_transport(), &JsTsmClient)
         .await
         .map_err(map_err)
@@ -2276,6 +2367,7 @@ pub async fn cos_update() -> Result<(), JsValue> {
 
 #[wasm_bindgen]
 pub async fn cos_check_update() -> Result<String, JsValue> {
+    let _session = DeviceSession::acquire().await;
     let response = async_device_manager::cos_check_update(&js_transport(), &JsTsmClient)
         .await
         .map_err(map_err)?;

@@ -371,11 +371,14 @@ impl BtcForkTransaction {
 
         let mut txouts: Vec<TxOut> = vec![self.build_send_to_output()?];
         if self.get_change_amount() > BTC_FORK_DUST {
-            let change_addr = self.get_change_address(
-                path,
-                self.tx_input.change_address_index as i32,
-                &self.tx_input.change_address,
-            )?;
+            let change_addr = self
+                .get_change_address_async(
+                    transport,
+                    path,
+                    self.tx_input.change_address_index as i32,
+                    &self.tx_input.change_address,
+                )
+                .await?;
             txouts.push(TxOut {
                 value: Amount::from_sat(self.get_change_amount()),
                 script_pubkey: change_addr.script_pubkey(),
@@ -801,11 +804,14 @@ impl BtcForkTransaction {
 
         let mut txouts: Vec<TxOut> = vec![self.build_send_to_output()?];
         if self.get_change_amount() > BTC_FORK_DUST {
-            let change_addr = self.get_change_address(
-                path,
-                self.tx_input.change_address_index as i32,
-                &self.tx_input.change_address,
-            )?;
+            let change_addr = self
+                .get_change_address_async(
+                    transport,
+                    path,
+                    self.tx_input.change_address_index as i32,
+                    &self.tx_input.change_address,
+                )
+                .await?;
             txouts.push(TxOut {
                 value: Amount::from_sat(self.get_change_amount()),
                 script_pubkey: change_addr.script_pubkey(),
@@ -1012,6 +1018,39 @@ impl BtcForkTransaction {
             .into_script())
     }
 
+    async fn get_change_address_async<T: AsyncApduTransport + ?Sized>(
+        &self,
+        transport: &T,
+        path: &str,
+        change_idx: i32,
+        change_address: &str,
+    ) -> Result<BtcForkAddress> {
+        let addr = if !change_address.is_empty() {
+            if !BtcForkAddress::is_valid(change_address, &self.coin_info) {
+                return Err(CoinError::InvalidAddress.into());
+            }
+            change_address.to_string()
+        } else {
+            let path_temp = format!("{}/1/{}", path.trim_end_matches('/'), change_idx);
+
+            if &self.tx_input.seg_wit.to_uppercase() == "P2WPKH" {
+                let network = network_from_param(
+                    &self.coin_info.coin,
+                    &self.coin_info.network,
+                    &self.coin_info.seg_wit,
+                )
+                .ok_or(CommonError::MissingNetwork)?;
+                BtcForkAddress::p2shwpkh_async(transport, &network, &path_temp).await?
+            } else {
+                let network =
+                    network_from_param(&self.coin_info.coin, &self.coin_info.network, "NONE")
+                        .ok_or(CommonError::MissingNetwork)?;
+                BtcForkAddress::p2pkh_async(transport, &network, &path_temp).await?
+            }
+        };
+        BtcForkAddress::from_str(&addr)
+    }
+
     fn get_change_address(
         &self,
         path: &str,
@@ -1053,6 +1092,61 @@ mod tests {
     use bitcoin::Network;
     use ikc_common::coin_info::coin_info_from_param;
     use ikc_device::device_binding::bind_test;
+
+    #[test]
+    fn async_change_address_uses_transport_for_ltc_legacy_and_segwit() {
+        use ikc_device::async_device_manager::{
+            AsyncApduTransport, BoxFutureResult, TransportProfile,
+        };
+        use std::cell::RefCell;
+        struct Mock(RefCell<Vec<String>>);
+        impl AsyncApduTransport for Mock {
+            fn profile(&self) -> TransportProfile {
+                TransportProfile::WebUsb
+            }
+            fn send_apdu<'a>(&'a self, apdu: &'a str, _: i32) -> BoxFutureResult<'a, String> {
+                self.0.borrow_mut().push(apdu.to_string());
+                Box::pin(async move {
+                    Ok(if apdu.starts_with("00A4") {
+                        "9000".into()
+                    } else {
+                        concat!(
+                            "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+                            "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b89000"
+                        )
+                        .into()
+                    })
+                })
+            }
+        }
+        for mode in ["NONE", "P2WPKH"] {
+            let transaction = BtcForkTransaction {
+                tx_input: BtcForkTxInput {
+                    seg_wit: mode.into(),
+                    ..Default::default()
+                },
+                coin_info: coin_info_from_param("LITECOIN", "TESTNET", mode, "secp256k1").unwrap(),
+            };
+            for path in ["m/44'/2'/0'", "m/44'/2'/0'/"] {
+                let mock = Mock(RefCell::new(vec![]));
+                let address = futures_lite::future::block_on(
+                    transaction.get_change_address_async(&mock, path, 7, ""),
+                )
+                .unwrap();
+                assert_eq!(mock.0.borrow().len(), 2);
+                assert!(mock.0.borrow()[1]
+                    .to_uppercase()
+                    .contains(&hex::encode("m/44'/2'/0'/1/7").to_uppercase()));
+                assert_eq!(address.script_pubkey().is_p2sh(), mode == "P2WPKH");
+                let explicit = futures_lite::future::block_on(
+                    transaction.get_change_address_async(&mock, path, 7, &address.to_string()),
+                )
+                .unwrap();
+                assert_eq!(explicit.to_string(), address.to_string());
+                assert_eq!(mock.0.borrow().len(), 2);
+            }
+        }
+    }
 
     #[test]
     fn test_sign_simple_ltc() {

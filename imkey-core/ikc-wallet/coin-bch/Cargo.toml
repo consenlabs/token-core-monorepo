@@ -25,3 +25,6 @@ num-bigint = "=0.4.6"
 bytes = "=1.11.1"
 prost = "=0.14.3"
 prost-types = "=0.14.3"
+
+[dev-dependencies]
+futures-lite = "=2.6.1"

@@ -113,13 +113,16 @@ callback 的 APDU 请求指针来自 Rust 临时存储，只在 callback 调用�
 - callback 调用和响应复制保持串行，确保 Rust 复制完成前移动端不会替换响应存储。
 - 空响应和通信错误转换为明确的 transport error。
 - 默认 callback 使用静态响应，不再每次调用分配字符串。
-- iOS 使用锁保护一份可复用响应指针；替换前释放旧分配，并保证响应在下一次串行 callback 前持续有效。
-- Android 普通 imKey API 返回值改为 JNA `Pointer`，复制后在 `finally` 中分别释放响应和错误指针。
-- Android 和 iOS 初始化调用均释放不再使用的 Rust-owned 返回指针。
+- iOS 使用一份有界的 host-owned callback 响应存储；Rust 持有 callback 锁直至复制结束，响应在下一次串行 callback 前持续有效，不交给 Rust free。
+- Android SDK 和示例的 `RustApi.NativeBindings` 将 `call_imkey_api`、`imkey_get_last_err_message`、`get_apdu` 和 `get_apdu_return` 映射为 JNA `Pointer`。Adapter 复制 UTF-8 后在 `finally` 中调用 `imkey_free_const_string`，恰好释放原始返回指针一次；上层仍使用 `String`。
+- Android Adapter 强引用注册的 `Sender`；callback 请求是借用，响应由有界 `CallbackResponseBuffer` 持有，均不调用 Rust free。
+- Swift SDK 和示例通过 `callImkeyHex` / `lastImkeyError` 统一复制结果并以 `defer` 释放，包含丢弃结果的初始化调用；头文件和调用使用实际导出的 `imkey_clear_err`、`imkey_get_last_err_message`、`imkey_free_const_string`。
 
 #### 兼容性说明
 
 callback 函数签名和 APDU 字符串格式不变。新增 100,000 次 host-side callback 回归测试，用于验证请求借用、响应复制和重复调用不会产生逐次 Rust 分配泄漏。
+
+补充 `make test-mobile-ffi`（需指定 `JNA_JAR`）验证 Android SDK/示例的原指针分配与释放计数、callback 借用、响应存储和 Sender 强引用，以及 Swift owned 结果释放与响应存储；这是 host mock，不替代 Android/iOS 真机集成。
 
 ### 6. PH7-SR-006：多输入 Taproot PSBT 路径选择
 

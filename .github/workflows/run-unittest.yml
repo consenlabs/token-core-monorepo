@@ -125,8 +125,26 @@ jobs:
       - name: Run TokenCore host tests
         run: make test-tcx
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "11"
+
       - name: Run imKey host-safe tests
         run: make test-ikc
+
+      - name: Run npm JS tests
+        run: make test-npm
+
+      - name: Run mobile FFI ownership mocks
+        run: |
+          curl --fail --location --retry 3 https://repo.maven.apache.org/maven2/net/java/dev/jna/jna/5.10.0/jna-5.10.0.jar -o "$RUNNER_TEMP/jna.jar"
+          echo "e335c10679f743207d822c5f7948e930319835492575a9dba6b94f8a3b96fcc8  $RUNNER_TEMP/jna.jar" | shasum -a 256 --check
+          JNA_JAR="$RUNNER_TEMP/jna.jar" make test-mobile-ffi
 
   kdf-features:
     name: KDF contracts (${{ matrix.features || 'default' }})
@@ -181,10 +199,28 @@ jobs:
         run: brew install llvm protobuf
 
       - name: Install wasm target
-        run: rustup target add wasm32-unknown-unknown
+        run: |
+          rustup target add wasm32-unknown-unknown
+          rustup component add llvm-tools-preview
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
+      - uses: browser-actions/setup-chrome@v1
 
       - name: Run wasm check
         run: make test-wasm
+
+      - name: Run wasm Node smoke
+        run: make test-wasm-node
+
+      - name: Run wasm browser session smoke
+        run: make test-wasm-browser
 
   docs-links:
     name: markdown links
