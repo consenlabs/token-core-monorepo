@@ -1,3 +1,4 @@
+pub mod aes;
 pub mod apdu;
 pub mod applet;
 pub mod coin_info;
@@ -11,7 +12,6 @@ pub mod utility;
 use parking_lot::RwLock;
 
 pub use crate::common::SignParam;
-pub use wallet_core_common::aes;
 pub use wallet_core_common::curve;
 pub use wallet_core_common::curve::CurveType;
 pub use wallet_core_common::hex;

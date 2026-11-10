@@ -8,6 +8,39 @@ use std::str::FromStr;
 
 struct LegacyBytes(Vec<u8>);
 
+#[test]
+fn aes_preserves_anyhow_signatures_and_product_errors() {
+    use ikc_common::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
+
+    type LegacyAes = fn(&[u8], &[u8], &[u8]) -> ikc_common::Result<Vec<u8>>;
+    let functions: [LegacyAes; 2] = [encrypt_pkcs7, decrypt_pkcs7];
+    let valid = [0u8; 16];
+    for function in functions {
+        for (key, iv) in [(&valid[..15], &valid[..]), (&valid[..], &valid[..15])] {
+            let result: anyhow::Result<Vec<u8>> = function(b"TokenCoreX", key, iv);
+            let error = result.unwrap_err();
+            assert_eq!(error.to_string(), "invalid_key_iv_length");
+            assert_eq!(
+                error.downcast_ref::<CommonError>(),
+                Some(&CommonError::InvalidKeyIvLength)
+            );
+        }
+    }
+}
+
+#[test]
+fn aes_preserves_ciphertext_vector_and_rejects_malformed_cbc() {
+    use ikc_common::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
+
+    let key = hex::decode("01020304010203040102030401020304").unwrap();
+    let plaintext = b"TokenCoreX";
+    let encrypted = encrypt_pkcs7(plaintext, &key, &key).unwrap();
+    assert_eq!(hex::encode(&encrypted), "13d567987d7eced9c2154551bc37bc5f");
+    assert_eq!(decrypt_pkcs7(&encrypted, &key, &key).unwrap(), plaintext);
+    let error = decrypt_pkcs7(&[0u8; 15], &key, &key).unwrap_err();
+    assert_eq!(error.to_string(), "invalid_ciphertext");
+}
+
 impl FromHex for LegacyBytes {
     fn from_hex<T: AsRef<[u8]>>(value: T) -> ikc_common::Result<Self> {
         Vec::from_hex(value).map(Self)
