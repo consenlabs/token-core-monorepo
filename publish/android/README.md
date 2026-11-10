@@ -31,13 +31,19 @@ by JReleaser.
 
 ## Local Build Check
 
-Build the AAR from this directory:
+Build Rust and assemble the AAR from the repository root:
 
 ```bash
-./gradlew assemble
+bash script/build-android.sh
+./publish/android/gradlew -p publish/android :tokencore:assembleRelease
+python3 scripts/check-android-aar.py publish/android/tokencore/build/outputs/aar/tokencore-release.aar
 ```
 
-Validate the generated JReleaser configuration:
+Set `ANDROID_SDK_ROOT` or `ANDROID_NDK_HOME` and install the four Rust targets
+listed in the build guide first. Assembly alone can produce an AAR without
+native libraries; the checker rejects missing libraries and wrong ELF ABIs.
+
+Validate the generated JReleaser configuration from this directory:
 
 ```bash
 ./gradlew jreleaserConfig

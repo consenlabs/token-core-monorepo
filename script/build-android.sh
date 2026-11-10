@@ -1,42 +1,40 @@
 #!/bin/bash
+set -euo pipefail
 
-set -e
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+NDK_VERSION="${NDK_VERSION:-25.2.9519653}"
+SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+NDK_ROOT="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-${SDK_ROOT}/ndk/${NDK_VERSION}}}"
+case "$(uname -s)" in
+  Darwin) HOST_TAG=darwin-x86_64 ;;
+  Linux) HOST_TAG=linux-x86_64 ;;
+  *) echo "Unsupported NDK host: $(uname -s)" >&2; exit 1 ;;
+esac
+TOOLCHAIN="$NDK_ROOT/toolchains/llvm/prebuilt/$HOST_TAG/bin"
+if [ ! -x "$TOOLCHAIN/llvm-ar" ]; then
+  echo "NDK not found: $NDK_ROOT. Set ANDROID_NDK_HOME or ANDROID_SDK_ROOT." >&2
+  exit 1
+fi
+TARGET_DIR="${CARGO_TARGET_DIR:-$REPO_ROOT/target}"
+case "$TARGET_DIR" in /*) ;; *) TARGET_DIR="$REPO_ROOT/$TARGET_DIR" ;; esac
+OPENSSL_ROOT="$REPO_ROOT/imkey-core/ikc-depend/openssl"
+cd "$REPO_ROOT"
 
-export ANDROID_NDK_TOOLCHAINS=$ANDROID_SDK_ROOT/ndk/25.2.9519653/toolchains/llvm/prebuilt/darwin-x86_64/bin
+build_abi() {
+  local target="$1" abi="$2" compiler="$3" openssl_arch="$4"
+  local linker_var="CARGO_TARGET_$(printf '%s' "$target" | tr '[:lower:]-' '[:upper:]_')_LINKER"
+  env "$linker_var=$TOOLCHAIN/$compiler" \
+    AR="$TOOLCHAIN/llvm-ar" CC="$TOOLCHAIN/$compiler" \
+    OPENSSL_STATIC=1 OPENSSL_LIB_DIR="$OPENSSL_ROOT/$openssl_arch/lib" \
+    OPENSSL_INCLUDE_DIR="$OPENSSL_ROOT/$openssl_arch/include" \
+    cargo build --locked --release --target "$target" -p tcx -p ikc
+  local destination="$REPO_ROOT/publish/android/tokencore/src/main/jniLibs/$abi"
+  mkdir -p "$destination"
+  cp "$TARGET_DIR/$target/release/libconnector.so" "$destination/"
+  cp "$TARGET_DIR/$target/release/libtcx.so" "$destination/"
+}
 
-export OPENSSL_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl
-export OPENSSL_LIB_ROOT_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl
-export OPENSSL_INCLUDE_ROOT_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl
-export OPENSSL_LIB_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl
-export X86_64_LINUX_ANDROID_OPENSSL_LIB_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl/android-x86_64/lib/
-export I686_LINUX_ANDROID_OPENSSL_LIB_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl/android-x86/lib/
-export ARMV7_LINUX_ANDROIDEABI_OPENSSL_LIB_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl/android-arm/lib/
-export AARCH64_LINUX_ANDROID_OPENSSL_LIB_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl/android-arm64/lib/
-export OPENSSL_INCLUDE_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl
-export X86_64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl/android-x86_64/include/
-export I686_LINUX_ANDROID_OPENSSL_INCLUDE_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl/android-x86/include/
-export ARMV7_LINUX_ANDROIDEABI_OPENSSL_INCLUDE_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl/android-arm/include/
-export AARCH64_LINUX_ANDROID_OPENSSL_INCLUDE_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl/android-arm64/include/
-export OPENSSL_DIR=$GITHUB_WORKSPACE/imkey-core/ikc-depend/openssl
-
-OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/android-arm64/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/android-arm64/include  AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/aarch64-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target aarch64-linux-android --release
-OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/android-arm/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/android-arm/include AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/armv7a-linux-androideabi22-clang LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target armv7-linux-androideabi --release
-OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/android-x86/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/android-x86/include AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/i686-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target i686-linux-android --release
-OPENSSL_LIB_DIR=$OPENSSL_LIB_ROOT_DIR/android-x86_64/lib OPENSSL_INCLUDE_DIR=$OPENSSL_INCLUDE_ROOT_DIR/android-x86_64/include AR=$ANDROID_NDK_TOOLCHAINS/llvm-ar CC=$ANDROID_NDK_TOOLCHAINS/x86_64-linux-android29-clang LD=$ANDROID_NDK_TOOLCHAINS/ld env OPENSSL_STATIC=1 cargo build --target x86_64-linux-android --release
-
-# copy so to jinLibs
-mkdir -p ../publish/android/tokencore/src/main/jniLibs/arm64-v8a/
-cp -rf ../target/aarch64-linux-android/release/libconnector.so ../publish/android/tokencore/src/main/jniLibs/arm64-v8a/
-cp -rf ../target/aarch64-linux-android/release/libtcx.so ../publish/android/tokencore/src/main/jniLibs/arm64-v8a/
-
-mkdir -p ../publish/android/tokencore/src/main/jniLibs/armeabi-v7a/
-cp -rf ../target/armv7-linux-androideabi/release/libconnector.so ../publish/android/tokencore/src/main/jniLibs/armeabi-v7a/
-cp -rf ../target/armv7-linux-androideabi/release/libtcx.so ../publish/android/tokencore/src/main/jniLibs/armeabi-v7a/
-
-mkdir -p ../publish/android/tokencore/src/main/jniLibs/x86/
-cp -rf ../target/i686-linux-android/release/libconnector.so ../publish/android/tokencore/src/main/jniLibs/x86/
-cp -rf ../target/i686-linux-android/release/libtcx.so ../publish/android/tokencore/src/main/jniLibs/x86/
-
-mkdir -p ../publish/android/tokencore/src/main/jniLibs/x86_64/
-cp -rf ../target/x86_64-linux-android/release/libconnector.so ../publish/android/tokencore/src/main/jniLibs/x86_64/
-cp -rf ../target/x86_64-linux-android/release/libtcx.so ../publish/android/tokencore/src/main/jniLibs/x86_64/
+build_abi aarch64-linux-android arm64-v8a aarch64-linux-android29-clang android-arm64
+build_abi armv7-linux-androideabi armeabi-v7a armv7a-linux-androideabi22-clang android-arm
+build_abi i686-linux-android x86 i686-linux-android29-clang android-x86
+build_abi x86_64-linux-android x86_64-linux-android29-clang android-x86_64

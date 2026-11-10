@@ -46,7 +46,9 @@ builds, tests, artifacts, API behavior, or external contributors.
 
 The Android workflow starts after an approved pull request review. It:
 
-1. Checks out the reviewed PR head commit.
+1. Verifies that the review is still approved, its exact SHA is the PR head,
+   and the latest quality-gate run for that SHA passed without skipped jobs.
+   Checks out that fixed SHA after the release environment approval.
 2. Installs Rust, Android SDK/NDK, Java 17, Gradle, and Protobuf.
 3. Builds Rust native libraries through [`../script/build-android.sh`](../script/build-android.sh).
 4. Builds `tokencore-release.aar` under [`../publish/android`](../publish/android).
@@ -60,16 +62,18 @@ Required release secrets are documented in
 Local checks:
 
 ```bash
-cd publish/android
-./gradlew assemble
-./gradlew jreleaserConfig
+bash script/build-android.sh
+./publish/android/gradlew -p publish/android :tokencore:assembleRelease
+python3 scripts/check-android-aar.py publish/android/tokencore/build/outputs/aar/tokencore-release.aar
+./publish/android/gradlew -p publish/android jreleaserConfig
 ```
 
 ## iOS Release Flow
 
 The iOS workflow starts after an approved pull request review. It:
 
-1. Checks out the reviewed PR head commit.
+1. Verifies the current approval and quality gates for the exact reviewed SHA,
+   then checks out that fixed SHA after the release environment approval.
 2. Installs Rust targets, `cbindgen`, and Protobuf.
 3. Builds `imkey-core/ikc` for iOS device and simulator targets.
 4. Builds `token-core/tcx` for iOS device and simulator targets.
@@ -103,14 +107,19 @@ make publish-npm
 
 ## Pre-Release Checklist
 
+The `Mobile Build Smoke` workflow can be run manually on the selected branch
+to build Android native libraries/AARs or the three iOS Rust targets without
+release credentials or publishing. iOS XCFramework assembly and application
+loading remain separate integration checks.
+
 - `CHANGELOG.md` contains the release entry.
 - `VERSION` is correct for mobile release surfaces.
 - `token-core/tcx-wasm/Cargo.toml` is correct for wasm package changes.
 - `cargo fmt --check` passes.
 - `make test-workspace` passes or any skipped hardware boundary is documented.
 - `make test-wasm` passes for wasm-facing changes.
-- Android release changes have at least `./gradlew assemble` validated under
-  `publish/android`.
+- Android release changes build the Rust libraries, assemble the AAR, and pass
+  `scripts/check-android-aar.py`; assembly alone is insufficient.
 - iOS release changes have the relevant Rust target builds validated when
   Xcode is available.
 - Release notes identify compatibility changes in addresses, signatures,

@@ -117,12 +117,22 @@ The release workflow builds Rust native libraries through
 [`../script/build-android.sh`](../script/build-android.sh), then builds the AAR
 under [`../publish/android`](../publish/android).
 
-For local packaging checks:
+Build the Rust libraries before assembling the AAR. From the repository root,
+with `ANDROID_SDK_ROOT` (or `ANDROID_NDK_HOME`) configured:
 
 ```bash
-cd publish/android
-./gradlew assemble
+rustup target add aarch64-linux-android armv7-linux-androideabi i686-linux-android x86_64-linux-android
+bash script/build-android.sh
+./publish/android/gradlew -p publish/android :tokencore:assembleRelease
+python3 scripts/check-android-aar.py publish/android/tokencore/build/outputs/aar/tokencore-release.aar
 ```
+
+The build script resolves repository and NDK paths locally and supports macOS
+and Linux hosts. `CARGO_TARGET_DIR` is respected. Gradle assembly by itself does
+not build Rust or prove that the AAR contains native libraries. The final check
+requires `libtcx.so` and `libconnector.so` with the correct ELF architecture for
+all four ABIs. It is a packaging check; device loading and signing still need
+Android integration tests.
 
 For publishing details, see [`RELEASE.md`](./RELEASE.md) and
 [`../publish/android/README.md`](../publish/android/README.md).

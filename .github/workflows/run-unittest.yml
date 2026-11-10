@@ -31,6 +31,14 @@ jobs:
           node-version: '20'
       - run: node --test scripts/release-gate.test.mjs
 
+  packaging-policy:
+    name: Android packaging policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s scripts -p test_android_aar.py
+      - run: bash -n script/build-android.sh
+
   fmt:
     name: cargo fmt
     runs-on: macos-15

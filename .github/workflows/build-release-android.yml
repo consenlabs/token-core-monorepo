@@ -159,6 +159,9 @@ jobs:
           echo "tokencore-release.aar sha256: $(shasum -a 256 ${{github.workspace}}/publish/android/tokencore/build/outputs/aar/tokencore-release.aar | awk '{ print $1 }')"
           popd
 
+      - name: Verify native libraries in AAR
+        run: python3 scripts/check-android-aar.py publish/android/tokencore/build/outputs/aar/tokencore-release.aar
+
       - name: Publish to staging
         run: |
           pushd ${{github.workspace}}/publish/android
