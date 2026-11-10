@@ -62,6 +62,11 @@ not create or load a software-wallet keystore.
 
 ## Browser Support
 
+TypeScript consumers need TypeScript 5.2 or newer. Projects that explicitly set
+`compilerOptions.lib` should include `ESNext.Disposable` alongside their
+browser/ECMAScript libraries, as required by wasm-bindgen's generated class
+declarations. No `using` syntax is required to use the SDK.
+
 WebUSB requires a secure context. Chrome and Edge are supported. Browsers without
 `navigator.usb` receive a `webusb_unsupported` error and must not enter imKey
 onboarding or signing flows.

@@ -2212,6 +2212,9 @@ pub async fn sign_tx(params_json: &str) -> Result<String, JsValue> {
                 input.seg_wit.clone()
             };
             let seg_wit = ltc_segwit_mode(&seg_wit);
+            if seg_wit == "SEGWIT" {
+                return Err(js_err("unsupported_segwit_type"));
+            }
             let coin_info =
                 coin_info_from_param(&sign_param.chain_type, &sign_param.network, &seg_wit, "")
                     .map_err(map_err)?;

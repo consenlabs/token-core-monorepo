@@ -311,5 +311,18 @@ async fn ltc_native_segwit_aliases_agree_for_address_registration_and_sub_accoun
             .unwrap()
             .starts_with("ltc1"));
     }
+    client.bind().await;
+    for mode in ["SEGWIT", "VERSION_0", "segwit", "version_0"] {
+        let params = serde_json::json!({
+            "chainType": "LITECOIN", "path": "m/84'/2'/0'", "network": "MAINNET",
+            "segWit": mode, "input": { "to": "unused", "amount": 1, "fee": 1 },
+        })
+        .to_string();
+        assert_eq!(
+            sign_tx(&params).await.unwrap_err().as_string().unwrap(),
+            "unsupported_segwit_type"
+        );
+        assert!(session_trace(&client.transport).is_empty());
+    }
     clear_transport();
 }

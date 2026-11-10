@@ -59,6 +59,12 @@ certificate and owns the state transition internally.
 - `sign_message`: Bitcoin, Ethereum, Tron, EOS.
 - `sign_psbt`: Bitcoin.
 
+Litecoin address/registration/sub-account derivation accepts native SegWit
+(`SEGWIT` and `VERSION_0`). Litecoin transaction signing currently supports
+legacy and nested SegWit (`P2WPKH`) only. Native SegWit signing is rejected with
+`unsupported_segwit_type` before device I/O instead of silently using the
+legacy transaction serializer.
+
 The chain APIs currently use the async APDU transport from wasm and do not call
 the synchronous native HID transport.
 

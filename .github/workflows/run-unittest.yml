@@ -225,6 +225,11 @@ jobs:
       - name: Verify packed npm consumer
         run: make test-npm-package
 
+      - name: Check npm TypeScript declarations
+        run: |
+          npm ci --prefix examples/wasm --ignore-scripts --no-audit
+          ./examples/wasm/node_modules/.bin/tsc --project publish/npm/tsconfig.json
+
   docs-links:
     name: markdown links
     runs-on: ubuntu-latest
