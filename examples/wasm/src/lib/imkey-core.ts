@@ -43,6 +43,7 @@ import {
   set_tsm_client,
 } from "@/lib/imkey";
 import * as imkeyRuntime from "@/lib/imkey";
+import { ImKeyBindingContext, set_binding_context } from "../imkey-pkg/ikc_wasm";
 import { runDeviceSession } from "../../../../publish/npm/imkey-session.js";
 import {
   connectImKeyWebUsb,
@@ -145,6 +146,7 @@ export interface ImKeySignPsbtResult {
 
 export class ImKeyCore {
   private session: ImKeyWebUsbSession | null = null;
+  private bindingContext: ImKeyBindingContext | null = null;
 
   constructor(
     private readonly tsmClient: TsmClient = new FetchTsmClient(),
@@ -165,7 +167,12 @@ export class ImKeyCore {
     if (!session) return;
     await runDeviceSession(session.transport, imkeyRuntime, async () => {
       await session.disconnect();
-      if (this.session === session) this.session = null;
+      if (this.session === session) {
+        this.session = null;
+        this.bindingContext?.clear();
+        this.bindingContext?.free();
+        this.bindingContext = null;
+      }
     });
   }
 
@@ -174,6 +181,8 @@ export class ImKeyCore {
     if (!session) return Promise.reject(new Error("imkey_transport_not_set"));
     return runDeviceSession(session.transport, imkeyRuntime, async () => {
       if (this.session !== session) throw new Error("imkey_transport_not_set");
+      this.bindingContext ??= new ImKeyBindingContext();
+      set_binding_context(this.bindingContext);
       set_transport(session.transport);
       set_transport_profile("webusb");
       set_tsm_client(this.tsmClient);

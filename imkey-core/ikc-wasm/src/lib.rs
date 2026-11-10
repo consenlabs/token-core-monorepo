@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::rc::Rc;
 
 #[cfg(all(test, target_arch = "wasm32"))]
 mod session_tests;
@@ -58,6 +59,8 @@ use ikc_device::async_device_manager::{
     self, AsyncApduTransport, AsyncBindingStorage, AsyncReconnectableTransport, AsyncTsmClient,
     BoxFutureResult, TransportProfile,
 };
+use ikc_device::device_binding::KEY_MANAGER;
+use ikc_device::key_manager::KeyManager;
 use js_sys::{Function, Promise, Reflect};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
@@ -70,10 +73,12 @@ thread_local! {
     static BINDING_STORAGE: RefCell<Option<JsValue>> = const { RefCell::new(None) };
     static TRANSPORT_PROFILE: RefCell<TransportProfile> = const { RefCell::new(TransportProfile::WebUsb) };
     static ACTIVE_SESSION: RefCell<Option<SessionContext>> = const { RefCell::new(None) };
+    static BINDING_CONTEXT: RefCell<Rc<RefCell<BindingState>>> = RefCell::new(Rc::new(RefCell::new(BindingState::default())));
 }
 
 static DEVICE_SESSION: futures_util::lock::Mutex<()> = futures_util::lock::Mutex::new(());
 
+#[derive(Clone)]
 struct SessionContext {
     transport: Option<JsValue>,
     tsm: Option<JsValue>,
@@ -81,8 +86,49 @@ struct SessionContext {
     profile: TransportProfile,
 }
 
+struct BoundKeys {
+    context: SessionContext,
+    keys: KeyManager,
+}
+
+#[derive(Default)]
+struct BindingState {
+    generation: u64,
+    bound: Option<BoundKeys>,
+}
+
+/// Opaque, Rust-owned binding keys for one client. Keys never cross the JS ABI.
+#[wasm_bindgen]
+#[derive(Default)]
+pub struct ImKeyBindingContext {
+    state: Rc<RefCell<BindingState>>,
+}
+
+#[wasm_bindgen]
+impl ImKeyBindingContext {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn clear(&self) {
+        let mut state = self.state.borrow_mut();
+        state.generation = state.generation.wrapping_add(1);
+        state.bound = None;
+    }
+}
+
+#[wasm_bindgen]
+pub fn set_binding_context(context: &ImKeyBindingContext) {
+    BINDING_CONTEXT.with(|slot| *slot.borrow_mut() = Rc::clone(&context.state));
+}
+
 struct DeviceSession {
     _guard: futures_util::lock::MutexGuard<'static, ()>,
+    context: SessionContext,
+    binding: Rc<RefCell<BindingState>>,
+    generation: u64,
+    binding_ready: bool,
 }
 
 impl DeviceSession {
@@ -95,15 +141,74 @@ impl DeviceSession {
             storage: BINDING_STORAGE.with(|slot| slot.borrow().clone()),
             profile: TRANSPORT_PROFILE.with(|slot| *slot.borrow()),
         };
+        let binding = BINDING_CONTEXT.with(|slot| Rc::clone(&slot.borrow()));
         let guard = DEVICE_SESSION.lock().await;
-        ACTIVE_SESSION.with(|slot| *slot.borrow_mut() = Some(context));
-        Self { _guard: guard }
+        let (generation, bound) = {
+            let mut state = binding.borrow_mut();
+            (state.generation, state.bound.take())
+        };
+        let keys = bound.filter(|bound| {
+            bound.context.transport == context.transport
+                && bound.context.storage == context.storage
+                && bound.context.profile == context.profile
+        });
+        let binding_ready = keys.is_some();
+        *KEY_MANAGER.lock() = keys.map(|bound| bound.keys).unwrap_or_else(KeyManager::new);
+        ACTIVE_SESSION.with(|slot| *slot.borrow_mut() = Some(context.clone()));
+        Self {
+            _guard: guard,
+            context,
+            binding,
+            generation,
+            binding_ready,
+        }
+    }
+
+    fn invalidate_binding(&mut self) {
+        self.binding_ready = false;
+        *KEY_MANAGER.lock() = KeyManager::new();
     }
 }
 
 impl Drop for DeviceSession {
     fn drop(&mut self) {
+        // Move the legacy global keys back before releasing the session lock.
+        let keys = std::mem::replace(&mut *KEY_MANAGER.lock(), KeyManager::new());
+        let mut state = self.binding.borrow_mut();
+        if self.binding_ready && state.generation == self.generation {
+            state.bound = Some(BoundKeys {
+                context: self.context.clone(),
+                keys,
+            });
+        }
         ACTIVE_SESSION.with(|slot| *slot.borrow_mut() = None);
+    }
+}
+
+fn require_binding() -> Result<(), JsValue> {
+    let keys = KEY_MANAGER.lock();
+    if keys.pri_key.len() != 32
+        || keys.pub_key.len() != 65
+        || keys.se_pub_key.len() != 65
+        || keys.session_key.len() != 16
+    {
+        return Err(js_err("imkey_bind_check_required"));
+    }
+    Ok(())
+}
+
+fn require_chain_binding(chain_type: &str) -> Result<(), JsValue> {
+    match chain_type.to_ascii_uppercase().as_str() {
+        "COSMOS" | "TRON" | "EOS" | "BITCOINCASH" | "FILECOIN" | "NERVOS" | "POLKADOT"
+        | "KUSAMA" | "TEZOS" => require_binding(),
+        _ => Ok(()),
+    }
+}
+
+fn ltc_segwit_mode(seg_wit: &str) -> String {
+    match seg_wit.to_ascii_uppercase().as_str() {
+        "VERSION_0" => "SEGWIT".to_string(),
+        mode => mode.to_string(),
     }
 }
 
@@ -939,6 +1044,7 @@ fn with_encrypted_xpub(
 
 async fn derive_one_account(derivation: DerivationJson) -> Result<AccountResponseJson, JsValue> {
     let chain_type = derivation.chain_type.to_ascii_uppercase();
+    require_chain_binding(&chain_type)?;
     let account_path = if derivation.curve.eq_ignore_ascii_case("secp256k1") {
         get_account_path(&derivation.path).map_err(|err| js_err(err.to_string()))?
     } else {
@@ -983,23 +1089,20 @@ async fn derive_one_account(derivation: DerivationJson) -> Result<AccountRespons
             .map_err(map_err)?
         }
         "LITECOIN" => {
+            let seg_wit = ltc_segwit_mode(&derivation.seg_wit);
             let public_key = BtcForkAddress::get_pub_key_async(&js_transport(), &derivation.path)
                 .await
                 .map_err(map_err)?;
             account.public_key = public_key;
-            let network = network_from_param(
-                &derivation.chain_type,
-                &derivation.network,
-                &derivation.seg_wit,
-            )
-            .or_else(|| network_from_param(&derivation.chain_type, &derivation.network, "NONE"))
-            .ok_or_else(|| js_err("missing_network"))?;
-            account.address = match derivation.seg_wit.as_str() {
+            let network = network_from_param(&derivation.chain_type, &derivation.network, &seg_wit)
+                .or_else(|| network_from_param(&derivation.chain_type, &derivation.network, "NONE"))
+                .ok_or_else(|| js_err("missing_network"))?;
+            account.address = match seg_wit.as_str() {
                 "P2WPKH" => {
                     BtcForkAddress::p2shwpkh_async(&js_transport(), &network, &derivation.path)
                         .await
                 }
-                "SEGWIT" | "VERSION_0" => {
+                "SEGWIT" => {
                     BtcForkAddress::p2wpkh_async(&js_transport(), &network, &derivation.path).await
                 }
                 _ => BtcForkAddress::p2pkh_async(&js_transport(), &network, &derivation.path).await,
@@ -1167,7 +1270,8 @@ fn derive_sub_account_address(
                 .map_err(map_err)
         }
         "LITECOIN" => {
-            let network = network_from_param(chain_type, network, seg_wit)
+            let seg_wit = ltc_segwit_mode(seg_wit);
+            let network = network_from_param(chain_type, network, &seg_wit)
                 .or_else(|| network_from_param(chain_type, network, "NONE"))
                 .ok_or_else(|| js_err("missing_network"))?;
             BtcForkAddress::from_pub_key(pub_key_uncompressed, network).map_err(map_err)
@@ -1187,6 +1291,7 @@ fn derive_sub_account_address(
 }
 
 async fn get_chain_address(params: &AddressParamJson, display: bool) -> Result<String, JsValue> {
+    require_chain_binding(&params.chain_type)?;
     match params.chain_type.to_ascii_uppercase().as_str() {
         "ETHEREUM" => {
             if display {
@@ -1229,18 +1334,19 @@ async fn get_chain_address(params: &AddressParamJson, display: bool) -> Result<S
             }
         }
         "LITECOIN" => {
-            let network = network_from_param(&params.chain_type, &params.network, &params.seg_wit)
+            let seg_wit = ltc_segwit_mode(&params.seg_wit);
+            let network = network_from_param(&params.chain_type, &params.network, &seg_wit)
                 .or_else(|| network_from_param(&params.chain_type, &params.network, "NONE"))
                 .ok_or_else(|| js_err("missing_network"))?;
             if display {
                 BtcForkAddress::display_address_async(&js_transport(), &network, &params.path).await
             } else {
-                match params.seg_wit.as_str() {
+                match seg_wit.as_str() {
                     "P2WPKH" => {
                         BtcForkAddress::p2shwpkh_async(&js_transport(), &network, &params.path)
                             .await
                     }
-                    "SEGWIT" | "VERSION_0" => {
+                    "SEGWIT" => {
                         BtcForkAddress::p2wpkh_async(&js_transport(), &network, &params.path).await
                     }
                     _ => BtcForkAddress::p2pkh_async(&js_transport(), &network, &params.path).await,
@@ -1313,6 +1419,7 @@ async fn get_chain_address(params: &AddressParamJson, display: bool) -> Result<S
 }
 
 async fn get_chain_public_key(derivation: &PublicKeyDerivationJson) -> Result<String, JsValue> {
+    require_chain_binding(&derivation.chain_type)?;
     let public_key = match derivation.chain_type.to_ascii_uppercase().as_str() {
         "ETHEREUM" | "COSMOS" | "TRON" | "BITCOIN" | "DOGECOIN" | "LITECOIN" | "BITCOINCASH"
         | "FILECOIN" | "NERVOS" => {
@@ -1394,6 +1501,9 @@ async fn get_chain_public_key(derivation: &PublicKeyDerivationJson) -> Result<St
 }
 
 async fn get_chain_xpub(derivation: &PublicKeyDerivationJson) -> Result<String, JsValue> {
+    if !derivation.chain_type.eq_ignore_ascii_case("BITCOINCASH") {
+        require_chain_binding(&derivation.chain_type)?;
+    }
     if !derivation.curve.eq_ignore_ascii_case("secp256k1") {
         return Err(js_err("unsupported_curve_type"));
     }
@@ -1675,15 +1785,19 @@ pub async fn bind_display_code() -> Result<(), JsValue> {
 
 #[wasm_bindgen]
 pub async fn bind_check() -> Result<String, JsValue> {
-    let _session = DeviceSession::acquire().await;
-    async_device_manager::bind_check(&js_transport(), &JsTsmClient, &JsBindingStorage)
+    let mut session = DeviceSession::acquire().await;
+    session.invalidate_binding();
+    let result = async_device_manager::bind_check(&js_transport(), &JsTsmClient, &JsBindingStorage)
         .await
-        .map_err(map_err)
+        .map_err(map_err);
+    session.binding_ready = result.is_ok();
+    result
 }
 
 #[wasm_bindgen]
 pub async fn bind_acquire(binding_code: &str) -> Result<String, JsValue> {
     let _session = DeviceSession::acquire().await;
+    require_binding()?;
     async_device_manager::bind_acquire(&js_transport(), &JsTsmClient, binding_code)
         .await
         .map_err(map_err)
@@ -1788,6 +1902,7 @@ pub async fn register_pub_key(params_json: &str) -> Result<String, JsValue> {
     if !params.chain_type.eq_ignore_ascii_case("EOS") {
         return Err(js_err("register_pub_key unsupported_chain"));
     }
+    require_binding()?;
     let public_key = EosPubkey::display_pubkey_async(&js_transport(), &params.path)
         .await
         .map_err(map_err)?;
@@ -1907,6 +2022,7 @@ pub async fn sign_tx(params_json: &str) -> Result<String, JsValue> {
     let _session = DeviceSession::acquire().await;
     let params: SignParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
+    require_binding()?;
     let sign_param = sign_param_from_json(&params);
     match params.chain_type.to_ascii_uppercase().as_str() {
         "ETHEREUM" => {
@@ -2095,6 +2211,7 @@ pub async fn sign_tx(params_json: &str) -> Result<String, JsValue> {
             } else {
                 input.seg_wit.clone()
             };
+            let seg_wit = ltc_segwit_mode(&seg_wit);
             let coin_info =
                 coin_info_from_param(&sign_param.chain_type, &sign_param.network, &seg_wit, "")
                     .map_err(map_err)?;
@@ -2241,6 +2358,7 @@ pub async fn sign_message(params_json: &str) -> Result<String, JsValue> {
     let _session = DeviceSession::acquire().await;
     let params: SignParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
+    require_binding()?;
     let sign_param = sign_param_from_json(&params);
     match params.chain_type.to_ascii_uppercase().as_str() {
         "ETHEREUM" => {
@@ -2329,6 +2447,7 @@ pub async fn sign_message(params_json: &str) -> Result<String, JsValue> {
 #[wasm_bindgen]
 pub async fn sign_psbt(params_json: &str) -> Result<String, JsValue> {
     let _session = DeviceSession::acquire().await;
+    require_binding()?;
     let params: SignParamJson =
         serde_json::from_str(params_json).map_err(|_| js_err("imkey_illegal_param"))?;
     if !params.chain_type.eq_ignore_ascii_case("BITCOIN") {

@@ -25,12 +25,20 @@ test("public signTx and getSeid stay atomic across clients and recover from fail
     await writeFile(join(directory, "package.json"), '{"type":"module"}');
     await writeFile(join(directory, "ikc_wasm.js"), `
       export default async function init() {}
-      let transport, tsm, storage;
+      let transport, tsm, storage, binding;
+      export class ImKeyBindingContext {
+        clear() { this.cleared = true; }
+        free() { this.freed = true; }
+      }
+      export function set_binding_context(value) { binding = value; }
       export function set_transport(value) { transport = value; }
       export function set_transport_profile() {}
       export function set_tsm_client(value) { tsm = value; }
       export function set_binding_storage(value) { storage = value; }
       export async function sign_tx(input) {
+        if (binding.cleared || binding.freed) throw new Error("invalid binding context");
+        binding.owner ??= tsm.owner;
+        if (binding.owner !== tsm.owner) throw new Error("cross-client binding context");
         const params = JSON.parse(input);
         await transport.sendApduRaw("SELECT_SIGN");
         await transport.sendApduRaw("PREPARE");
@@ -62,6 +70,7 @@ test("public signTx and getSeid stay atomic across clients and recover from fail
     const result = await Promise.all([clients[0].signTx({}), clients[1].getSeid(), clients[1].signTx({})]);
     assert.deepEqual(result, [{ signature: "signed", owner: "first", storage: "first" }, "seid", { signature: "signed", owner: "second", storage: "second" }]);
     assert.deepEqual(log, ["SELECT_SIGN", "PREPARE", "SIGN", "SELECT_ISD", "SEID", "SELECT_SIGN", "PREPARE", "SIGN"]);
+    assert.equal((await clients[0].signTx({})).owner, "first");
     log.length = 0;
     const failed = await Promise.allSettled([clients[0].signTx({ fail: true }), clients[1].getSeid()]);
     assert.match(failed[0].reason.message, /mock_sign_failure/);

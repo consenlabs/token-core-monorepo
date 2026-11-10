@@ -16,6 +16,8 @@ function parseJson(value) {
 }
 
 export class ImKeyCore {
+  #bindingContext = null;
+
   constructor(options = {}) {
     this.tsmClient = options.tsmClient ?? new FetchTsmClient(options.tsm);
     this.storage = options.storage ?? new IndexedDbImKeyStorage();
@@ -37,7 +39,12 @@ export class ImKeyCore {
     if (!session) return;
     await runDeviceSession(session.transport, wasm, async () => {
       await session.disconnect();
-      if (this.session === session) this.session = null;
+      if (this.session === session) {
+        this.session = null;
+        this.#bindingContext?.clear();
+        this.#bindingContext?.free();
+        this.#bindingContext = null;
+      }
     });
   }
 
@@ -46,6 +53,8 @@ export class ImKeyCore {
     if (!session) return Promise.reject(new Error("imkey_transport_not_set"));
     return runDeviceSession(session.transport, wasm, async () => {
       if (this.session !== session) throw new Error("imkey_transport_not_set");
+      this.#bindingContext ??= new wasm.ImKeyBindingContext();
+      wasm.set_binding_context(this.#bindingContext);
       wasm.set_transport(session.transport);
       wasm.set_transport_profile("webusb");
       wasm.set_tsm_client(this.tsmClient);
