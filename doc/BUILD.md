@@ -74,6 +74,7 @@ Install the wasm target and tools:
 
 ```bash
 rustup target add wasm32-unknown-unknown
+rustup component add llvm-tools-preview
 cargo install wasm-pack
 brew install llvm
 ```
@@ -94,8 +95,12 @@ WASM_CC=/path/to/clang WASM_AR=/path/to/llvm-ar make build-wasm
 Run the browser example:
 
 ```bash
+npm ci --prefix examples/wasm
 make dev-wasm
 ```
+
+The browser example requires Node.js 22 or newer and npm. Install its locked
+dependencies once after cloning and again when its lockfile changes.
 
 The example is documented in [`../examples/wasm/README.md`](../examples/wasm/README.md).
 

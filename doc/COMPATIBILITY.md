@@ -9,7 +9,7 @@ current repository state.
 | ---- | --------------- |
 | Rust toolchain | `nightly-2026-04-06`, pinned by `rust-toolchain.toml` |
 | Cargo resolver | Workspace resolver v2 |
-| Primary CI host | `macos-14` for Rust, mobile, and wasm jobs |
+| Primary CI host | `macos-15` for Rust, mobile, and wasm jobs |
 | Linux CI host | `ubuntu-latest` for `cargo-deny` advisories, licenses, and sources |
 | macOS deployment target for host tests | `10.12`, set by Makefile test env and rustc wrapper |
 | iOS deployment target for release workflow | `14.0` |
