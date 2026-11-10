@@ -51,6 +51,18 @@ lazy_static! {
 
 pub type Result<T> = result::Result<T, Error>;
 
+fn normalize_sign_param(mut param: SignParam) -> SignParam {
+    if param.seg_wit.is_empty()
+        && matches!(
+            param.chain_type.as_str(),
+            "BITCOIN" | "DOGECOIN" | "LITECOIN" | "BITCOINCASH"
+        )
+    {
+        param.seg_wit = "NONE".to_string();
+    }
+    param
+}
+
 #[no_mangle]
 pub extern "C" fn get_apdu() -> *const c_char {
     message::get_apdu()
@@ -184,6 +196,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
         "sign_tx" => landingpad(|| {
             let param: SignParam = SignParam::decode(action.param.unwrap().value.as_slice())
                 .expect("sign_tx unpack error");
+            let param = normalize_sign_param(param);
             match param.chain_type.as_str() {
                 "BITCOIN" => {
                     btc_signer::sign_btc_transaction(&param.clone().input.unwrap().value, &param)
@@ -235,6 +248,7 @@ pub unsafe extern "C" fn call_imkey_api(hex_str: *const c_char) -> *const c_char
         "sign_message" => landingpad(|| {
             let param: SignParam = SignParam::decode(action.param.unwrap().value.as_slice())
                 .expect("unpack sign_message param error");
+            let param = normalize_sign_param(param);
             match param.chain_type.as_str() {
                 "ETHEREUM" => ethereum_signer::sign_eth_message(
                     param.clone().input.unwrap().value.as_slice(),
@@ -333,6 +347,37 @@ mod tests {
     fn _to_str(json_str: *const c_char) -> &'static str {
         let json_c_str = unsafe { CStr::from_ptr(json_str) };
         json_c_str.to_str().unwrap()
+    }
+
+    fn sign_param(chain_type: &str, seg_wit: &str) -> SignParam {
+        SignParam {
+            chain_type: chain_type.to_string(),
+            path: "m/44'/0'/0'".to_string(),
+            network: "MAINNET".to_string(),
+            input: None,
+            payment: "".to_string(),
+            receiver: "".to_string(),
+            sender: "".to_string(),
+            fee: "".to_string(),
+            seg_wit: seg_wit.to_string(),
+        }
+    }
+
+    #[test]
+    fn normalize_sign_param_defaults_btc_family_to_legacy() {
+        for chain_type in ["BITCOIN", "DOGECOIN", "LITECOIN", "BITCOINCASH"] {
+            let param = normalize_sign_param(sign_param(chain_type, ""));
+            assert_eq!("NONE", param.seg_wit);
+        }
+    }
+
+    #[test]
+    fn normalize_sign_param_preserves_explicit_and_non_btc_values() {
+        let explicit = normalize_sign_param(sign_param("BITCOIN", "P2WPKH"));
+        assert_eq!("P2WPKH", explicit.seg_wit);
+
+        let non_btc = normalize_sign_param(sign_param("ETHEREUM", ""));
+        assert_eq!("", non_btc.seg_wit);
     }
 
     #[test]
