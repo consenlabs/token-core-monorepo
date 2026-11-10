@@ -7,14 +7,14 @@ Next.js web app for testing the `tcx-wasm` crate in the browser, covering keysto
 - [Rust nightly](https://rustup.rs/) (see `rust-toolchain.toml` at repo root)
 - [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
 - [LLVM with wasm32 support](https://formulae.brew.sh/formula/llvm) (`brew install llvm`)
-- Node.js >= 18
+- Node.js 22 or newer
 
 ## Quick Start
 
 ```bash
 # From repo root
-make build-wasm        # compile WASM and copy to public/
-make dev-wasm          # build + start Next.js dev server
+npm ci --prefix examples/wasm
+make dev-wasm          # compile WASM and start the Next.js dev server
 ```
 
 Then open [http://localhost:3000](http://localhost:3000) and click **Run Tests**.
