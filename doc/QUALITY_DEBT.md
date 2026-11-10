@@ -33,6 +33,26 @@ not direct patch-level upgrades.
 | `RUSTSEC-2024-0436` | `paste` | Substrate `sp-core 41.0.0` stack | No simple direct dependency update removes it from the current Substrate stack. | Upgrade or replace Substrate dependencies as a dedicated compatibility project. |
 | `RUSTSEC-2025-0161` | `libsecp256k1` | Substrate `sp-core 41.0.0` stack | The advisory has no safe direct upgrade and implies a larger Substrate/k256 migration. | Review Substrate crypto stack and migrate away from the affected dependency path. |
 
+## Blocking Security Follow-up (2026-11-10)
+
+The current advisory database reports `RUSTSEC-2026-0387` for
+`crypto-bigint 0.5.5`, through `sp-core 41.0.0 -> k256 0.13.4 ->
+elliptic-curve 0.13.8`. There is no compatible fixed `0.5.x` release. This
+advisory has **not** been added to `deny.toml` ignores: the advisory gate remains
+blocked until it is resolved or maintainers explicitly accept a reviewed risk.
+
+Current supported builds enable `sp-core/std`; its ECDSA backend uses
+`secp256k1` in that configuration, and wallet code does not directly call
+`k256` or `sp_core::ecdsa`. This reduces the observed exposure but does not
+prove absence of side channels in every build configuration. In particular,
+ordinary address/signature regression tests cannot prove constant-time behavior.
+
+Resolution requires a separately reviewed backend migration or a validated
+`std`-only dependency reduction. Do not mechanically backport arithmetic fixes,
+silently remove `no_std` support, or broaden the advisory allowlist simply to
+make CI green. The upstream announcement is recorded in the
+[RustSec advisory](https://rustsec.org/advisories/RUSTSEC-2026-0387.html).
+
 ## Policy
 
 - Do not add new clippy allows without documenting why they are needed.
