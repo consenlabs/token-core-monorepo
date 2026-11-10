@@ -27,6 +27,12 @@ pub struct KeyManager {
     pub iv: Vec<u8>, //16 byte
 }
 
+impl Default for KeyManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl KeyManager {
     pub fn new() -> KeyManager {
         KeyManager {
@@ -83,7 +89,7 @@ impl KeyManager {
     pub fn get_key_file_data(path: &str, seid: &str) -> Result<String> {
         let mut return_data = String::new();
         // !!! compatibility issue, the path of key file in android is different with ios before 2.0.0
-        let android_path = format!("{}/keys{}", path, seid[seid.len() - 8..].to_string());
+        let android_path = format!("{}/keys{}", path, &seid[seid.len() - 8..]);
         let ios_path = format!("{}/keys{}", path, seid);
         let path = if Path::new(android_path.as_str()).exists() {
             android_path
@@ -163,7 +169,7 @@ impl KeyManager {
     /**
      Store key data
     */
-    pub fn save_keys_to_local_file(keys: &String, path: &String, seid: &String) -> Result<()> {
+    pub fn save_keys_to_local_file(keys: &str, path: &str, seid: &str) -> Result<()> {
         if !Path::new(path).exists() {
             fs::create_dir_all(path)?;
         }
@@ -172,8 +178,9 @@ impl KeyManager {
             .read(true)
             .write(true)
             .create(true)
+            .truncate(true)
             .open(Path::new(
-                format!("{}/keys{}", path, seid[seid.len() - 8..].to_string()).as_str(),
+                format!("{}/keys{}", path, &seid[seid.len() - 8..]).as_str(),
             ))
             .expect("imkey_keyfile_opertion_error");
         match file.write_all(keys.as_bytes()) {
@@ -192,7 +199,7 @@ mod test {
         let seid = "19060000000200860001010000000014";
         let sn = "imKey01191200001";
         let mut key_manager_obj = KeyManager::new();
-        key_manager_obj.gen_encrypt_key(&seid, &sn);
+        key_manager_obj.gen_encrypt_key(seid, sn);
         println!(
             "encry key-->{:?}",
             hex::encode_upper(&key_manager_obj.encry_key)

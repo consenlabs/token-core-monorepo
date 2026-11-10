@@ -117,7 +117,7 @@ fn parse_coin_info_from_legacy_tcx_ks(legacy_tcx_ks: Value) -> Result<(CoinInfo,
             .as_str()
             .expect("activeAccounts need contains curve");
         let new_curve_name = mapping_curve_name(&old_curve_name);
-        let curve = CurveType::from_str(&new_curve_name);
+        let curve = CurveType::from_curve_name(&new_curve_name);
         let coin = account_json["coin"]
             .as_str()
             .expect("activeAccounts need contains chainType")

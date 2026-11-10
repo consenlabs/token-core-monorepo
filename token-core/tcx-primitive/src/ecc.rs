@@ -14,6 +14,7 @@ use crate::ed25519::{Ed25519PrivateKey, Ed25519PublicKey};
 use crate::ed25519_bip32::{Ed25519DeterministicPrivateKey, Ed25519DeterministicPublicKey};
 use crate::sr25519::{Sr25519PrivateKey, Sr25519PublicKey};
 use sp_core::Pair;
+use std::fmt;
 use tcx_constants::CurveType;
 use thiserror::Error;
 
@@ -106,6 +107,7 @@ pub trait TypedPrivateKeyDisplay {
     fn fmt(data: &[u8], network: &str) -> Result<String>;
 }
 
+#[allow(clippy::large_enum_variant)]
 pub enum TypedPrivateKey {
     Secp256k1(Secp256k1PrivateKey),
     SR25519(Sr25519PrivateKey),
@@ -288,13 +290,14 @@ impl TypedDeterministicPublicKey {
     }
 }
 
-impl ToString for TypedDeterministicPublicKey {
-    fn to_string(&self) -> String {
-        match self {
+impl fmt::Display for TypedDeterministicPublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match self {
             TypedDeterministicPublicKey::Bip32Sepc256k1(epk) => epk.to_string(),
             TypedDeterministicPublicKey::SR25519(epk) => epk.to_string(),
             TypedDeterministicPublicKey::Bip32Ed25519(epk) => epk.to_string(),
-        }
+        };
+        f.write_str(&value)
     }
 }
 
@@ -382,14 +385,15 @@ impl TypedDeterministicPrivateKey {
     }
 }
 
-impl ToString for TypedDeterministicPrivateKey {
-    fn to_string(&self) -> String {
-        match self {
+impl fmt::Display for TypedDeterministicPrivateKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let value = match self {
             TypedDeterministicPrivateKey::Bip32Sepc256k1(sk) => sk.to_string(),
             TypedDeterministicPrivateKey::SR25519(sk) => sk.0.to_raw_vec().to_hex(),
             TypedDeterministicPrivateKey::Bip32Ed25519(sk) => sk.to_string(),
             TypedDeterministicPrivateKey::BLS(sk) => sk.0.to_string(),
-        }
+        };
+        f.write_str(&value)
     }
 }
 
@@ -462,8 +466,7 @@ mod tests {
         Vec::from_hex("cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc").unwrap()
     }
 
-    const PUB_KEY_HEX: &'static str =
-        "02b95c249d84f417e3e395a127425428b540671cc15881eb828c17b722a53fc599";
+    const PUB_KEY_HEX: &str = "02b95c249d84f417e3e395a127425428b540671cc15881eb828c17b722a53fc599";
 
     const SR25519_PRI_KEY_HEX: &str =
         "00ea01b0116da6ca425c477521fd49cc763988ac403ab560f4022936a18a4341016e7df1f5020068c9b150e0722fea65a264d5fbb342d4af4ddf2f1cdbddf1fd";
@@ -514,9 +517,8 @@ mod tests {
 
     #[test]
     fn test_typed_deterministic_private_key() {
-        let root =
-            TypedDeterministicPrivateKey::from_mnemonic(CurveType::SECP256k1, &TEST_MNEMONIC)
-                .unwrap();
+        let root = TypedDeterministicPrivateKey::from_mnemonic(CurveType::SECP256k1, TEST_MNEMONIC)
+            .unwrap();
 
         let dpk = root
             .derive("m/44'/0'/0'")
@@ -546,8 +548,8 @@ mod tests {
 
     #[test]
     fn test_typed_deterministic_private_key_sr25519() {
-        let root = TypedDeterministicPrivateKey::from_mnemonic(CurveType::SR25519, &TEST_MNEMONIC)
-            .unwrap();
+        let root =
+            TypedDeterministicPrivateKey::from_mnemonic(CurveType::SR25519, TEST_MNEMONIC).unwrap();
 
         let dpk = root.derive("//imToken").unwrap().deterministic_public_key();
 
@@ -575,8 +577,8 @@ mod tests {
 
     #[test]
     fn typed_deterministic_private_key_ed25519() {
-        let root = TypedDeterministicPrivateKey::from_mnemonic(CurveType::ED25519, &TEST_MNEMONIC)
-            .unwrap();
+        let root =
+            TypedDeterministicPrivateKey::from_mnemonic(CurveType::ED25519, TEST_MNEMONIC).unwrap();
 
         let dpk = root
             .derive("m/44'/0'/0'")

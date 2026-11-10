@@ -46,7 +46,7 @@ fn set_apdu_r(apdu: String) {
     println!("set_apdu_r...");
     loop {
         let mut _apdu = APDU.write();
-        if *_apdu == "" {
+        if _apdu.is_empty() {
             //debug!("is null set");
             println!("is null set");
             *_apdu = apdu;
@@ -58,6 +58,9 @@ fn set_apdu_r(apdu: String) {
     }
 }
 
+/// # Safety
+///
+/// `apdu` must be a valid, non-null pointer to a NUL-terminated C string.
 pub unsafe fn set_apdu(apdu: *const c_char) {
     let mut _apdu = APDU.write();
     let c_str: &CStr = unsafe { CStr::from_ptr(apdu) };
@@ -74,11 +77,11 @@ fn get_apdu_return_r() -> Result<String> {
     let mut loop_count = 0;
     loop {
         let mut apdu_return = APDU_RETURN.write();
-        if *apdu_return != "" {
+        if !apdu_return.is_empty() {
             println!("get_apdu_return_r not null {}", apdu_return.clone());
             let temp = apdu_return.clone();
             *apdu_return = String::from("");
-            return Ok(String::from(temp));
+            return Ok(temp);
         } else {
             println!("get_apdu_return_r is null {}", apdu_return.clone());
         }
@@ -99,6 +102,9 @@ pub fn get_apdu_return() -> *const c_char {
     CString::new(apdu.to_owned()).unwrap().into_raw()
 }
 
+/// # Safety
+///
+/// `apdu_return` must be a valid, non-null pointer to a NUL-terminated C string.
 pub unsafe fn set_apdu_return(apdu_return: *const c_char) {
     let mut _apdu_return = APDU_RETURN.write();
     let c_str: &CStr = unsafe { CStr::from_ptr(apdu_return) };

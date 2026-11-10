@@ -1,5 +1,6 @@
 use ed25519_dalek::VerifyingKey;
 use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
+use std::fmt;
 use std::str::FromStr;
 
 use tcx_common::{FromHex, ToHex};
@@ -78,15 +79,15 @@ impl DeterministicPublicKey for Ed25519DeterministicPublicKey {
     }
 }
 
-impl ToString for Ed25519DeterministicPrivateKey {
-    fn to_string(&self) -> String {
-        self.0.signing_key.to_bytes().to_hex()
+impl fmt::Display for Ed25519DeterministicPrivateKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0.signing_key.to_bytes().to_hex())
     }
 }
 
-impl ToString for Ed25519DeterministicPublicKey {
-    fn to_string(&self) -> String {
-        self.0.to_bytes().to_hex()
+impl fmt::Display for Ed25519DeterministicPublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0.to_bytes().to_hex())
     }
 }
 

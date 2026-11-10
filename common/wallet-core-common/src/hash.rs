@@ -20,7 +20,7 @@ pub fn merkle_hash(data: &[u8]) -> Hash256 {
             i += 2;
         }
 
-        len = (len + 1) / 2;
+        len = len.div_ceil(2);
     }
 
     hashes[0]

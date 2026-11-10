@@ -12,6 +12,7 @@ use bitcoin::secp256k1;
 use bitcoin::Network;
 use byteorder::BigEndian;
 use byteorder::ByteOrder;
+use std::fmt;
 
 use bip39::{Language, Mnemonic};
 
@@ -140,15 +141,15 @@ impl DeterministicPublicKey for Bip32DeterministicPublicKey {
     }
 }
 
-impl ToString for Bip32DeterministicPublicKey {
-    fn to_string(&self) -> String {
-        self.0.to_string()
+impl fmt::Display for Bip32DeterministicPublicKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
 
-impl ToString for Bip32DeterministicPrivateKey {
-    fn to_string(&self) -> String {
-        self.0.to_string()
+impl fmt::Display for Bip32DeterministicPrivateKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
     }
 }
 
@@ -272,7 +273,7 @@ mod tests {
     #[test]
     fn derive_public_keys() {
         let seed = default_seed();
-        let paths = vec![
+        let paths = [
             "m/44'/0'/0'/0/0",
             "m/44'/0'/0'/0/1",
             "m/44'/0'/0'/1/0",

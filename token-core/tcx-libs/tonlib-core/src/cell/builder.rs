@@ -98,7 +98,7 @@ impl CellBuilder {
         }
 
         // fill first byte with required size
-        if first_byte_bit_size % 32 == 0 {
+        if first_byte_bit_size.is_multiple_of(32) {
             self.store_u32(32, value_bytes[0] as u32)?;
         } else {
             self.store_u32(first_byte_bit_size % 32, value_bytes[0] as u32)

@@ -118,7 +118,11 @@ impl Debug for Cell {
         // It does not correspond to real completion tag defined in
         // p1.0.2 of https://docs.ton.org/tvm.pdf for details
         // Null termination of bit-string defined in that document is omitted for clarity
-        let completion_tag = if self.bit_len % 8 != 0 { "_" } else { "" };
+        let completion_tag = if !self.bit_len.is_multiple_of(8) {
+            "_"
+        } else {
+            ""
+        };
         writeln!(
             f,
             "Cell {}{{ data: [{}{}]\n, bit_len: {}\n, references: [",
@@ -313,7 +317,7 @@ fn get_bits_descriptor(bit_len: usize) -> Result<u8, TonCellError> {
             "Cell data length should not contain more than 1023 bits".to_string(),
         ))
     } else {
-        let d2 = (bit_len / 8 + (bit_len + 7) / 8) as u8;
+        let d2 = (bit_len / 8 + bit_len.div_ceil(8)) as u8;
         Ok(d2)
     }
 }
