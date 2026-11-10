@@ -162,12 +162,11 @@ mod tests {
             compressed_p2pkh_hash(&compressed).unwrap()
         );
 
-        // SegWit only permits compressed public keys, so its helpers keep
-        // normalizing a valid uncompressed SEC key to compressed form.
-        assert_eq!(
-            p2wpkh_program(&uncompressed).unwrap(),
-            p2wpkh_program(&compressed).unwrap()
-        );
+        // Product-specific compression belongs in the imKey wrapper; the
+        // shared software-wallet contract rejects uncompressed SegWit input.
+        assert!(p2wpkh_program(&uncompressed).is_err());
+        assert!(p2shwpkh_hash(&uncompressed).is_err());
+        assert!(p2wpkh_program(&compressed).is_ok());
     }
 
     #[test]
