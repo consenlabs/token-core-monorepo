@@ -9,6 +9,7 @@ fn normalize_path(path: &str) -> &str {
 
 pub fn check_path_validity(path: &str) -> Result<()> {
     let path = normalize_path(path);
+    ensure!(path.starts_with("m/"), CommonError::ImkeyPathIllegal);
     //check depth and length
     let strings: Vec<&str> = path.split("/").collect();
     let depth = strings.len();
@@ -21,6 +22,7 @@ pub fn check_path_validity(path: &str) -> Result<()> {
 
 pub fn check_path_max_five_depth(path: &str) -> Result<()> {
     let path = normalize_path(path);
+    ensure!(path.starts_with("m/"), CommonError::ImkeyPathIllegal);
     //check depth and length
     let strings: Vec<&str> = path.split("/").collect();
     let depth = strings.len();
@@ -34,6 +36,7 @@ pub fn check_path_max_five_depth(path: &str) -> Result<()> {
 pub fn get_account_path(path: &str) -> Result<String> {
     // example: m/44'/60'/0'/0/0
     let path = normalize_path(path);
+    ensure!(path.starts_with("m/"), CommonError::ImkeyPathIllegal);
     let _ = DerivationPath::from_str(path)?;
     let mut children: Vec<&str> = path.split('/').collect();
 
@@ -80,5 +83,26 @@ mod test {
         assert!(check_path_validity(path).is_ok());
         assert!(check_path_max_five_depth(path).is_ok());
         assert_eq!(get_account_path(path).unwrap(), "m/44'/0'/0'");
+    }
+
+    #[test]
+    fn relative_paths_are_rejected() {
+        for path in [
+            "44'/60'/0'/0/7",
+            "44'/60'/0'",
+            "n/44'/60'/0'",
+            "M/44'/60'/0'",
+        ] {
+            assert!(check_path_validity(path).is_err());
+            assert!(check_path_max_five_depth(path).is_err());
+            assert_eq!(
+                get_account_path(path).unwrap_err().to_string(),
+                "imkey_path_illegal"
+            );
+        }
+        assert_eq!(
+            get_account_path("m/44'/60'/0'/0/7").unwrap(),
+            "m/44'/60'/0'"
+        );
     }
 }
