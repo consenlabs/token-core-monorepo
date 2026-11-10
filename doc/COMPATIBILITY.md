@@ -24,6 +24,8 @@ current repository state.
 | TokenCoreX mobile core | `token-core/tcx` | C ABI `call_tcx_api`, hex-encoded Protobuf `TcxAction` | `libtcx` static/dynamic libraries, iOS `TokenCoreX.xcframework`, Android native libs inside AAR |
 | imKeyCore mobile core | `imkey-core/ikc` | C ABI `call_imkey_api`, hex-encoded Protobuf `ImkeyAction` | `libconnector` static/dynamic libraries, iOS `imKeyCoreX.xcframework`, Android native libs inside AAR |
 | tcx-wasm | `token-core/tcx-wasm` | `wasm-bindgen` JSON string API | `tcx_wasm_bg.wasm`, JS glue, TypeScript declarations |
+| ikc-wasm | `imkey-core/ikc-wasm` | Async `wasm-bindgen` API with injected browser transport | `ikc_wasm_bg.wasm`, JS glue, TypeScript declarations |
+| Browser npm SDK | `publish/npm` | `@imtoken/wallet-core-web` facade | Both WASM modules, JS adapters and TypeScript declarations |
 | Android AAR | `publish/android` | Maven package `io.github.consenlabs.android:token-core` | `tokencore-release.aar` |
 | Browser example | `examples/wasm` | Next.js app consuming generated wasm files | Local dev app on `localhost:3000` |
 
@@ -32,10 +34,12 @@ current repository state.
 | Test path | Requires hardware | Requires network | Command |
 | --------- | ----------------- | ---------------- | ------- |
 | TokenCoreX host tests | No | No by default | `make test-tcx` |
-| imKeyCore host-safe tests | No | No; skips external TSM post test | `make test-ikc` |
+| imKeyCore host-safe tests | No | Loopback mock only; no external TSM | `make test-ikc` |
 | Workspace compile and host-safe tests | No | No by default | `make test-workspace` |
 | imKey hardware tests | Yes | Depends on device/app flow | `make test-hardware` |
-| tcx-wasm compile checks | No | No | `make test-wasm` |
+| WASM compile checks | No | No | `make test-wasm` |
+| WASM Node and Chrome tests | No | Local test server only | `make test-wasm-node test-wasm-browser` |
+| JS adapters and packed npm consumer | No | No at runtime | `make test-npm test-npm-package` |
 
 ## Compatibility-Sensitive Behavior
 

@@ -142,7 +142,7 @@ impl HdKeystore {
             TypedDeterministicPrivateKey::from_mnemonic(curve, &mnemonic)
         })?;
 
-        if derivation_path.len() > 0 {
+        if !derivation_path.is_empty() {
             root.derive(derivation_path)
         } else {
             Ok(root)
@@ -215,7 +215,7 @@ impl HdKeystore {
             network: coin_info.network.to_string(),
             ext_pub_key,
             seg_wit: coin_info.seg_wit.to_string(),
-            public_key: public_key,
+            public_key,
         };
 
         Ok(account)
@@ -227,14 +227,12 @@ impl HdKeystore {
 
     pub(crate) fn verify_password(&self, key: &Key) -> bool {
         match key {
-            Key::Password(password) => {
-                return self.store.crypto.verify_password(password);
-            }
+            Key::Password(password) => self.store.crypto.verify_password(password),
             Key::DerivedKey(derived_key_hex) => {
                 let Ok(derived_key) = Vec::from_hex_auto(derived_key_hex) else {
                     return false;
                 };
-                return self.store.crypto.verify_derived_key(&derived_key);
+                self.store.crypto.verify_derived_key(&derived_key)
             }
         }
     }
@@ -254,13 +252,13 @@ mod tests {
     use test::Bencher;
 
     // A mnemonic word separated by a full-width or half-width space
-    static MNEMONIC_WITH_WHITESPACE: &'static str =
+    static MNEMONIC_WITH_WHITESPACE: &str =
         "inject　 kidney    empty   canal shadow   pact comfort wife crush horse wife sketch";
-    static INVALID_MNEMONIC1: &'static str =
+    static INVALID_MNEMONIC1: &str =
         "inject kidney empty canal shadow pact comfort wife crush horse wife inject";
-    static INVALID_MNEMONIC2: &'static str =
+    static INVALID_MNEMONIC2: &str =
         "invalid_word kidney empty canal shadow pact comfort wife crush horse wife sketch";
-    static INVALID_MNEMONIC_LEN: &'static str =
+    static INVALID_MNEMONIC_LEN: &str =
         "inject kidney empty canal shadow pact comfort wife crush horse wife";
 
     #[test]
@@ -339,7 +337,7 @@ mod tests {
     fn test_derive_account() {
         let mut keystore =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
-        let _ = keystore
+        keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap();
 
@@ -440,7 +438,7 @@ mod tests {
         ];
 
         for (i, coin_info) in coin_infos.iter().enumerate() {
-            let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
+            let acc = keystore.derive_coin::<MockAddress>(coin_info).unwrap();
             assert_eq!(acc.ext_pub_key, excepts[i]);
         }
     }
@@ -459,7 +457,7 @@ mod tests {
             seg_wit: "NONE".to_string(),
             contract_code: "".to_string(),
         };
-        let _ = keystore
+        keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap();
 
@@ -569,7 +567,7 @@ mod tests {
             seg_wit: "NONE".to_string(),
             contract_code: "".to_string(),
         };
-        let _ = keystore
+        keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap();
 
@@ -637,7 +635,7 @@ mod tests {
             seg_wit: "NONE".to_string(),
             contract_code: "".to_string(),
         };
-        let _ = keystore
+        keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap();
 
@@ -669,7 +667,7 @@ mod tests {
     fn bench_derive_account(m: &mut Bencher) {
         let mut keystore =
             HdKeystore::from_mnemonic(TEST_MNEMONIC, TEST_PASSWORD, Metadata::default()).unwrap();
-        let _ = keystore
+        keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap();
 
@@ -693,7 +691,7 @@ mod tests {
     fn cross_test_tw() {
         let mut keystore =
             HdKeystore::from_mnemonic("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", TEST_PASSWORD, Metadata::default()).unwrap();
-        let _ = keystore
+        keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap();
 
@@ -754,7 +752,7 @@ mod tests {
         ];
 
         for (i, coin_info) in coin_infos.iter().enumerate() {
-            let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
+            let acc = keystore.derive_coin::<MockAddress>(coin_info).unwrap();
             assert_eq!(acc.ext_pub_key, excepts[i]);
         }
     }
@@ -763,7 +761,7 @@ mod tests {
     fn test_bip49_spec_vertors() {
         let mut keystore =
             HdKeystore::from_mnemonic("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", TEST_PASSWORD, Metadata::default()).unwrap();
-        let _ = keystore
+        keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap();
 
@@ -799,7 +797,7 @@ mod tests {
     fn test_bip84_spec_vertors() {
         let mut keystore =
             HdKeystore::from_mnemonic("abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", TEST_PASSWORD, Metadata::default()).unwrap();
-        let _ = keystore
+        keystore
             .unlock(&Key::Password(TEST_PASSWORD.to_owned()))
             .unwrap();
 

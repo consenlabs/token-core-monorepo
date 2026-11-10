@@ -1,13 +1,15 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
+use anyhow::anyhow;
 use bitcoin::Network;
 use coin_bch::transaction::{BchTransaction, Utxo};
 use coin_btc_fork::btcforkapi::{BtcForkTxInput, BtcForkTxOutput};
+use ikc_common::path::resolve_derivation_path;
 use ikc_common::SignParam;
 use prost::Message;
 
 pub fn sign_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: BtcForkTxInput = BtcForkTxInput::decode(data).expect("BtcTxInput");
+    let input: BtcForkTxInput = BtcForkTxInput::decode(data).map_err(|_| anyhow!("BtcTxInput"))?;
     sign_bch_transaction(&input, sign_param)
 }
 
@@ -20,7 +22,7 @@ pub fn sign_bch_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -> R
             amount: utxo.amount,
             address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
-            derive_path: utxo.derived_path.to_string(),
+            derive_path: resolve_derivation_path(&sign_param.path, &utxo.derived_path)?,
             sequence: utxo.sequence,
         };
         unspents.push(new_utxo);
@@ -29,11 +31,11 @@ pub fn sign_bch_transaction(param: &BtcForkTxInput, sign_param: &SignParam) -> R
     let bch_tx = BchTransaction {
         to: param.to.to_string(),
         amount: param.amount,
-        unspents: unspents,
+        unspents,
         fee: param.fee,
     };
 
-    let network = if sign_param.network == "TESTNET".to_string() {
+    let network = if sign_param.network == "TESTNET" {
         Network::Testnet
     } else {
         Network::Bitcoin
@@ -76,8 +78,7 @@ mod tests {
             derived_path: "0/0".to_string(),
             sequence: 0,
         };
-        let mut utxos = Vec::new();
-        utxos.push(utxo);
+        let utxos = vec![utxo];
         let tx_input = BtcForkTxInput {
             to: "qq40fskqshxem2gvz0xkf34ww3h6zwv4dcr7pm0z6s".to_string(),
             amount: 93454,

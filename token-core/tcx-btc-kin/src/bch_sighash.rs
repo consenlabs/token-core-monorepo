@@ -9,7 +9,6 @@ use bitcoin_hashes::sha256d;
 pub const SIGHASH_ANYONECANPAY: u32 = 0x80;
 
 /// Bitcoin Cash sighash flag for use on outputs after the fork
-
 pub struct BitcoinCashSighash {
     tx: Transaction,
     fork_id: u32,

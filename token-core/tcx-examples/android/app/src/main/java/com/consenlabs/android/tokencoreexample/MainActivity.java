@@ -9,6 +9,7 @@ import android.widget.TextView;
 
 import com.sun.jna.Library;
 import com.sun.jna.Native;
+import com.sun.jna.Pointer;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -55,13 +56,24 @@ public class MainActivity extends AppCompatActivity {
           param.put("network", "MAINNET");
           param.put("source", "MNEMONIC");
           TokenCore.INSTANCE.clear_err();
-          String response = TokenCore.INSTANCE.call_tcx_api("0a0f68645f73746f72655f63726561746512230a07696d746f6b656e12180a11496e7365637572652050613535773072641a03616161");
-          Log.d("TCX", "response: " + response);
-          String err = TokenCore.INSTANCE.get_last_err_message();
-          if (!TextUtils.isEmpty(err)) {
-            tvResult.setText(err);
+          Pointer responsePointer = TokenCore.INSTANCE.call_tcx_api("0a0f68645f73746f72655f63726561746512230a07696d746f6b656e12180a11496e7365637572652050613535773072641a03616161");
+          Pointer errorPointer = TokenCore.INSTANCE.get_last_err_message();
+          try {
+            String response = responsePointer == null ? "" : responsePointer.getString(0, "UTF-8");
+            String err = errorPointer == null ? "" : errorPointer.getString(0, "UTF-8");
+            Log.d("TCX", "response: " + response);
+            if (!TextUtils.isEmpty(err)) {
+              tvResult.setText(err);
+            }
+            tvResult.setText(response);
+          } finally {
+            if (errorPointer != null) {
+              TokenCore.INSTANCE.free_const_string(errorPointer);
+            }
+            if (responsePointer != null) {
+              TokenCore.INSTANCE.free_const_string(responsePointer);
+            }
           }
-          tvResult.setText(response);
         } catch (JSONException e) {
           e.printStackTrace();
         }
@@ -83,12 +95,12 @@ public class MainActivity extends AppCompatActivity {
 
     void init_token_core_x(String jsonStr);
 
-    String call_tcx_api(String hex);
+    Pointer call_tcx_api(String hex);
 
     void clear_err();
-    void free_const_string();
+    void free_const_string(Pointer str);
 
-    String get_last_err_message();
+    Pointer get_last_err_message();
   }
 
 }

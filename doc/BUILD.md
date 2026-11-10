@@ -79,7 +79,9 @@ cargo install wasm-pack
 brew install llvm
 ```
 
-The default Makefile values expect Homebrew LLVM:
+The Makefile prefers Homebrew LLVM when installed and otherwise uses `clang`
+on PATH. `WASM_AR` defaults to the `llvm-ar` installed by Rust's
+`llvm-tools-preview` component, not Apple's system `ar`:
 
 ```bash
 make test-wasm

@@ -12,7 +12,7 @@ ikc-common = {path = "../../ikc-common"}
 ikc-device = {path = "../../ikc-device"}
 ikc-transport = {path = "../../ikc-transport"}
 sp-core = "=41.0.0"
-anyhow = "=1.0.102"
+anyhow = "=1.0.103"
 hex = "=0.4.3"
 prost = "=0.14.3"
 prost-types = "=0.14.3"

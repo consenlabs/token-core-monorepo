@@ -87,7 +87,7 @@ mod tests {
                 None,
             )
             .unwrap();
-            let derived_key = ks.get_derived_key(&TEST_PASSWORD).unwrap();
+            let derived_key = ks.get_derived_key(TEST_PASSWORD).unwrap();
 
             {
                 let guard = KeystoreGuard::unlock_by_derived_key(&mut ks, &derived_key).unwrap();

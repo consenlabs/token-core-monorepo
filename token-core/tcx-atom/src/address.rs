@@ -13,11 +13,11 @@ fn find_hrp(chain_id: &str) -> Result<String> {
     let map = CHAIN_ID_HRP_MAP.read().unwrap();
     let embed_hrp = map.get(chain_id);
 
-    return if embed_hrp.is_some() {
-        Ok(embed_hrp.unwrap().to_string())
+    if let Some(embed_hrp) = embed_hrp {
+        Ok(embed_hrp.to_string())
     } else {
         Err(anyhow!("unknown_chain_id"))
-    };
+    }
 }
 
 #[derive(PartialEq, Eq, Clone)]
@@ -45,9 +45,9 @@ impl FromStr for AtomAddress {
     }
 }
 
-impl ToString for AtomAddress {
-    fn to_string(&self) -> String {
-        self.0.clone()
+impl std::fmt::Display for AtomAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
     }
 }
 
@@ -226,7 +226,7 @@ mod tests {
         let address = AtomAddress::from_public_key(&pub_key, &coin_info);
 
         assert_eq!(
-            format!("{}", address.unwrap().to_string()),
+            format!("{}", address.unwrap()),
             "cosmos1hsk6jryyqjfhp5dhc55tc9jtckygx0eph6dd02"
         );
 

@@ -1,7 +1,6 @@
 use crate::ServiceResponse;
-use crate::{Result, TsmService};
+use crate::{tsm_post, Result, TsmService};
 use ikc_common::constants;
-use ikc_common::https;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -43,8 +42,8 @@ impl TsmService for SeQueryRequest {
     type ReturnData = ServiceResponse<SeQueryResponse>;
 
     fn send_message(&mut self) -> Result<ServiceResponse<SeQueryResponse>> {
-        let req_data = serde_json::to_vec_pretty(&self).unwrap();
-        let response_data = https::post(constants::TSM_ACTION_SE_QUERY, req_data)?;
+        let req_data = serde_json::to_vec_pretty(&self)?;
+        let response_data = tsm_post(constants::TSM_ACTION_SE_QUERY, req_data)?;
         let mut return_bean: ServiceResponse<SeQueryResponse> =
             serde_json::from_str(response_data.as_str())?;
 
@@ -87,6 +86,7 @@ mod tests {
 
     #[test]
     fn se_query_test() {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect("imKey Pro").is_ok());
         let seid = get_se_id().unwrap();
         let sn = get_sn().unwrap();
@@ -97,6 +97,7 @@ mod tests {
 
     #[test]
     pub fn se_query_error_test() {
+        crate::configure_test_tsm_from_env();
         let seid = "00000000000000000000000000000000".to_string();
         let sn = "000001".to_string();
         assert!(SeQueryRequest::build_request_data(seid, sn, None)

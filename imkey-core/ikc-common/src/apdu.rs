@@ -1,32 +1,42 @@
-use crate::constants::{BTC_AID, COSMOS_AID, EOS_AID, ETH_AID, LC_MAX};
+use crate::constants::{
+    APDU_RSP_BLE_UPGRADE_CANCEL, APDU_RSP_SWITCH_BL_STATUS_SUCCESS, BTC_AID, COSMOS_AID, EOS_AID,
+    ETH_AID, LC_MAX,
+};
 use crate::error::ApduError;
 use crate::{Result, ToHex};
 use hex;
 
 pub trait CoinCommonApdu: Default {
-    fn select_applet() -> String;
-    fn get_xpub(path: &str, verify_flag: bool) -> String;
-    fn register_address(address: &[u8]) -> String;
+    fn select_applet() -> Result<String>;
+    fn get_xpub(path: &str, verify_flag: bool) -> Result<String>;
+    fn register_address(address: &[u8]) -> Result<String>;
 }
 
 #[derive(Default)]
 pub struct BtcApdu();
 
 impl CoinCommonApdu for BtcApdu {
-    fn select_applet() -> String {
+    fn select_applet() -> Result<String> {
         Apdu::select_applet(BTC_AID)
     }
 
-    fn get_xpub(path: &str, verify_flag: bool) -> String {
+    fn get_xpub(path: &str, verify_flag: bool) -> Result<String> {
         Apdu::get_pubkey(0x43, path, verify_flag)
     }
 
-    fn register_address(address: &[u8]) -> String {
+    fn register_address(address: &[u8]) -> Result<String> {
         Apdu::register_address(0x36, address)
     }
 }
 
 impl BtcApdu {
+    fn checked_lc(data_len: usize) -> Result<u8> {
+        if data_len as u32 > LC_MAX {
+            return Err(ApduError::ImkeyApduWrongLength.into());
+        }
+        Ok(data_len as u8)
+    }
+
     pub fn btc_prepare(ins: u8, p1: u8, data: &[u8]) -> Vec<String> {
         let mut apdu_vec = Vec::new();
         let apdu_number = (data.len() - 1) / LC_MAX as usize + 1;
@@ -53,27 +63,31 @@ impl BtcApdu {
         apdu_vec
     }
 
-    pub fn btc_perpare_input(p1: u8, data: &[u8]) -> String {
-        if data.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
-        let mut apdu = ApduHeader::new(0x80, 0x41, p1, 0x00, data.len() as u8).to_array();
+    pub fn btc_perpare_input(p1: u8, data: &[u8]) -> Result<String> {
+        Self::try_btc_perpare_input(p1, data)
+    }
+
+    pub fn try_btc_perpare_input(p1: u8, data: &[u8]) -> Result<String> {
+        let lc = Self::checked_lc(data.len())?;
+        let mut apdu = ApduHeader::new(0x80, 0x41, p1, 0x00, lc).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        Ok(apdu.to_hex().to_uppercase())
     }
 
     /**
      *p2 00:sign psbt transaction  80: sign message
      **/
-    pub fn btc_psbt_preview(data: &[u8], p2: u8) -> String {
-        if data.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
-        let mut apdu = ApduHeader::new(0x80, 0x4C, 0x00, p2, data.len() as u8).to_array();
+    pub fn btc_psbt_preview(data: &[u8], p2: u8) -> Result<String> {
+        Self::try_btc_psbt_preview(data, p2)
+    }
+
+    pub fn try_btc_psbt_preview(data: &[u8], p2: u8) -> Result<String> {
+        let lc = Self::checked_lc(data.len())?;
+        let mut apdu = ApduHeader::new(0x80, 0x4C, 0x00, p2, lc).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        Ok(apdu.to_hex().to_uppercase())
     }
 
     pub fn btc_sign(index: u8, hash_type: u8, path: &str) -> String {
@@ -85,62 +99,62 @@ impl BtcApdu {
         apdu.to_hex().to_uppercase()
     }
 
-    pub fn btc_segwit_sign(last_one: bool, hash_type: u8, data: Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
+    pub fn btc_segwit_sign(last_one: bool, hash_type: u8, data: Vec<u8>) -> Result<String> {
+        Self::try_btc_segwit_sign(last_one, hash_type, data)
+    }
+
+    pub fn try_btc_segwit_sign(last_one: bool, hash_type: u8, data: Vec<u8>) -> Result<String> {
+        let lc = Self::checked_lc(data.len())?;
 
         let mut apdu = match last_one {
-            true => ApduHeader::new(0x80, 0x32, 0x80, hash_type, data.len() as u8).to_array(),
-            _ => ApduHeader::new(0x80, 0x32, 0x00, hash_type, data.len() as u8).to_array(),
+            true => ApduHeader::new(0x80, 0x32, 0x80, hash_type, lc).to_array(),
+            _ => ApduHeader::new(0x80, 0x32, 0x00, hash_type, lc).to_array(),
         };
 
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        Ok(apdu.to_hex().to_uppercase())
     }
 
-    pub fn btc_taproot_sign(last_one: bool, data: Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
+    pub fn btc_taproot_sign(last_one: bool, data: Vec<u8>) -> Result<String> {
+        Self::try_btc_taproot_sign(last_one, data)
+    }
+
+    pub fn try_btc_taproot_sign(last_one: bool, data: Vec<u8>) -> Result<String> {
+        let lc = Self::checked_lc(data.len())?;
 
         let mut apdu = match last_one {
-            true => ApduHeader::new(0x80, 0x40, 0x80, 0x00, data.len() as u8).to_array(),
-            _ => ApduHeader::new(0x80, 0x40, 0x00, 0x00, data.len() as u8).to_array(),
+            true => ApduHeader::new(0x80, 0x40, 0x80, 0x00, lc).to_array(),
+            _ => ApduHeader::new(0x80, 0x40, 0x00, 0x00, lc).to_array(),
         };
 
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        Ok(apdu.to_hex().to_uppercase())
     }
 
-    pub fn btc_taproot_script_sign(last_one: bool, data: Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
+    pub fn btc_taproot_script_sign(last_one: bool, data: Vec<u8>) -> Result<String> {
+        let lc = Self::checked_lc(data.len())?;
 
         let mut apdu = match last_one {
-            true => ApduHeader::new(0x80, 0x40, 0x80, 0x80, data.len() as u8).to_array(),
-            _ => ApduHeader::new(0x80, 0x40, 0x00, 0x80, data.len() as u8).to_array(),
+            true => ApduHeader::new(0x80, 0x40, 0x80, 0x80, lc).to_array(),
+            _ => ApduHeader::new(0x80, 0x40, 0x00, 0x80, lc).to_array(),
         };
 
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        Ok(apdu.to_hex().to_uppercase())
     }
 
-    pub fn omni_prepare_data(p1: u8, data: Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
-        let mut apdu = ApduHeader::new(0x80, 0x44, p1, 0x00, data.len() as u8).to_array();
+    pub fn omni_prepare_data(p1: u8, data: Vec<u8>) -> Result<String> {
+        let lc = Self::checked_lc(data.len())?;
+        let mut apdu = ApduHeader::new(0x80, 0x44, p1, 0x00, lc).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        Ok(apdu.to_hex().to_uppercase())
     }
 
-    pub fn register_name_address(name: &[u8], address: &[u8]) -> String {
+    pub fn register_name_address(name: &[u8], address: &[u8]) -> Result<String> {
         let mut data: Vec<u8> = vec![];
         data.push(address.len() as u8);
         data.extend(address);
@@ -206,15 +220,15 @@ impl BtcApdu {
 pub struct EthApdu();
 
 impl CoinCommonApdu for EthApdu {
-    fn select_applet() -> String {
+    fn select_applet() -> Result<String> {
         Apdu::select_applet(ETH_AID)
     }
 
-    fn get_xpub(path: &str, verify_flag: bool) -> String {
+    fn get_xpub(path: &str, verify_flag: bool) -> Result<String> {
         Apdu::get_pubkey(0x53, path, verify_flag)
     }
 
-    fn register_address(address: &[u8]) -> String {
+    fn register_address(address: &[u8]) -> Result<String> {
         Apdu::register_address(0x56, address)
     }
 }
@@ -224,7 +238,7 @@ impl EthApdu {
         Apdu::prepare_sign(0x51, data)
     }
 
-    pub fn sign_digest(path: &str) -> String {
+    pub fn sign_digest(path: &str) -> Result<String> {
         Apdu::sign_digest(0x52, 0x00, 0x00, path)
     }
 
@@ -232,7 +246,7 @@ impl EthApdu {
         Apdu::prepare_sign(0x54, data)
     }
 
-    pub fn personal_sign(path: &str) -> String {
+    pub fn personal_sign(path: &str) -> Result<String> {
         Apdu::sign_digest(0x55, 0x00, 0x00, path)
     }
 }
@@ -241,15 +255,15 @@ impl EthApdu {
 pub struct EosApdu();
 
 impl CoinCommonApdu for EosApdu {
-    fn select_applet() -> String {
+    fn select_applet() -> Result<String> {
         Apdu::select_applet(EOS_AID)
     }
 
-    fn get_xpub(path: &str, verify_flag: bool) -> String {
+    fn get_xpub(path: &str, verify_flag: bool) -> Result<String> {
         Apdu::get_pubkey(0x63, path, verify_flag)
     }
 
-    fn register_address(address: &[u8]) -> String {
+    fn register_address(address: &[u8]) -> Result<String> {
         Apdu::register_address(0x66, address)
     }
 }
@@ -259,7 +273,7 @@ impl EosApdu {
         Apdu::prepare_sign(0x61, data)
     }
 
-    pub fn sign_digest(path: &str) -> String {
+    pub fn sign_digest(path: &str) -> Result<String> {
         Apdu::sign_digest(0x52, 0x00, 0x00, path)
     }
 
@@ -288,15 +302,15 @@ impl EosApdu {
 pub struct CosmosApdu();
 
 impl CoinCommonApdu for CosmosApdu {
-    fn select_applet() -> String {
+    fn select_applet() -> Result<String> {
         Apdu::select_applet(COSMOS_AID)
     }
 
-    fn get_xpub(path: &str, verify_flag: bool) -> String {
+    fn get_xpub(path: &str, verify_flag: bool) -> Result<String> {
         Apdu::get_pubkey(0x73, path, verify_flag)
     }
 
-    fn register_address(address: &[u8]) -> String {
+    fn register_address(address: &[u8]) -> Result<String> {
         Apdu::register_address(0x76, address)
     }
 }
@@ -306,7 +320,7 @@ impl CosmosApdu {
         Apdu::prepare_sign(0x71, data)
     }
 
-    pub fn sign_digest(path: &str) -> String {
+    pub fn sign_digest(path: &str) -> Result<String> {
         Apdu::sign_digest(0x72, 0x00, 0x00, path)
     }
 }
@@ -319,17 +333,19 @@ impl Secp256k1Apdu {
         Apdu::prepare_sign(0x81, data.to_vec())
     }
 
-    pub fn get_xpub(data: &[u8]) -> String {
-        if data.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
-        let mut apdu = ApduHeader::new(0x80, 0x82, 0x00, 0x00, data.len() as u8).to_array();
-        apdu.extend(data);
-        apdu.push(0x00); //Le
-        hex::encode(apdu)
+    pub fn get_xpub(data: &[u8]) -> Result<String> {
+        Self::try_get_xpub(data)
     }
 
-    pub fn register_address(name: &[u8], address: &[u8]) -> String {
+    pub fn try_get_xpub(data: &[u8]) -> Result<String> {
+        let lc = Apdu::checked_lc(data.len())?;
+        let mut apdu = ApduHeader::new(0x80, 0x82, 0x00, 0x00, lc).to_array();
+        apdu.extend(data);
+        apdu.push(0x00); //Le
+        Ok(hex::encode(apdu))
+    }
+
+    pub fn register_address(name: &[u8], address: &[u8]) -> Result<String> {
         let mut data: Vec<u8> = vec![];
         data.push(address.len() as u8);
         data.extend(address);
@@ -347,17 +363,19 @@ impl Ed25519Apdu {
         Apdu::prepare_sign(0x81, data.to_vec())
     }
 
-    pub fn get_xpub(data: &[u8]) -> String {
-        if data.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
-        let mut apdu = ApduHeader::new(0x80, 0x82, 0x00, 0x00, data.len() as u8).to_array();
-        apdu.extend(data);
-        apdu.push(0x00); //Le
-        hex::encode(apdu)
+    pub fn get_xpub(data: &[u8]) -> Result<String> {
+        Self::try_get_xpub(data)
     }
 
-    pub fn register_address(name: &[u8], address: &[u8]) -> String {
+    pub fn try_get_xpub(data: &[u8]) -> Result<String> {
+        let lc = Apdu::checked_lc(data.len())?;
+        let mut apdu = ApduHeader::new(0x80, 0x82, 0x00, 0x00, lc).to_array();
+        apdu.extend(data);
+        apdu.push(0x00); //Le
+        Ok(hex::encode(apdu))
+    }
+
+    pub fn register_address(name: &[u8], address: &[u8]) -> Result<String> {
         let mut data: Vec<u8> = vec![];
         data.push(address.len() as u8);
         data.extend(address);
@@ -371,20 +389,27 @@ impl Ed25519Apdu {
 pub struct BtcForkApdu();
 
 impl CoinCommonApdu for BtcForkApdu {
-    fn select_applet() -> String {
+    fn select_applet() -> Result<String> {
         Apdu::select_applet(BTC_AID)
     }
 
-    fn get_xpub(path: &str, verify_flag: bool) -> String {
+    fn get_xpub(path: &str, verify_flag: bool) -> Result<String> {
         Apdu::get_pubkey(0x43, path, verify_flag)
     }
 
-    fn register_address(address: &[u8]) -> String {
+    fn register_address(address: &[u8]) -> Result<String> {
         Apdu::register_address(0x36, address)
     }
 }
 
 impl BtcForkApdu {
+    fn checked_lc(data_len: usize) -> Result<u8> {
+        if data_len as u32 > LC_MAX {
+            return Err(ApduError::ImkeyApduWrongLength.into());
+        }
+        Ok(data_len as u8)
+    }
+
     pub fn btc_fork_prepare(ins: u8, p1: u8, data: &[u8]) -> Vec<String> {
         let mut apdu_vec = Vec::new();
         let apdu_number = (data.len() - 1) / LC_MAX as usize + 1;
@@ -411,14 +436,16 @@ impl BtcForkApdu {
         apdu_vec
     }
 
-    pub fn btc_fork_perpare_input(ins: u8, p1: u8, data: &[u8]) -> String {
-        if data.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
-        let mut apdu = ApduHeader::new(0x80, ins, p1, 0x00, data.len() as u8).to_array();
+    pub fn btc_fork_perpare_input(ins: u8, p1: u8, data: &[u8]) -> Result<String> {
+        Self::try_btc_fork_perpare_input(ins, p1, data)
+    }
+
+    pub fn try_btc_fork_perpare_input(ins: u8, p1: u8, data: &[u8]) -> Result<String> {
+        let lc = Self::checked_lc(data.len())?;
+        let mut apdu = ApduHeader::new(0x80, ins, p1, 0x00, lc).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        Ok(apdu.to_hex().to_uppercase())
     }
 
     pub fn btc_fork_sign(ins: u8, index: u8, hash_type: u8, path: &str) -> String {
@@ -430,19 +457,31 @@ impl BtcForkApdu {
         apdu.to_hex().to_uppercase()
     }
 
-    pub fn btc_fork_segwit_sign(ins: u8, last_one: bool, hash_type: u8, data: Vec<u8>) -> String {
-        if data.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
+    pub fn btc_fork_segwit_sign(
+        ins: u8,
+        last_one: bool,
+        hash_type: u8,
+        data: Vec<u8>,
+    ) -> Result<String> {
+        Self::try_btc_fork_segwit_sign(ins, last_one, hash_type, data)
+    }
+
+    pub fn try_btc_fork_segwit_sign(
+        ins: u8,
+        last_one: bool,
+        hash_type: u8,
+        data: Vec<u8>,
+    ) -> Result<String> {
+        let lc = Self::checked_lc(data.len())?;
 
         let mut apdu = match last_one {
-            true => ApduHeader::new(0x80, ins, 0x80, hash_type, data.len() as u8).to_array(),
-            _ => ApduHeader::new(0x80, ins, 0x00, hash_type, data.len() as u8).to_array(),
+            true => ApduHeader::new(0x80, ins, 0x80, hash_type, lc).to_array(),
+            _ => ApduHeader::new(0x80, ins, 0x00, hash_type, lc).to_array(),
         };
 
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        Ok(apdu.to_hex().to_uppercase())
     }
 }
 
@@ -473,14 +512,26 @@ impl ApduHeader {
 }
 
 impl Apdu {
-    pub fn select_applet(aid: &str) -> String {
-        let aid_array = hex::decode(aid).unwrap();
+    fn checked_lc(data_len: usize) -> Result<u8> {
+        if data_len as u32 > LC_MAX {
+            return Err(ApduError::ImkeyApduWrongLength.into());
+        }
+        Ok(data_len as u8)
+    }
+
+    pub fn select_applet(aid: &str) -> Result<String> {
+        Self::try_select_applet(aid)
+    }
+
+    pub fn try_select_applet(aid: &str) -> Result<String> {
+        let aid_array = hex::decode(aid)?;
+        let lc = Self::checked_lc(aid_array.len())?;
         let mut apdu = Vec::new();
-        let apdu_header = ApduHeader::new(0x00, 0xA4, 0x04, 0x00, aid_array.len() as u8);
+        let apdu_header = ApduHeader::new(0x00, 0xA4, 0x04, 0x00, lc);
         apdu.extend(apdu_header.to_array().iter());
         apdu.extend(aid_array.iter());
         apdu.push(0x00); //Le
-        hex::encode(apdu)
+        Ok(hex::encode(apdu))
     }
 
     pub fn prepare_sign(ins: u8, data: Vec<u8>) -> Vec<String> {
@@ -510,41 +561,47 @@ impl Apdu {
         apdu_list
     }
 
-    pub fn get_pubkey(ins: u8, path: &str, verify_flag: bool) -> String {
+    pub fn get_pubkey(ins: u8, path: &str, verify_flag: bool) -> Result<String> {
+        Self::try_get_pubkey(ins, path, verify_flag)
+    }
+
+    pub fn try_get_pubkey(ins: u8, path: &str, verify_flag: bool) -> Result<String> {
         let path_bytes = path.as_bytes();
-        if path_bytes.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
+        let lc = Self::checked_lc(path_bytes.len())?;
         let p1 = if verify_flag { 0x01 } else { 0x00 };
-        let mut apdu = ApduHeader::new(0x80, ins, p1, 0x00, path_bytes.len() as u8).to_array();
+        let mut apdu = ApduHeader::new(0x80, ins, p1, 0x00, lc).to_array();
         apdu.extend(path_bytes.iter());
         apdu.push(0x00); //Le
-        hex::encode(apdu)
+        Ok(hex::encode(apdu))
     }
 
-    pub fn register_address(ins: u8, data: &[u8]) -> String {
-        if data.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
-        let mut apdu = ApduHeader::new(0x80, ins, 0x00, 0x00, data.len() as u8).to_array();
+    pub fn register_address(ins: u8, data: &[u8]) -> Result<String> {
+        Self::try_register_address(ins, data)
+    }
+
+    pub fn try_register_address(ins: u8, data: &[u8]) -> Result<String> {
+        let lc = Self::checked_lc(data.len())?;
+        let mut apdu = ApduHeader::new(0x80, ins, 0x00, 0x00, lc).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        Ok(apdu.to_hex().to_uppercase())
     }
 
-    pub fn sign_digest(ins: u8, index: u8, hashtype: u8, path: &str) -> String {
+    pub fn sign_digest(ins: u8, index: u8, hashtype: u8, path: &str) -> Result<String> {
+        Self::try_sign_digest(ins, index, hashtype, path)
+    }
+
+    pub fn try_sign_digest(ins: u8, index: u8, hashtype: u8, path: &str) -> Result<String> {
         let path_bytes = path.as_bytes();
-        if path_bytes.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
+        let lc = Self::checked_lc(path_bytes.len())?;
 
         let mut apdu = Vec::new();
 
-        let apdu_header = ApduHeader::new(0x80, ins, index, hashtype, path_bytes.len() as u8);
+        let apdu_header = ApduHeader::new(0x80, ins, index, hashtype, lc);
         apdu.extend(apdu_header.to_array().iter());
         apdu.extend(path_bytes.iter()); //payload
         apdu.push(0x00); //le
-        hex::encode(apdu)
+        Ok(hex::encode(apdu))
     }
 
     pub fn set_ble_name(ble_name: &str) -> String {
@@ -564,14 +621,12 @@ impl ImkApdu {
     /**
     binding check apdu build
     */
-    pub fn bind_check(data: &[u8]) -> String {
-        if data.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
-        let mut apdu = ApduHeader::new(0x80, 0x71, 0x00, 0x00, data.len() as u8).to_array();
+    pub fn bind_check(data: &[u8]) -> Result<String> {
+        let lc = Apdu::checked_lc(data.len())?;
+        let mut apdu = ApduHeader::new(0x80, 0x71, 0x00, 0x00, lc).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        Ok(apdu.to_hex().to_uppercase())
     }
 
     /**
@@ -585,14 +640,12 @@ impl ImkApdu {
     /**
     bind code verify
     */
-    pub fn identity_verify(data: &[u8]) -> String {
-        if data.len() as u32 > LC_MAX {
-            panic!("data to long");
-        }
-        let mut apdu = ApduHeader::new(0x80, 0x73, 0x80, 0x00, data.len() as u8).to_array();
+    pub fn identity_verify(data: &[u8]) -> Result<String> {
+        let lc = Apdu::checked_lc(data.len())?;
+        let mut apdu = ApduHeader::new(0x80, 0x73, 0x80, 0x00, lc).to_array();
         apdu.extend(data.iter());
         apdu.push(0x00);
-        apdu.to_hex().to_uppercase()
+        Ok(apdu.to_hex().to_uppercase())
     }
 }
 
@@ -600,7 +653,13 @@ pub struct ApduCheck {}
 
 impl ApduCheck {
     pub fn check_response(response_data: &str) -> Result<()> {
-        let response_data: &str = &response_data[response_data.len() - 4..];
+        let status_start = response_data
+            .len()
+            .checked_sub(4)
+            .ok_or(ApduError::ImkeyApduWrongLength)?;
+        let response_data: &str = response_data
+            .get(status_start..)
+            .ok_or(ApduError::ImkeyApduWrongLength)?;
         match response_data {
             "9000" => Ok(()),
             "6940" => Err(ApduError::ImkeyUserNotConfirmed.into()),
@@ -619,6 +678,8 @@ impl ApduCheck {
             "6F01" => Err(ApduError::ImkeyBluetoothChannelError.into()),
             "6943" => Err(ApduError::ImkeyMnemonicCheckFailed.into()),
             "6944" => Err(ApduError::ImkeyCancelMnemonicCheck.into()),
+            APDU_RSP_BLE_UPGRADE_CANCEL => Err(ApduError::ImkeyBleUpgradeCancel.into()),
+            APDU_RSP_SWITCH_BL_STATUS_SUCCESS => Ok(()),
             _ => Err(anyhow!("imkey_command_execute_fail_{}", response_data)), //Err(ApduError::ImkeyCommandExecuteFail.into())
         }
     }
@@ -627,34 +688,36 @@ impl ApduCheck {
 #[cfg(test)]
 mod tests {
     use crate::apdu::{
-        Apdu, ApduCheck, ApduHeader, BtcApdu, CoinCommonApdu, CosmosApdu, EosApdu, EthApdu, ImkApdu,
+        Apdu, ApduCheck, ApduHeader, BtcApdu, BtcForkApdu, CoinCommonApdu, CosmosApdu, Ed25519Apdu,
+        EosApdu, EthApdu, ImkApdu, Secp256k1Apdu,
     };
+    use crate::constants::LC_MAX;
     use hex::FromHex;
 
     #[test]
     fn select_applet_test() {
         assert_eq!(
-            BtcApdu::select_applet(),
+            BtcApdu::select_applet().unwrap(),
             String::from("00a4040005695f62746300")
         );
         assert_eq!(
-            EthApdu::select_applet(),
+            EthApdu::select_applet().unwrap(),
             String::from("00a4040005695f65746800")
         );
         assert_eq!(
-            EosApdu::select_applet(),
+            EosApdu::select_applet().unwrap(),
             String::from("00a4040005695f656f7300")
         );
         assert_eq!(
-            CosmosApdu::select_applet(),
+            CosmosApdu::select_applet().unwrap(),
             String::from("00a4040008695f636f736d6f7300")
         );
         assert_eq!(
-            Apdu::select_applet("695F696D6B"),
+            Apdu::select_applet("695F696D6B").unwrap(),
             String::from("00a4040005695f696d6b00")
         );
         assert_eq!(
-            Apdu::select_applet("695F66696C65636F696E"),
+            Apdu::select_applet("695F66696C65636F696E").unwrap(),
             String::from("00a404000a695f66696c65636f696e00")
         );
     }
@@ -664,40 +727,106 @@ mod tests {
         let path = String::from("m/44/0/0");
         let verify_flag = false;
         assert_eq!(
-            BtcApdu::get_xpub(&path, verify_flag),
+            BtcApdu::get_xpub(&path, verify_flag).unwrap(),
             String::from("80430000086d2f34342f302f3000")
         );
     }
 
     #[test]
-    #[should_panic]
+    fn try_btc_apdu_rejects_oversized_payload() {
+        let data = vec![0u8; LC_MAX as usize + 1];
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            BtcApdu::try_btc_perpare_input(0x80, &data)
+                .unwrap_err()
+                .to_string()
+        );
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            BtcForkApdu::try_btc_fork_segwit_sign(0x3A, true, 0x01, data)
+                .unwrap_err()
+                .to_string()
+        );
+    }
+
+    #[test]
+    fn try_btc_apdu_matches_legacy_builder() {
+        let data = vec![0x01, 0x02, 0x03];
+        assert_eq!(
+            BtcApdu::btc_perpare_input(0x80, &data).unwrap(),
+            BtcApdu::try_btc_perpare_input(0x80, &data).unwrap()
+        );
+        assert_eq!(
+            BtcForkApdu::btc_fork_perpare_input(0x49, 0x80, &data).unwrap(),
+            BtcForkApdu::try_btc_fork_perpare_input(0x49, 0x80, &data).unwrap()
+        );
+    }
+
+    #[test]
+    fn try_common_apdu_builders_return_errors() {
+        let long_data = vec![0u8; LC_MAX as usize + 1];
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            Apdu::try_register_address(0x36, &long_data)
+                .unwrap_err()
+                .to_string()
+        );
+        assert!(Apdu::try_select_applet("not-hex").is_err());
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            Secp256k1Apdu::try_get_xpub(&long_data)
+                .unwrap_err()
+                .to_string()
+        );
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            Ed25519Apdu::try_get_xpub(&long_data)
+                .unwrap_err()
+                .to_string()
+        );
+    }
+
+    #[test]
+    fn check_response_rejects_short_response() {
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            ApduCheck::check_response("900").unwrap_err().to_string()
+        );
+    }
+
+    #[test]
     fn register_address_test() {
         assert_eq!(
-            BtcApdu::register_address("12z6UzsA3tjpaeuvA2Zr9jwx19Azz74D6g".as_bytes()),
+            BtcApdu::register_address("12z6UzsA3tjpaeuvA2Zr9jwx19Azz74D6g".as_bytes()).unwrap(),
             String::from(
                 "803600002231327A36557A734133746A706165757641325A72396A77783139417A7A373444366700"
             )
         );
         assert_eq!(
-            BtcApdu::register_address("37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e".as_bytes()),
+            BtcApdu::register_address("37E2J9ViM4QFiewo7aw5L3drF2QKB99F9e".as_bytes()).unwrap(),
             String::from(
                 "8036000022333745324A3956694D3451466965776F376177354C3364724632514B42393946396500"
             )
         );
         assert_eq!(
-            EthApdu::register_address("0x6031564e7b2F5cc33737807b2E58DaFF870B590b".as_bytes()),
+            EthApdu::register_address("0x6031564e7b2F5cc33737807b2E58DaFF870B590b".as_bytes()).unwrap(),
             String::from("805600002A30783630333135363465376232463563633333373337383037623245353844614646383730423539306200")
         );
         assert_eq!(
-            EosApdu::register_address("EOS88XhiiP7Cu5TmAUJqHbyuhyYgd6sei68AU266PyetDDAtjmYWF".as_bytes()),
+            EosApdu::register_address("EOS88XhiiP7Cu5TmAUJqHbyuhyYgd6sei68AU266PyetDDAtjmYWF".as_bytes()).unwrap(),
             String::from("8066000035454F533838586869695037437535546D41554A71486279756879596764367365693638415532363650796574444441746A6D59574600")
         );
         assert_eq!(
-            CosmosApdu::register_address("cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992".as_bytes()),
+            CosmosApdu::register_address("cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992".as_bytes()).unwrap(),
             String::from("807600002D636F736D6F7331616A7A397930783377656B657A37747A327464326A366C326466746E3238763236646439393200")
         );
         let long_address = hex::decode("7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff").unwrap();
-        Apdu::register_address(0x36, long_address.as_slice());
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            Apdu::register_address(0x36, long_address.as_slice())
+                .unwrap_err()
+                .to_string()
+        );
     }
 
     #[test]
@@ -710,15 +839,19 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn btc_perpare_input_test() {
         let data = Vec::from_hex("7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff").unwrap();
         assert_eq!(
-            BtcApdu::btc_perpare_input(0x80, &data),
+            BtcApdu::btc_perpare_input(0x80, &data).unwrap(),
             String::from("80418000427A222FB053B6E5339A9B6F9649F88A9481606CF3C64C4557802B3A819DDF3A98000000001976A914A189F2F7836812AA7A0E36E28A20A10E64010BF688ACFFFFFFFF00")
         );
         let long_data = Vec::from_hex("7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff").unwrap();
-        BtcApdu::btc_perpare_input(0x80, &long_data);
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            BtcApdu::btc_perpare_input(0x80, &long_data)
+                .unwrap_err()
+                .to_string()
+        );
     }
 
     #[test]
@@ -730,33 +863,41 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn btc_segwit_sign_test() {
         let data = Vec::from_hex("0200000080a10bc28928f4c17a287318125115c3f098ed20a8237d1e8e4125bc25d1be99752adad0a7b9ceca853768aebb6965eca126a62965f698a0c1bc43d83db632ad7f717276057e6012afa99385c18cc692397a666560520577679bf38c08b5cec2000000001976a914654fbb08267f3d50d715a8f1abb55979b160dd5b88ac50c3000000000000ffffffffd622ad82d85a944f2c242762292e13462240fddd7d19791829e911d7885dec770000000001000000").unwrap();
         assert_eq!(
-            BtcApdu::btc_segwit_sign(true, 1, data),
+            BtcApdu::btc_segwit_sign(true, 1, data).unwrap(),
             String::from("80328001B60200000080A10BC28928F4C17A287318125115C3F098ED20A8237D1E8E4125BC25D1BE99752ADAD0A7B9CECA853768AEBB6965ECA126A62965F698A0C1BC43D83DB632AD7F717276057E6012AFA99385C18CC692397A666560520577679BF38C08B5CEC2000000001976A914654FBB08267F3D50D715A8F1ABB55979B160DD5B88AC50C3000000000000FFFFFFFFD622AD82D85A944F2C242762292E13462240FDDD7D19791829E911D7885DEC77000000000100000000")
         );
         let long_data = Vec::from_hex("7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff").unwrap();
-        BtcApdu::btc_segwit_sign(true, 1, long_data);
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            BtcApdu::btc_segwit_sign(true, 1, long_data)
+                .unwrap_err()
+                .to_string()
+        );
     }
 
     #[test]
-    #[should_panic]
     fn omni_prepare_data_test() {
         let data = Vec::from_hex("7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff").unwrap();
         assert_eq!(
-            BtcApdu::omni_prepare_data(0x00, data),
+            BtcApdu::omni_prepare_data(0x00, data).unwrap(),
             String::from("80440000427A222FB053B6E5339A9B6F9649F88A9481606CF3C64C4557802B3A819DDF3A98000000001976A914A189F2F7836812AA7A0E36E28A20A10E64010BF688ACFFFFFFFF00")
         );
         let long_data = Vec::from_hex("7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff7a222fb053b6e5339a9b6f9649f88a9481606cf3c64c4557802b3a819ddf3a98000000001976a914a189f2f7836812aa7a0e36e28a20a10e64010bf688acffffffff").unwrap();
-        BtcApdu::omni_prepare_data(0x00, long_data);
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            BtcApdu::omni_prepare_data(0x00, long_data)
+                .unwrap_err()
+                .to_string()
+        );
     }
 
     #[test]
     fn eth_personal_sign_test() {
         assert_eq!(
-            EthApdu::personal_sign("m/44'/60'/0'/0/0"),
+            EthApdu::personal_sign("m/44'/60'/0'/0/0").unwrap(),
             String::from("80550000106d2f3434272f3630272f30272f302f3000")
         );
     }
@@ -764,7 +905,7 @@ mod tests {
     #[test]
     fn eth_get_xpub_test() {
         assert_eq!(
-            EthApdu::get_xpub("m/44'/60'/0'/0/0", true),
+            EthApdu::get_xpub("m/44'/60'/0'/0/0", true).unwrap(),
             "80530100106d2f3434272f3630272f30272f302f3000"
         );
     }
@@ -772,7 +913,7 @@ mod tests {
     #[test]
     fn eth_sign_digest_test() {
         assert_eq!(
-            EthApdu::sign_digest("m/44'/60'/0'/0/0"),
+            EthApdu::sign_digest("m/44'/60'/0'/0/0").unwrap(),
             String::from("80520000106d2f3434272f3630272f30272f302f3000")
         );
     }
@@ -804,7 +945,7 @@ mod tests {
     #[test]
     fn eos_get_xpub_test() {
         assert_eq!(
-            EthApdu::get_xpub("m/44'/194'/0'/0/0", true),
+            EthApdu::get_xpub("m/44'/194'/0'/0/0", true).unwrap(),
             "80530100116d2f3434272f313934272f30272f302f3000"
         );
     }
@@ -824,7 +965,7 @@ mod tests {
     #[test]
     fn eos_sign_digest_test() {
         assert_eq!(
-            EosApdu::sign_digest("m/44'/194'/0'/0/0"),
+            EosApdu::sign_digest("m/44'/194'/0'/0/0").unwrap(),
             String::from("80520000116d2f3434272f313934272f30272f302f3000")
         );
     }
@@ -851,7 +992,7 @@ mod tests {
     #[test]
     fn cosmos_get_xpub_test() {
         assert_eq!(
-            CosmosApdu::get_xpub("m/44'/118'/0'/0/0", true),
+            CosmosApdu::get_xpub("m/44'/118'/0'/0/0", true).unwrap(),
             "80730100116d2f3434272f313138272f30272f302f3000"
         );
     }
@@ -871,21 +1012,23 @@ mod tests {
     #[test]
     fn cosmos_sign_digest_test() {
         assert_eq!(
-            CosmosApdu::sign_digest("m/44'/118'/0'/0/0"),
+            CosmosApdu::sign_digest("m/44'/118'/0'/0/0").unwrap(),
             String::from("80720000116d2f3434272f313138272f30272f302f3000")
         );
     }
 
     #[test]
-    #[should_panic]
     fn bind_check_test() {
         let data = Vec::from_hex("304402204C6301E02C4B37D7828D6F20CA6406EB0AFADBEBB1C563BAAA371982EAB8BE5E02204A12558FEA32093E7175FA022919F1067194E542A78F8C2FE1138A4A0750D866012090260FEA755E8CA08F6DF4506F64FDBB5B806A5706C51FF056C76F05111794AC070A302E3030312041544F4D082D636F736D6F73317965636B787A377461707A33346B6A776E6A78766D787A7572657271756874726D786D757874090C302E30303037352061746F6D").unwrap();
         assert_eq!(
-            ImkApdu::bind_check(&data),
+            ImkApdu::bind_check(&data).unwrap(),
             String::from("80710000B1304402204C6301E02C4B37D7828D6F20CA6406EB0AFADBEBB1C563BAAA371982EAB8BE5E02204A12558FEA32093E7175FA022919F1067194E542A78F8C2FE1138A4A0750D866012090260FEA755E8CA08F6DF4506F64FDBB5B806A5706C51FF056C76F05111794AC070A302E3030312041544F4D082D636F736D6F73317965636B787A377461707A33346B6A776E6A78766D787A7572657271756874726D786D757874090C302E30303037352061746F6D00")
         );
-        let long_data = Vec::from_hex("304402204C6301E02C4B37D7828D6F20CA6406EB0AFADBEBB1C563BAAA371982EAB8BE5E02204A12558FEA32093E7175FA022919F1067194E542A78F8C2FE1138A4A0750D866012090260FEA755E8CA08F6DF4506F64FDBB5B806A5706C51FF056C76F05111794AC070A302E3030312041544F4D082D636F736D6F73317965636B787A377461707A33346B6A776E6A78766D787A7572657271756874726D786D757874090C302E30303037352061746F6DD082D636F736D6F73317965636B787A377461707A33346B6A776E6A78766D787A7572657271756874726D786D757874090C302E30303037352061746F6D74090C302E30303037352061746F6D74090C302E30303037352061746F6D").unwrap();
-        ImkApdu::bind_check(&long_data);
+        let long_data = vec![0u8; LC_MAX as usize + 1];
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            ImkApdu::bind_check(&long_data).unwrap_err().to_string()
+        );
     }
 
     #[test]
@@ -894,15 +1037,19 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn identity_verify_test() {
         let data = Vec::from_hex("304402204C6301E02C4B37D7828D6F20CA6406EB0AFADBEBB1C563BAAA371982EAB8BE5E02204A12558FEA32093E7175FA022919F1067194E542A78F8C2FE1138A4A0750D866012090260FEA755E8CA08F6DF4506F64FDBB5B806A5706C51FF056C76F05111794AC070A302E3030312041544F4D082D636F736D6F73317965636B787A377461707A33346B6A776E6A78766D787A7572657271756874726D786D757874090C302E30303037352061746F6D").unwrap();
         assert_eq!(
-            ImkApdu::identity_verify(&data),
+            ImkApdu::identity_verify(&data).unwrap(),
             String::from("80738000B1304402204C6301E02C4B37D7828D6F20CA6406EB0AFADBEBB1C563BAAA371982EAB8BE5E02204A12558FEA32093E7175FA022919F1067194E542A78F8C2FE1138A4A0750D866012090260FEA755E8CA08F6DF4506F64FDBB5B806A5706C51FF056C76F05111794AC070A302E3030312041544F4D082D636F736D6F73317965636B787A377461707A33346B6A776E6A78766D787A7572657271756874726D786D757874090C302E30303037352061746F6D00")
         );
         let long_data = Vec::from_hex("304402204C6301E02C4B37D7828D6F20CA6406EB0AFADBEBB1C563BAAA371982EAB8BE5E02204A12558FEA32093E7175FA022919F1067194E542A78F8C2FE1138A4A0750D866012090260FEA755E8CA08F6DF4506F64FDBB5B806A5706C51FF056C76F05111794AC070A302E3030312041544F4D082D636F736D6F73317965636B787A377461707A33346B6A776E6A78766D787A7572657271756874726D786D757874090C302E30303037352061746F6D304402204C6301E02C4B37D7828D6F20CA6406EB0AFADBEBB1C563BAAA371982EAB8BE5E02204A12558FEA32093E7175FA022919F1067194E542A78F8C2FE1138A4A0750D866012090260FEA755E8CA08F6DF4506F64FDBB5B806A5706C51FF056C76F05111794AC070A302E3030312041544F4D082D636F736D6F73317965636B787A377461707A33346B6A776E6A78766D787A7572657271756874726D786D757874090C302E30303037352061746F6D").unwrap();
-        ImkApdu::identity_verify(&long_data);
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            ImkApdu::identity_verify(&long_data)
+                .unwrap_err()
+                .to_string()
+        );
     }
 
     #[test]
@@ -914,17 +1061,25 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
     fn apdu_get_xpub() {
         let long_path = "m/44'/60'/0'/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0";
-        Apdu::get_pubkey(0x43, long_path, true);
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            Apdu::get_pubkey(0x43, long_path, true)
+                .unwrap_err()
+                .to_string()
+        );
     }
 
     #[test]
-    #[should_panic]
     fn apdu_sign_digest_test() {
         let long_path = "m/44'/60'/0'/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0/0";
-        Apdu::sign_digest(0x52, 0x00, 0x00, long_path);
+        assert_eq!(
+            "imkey_apdu_wrong_length",
+            Apdu::sign_digest(0x52, 0x00, 0x00, long_path)
+                .unwrap_err()
+                .to_string()
+        );
     }
 
     #[test]
@@ -952,6 +1107,11 @@ mod tests {
         assert!(ApduCheck::check_response("00F080").is_err());
         assert!(ApduCheck::check_response("00F081").is_err());
         assert!(ApduCheck::check_response("006F01").is_err());
+        assert_eq!(
+            "imkey_ble_upgrade_cancel",
+            ApduCheck::check_response("0090A5").unwrap_err().to_string()
+        );
+        assert!(ApduCheck::check_response("00905A").is_ok());
         assert!(ApduCheck::check_response("000000").is_err());
     }
 }

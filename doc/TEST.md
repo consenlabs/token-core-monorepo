@@ -15,6 +15,10 @@ This target:
 1. Compiles all workspace test targets with `cargo test --workspace --no-run`.
 2. Runs the TokenCoreX test suite with `make test-tcx`.
 3. Runs the imKeyCore host-safe subset with `make test-ikc`.
+4. Runs the npm JS adapter/session tests with `make test-npm` (Node.js 22 or newer).
+
+Run this target separately from other native TCX integration-test processes;
+the legacy harness shares a temporary wallet directory across processes.
 
 ## TokenCoreX Tests
 
@@ -42,16 +46,12 @@ production default.
 make test-ikc
 ```
 
-The target runs:
-
-```bash
-MACOSX_DEPLOYMENT_TARGET=10.12 KDF_ROUNDS=1 \
-  cargo test -p ikc-common -- --skip https::test::post_test
-MACOSX_DEPLOYMENT_TARGET=10.12 KDF_ROUNDS=1 cargo test -p ikc-proto
-MACOSX_DEPLOYMENT_TARGET=10.12 KDF_ROUNDS=1 cargo test -p ikc normalize_sign_param
-```
-
-This subset avoids real hardware and avoids the external TSM network test.
+The target runs `ikc-common` (including a loopback HTTP mock), `ikc-proto`,
+device upgrade contracts, API compatibility checks, callback/transport worker
+tests and `make test-coin-host`. The coin runner uses an explicit list of
+hardware-independent golden vectors and async transport mocks, and fails when
+a listed test is missing. This subset requires neither a real device nor an
+external TSM service; the HTTP mock needs permission to bind a loopback socket.
 
 ## Hardware Tests
 
@@ -82,13 +82,23 @@ hardware coverage separate.
 make test-wasm
 ```
 
-This target checks `tcx-wasm` for `wasm32-unknown-unknown` and compiles native
-test targets without running browser tests.
+This target checks both WASM crates for `wasm32-unknown-unknown` and compiles
+native `tcx-wasm` test targets. Run actual WASM and package tests separately:
+
+```bash
+make test-wasm-node
+make test-wasm-browser  # requires Chrome/Chromedriver
+make test-npm
+make test-npm-package
+```
+
+These tests use mock devices. Browser tests verify WASM exports and session
+behavior, not real WebUSB permissions or physical firmware/signing flows.
 
 Use the browser example for interactive validation:
 
 ```bash
-make build-wasm
+npm ci --prefix examples/wasm
 make dev-wasm
 ```
 
@@ -100,11 +110,15 @@ The GitHub Actions workflow [`../.github/workflows/run-unittest.yml`](../.github
 runs:
 
 - `cargo fmt --check`
-- `cargo clippy --workspace --all-targets` with the repository's current allowlist
+- `cargo clippy --workspace --all-targets -- -D warnings`
 - `cargo test --workspace --no-run`
 - `make test-tcx`
 - `make test-ikc`
 - `make test-wasm`
+- Four KDF API feature configurations
+- WASM Node/Chrome smoke tests and the packed npm consumer
+- npm JS tests and Android/Swift FFI host mocks
+- Release policy, AAR packaging policy and local Markdown links
 - `cargo-deny` advisories, licenses, and sources checks
 
 Run the narrowest meaningful local test first, then broaden to

@@ -1,5 +1,6 @@
 use crate::error::CommonError;
 use crate::Result;
+pub use wallet_core_common::path::resolve_derivation_path;
 use wallet_core_common::path::{self, AccountPathOptions, PathError};
 
 pub fn check_path_validity(path: &str) -> Result<()> {

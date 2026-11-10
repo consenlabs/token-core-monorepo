@@ -38,6 +38,7 @@ https://support.token.im/hc/en-us
 | `token-core` | Software-wallet core, C ABI, Protobuf API, chain signing behavior |
 | `imkey-core` | imKey hardware-wallet core, APDU command wrappers, host-safe tests |
 | `tcx-wasm` | Browser/WebAssembly subset and example integration |
+| `ikc-wasm` / npm SDK | Async imKey WebUSB integration and `@imtoken/wallet-core-web`; real-device flows require hardware validation |
 | `publish/android` | Android AAR packaging and Maven Central publishing configuration |
 | iOS release workflow | TokenCoreX and imKeyCoreX XCFramework packaging |
 | Documentation | Build, test, release, security, support, and compatibility docs |

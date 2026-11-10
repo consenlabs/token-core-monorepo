@@ -1,5 +1,8 @@
 use base32::Alphabet;
+#[cfg(not(target_arch = "wasm32"))]
 use blake2b_rs::Blake2bBuilder;
+#[cfg(target_arch = "wasm32")]
+use blake2b_simd::Params;
 
 const CHECKSUM_HASH_SIZE: usize = 4;
 const PAYLOAD_HASH_SIZE: usize = 20;
@@ -37,9 +40,17 @@ fn address_from_payload(network_prefix: &str, protocol: u8, payload: &[u8]) -> S
 
 fn digest(ingest: &[u8], hash_size: usize) -> Vec<u8> {
     let mut hash = vec![0; hash_size];
-    let mut blake2b = Blake2bBuilder::new(hash_size).build();
-    blake2b.update(ingest);
-    blake2b.finalize(hash.as_mut_slice());
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let mut blake2b = Blake2bBuilder::new(hash_size).build();
+        blake2b.update(ingest);
+        blake2b.finalize(hash.as_mut_slice());
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        let digest = Params::new().hash_length(hash_size).hash(ingest);
+        hash.copy_from_slice(digest.as_bytes());
+    }
     hash
 }
 

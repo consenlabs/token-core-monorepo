@@ -1,26 +1,49 @@
+#[cfg(not(target_arch = "wasm32"))]
 use crate::constants;
+#[cfg(not(target_arch = "wasm32"))]
+use crate::tsm;
 use crate::Result;
+use anyhow::anyhow;
+#[cfg(not(target_arch = "wasm32"))]
 use bytes::Bytes;
+#[cfg(not(target_arch = "wasm32"))]
 use http_body_util::{BodyExt, Full};
+#[cfg(not(target_arch = "wasm32"))]
 use hyper::header::HeaderValue;
+#[cfg(not(target_arch = "wasm32"))]
 use hyper::{Method, Request};
+#[cfg(not(target_arch = "wasm32"))]
 use hyper_timeout::TimeoutConnector;
+#[cfg(not(target_arch = "wasm32"))]
 use hyper_tls::HttpsConnector;
+#[cfg(not(target_arch = "wasm32"))]
 use hyper_util::client::legacy::Client;
+#[cfg(not(target_arch = "wasm32"))]
 use hyper_util::rt::TokioExecutor;
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::Duration;
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::runtime::Runtime;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub fn post(action: &str, req_data: Vec<u8>) -> Result<String> {
     let f = async_post(action, req_data);
-    Runtime::new().unwrap().block_on(f)
+    Runtime::new()?.block_on(f)
 }
 
+#[cfg(target_arch = "wasm32")]
+pub fn post(_action: &str, _req_data: Vec<u8>) -> Result<String> {
+    Err(anyhow!("imkey_tsm_web_adapter_required"))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
 async fn async_post(action: &str, req_data: Vec<u8>) -> Result<String> {
-    let uri: hyper::Uri = format!("{}{}", constants::URL, action)
-        .to_string()
-        .parse()
-        .unwrap();
+    let uri = tsm::request_uri(action)?;
+    async_post_uri(uri, req_data).await
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+async fn async_post_uri(uri: http::Uri, req_data: Vec<u8>) -> Result<String> {
     let mut req = Request::new(Full::new(Bytes::from(req_data)));
     *req.method_mut() = Method::POST;
     *req.uri_mut() = uri.clone();
@@ -43,21 +66,59 @@ async fn async_post(action: &str, req_data: Vec<u8>) -> Result<String> {
     let client = Client::builder(TokioExecutor::new()).build::<_, Full<Bytes>>(connector);
 
     let resp = client.request(req).await?;
+    if !resp.status().is_success() {
+        return Err(anyhow!("imkey_tsm_server_error"));
+    }
 
     let bytes = resp.into_body().collect().await?.to_bytes();
-    let res_data = std::str::from_utf8(&bytes).unwrap().to_string();
+    let res_data = std::str::from_utf8(&bytes)?.to_string();
     Ok(res_data)
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_arch = "wasm32")))]
 mod test {
     use crate::constants;
-    use crate::https::post;
-    use hex::FromHex;
+    use crate::https::async_post_uri;
+    use crate::tsm::{normalize_test_tsm_url, request_uri_with_base};
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+    use std::thread;
+    use tokio::runtime::Runtime;
 
     #[test]
-    fn post_test() {
-        let data = Vec::from_hex("7b0a20202273656964223a20223139303630303030303030323030383630303031303130303030303030303134222c0a202022736e223a2022696d4b65793031313931323030303031222c0a20202273646b56657273696f6e223a206e756c6c2c0a202022737465704b6579223a20223031222c0a202022737461747573576f7264223a206e756c6c2c0a202022636f6d6d616e644944223a20222f7365496e666f5175657279222c0a20202263617264526574446174614c697374223a206e756c6c0a7d").unwrap();
-        assert!(post(constants::TSM_ACTION_SE_QUERY, data).is_ok());
+    fn post_test_uses_a_local_server() {
+        let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let server = thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = Vec::new();
+            loop {
+                let mut chunk = [0u8; 512];
+                let read = stream.read(&mut chunk).unwrap();
+                assert!(read > 0, "request ended before the HTTP headers");
+                request.extend_from_slice(&chunk[..read]);
+                assert!(request.len() <= 8_192, "request headers are too large");
+                if request.windows(4).any(|window| window == b"\r\n\r\n") {
+                    break;
+                }
+            }
+            let request = String::from_utf8_lossy(&request);
+            assert!(request.starts_with("POST /imkey/seInfoQuery HTTP/1.1"));
+            assert!(request.contains("content-type: application/json"));
+            stream
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 15\r\nConnection: close\r\n\r\n{\"result\":\"ok\"}",
+                )
+                .unwrap();
+        });
+
+        let base_url = normalize_test_tsm_url(&format!("http://{address}/imkey")).unwrap();
+        let uri = request_uri_with_base(&base_url, constants::TSM_ACTION_SE_QUERY).unwrap();
+        let response = Runtime::new()
+            .unwrap()
+            .block_on(async_post_uri(uri, b"{}".to_vec()))
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!("{\"result\":\"ok\"}", response);
     }
 }

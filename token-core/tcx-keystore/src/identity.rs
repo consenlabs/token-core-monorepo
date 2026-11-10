@@ -183,7 +183,7 @@ pub fn decrypt_ipfs_with_enc_key(ciphertext: &str, ipfs_id: &str, enc_key: &str)
         return Err(Error::InvalidEncryptionDataSignature.into());
     }
 
-    let enc_key = Vec::from_hex(&enc_key)?;
+    let enc_key = Vec::from_hex(enc_key)?;
     let plaintext = decrypt_pkcs7(&enc_data, &enc_key[..16], &iv)?;
 
     Ok(String::from_utf8(plaintext)?)
@@ -191,7 +191,7 @@ pub fn decrypt_ipfs_with_enc_key(ciphertext: &str, ipfs_id: &str, enc_key: &str)
 
 pub fn encrypt_ipfs_with_enc_key(enc_key: &str, plaintext: &str) -> Result<String> {
     let iv: [u8; 16] = random_u8_16();
-    encrypt_ipfs_wth_timestamp_iv(&enc_key, plaintext, unix_timestamp(), &iv)
+    encrypt_ipfs_wth_timestamp_iv(enc_key, plaintext, unix_timestamp(), &iv)
 }
 
 fn encrypt_ipfs_wth_timestamp_iv(
@@ -206,7 +206,7 @@ fn encrypt_ipfs_wth_timestamp_iv(
     header.write_all(&timestamp.to_le_bytes()[..4])?;
     header.write_all(iv)?;
 
-    let enc_key = Vec::from_hex_auto(&enc_key)?;
+    let enc_key = Vec::from_hex_auto(enc_key)?;
 
     let ciphertext = encrypt_pkcs7(plaintext.as_bytes(), &enc_key[0..16], iv)?;
     let hash = keccak256(&[header.clone(), merkle_hash(&ciphertext).to_vec()].concat());
@@ -238,9 +238,11 @@ mod test {
 
     #[test]
     fn test_encrypt_ipfs() {
-        let mut meta = Metadata::default();
-        meta.network = IdentityNetwork::Testnet;
-        let mut keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
+        let meta = Metadata {
+            network: IdentityNetwork::Testnet,
+            ..Default::default()
+        };
+        let mut keystore = HdKeystore::from_mnemonic(MNEMONIC, PASSWORD, meta).unwrap();
         keystore
             .unlock(&Key::Password(PASSWORD.to_owned()))
             .unwrap();
@@ -265,9 +267,11 @@ mod test {
 
     #[test]
     fn test_decrypt_ipfs_failure() {
-        let mut meta = Metadata::default();
-        meta.network = IdentityNetwork::Testnet;
-        let mut keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
+        let meta = Metadata {
+            network: IdentityNetwork::Testnet,
+            ..Default::default()
+        };
+        let mut keystore = HdKeystore::from_mnemonic(MNEMONIC, PASSWORD, meta).unwrap();
         keystore
             .unlock(&Key::Password(PASSWORD.to_owned()))
             .unwrap();
@@ -302,9 +306,11 @@ mod test {
 
     #[test]
     fn test_ipfs_with_timestamp_iv() {
-        let mut meta = Metadata::default();
-        meta.network = IdentityNetwork::Testnet;
-        let mut keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
+        let meta = Metadata {
+            network: IdentityNetwork::Testnet,
+            ..Default::default()
+        };
+        let mut keystore = HdKeystore::from_mnemonic(MNEMONIC, PASSWORD, meta).unwrap();
         keystore
             .unlock(&Key::Password(PASSWORD.to_owned()))
             .unwrap();
@@ -340,10 +346,12 @@ mod test {
         ];
 
         for t in tests {
-            let mut meta = Metadata::default();
-            meta.network = IdentityNetwork::Testnet;
+            let meta = Metadata {
+                network: IdentityNetwork::Testnet,
+                ..Default::default()
+            };
 
-            let hd = HdKeystore::from_mnemonic(t, &PASSWORD, meta);
+            let hd = HdKeystore::from_mnemonic(t, PASSWORD, meta);
             assert!(hd.is_err());
         }
     }
@@ -356,9 +364,11 @@ mod test {
         ];
 
         for item in test_cases {
-            let mut meta = Metadata::default();
-            meta.network = item.0;
-            let keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
+            let meta = Metadata {
+                network: item.0,
+                ..Default::default()
+            };
+            let keystore = HdKeystore::from_mnemonic(MNEMONIC, PASSWORD, meta).unwrap();
             let key = Key::Password(PASSWORD.to_string());
             let unlocker = keystore.store().crypto.use_key(&key).unwrap();
             let identity = keystore.identity();
@@ -371,7 +381,7 @@ mod test {
     #[test]
     fn test_create_identity_from_mnemonic() {
         let meta = Metadata::default();
-        let keystore = HdKeystore::from_mnemonic(&MNEMONIC, &PASSWORD, meta).unwrap();
+        let keystore = HdKeystore::from_mnemonic(MNEMONIC, PASSWORD, meta).unwrap();
         let identity = keystore.identity();
 
         assert_eq!(
@@ -388,8 +398,8 @@ mod test {
     fn test_create_identity_from_private_key() {
         let meta = Metadata::default();
         let keystore = PrivateKeystore::from_private_key(
-            &PRIVATE_KEY,
-            &PASSWORD,
+            PRIVATE_KEY,
+            PASSWORD,
             tcx_constants::CurveType::SECP256k1,
             meta,
             None,
@@ -409,11 +419,13 @@ mod test {
 
     #[test]
     fn test_create_identity_from_private_key_testnet() {
-        let mut meta = Metadata::default();
-        meta.network = IdentityNetwork::Testnet;
+        let meta = Metadata {
+            network: IdentityNetwork::Testnet,
+            ..Default::default()
+        };
         let keystore = PrivateKeystore::from_private_key(
-            &PRIVATE_KEY,
-            &PASSWORD,
+            PRIVATE_KEY,
+            PASSWORD,
             CurveType::SECP256k1,
             meta,
             None,

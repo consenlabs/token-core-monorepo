@@ -8,6 +8,7 @@ use ikc_common::error::CoinError;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{hex_to_bytes, is_valid_hex, secp256k1_sign};
 use ikc_common::{constants, utility, SignParam};
+use ikc_device::async_device_manager::AsyncApduTransport;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use keccak_hash::keccak;
@@ -49,6 +50,15 @@ impl Encodable for AccessListItem {
 }
 
 impl Transaction {
+    async fn send_checked<T>(transport: &T, apdu: String, timeout: i32) -> EthResult<String>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        let response = transport.send_apdu(&apdu, timeout).await?;
+        ApduCheck::check_response(&response)?;
+        Ok(response)
+    }
+
     /// Signs the transaction as coming from `sender`.
     pub fn sign(
         &self,
@@ -66,7 +76,7 @@ impl Transaction {
         //organize data
         let mut data_pack: Vec<u8> = Vec::new();
         let mut encode_tx = self.rlp_encode_tx(chain_id);
-        if &self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+        if self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
             encode_tx.insert(0, hex::decode(&self.tx_type).unwrap()[0]);
         }
         //rlp encoded tx in TLV format
@@ -81,21 +91,17 @@ impl Transaction {
         data_pack.extend(encode_tx.iter());
         //payment info in TLV format
         if payment.len() <= constants::ETH_MAX_SUPPORT_PAYMENT_LEN {
-            data_pack.extend([7, payment.as_bytes().len() as u8].iter());
+            data_pack.extend([7, payment.len() as u8].iter());
             data_pack.extend(payment.as_bytes().iter());
         } else {
             data_pack.extend([7, constants::ETH_MAX_SUPPORT_PAYMENT_LEN as u8].iter());
-            data_pack.extend(
-                payment[..constants::ETH_MAX_SUPPORT_PAYMENT_LEN]
-                    .as_bytes()
-                    .iter(),
-            );
+            data_pack.extend(payment.as_bytes()[..constants::ETH_MAX_SUPPORT_PAYMENT_LEN].iter());
         }
         //receiver info in TLV format
-        data_pack.extend([8, receiver.as_bytes().len() as u8].iter());
+        data_pack.extend([8, receiver.len() as u8].iter());
         data_pack.extend(receiver.as_bytes().iter());
         //fee info in TLV format
-        data_pack.extend([9, fee.as_bytes().len() as u8].iter());
+        data_pack.extend([9, fee.len() as u8].iter());
         data_pack.extend(fee.as_bytes().iter());
 
         let key_manager_obj = KEY_MANAGER.lock();
@@ -108,7 +114,7 @@ impl Transaction {
         apdu_pack.extend(data_pack.as_slice());
 
         //select applet
-        let select_apdu = EthApdu::select_applet();
+        let select_apdu = EthApdu::select_applet()?;
         let select_result = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_result)?;
 
@@ -120,7 +126,7 @@ impl Transaction {
         }
 
         //get public
-        let msg_pubkey = EthApdu::get_xpub(path, false);
+        let msg_pubkey = EthApdu::get_xpub(path, false)?;
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         ApduCheck::check_response(&res_msg_pubkey)?;
 
@@ -132,7 +138,7 @@ impl Transaction {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());
         }
         //sign
-        let msg_sign = EthApdu::sign_digest(path);
+        let msg_sign = EthApdu::sign_digest(path)?;
         let res_msg_sign = send_apdu(msg_sign)?;
         ApduCheck::check_response(&res_msg_sign)?;
 
@@ -161,12 +167,117 @@ impl Transaction {
         }
 
         let mut signature = hex::encode(signed.0);
-        if &self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+        if self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
             signature.insert_str(0, &self.tx_type);
         }
         let tx_sign_result = EthTxOutput { signature, tx_hash };
 
         Ok(tx_sign_result)
+    }
+
+    // Keep the async API aligned with the existing synchronous signing API.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn sign_async<T>(
+        &self,
+        transport: &T,
+        chain_id: Option<u64>,
+        path: &str,
+        payment: &str,
+        receiver: &str,
+        sender: &str,
+        fee: &str,
+    ) -> EthResult<EthTxOutput>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(path)?;
+
+        let mut data_pack: Vec<u8> = Vec::new();
+        let mut encode_tx = self.rlp_encode_tx(chain_id);
+        if self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+            encode_tx.insert(0, hex::decode(&self.tx_type).unwrap()[0]);
+        }
+        data_pack.extend(
+            [
+                1,
+                ((encode_tx.len() & 0xFF00) >> 8) as u8,
+                (encode_tx.len() & 0x00FF) as u8,
+            ]
+            .iter(),
+        );
+        data_pack.extend(encode_tx.iter());
+        if payment.len() <= constants::ETH_MAX_SUPPORT_PAYMENT_LEN {
+            data_pack.extend([7, payment.len() as u8].iter());
+            data_pack.extend(payment.as_bytes().iter());
+        } else {
+            data_pack.extend([7, constants::ETH_MAX_SUPPORT_PAYMENT_LEN as u8].iter());
+            data_pack.extend(payment.as_bytes()[..constants::ETH_MAX_SUPPORT_PAYMENT_LEN].iter());
+        }
+        data_pack.extend([8, receiver.len() as u8].iter());
+        data_pack.extend(receiver.as_bytes().iter());
+        data_pack.extend([9, fee.len() as u8].iter());
+        data_pack.extend(fee.as_bytes().iter());
+
+        let bind_signature = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            secp256k1_sign(&key_manager_obj.pri_key, &data_pack).unwrap()
+        };
+
+        let mut apdu_pack: Vec<u8> = Vec::new();
+        apdu_pack.push(0x00);
+        apdu_pack.push(bind_signature.len() as u8);
+        apdu_pack.extend(bind_signature.as_slice());
+        apdu_pack.extend(data_pack.as_slice());
+
+        let select_apdu = EthApdu::select_applet()?;
+        Self::send_checked(transport, select_apdu, 20).await?;
+
+        let msg_prepare = EthApdu::prepare_sign(apdu_pack);
+        for msg in msg_prepare {
+            Self::send_checked(transport, msg, constants::TIMEOUT_LONG).await?;
+        }
+
+        let msg_pubkey = EthApdu::get_xpub(path, false)?;
+        let res_msg_pubkey = Self::send_checked(transport, msg_pubkey, 20).await?;
+
+        let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
+
+        let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone()).unwrap();
+        if address_checksummed != *sender {
+            return Err(CoinError::ImkeyAddressMismatchWithPath.into());
+        }
+
+        let msg_sign = EthApdu::sign_digest(path)?;
+        let res_msg_sign = Self::send_checked(transport, msg_sign, 20).await?;
+
+        let sign_compact = &res_msg_sign[2..130];
+        let sign_compact_vec = hex_to_bytes(sign_compact).unwrap();
+
+        let mut signature_obj = SecpSignature::from_compact(sign_compact_vec.as_slice()).unwrap();
+        signature_obj.normalize_s();
+        let normalizes_sig_vec = signature_obj.serialize_compact();
+
+        let msg_hash = self.hash(chain_id);
+        let rec_id =
+            utility::retrieve_recid(&msg_hash[..], &normalizes_sig_vec, &pubkey_raw).unwrap();
+
+        let mut data_arr = [0; 65];
+        data_arr[0..64].copy_from_slice(&normalizes_sig_vec[0..64]);
+        data_arr[64] = i32::from(rec_id) as u8;
+        let sig = Signature(data_arr);
+
+        let signed = self.with_signature(sig, chain_id);
+
+        let mut tx_hash = hex::encode(signed.1.hash);
+        if !tx_hash.starts_with("0x") {
+            tx_hash.insert_str(0, "0x");
+        }
+
+        let mut signature = hex::encode(signed.0);
+        if self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+            signature.insert_str(0, &self.tx_type);
+        }
+        Ok(EthTxOutput { signature, tx_hash })
     }
 
     pub fn rlp_encode_tx(&self, chain_id: Option<u64>) -> Vec<u8> {
@@ -180,7 +291,7 @@ impl Transaction {
         let mut stream = RlpStream::new();
         self.rlp_append_unsigned_transaction(&mut stream, chain_id);
         let mut encode_tx = stream.as_raw().to_vec();
-        if &self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+        if self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
             encode_tx.insert(0, hex::decode(&self.tx_type).unwrap()[0]);
         }
         keccak(encode_tx)
@@ -189,7 +300,7 @@ impl Transaction {
     pub fn rlp_append_unsigned_transaction(&self, s: &mut RlpStream, chain_id: Option<u64>) {
         s.begin_list(self.rlp_list_size(chain_id));
 
-        if &self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+        if self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
             s.append(&chain_id.unwrap());
             s.append(&self.nonce);
             s.append(&self.max_priority_fee_per_gas.unwrap());
@@ -203,7 +314,7 @@ impl Transaction {
         s.append(&self.value);
         s.append(&self.data);
 
-        if &self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+        if self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
             s.append_list(&self.access_list);
         } else {
             if let Some(n) = chain_id {
@@ -215,7 +326,7 @@ impl Transaction {
     }
 
     pub fn rlp_list_size(&self, chain_id: Option<u64>) -> usize {
-        if &self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+        if self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
             9
         } else {
             if chain_id.is_none() {
@@ -233,7 +344,7 @@ impl Transaction {
         }
         let hex_vec = hex::decode(hex_string).unwrap();
         let mut result = [0u8; 32];
-        result[0..32].copy_from_slice(&hex_vec.as_slice());
+        result[0..32].copy_from_slice(hex_vec.as_slice());
         H256(result)
     }
 
@@ -248,14 +359,14 @@ impl Transaction {
             s: U256::from_big_endian(sig.s()),
             v: self.add_chain_replay_protection(sig.v() as u64, chain_id),
             hash: H256::zero(),
-            chain_id: chain_id,
+            chain_id,
         };
 
         (unverified.rlp_bytes().to_vec(), unverified.compute_hash())
     }
 
     pub fn add_chain_replay_protection(&self, v: u64, chain_id: Option<u64>) -> u64 {
-        if &self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+        if self.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
             v
         } else {
             v + if let Some(n) = chain_id {
@@ -272,18 +383,17 @@ impl Transaction {
     ) -> EthResult<EthMessageOutput> {
         check_path_validity(&sign_param.path)?;
 
-        let message_to_sign;
-        if is_valid_hex(&input.message) {
+        let message_to_sign = if is_valid_hex(&input.message) {
             let value = if input.message.to_lowercase().starts_with("0x") {
                 &input.message[2..]
             } else {
                 &input.message
             };
 
-            message_to_sign = hex::decode(value).unwrap();
+            hex::decode(value).unwrap()
         } else {
-            message_to_sign = input.message.into_bytes();
-        }
+            input.message.into_bytes()
+        };
 
         let mut data = Vec::new();
         if input.is_personal_sign {
@@ -307,16 +417,16 @@ impl Transaction {
         apdu_pack.extend(bind_signature.as_slice());
         apdu_pack.extend(data_to_sign.as_slice());
 
-        let select_apdu = EthApdu::select_applet();
+        let select_apdu = EthApdu::select_applet()?;
         let select_result = send_apdu(select_apdu)?;
         ApduCheck::check_response(&select_result)?;
 
-        let msg_pubkey = EthApdu::get_xpub(&sign_param.path, false);
+        let msg_pubkey = EthApdu::get_xpub(&sign_param.path, false)?;
         let res_msg_pubkey = send_apdu(msg_pubkey)?;
         let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
         let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone()).unwrap();
 
-        if &address_checksummed != &sign_param.sender {
+        if address_checksummed != sign_param.sender {
             return Err(CoinError::ImkeyAddressMismatchWithPath.into());
         }
 
@@ -326,9 +436,94 @@ impl Transaction {
             ApduCheck::check_response(&res)?;
         }
 
-        let sign_apdu = EthApdu::personal_sign(&sign_param.path);
+        let sign_apdu = EthApdu::personal_sign(&sign_param.path)?;
         let sign_response = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_response)?;
+
+        let sign_compact = hex::decode(&sign_response[2..130]).unwrap();
+        let mut signature_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
+        signature_obj.normalize_s();
+        let normalizes_sig_vec = signature_obj.serialize_compact();
+
+        let mut keccak256 = tiny_keccak::Keccak::v256();
+        keccak256.update(data.as_slice());
+        let mut data_hash = [0u8; 256 / 8];
+        keccak256.finalize(&mut data_hash);
+        let rec_id = utility::retrieve_recid(&data_hash, &normalizes_sig_vec, &pubkey_raw).unwrap();
+        let rec_id = i32::from(rec_id);
+        let v = rec_id + 27;
+
+        let mut signature = hex::encode(normalizes_sig_vec.as_slice());
+        signature.push_str(&format!("{:02x}", &v));
+
+        Ok(EthMessageOutput { signature })
+    }
+
+    pub async fn sign_message_async<T>(
+        transport: &T,
+        input: EthMessageInput,
+        sign_param: &SignParam,
+    ) -> EthResult<EthMessageOutput>
+    where
+        T: AsyncApduTransport + ?Sized,
+    {
+        check_path_validity(&sign_param.path)?;
+
+        let message_to_sign = if is_valid_hex(&input.message) {
+            let value = if input.message.to_lowercase().starts_with("0x") {
+                &input.message[2..]
+            } else {
+                &input.message
+            };
+
+            hex::decode(value).unwrap()
+        } else {
+            input.message.into_bytes()
+        };
+
+        let mut data = Vec::new();
+        if input.is_personal_sign {
+            let header = format!("Ethereum Signed Message:\n{}", &message_to_sign.len());
+            data.extend(header.as_bytes());
+        }
+        data.extend(message_to_sign);
+
+        let mut data_to_sign: Vec<u8> = Vec::new();
+        data_to_sign.push(0x01);
+        data_to_sign.push(((data.len() & 0xFF00) >> 8) as u8);
+        data_to_sign.push((data.len() & 0x00FF) as u8);
+        data_to_sign.extend(data.as_slice());
+
+        let bind_signature = {
+            let key_manager_obj = KEY_MANAGER.lock();
+            secp256k1_sign(&key_manager_obj.pri_key, &data_to_sign)?
+        };
+
+        let mut apdu_pack: Vec<u8> = vec![];
+        apdu_pack.push(0x00);
+        apdu_pack.push(bind_signature.len() as u8);
+        apdu_pack.extend(bind_signature.as_slice());
+        apdu_pack.extend(data_to_sign.as_slice());
+
+        let select_apdu = EthApdu::select_applet()?;
+        Self::send_checked(transport, select_apdu, 20).await?;
+
+        let msg_pubkey = EthApdu::get_xpub(&sign_param.path, false)?;
+        let res_msg_pubkey = Self::send_checked(transport, msg_pubkey, 20).await?;
+        let pubkey_raw = hex_to_bytes(&res_msg_pubkey[..130]).unwrap();
+        let address_checksummed = EthAddress::from_pub_key(pubkey_raw.clone()).unwrap();
+
+        if address_checksummed != sign_param.sender {
+            return Err(CoinError::ImkeyAddressMismatchWithPath.into());
+        }
+
+        let prepare_apdus = EthApdu::prepare_personal_sign(apdu_pack);
+        for apdu in prepare_apdus {
+            Self::send_checked(transport, apdu, constants::TIMEOUT_LONG).await?;
+        }
+
+        let sign_apdu = EthApdu::personal_sign(&sign_param.path)?;
+        let sign_response = Self::send_checked(transport, sign_apdu, 20).await?;
 
         let sign_compact = hex::decode(&sign_response[2..130]).unwrap();
         let mut signature_obj = SecpSignature::from_compact(sign_compact.as_slice()).unwrap();
@@ -376,18 +571,18 @@ impl UnverifiedTransaction {
     /// Used to compute hash of created transactions
     fn compute_hash(mut self) -> UnverifiedTransaction {
         let mut rlp_bytes = self.rlp_bytes().to_vec();
-        if &self.unsigned.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+        if self.unsigned.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
             rlp_bytes.insert(0, hex::decode(&self.unsigned.tx_type).unwrap()[0]);
         }
         let hash = keccak(&rlp_bytes);
         self.hash = hash;
-        println!("hash:{}", &hex::encode(&hash));
+        println!("hash:{}", &hex::encode(hash));
         self
     }
 
     /// Append object with a signature into RLP stream
     fn rlp_append_sealed_transaction(&self, s: &mut RlpStream) {
-        if &self.unsigned.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+        if self.unsigned.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
             s.begin_list(12);
             s.append(&self.chain_id.unwrap());
             s.append(&self.unsigned.nonce);
@@ -403,7 +598,7 @@ impl UnverifiedTransaction {
         s.append(&self.unsigned.value);
         s.append(&self.unsigned.data);
 
-        if &self.unsigned.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
+        if self.unsigned.tx_type == constants::ETH_TRANSACTION_TYPE_EIP1559 {
             s.append_list(&self.unsigned.access_list);
         }
         s.append(&self.v);
@@ -428,12 +623,12 @@ mod tests {
 
         let tx = Transaction {
             nonce: U256::from(8),
-            gas_price: U256::from(20000000008 as usize),
+            gas_price: U256::from(20000000008_usize),
             gas_limit: U256::from(189000),
             to: Action::Call(
                 Address::from_str("3535353535353535353535353535353535353535").unwrap(),
             ),
-            value: U256::from(512 as usize),
+            value: U256::from(512_usize),
             data: Vec::new(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_LEGACY),
             max_fee_per_gas: None,
@@ -498,13 +693,12 @@ mod tests {
         bind_test();
 
         let data = "0x60056013565b6101918061001d6000396000f35b3360008190555056006001600060e060020a6000350480630a874df61461003a57806341c0e1b514610058578063a02b161e14610066578063dbbdf0831461007757005b610045600435610149565b80600160a060020a031660005260206000f35b610060610161565b60006000f35b6100716004356100d4565b60006000f35b61008560043560243561008b565b60006000f35b600054600160a060020a031632600160a060020a031614156100ac576100b1565b6100d0565b8060018360005260205260406000208190555081600060005260206000a15b5050565b600054600160a060020a031633600160a060020a031614158015610118575033600160a060020a0316600182600052602052604060002054600160a060020a031614155b61012157610126565b610146565b600060018260005260205260406000208190555080600060005260206000a15b50565b60006001826000526020526040600020549050919050565b600054600160a060020a031633600160a060020a0316146101815761018f565b600054600160a060020a0316ff5b56".to_string();
-        let data_vec;
-        if data.starts_with("0x") {
+        let data_vec = if let Some(data) = data.strip_prefix("0x") {
             // data = hex::encode(&data[2..]);
-            data_vec = hex::decode(&data[2..]).unwrap();
+            hex::decode(data).unwrap()
         } else {
-            data_vec = hex::decode(&data).unwrap();
-        }
+            hex::decode(&data).unwrap()
+        };
 
         let tx = Transaction {
             nonce: U256::from_dec_str("13").unwrap(),
@@ -540,13 +734,12 @@ mod tests {
         bind_test();
 
         let data = "0x0000000000000000000000000000000000000000000000000000000000".to_string();
-        let data_vec;
-        if data.starts_with("0x") {
+        let data_vec = if let Some(data) = data.strip_prefix("0x") {
             // data = hex::encode(&data[2..]);
-            data_vec = hex::decode(&data[2..]).unwrap();
+            hex::decode(data).unwrap()
         } else {
-            data_vec = hex::decode(&data).unwrap();
-        }
+            hex::decode(&data).unwrap()
+        };
 
         let tx = Transaction {
             nonce: U256::from_dec_str("13").unwrap(),
@@ -680,8 +873,8 @@ mod tests {
 
         let rec_id = utility::retrieve_recid(
             &hex::decode(hash).unwrap(),
-            &&hex::decode(sign).unwrap(),
-            &&hex::decode(pubkey).unwrap(),
+            &hex::decode(sign).unwrap(),
+            &hex::decode(pubkey).unwrap(),
         )
         .unwrap();
         let rec_id = i32::from(rec_id);
@@ -746,12 +939,12 @@ mod tests {
 
         let tx = Transaction {
             nonce: U256::from(549),
-            gas_price: U256::from(0 as usize),
+            gas_price: U256::from(0_usize),
             gas_limit: U256::from(21000),
             to: Action::Call(
                 Address::from_str("03e2B0f5369297a2E7A13d6F8e6d4BFbB9cf7dC7").unwrap(),
             ),
-            value: U256::from(500000000000000 as usize),
+            value: U256::from(500000000000000_usize),
             data: Vec::new(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_EIP1559),
             max_fee_per_gas: Some(U256::from(2000000000)),
@@ -784,15 +977,15 @@ mod tests {
 
         let tx = Transaction {
             nonce: U256::from(548),
-            gas_price: U256::from(0 as usize),
+            gas_price: U256::from(0_usize),
             gas_limit: U256::from(220),
             to: Action::Call(
                 Address::from_str("87e65b8280098da8f9bb3a69643573378da87542").unwrap(),
             ),
-            value: U256::from(44902 as usize),
+            value: U256::from(44902_usize),
             data: hex::decode("3400711e1d0bfbcf").unwrap(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_EIP1559),
-            max_fee_per_gas: Some(U256::from(2298206284 as usize)),
+            max_fee_per_gas: Some(U256::from(2298206284_usize)),
             max_priority_fee_per_gas: Some(U256::from(163)),
             access_list: vec![],
         };
@@ -822,15 +1015,15 @@ mod tests {
 
         let tx = Transaction {
             nonce: U256::from(8),
-            gas_price: U256::from(0 as usize),
+            gas_price: U256::from(0_usize),
             gas_limit: U256::from(14298499),
             to: Action::Call(
                 Address::from_str("ef970655297d1234174bcfe31ee803aaa97ad0ca").unwrap(),
             ),
-            value: U256::from(11 as usize),
+            value: U256::from(11_usize),
             data: hex::decode("ee").unwrap(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_EIP1559),
-            max_fee_per_gas: Some(U256::from(850895266216 as usize)),
+            max_fee_per_gas: Some(U256::from(850895266216_usize)),
             max_priority_fee_per_gas: Some(U256::from(69)),
             access_list: vec![],
         };
@@ -860,15 +1053,15 @@ mod tests {
 
         let tx = Transaction {
             nonce: U256::from(4),
-            gas_price: U256::from(0 as usize),
+            gas_price: U256::from(0_usize),
             gas_limit: U256::from(54),
             to: Action::Call(
                 Address::from_str("d5539a0e4d27ebf74515fc4acb38adcc3c513f25").unwrap(),
             ),
-            value: U256::from(64 as usize),
+            value: U256::from(64_usize),
             data: hex::decode("f579eebd8a5295c6f9c86e").unwrap(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_EIP1559),
-            max_fee_per_gas: Some(U256::from(963240322143 as usize)),
+            max_fee_per_gas: Some(U256::from(963240322143_usize)),
             max_priority_fee_per_gas: Some(U256::from(28710)),
             access_list: vec![AccessListItem {
                 address: Address::from_str("70b361fc3a4001e4f8e4e946700272b51fe4f0c4").unwrap(),
@@ -911,15 +1104,15 @@ mod tests {
 
         let tx = Transaction {
             nonce: U256::from(6),
-            gas_price: U256::from(0 as usize),
+            gas_price: U256::from(0_usize),
             gas_limit: U256::from(10884139),
             to: Action::Call(
                 Address::from_str("d24911709fa01130804188b5c76ed65bfdfd6a05").unwrap(),
             ),
-            value: U256::from(4990 as usize),
+            value: U256::from(4990_usize),
             data: hex::decode("e9290f2d3d754ba522").unwrap(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_EIP1559),
-            max_fee_per_gas: Some(U256::from(2984486799 as usize)),
+            max_fee_per_gas: Some(U256::from(2984486799_usize)),
             max_priority_fee_per_gas: Some(U256::from(183)),
             access_list: vec![AccessListItem {
                 address: Address::from_str("55a7ce45514b6e71743bbb67e9959bd19eefb8ed").unwrap(),
@@ -959,15 +1152,15 @@ mod tests {
 
         let tx = Transaction {
             nonce: U256::from(3),
-            gas_price: U256::from(0 as usize),
+            gas_price: U256::from(0_usize),
             gas_limit: U256::from(41708),
             to: Action::Call(
                 Address::from_str("af9031dff5db0a02d25cd09b3cbb0d3f7f332faf").unwrap(),
             ),
-            value: U256::from(44939 as usize),
+            value: U256::from(44939_usize),
             data: hex::decode("4f").unwrap(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_EIP1559),
-            max_fee_per_gas: Some(U256::from(259340687386 as usize)),
+            max_fee_per_gas: Some(U256::from(259340687386_usize)),
             max_priority_fee_per_gas: Some(U256::from(223)),
             access_list: vec![AccessListItem {
                 address: Address::from_str("4824aec0a347a627d2bd88ae1f69a41b0665fed0").unwrap(),
@@ -1000,15 +1193,15 @@ mod tests {
 
         let tx = Transaction {
             nonce: U256::from(1),
-            gas_price: U256::from(0 as usize),
+            gas_price: U256::from(0_usize),
             gas_limit: U256::from(4286),
             to: Action::Call(
                 Address::from_str("6f4ecd70932d65ac08b56db1f4ae2da4391f328e").unwrap(),
             ),
-            value: U256::from(3490361 as usize),
+            value: U256::from(3490361_usize),
             data: hex::decode("200184c0486d5f082a27").unwrap(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_EIP1559),
-            max_fee_per_gas: Some(U256::from(1076634600920 as usize)),
+            max_fee_per_gas: Some(U256::from(1076634600920_usize)),
             max_priority_fee_per_gas: Some(U256::from(226)),
             access_list: vec![
                 AccessListItem {
@@ -1067,12 +1260,12 @@ mod tests {
         // Fee: 0.0032 ether
         let tx = Transaction {
             nonce: U256::from(8),
-            gas_price: U256::from(20000000008 as usize),
+            gas_price: U256::from(20000000008_usize),
             gas_limit: U256::from(189000),
             to: Action::Call(
                 Address::from_str("3535353535353535353535353535353535353535").unwrap(),
             ),
-            value: U256::from(512 as usize),
+            value: U256::from(512_usize),
             data: Vec::new(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_LEGACY),
             max_fee_per_gas: None,
@@ -1096,12 +1289,12 @@ mod tests {
         // Fee: 0.002499941511088808 ether
         let tx = Transaction {
             nonce: U256::from(11),
-            gas_price: U256::from(20000000008 as usize),
+            gas_price: U256::from(20000000008_usize),
             gas_limit: U256::from(189000),
             to: Action::Call(
                 Address::from_str("b8c77482e45f1f44de1745f52c74426c631bdd52").unwrap(),
             ),
-            value: U256::from(0 as usize),
+            value: U256::from(0_usize),
             data: hex::decode("a9059cbb0000000000000000000000004ae26e87e97374f44fbf25eab31461256840520f0000000000000000000000000000000000000000000000000b23687298ba8000").unwrap(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_LEGACY),
             max_fee_per_gas: None,
@@ -1125,12 +1318,12 @@ mod tests {
         // Fee: 0.002654792885876068 ether
         let tx = Transaction {
             nonce: U256::from(11),
-            gas_price: U256::from(20000000008 as usize),
+            gas_price: U256::from(20000000008_usize),
             gas_limit: U256::from(189000),
             to: Action::Call(
                 Address::from_str("dac17f958d2ee523a2206206994597c13d831ec7").unwrap(),
             ),
-            value: U256::from(0 as usize),
+            value: U256::from(0_usize),
             data: hex::decode("a9059cbb000000000000000000000000cad5475a669cdd9b27caef99efbd1b21c82c6ec3000000000000000000000000000000000000000000000000000000000cf87109").unwrap(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_LEGACY),
             max_fee_per_gas: None,
@@ -1154,15 +1347,15 @@ mod tests {
         // Fee: 0.0033 ether
         let tx = Transaction {
             nonce: U256::from(1),
-            gas_price: U256::from(0 as usize),
+            gas_price: U256::from(0_usize),
             gas_limit: U256::from(4286),
             to: Action::Call(
                 Address::from_str("6f4ecd70932d65ac08b56db1f4ae2da4391f328e").unwrap(),
             ),
-            value: U256::from(3490361 as usize),
+            value: U256::from(3490361_usize),
             data: hex::decode("200184c0486d5f082a27").unwrap(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_EIP1559),
-            max_fee_per_gas: Some(U256::from(1076634600920 as usize)),
+            max_fee_per_gas: Some(U256::from(1076634600920_usize)),
             max_priority_fee_per_gas: Some(U256::from(226)),
             access_list: vec![
                 AccessListItem {
@@ -1208,12 +1401,12 @@ mod tests {
         // Fee: 0.11 ether
         let tx = Transaction {
             nonce: U256::from(11),
-            gas_price: U256::from(20000000008 as usize),
+            gas_price: U256::from(20000000008_usize),
             gas_limit: U256::from(189000),
             to: Action::Call(
                 Address::from_str("dac17f958d2ee523a2206206994597c13d831ec7").unwrap(),
             ),
-            value: U256::from(0 as usize),
+            value: U256::from(0_usize),
             data: hex::decode("11059cbb000000000000000000000000cad5475a669cdd9b27caef99efbd1b21c82c6ec3000000000000000000000000000000000000000000000000000000000cf87109").unwrap(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_LEGACY),
             max_fee_per_gas: None,
@@ -1238,12 +1431,12 @@ mod tests {
 
         let tx = Transaction {
             nonce: U256::from(8),
-            gas_price: U256::from(20000000008 as usize),
+            gas_price: U256::from(20000000008_usize),
             gas_limit: U256::from(189000),
             to: Action::Call(
                 Address::from_str("3535353535353535353535353535353535353535").unwrap(),
             ),
-            value: U256::from(512 as usize),
+            value: U256::from(512_usize),
             data: Vec::new(),
             tx_type: String::from(constants::ETH_TRANSACTION_TYPE_LEGACY),
             max_fee_per_gas: None,

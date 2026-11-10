@@ -15,6 +15,8 @@ Use this repository when you need to build or inspect:
   address derivation, and signing command wrappers.
 - `token-core/tcx-wasm`: browser/WebAssembly entrypoint for a focused
   TokenCoreX surface.
+- `imkey-core/ikc-wasm`: async imKey WebUSB bindings, distributed with the
+  TokenCore bindings through `@imtoken/wallet-core-web`.
 - `publish`: Android Maven Central packaging and release support files.
 
 ## Repository Map
@@ -24,6 +26,7 @@ Use this repository when you need to build or inspect:
 | [`token-core`](./token-core/README.md) | Software wallet core crates and C ABI entrypoint `call_tcx_api` | iOS, Android, React Native, Rust tests |
 | [`imkey-core`](./imkey-core/README.md) | Hardware wallet core crates and C ABI entrypoint `call_imkey_api` | iOS, Android, hardware integration |
 | [`token-core/tcx-wasm`](./token-core/tcx-wasm) | WebAssembly bindings for browser/passkey-oriented flows | Web apps, [`examples/wasm`](./examples/wasm/README.md) |
+| [`imkey-core/ikc-wasm`](./imkey-core/ikc-wasm) | Async imKey device bindings with injected transport | WebUSB apps, [`publish/npm`](./publish/npm/README.md) |
 | [`publish/android`](./publish/android/README.md) | Android AAR and Maven Central publishing project | Release automation |
 | [`doc`](./doc) | Workspace build, test, release, support, and compatibility docs | External contributors and maintainers |
 
@@ -34,7 +37,8 @@ Use this repository when you need to build or inspect:
 - macOS is the primary host for the current CI and mobile release workflows.
 - `protobuf` is required for Protobuf code generation.
 - `wasm32-unknown-unknown`, `wasm-pack`, and LLVM with wasm32 support are
-  required only for `tcx-wasm` builds.
+  required for WASM builds; linking also needs Rust's `llvm-tools-preview`.
+- Node.js 22 or newer and npm are required for JS host checks and the browser example.
 - Android SDK/NDK and Xcode are required only for mobile release artifacts.
 
 For detailed setup, see [`doc/BUILD.md`](./doc/BUILD.md).
@@ -75,7 +79,7 @@ make test-workspace
 # Run hardware tests with a connected and authorized imKey device
 make test-hardware
 
-# Verify native and wasm32 compilation for tcx-wasm
+# Verify native and wasm32 compilation for the WASM crates
 make test-wasm
 
 # Build and run the browser wasm example
@@ -90,7 +94,7 @@ For test scope and hardware boundaries, see [`doc/TEST.md`](./doc/TEST.md).
 | ------- | -------------- | -------- |
 | Android | [`VERSION`](./VERSION) plus release commit | Maven Central AAR `io.github.consenlabs.android:token-core` |
 | iOS | [`VERSION`](./VERSION) plus release commit | GitHub Release tag `v<VERSION>+<short-sha>` with matching TokenCoreX and imKeyCoreX XCFramework zips |
-| WebAssembly | [`token-core/tcx-wasm/Cargo.toml`](./token-core/tcx-wasm/Cargo.toml) and generated npm package metadata | `publish/npm` package files built by `make build-npm` |
+| WebAssembly | [`publish/npm/package.json`](./publish/npm/package.json) for the aggregate npm package; Rust crates have independent versions | `publish/npm` package files built by `make build-npm` |
 
 Release policy and version/tag conventions are documented in
 [`doc/RELEASE.md`](./doc/RELEASE.md). User-facing changes should be recorded in
@@ -102,6 +106,7 @@ Release policy and version/tag conventions are documented in
 - [`doc/TEST.md`](./doc/TEST.md): host-safe, workspace, wasm, and hardware tests.
 - [`doc/RELEASE.md`](./doc/RELEASE.md): versioning, tags, artifacts, and release checks.
 - [`doc/COMPATIBILITY.md`](./doc/COMPATIBILITY.md): supported toolchains and artifact matrix.
+- [`doc/QUALITY_DEBT.md`](./doc/QUALITY_DEBT.md): current CI quality gates and advisory exceptions.
 - [`SECURITY.md`](./SECURITY.md): vulnerability reporting policy.
 - [`SUPPORT.md`](./SUPPORT.md): supported questions and maintenance boundaries.
 - [`token-core/tcx-docs`](./token-core/tcx-docs): TokenCoreX API and design notes.

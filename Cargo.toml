@@ -26,6 +26,7 @@ members = [
     "token-core/tcx-libs/ed25519-dalek-bip32",
     "token-core/tcx-libs/tonlib-core",
     "imkey-core/ikc",
+    "imkey-core/ikc-wasm",
     "imkey-core/ikc-common",
     "imkey-core/ikc-device",
     "imkey-core/ikc-proto",

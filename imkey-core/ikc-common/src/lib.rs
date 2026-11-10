@@ -7,6 +7,7 @@ pub mod constants;
 pub mod error;
 pub mod https;
 pub mod path;
+pub mod tsm;
 pub mod utility;
 
 use parking_lot::RwLock;

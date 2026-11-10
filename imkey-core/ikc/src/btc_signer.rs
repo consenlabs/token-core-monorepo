@@ -1,15 +1,16 @@
 use crate::error_handling::Result;
 use crate::message_handler::encode_message;
+use anyhow::anyhow;
 use bitcoin::Network;
 use coin_bitcoin::btcapi::{BtcMessageInput, BtcTxInput, BtcTxOutput};
 use coin_bitcoin::message::MessageSinger;
 use coin_bitcoin::transaction::{BtcTransaction, Utxo};
-use ikc_common::path::get_account_path;
+use ikc_common::path::{get_account_path, resolve_derivation_path};
 use ikc_common::SignParam;
 use prost::Message;
 
 pub fn sign_btc_transaction(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: BtcTxInput = BtcTxInput::decode(data).expect("BtcTxInput");
+    let input: BtcTxInput = BtcTxInput::decode(data).map_err(|_| anyhow!("BtcTxInput"))?;
 
     if input.protocol.to_uppercase() == "OMNI" {
         if input.seg_wit.to_uppercase() == "P2WPKH" {
@@ -31,7 +32,8 @@ pub fn btc_sign(param: &BtcTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
             amount: utxo.amount,
             address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
-            derive_path: utxo.derived_path.to_uppercase(),
+            derive_path: resolve_derivation_path(&sign_param.path, &utxo.derived_path)?
+                .to_uppercase(),
             sequence: utxo.sequence,
         };
         unspents.push(new_utxo);
@@ -45,10 +47,7 @@ pub fn btc_sign(param: &BtcTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
         chain_type: sign_param.chain_type.clone(),
     };
 
-    let op_return = match &param.extra {
-        Some(extra) => Some(extra.op_return.clone()),
-        _ => None,
-    };
+    let op_return = param.extra.as_ref().map(|extra| extra.op_return.clone());
 
     let signed = btc_tx.sign_transaction(
         &sign_param.network,
@@ -74,7 +73,7 @@ pub fn sign_usdt_transaction(input: &BtcTxInput, sign_param: &SignParam) -> Resu
             amount: utxo.amount,
             address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
-            derive_path: utxo.derived_path.to_string(),
+            derive_path: resolve_derivation_path(&sign_param.path, &utxo.derived_path)?,
             sequence: utxo.sequence,
         };
         unspents.push(new_utxo);
@@ -83,20 +82,20 @@ pub fn sign_usdt_transaction(input: &BtcTxInput, sign_param: &SignParam) -> Resu
     let btc_tx = BtcTransaction {
         to: input.to.to_string(),
         amount: input.amount,
-        unspents: unspents,
+        unspents,
         fee: input.fee,
         chain_type: sign_param.chain_type.clone(),
     };
 
-    let network = if sign_param.network == "TESTNET".to_string() {
+    let network = if sign_param.network == "TESTNET" {
         Network::Testnet
     } else {
         Network::Bitcoin
     };
     let extra = input
         .extra
-        .clone()
-        .expect("sign usdt tx must contains extra");
+        .as_ref()
+        .ok_or_else(|| anyhow!("sign usdt tx must contains extra"))?;
 
     let signed = btc_tx.sign_omni_transaction(network, &sign_param.path, extra.property_id)?;
     let tx_sign_result = BtcTxOutput {
@@ -116,7 +115,7 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
             amount: utxo.amount,
             address: utxo.address.to_string(),
             script_pubkey: utxo.script_pub_key.to_string(),
-            derive_path: utxo.derived_path.to_string(),
+            derive_path: resolve_derivation_path(&sign_param.path, &utxo.derived_path)?,
             sequence: utxo.sequence,
         };
         unspents.push(new_utxo);
@@ -125,12 +124,12 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
     let btc_tx = BtcTransaction {
         to: input.to.to_string(),
         amount: input.amount,
-        unspents: unspents,
+        unspents,
         fee: input.fee,
         chain_type: sign_param.chain_type.clone(),
     };
 
-    let network = if sign_param.network == "TESTNET".to_string() {
+    let network = if sign_param.network == "TESTNET" {
         Network::Testnet
     } else {
         Network::Bitcoin
@@ -138,11 +137,11 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
 
     let extra = input
         .extra
-        .clone()
-        .expect("sign usdt tx must contains extra");
+        .as_ref()
+        .ok_or_else(|| anyhow!("sign usdt tx must contains extra"))?;
 
     let signed =
-        btc_tx.sign_omni_segwit_transaction(network, &sign_param.path, extra.property_id as i32)?;
+        btc_tx.sign_omni_segwit_transaction(network, &sign_param.path, extra.property_id)?;
     let tx_sign_result = BtcTxOutput {
         signature: signed.signature,
         wtx_hash: signed.wtx_id,
@@ -152,7 +151,8 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
 }
 
 pub fn btc_sign_message(data: &[u8], sign_param: &SignParam) -> Result<Vec<u8>> {
-    let input: BtcMessageInput = BtcMessageInput::decode(data).expect("imkey_illegal_param");
+    let input: BtcMessageInput =
+        BtcMessageInput::decode(data).map_err(|_| anyhow!("imkey_illegal_param"))?;
     let derivation_path = get_account_path(&sign_param.path)?;
     let singer = MessageSinger {
         derivation_path,

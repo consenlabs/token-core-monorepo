@@ -1,6 +1,10 @@
 pub const VERSION: &str = "2.16.4";
-pub const URL: &str = "https://imkey.online:1000/imkey";
-// pub const URL: &str = "https://imkeyserver.com:10444/imkey";
+/// Compatibility fallback for clients that have not migrated to `configure_tsm` yet.
+pub const DEFAULT_TSM_URL: &str = "https://imkey.online:1000/imkey";
+/// Source-compatible alias for existing Rust consumers. New code must resolve
+/// the endpoint through `ikc_common::tsm`.
+#[doc(hidden)]
+pub const URL: &str = DEFAULT_TSM_URL;
 
 pub const TSM_ACTION_SE_SECURE_CHECK: &str = "/seSecureCheck";
 pub const TSM_ACTION_APP_DOWNLOAD: &str = "/appDownload";
@@ -12,6 +16,7 @@ pub const TSM_ACTION_AUTHCODE_STORAGE: &str = "/authCodeStorage";
 pub const TSM_ACTION_DEVICE_CERT_CHECK: &str = "/deviceCertCheck";
 pub const TSM_ACTION_COS_UPGRADE: &str = "/seCosUpdate";
 pub const TSM_ACTION_COS_CHECK_UPDATE: &str = "/cosCheckUpdate";
+pub const TSM_ACTION_BLE_UPDATE: &str = "/bleUpdate";
 
 //apud related constant
 pub const LC_MAX: u32 = 245;
@@ -105,6 +110,7 @@ pub const APDU_RSP_IN_MENU_PAGE: &str = "F080";
 pub const APDU_RSP_PIN_NOT_VERIFIED: &str = "F081";
 pub const APDU_BLUETOOTH_CHANNEL_ERROR: &str = "6F01";
 pub const APDU_RSP_SWITCH_BL_STATUS_SUCCESS: &str = "905A";
+pub const APDU_RSP_BLE_UPGRADE_CANCEL: &str = "90A5";
 
 pub const TIMEOUT_LONG: i32 = 120;
 pub const DEVICE_MODEL_NAME: &str = "imKey Pro";

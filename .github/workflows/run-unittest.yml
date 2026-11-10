@@ -77,75 +77,7 @@ jobs:
         run: brew install protobuf
 
       - name: Run clippy
-        run: |
-          cargo clippy --locked --workspace --all-targets -- \
-            -D warnings \
-            -A clippy::redundant_field_names \
-            -A clippy::redundant_static_lifetimes \
-            -A clippy::field_reassign_with_default \
-            -A clippy::unnecessary_unwrap \
-            -A clippy::needless_borrows_for_generic_args \
-            -A clippy::needless_borrow \
-            -A clippy::to_string_trait_impl \
-            -A clippy::large_enum_variant \
-            -A clippy::assign_op_pattern \
-            -A clippy::useless_vec \
-            -A clippy::explicit_counter_loop \
-            -A clippy::unnecessary_to_owned \
-            -A clippy::len_zero \
-            -A clippy::needless_return \
-            -A clippy::clone_on_copy \
-            -A clippy::let_unit_value \
-            -A clippy::single_match \
-            -A clippy::ptr_arg \
-            -A clippy::to_string_in_format_args \
-            -A clippy::op_ref \
-            -A clippy::new_without_default \
-            -A clippy::suspicious_open_options \
-            -A clippy::no_effect \
-            -A clippy::unused_unit \
-            -A clippy::derivable_impls \
-            -A clippy::manual_is_multiple_of \
-            -A clippy::unnecessary_cast \
-            -A clippy::get_last_with_len \
-            -A clippy::comparison_to_empty \
-            -A clippy::needless_as_bytes \
-            -A clippy::manual_strip \
-            -A clippy::doc_overindented_list_items \
-            -A clippy::needless_range_loop \
-            -A clippy::redundant_slicing \
-            -A clippy::needless_bool \
-            -A clippy::let_and_return \
-            -A clippy::char_lit_as_u8 \
-            -A clippy::legacy_numeric_constants \
-            -A clippy::useless_conversion \
-            -A clippy::manual_saturating_arithmetic \
-            -A clippy::get_first \
-            -A clippy::manual_div_ceil \
-            -A clippy::sliced_string_as_bytes \
-            -A clippy::needless_late_init \
-            -A clippy::manual_map \
-            -A clippy::vec_init_then_push \
-            -A clippy::map_clone \
-            -A clippy::empty_line_after_doc_comments \
-            -A clippy::nonminimal_bool \
-            -A clippy::match_like_matches_macro \
-            -A clippy::type_complexity \
-            -A clippy::missing_const_for_thread_local \
-            -A clippy::cmp_owned \
-            -A clippy::ok_expect \
-            -A clippy::missing_safety_doc \
-            -A clippy::not_unsafe_ptr_arg_deref \
-            -A clippy::redundant_closure \
-            -A clippy::needless_update \
-            -A clippy::manual_range_contains \
-            -A clippy::bool_assert_comparison \
-            -A clippy::identity_op \
-            -A clippy::unwrap_or_default \
-            -A clippy::bind_instead_of_map \
-            -A clippy::assertions_on_constants \
-            -A clippy::manual_flatten \
-            -A clippy::useless_format
+        run: cargo clippy --locked --workspace --all-targets -- -D warnings
 
   test-no-run:
     name: cargo test --no-run
@@ -193,8 +125,26 @@ jobs:
       - name: Run TokenCore host tests
         run: make test-tcx
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "11"
+
       - name: Run imKey host-safe tests
         run: make test-ikc
+
+      - name: Run npm JS tests
+        run: make test-npm
+
+      - name: Run mobile FFI ownership mocks
+        run: |
+          curl --fail --location --retry 3 https://repo.maven.apache.org/maven2/net/java/dev/jna/jna/5.10.0/jna-5.10.0.jar -o "$RUNNER_TEMP/jna.jar"
+          echo "e335c10679f743207d822c5f7948e930319835492575a9dba6b94f8a3b96fcc8  $RUNNER_TEMP/jna.jar" | shasum -a 256 --check
+          JNA_JAR="$RUNNER_TEMP/jna.jar" make test-mobile-ffi
 
   kdf-features:
     name: KDF contracts (${{ matrix.features || 'default' }})
@@ -249,10 +199,36 @@ jobs:
         run: brew install llvm protobuf
 
       - name: Install wasm target
-        run: rustup target add wasm32-unknown-unknown
+        run: |
+          rustup target add wasm32-unknown-unknown
+          rustup component add llvm-tools-preview
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack
+
+      - uses: browser-actions/setup-chrome@v1
 
       - name: Run wasm check
         run: make test-wasm
+
+      - name: Run wasm Node smoke
+        run: make test-wasm-node
+
+      - name: Run wasm browser session smoke
+        run: make test-wasm-browser
+
+      - name: Verify packed npm consumer
+        run: make test-npm-package
+
+      - name: Check npm TypeScript declarations
+        run: |
+          npm ci --prefix examples/wasm --ignore-scripts --no-audit
+          ./examples/wasm/node_modules/.bin/tsc --project publish/npm/tsconfig.json
 
   docs-links:
     name: markdown links

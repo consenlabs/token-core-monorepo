@@ -1,4 +1,4 @@
-use super::key_manager::KeyManager;
+use super::key_manager::{BindingStorage, FileBindingStorage, KeyManager};
 use crate::auth_code_storage::AuthCodeStorageRequest;
 use crate::device_cert_check::DeviceCertCheckRequest;
 use crate::error::{BindError, ImkeyError};
@@ -40,6 +40,10 @@ pub struct DeviceManage {}
 
 impl DeviceManage {
     pub fn bind_check(file_path: &str) -> Result<String> {
+        Self::bind_check_with_storage(&FileBindingStorage::new(file_path))
+    }
+
+    pub fn bind_check_with_storage(storage: &dyn BindingStorage) -> Result<String> {
         //get seid
         let seid = device_manager::get_se_id()?;
         //get SN number
@@ -49,7 +53,7 @@ impl DeviceManage {
         key_manager_obj.gen_encrypt_key(&seid, &sn);
 
         //Get the ciphertext of the local key file
-        let ciphertext = KeyManager::get_key_file_data(file_path, &seid)?;
+        let ciphertext = storage.load(&seid)?.unwrap_or_default();
         let mut key_flag = false;
         if !ciphertext.is_empty() {
             //Decrypt and parse the ciphertext
@@ -63,15 +67,24 @@ impl DeviceManage {
         }
 
         //gen bindchec apdu
-        let bind_check_apdu = ImkApdu::bind_check(&key_manager_obj.pub_key);
+        let bind_check_apdu = ImkApdu::bind_check(&key_manager_obj.pub_key)?;
         //send bindcheck command and get return data
         select_imk_applet()?;
         let bind_check_apdu_resp_data = send_apdu(bind_check_apdu)?;
         ApduCheck::check_response(bind_check_apdu_resp_data.as_str())?;
 
-        let status = String::from(&bind_check_apdu_resp_data[..2]);
-        let se_pub_key_cert: String =
-            String::from(&bind_check_apdu_resp_data[2..(bind_check_apdu_resp_data.len() - 4)]);
+        let payload_end = bind_check_apdu_resp_data
+            .len()
+            .checked_sub(4)
+            .ok_or(BindError::ImkeySdkIllegalArgument)?;
+        let status = bind_check_apdu_resp_data
+            .get(..2)
+            .ok_or(BindError::ImkeySdkIllegalArgument)?
+            .to_string();
+        let se_pub_key_cert = bind_check_apdu_resp_data
+            .get(2..payload_end)
+            .ok_or(BindError::ImkeySdkIllegalArgument)?
+            .to_string();
 
         if status.eq(BIND_STATUS_UNBOUND) || status.eq(BIND_STATUS_BOUND_OTHER) {
             //check se cert
@@ -79,7 +92,7 @@ impl DeviceManage {
                 .send_message()?;
 
             //get se public key
-            key_manager_obj.se_pub_key = hex::decode(get_se_pubkey(se_pub_key_cert)?)?;
+            key_manager_obj.se_pub_key = hex::decode(get_se_pubkey(&se_pub_key_cert)?)?;
 
             //calc the session key
             let pk2 = PublicKey::from_slice(key_manager_obj.se_pub_key.as_slice())?;
@@ -93,17 +106,18 @@ impl DeviceManage {
             //Save the ciphertext to a local file
             if key_flag {
                 let ciphertext = key_manager_obj.encrypt_data()?;
-                KeyManager::save_keys_to_local_file(&ciphertext, file_path, &seid)?;
+                storage.save(&seid, &ciphertext)?;
             }
         }
-        Ok(BIND_STATUS_MAP.get(status.as_str()).unwrap().to_string())
+        bind_status_message(status.as_str())
     }
 
     pub fn bind_acquire(binding_code: &str) -> Result<String> {
         let temp_binding_code = binding_code.to_uppercase();
         let binding_code_bytes = temp_binding_code.as_bytes();
         //check auth code
-        let bind_code_verify_regex = Regex::new(r"^[A-HJ-NP-Z2-9]{8}$").unwrap();
+        let bind_code_verify_regex =
+            Regex::new(r"^[A-HJ-NP-Z2-9]{8}$").map_err(|_| BindError::ImkeySdkIllegalArgument)?;
         if !bind_code_verify_regex.is_match(temp_binding_code.as_ref()) {
             return Err(BindError::ImkeySdkIllegalArgument.into());
         }
@@ -134,16 +148,22 @@ impl DeviceManage {
         let mut apdu_data = vec![];
         apdu_data.extend(&key_manager_obj.pub_key);
         apdu_data.extend(ciphertext);
-        let identity_verify_apdu = ImkApdu::identity_verify(&apdu_data);
+        let identity_verify_apdu = ImkApdu::identity_verify(&apdu_data)?;
         std::mem::drop(key_manager_obj);
         //send command to device
         let bind_result = send_apdu_timeout(identity_verify_apdu, TIMEOUT_LONG * 2)?;
         ApduCheck::check_response(&bind_result)?;
-        let result_code = &bind_result[..bind_result.len() - 4];
+        let result_code_end = bind_result
+            .len()
+            .checked_sub(4)
+            .ok_or(BindError::ImkeySdkIllegalArgument)?;
+        let result_code = bind_result
+            .get(..result_code_end)
+            .ok_or(BindError::ImkeySdkIllegalArgument)?;
 
         match result_code {
             BIND_RESULT_ERROR => Err(BindError::ImkeyAuthcodeError.into()),
-            _ => Ok(BIND_STATUS_MAP.get(result_code).unwrap().to_string()),
+            _ => bind_status_message(result_code),
         }
     }
 
@@ -154,20 +174,30 @@ impl DeviceManage {
     }
 }
 
+pub(crate) fn bind_status_message(status: &str) -> Result<String> {
+    BIND_STATUS_MAP
+        .get(status)
+        .map(|message| (*message).to_string())
+        .ok_or_else(|| BindError::ImkeySdkIllegalArgument.into())
+}
+
 fn select_imk_applet() -> Result<()> {
-    let apdu_response = send_apdu(Apdu::select_applet(IMK_AID))?;
+    let apdu_response = send_apdu(Apdu::select_applet(IMK_AID)?)?;
     ApduCheck::check_response(apdu_response.as_str())
 }
 
 /**
 generator iv
 */
-fn gen_iv(auth_code: &String) -> [u8; 16] {
+pub(crate) fn gen_iv(auth_code: &str) -> [u8; 16] {
     let salt_bytes = sha256_hash("bindingCode".as_bytes());
     let auth_code_hash = sha256_hash(auth_code.as_bytes());
     let mut result = [0u8; 32];
-    for (index, value) in auth_code_hash.iter().enumerate() {
-        result[index] = value ^ salt_bytes.get(index).unwrap();
+    for (slot, (auth_value, salt_value)) in result
+        .iter_mut()
+        .zip(auth_code_hash.iter().zip(salt_bytes.iter()))
+    {
+        *slot = auth_value ^ salt_value;
     }
     let mut return_data = [0u8; 16];
     return_data.copy_from_slice(&result[..16]);
@@ -177,36 +207,33 @@ fn gen_iv(auth_code: &String) -> [u8; 16] {
 /**
 encrypt auth code
 */
-fn auth_code_encrypt(auth_code: &String) -> Result<String> {
-    let n = hex::decode("C6627A6F0485B33DDC1CA7E062C64E8841133B9246A41F40D0767BAE44EAB2EF453D008FFB07B8D9FDFCD21882487ECC4DA933C97E494242ADA3CE02C5A05189AA49410E771A66E8100E43CB1AF6CC610B59EE4EBB236FF38C62AD7B1D11DFBD4E054D19E3349391A31F5E89CA721292B7380295745D8968CC5C2D223AC6750BB0ACA27773687E9CD76065E47F42F4AE005459BCE5746BD760646A5BD119BA3469A935F48EB898CBAB72CB394C3FEC9E41635EAE954107A17AC7B8C6321D8F1755AD3915A9D2398DB268A3F642CEE9CBE9F82ECD5AD64EBEDDDE66601DC2B891E2FEDDF72DAF627FA8FA16F7C640DB661BE15DCB4274D9576D98DBEB20C25309");
-    let e = hex::decode("010001");
-    let u32_vec_n = BigUint::from_bytes_be(&n.unwrap());
-    let u32_vec_e = BigUint::from_bytes_be(&e.unwrap());
+pub(crate) fn auth_code_encrypt(auth_code: &str) -> Result<String> {
+    let n = hex::decode("C6627A6F0485B33DDC1CA7E062C64E8841133B9246A41F40D0767BAE44EAB2EF453D008FFB07B8D9FDFCD21882487ECC4DA933C97E494242ADA3CE02C5A05189AA49410E771A66E8100E43CB1AF6CC610B59EE4EBB236FF38C62AD7B1D11DFBD4E054D19E3349391A31F5E89CA721292B7380295745D8968CC5C2D223AC6750BB0ACA27773687E9CD76065E47F42F4AE005459BCE5746BD760646A5BD119BA3469A935F48EB898CBAB72CB394C3FEC9E41635EAE954107A17AC7B8C6321D8F1755AD3915A9D2398DB268A3F642CEE9CBE9F82ECD5AD64EBEDDDE66601DC2B891E2FEDDF72DAF627FA8FA16F7C640DB661BE15DCB4274D9576D98DBEB20C25309")?;
+    let e = hex::decode("010001")?;
+    let u32_vec_n = BigUint::from_bytes_be(&n);
+    let u32_vec_e = BigUint::from_bytes_be(&e);
     let rsa_pub_key = RsaPublicKey::new(u32_vec_n, u32_vec_e)?;
     let mut rng = OsRng;
     let enc_data = rsa_pub_key.encrypt(&mut rng, Pkcs1v15Encrypt, auth_code.as_bytes())?;
     Ok(hex::encode_upper(enc_data))
 }
 
-fn get_se_pubkey(se_pubkey_cert: String) -> Result<String> {
-    let index;
-    if se_pubkey_cert.contains("7F4947B041") {
-        index = se_pubkey_cert
-            .find("7F4947B041")
-            .expect("parsing_se_cert_error");
-    } else if se_pubkey_cert.contains("7F4946B041") {
-        index = se_pubkey_cert
-            .find("7F4946B041")
-            .expect("parsing_se_cert_error");
-    } else {
-        return Err(ImkeyError::ImkeySeCertInvalid.into());
-    }
+pub(crate) fn get_se_pubkey(se_pubkey_cert: &str) -> Result<String> {
+    let index = se_pubkey_cert
+        .find("7F4947B041")
+        .or_else(|| se_pubkey_cert.find("7F4946B041"))
+        .ok_or(ImkeyError::ImkeySeCertInvalid)?;
 
-    Ok(se_pubkey_cert[index + 10..index + 130 + 10].to_string())
+    se_pubkey_cert
+        .get(index + 10..index + 130 + 10)
+        .map(str::to_string)
+        .ok_or_else(|| ImkeyError::ImkeySeCertInvalid.into())
 }
 
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux"))]
 pub fn bind_test() {
+    crate::configure_test_tsm_from_env();
+
     //binding device
     let path = TEST_KEY_PATH.to_string();
     let bind_code = TEST_BIND_CODE.to_string();
@@ -237,7 +264,8 @@ pub const TEST_BIND_CODE: &str = "6MFDC64F";
 #[cfg(test)]
 mod test {
     use crate::device_binding::{
-        auth_code_encrypt, gen_iv, DeviceManage, TEST_BIND_CODE, TEST_KEY_PATH,
+        auth_code_encrypt, bind_status_message, gen_iv, get_se_pubkey, DeviceManage,
+        TEST_BIND_CODE, TEST_KEY_PATH,
     };
     use crate::device_manager::bind_display_code;
     use ikc_transport::hid_api::hid_connect;
@@ -247,6 +275,8 @@ mod test {
 
     #[test]
     fn device_bind_test() {
+        crate::configure_test_tsm_from_env();
+
         let path = TEST_KEY_PATH.to_string();
         let bind_code = TEST_BIND_CODE.to_string();
 
@@ -300,5 +330,17 @@ mod test {
     fn auth_code_encrypt_test() {
         let auth_code = "PVU3FY64".to_string();
         assert!(auth_code_encrypt(&auth_code).is_ok());
+    }
+
+    #[test]
+    fn unknown_bind_status_returns_error() {
+        let err = bind_status_message("ff").unwrap_err().to_string();
+        assert_eq!("imkey_sdk_illegal_argument", err);
+    }
+
+    #[test]
+    fn invalid_se_pubkey_cert_returns_error() {
+        let err = get_se_pubkey("7F4947B04104").unwrap_err().to_string();
+        assert_eq!("imkey_se_cert_invalid", err);
     }
 }

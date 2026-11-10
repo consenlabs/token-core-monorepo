@@ -51,7 +51,7 @@ pub fn hex_to_bytes(value: &str) -> Result<Vec<u8>> {
     let result = if value.starts_with("0x") || value.starts_with("0X") {
         hex::decode(&value[2..])
     } else {
-        hex::decode(&value[..])
+        hex::decode(value)
     };
 
     result.map_err(|_| Error::InvalidHexValue.into())

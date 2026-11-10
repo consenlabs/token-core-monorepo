@@ -49,10 +49,11 @@ pub struct TronTxOutput {
 pub struct TronMessageInput {
     /// The message to sign
     /// - For version 1/2: Raw message string or hex string (with 0x prefix)
-    /// - For version 3 (TIP-712): MUST be a 64-byte hex string
-    ///    (128 hex chars with 0x prefix), formed by
-    ///    `domainSeparator (32 bytes) || hashStruct(message) (32 bytes)`.
-    ///    Do NOT pre-hash this value.
+    /// - For version 3 (TIP-712): MUST be a 64-byte hex string.
+    ///
+    /// TIP-712 payload uses 128 hex chars with 0x prefix, formed by
+    /// `domainSeparator (32 bytes) || hashStruct(message) (32 bytes)`.
+    /// Do NOT pre-hash this value.
     #[prost(string, tag = "1")]
     pub value: ::prost::alloc::string::String,
     /// Header type: "TRON", "ETH", or "NONE"

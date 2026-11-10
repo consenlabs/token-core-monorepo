@@ -8,6 +8,8 @@ pub mod se_activate;
 pub mod se_query;
 pub mod se_secure_check;
 extern crate ikc_common;
+pub mod async_device_manager;
+pub mod ble_upgrade;
 pub mod cos_upgrade;
 pub mod device_manager;
 pub mod deviceapi;
@@ -20,11 +22,23 @@ extern crate anyhow;
 use core::result;
 pub type Result<T> = result::Result<T, anyhow::Error>;
 use crate::error::ImkeyError;
-use ikc_common::constants;
+use ikc_common::error::ApduError;
+use ikc_common::{constants, https};
 use ikc_transport::message;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 pub mod cos_check_update;
+
+// Called only by hardware-test entry points, including `bind_test` consumers in
+// the coin crates. Production clients configure TSM through `configure_tsm`.
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn configure_test_tsm_from_env() {
+    if let Ok(base_url) = std::env::var("IMKEY_TSM_TEST_URL") {
+        ikc_common::tsm::configure_tsm_url(&base_url)
+            .expect("IMKEY_TSM_TEST_URL must contain a valid TSM base URL");
+    }
+}
 
 #[allow(non_snake_case)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -40,6 +54,61 @@ pub struct ServiceResponse<T> {
 pub trait TsmService {
     type ReturnData;
     fn send_message(&mut self) -> Result<Self::ReturnData>;
+}
+
+pub fn tsm_post(action: &str, req_data: Vec<u8>) -> Result<String> {
+    https::post(action, req_data)
+}
+
+pub trait TsmStepResponse {
+    fn next_step_key(&self) -> Option<&str>;
+    fn apdu_list(&self) -> Option<&[String]>;
+}
+
+pub trait TsmStepRequest: Serialize {
+    type Response: DeserializeOwned + TsmStepResponse;
+
+    fn tsm_action(&self) -> &'static str;
+    fn update_step_result(
+        &mut self,
+        next_step_key: String,
+        card_ret_data_list: Vec<String>,
+        status_word: String,
+    );
+}
+
+pub fn run_tsm_steps<T>(request: &mut T) -> Result<ServiceResponse<T::Response>>
+where
+    T: TsmStepRequest,
+{
+    loop {
+        let req_data = serde_json::to_vec_pretty(request)?;
+        let response_data = tsm_post(request.tsm_action(), req_data)?;
+        let return_bean: ServiceResponse<T::Response> =
+            serde_json::from_str(response_data.as_str())?;
+        if return_bean.return_code != constants::TSM_RETURN_CODE_SUCCESS {
+            return_bean.service_res_check()?;
+            continue;
+        }
+
+        let next_step_key = return_bean
+            .return_data
+            .next_step_key()
+            .ok_or(ImkeyError::ImkeyTsmServerError)?
+            .to_string();
+        if constants::TSM_END_FLAG.eq(next_step_key.as_str()) {
+            return Ok(return_bean);
+        }
+
+        let apdu_list = return_bean
+            .return_data
+            .apdu_list()
+            .ok_or(ImkeyError::ImkeyTsmServerError)?
+            .to_vec();
+        let (card_ret_data_list, status_word) =
+            ServiceResponse::<T::Response>::apdu_handle(apdu_list)?;
+        request.update_step_result(next_step_key, card_ret_data_list, status_word);
+    }
 }
 
 impl<T> ServiceResponse<T> {
@@ -116,7 +185,14 @@ impl<T> ServiceResponse<T> {
             let res = message::send_apdu(apdu_val.to_string())?;
             apdu_res.push(res.clone());
             if index_val == apdu_list.len() - 1 {
-                status_word = String::from(&res[res.len() - 4..]);
+                let status_start = res
+                    .len()
+                    .checked_sub(4)
+                    .ok_or(ApduError::ImkeyApduWrongLength)?;
+                status_word = res
+                    .get(status_start..)
+                    .ok_or(ApduError::ImkeyApduWrongLength)?
+                    .to_string();
             }
         }
         Ok((apdu_res, status_word))

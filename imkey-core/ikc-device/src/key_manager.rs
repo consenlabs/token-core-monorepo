@@ -1,5 +1,6 @@
 use crate::error::BindError;
 use crate::Result;
+use anyhow::anyhow;
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use ikc_common::aes::cbc::{decrypt_pkcs7, encrypt_pkcs7};
 use ikc_common::utility::{is_valid_hex, sha256_hash};
@@ -10,6 +11,14 @@ use std::fs;
 use std::fs::{File, OpenOptions};
 use std::io::{ErrorKind, Read, Write};
 use std::path::Path;
+
+const PRIVATE_KEY_LEN: usize = 32;
+const PUBLIC_KEY_LEN: usize = 65;
+const SE_PUBLIC_KEY_LEN: usize = 65;
+const SESSION_KEY_LEN: usize = 16;
+const CHECKSUM_LEN: usize = 4;
+const KEY_DATA_LEN: usize = PRIVATE_KEY_LEN + PUBLIC_KEY_LEN + SE_PUBLIC_KEY_LEN + SESSION_KEY_LEN;
+const KEY_FILE_PLAINTEXT_LEN: usize = KEY_DATA_LEN + CHECKSUM_LEN;
 
 pub struct KeyManager {
     pub pri_key: Vec<u8>,
@@ -25,6 +34,66 @@ pub struct KeyManager {
     pub encry_key: Vec<u8>,
     //16 byte
     pub iv: Vec<u8>, //16 byte
+}
+
+pub trait BindingStorage {
+    fn load(&self, seid: &str) -> Result<Option<String>>;
+    fn save(&self, seid: &str, encrypted_key: &str) -> Result<()>;
+}
+
+pub struct FileBindingStorage<'a> {
+    path: &'a str,
+}
+
+impl<'a> FileBindingStorage<'a> {
+    pub fn new(path: &'a str) -> Self {
+        Self { path }
+    }
+}
+
+impl BindingStorage for FileBindingStorage<'_> {
+    fn load(&self, seid: &str) -> Result<Option<String>> {
+        let mut return_data = String::new();
+        // !!! compatibility issue, the path of key file in android is different with ios before 2.0.0
+        let android_path = format!("{}/keys{}", self.path, KeyManager::key_file_suffix(seid)?);
+        let ios_path = format!("{}/keys{}", self.path, seid);
+        let path = if Path::new(android_path.as_str()).exists() {
+            android_path
+        } else {
+            ios_path
+        };
+        let file = File::open(&path);
+        match file {
+            Ok(mut f) => {
+                f.read_to_string(&mut return_data)
+                    .map_err(|_| BindError::ImkeyKeyfileIoError)?;
+                Ok(Some(return_data))
+            }
+            Err(e) => match e.kind() {
+                ErrorKind::NotFound => Ok(None),
+                _ => Err(BindError::ImkeyKeyfileIoError.into()),
+            },
+        }
+    }
+
+    fn save(&self, seid: &str, encrypted_key: &str) -> Result<()> {
+        if !Path::new(self.path).exists() {
+            fs::create_dir_all(self.path)?;
+        }
+
+        let key_path = format!("{}/keys{}", self.path, KeyManager::key_file_suffix(seid)?);
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(Path::new(key_path.as_str()))
+            .map_err(|_| BindError::ImkeySaveKeyFileFail)?;
+        match file.write_all(encrypted_key.as_bytes()) {
+            Ok(val) => Ok(val),
+            Err(_e) => Err(BindError::ImkeySaveKeyFileFail.into()),
+        }
+    }
 }
 
 impl Default for KeyManager {
@@ -54,11 +123,11 @@ impl KeyManager {
         let sn_hash = sha256_hash(sn.as_bytes());
 
         let mut xor_result: Vec<u8> = vec![];
-        for (index, value) in seid_hash.iter().enumerate() {
-            xor_result.push(value ^ sn_hash.get(index).unwrap());
+        for (seid_value, sn_value) in seid_hash.iter().zip(sn_hash.iter()) {
+            xor_result.push(seid_value ^ sn_value);
         }
         self.encry_key = xor_result[..16].to_vec();
-        self.iv = xor_result[16..].to_vec();
+        self.iv = xor_result[16..32].to_vec();
     }
 
     /**
@@ -87,27 +156,9 @@ impl KeyManager {
     Get key file data
     */
     pub fn get_key_file_data(path: &str, seid: &str) -> Result<String> {
-        let mut return_data = String::new();
-        // !!! compatibility issue, the path of key file in android is different with ios before 2.0.0
-        let android_path = format!("{}/keys{}", path, &seid[seid.len() - 8..]);
-        let ios_path = format!("{}/keys{}", path, seid);
-        let path = if Path::new(android_path.as_str()).exists() {
-            android_path
-        } else {
-            ios_path
-        };
-        let file = File::open(&path);
-        match file {
-            Ok(mut f) => {
-                f.read_to_string(&mut return_data)
-                    .expect("imkey_keyfile_io_error");
-                Ok(return_data)
-            }
-            Err(e) => match e.kind() {
-                ErrorKind::NotFound => Ok(return_data),
-                _ => Err(BindError::ImkeyKeyfileIoError.into()),
-            },
-        }
+        Ok(FileBindingStorage::new(path)
+            .load(seid)?
+            .unwrap_or_default())
     }
 
     /**
@@ -115,10 +166,14 @@ impl KeyManager {
     */
     pub fn decrypt_keys(&mut self, ciphertext: &str) -> Result<bool> {
         let ciphertext_bytes = match is_valid_hex(ciphertext) {
-            true => hex::decode(ciphertext).expect("invalid keys"),
-            false => BASE64_STANDARD
-                .decode(ciphertext.as_bytes())
-                .expect("invalid keys"), //base64 decode
+            true => match hex::decode(ciphertext) {
+                Ok(data) => data,
+                Err(_) => return Ok(false),
+            },
+            false => match BASE64_STANDARD.decode(ciphertext.as_bytes()) {
+                Ok(data) => data,
+                Err(_) => return Ok(false),
+            },
         };
 
         //AES-CBC Decrypt
@@ -127,28 +182,34 @@ impl KeyManager {
             return Ok(false);
         }
         let decrypted_data = plaintext?;
+        if decrypted_data.len() != KEY_FILE_PLAINTEXT_LEN {
+            return Ok(false);
+        }
 
         //Parsing data
         //pri_key
-        self.pri_key = decrypted_data[..32].to_vec();
+        self.pri_key = decrypted_data[..PRIVATE_KEY_LEN].to_vec();
 
         //pub key
-        self.pub_key = decrypted_data[32..97].to_vec();
+        let pub_key_start = PRIVATE_KEY_LEN;
+        let pub_key_end = pub_key_start + PUBLIC_KEY_LEN;
+        self.pub_key = decrypted_data[pub_key_start..pub_key_end].to_vec();
 
         //se pub key
-        self.se_pub_key = decrypted_data[97..162].to_vec();
+        let se_pub_key_end = pub_key_end + SE_PUBLIC_KEY_LEN;
+        self.se_pub_key = decrypted_data[pub_key_end..se_pub_key_end].to_vec();
 
         //session key
-        self.session_key = decrypted_data[162..178].to_vec();
+        self.session_key = decrypted_data[se_pub_key_end..KEY_DATA_LEN].to_vec();
 
         //check sum
-        self.check_sum = decrypted_data[178..].to_vec();
+        self.check_sum = decrypted_data[KEY_DATA_LEN..].to_vec();
 
         //check checksum
-        let data = &decrypted_data[..178];
+        let data = &decrypted_data[..KEY_DATA_LEN];
         let data_hash = sha256_hash(data);
-        for (index, val) in self.check_sum.iter().enumerate() {
-            if val != &data_hash[index] {
+        for (val, expected) in self.check_sum.iter().zip(data_hash.iter()) {
+            if val != expected {
                 return Ok(false);
             }
         }
@@ -170,23 +231,16 @@ impl KeyManager {
      Store key data
     */
     pub fn save_keys_to_local_file(keys: &str, path: &str, seid: &str) -> Result<()> {
-        if !Path::new(path).exists() {
-            fs::create_dir_all(path)?;
-        }
+        FileBindingStorage::new(path).save(seid, keys)
+    }
 
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(Path::new(
-                format!("{}/keys{}", path, &seid[seid.len() - 8..]).as_str(),
-            ))
-            .expect("imkey_keyfile_opertion_error");
-        match file.write_all(keys.as_bytes()) {
-            Ok(val) => Ok(val),
-            Err(_e) => Err(BindError::ImkeySaveKeyFileFail.into()),
-        }
+    fn key_file_suffix(seid: &str) -> Result<&str> {
+        let suffix_start = seid
+            .len()
+            .checked_sub(8)
+            .ok_or_else(|| anyhow!("imkey_sdk_illegal_argument"))?;
+        seid.get(suffix_start..)
+            .ok_or_else(|| BindError::ImkeySdkIllegalArgument.into())
     }
 }
 
@@ -213,5 +267,16 @@ mod test {
             hex::encode_upper(key_manager_obj.iv),
             "92AF372F64C10BAA942478560F91F346".to_string()
         );
+    }
+
+    #[test]
+    fn decrypt_invalid_key_data_returns_false() {
+        let mut key_manager_obj = KeyManager::new();
+        assert!(!key_manager_obj.decrypt_keys("not-valid-key-data").unwrap());
+    }
+
+    #[test]
+    fn short_seid_key_file_suffix_returns_error() {
+        assert!(KeyManager::key_file_suffix("1234567").is_err());
     }
 }

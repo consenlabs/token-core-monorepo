@@ -108,14 +108,12 @@ impl PrivateKeystore {
 
     pub(crate) fn verify_password(&self, key: &Key) -> bool {
         match key {
-            Key::Password(password) => {
-                return self.store.crypto.verify_password(password);
-            }
+            Key::Password(password) => self.store.crypto.verify_password(password),
             Key::DerivedKey(derived_key_hex) => {
                 let Ok(derived_key) = Vec::from_hex_auto(derived_key_hex) else {
                     return false;
                 };
-                return self.store.crypto.verify_derived_key(&derived_key);
+                self.store.crypto.verify_derived_key(&derived_key)
             }
         }
     }
@@ -133,8 +131,8 @@ impl PrivateKeystore {
         let unlocker = crypto.use_key(&Key::Password(password.to_string()))?;
         let identity = Identity::from_private_key(private_key, &unlocker, &meta.network)?;
 
-        let ori = if original.is_some() {
-            original.unwrap()
+        let ori = if let Some(original) = original {
+            original
         } else {
             private_key.to_string()
         };
@@ -148,7 +146,7 @@ impl PrivateKeystore {
             version: PrivateKeystore::VERSION,
             identity,
             curve: Some(curve),
-            enc_original: enc_original,
+            enc_original,
         };
 
         Ok(PrivateKeystore {
@@ -236,21 +234,21 @@ mod tests {
             "ad87a08796efbdd9276e2ca5a10f938937cb5d2b7d5f698c06a94d8eeed3f6ae",
         )
         .unwrap();
-        let fingerprint = fingerprint_from_private_key(&pk_data).unwrap();
+        let fingerprint = fingerprint_from_private_key(pk_data).unwrap();
         assert_eq!(fingerprint, "0x1468dba9c246fe22183c056540ab4d8b04553217");
 
         let pk_data = &Vec::<u8>::from_hex(
             "257cd2f8eb13f6930ecb95ac7736dd25e65d231ce1a3b1669e51f6737350b43e",
         )
         .unwrap();
-        let fingerprint = fingerprint_from_private_key(&pk_data).unwrap();
+        let fingerprint = fingerprint_from_private_key(pk_data).unwrap();
         assert_eq!(fingerprint, "0xf6f232595e79dd9723aa4e840d548e792d44aea6");
 
         let pk_data = &Vec::<u8>::from_hex(
             "ad87a08796efbdd9276e2ca5a10f938937cb5d2b7d5f698c06a94d8eeed3f600257cd2f8eb13f6930ecb95ac7736dd25e65d231ce1a3b1669e51f6737350b43e",
         )
             .unwrap();
-        let fingerprint = fingerprint_from_private_key(&pk_data).unwrap();
+        let fingerprint = fingerprint_from_private_key(pk_data).unwrap();
         assert_eq!(fingerprint, "0x404ba38b37b9c682526621118094a43220a95bd6");
     }
 
@@ -281,7 +279,7 @@ mod tests {
         let excepts = ["0280c98b8ea7cab630defb0c09a4295c2193cdee016c1d5b9b0cb18572b9c370fe"];
 
         for (i, coin_info) in coin_infos.iter().enumerate() {
-            let acc = keystore.derive_coin::<MockAddress>(&coin_info).unwrap();
+            let acc = keystore.derive_coin::<MockAddress>(coin_info).unwrap();
 
             let k1_pub_key =
                 Secp256k1PublicKey::from_slice(&Vec::from_hex_auto(excepts[i]).unwrap()).unwrap();

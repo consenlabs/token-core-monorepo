@@ -24,17 +24,19 @@ public class Api {
         private static Api sInstance = new Api();
     }
 
+    private static final CallbackResponseBuffer CALLBACK_RESPONSE = new CallbackResponseBuffer();
+
     public static Sender sender = new Sender() {
         @Override
-        public String sendApdu(String apdu, int timeout) {
-            RustApi.INSTANCE.free_const_string(apdu);
+        public com.sun.jna.Pointer sendApdu(String apdu, int timeout) {
+            // The request is borrowed from Rust; never free a JNA-marshalled String.
             String result = "";
             try {
                 result = Ble.getInstance().sendApdu(apdu,timeout);
             }catch (Exception e){
                 result = "communication_error_" + e.getMessage();
             }
-            return result;
+            return CALLBACK_RESPONSE.store(result);
         }
     };
 

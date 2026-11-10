@@ -1,2 +1,2 @@
-*
-!.gitignore
+/tcx_wasm*
+/ikc_wasm*

@@ -94,6 +94,10 @@ message InitImKeyCoreXParam {
     string system = 5;
 }
 
+message ConfigureTsmParam {
+    string baseUrl = 1;
+}
+
 message BtcForkWallet {
     string path = 1;
     string chainType = 2;

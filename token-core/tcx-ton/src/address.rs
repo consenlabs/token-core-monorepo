@@ -20,10 +20,7 @@ impl Address for TonAddress {
             _ => DEFAULT_WALLET_ID,
         };
 
-        let is_testnet = match coin.network.as_str() {
-            "TESTNET" => true,
-            _ => false,
-        };
+        let is_testnet = matches!(coin.network.as_str(), "TESTNET");
 
         let data = wallet_version.initial_data(&public_key.to_bytes(), wallet_id)?;
         let code = wallet_version.code()?;
@@ -38,11 +35,7 @@ impl Address for TonAddress {
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
         let result = TonAddressLib::from_base64_url_flags(address);
-        if result.is_ok() {
-            true
-        } else {
-            false
-        }
+        result.is_ok()
     }
 }
 
@@ -54,9 +47,9 @@ impl FromStr for TonAddress {
     }
 }
 
-impl ToString for TonAddress {
-    fn to_string(&self) -> String {
-        self.0.clone()
+impl std::fmt::Display for TonAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
     }
 }
 

@@ -1,7 +1,5 @@
-use crate::ServiceResponse;
-use crate::{Result, TsmService};
+use crate::{run_tsm_steps, Result, TsmService, TsmStepRequest, TsmStepResponse};
 use ikc_common::constants;
-use ikc_common::https;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -29,29 +27,36 @@ impl TsmService for SeSecureCheckRequest {
     type ReturnData = ();
 
     fn send_message(&mut self) -> Result<()> {
-        loop {
-            let req_data = serde_json::to_vec_pretty(&self).unwrap();
-            let response_data = https::post(constants::TSM_ACTION_SE_SECURE_CHECK, req_data)?;
-            let return_bean: ServiceResponse<SeSecureCheckResponse> =
-                serde_json::from_str(response_data.as_str())?;
-            if return_bean.return_code == constants::TSM_RETURN_CODE_SUCCESS {
-                //check if end
-                let next_step_key = return_bean.return_data.next_step_key.unwrap();
-                if constants::TSM_END_FLAG.eq(next_step_key.as_str()) {
-                    return Ok(());
-                }
+        run_tsm_steps(self).map(|_| ())
+    }
+}
 
-                if let Some(apdu_list) = return_bean.return_data.apdu_list {
-                    let handle_result =
-                        ServiceResponse::<SeSecureCheckResponse>::apdu_handle(apdu_list)?;
-                    self.card_ret_data_list = Some(handle_result.0);
-                    self.status_word = Some(handle_result.1);
-                    self.step_key = next_step_key;
-                }
-            } else {
-                return_bean.service_res_check()?;
-            }
-        }
+impl TsmStepResponse for SeSecureCheckResponse {
+    fn next_step_key(&self) -> Option<&str> {
+        self.next_step_key.as_deref()
+    }
+
+    fn apdu_list(&self) -> Option<&[String]> {
+        self.apdu_list.as_deref()
+    }
+}
+
+impl TsmStepRequest for SeSecureCheckRequest {
+    type Response = SeSecureCheckResponse;
+
+    fn tsm_action(&self) -> &'static str {
+        constants::TSM_ACTION_SE_SECURE_CHECK
+    }
+
+    fn update_step_result(
+        &mut self,
+        next_step_key: String,
+        card_ret_data_list: Vec<String>,
+        status_word: String,
+    ) {
+        self.card_ret_data_list = Some(card_ret_data_list);
+        self.status_word = Some(status_word);
+        self.step_key = next_step_key;
     }
 }
 
@@ -78,6 +83,7 @@ mod test {
 
     #[test]
     pub fn se_secure_check_test() {
+        crate::configure_test_tsm_from_env();
         assert!(hid_connect("imKey Pro").is_ok());
         let seid = get_se_id().unwrap();
         let sn: String = get_sn().unwrap();
@@ -91,6 +97,7 @@ mod test {
 
     #[test]
     pub fn se_secure_check_error_test() {
+        crate::configure_test_tsm_from_env();
         let seid = "00000000000000000000000000000000".to_string();
         let sn = "000001".to_string();
         let device_cert = "00000000000000000000000000000000".to_string();
