@@ -9,6 +9,12 @@ Next.js web app for testing the `tcx-wasm` crate in the browser, covering keysto
 - [LLVM with wasm32 support](https://formulae.brew.sh/formula/llvm) (`brew install llvm`)
 - Node.js 22 or newer
 
+Install the Rust LLVM archiver used by the Make targets:
+
+```bash
+rustup component add llvm-tools-preview
+```
+
 ## Quick Start
 
 ```bash
@@ -24,6 +30,7 @@ To test the imKey WebUSB proof of concept, build both wasm packages and open the
 ```bash
 # From repo root
 make build-wasm-all
+npm ci --prefix examples/wasm
 cd examples/wasm && npm run dev
 ```
 
@@ -43,16 +50,18 @@ await imkey.activateDevice();
 await imkey.bindDisplayCode();
 ```
 
-`bindAcquire`, hardware address derivation, signing, and full app-management hardware validation still require the next migration step: moving the corresponding Rust business flows from synchronous `send_apdu` to the async wasm transport boundary.
+Binding, address derivation, signing and app/COS management use the async WASM
+business layer. See the [method support matrix](../../doc/imkey-wasm-method-support.md)
+for chain-specific coverage and unsupported methods. Mock and browser tests do
+not replace real-device validation of signing, reconnect and firmware updates.
 
 ## Manual Steps
 
 ```bash
-# 1. Build the WASM package
-npm run build:wasm
-
-# 2. Start the dev server
-npm run dev
+# From repo root
+npm ci --prefix examples/wasm
+make build-wasm-all
+npm --prefix examples/wasm run dev
 ```
 
 ## API Reference
@@ -482,9 +491,11 @@ const decrypted = JSON.parse(decrypt_message(JSON.stringify({
 Focused Rust/WASM regression tests:
 
 ```bash
-CARGO_TARGET_DIR=/private/tmp/token-quality-target KDF_ROUNDS=1 cargo test -p tcx-wasm
-KDF_ROUNDS=1 wasm-pack test token-core/tcx-wasm --node
-make test-npm  # builds, npm pack (no publish), imports the tarball and runs WASM APIs
+KDF_ROUNDS=1 cargo test -p tcx-wasm
+make test-wasm-node
+make test-wasm-browser
+make test-npm          # JS adapter and session tests
+make test-npm-package  # build both modules, pack and exercise a tarball consumer
 ```
 
 For wasm32 compilation, set `CC_wasm32_unknown_unknown` and
@@ -492,19 +503,20 @@ For wasm32 compilation, set `CC_wasm32_unknown_unknown` and
 `WASM_AR` for Make targets. WASM regression tests reduce KDF rounds only inside
 the test module; published packages keep production defaults.
 
-`make build-npm` generates `publish/npm/package.json` from wasm-pack's manifest
-(name/version from `token-core/tcx-wasm/Cargo.toml`) and adds ESM exports via
-`scripts/prepare-wasm-npm.mjs`. No separately versioned npm manifest is maintained.
-Generated package files are ignored by git. Consumers can initialize the web-target
-ES module in a browser:
+`make build-npm` builds both WASM modules for the aggregate
+`@imtoken/wallet-core-web` package. Its name, version and exports are maintained
+in `publish/npm/package.json`; they are independent of the Rust crate versions.
+Only generated WASM binaries/glue are ignored, not the maintained JS adapters,
+TypeScript facade or package README. Browser consumers initialize TokenCore with:
 
 ```ts
-import init, { create_keystore } from 'tcx-wasm';
-await init();
+import { initTokenCore } from '@imtoken/wallet-core-web';
+const tokenCore = await initTokenCore();
 ```
 
-In Node, pass the bytes of the exported `tcx-wasm/tcx_wasm_bg.wasm` explicitly to
-`init({ module_or_path: bytes })`; the package does not fetch local `file:` URLs.
+The package is browser-oriented. The Node tarball smoke loads WASM bytes
+explicitly rather than fetching local `file:` URLs; see
+[`scripts/npm-pack-smoke.mjs`](../../scripts/npm-pack-smoke.mjs).
 
 The Nostr tests include the published [NIP-59 example](https://github.com/nostr-protocol/nips/blob/master/59.md#an-example),
 checking its fixed event ID, seal signature and NIP-44 decryption, independently of

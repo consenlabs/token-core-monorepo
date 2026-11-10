@@ -12,7 +12,7 @@ security issues before the maintainers have evaluated the report.
 
 Include as much of the following as possible:
 
-- Affected component: `token-core`, `imkey-core`, `tcx-wasm`, mobile SDK,
+- Affected component: `token-core`, `imkey-core`, `tcx-wasm`, `ikc-wasm`, mobile SDK,
   release packaging, or dependency.
 - Affected version, commit, tag, or artifact.
 - Description of the impact.
@@ -33,6 +33,7 @@ In scope:
 - imKey APDU command construction, transport handling, and response parsing.
 - Protobuf API and C ABI behavior that can affect wallet safety.
 - `tcx-wasm` behavior that can affect browser wallet safety.
+- `ikc-wasm` and browser transport/session behavior that can affect device safety.
 - Release artifacts, dependency policy, and packaging configuration in this
   repository.
 

@@ -12,6 +12,8 @@ English documentation: [`README.md`](./README.md)。
   Protobuf API 与 C ABI。
 - `imkey-core`：imKey 硬件钱包 APDU 通信、设备管理、地址派生和签名命令封装。
 - `token-core/tcx-wasm`：面向浏览器/WebAssembly 的 TokenCoreX 子集入口。
+- `imkey-core/ikc-wasm`：异步 imKey WebUSB 绑定，与 TokenCore 绑定一起通过
+  `@imtoken/wallet-core-web` 分发。
 - `publish`：Android Maven Central 发布所需的打包与发布工程。
 
 ## 仓库边界
@@ -21,6 +23,7 @@ English documentation: [`README.md`](./README.md)。
 | [`token-core`](./token-core/README.md) | 软件钱包核心 crate 与 C ABI 入口 `call_tcx_api` | iOS、Android、React Native、Rust 测试 |
 | [`imkey-core`](./imkey-core/README.md) | 硬件钱包核心 crate 与 C ABI 入口 `call_imkey_api` | iOS、Android、硬件集成 |
 | [`token-core/tcx-wasm`](./token-core/tcx-wasm) | 浏览器和 passkey 方向的 WebAssembly 绑定 | Web 应用、[`examples/wasm`](./examples/wasm/README.md) |
+| [`imkey-core/ikc-wasm`](./imkey-core/ikc-wasm) | 注入 transport 的异步 imKey 设备绑定 | WebUSB 应用、[`publish/npm`](./publish/npm/README.md) |
 | [`publish/android`](./publish/android/README.md) | Android AAR 与 Maven Central 发布工程 | 发布自动化 |
 | [`doc`](./doc) | workspace 构建、测试、发布、支持和兼容性文档 | 外部贡献者与维护者 |
 
@@ -30,8 +33,9 @@ English documentation: [`README.md`](./README.md)。
   `nightly-2026-04-06`。
 - 当前 CI 与移动端发布流程以 macOS 为主要 host。
 - Protobuf 代码生成需要安装 `protobuf`。
-- 只有构建 `tcx-wasm` 时才需要 `wasm32-unknown-unknown`、`wasm-pack` 和带
-  wasm32 支持的 LLVM。
+- 构建 WASM 需要 `wasm32-unknown-unknown`、`wasm-pack` 和带 wasm32 支持的
+  LLVM；链接还需要 Rust 的 `llvm-tools-preview`。
+- JS host 检查和浏览器示例需要 Node.js 22 或更新版本以及 npm。
 - 只有构建移动端发布产物时才需要 Android SDK/NDK 或 Xcode。
 
 详细环境说明见 [`doc/BUILD.md`](./doc/BUILD.md)。
@@ -71,7 +75,7 @@ make test-workspace
 # 连接并授权真实 imKey 设备后运行硬件测试
 make test-hardware
 
-# 验证 tcx-wasm 的 native 与 wasm32 编译
+# 验证 WASM crate 的 native 与 wasm32 编译
 make test-wasm
 
 # 构建并启动浏览器 wasm 示例
