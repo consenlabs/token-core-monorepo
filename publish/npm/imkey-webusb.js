@@ -89,18 +89,18 @@ function remainingTime(deadline) {
   return remaining;
 }
 
-async function readChunk(device, endpoint, deadline) {
+async function transferBeforeDeadline(operation, endpoint, deadline, direction) {
   const timeoutMs = remainingTime(deadline);
   let timer;
   try {
-    const result = await Promise.race([
-      device.transferIn(endpoint, PACKET_SIZE),
+    return await Promise.race([
+      operation(),
       new Promise((_, reject) => {
         timer = setTimeout(
           () =>
             reject(
               new ImKeyWebUsbError(
-                `APDU timeout while reading endpoint ${endpoint}`,
+                `APDU timeout while ${direction} endpoint ${endpoint}`,
                 "webusb_apdu_timeout"
               )
             ),
@@ -108,13 +108,19 @@ async function readChunk(device, endpoint, deadline) {
         );
       }),
     ]);
-    if (!result.data) {
-      throw new ImKeyWebUsbError("Failed to read data from imKey.", "webusb_read_empty");
-    }
-    return new Uint8Array(result.data.buffer, result.data.byteOffset, result.data.byteLength);
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function readChunk(device, endpoint, deadline) {
+  const result = await transferBeforeDeadline(
+    () => device.transferIn(endpoint, PACKET_SIZE), endpoint, deadline, "reading"
+  );
+  if (!result.data) {
+    throw new ImKeyWebUsbError("Failed to read data from imKey.", "webusb_read_empty");
+  }
+  return new Uint8Array(result.data.buffer, result.data.byteOffset, result.data.byteLength);
 }
 
 export async function readApduResponse(device, endpoint, timeoutMs = DEFAULT_TIMEOUT_MS) {
@@ -204,6 +210,7 @@ export class WebUsbImKeyTransport {
   #usbApi = null;
   #disconnectListener = null;
   #identity;
+  #timedOutDevice = null;
 
   constructor(device, endpoints, usbApi = null) {
     this.device = device;
@@ -260,6 +267,20 @@ export class WebUsbImKeyTransport {
     this.#connected = false;
   }
 
+  async #closeTimedOutDevice() {
+    if (!this.#timedOutDevice) return;
+    // WebUSB has no transfer abort API. Close must finish before any session
+    // can reopen this device; a failed close keeps it quarantined.
+    try {
+      await this.#timedOutDevice.close();
+      this.#timedOutDevice = null;
+    } catch {
+      throw new ImKeyWebUsbError(
+        "Failed to close imKey after APDU timeout.", "webusb_device_disconnected"
+      );
+    }
+  }
+
   async close() {
     await this.#exclusive(async () => {
       this.#connected = false;
@@ -267,6 +288,7 @@ export class WebUsbImKeyTransport {
         this.#usbApi.removeEventListener("disconnect", this.#disconnectListener);
       }
       this.#disconnectListener = null;
+      await this.#closeTimedOutDevice();
       if (!this.device.opened) return;
       await this.device.releaseInterface(this.endpoints.interfaceNumber).catch(() => undefined);
       await this.device.close().catch(() => undefined);
@@ -280,24 +302,33 @@ export class WebUsbImKeyTransport {
       }
       const normalized = apduHex.trim().toUpperCase();
       const chunks = encodeApduChunks(normalized);
-      for (const chunk of chunks) {
-        await this.device.transferOut(this.endpoints.outEndpoint, chunk);
-      }
       this.#lastTrace = {
         apdu: normalized,
         firstChunk: bytesToHex(chunks[0]),
         endpoints: this.endpoints,
       };
+      const deadline = Date.now() + timeoutMs;
       try {
+        for (const chunk of chunks) {
+          await transferBeforeDeadline(
+            () => this.device.transferOut(this.endpoints.outEndpoint, chunk),
+            this.endpoints.outEndpoint, deadline, "writing"
+          );
+        }
         const response = await readApduResponse(
           this.device,
           this.endpoints.inEndpoint,
-          timeoutMs
+          remainingTime(deadline)
         );
         const responseHex = bytesToHex(response);
         this.#lastTrace = { ...this.#lastTrace, response: responseHex };
         return responseHex;
       } catch (error) {
+        if (error instanceof ImKeyWebUsbError && error.code === "webusb_apdu_timeout") {
+          this.#connected = false;
+          this.#timedOutDevice = this.device;
+          await this.#closeTimedOutDevice().catch(() => undefined);
+        }
         const message = error instanceof Error ? error.message : String(error);
         throw new ImKeyWebUsbError(
           `${message}; apdu=${normalized}; endpoints=${JSON.stringify(this.endpoints)}`,
@@ -319,6 +350,7 @@ export class WebUsbImKeyTransport {
       }
 
       this.#connected = false;
+      await this.#closeTimedOutDevice();
       if (this.device.opened) {
         await this.device
           .releaseInterface(this.endpoints.interfaceNumber)
