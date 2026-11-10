@@ -19,7 +19,6 @@ use tcx::handler::import_mnemonic;
 use tcx_constants::{OTHER_MNEMONIC, TEST_MNEMONIC, TEST_PASSWORD};
 use tcx_constants::{TEST_PRIVATE_KEY, TEST_WIF};
 
-use sp_core::ByteArray;
 use tcx::api::derive_accounts_param::Key::Password;
 
 use tcx::handler::*;

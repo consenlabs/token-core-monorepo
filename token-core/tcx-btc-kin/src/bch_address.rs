@@ -2,7 +2,7 @@ use crate::address::{BtcKinAddress, ScriptPubkey};
 use crate::{Error, Result};
 
 use bch_addr::Converter;
-use bitcoin::Script;
+use bitcoin::ScriptBuf as Script;
 
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;

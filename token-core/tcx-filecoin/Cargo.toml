@@ -13,20 +13,19 @@ tcx-primitive = { path = "../tcx-primitive" }
 tcx-constants = { path = "../tcx-constants" }
 tcx-common = { path = "../tcx-common" }
 
-prost = "=0.11.2"
-bytes = "=1.4.0"
+prost = "=0.14.3"
+bytes = "=1.11.1"
 blake2b-rs = "=0.2.0"
-anyhow = { version = "=1.0.79", features = [] }
-byteorder = "=1.4.3"
-base32 = "=0.4.0"
-serde = { version = "=1.0.147", features = ["derive"] }
-serde_json = "=1.0.89"
-base64 = "=0.13.1"
-lazy_static = "=1.4.0"
+anyhow = { version = "=1.0.102", features = [] }
+byteorder = "=1.5.0"
+base32 = "=0.5.1"
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.149"
+base64 = "=0.22.1"
+lazy_static = "=1.5.0"
 forest_vm = "=0.3.2"
-forest_message = "=0.7.2"
 forest_address = "=0.3.2"
 forest_encoding = "=0.2.2"
 forest_cid = "=0.3.0"
-forest_crypto = "0.5.3"
-thiserror = "=1.0.56"
+num_bigint_chainsafe = { package = "forest_bigint", version = "=0.1.4" }
+thiserror = "=2.0.18"

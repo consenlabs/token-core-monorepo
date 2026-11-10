@@ -29,7 +29,7 @@ A cross-platform library that implements crypto wallet functions for blockchains
   s.source           = { :http => "https://github.com/consenlabs/token-core/releases/download/v#{s.version}/ios-v#{s.version}.zip" }
   s.social_media_url = 'https://twitter.com/imTokenOfficial'
 
-  s.ios.deployment_target = '8.0'
+  s.ios.deployment_target = '14.0'
   s.static_framework = true
   s.vendored_frameworks = ['TokenCoreX.framework']
   # s.vendored_libraries = ['libtcx.a']

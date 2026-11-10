@@ -1,3 +1,5 @@
+#![allow(dead_code, unused_imports)]
+
 use error_handling::Result;
 
 use std::ffi::{CStr, CString};

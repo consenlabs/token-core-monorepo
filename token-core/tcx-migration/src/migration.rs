@@ -1,8 +1,5 @@
 use anyhow::anyhow;
-use serde::de::DeserializeOwned;
-use serde::{de, Deserialize, Deserializer, Serialize};
-use serde_json::Value;
-use std::collections::BTreeMap as Map;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use tcx_common::{FromHex, ToHex};
 use tcx_constants::{coin_info_from_param, CurveType};
@@ -109,19 +106,6 @@ pub struct LegacyKeystore {
     pub im_token_meta: Option<OldMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub key_path_privates: Option<Vec<EOSKeyPath>>,
-}
-
-fn case_insensitive<'de, T, D>(deserializer: D) -> std::result::Result<T, D::Error>
-where
-    T: DeserializeOwned,
-    D: Deserializer<'de>,
-{
-    let map = Map::<String, Value>::deserialize(deserializer)?;
-    let lower = map
-        .into_iter()
-        .map(|(k, v)| (k.to_lowercase(), v))
-        .collect();
-    T::deserialize(Value::Object(lower)).map_err(de::Error::custom)
 }
 
 impl LegacyKeystore {
@@ -321,6 +305,7 @@ impl LegacyKeystore {
 }
 
 #[cfg(test)]
+#[allow(dead_code)]
 mod tests {
     use serde_json::Value;
     use tcx_btc_kin::BtcKinAddress;

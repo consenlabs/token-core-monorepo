@@ -1,10 +1,13 @@
 use crate::constants;
 use crate::Result;
+use bytes::Bytes;
+use http_body_util::{BodyExt, Full};
 use hyper::header::HeaderValue;
-use hyper::Client;
-use hyper::{Body, Method, Request};
+use hyper::{Method, Request};
 use hyper_timeout::TimeoutConnector;
 use hyper_tls::HttpsConnector;
+use hyper_util::client::legacy::Client;
+use hyper_util::rt::TokioExecutor;
 use std::time::Duration;
 use tokio::runtime::Runtime;
 
@@ -18,7 +21,7 @@ async fn async_post(action: &str, req_data: Vec<u8>) -> Result<String> {
         .to_string()
         .parse()
         .unwrap();
-    let mut req = Request::new(Body::from(req_data));
+    let mut req = Request::new(Full::new(Bytes::from(req_data)));
     *req.method_mut() = Method::POST;
     *req.uri_mut() = uri.clone();
     req.headers_mut().insert(
@@ -37,11 +40,11 @@ async fn async_post(action: &str, req_data: Vec<u8>) -> Result<String> {
     connector.set_write_timeout(Some(Duration::from_secs(
         constants::NETWORK_WRITE_TIMEOUT as u64,
     )));
-    let client = Client::builder().build::<_, hyper::Body>(connector);
+    let client = Client::builder(TokioExecutor::new()).build::<_, Full<Bytes>>(connector);
 
     let resp = client.request(req).await?;
 
-    let bytes = hyper::body::to_bytes(resp.into_body()).await?;
+    let bytes = resp.into_body().collect().await?.to_bytes();
     let res_data = std::str::from_utf8(&bytes).unwrap().to_string();
     Ok(res_data)
 }

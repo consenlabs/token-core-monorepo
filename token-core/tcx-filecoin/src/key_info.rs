@@ -22,12 +22,18 @@ impl KeyInfo {
         match curve_type {
             CurveType::SECP256k1 => Ok(KeyInfo {
                 r#type: "secp256k1".to_string(),
-                private_key: base64::encode(private_key),
+                private_key: base64::Engine::encode(
+                    &base64::engine::general_purpose::STANDARD,
+                    private_key,
+                ),
             }),
             CurveType::BLS => Ok(KeyInfo {
                 // !!! Filecoin use "bls" string as type in json
                 r#type: "bls".to_string(),
-                private_key: base64::encode(private_key),
+                private_key: base64::Engine::encode(
+                    &base64::engine::general_purpose::STANDARD,
+                    private_key,
+                ),
             }),
             _ => Err(Error::InvalidCurveType.into()),
         }
@@ -38,7 +44,11 @@ impl KeyInfo {
     }
 
     pub fn decode_private_key(&self) -> Result<Vec<u8>> {
-        Ok(base64::decode(&self.private_key)?.to_vec())
+        Ok(base64::Engine::decode(
+            &base64::engine::general_purpose::STANDARD,
+            &self.private_key,
+        )?
+        .to_vec())
     }
 }
 

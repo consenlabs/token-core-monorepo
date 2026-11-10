@@ -19,8 +19,6 @@ use tcx::handler::{encode_message, get_derived_key, import_private_key};
 
 use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
 
-use sp_core::ByteArray;
-
 use crate::common::*;
 
 #[test]

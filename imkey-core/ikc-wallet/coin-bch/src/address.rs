@@ -5,8 +5,8 @@ use ikc_common::error::CoinError;
 use ikc_transport::message::send_apdu;
 
 use bch_addr::Converter;
-use bitcoin::util::address::Error as BtcAddressError;
-use bitcoin::{Address as BtcAddress, Network, PublicKey, Script};
+use bitcoin::address::ParseError as BtcAddressError;
+use bitcoin::{Address as BtcAddress, Network, PublicKey, ScriptBuf};
 use ikc_common::apdu::{Apdu, ApduCheck, BtcApdu};
 use ikc_common::constants::BTC_AID;
 use ikc_common::path::check_path_validity;
@@ -116,10 +116,10 @@ impl BchAddress {
         Ok(address_str)
     }
 
-    pub fn script_pubkey(target_addr: &str) -> Result<Script> {
+    pub fn script_pubkey(target_addr: &str) -> Result<ScriptBuf> {
         let target_addr = BchAddress::convert_to_legacy_if_need(target_addr)?;
         let addr = BtcAddress::from_str(&target_addr)?;
-        Ok(addr.script_pubkey())
+        Ok(addr.assume_checked().script_pubkey())
     }
 
     pub fn is_valid(address: &str) -> bool {
@@ -145,7 +145,7 @@ impl FromStr for BchAddress {
     fn from_str(s: &str) -> result::Result<BchAddress, BtcAddressError> {
         let legacy = bch_to_legacy(s).expect("_bch_to_legacy");
         let btc_addr = BtcAddress::from_str(&legacy)?;
-        Ok(BchAddress(btc_addr))
+        Ok(BchAddress(btc_addr.assume_checked()))
     }
 }
 

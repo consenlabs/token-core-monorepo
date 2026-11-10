@@ -1,3 +1,4 @@
+use base64::engine::general_purpose::STANDARD as BASE64_STANDARD;
 use common::run_test;
 use serial_test::serial;
 use tcx::api::{EthBatchPersonalSignParam, EthBatchPersonalSignResult};
@@ -774,7 +775,7 @@ fn test_bitcoin_sign_message_bip322_base64() {
             let sign_result = call_api("sign_msg", tx).unwrap();
             let ret: BtcMessageOutput = BtcMessageOutput::decode(sign_result.as_slice()).unwrap();
             println!("sign_result: {:?}", ret.signature);
-            let decoded = base64::decode(&ret.signature).unwrap();
+            let decoded = base64::Engine::decode(&BASE64_STANDARD, &ret.signature).unwrap();
             let expected_bytes = Vec::<u8>::from_hex(old_hex).unwrap();
             assert_eq!(
                 decoded, expected_bytes,
@@ -811,7 +812,7 @@ fn test_bitcoin_sign_message_standard() {
 
         let sign_result = call_api("sign_msg", tx).unwrap();
         let ret: BtcMessageOutput = BtcMessageOutput::decode(sign_result.as_slice()).unwrap();
-        let sig_bytes = base64::decode(&ret.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &ret.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(
@@ -848,7 +849,7 @@ fn test_bitcoin_sign_message_bip137() {
 
         let sign_result = call_api("sign_msg", tx).unwrap();
         let ret: BtcMessageOutput = BtcMessageOutput::decode(sign_result.as_slice()).unwrap();
-        let sig_bytes = base64::decode(&ret.signature).unwrap();
+        let sig_bytes = base64::Engine::decode(&BASE64_STANDARD, &ret.signature).unwrap();
         assert_eq!(sig_bytes.len(), 65);
         let flag = sig_bytes[0];
         assert!(

@@ -1,7 +1,6 @@
 use common::run_test;
 use serial_test::serial;
 use std::fs;
-use std::path::Path;
 
 mod common;
 
@@ -25,7 +24,6 @@ use tcx::handler::{encode_message, import_private_key};
 use tcx_constants::{CurveType, TEST_PRIVATE_KEY, TEST_WIF};
 use tcx_constants::{OTHER_MNEMONIC, TEST_MNEMONIC, TEST_PASSWORD};
 
-use sp_core::ByteArray;
 use tcx::api::export_mnemonic_param::Key;
 
 use tcx_substrate::SubstrateKeystore;
@@ -1425,7 +1423,7 @@ pub fn test_reset_password_mnemonic_old_tcx_ks() {
         ];
         for (name, mnemonic) in filenames {
             let target_file_path = format!("/tmp/imtoken/wallets/{}", name);
-            let keystore_id = if name.ends_with(".json") {
+            let _keystore_id = if name.ends_with(".json") {
                 name.replace(".json", "")
             } else {
                 name.to_string()
@@ -1587,7 +1585,7 @@ pub fn test_reset_password_private_seed_valid_first() {
         };
 
         let ret = call_api("import_private_key", import_param).unwrap();
-        let import_wallet_a_result: ImportPrivateKeyResult =
+        let _import_wallet_a_result: ImportPrivateKeyResult =
             ImportPrivateKeyResult::decode(ret.as_slice()).unwrap();
         let import_param = ImportPrivateKeyParam {
             private_key: TEST_PRIVATE_KEY.to_string(),

@@ -3,23 +3,25 @@ use crate::common::{
     address_verify, apdu_sign_verify, get_address_version, get_xpub_data, TxSignResult,
 };
 use crate::Result;
+use bitcoin::blockdata::script::PushBytesBuf;
 use bitcoin::blockdata::{opcodes, script::Builder};
 use bitcoin::consensus::serialize;
 use bitcoin::hashes::hex::FromHex;
 use bitcoin::{
-    Address, Network, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn, TxOut, Witness,
+    absolute::LockTime, Address, Amount, Network, OutPoint, ScriptBuf, Sequence, Transaction, TxIn,
+    TxOut, Witness,
 };
 use bitcoin_hashes::hash160;
-use bitcoin_hashes::hex::ToHex;
-use bitcoin_hashes::Hash;
 use ikc_common::apdu::{ApduCheck, BtcForkApdu};
 use ikc_common::constants::{BTC_FORK_DUST, MAX_OPRETURN_SIZE, MAX_UTXO_NUMBER, TIMEOUT_LONG};
 use ikc_common::error::CoinError;
+use ikc_common::hex::ToHex;
 use ikc_common::path::check_path_validity;
 use ikc_common::utility::{bigint_to_byte_vec, secp256k1_sign};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::ecdsa::Signature;
+use std::convert::TryFrom;
 use std::str::FromStr;
 
 #[derive(Clone)]
@@ -103,7 +105,7 @@ impl BchTransaction {
             //add change output
             let change_addr = self.get_change_address(network, path, change_idx, change_address)?;
             txouts.push(TxOut {
-                value: self.get_change_amount() as u64,
+                value: Amount::from_sat(self.get_change_amount() as u64),
                 script_pubkey: change_addr.script_pubkey(),
             });
         }
@@ -118,8 +120,8 @@ impl BchTransaction {
 
         //8.output data serialize
         let mut tx_to_sign = Transaction {
-            version: 1i32,
-            lock_time: PackedLockTime::ZERO,
+            version: bitcoin::transaction::Version(1i32),
+            lock_time: LockTime::ZERO,
             input: vec![],
             output: txouts.clone(),
         };
@@ -170,10 +172,10 @@ impl BchTransaction {
         for (index, unspent) in self.unspents.iter().enumerate() {
             let txin = TxIn {
                 previous_output: OutPoint {
-                    txid: bitcoin::hash_types::Txid::from_hex(&unspent.txhash)?,
+                    txid: bitcoin::hash_types::Txid::from_str(&unspent.txhash)?,
                     vout: unspent.vout as u32,
                 },
-                script_sig: Script::new(),
+                script_sig: ScriptBuf::new(),
                 sequence: Sequence::MAX,
                 witness: Witness::default(),
             };
@@ -188,10 +190,10 @@ impl BchTransaction {
 
             //lock script
             let pub_key_bytes = hex::decode(utxo_pub_key_vec.get(index).unwrap())?;
-            let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).into_inner();
+            let pub_key_hash = hash160::Hash::hash(&pub_key_bytes).to_byte_array();
             let script_hex: String = format!("76a914{}88ac", hex::encode(pub_key_hash));
             // let script = Script::from(hex::decode(script_hex)?);
-            let script = Script::from_hex(script_hex.as_str())?;
+            let script = ScriptBuf::from_hex(script_hex.as_str())?;
             let script_data = serialize(&script);
             data.extend(script_data.iter());
 
@@ -236,7 +238,7 @@ impl BchTransaction {
         }
 
         //send sign apdu
-        let mut lock_script_ver: Vec<Script> = vec![];
+        let mut lock_script_ver: Vec<ScriptBuf> = vec![];
         for (index, sign_apdu) in sign_apdu_vec.iter().enumerate() {
             //sign data
             let btc_sign_apdu_return = send_apdu(sign_apdu.clone())?;
@@ -263,8 +265,8 @@ impl BchTransaction {
             })
             .collect();
         let signed_tx = Transaction {
-            version: 1i32,
-            lock_time: PackedLockTime::ZERO,
+            version: bitcoin::transaction::Version(1i32),
+            lock_time: LockTime::ZERO,
             input: input_with_sigs,
             output: txouts.clone(),
         };
@@ -273,8 +275,8 @@ impl BchTransaction {
 
         Ok(TxSignResult {
             signature: tx_bytes.to_hex(),
-            tx_hash: signed_tx.txid().to_hex(),
-            wtx_id: signed_tx.ntxid().to_hex(),
+            tx_hash: signed_tx.compute_txid().to_hex(),
+            wtx_id: signed_tx.compute_ntxid().to_hex(),
         })
     }
 
@@ -296,23 +298,25 @@ impl BchTransaction {
         let legacy_addr_str = BchAddress::convert_to_legacy_if_need(&self.to).unwrap();
         let legacy_addr = Address::from_str(&legacy_addr_str).unwrap();
         TxOut {
-            value: self.amount as u64,
-            script_pubkey: legacy_addr.script_pubkey(),
+            value: Amount::from_sat(self.amount as u64),
+            script_pubkey: legacy_addr.assume_checked().script_pubkey(),
         }
     }
 
     pub fn build_op_return_output(&self, extra_data: &Vec<u8>) -> TxOut {
         let opreturn_script = Builder::new()
             .push_opcode(opcodes::all::OP_RETURN)
-            .push_slice(&extra_data[..])
+            .push_slice(
+                PushBytesBuf::try_from(extra_data.clone()).expect("op_return data length checked"),
+            )
             .into_script();
         TxOut {
-            value: 0u64,
+            value: Amount::from_sat(0),
             script_pubkey: opreturn_script,
         }
     }
 
-    pub fn build_lock_script(&self, signed: &str, utxo_public_key: &str) -> Result<Script> {
+    pub fn build_lock_script(&self, signed: &str, utxo_public_key: &str) -> Result<ScriptBuf> {
         let signed_vec = Vec::from_hex(&signed)?;
         let mut signature_obj = Signature::from_compact(signed_vec.as_slice())?;
         signature_obj.normalize_s();
@@ -320,9 +324,10 @@ impl BchTransaction {
 
         //add hash type
         signed_vec.push(0x41 as u8);
+        let public_key = Vec::from_hex(utxo_public_key)?;
         Ok(Builder::new()
-            .push_slice(&signed_vec)
-            .push_slice(Vec::from_hex(utxo_public_key)?.as_slice())
+            .push_slice(PushBytesBuf::try_from(signed_vec)?)
+            .push_slice(PushBytesBuf::try_from(public_key)?)
             .into_script())
     }
 
@@ -343,7 +348,7 @@ impl BchTransaction {
             let bch_address = BchAddress::get_address(network, path_temp.as_str())?;
             BchAddress::convert_to_legacy_if_need(bch_address.as_str())?
         };
-        Ok(Address::from_str(legacy_addr.as_str())?)
+        Ok(Address::from_str(legacy_addr.as_str())?.assume_checked())
     }
 }
 

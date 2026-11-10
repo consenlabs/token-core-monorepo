@@ -1,7 +1,7 @@
 use crate::ecc::KeyError;
 use crate::Result;
 
-use bitcoin::util::bip32::ChildNumber;
+use bitcoin::bip32::{ChildNumber, DerivationPath};
 
 use anyhow::ensure;
 use std::convert::TryInto;
@@ -9,9 +9,13 @@ use std::str::FromStr;
 
 pub fn get_account_path(path: &str) -> Result<String> {
     // example: m/44'/60'/0'/0/0
-    let _ = bitcoin::util::bip32::DerivationPath::from_str(path)?;
+    let _ = DerivationPath::from_str(path)?;
     let mut children: Vec<&str> = path.split('/').collect();
 
+    ensure!(
+        children.first() == Some(&"m"),
+        format!("{} path must start with m", path)
+    );
     ensure!(children.len() >= 4, format!("{} path is too short", path));
 
     while children.len() > 4 {
@@ -127,7 +131,7 @@ mod tests {
     use crate::derive::get_account_path;
     use crate::generate_mnemonic;
     use crate::DeriveJunction;
-    use bitcoin::util::bip32::ChildNumber;
+    use bitcoin::bip32::ChildNumber;
     use std::convert::TryInto;
     use std::str::FromStr;
 

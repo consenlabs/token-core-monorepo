@@ -85,9 +85,8 @@ mod tests {
     use crate::ecc::PrivateKey;
     use crate::ecc::PublicKey;
     use crate::subkey::is_valid_substrate_path;
-    use bitcoin_hashes::hex::ToHex;
     use sp_core::crypto::Pair;
-    use tcx_common::FromHex;
+    use tcx_common::{FromHex, ToHex};
     use tcx_constants::TEST_MNEMONIC;
 
     #[test]

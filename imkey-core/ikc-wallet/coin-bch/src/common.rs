@@ -1,16 +1,16 @@
 use crate::address::BchAddress;
 use crate::transaction::Utxo;
 use crate::Result;
-use bitcoin::network::constants::Network;
-use bitcoin::util::base58;
-use bitcoin::util::bip32::{ChainCode, ChildNumber, ExtendedPubKey};
+use bitcoin::base58;
+use bitcoin::bip32::{ChainCode, ChildNumber, Xpub};
+use bitcoin::secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
+use bitcoin::Network;
 use bitcoin::{Address, PublicKey};
 use ikc_common::apdu::{ApduCheck, BtcForkApdu, CoinCommonApdu};
 use ikc_common::error::CoinError;
 use ikc_common::utility::{hex_to_bytes, sha256_hash};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
-use secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use std::convert::TryFrom;
 use std::str::FromStr;
 
@@ -34,8 +34,8 @@ pub fn address_verify(
             let chain_code_obj = ChainCode::try_from(chain_code)?;
             (
                 Address::p2pkh(&public_key_obj, network).to_string(),
-                ExtendedPubKey {
-                    network,
+                Xpub {
+                    network: network.into(),
                     depth: 0,
                     parent_fingerprint: Default::default(),
                     child_number: ChildNumber::from_normal_idx(0)?,
@@ -47,13 +47,13 @@ pub fn address_verify(
             let xpub_data = get_xpub_data(&utxo.derive_path, false)?;
             let public_key = &xpub_data[..130];
             let chain_code = &xpub_data[130..194];
-            let extend_public_key = ExtendedPubKey {
-                network,
+            let extend_public_key = Xpub {
+                network: network.into(),
                 depth: 0,
                 parent_fingerprint: Default::default(),
                 child_number: ChildNumber::from_normal_idx(0)?,
                 public_key: Secp256k1PublicKey::from_str(public_key)?,
-                chain_code: ChainCode::from(hex_to_bytes(chain_code)?.as_slice()),
+                chain_code: ChainCode::try_from(hex_to_bytes(chain_code)?.as_slice())?,
             };
 
             (
@@ -107,7 +107,7 @@ pub fn apdu_sign_verify(signed: &[u8], message: &[u8]) -> Result<bool> {
     let public_obj = Secp256k1PublicKey::from_slice(public)?;
     //build message
     let hash_result = sha256_hash(message);
-    let message_obj = Message::from_slice(hash_result.as_ref())?;
+    let message_obj = Message::from_digest_slice(hash_result.as_ref())?;
     //build signature obj
     let mut sig_obj = Signature::from_der(signed)?;
     sig_obj.normalize_s();
@@ -142,7 +142,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
         }
     }
     //get address version
-    let address_bytes = base58::from(legacy_address.as_ref())?;
+    let address_bytes = base58::decode(legacy_address.as_ref())?;
     Ok(address_bytes.as_slice()[0])
 }
 

@@ -1,7 +1,9 @@
 use crate::Result;
-use bitcoin::util::base58;
-use bitcoin::util::bip32::{ChainCode, ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint};
+use bitcoin::base58;
+use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
+use bitcoin::secp256k1::PublicKey;
 use bitcoin::Network;
+#[cfg(test)]
 use byteorder::{BigEndian, ByteOrder};
 use ikc_common::apdu::{Apdu, ApduCheck, Secp256k1Apdu};
 use ikc_common::constants::TRON_AID;
@@ -12,7 +14,6 @@ use ikc_common::utility::secp256k1_sign;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
 use keccak_hash::keccak;
-use secp256k1::PublicKey;
 use std::convert::TryFrom;
 use std::str::FromStr;
 
@@ -23,7 +24,7 @@ impl TronAddress {
         let public_key = PublicKey::from_slice(pub_key)?.serialize_uncompressed();
         let keccak_hash = keccak(public_key[1..].as_ref());
         let address = [vec![0x41], keccak_hash[12..].to_vec()].concat();
-        let base58_address = base58::check_encode_slice(&address);
+        let base58_address = base58::encode_check(&address);
         Ok(base58_address)
     }
 
@@ -92,8 +93,8 @@ impl TronAddress {
         let pub_key = hex::encode(Self::get_pub_key(get_parent_path(path)?)?);
         let sub_pub_key = PublicKey::from_str(&pub_key[..130])?;
         let chain_code_obj = ChainCode::try_from(hex::decode(&pub_key[130..])?.as_slice())?;
-        let ext_pub_key = ExtendedPubKey {
-            network: Network::Testnet,
+        let ext_pub_key = Xpub {
+            network: Network::Testnet.into(),
             depth: 0u8,
             parent_fingerprint: Fingerprint::default(),
             child_number: ChildNumber::from_normal_idx(0).unwrap(),
@@ -106,8 +107,8 @@ impl TronAddress {
         let sub_pub_key = PublicKey::from_str(&pub_key[..130])?;
         let chain_code_obj = ChainCode::try_from(hex::decode(&pub_key[130..])?.as_slice())?;
         let chain_number_vec: Vec<ChildNumber> = DerivationPath::from_str(path)?.into();
-        let ext_pub_key = ExtendedPubKey {
-            network: Network::Bitcoin,
+        let ext_pub_key = Xpub {
+            network: Network::Bitcoin.into(),
             depth: chain_number_vec.len() as u8,
             parent_fingerprint: fingerprint_obj,
             child_number: *chain_number_vec.get(chain_number_vec.len() - 1).unwrap(),
@@ -118,7 +119,8 @@ impl TronAddress {
         Ok(ext_pub_key.to_string())
     }
 
-    fn to_ss58check_with_version(extended_key: ExtendedPubKey, version: &[u8]) -> String {
+    #[cfg(test)]
+    fn to_ss58check_with_version(extended_key: Xpub, version: &[u8]) -> String {
         let mut ret = [0; 78];
         // let extended_key = self.0;
         ret[0..4].copy_from_slice(version);
@@ -129,14 +131,14 @@ impl TronAddress {
 
         ret[13..45].copy_from_slice(&extended_key.chain_code[..]);
         ret[45..78].copy_from_slice(&extended_key.public_key.serialize()[..]);
-        base58::check_encode_slice(&ret[..])
+        base58::encode_check(&ret[..])
     }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::address::TronAddress;
-    use bitcoin::util::bip32::ExtendedPubKey;
+    use bitcoin::bip32::Xpub;
     use ikc_common::constants;
     use ikc_common::path::get_account_path;
     use ikc_device::device_binding::bind_test;
@@ -171,7 +173,7 @@ mod tests {
     fn test_get_xpub() {
         bind_test();
         let xpub = TronAddress::get_xpub(&get_account_path("m/44'/195'/0'/0/0").unwrap()).unwrap();
-        let extended_pub_key = ExtendedPubKey::from_str(&xpub).unwrap();
+        let extended_pub_key = Xpub::from_str(&xpub).unwrap();
         let res = TronAddress::to_ss58check_with_version(
             extended_pub_key,
             &hex::decode("043587cf").unwrap(),
