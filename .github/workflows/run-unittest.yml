@@ -47,7 +47,7 @@ jobs:
 
   clippy:
     name: cargo clippy
-    runs-on: macos-14
+    runs-on: macos-15
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     steps:
       - name: Checkout repository
@@ -141,7 +141,7 @@ jobs:
 
   test-no-run:
     name: cargo test --no-run
-    runs-on: macos-14
+    runs-on: macos-15
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     steps:
       - name: Checkout repository
@@ -164,7 +164,7 @@ jobs:
 
   host-tests:
     name: host-safe unit tests
-    runs-on: macos-14
+    runs-on: macos-15
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     steps:
       - name: Checkout repository
@@ -190,7 +190,7 @@ jobs:
 
   wasm-check:
     name: wasm check
-    runs-on: macos-14
+    runs-on: macos-15
     if: github.event_name != 'pull_request' || !github.event.pull_request.draft
     steps:
       - name: Checkout repository
