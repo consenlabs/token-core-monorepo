@@ -4,8 +4,7 @@ use crate::Result;
 use bitcoin::base58;
 use bitcoin::bip32::{ChainCode, ChildNumber, DerivationPath, Fingerprint, Xpub};
 use bitcoin::hashes::Hash;
-use bitcoin::key::{TapTweak, UntweakedPublicKey};
-use bitcoin::secp256k1::{PublicKey as Secp256k1PublicKey, Secp256k1};
+use bitcoin::secp256k1::PublicKey as Secp256k1PublicKey;
 use bitcoin::Network;
 use bitcoin::{Address as LibAddress, PublicKey, ScriptBuf as Script};
 use bitcoin::{CompressedPublicKey, PubkeyHash, ScriptHash, WitnessVersion};
@@ -76,21 +75,13 @@ impl AddressTrait for BtcKinAddress {
                     network,
                 )?
             }
-            constants::BTC_SEG_WIT_TYPE_VERSION_1 => {
-                let public_key =
-                    bitcoin::secp256k1::PublicKey::from_slice(&hex_to_bytes(&public_key)?)?;
-                let (x_only, _) = public_key.x_only_public_key();
-                let untweak_pub_key = UntweakedPublicKey::from(x_only);
-                let secp = Secp256k1::new();
-                let output_key = untweak_pub_key.tap_tweak(&secp, None).0;
-                BtcKinAddress {
-                    payload: BtcKinPayload::WitnessProgram {
-                        version: WitnessVersion::V1,
-                        program: output_key.serialize().to_vec(),
-                    },
-                    network: network.clone(),
-                }
-            }
+            constants::BTC_SEG_WIT_TYPE_VERSION_1 => BtcKinAddress {
+                payload: BtcKinPayload::WitnessProgram {
+                    version: WitnessVersion::V1,
+                    program: wallet_core_common::btc::p2tr_program(&hex_to_bytes(public_key)?)?,
+                },
+                network: network.clone(),
+            },
             _ => BtcKinAddress::from_lib_address(
                 LibAddress::p2pkh(&pub_key_obj, Network::Bitcoin),
                 network,
@@ -152,15 +143,10 @@ impl BtcKinAddress {
         check_path_validity(path)?;
 
         let pub_key = &get_xpub_data(path, true)?[..130];
-        let public_key = bitcoin::secp256k1::PublicKey::from_slice(&hex_to_bytes(&pub_key)?)?;
-        let (x_only, _) = public_key.x_only_public_key();
-        let untweak_pub_key = UntweakedPublicKey::from(x_only);
-        let secp = Secp256k1::new();
-        let output_key = untweak_pub_key.tap_tweak(&secp, None).0;
         Ok(BtcKinAddress {
             payload: BtcKinPayload::WitnessProgram {
                 version: WitnessVersion::V1,
-                program: output_key.serialize().to_vec(),
+                program: wallet_core_common::btc::p2tr_program(&hex_to_bytes(pub_key)?)?,
             },
             network: network.clone(),
         })
@@ -183,12 +169,10 @@ impl BtcKinAddress {
 
     pub fn script_pubkey(&self) -> Script {
         match &self.payload {
-            BtcKinPayload::PubkeyHash(hash) => Script::new_p2pkh(hash),
-            BtcKinPayload::ScriptHash(hash) => Script::new_p2sh(hash),
+            BtcKinPayload::PubkeyHash(hash) => wallet_core_common::btc::p2pkh_script_pubkey(hash),
+            BtcKinPayload::ScriptHash(hash) => wallet_core_common::btc::p2sh_script_pubkey(hash),
             BtcKinPayload::WitnessProgram { version, program } => {
-                let witness_program =
-                    bitcoin::WitnessProgram::new(*version, program).expect("valid witness program");
-                Script::new_witness_program(&witness_program)
+                wallet_core_common::btc::witness_script_pubkey(*version, program)
             }
         }
     }
@@ -377,6 +361,32 @@ mod test {
     };
     use bitcoin::Network;
     use ikc_device::device_binding::bind_test;
+
+    #[test]
+    fn public_key_encoding_golden_vectors() {
+        use super::AddressTrait;
+
+        let uncompressed = concat!(
+            "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+            "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"
+        );
+        let compressed = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+        let network = BtcKinNetwork::find_by_coin("BITCOIN", "MAINNET").unwrap();
+        for (segwit, expected) in [
+            ("NONE", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"),
+            ("P2WPKH", "3JvL6Ymt8MVWiCNHC7oWU6nLeHNJKLZGLN"),
+            ("VERSION_0", "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"),
+        ] {
+            for key in [compressed, uncompressed] {
+                assert_eq!(
+                    BtcKinAddress::from_public_key(key, network, segwit)
+                        .unwrap()
+                        .to_string(),
+                    expected
+                );
+            }
+        }
+    }
 
     #[test]
     fn get_xpub_test() {

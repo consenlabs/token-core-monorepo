@@ -10,6 +10,7 @@ edition = "2018"
 ikc-common = {path = "../../ikc-common"}
 ikc-device = {path = "../../ikc-device"}
 ikc-transport = {path = "../../ikc-transport"}
+wallet-core-common = { path = "../../../common/wallet-core-common", features = ["tezos"] }
 
 hex = "=0.4.3"
 blake2b_simd = "=1.0.4"

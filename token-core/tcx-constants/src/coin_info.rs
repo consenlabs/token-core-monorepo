@@ -1,16 +1,10 @@
-use crate::curve::CurveType;
-use crate::Result;
+use crate::{CurveType, Result};
 use anyhow::anyhow;
-use tcx_common::FromHex;
 
 use parking_lot::RwLock;
 
 pub fn get_xpub_prefix(network: &str) -> Vec<u8> {
-    if network == "MAINNET" {
-        Vec::from_hex("0488b21e").unwrap()
-    } else {
-        Vec::from_hex("043587cf").unwrap()
-    }
+    wallet_core_common::util::xpub_prefix_for_network_name(network).to_vec()
 }
 
 /// Blockchain basic config

@@ -1,7 +1,4 @@
-use bitcoin::base58;
 use core::str::FromStr;
-
-use tcx_common::keccak256;
 
 use tcx_constants::CoinInfo;
 use tcx_keystore::Address;
@@ -16,18 +13,13 @@ impl Address for TronAddress {
         let pk = public_key.as_secp256k1()?;
         let bytes = pk.to_uncompressed();
 
-        let hash = keccak256(&bytes[1..]);
-        let hex: Vec<u8> = [vec![0x41], hash[12..32].to_vec()].concat();
-        Ok(TronAddress(base58::encode_check(&hex)))
+        Ok(TronAddress(wallet_core_common::tron::address_from_pubkey(
+            &bytes,
+        )?))
     }
 
     fn is_valid(address: &str, _coin: &CoinInfo) -> bool {
-        let decode_ret = base58::decode_check(address);
-        if let Ok(data) = decode_ret {
-            data.len() == 21 && data[0] == 0x41
-        } else {
-            false
-        }
+        wallet_core_common::tron::is_valid_address(address)
     }
 }
 

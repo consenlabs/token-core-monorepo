@@ -10,6 +10,7 @@ edition = "2018"
 ikc-common = {path = "../../ikc-common"}
 ikc-device = {path = "../../ikc-device"}
 ikc-transport = {path = "../../ikc-transport"}
+wallet-core-common = { path = "../../../common/wallet-core-common", features = ["filecoin"] }
 
 
 bitcoin_hashes = "=0.20.0"
@@ -26,7 +27,6 @@ prost = "=0.14.3"
 prost-types = "=0.14.3"
 linked-hash-map = { version = "=0.5.6", features = ["serde_impl"] }
 
-base32 = "=0.5.1"
 blake2b-rs = "=0.2.0"
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.149"

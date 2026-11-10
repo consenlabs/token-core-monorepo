@@ -33,6 +33,13 @@ pub enum BtcForkPayload {
     },
 }
 
+// Compression is imKey policy, not part of shared BTC payload derivation.
+fn compressed_public_key_bytes(bytes: &[u8]) -> Result<Vec<u8>> {
+    let mut public_key = PublicKey::from_slice(bytes)?;
+    public_key.compressed = true;
+    Ok(public_key.to_bytes())
+}
+
 impl BtcForkAddress {
     pub fn get_enc_xpub(network: Network, path: &str) -> Result<String> {
         let xpub = Self::get_xpub(network, path)?;
@@ -122,11 +129,10 @@ impl BtcForkAddress {
         //get xpub
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
+        let pub_key = compressed_public_key_bytes(&hex::decode(pub_key)?)?;
 
-        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
-        pub_key_obj.compressed = true;
         let btc_fork_address = BtcForkAddress {
-            payload: BtcForkPayload::PubkeyHash(pub_key_obj.pubkey_hash()),
+            payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::p2pkh_hash(&pub_key)?),
             network: network.clone(),
         };
 
@@ -140,12 +146,10 @@ impl BtcForkAddress {
         //get xpub
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
+        let pub_key = compressed_public_key_bytes(&hex::decode(pub_key)?)?;
 
-        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
-        pub_key_obj.compressed = true;
-        let script = Script::new_p2wpkh(&pub_key_obj.wpubkey_hash()?);
         let btc_fork_address = BtcForkAddress {
-            payload: BtcForkPayload::ScriptHash(script.script_hash()),
+            payload: BtcForkPayload::ScriptHash(wallet_core_common::btc::p2shwpkh_hash(&pub_key)?),
             network: network.clone(),
         };
 
@@ -159,13 +163,12 @@ impl BtcForkAddress {
         //get xpub
         let xpub_data = get_xpub_data(path, true)?;
         let pub_key = &xpub_data[..130];
+        let pub_key = compressed_public_key_bytes(&hex::decode(pub_key)?)?;
 
-        let mut pub_key_obj = PublicKey::from_str(pub_key)?;
-        pub_key_obj.compressed = true;
         let btc_fork_address = BtcForkAddress {
             payload: BtcForkPayload::WitnessProgram {
                 version: WitnessVersion::V0,
-                program: pub_key_obj.wpubkey_hash()?[..].to_vec(),
+                program: wallet_core_common::btc::p2wpkh_program(&pub_key)?,
             },
             network: network.clone(),
         };
@@ -197,18 +200,16 @@ impl BtcForkAddress {
     }
 
     pub fn from_pub_key(pub_key: Vec<u8>, btc_fork_network: BtcForkNetwork) -> Result<String> {
-        let mut public_key = PublicKey::from_slice(&pub_key)?;
-        public_key.compressed = true;
+        let pub_key = compressed_public_key_bytes(&pub_key)?;
         let address = match btc_fork_network.seg_wit.to_uppercase().as_str() {
-            "P2WPKH" => {
-                let script = Script::new_p2wpkh(&public_key.wpubkey_hash()?);
-                BtcForkAddress {
-                    payload: BtcForkPayload::ScriptHash(script.script_hash()),
-                    network: btc_fork_network,
-                }
-            }
+            "P2WPKH" => BtcForkAddress {
+                payload: BtcForkPayload::ScriptHash(wallet_core_common::btc::p2shwpkh_hash(
+                    &pub_key,
+                )?),
+                network: btc_fork_network,
+            },
             _ => BtcForkAddress {
-                payload: BtcForkPayload::PubkeyHash(public_key.pubkey_hash()),
+                payload: BtcForkPayload::PubkeyHash(wallet_core_common::btc::p2pkh_hash(&pub_key)?),
                 network: btc_fork_network,
             },
         };
@@ -216,12 +217,10 @@ impl BtcForkAddress {
     }
     pub fn script_pubkey(&self) -> Script {
         match &self.payload {
-            BtcForkPayload::PubkeyHash(hash) => Script::new_p2pkh(hash),
-            BtcForkPayload::ScriptHash(hash) => Script::new_p2sh(hash),
+            BtcForkPayload::PubkeyHash(hash) => wallet_core_common::btc::p2pkh_script_pubkey(hash),
+            BtcForkPayload::ScriptHash(hash) => wallet_core_common::btc::p2sh_script_pubkey(hash),
             BtcForkPayload::WitnessProgram { version, program } => {
-                let witness_program =
-                    bitcoin::WitnessProgram::new(*version, program).expect("valid witness program");
-                Script::new_witness_program(&witness_program)
+                wallet_core_common::btc::witness_script_pubkey(*version, program)
             }
         }
     }
@@ -385,6 +384,30 @@ mod test {
     use bitcoin::Network;
     use ikc_device::device_binding::bind_test;
     use std::str::FromStr;
+
+    #[test]
+    fn public_key_encoding_golden_vectors() {
+        let uncompressed = hex::decode(concat!(
+            "0479be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+            "483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8"
+        ))
+        .unwrap();
+        let compressed =
+            hex::decode("0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798")
+                .unwrap();
+        for (segwit, expected) in [
+            ("NONE", "1BgGZ9tcN4rm9KBzDn7KprQz87SZ26SAMH"),
+            ("P2WPKH", "3JvL6Ymt8MVWiCNHC7oWU6nLeHNJKLZGLN"),
+        ] {
+            let network = network_from_param("BITCOIN", "MAINNET", segwit).unwrap();
+            for key in [&compressed, &uncompressed] {
+                assert_eq!(
+                    BtcForkAddress::from_pub_key(key.clone(), network.clone()).unwrap(),
+                    expected
+                );
+            }
+        }
+    }
 
     #[test]
     fn get_xpub_test() {

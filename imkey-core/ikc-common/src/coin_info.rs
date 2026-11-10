@@ -1,5 +1,4 @@
-use crate::curve::CurveType;
-use crate::Result;
+use crate::{CurveType, Result};
 use anyhow::anyhow;
 use parking_lot::RwLock;
 

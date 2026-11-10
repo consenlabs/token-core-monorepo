@@ -83,7 +83,7 @@ pub trait PrivateKey: Sized {
     fn to_bytes(&self) -> Vec<u8>;
 }
 
-pub trait DeterministicPublicKey: Derive + ToHex + FromHex {
+pub trait DeterministicPublicKey: Derive + ToHex + FromHex<anyhow::Error> {
     type PublicKey: PublicKey;
 
     fn public_key(&self) -> Self::PublicKey;

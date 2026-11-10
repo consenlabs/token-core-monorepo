@@ -1,101 +1,24 @@
-//! CKB uses Molecule serialization format, Please follow this
-//! document https://github.com/nervosnetwork/rfcs/blob/1ed0da3c1fee42650e6f385346f76cdc9c140c6e/rfcs/0008-serialization/0008-serialization.md#molecule
-//! for more details
-use byteorder::{ByteOrder, LittleEndian};
-
 pub struct Serializer();
 
 impl Serializer {
-    fn calculate_offsets(element_lengths: &[u32]) -> (u32, Vec<u32>) {
-        const FULL_LENGTH_SIZE: u32 = 4; // 4 bytes
-        const OFFSET_SIZE: u32 = 4; // 4 bytes
-
-        // offsets only used for dynamic vec in molecule, serialize all offsets of items as 32 bit unsigned integer in little-endian
-        // The result like "|size| record 1 offset | record 2 offset | ...",
-        let header_length = FULL_LENGTH_SIZE + OFFSET_SIZE * element_lengths.len() as u32;
-        let mut offsets = vec![];
-        let mut total = header_length;
-
-        for (i, _) in element_lengths.iter().enumerate() {
-            offsets.push(total);
-            total += element_lengths[i];
-        }
-
-        (total, offsets)
-    }
-
     pub fn serialize_u32(value: u32) -> Vec<u8> {
-        let mut buf = [0; 4];
-        LittleEndian::write_u32(&mut buf, value);
-        buf.to_vec()
+        wallet_core_common::ckb::molecule::serialize_u32(value)
     }
 
     pub fn serialize_u64(value: u64) -> Vec<u8> {
-        let mut buf = [0; 8];
-        LittleEndian::write_u64(&mut buf, value);
-        buf.to_vec()
+        wallet_core_common::ckb::molecule::serialize_u64(value)
     }
 
     pub fn serialize_struct(values: &[&[u8]]) -> Vec<u8> {
-        let mut ret: Vec<u8> = vec![];
-
-        for item in values.iter() {
-            ret.extend(*item);
-        }
-
-        ret
+        wallet_core_common::ckb::molecule::serialize_struct(values)
     }
 
-    /// Serialize dynamic vector
-    ///
-    /// There are three steps of serializing a dynvec:
-    ///
-    /// Serialize the full size in bytes as a 32 bit unsigned integer in little-endian.
-    /// Serialize all offset of items as 32 bit unsigned integer in little-endian.
-    /// Serialize all items in it.
-    ///
-    /// call calculate_offsets method for get offsets of items
-    ///
     pub fn serialize_dynamic_vec(values: &[&[u8]]) -> Vec<u8> {
-        let mut body: Vec<u8> = vec![];
-        let mut element_lengths: Vec<u32> = vec![];
-
-        for item in values.iter() {
-            element_lengths.push(item.len() as u32);
-            body.extend(*item);
-        }
-
-        let mut ret: Vec<u8> = vec![];
-
-        let offsets = Serializer::calculate_offsets(&element_lengths);
-
-        ret.extend(Serializer::serialize_u32(offsets.0));
-
-        offsets.1.iter().for_each(|item| {
-            ret.extend(Serializer::serialize_u32(*item));
-        });
-
-        ret.extend(body);
-
-        ret
+        wallet_core_common::ckb::molecule::serialize_dynamic_vec(values)
     }
 
     pub fn serialize_fixed_vec(values: &[&[u8]]) -> Vec<u8> {
-        let mut ret: Vec<u8> = vec![];
-        let mut body: Vec<u8> = vec![];
-
-        let mut total_size = 0_u32;
-
-        for item in values.iter() {
-            total_size += item.len() as u32;
-
-            body.extend(*item);
-        }
-
-        ret.extend(Serializer::serialize_u32(total_size));
-        ret.extend(body);
-
-        ret
+        wallet_core_common::ckb::molecule::serialize_fixed_vec(values)
     }
 }
 

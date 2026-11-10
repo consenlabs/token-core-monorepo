@@ -7,8 +7,6 @@ use ikc_common::apdu::{ApduCheck, CoinCommonApdu, EthApdu};
 use ikc_common::path::{check_path_validity, get_parent_path};
 use ikc_common::utility::hex_to_bytes;
 use ikc_transport::message::send_apdu;
-use keccak_hash::keccak;
-use regex::Regex;
 use std::convert::TryFrom;
 use std::str::FromStr;
 
@@ -17,35 +15,12 @@ pub struct EthAddress {}
 
 impl EthAddress {
     pub fn from_pub_key(pub_key: Vec<u8>) -> Result<String> {
-        let pub_key_hash = keccak(pub_key[1..].as_ref());
-        let addr_bytes = &pub_key_hash[12..];
-        let address = EthAddress::address_checksum(&hex::encode(addr_bytes));
-        Ok(address)
+        wallet_core_common::eth::checksum_address_from_uncompressed_pubkey(&pub_key)
+            .ok_or_else(|| anyhow::anyhow!("invalid_public_key"))
     }
 
     pub fn address_checksum(address: &str) -> String {
-        let re = Regex::new(r"^0x").expect("address_checksummed");
-        let address = address.to_lowercase();
-        let address = re.replace_all(&address, "").to_string();
-
-        let mut checksum_address = "0x".to_string();
-
-        let address_hash = keccak(&address);
-        let address_hash_hex = hex::encode(address_hash);
-
-        for i in 0..address.len() {
-            let n = i64::from_str_radix(&address_hash_hex.chars().nth(i).unwrap().to_string(), 16)
-                .unwrap();
-            let ch = address.chars().nth(i).unwrap();
-            // make char uppercase if ith character is 9..f
-            if n > 7 {
-                checksum_address = format!("{}{}", checksum_address, ch.to_uppercase().to_string());
-            } else {
-                checksum_address = format!("{}{}", checksum_address, ch.to_string());
-            }
-        }
-
-        return checksum_address;
+        wallet_core_common::eth::checksum_hex_unchecked(address)
     }
 
     pub fn get_address(path: &str) -> Result<String> {

@@ -1,11 +1,9 @@
 use crate::Result;
-use bitcoin::base58;
-use blake2b_simd::Params;
 use ikc_common::apdu::{Apdu, ApduCheck, Ed25519Apdu};
 use ikc_common::constants::TEZOS_AID;
 use ikc_common::error::CoinError;
 use ikc_common::path::check_path_validity;
-use ikc_common::utility::{secp256k1_sign, secp256k1_sign_verify, sha256_hash};
+use ikc_common::utility::{secp256k1_sign, secp256k1_sign_verify};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
 
@@ -16,20 +14,8 @@ impl TezosAddress {
         //get public key
         let pubkey = Self::get_pub_key(path)?;
         let pubkey_bytes = hex::decode(pubkey)?;
-        //Perform Blake2B hashing on the public key（no prefix）
-        let mut params = Params::new();
-        params.hash_length(20);
-        let generic_hash = params.hash(&pubkey_bytes[..]);
-        //sha256Twice(prefix<3> + public key hash<20>)
-        let mut prefixed_generic_hash = vec![];
-        let tz1_prefix = hex::decode("06A19F")?;
-        prefixed_generic_hash.extend_from_slice(tz1_prefix.as_ref());
-        prefixed_generic_hash.extend_from_slice(generic_hash.as_bytes());
-        let double_hash_result = sha256_hash(&sha256_hash(&prefixed_generic_hash));
-        prefixed_generic_hash.extend_from_slice(&double_hash_result[..4]);
-        //base58Encode(prefix<3> + public key hash<20> + checksum<4>)
-        let address = base58::encode(prefixed_generic_hash.as_slice());
-        Ok(address)
+        wallet_core_common::tezos::tz1_address_from_public_key(&pubkey_bytes)
+            .ok_or_else(|| anyhow::anyhow!("invalid_public_key"))
     }
 
     pub fn get_pub_key(path: &str) -> Result<String> {
@@ -75,15 +61,10 @@ impl TezosAddress {
 
     pub fn get_base58_pub_key(path: &str) -> Result<String> {
         let pub_key = Self::get_pub_key(path)?;
-        let edpk_prefix: Vec<u8> = vec![0x0D, 0x0F, 0x25, 0xD9];
-
         let pub_key_bytes = hex::decode(pub_key)?;
-        let to_hash = [edpk_prefix, pub_key_bytes].concat();
-        let hashed = sha256_hash(&sha256_hash(&to_hash));
-        let hash_with_checksum = [to_hash, hashed[0..4].to_vec()].concat();
-        let edpk = base58::encode(&hash_with_checksum);
-
-        Ok(edpk.to_string())
+        Ok(wallet_core_common::tezos::encode_ed25519_public_key(
+            &pub_key_bytes,
+        ))
     }
 
     pub fn display_address(path: &str) -> Result<String> {

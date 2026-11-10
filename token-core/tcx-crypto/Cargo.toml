@@ -7,6 +7,7 @@ edition = "2021"
 [dependencies]
 tcx-constants = {path="../tcx-constants"}
 tcx-common = {path="../tcx-common"}
+wallet-core-common = { path = "../../common/wallet-core-common", features = ["aes"] }
 
 serde_json = "=1.0.149"
 serde = { version = "=1.0.228", features = ["derive"] }
@@ -16,9 +17,6 @@ scrypt = { version = "=0.12.0", default-features = false }
 sha2 = "=0.11.0"
 digest = "=0.11.3"
 hmac = "=0.13.0"
-aes = "=0.9.0"
-ctr = "=0.10.1"
-cbc = "=0.2.1"
 pbkdf2 = "=0.13.0"
 bitcoin_hashes = "=0.20.0"
 anyhow = { version = "=1.0.102", features = [] }

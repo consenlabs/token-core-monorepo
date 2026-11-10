@@ -1,9 +1,8 @@
 use crate::Result;
 use anyhow::anyhow;
 use ethereum_types::H160;
-use regex::Regex;
 use std::str::FromStr;
-use tcx_common::{keccak256, FromHex, ToHex};
+use tcx_common::FromHex;
 use tcx_constants::CoinInfo;
 use tcx_keystore::Address;
 use tcx_primitive::TypedPublicKey;
@@ -12,41 +11,22 @@ use tcx_primitive::TypedPublicKey;
 pub struct EthAddress(H160);
 
 pub fn to_checksum(addr: &ethereum_types::Address, chain_id: Option<u8>) -> String {
-    let prefixed_addr = match chain_id {
-        Some(chain_id) => format!("{chain_id}0x{addr:x}"),
-        None => format!("{addr:x}"),
-    };
-    let hash = keccak256(prefixed_addr.as_bytes()).to_hex();
-    let hash = hash.as_bytes();
-
-    let addr_hex = addr.as_bytes().to_hex();
-    let addr_hex = addr_hex.as_bytes();
-
-    addr_hex
-        .iter()
-        .zip(hash)
-        .fold("0x".to_owned(), |mut encoded, (addr, hash)| {
-            encoded.push(if *hash >= 56 {
-                addr.to_ascii_uppercase() as char
-            } else {
-                addr.to_ascii_lowercase() as char
-            });
-            encoded
-        })
+    wallet_core_common::eth::checksum_address_bytes(addr.as_bytes(), chain_id)
+        .expect("ethereum address is 20 bytes")
 }
 
 pub fn pubkey_to_address(compressed_pubkey: &[u8]) -> String {
-    let pubkey_hash = keccak256(compressed_pubkey[1..].as_ref());
-    let addr_bytes = pubkey_hash[12..].to_vec();
-    let addr = H160::from_slice(&addr_bytes);
-    addr.as_bytes().to_0x_hex()
+    let addr_bytes =
+        wallet_core_common::eth::address_bytes_from_uncompressed_pubkey(compressed_pubkey)
+            .expect("secp256k1 public key is uncompressed");
+    format!("0x{}", hex::encode(addr_bytes))
 }
 
 impl Address for EthAddress {
     fn from_public_key(public_key: &TypedPublicKey, _coin: &CoinInfo) -> Result<Self> {
         let bytes = public_key.as_secp256k1()?.to_uncompressed();
-        let pubkey_hash = keccak256(bytes[1..].as_ref());
-        let addr_bytes = pubkey_hash[12..].to_vec();
+        let addr_bytes = wallet_core_common::eth::address_bytes_from_uncompressed_pubkey(&bytes)
+            .expect("secp256k1 public key is uncompressed");
         let addr = H160::from_slice(&addr_bytes);
         Ok(EthAddress(addr))
     }
@@ -76,33 +56,7 @@ impl FromStr for EthAddress {
 }
 
 pub fn is_valid_address(address: &str) -> bool {
-    if address.len() != 42 || !address.starts_with("0x") {
-        return false;
-    }
-
-    let eth_addr_regex = Regex::new(r"^0x[0-9a-fA-F]{40}$").unwrap();
-    if !eth_addr_regex.is_match(address) {
-        return false;
-    }
-
-    if address.to_lowercase() == address {
-        return true;
-    }
-
-    let address = &address[2..];
-    let lower_address_bytes = address.to_lowercase();
-    let hash = keccak256(lower_address_bytes.as_bytes());
-    let hash_str = hash.to_hex();
-
-    for (i, c) in address.chars().enumerate() {
-        let char_int =
-            u8::from_str_radix(&hash_str.chars().nth(i).unwrap().to_string(), 16).unwrap();
-        if (c.is_uppercase() && char_int <= 7) || (c.is_lowercase() && char_int > 7) {
-            return false;
-        }
-    }
-
-    true
+    wallet_core_common::eth::is_valid_address(address)
 }
 
 #[cfg(test)]

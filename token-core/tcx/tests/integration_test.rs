@@ -15,7 +15,7 @@ use tcx::api::SignParam;
 
 use tcx_btc_kin::OmniTxInput;
 
-use tcx_common::hex::FromHex;
+use tcx_common::FromHex;
 
 use crate::common::import_default_wallet;
 
