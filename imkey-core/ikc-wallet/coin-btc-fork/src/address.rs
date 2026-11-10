@@ -238,7 +238,7 @@ impl BtcForkAddress {
 
         let btc_fork_address = BtcForkAddress {
             payload: BtcForkPayload::ScriptHash(wallet_core_common::btc::p2shwpkh_hash(
-                &hex::decode(pub_key)?,
+                &compressed_public_key_bytes(&hex::decode(pub_key)?)?,
             )?),
             network: network.clone(),
         };
@@ -282,7 +282,9 @@ impl BtcForkAddress {
         let btc_fork_address = BtcForkAddress {
             payload: BtcForkPayload::WitnessProgram {
                 version: WitnessVersion::V0,
-                program: wallet_core_common::btc::p2wpkh_program(&hex::decode(pub_key)?)?,
+                program: wallet_core_common::btc::p2wpkh_program(&compressed_public_key_bytes(
+                    &hex::decode(pub_key)?,
+                )?)?,
             },
             network: network.clone(),
         };

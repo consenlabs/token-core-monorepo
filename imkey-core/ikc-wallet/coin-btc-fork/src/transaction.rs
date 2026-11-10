@@ -1146,6 +1146,22 @@ mod tests {
                 assert_eq!(mock.0.borrow().len(), 2);
             }
         }
+
+        let network =
+            crate::btc_fork_network::network_from_param("LITECOIN", "MAINNET", "SEGWIT").unwrap();
+        let mock = Mock(RefCell::new(vec![]));
+        let native = futures_lite::future::block_on(crate::address::BtcForkAddress::p2wpkh_async(
+            &mock,
+            &network,
+            "m/84'/2'/0'/1/7",
+        ))
+        .unwrap();
+        let native: crate::address::BtcForkAddress = native.parse().unwrap();
+        assert_eq!(
+            hex::encode(native.script_pubkey()),
+            "0014751e76e8199196d454941c45d1b3a323f1433bd6"
+        );
+        assert_eq!(mock.0.borrow().len(), 2);
     }
 
     #[test]
