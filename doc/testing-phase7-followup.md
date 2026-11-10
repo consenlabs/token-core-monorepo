@@ -4,6 +4,7 @@
 
 - BTC/DOGE async signing builds change outputs through its supplied transport; BCH and both LTC async signing branches derive change through async helpers. Existing synchronous signing entry points and APDU protocol are unchanged. Only necessary output handling from `c010d6f9` was extracted.
 - Every public async `ikc-wasm` operation owns a Rust device session until completion. Transport, TSM, binding storage and transport profile are captured before waiting. The 37 public async exports do not call one another, avoiding recursive acquisition.
+- Each facade client also owns an opaque Rust binding context. The session restores only matching transport/storage/profile keys and returns them to that context on completion; the legacy global key manager is emptied between operations. New, failed or invalidated binding contexts require `bindCheck()` before authenticated operations.
 - npm and browser-example clients bind their own context inside a shared session queue. Lock order is JS runtime, JS transport/device session, Rust session, then single APDU. No layer acquires an outer lock from an inner one. Same-transport clients share a device queue even across runtime objects; a shared runtime also serializes different transports because its binding state is global.
 - Low-level transport callbacks must not reenter public device operations. Raw transport access and separate native synchronous callers remain explicit low-level boundaries; native async HID/callback adapters move the unchanged blocking operation to a worker. Dropping a future does not cancel an already running native command.
 - Mobile FFI changes are limited to imKey ownership bridges, headers and tests, based on the FFI portion of `1cf20efc`. No other signing/security policy changes from that commit are included.
@@ -33,12 +34,17 @@ FFI host mocks do not replace device integration.
 
 With `CARGO_TARGET_DIR=/private/tmp/token-quality-target KDF_ROUNDS=1`:
 
-- Passed 42 exact-name coin host tests, 3 callback tests (including 100,000 borrowed-input calls), and the native worker yield/failure recovery test.
-- Passed all 9 npm JS tests, Android SDK/example ownership mocks (JNA 5.6 compile API, 5.10 host runtime) and Swift ownership/parse checks.
-- Passed 2 imKey + 6 TokenCore wasm Node tests and 2 imKey headless Chrome tests with `/usr/bin/clang` and Rust `llvm-ar`.
+- Passed 43 exact-name coin host tests, 3 callback tests (including 100,000 borrowed-input calls), and the native worker yield/failure recovery test.
+- Passed all 16 npm JS tests, including USB read/write timeouts, stale-transfer isolation and reconnect recovery; Android SDK/example ownership mocks (JNA 5.6 compile API, 5.10 host runtime) and Swift ownership/parse checks also passed.
+- Passed 6 imKey + 6 TokenCore wasm Node tests and 6 imKey headless Chrome tests with `/usr/bin/clang` and Rust `llvm-ar`, including A/B/A binding isolation and LTC SegWit alias coverage.
 - Passed strict `cargo clippy --locked --workspace --all-targets -- -D warnings`, `cargo fmt --check`, and `git diff --check` after integration and compatible dependency patches.
 - Passed all four KDF API feature configurations, the aggregate npm tarball consumer, npm/example TypeScript checks and the Next.js production build.
 - Passed all 10 release-policy tests, 4 AAR policy tests and offline local Markdown link/fragment checks.
+
+The final review restored product AES `anyhow::Result` signatures and error
+mapping with compile-time compatibility tests and fixed the KDF matrix cache
+key (feature strings can contain commas, cache keys cannot). The npm TypeScript
+declarations are now checked in CI with the generated WASM class types.
 
 Run `make test-workspace` separately from other native TCX integration-test
 processes: the legacy harness shares `/tmp/imtoken` and one process can remove

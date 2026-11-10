@@ -16,6 +16,7 @@ await imkey.configureTsm("https://your-tsm-origin.example/imkey");
 // Must run from a user click because the browser opens a USB permission dialog.
 await imkey.connect();
 const info = await imkey.getDeviceInfo();
+const binding = await imkey.bindCheck();
 const address = await imkey.getAddress({
   chainType: "ETHEREUM",
   path: "m/44'/60'/0'/0/0",
@@ -32,6 +33,12 @@ The SDK owns the WebUSB session in JavaScript. Rust/WASM generates and validates
 APDUs, while `WebUsbImKeyTransport` performs `transferOut` and `transferIn`.
 `IndexedDbImKeyStorage` and `FetchTsmClient` are the default browser adapters and
 can be replaced through `createImKeyCore` options.
+
+Run `bindCheck()` for each client after connecting. An unbound device still
+needs the normal binding-code flow before signing. Binding keys remain opaque
+in Rust and are isolated between clients; disconnecting or changing transport
+or storage invalidates that client's binding state. Signing without a valid
+check returns `imkey_bind_check_required`.
 
 `cosUpdate()` runs the complete COS update and chained BLE firmware update. When
 the device restarts during either stage, the WebUSB transport reopens the same
