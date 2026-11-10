@@ -90,7 +90,7 @@ For test scope and hardware boundaries, see [`doc/TEST.md`](./doc/TEST.md).
 | ------- | -------------- | -------- |
 | Android | [`VERSION`](./VERSION) plus release commit | Maven Central AAR `io.github.consenlabs.android:token-core` |
 | iOS | [`VERSION`](./VERSION) plus release commit | GitHub Release tag `v<VERSION>+<short-sha>` with matching TokenCoreX and imKeyCoreX XCFramework zips |
-| WebAssembly | [`token-core/tcx-wasm/Cargo.toml`](./token-core/tcx-wasm/Cargo.toml) and generated npm package metadata | `publish/npm` package files built by `make build-npm` |
+| WebAssembly | [`publish/npm/package.json`](./publish/npm/package.json) for the aggregate npm package; Rust crates have independent versions | `publish/npm` package files built by `make build-npm` |
 
 Release policy and version/tag conventions are documented in
 [`doc/RELEASE.md`](./doc/RELEASE.md). User-facing changes should be recorded in

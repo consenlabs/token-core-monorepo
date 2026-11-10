@@ -21,7 +21,7 @@ try {
   assert.equal(packed.name, aggregate ? sourceManifest.name : metadata.name);
   assert.equal(packed.version, aggregate ? sourceManifest.version : metadata.version);
   const files = new Set(packed.files.map((file) => file.path));
-  for (const file of ['package.json', 'tcx_wasm.js', 'tcx_wasm.d.ts', 'tcx_wasm_bg.wasm', 'tcx_wasm_bg.wasm.d.ts']) {
+  for (const file of ['package.json', 'README.md', 'tcx_wasm.js', 'tcx_wasm.d.ts', 'tcx_wasm_bg.wasm', 'tcx_wasm_bg.wasm.d.ts']) {
     assert(files.has(file), `missing packed file: ${file}`);
   }
   if (aggregate) {
@@ -34,6 +34,10 @@ try {
   execFileSync('tar', ['-xzf', join(directory, packed.filename), '--strip-components=1', '-C', consumer]);
   const manifest = JSON.parse(await readFile(join(consumer, 'package.json'), 'utf8'));
   assert.equal(manifest.type, 'module');
+  if (aggregate) {
+    const readme = await readFile(join(consumer, 'README.md'), 'utf8');
+    assert(readme.startsWith(`# ${packed.name}\n`), 'package README must describe the aggregate SDK');
+  }
   // Resolve by package name, exercising exports from the actual unpacked npm tarball.
   const output = execFileSync(process.execPath, ['--input-type=module', '--eval', `
     import assert from 'node:assert/strict';

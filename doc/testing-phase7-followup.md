@@ -21,7 +21,13 @@ The wasm compiler defaults to Homebrew LLVM when available, otherwise `clang` on
 
 ## Integration Notes
 
-This worktree has not been rebased or pushed. When replaying onto phases 1-6, retain phase 2's npm manifest generation and `test-npm`, without replacing phase 7's aggregate npm package with a single-crate manifest. Merge its JS test command into the retained target. Preserve phase 5's `test-kdf` targets. Keep existing phase 6 portable Android/AAR/mobile smoke gates alongside the FFI host mock, which is not a replacement for those gates.
+Phases 1-6 provide the path, public Rust API, KDF and packaging contracts inherited
+by this phase. `make test-npm` runs JS tests; `make test-npm-package` builds both
+WASM modules, packs the aggregate npm package and exercises a tarball consumer.
+The aggregate manifest is maintained in `publish/npm/package.json` and must not
+be replaced with a single-crate wasm-pack manifest. The phase 5 `test-kdf`
+targets and phase 6 portable Android/AAR/mobile smoke gates remain available;
+FFI host mocks do not replace device integration.
 
 ## Local Validation
 

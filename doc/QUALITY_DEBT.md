@@ -14,6 +14,12 @@ initializers, and API-adjacent slice signatures to warning-free code. Do not
 add new clippy allows unless the compatibility reason is documented here and a
 removal path is clear.
 
+`CurveType::from_str` retains a local `clippy::should_implement_trait` allowance:
+this legacy public constructor returns `CurveType` directly, so replacing it
+with `std::str::FromStr` would break downstream source compatibility. New code
+uses `from_curve_name`. Remove the alias and its allowance only in an explicit
+breaking API release after consumers have migrated.
+
 ## Cargo Deny Exceptions
 
 `cargo-deny` is enabled in CI for advisories, licenses, and sources. The

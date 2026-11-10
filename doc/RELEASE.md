@@ -9,7 +9,7 @@ artifact, and changelog entry aligned before publishing.
 | ------- | -------------- | --------------- | -------- |
 | Android AAR | Root [`../VERSION`](../VERSION), with short commit appended by CI | [`../.github/workflows/build-release-android.yml`](../.github/workflows/build-release-android.yml) | Maven Central package `io.github.consenlabs.android:token-core` |
 | iOS XCFrameworks | Root [`../VERSION`](../VERSION), with short commit appended by CI | [`../.github/workflows/build-release-ios.yml`](../.github/workflows/build-release-ios.yml) | GitHub Release `v<VERSION>+<short-sha>` containing `ios-tcx-<VERSION>+<short-sha>.zip` and `ios-ikc-<VERSION>+<short-sha>.zip` |
-| WebAssembly/npm files | [`../token-core/tcx-wasm/Cargo.toml`](../token-core/tcx-wasm/Cargo.toml) and generated package metadata | `make build-npm`, then `make publish-npm` when publishing is intended | Files under `publish/npm/` |
+| WebAssembly/npm files | [`../publish/npm/package.json`](../publish/npm/package.json) for `@imtoken/wallet-core-web` | `make build-npm`, then `make publish-npm` when publishing is intended | Both WASM modules and JS/TypeScript adapters under `publish/npm/` |
 
 The root `VERSION` currently governs mobile release automation. Individual Rust
 crate versions do not automatically imply a mobile SDK release.
@@ -21,8 +21,9 @@ crate versions do not automatically imply a mobile SDK release.
   `v<VERSION>+<short-sha>`, matching the published zip artifact version.
 - Android release automation publishes a Maven Central version derived from
   `VERSION` plus the release commit short SHA.
-- `tcx-wasm` has its own crate/package version. Bump it when the wasm API or
-  npm package behavior changes.
+- The aggregate npm package version comes from `publish/npm/package.json`;
+  the `tcx-wasm` and `ikc-wasm` Rust crate versions are independent. Bump the
+  npm version when its public API or package behavior changes.
 - Do not reuse a tag for different artifacts.
 
 ## Changelog Rules
@@ -91,17 +92,17 @@ Build the npm-style package files:
 make build-npm
 ```
 
-This creates `publish/npm/` and copies:
-
-- `tcx_wasm_bg.wasm`
-- `tcx_wasm.js`
-- `tcx_wasm.d.ts`
-- `tcx_wasm_bg.wasm.d.ts`
-- `README.md` from [`../examples/wasm/README.md`](../examples/wasm/README.md)
+This builds both `tcx-wasm` and `ikc-wasm` and copies their WASM binaries,
+JavaScript glue and TypeScript declarations into `publish/npm/`. The aggregate
+package also includes the maintained JS facade, browser adapters, package
+manifest and [npm README](../publish/npm/README.md). Building must not replace
+these maintained files with a single-crate manifest or the browser example README.
 
 Publish only after validating the generated files and package metadata:
 
 ```bash
+make test-npm
+make test-npm-package
 make publish-npm
 ```
 
@@ -114,7 +115,8 @@ loading remain separate integration checks.
 
 - `CHANGELOG.md` contains the release entry.
 - `VERSION` is correct for mobile release surfaces.
-- `token-core/tcx-wasm/Cargo.toml` is correct for wasm package changes.
+- `publish/npm/package.json` is correct for npm changes; Rust crate versions
+  are reviewed separately.
 - `doc/QUALITY_DEBT.md` still matches current clippy and cargo-deny exceptions.
 - `cargo fmt --check` passes.
 - `make test-workspace` passes or any skipped hardware boundary is documented.

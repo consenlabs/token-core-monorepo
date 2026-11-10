@@ -126,7 +126,6 @@ build-npm:
 		wasm-opt -Oz --all-features publish/npm/ikc_wasm_bg.wasm -o publish/npm/ikc_wasm_bg.wasm; \
 	fi
 	rm -rf .wasm-pack-tmp-tcx .wasm-pack-tmp-ikc
-	cp examples/wasm/README.md publish/npm/README.md
 	@echo "NPM package built in publish/npm/"
 	@ls -lh publish/npm/tcx_wasm_bg.wasm
 	@ls -lh publish/npm/ikc_wasm_bg.wasm
