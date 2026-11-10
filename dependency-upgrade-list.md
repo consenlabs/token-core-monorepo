@@ -2,6 +2,19 @@
 
 Generated after upgrading the remaining 12 crates and pinning registry dependency declarations to exact `=x.y.z` requirements.
 
+## Review Security Follow-up (2026-11-10)
+
+The tables below describe the original upgrade baseline, not a claim that every
+dependency remains the latest release. The review also applied these compatible
+security updates without changing wallet formats or signing algorithms:
+
+| Dependency | Previous | Updated | Reason |
+| ---------- | -------- | ------- | ------ |
+| `tokio` | `1.52.3` | `1.53.3` | `RUSTSEC-2026-0386`, I/O safety |
+| `h2` | `0.4.14` | `0.4.16` | `RUSTSEC-2026-0258`, unbounded empty DATA frames |
+| `ctutils` | `0.4.2` | `0.4.4` | `RUSTSEC-2026-0385`, constant-time operations |
+| `chacha20` | `0.10.0` (yanked) | `0.10.2` | Same-series non-yanked patch release |
+
 ## Result
 
 - `cargo update --verbose` result: `Locking 0 packages to latest compatible versions`; no `behind latest` entries remain.
@@ -106,7 +119,7 @@ Changed dependency names: 76
 | `syn` | `1` | `=1.0.109` |
 | `thiserror` | `=1.0.56` | `=2.0.18` |
 | `tiny-bip39` | `=1.0.0` | `=2.0.0` |
-| `tokio` | `=1.28.2` | `=1.52.3` |
+| `tokio` | `=1.28.2` | `=1.53.3` |
 | `uuid` | `=1.2.2` | `=1.23.1` |
 | `xsalsa20poly1305` | `=0.9.0` | `=0.9.1` |
 
@@ -206,7 +219,7 @@ Current registry dependency names declared in Cargo.toml files: 94
 | `thiserror` | `=2.0.18` |
 | `tiny-bip39` | `=2.0.0` |
 | `tiny-keccak` | `=2.0.2` |
-| `tokio` | `=1.52.3` |
+| `tokio` | `=1.53.3` |
 | `typenum` | `=1.20.0` |
 | `uuid` | `=1.23.1` |
 | `xsalsa20poly1305` | `=0.9.1` |
@@ -228,7 +241,7 @@ Changed resolved package names: 57
 | `blstrs` | `0.2.2` | `-` |
 | `bytebuffer` | `0.2.1` | `2.3.0` |
 | `byteorder` | `0.3.13, 1.5.0` | `1.5.0` |
-| `chacha20` | `-` | `0.10.0` |
+| `chacha20` | `-` | `0.10.2` |
 | `crypto-mac` | `0.11.1, 0.8.0` | `-` |
 | `cryptoxide` | `0.3.6` | `0.4.4` |
 | `darling` | `0.10.2` | `-` |
