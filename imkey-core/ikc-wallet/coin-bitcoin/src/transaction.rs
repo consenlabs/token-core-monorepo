@@ -1,5 +1,5 @@
 use crate::btc_kin_address::{AddressTrait, BtcKinAddress, ImkeyPublicKey};
-use crate::common::{get_address_version, get_utxo_pub_key, TxSignResult};
+use crate::common::{ensure_p2wsh_version, get_address_version, get_utxo_pub_key, TxSignResult};
 use crate::network::BtcKinNetwork;
 use crate::Result;
 use bitcoin::blockdata::{opcodes, script::Builder};
@@ -75,6 +75,15 @@ impl BtcTransaction {
 
         //get current btc applet version
         let btc_version = get_btc_apple_version()?;
+        // P2WSH must not be confirmed on an applet that displays it as Taproot.
+        // Preserve existing handling for addresses this parser cannot decode.
+        let is_p2wsh_recipient = if let Ok(recipient) = BtcKinAddress::from_str(&self.to) {
+            let script = recipient.script_pubkey();
+            ensure_p2wsh_version(&script, &btc_version)?;
+            script.is_v0_p2wsh()
+        } else {
+            false
+        };
 
         //utxo address verify
         let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents)?;
@@ -88,10 +97,18 @@ impl BtcTransaction {
             output,
         };
 
-        self.calc_tx_hash(&mut tx_to_sign, &btc_version)?;
+        // The older transaction code compares version strings lexicographically.
+        // A numerically validated P2WSH version always uses the modern path,
+        // including future versions such as 1.10.0.
+        let hash_version = if is_p2wsh_recipient {
+            "1.6.12"
+        } else {
+            btc_version.as_str()
+        };
+        self.calc_tx_hash(&mut tx_to_sign, hash_version)?;
 
         //Compatible with Legacy and Nested Segwit transactions without upgrading btc apples
-        if btc_version.as_str() >= "1.6.00" {
+        if is_p2wsh_recipient || btc_version.as_str() >= "1.6.00" {
             self.tx_preview(&tx_to_sign, network)?;
             for (idx, utxo) in self.unspents.iter().enumerate() {
                 let script = Script::from_str(&utxo.script_pubkey)?;

@@ -1,6 +1,6 @@
 use crate::address::BtcAddress;
 use crate::btcapi::{PsbtInput, PsbtOutput};
-use crate::common::{get_address_version, get_xpub_data, select_btc_applet};
+use crate::common::{ensure_p2wsh_version, get_address_version, get_xpub_data, select_btc_applet};
 use crate::Result;
 use anyhow::anyhow;
 use bitcoin::blockdata::script::Builder;
@@ -19,10 +19,11 @@ use ikc_common::apdu::{ApduCheck, BtcApdu};
 use ikc_common::coin_info::coin_info_from_param;
 use ikc_common::constants;
 use ikc_common::constants::TIMEOUT_LONG;
-use ikc_common::error::CoinError;
+use ikc_common::error::{ApduError, CoinError, CommonError};
 use ikc_common::path::{check_path_validity, get_account_path};
 use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign, sha256_hash};
 use ikc_device::device_binding::KEY_MANAGER;
+use ikc_device::device_manager::get_btc_apple_version;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::{
     ecdsa::Signature, schnorr::Signature as SchnorrSignature, PublicKey as Secp256k1PublicKey,
@@ -30,7 +31,33 @@ use secp256k1::{
 use std::collections::BTreeMap;
 use std::io::Cursor;
 use std::str::FromStr;
+use std::sync::Mutex;
 use std::usize;
+
+// BTC applet releases from 1.6.12 onward must include the P2WSH display fix.
+// A missing or malformed capability/version never permits a P2WSH preview.
+fn ensure_p2wsh_preview_supported<F>(outputs: &[TxOut], read_version: F) -> Result<()>
+where
+    F: FnOnce() -> Result<String>,
+{
+    if !outputs
+        .iter()
+        .any(|output| output.script_pubkey.is_v0_p2wsh())
+    {
+        return Ok(());
+    }
+    let version = read_version()?;
+    for output in outputs {
+        ensure_p2wsh_version(&output.script_pubkey, &version)?;
+    }
+    Ok(())
+}
+
+#[derive(Default)]
+struct P2wshPreviewState {
+    version_checked: bool,
+    preview_confirmed: bool,
+}
 
 pub struct PsbtSigner<'a> {
     psbt: &'a mut Psbt,
@@ -40,6 +67,7 @@ pub struct PsbtSigner<'a> {
     network: Network,
     preview_output: Vec<TxOut>,
     is_sign_message: bool,
+    p2wsh_preview_state: Mutex<P2wshPreviewState>,
 }
 
 impl<'a> PsbtSigner<'a> {
@@ -58,12 +86,28 @@ impl<'a> PsbtSigner<'a> {
             network,
             preview_output: vec![],
             is_sign_message,
+            p2wsh_preview_state: Mutex::new(P2wshPreviewState::default()),
         };
         psbt_signer.get_preview_output()?;
         Ok(psbt_signer)
     }
 
+    fn has_p2wsh_output(&self) -> bool {
+        self.preview_output
+            .iter()
+            .any(|output| output.script_pubkey.is_v0_p2wsh())
+    }
+
     pub fn sign(&mut self, pub_keys: &Vec<String>) -> Result<()> {
+        if self.has_p2wsh_output() {
+            let state = self
+                .p2wsh_preview_state
+                .lock()
+                .map_err(|_| ApduError::ImkeyUserNotConfirmed)?;
+            if !state.preview_confirmed {
+                return Err(ApduError::ImkeyUserNotConfirmed.into());
+            }
+        }
         for idx in 0..self.prevouts.len() {
             let prevout = &self.prevouts[idx];
 
@@ -449,6 +493,22 @@ impl<'a> PsbtSigner<'a> {
     }
 
     pub fn calc_tx_hash(&self) -> Result<()> {
+        // Selecting an applet clears transient transaction data, so check the
+        // version before preparing any transaction hashes, never during preview.
+        let mut state = if self.has_p2wsh_output() {
+            Some(
+                self.p2wsh_preview_state
+                    .lock()
+                    .map_err(|_| ApduError::ImkeyUserNotConfirmed)?,
+            )
+        } else {
+            None
+        };
+        if let Some(state) = state.as_mut() {
+            state.version_checked = false;
+            state.preview_confirmed = false;
+        }
+        ensure_p2wsh_preview_supported(&self.preview_output, get_btc_apple_version)?;
         let mut txhash_vout_vec = vec![];
         let mut sequence_vec = vec![];
         let mut amount_vec = vec![];
@@ -468,10 +528,33 @@ impl<'a> PsbtSigner<'a> {
         for apdu in calc_hash_apdu {
             ApduCheck::check_response(&send_apdu(apdu)?)?;
         }
+        if let Some(state) = state.as_mut() {
+            state.version_checked = true;
+        }
         Ok(())
     }
 
     pub fn tx_preview(&self, network: Network) -> Result<()> {
+        // Keep preparation and preview serial for the same signer. Selecting
+        // another applet here would clear the prepared transient device state.
+        let mut state = if self.has_p2wsh_output() {
+            Some(
+                self.p2wsh_preview_state
+                    .lock()
+                    .map_err(|_| ApduError::ImkeyUserNotConfirmed)?,
+            )
+        } else {
+            None
+        };
+        if let Some(state) = state.as_mut() {
+            state.preview_confirmed = false;
+            if !state.version_checked {
+                return Err(CommonError::UpgradeApplet.into());
+            }
+            if self.is_sign_message {
+                return Err(ApduError::ImkeyUserNotConfirmed.into());
+            }
+        }
         let (total_amount, fee, _outputs) = self.get_preview_info()?;
         let mut preview_data = vec![];
         preview_data.extend(&serialize(&self.psbt.unsigned_tx.version)); //version
@@ -539,6 +622,9 @@ impl<'a> PsbtSigner<'a> {
             } else {
                 break;
             }
+        }
+        if let Some(state) = state.as_mut() {
+            state.preview_confirmed = true;
         }
         Ok(())
     }
@@ -637,8 +723,13 @@ impl<'a> PsbtSigner<'a> {
             if tx_out.script_pubkey.is_empty() || tx_out.script_pubkey.is_op_return() {
                 continue;
             }
-            //cale change index script
+            // P2WSH cannot be this single-key wallet's derived change output.
+            // Retain it in the preview so the applet can display the recipient.
             let tx_out_script = &tx_out.script_pubkey;
+            if tx_out_script.is_v0_p2wsh() {
+                preview_output.push(tx_out.clone());
+                continue;
+            }
             let address = if tx_out_script.is_p2pkh() {
                 let change_path =
                     Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_LEGACY)?;
@@ -1057,3 +1148,6 @@ mod test {
         assert_eq!(psbt_output.psbt, "70736274ff0100730200000001fe21f2749ecc542a7fb8d6bc136b531e74967b9efeb84f46ad7469861a9cba2e0200000000ffffffff02e80300000000000017a914c38c28eed1988152d70c87163bbdcb41aad7cca587e72301000000000017a914c38c28eed1988152d70c87163bbdcb41aad7cca5870000000000010120932901000000000017a914c38c28eed1988152d70c87163bbdcb41aad7cca58701071716001456639e5fa57dad8a9888749051ffa28837f1a8dd01086c0248304502210088cf0dbfe31d38238cab22ae0fb572949cb4b35a96660e9b60c0e7d5f72c5f8e022030efd75b8789f6ed5895630246d97c68e3d9d5adbdeb9390e3f59d7fa86b15c7012103036695c5f3de2e2792b170f59679d4db88a8516728012eaa42a22ce6f8bf593b000000".to_string());
     }
 }
+
+#[cfg(test)]
+mod p2wsh_preview_regression;

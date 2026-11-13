@@ -3,11 +3,36 @@ use crate::Result;
 use bitcoin::util::base58;
 use bitcoin::{Network, PublicKey};
 use ikc_common::apdu::{ApduCheck, BtcApdu, CoinCommonApdu};
-use ikc_common::error::CoinError;
+use ikc_common::error::{CoinError, CommonError};
 use ikc_common::utility::sha256_hash;
 use ikc_transport::message::send_apdu;
 use secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use std::str::FromStr;
+
+// Version 1.6.12 and later must contain the P2WSH display fix.
+pub(crate) fn ensure_p2wsh_version(script: &bitcoin::Script, version: &str) -> Result<()> {
+    if !script.is_v0_p2wsh() {
+        return Ok(());
+    }
+    let mut parts = version.split('.');
+    let parsed = match (parts.next(), parts.next(), parts.next(), parts.next()) {
+        (Some(a), Some(b), Some(c), None)
+            if [a, b, c]
+                .iter()
+                .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit())) =>
+        {
+            match (a.parse::<u32>(), b.parse::<u32>(), c.parse::<u32>()) {
+                (Ok(a), Ok(b), Ok(c)) => Some((a, b, c)),
+                _ => None,
+            }
+        }
+        _ => None,
+    };
+    if parsed.map_or(true, |v| v < (1, 6, 12)) {
+        return Err(CommonError::UpgradeApplet.into());
+    }
+    Ok(())
+}
 
 /**
 get utxo public key

@@ -1,0 +1,15 @@
+[package]
+name = "p2wsh-signer-apdu-mock"
+version = "0.1.0"
+edition = "2021"
+
+[workspace]
+
+[dependencies]
+coin-bitcoin = { path = "../.." }
+ikc-device = { path = "../../../../ikc-device" }
+ikc-transport = { path = "../../../../ikc-transport" }
+bitcoin = "=0.29.2"
+secp256k1 = "=0.24.3"
+hex = "=0.4.3"
+anyhow = "=1.0.79"
