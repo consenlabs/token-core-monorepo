@@ -205,11 +205,12 @@ jobs:
           popd
 
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3.0.4
         with:
           name: "Release ${{ steps.getversion.outputs.version }}"
           tag_name: "v${{ steps.getversion.outputs.version }}"
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
             ios-ikc-${{ steps.getversion.outputs.version }}.zip
             ios-tcx-${{ steps.getversion.outputs.version }}.zip
