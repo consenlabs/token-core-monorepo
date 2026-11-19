@@ -1,8 +1,8 @@
 use crate::btcapi::{PsbtInput, PsbtOutput};
 use crate::common::{ensure_transaction_preview_version, get_xpub_data, select_btc_applet};
 use crate::input_proof::{
-    authenticated_transaction_chunk, check_previous_output, send_input_proof,
-    TRANSACTION_CHUNK_BYTES,
+    authenticated_transaction_chunk, check_previous_output, segwit_sign_apdu, send_input_proof,
+    InputReceipt, TRANSACTION_CHUNK_BYTES,
 };
 use crate::Result;
 use anyhow::anyhow;
@@ -35,11 +35,10 @@ use std::sync::Mutex;
 
 const PSBT_PREVIEW_MAX_BYTES: usize = 512;
 
-#[derive(PartialEq, Eq)]
 enum PreviewState {
     Initial,
-    InputsPrepared,
-    Confirmed,
+    InputsPrepared(Vec<InputReceipt>),
+    Confirmed(Vec<InputReceipt>),
 }
 
 pub struct PsbtSigner<'a> {
@@ -79,10 +78,10 @@ impl<'a> PsbtSigner<'a> {
             .preview_state
             .get_mut()
             .map_err(|_| ApduError::ImkeyUserNotConfirmed)?;
-        if *state != PreviewState::Confirmed {
-            return Err(ApduError::ImkeyUserNotConfirmed.into());
-        }
-        *state = PreviewState::Initial;
+        let receipts = match std::mem::replace(state, PreviewState::Initial) {
+            PreviewState::Confirmed(receipts) => receipts,
+            _ => return Err(ApduError::ImkeyUserNotConfirmed.into()),
+        };
         if pub_keys.len() != self.prevouts.len() {
             return Err(CoinError::InvalidUtxo.into());
         }
@@ -96,13 +95,13 @@ impl<'a> PsbtSigner<'a> {
                     self.finalize_p2pkh(idx);
                 }
             } else if prevout.script_pubkey.is_p2sh() {
-                self.sign_p2sh_nested_p2wpkh(idx, &pub_keys[idx])?;
+                self.sign_p2sh_nested_p2wpkh(idx, &pub_keys[idx], &receipts[idx])?;
 
                 if self.auto_finalize {
                     self.finalize_p2sh_nested_p2wpkh(idx);
                 }
             } else if prevout.script_pubkey.is_v0_p2wpkh() {
-                self.sign_p2wpkh(idx, &pub_keys[idx])?;
+                self.sign_p2wpkh(idx, &pub_keys[idx], &receipts[idx])?;
 
                 if self.auto_finalize {
                     self.finalize_p2wpkh(idx);
@@ -251,7 +250,12 @@ impl<'a> PsbtSigner<'a> {
         Ok(())
     }
 
-    fn sign_p2sh_nested_p2wpkh(&mut self, idx: usize, pub_key: &str) -> Result<()> {
+    fn sign_p2sh_nested_p2wpkh(
+        &mut self,
+        idx: usize,
+        pub_key: &str,
+        receipt: &InputReceipt,
+    ) -> Result<()> {
         let temp_serialize_txin = self
             .psbt
             .unsigned_tx
@@ -289,11 +293,8 @@ impl<'a> PsbtSigner<'a> {
         address_data.extend_from_slice(sign_path.as_bytes());
         data.extend(address_data.iter());
 
-        let sign_apdu = if idx == (self.psbt.unsigned_tx.input.len() - 1) {
-            BtcApdu::btc_segwit_sign(true, 0x01, data)
-        } else {
-            BtcApdu::btc_segwit_sign(false, 0x01, data)
-        };
+        let last_input = idx == self.psbt.unsigned_tx.input.len() - 1;
+        let sign_apdu = segwit_sign_apdu(last_input, data, Some(receipt))?;
         let sign_apdu_return_data = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_apdu_return_data)?;
 
@@ -313,7 +314,7 @@ impl<'a> PsbtSigner<'a> {
         Ok(())
     }
 
-    fn sign_p2wpkh(&mut self, idx: usize, pub_key: &str) -> Result<()> {
+    fn sign_p2wpkh(&mut self, idx: usize, pub_key: &str, receipt: &InputReceipt) -> Result<()> {
         let temp_serialize_txin = self
             .psbt
             .unsigned_tx
@@ -350,11 +351,8 @@ impl<'a> PsbtSigner<'a> {
         address_data.extend_from_slice(sign_path.as_bytes());
         data.extend(address_data.iter());
 
-        let sign_apdu = if idx == (self.psbt.unsigned_tx.input.len() - 1) {
-            BtcApdu::btc_segwit_sign(true, 0x01, data)
-        } else {
-            BtcApdu::btc_segwit_sign(false, 0x01, data)
-        };
+        let last_input = idx == self.psbt.unsigned_tx.input.len() - 1;
+        let sign_apdu = segwit_sign_apdu(last_input, data, Some(receipt))?;
         let sign_apdu_return_data = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_apdu_return_data)?;
         //build signature obj
@@ -498,20 +496,21 @@ impl<'a> PsbtSigner<'a> {
         // The version query reselects the applet. Send proofs afterwards
         // so the proofs, preview, and signing share one device session.
         ensure_transaction_preview_version(&get_btc_apple_version()?)?;
+        let mut receipts = Vec::with_capacity(inputs.len());
         for (index, (input, psbt_input)) in inputs.iter().zip(&self.psbt.inputs).enumerate() {
             let previous_tx = psbt_input
                 .non_witness_utxo
                 .as_ref()
                 .ok_or_else(|| anyhow!("btc_missing_previous_transaction: input {}", index))?;
-            send_input_proof(
+            receipts.push(send_input_proof(
                 inputs.len(),
                 index,
                 input.previous_output,
                 input.sequence,
                 previous_tx,
-            )?;
+            )?);
         }
-        *state = PreviewState::InputsPrepared;
+        *state = PreviewState::InputsPrepared(receipts);
         Ok(())
     }
 
@@ -520,10 +519,10 @@ impl<'a> PsbtSigner<'a> {
             .preview_state
             .lock()
             .map_err(|_| ApduError::ImkeyUserNotConfirmed)?;
-        if *state != PreviewState::InputsPrepared {
-            return Err(ApduError::ImkeyUserNotConfirmed.into());
-        }
-        *state = PreviewState::Initial;
+        let receipts = match std::mem::replace(&mut *state, PreviewState::Initial) {
+            PreviewState::InputsPrepared(receipts) => receipts,
+            _ => return Err(ApduError::ImkeyUserNotConfirmed.into()),
+        };
         if network != self.network {
             return Err(CoinError::ImkeySdkIllegalArgument.into());
         }
@@ -573,7 +572,7 @@ impl<'a> PsbtSigner<'a> {
             ApduCheck::check_response(&response)?;
         }
 
-        *state = PreviewState::Confirmed;
+        *state = PreviewState::Confirmed(receipts);
         Ok(())
     }
 

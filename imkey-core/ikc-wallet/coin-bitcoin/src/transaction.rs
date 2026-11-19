@@ -3,7 +3,7 @@ use crate::common::{
     btc_applet_version_at_least, ensure_p2wsh_version, ensure_transaction_preview_version,
     get_address_version, get_utxo_pub_key, TxSignResult,
 };
-use crate::input_proof::{check_previous_output, send_input_proof};
+use crate::input_proof::{check_previous_output, segwit_sign_apdu, send_input_proof, InputReceipt};
 use crate::network::BtcKinNetwork;
 use crate::Result;
 use anyhow::anyhow;
@@ -129,7 +129,8 @@ impl BtcTransaction {
             output,
         };
 
-        if let Some(inputs) = bitcoin_inputs {
+        let receipts = if let Some(inputs) = bitcoin_inputs {
+            let mut receipts = Vec::with_capacity(inputs.len());
             for (index, (outpoint, previous_tx)) in inputs.iter().enumerate() {
                 if !previous_tx.output[outpoint.vout as usize]
                     .script_pubkey
@@ -137,16 +138,25 @@ impl BtcTransaction {
                 {
                     tx_to_sign.version = 2;
                 }
-                send_input_proof(inputs.len(), index, *outpoint, Sequence::MAX, previous_tx)?;
+                receipts.push(send_input_proof(
+                    inputs.len(),
+                    index,
+                    *outpoint,
+                    Sequence::MAX,
+                    previous_tx,
+                )?);
             }
+            Some(receipts)
         } else {
             self.calc_tx_hash(&mut tx_to_sign, &btc_version)?;
-        }
+            None
+        };
 
         if btc_applet_version_at_least(&btc_version, (1, 6, 0)) {
             self.tx_preview(&tx_to_sign, network)?;
             for (idx, utxo) in self.unspents.iter().enumerate() {
                 let script = Script::from_str(&utxo.script_pubkey)?;
+                let receipt = receipts.as_ref().map(|receipts| &receipts[idx]);
                 if script.is_p2pkh() {
                     self.sign_p2pkh_input(idx, &utxo_pub_key_vec[idx], &mut tx_to_sign)?;
                 } else if script.is_p2sh() {
@@ -154,9 +164,10 @@ impl BtcTransaction {
                         idx,
                         &utxo_pub_key_vec[idx],
                         &mut tx_to_sign,
+                        receipt,
                     )?;
                 } else if script.is_v0_p2wpkh() {
-                    self.sign_p2wpkh_input(idx, &utxo_pub_key_vec[idx], &mut tx_to_sign)?;
+                    self.sign_p2wpkh_input(idx, &utxo_pub_key_vec[idx], &mut tx_to_sign, receipt)?;
                 } else if script.is_v1_p2tr() {
                     self.sign_p2tr_input(
                         idx,
@@ -185,6 +196,7 @@ impl BtcTransaction {
                             idx,
                             &utxo_pub_key_vec[idx],
                             &mut tx_to_sign,
+                            None,
                         )?;
                     }
                 } else {
@@ -383,6 +395,7 @@ impl BtcTransaction {
         idx: usize,
         pub_key: &str,
         transaction: &mut Transaction,
+        receipt: Option<&InputReceipt>,
     ) -> Result<()> {
         let unspent = self.unspents.get(idx).expect("get_utxo_fail ");
         let txin = TxIn {
@@ -422,11 +435,8 @@ impl BtcTransaction {
         address_data.extend_from_slice(sign_path);
         data.extend(address_data.iter());
 
-        let sign_apdu = if idx == (self.unspents.len() - 1) {
-            BtcApdu::btc_segwit_sign(true, 0x01, data)
-        } else {
-            BtcApdu::btc_segwit_sign(false, 0x01, data)
-        };
+        let last_input = idx == self.unspents.len() - 1;
+        let sign_apdu = segwit_sign_apdu(last_input, data, receipt)?;
         let sign_apdu_return_data = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_apdu_return_data)?;
 
@@ -459,6 +469,7 @@ impl BtcTransaction {
         idx: usize,
         pub_key: &str,
         transaction: &mut Transaction,
+        receipt: Option<&InputReceipt>,
     ) -> Result<()> {
         let unspent = self.unspents.get(idx).expect("get_utxo_fail");
         let txin = TxIn {
@@ -499,11 +510,8 @@ impl BtcTransaction {
         address_data.extend_from_slice(sign_path);
         data.extend(address_data.iter());
 
-        let sign_apdu = if idx == (self.unspents.len() - 1) {
-            BtcApdu::btc_segwit_sign(true, 0x01, data)
-        } else {
-            BtcApdu::btc_segwit_sign(false, 0x01, data)
-        };
+        let last_input = idx == self.unspents.len() - 1;
+        let sign_apdu = segwit_sign_apdu(last_input, data, receipt)?;
         let sign_apdu_return_data = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_apdu_return_data)?;
         //build signature obj

@@ -3,12 +3,14 @@ use anyhow::anyhow;
 use bitcoin::consensus::serialize;
 use bitcoin::{OutPoint, Sequence, Transaction, TxOut, Witness};
 use ikc_common::apdu::{ApduCheck, BtcApdu};
+use ikc_common::constants::LC_MAX;
 use ikc_common::utility::secp256k1_sign;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_transport::message::send_apdu;
 
 pub(crate) const TRANSACTION_CHUNK_BYTES: usize = 160;
 const MAX_PREVIOUS_TRANSACTION_BYTES: usize = 1_000_000;
+pub(crate) type InputReceipt = [u8; 32];
 
 pub(crate) fn check_previous_output(
     previous_tx: &Transaction,
@@ -61,7 +63,7 @@ pub(crate) fn send_input_proof(
     outpoint: OutPoint,
     sequence: Sequence,
     previous_tx: &Transaction,
-) -> Result<()> {
+) -> Result<InputReceipt> {
     let mut without_witness = previous_tx.clone();
     for input in &mut without_witness.input {
         input.witness = Witness::default();
@@ -74,13 +76,51 @@ pub(crate) fn send_input_proof(
     let chunks = body.chunks(TRANSACTION_CHUNK_BYTES);
     let last = chunks.len() - 1;
     let key_manager = KEY_MANAGER.lock();
+    let mut receipt = [0; 32];
     for (index, fragment) in chunks.enumerate() {
         let p1 = if index == 0 { 0 } else { 0x80 };
         let p2 = if index == last { 0x80 } else { 0 };
         let apdu = authenticated_transaction_chunk(0x53, p1, p2, fragment, &key_manager.pri_key)?;
-        ApduCheck::check_response(&send_apdu(apdu)?)?;
+        let response = send_apdu(apdu)?;
+        if response.len() < 4 || !response.is_ascii() {
+            return Err(anyhow!(
+                "btc_input_proof_invalid_response: input {}",
+                input_index
+            ));
+        }
+        ApduCheck::check_response(&response)?;
+        let payload = &response[..response.len() - 4];
+        if index == last {
+            if payload.is_empty() {
+                return Err(anyhow!(
+                    "btc_input_proof_receipt_missing: input {}",
+                    input_index
+                ));
+            }
+            hex::decode_to_slice(payload, &mut receipt)
+                .map_err(|_| anyhow!("btc_input_proof_invalid_receipt: input {}", input_index))?;
+        } else if !payload.is_empty() {
+            return Err(anyhow!(
+                "btc_input_proof_unexpected_response_data: input {}",
+                input_index
+            ));
+        }
     }
-    Ok(())
+    Ok(receipt)
+}
+
+pub(crate) fn segwit_sign_apdu(
+    last_input: bool,
+    mut data: Vec<u8>,
+    receipt: Option<&InputReceipt>,
+) -> Result<String> {
+    if let Some(receipt) = receipt {
+        data.extend_from_slice(receipt);
+    }
+    if data.len() > LC_MAX as usize {
+        return Err(anyhow!("btc_segwit_signature_data_exceeds_apdu_limit"));
+    }
+    Ok(BtcApdu::btc_segwit_sign(last_input, 0x01, data))
 }
 
 #[cfg(test)]

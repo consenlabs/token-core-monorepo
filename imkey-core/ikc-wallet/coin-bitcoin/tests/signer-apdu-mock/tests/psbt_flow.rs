@@ -104,6 +104,44 @@ enum ProofCase {
     WrongTxid,
     WrongVout,
     MismatchedOutput,
+    OldAppletWithoutReceipt,
+    InvalidReceipt,
+    UnexpectedIntermediateData,
+}
+
+fn receipt_for(index: u8) -> [u8; 32] {
+    [0x40 + index; 32]
+}
+
+fn proof_response(apdu: &[u8], proof_case: ProofCase, index: &mut u8) -> String {
+    if apdu[2] == 0 {
+        *index = extract_signed_body(apdu)[3];
+    }
+    if apdu[3] == 0 {
+        return if matches!(proof_case, ProofCase::UnexpectedIntermediateData) {
+            "009000".to_owned()
+        } else {
+            "9000".to_owned()
+        };
+    }
+
+    match proof_case {
+        ProofCase::OldAppletWithoutReceipt => "9000".to_owned(),
+        ProofCase::InvalidReceipt => format!("{}9000", "zz".repeat(32)),
+        _ => format!("{}9000", hex::encode(receipt_for(*index))),
+    }
+}
+
+fn assert_sign_receipt(apdu: &[u8], index: u8, outpoint: OutPoint) {
+    let body = &apdu[5..5 + apdu[4] as usize];
+    assert_eq!(&body[1..37], serialize(&outpoint));
+    let path_len_offset = 1 + body[0] as usize;
+    let path_end = path_len_offset + 1 + body[path_len_offset] as usize;
+    assert_eq!(
+        &body[path_len_offset + 1..path_end],
+        format!("{}/0/0", ACCOUNT).as_bytes()
+    );
+    assert_eq!(&body[path_end..], receipt_for(index));
 }
 
 fn run_case(
@@ -112,6 +150,7 @@ fn run_case(
     extra_outputs: usize,
     legacy_input: bool,
     proof_case: ProofCase,
+    multiple_inputs: bool,
 ) -> (
     anyhow::Result<coin_bitcoin::btcapi::PsbtOutput>,
     Vec<Vec<u8>>,
@@ -154,52 +193,67 @@ fn run_case(
     }
     let input_value = outputs.iter().map(|output| output.value).sum::<u64>() + 1000;
     let funding = funding_transaction(input_script.clone(), input_value);
-    let outpoint = OutPoint {
-        txid: funding.txid(),
-        vout: 2,
-    };
+    let mut previous_txs = vec![funding];
+    if multiple_inputs {
+        let nested = Address::p2shwpkh(&public, Network::Bitcoin).unwrap();
+        previous_txs.push(funding_transaction(nested.script_pubkey(), 2_600));
+    }
     let tx = Transaction {
         version: 2,
         lock_time: PackedLockTime::ZERO,
-        input: vec![TxIn {
-            previous_output: outpoint,
-            sequence: Sequence(0xfffffffd),
-            ..TxIn::default()
-        }],
+        input: previous_txs
+            .iter()
+            .enumerate()
+            .map(|(index, funding)| TxIn {
+                previous_output: OutPoint {
+                    txid: funding.txid(),
+                    vout: 2,
+                },
+                sequence: Sequence(0xfffffffd - index as u32),
+                ..TxIn::default()
+            })
+            .collect(),
         output: outputs,
     };
+    let mut signatures = Vec::new();
     let mut psbt = Psbt::from_unsigned_tx(tx.clone()).unwrap();
-    psbt.inputs[0].witness_utxo = Some(funding.output[outpoint.vout as usize].clone());
-    psbt.inputs[0].non_witness_utxo = Some(funding);
+    let script_code = Address::p2wpkh(&public, Network::Bitcoin)
+        .unwrap()
+        .script_pubkey()
+        .p2wpkh_script_code()
+        .unwrap();
+    for (index, funding) in previous_txs.into_iter().enumerate() {
+        let input_value = funding.output[2].value;
+        let sighash = if legacy_input {
+            SighashCache::new(&tx)
+                .legacy_signature_hash(index, &input_script, EcdsaSighashType::All.to_u32())
+                .unwrap()
+        } else {
+            SighashCache::new(&tx)
+                .segwit_signature_hash(index, &script_code, input_value, EcdsaSighashType::All)
+                .unwrap()
+        };
+        signatures.push(
+            secp.sign_ecdsa(&Message::from_slice(&sighash[..]).unwrap(), &signing_key)
+                .serialize_compact(),
+        );
+        psbt.inputs[index].witness_utxo = Some(funding.output[2].clone());
+        psbt.inputs[index].non_witness_utxo = Some(funding);
+    }
     match proof_case {
-        ProofCase::Valid => {}
         ProofCase::Missing => psbt.inputs[0].non_witness_utxo = None,
         ProofCase::WrongTxid => psbt.inputs[0].non_witness_utxo.as_mut().unwrap().version = 1,
         ProofCase::WrongVout => psbt.unsigned_tx.input[0].previous_output.vout = 4,
         ProofCase::MismatchedOutput => psbt.inputs[0].witness_utxo.as_mut().unwrap().value += 1,
+        _ => {}
     }
-    let sighash = if legacy_input {
-        SighashCache::new(&tx)
-            .legacy_signature_hash(0, &input_script, EcdsaSighashType::All.to_u32())
-            .unwrap()
-    } else {
-        SighashCache::new(&tx)
-            .segwit_signature_hash(
-                0,
-                &input_script.p2wpkh_script_code().unwrap(),
-                input_value,
-                EcdsaSighashType::All,
-            )
-            .unwrap()
-    };
-    let signature = secp
-        .sign_ecdsa(&Message::from_slice(&sighash[..]).unwrap(), &signing_key)
-        .serialize_compact();
     KEY_MANAGER.lock().pri_key = vec![2; 32];
     let records = Arc::new(Mutex::new(Vec::<Vec<u8>>::new()));
     let capture = Arc::clone(&records);
     let version = version.to_owned();
     let uncompressed = public.inner.serialize_uncompressed();
+    let mut proof_index = 0;
+    let mut signature_index = 0;
     ikc_transport::p2wsh_test_mock::install(Box::new(move |apdu, timeout| {
         let bytes = hex::decode(apdu)?;
         capture.lock().unwrap().push(bytes.clone());
@@ -212,13 +266,18 @@ fn run_case(
         } else {
             match bytes[1] {
                 0x43 => format!("{}{}9000", hex::encode(uncompressed), "00".repeat(32)),
-                0x53 | 0x50 => "9000".to_string(),
+                0x53 => proof_response(&bytes, proof_case, &mut proof_index),
+                0x50 => "9000".to_string(),
                 0x52 => {
                     let expected_timeout = if bytes[3] == 0x80 { 120 } else { 20 };
                     assert_eq!(timeout, expected_timeout);
                     "9000".to_string()
                 }
-                0x32 | 0x45 => format!("00{}009000", hex::encode(signature)),
+                0x32 | 0x45 => {
+                    let signature = signatures[signature_index];
+                    signature_index += 1;
+                    format!("00{}009000", hex::encode(signature))
+                }
                 other => return Err(anyhow::anyhow!("unexpected mock APDU INS {:02x}", other)),
             }
         };
@@ -242,7 +301,8 @@ fn run_case(
 fn psbt_version_check_precedes_hashing_and_rejects_legacy_applets() {
     let _guard = TEST_LOCK.lock().unwrap();
     for is_p2wsh in [true, false] {
-        let (result, trace, _, _, _) = run_case("1.6.12", is_p2wsh, 0, false, ProofCase::Valid);
+        let (result, trace, _, _, _) =
+            run_case("1.6.12", is_p2wsh, 0, false, ProofCase::Valid, false);
         assert_eq!(result.err().unwrap().to_string(), "upgrade_applet");
         assert!(!trace
             .iter()
@@ -254,8 +314,14 @@ fn psbt_version_check_precedes_hashing_and_rejects_legacy_applets() {
 fn psbt_sends_all_outputs_in_order_and_signs_only_after_confirmation() {
     let _guard = TEST_LOCK.lock().unwrap();
     for (is_p2wsh, extra_outputs) in [(false, 0), (true, 1), (true, 5)] {
-        let (result, trace, unsigned, input_script, public) =
-            run_case("1.6.13", is_p2wsh, extra_outputs, false, ProofCase::Valid);
+        let (result, trace, unsigned, input_script, public) = run_case(
+            "1.6.13",
+            is_p2wsh,
+            extra_outputs,
+            false,
+            ProofCase::Valid,
+            false,
+        );
         let signed: Psbt = deserialize(&hex::decode(result.unwrap().psbt).unwrap()).unwrap();
         let tx = signed.extract_tx();
         assert_eq!(tx.output, unsigned.output);
@@ -290,6 +356,7 @@ fn psbt_sends_all_outputs_in_order_and_signs_only_after_confirmation() {
         let preview = trace.iter().position(|apdu| apdu[1] == 0x52).unwrap();
         let sign = trace.iter().position(|apdu| apdu[1] == 0x32).unwrap();
         assert!(id < proof && proof < preview && preview < sign);
+        assert_sign_receipt(&trace[sign], 0, unsigned.input[0].previous_output);
         let previous = checked_proof(
             &trace,
             unsigned.input[0].previous_output,
@@ -326,7 +393,7 @@ fn psbt_sends_all_outputs_in_order_and_signs_only_after_confirmation() {
 #[test]
 fn psbt_oversize_preview_returns_error_without_a_signing_command() {
     let _guard = TEST_LOCK.lock().unwrap();
-    let (result, trace, _, _, _) = run_case("1.6.13", true, 14, false, ProofCase::Valid);
+    let (result, trace, _, _, _) = run_case("1.6.13", true, 14, false, ProofCase::Valid, false);
     assert!(result
         .err()
         .unwrap()
@@ -339,12 +406,17 @@ fn psbt_oversize_preview_returns_error_without_a_signing_command() {
 fn legacy_psbt_hash_commands_send_only_inputs_after_output_confirmation() {
     let _guard = TEST_LOCK.lock().unwrap();
     let (result, trace, unsigned, input_script, _) =
-        run_case("1.6.13", true, 1, true, ProofCase::Valid);
+        run_case("1.6.13", true, 1, true, ProofCase::Valid, false);
     assert!(result.is_ok());
     let preview = trace.iter().rposition(|apdu| apdu[1] == 0x52).unwrap();
     let hash = trace.iter().position(|apdu| apdu[1] == 0x50).unwrap();
     let sign = trace.iter().position(|apdu| apdu[1] == 0x45).unwrap();
     assert!(preview < hash && hash < sign);
+    let sign_apdu = &trace[sign];
+    assert_eq!(
+        &sign_apdu[5..5 + sign_apdu[4] as usize],
+        format!("{}/0/0", ACCOUNT).as_bytes()
+    );
     let mut expected_input = unsigned.input[0].clone();
     expected_input.script_sig = input_script;
     let apdu = &trace[hash];
@@ -369,7 +441,7 @@ fn psbt_rejects_missing_or_inconsistent_previous_transactions_before_proving_inp
             "btc_previous_transaction_output_mismatch",
         ),
     ] {
-        let (result, trace, _, _, _) = run_case("1.6.13", false, 0, false, fixture);
+        let (result, trace, _, _, _) = run_case("1.6.13", false, 0, false, fixture, false);
         assert!(result.err().unwrap().to_string().contains(expected));
         assert!(!trace
             .iter()
@@ -381,6 +453,7 @@ fn run_ordinary(
     version: &str,
     is_p2wsh: bool,
     proof_case: ProofCase,
+    multiple_inputs: bool,
 ) -> (
     anyhow::Result<coin_bitcoin::common::TxSignResult>,
     Vec<Vec<u8>>,
@@ -401,39 +474,61 @@ fn run_ordinary(
         )
         .unwrap()
     };
-    let mut funding = funding_transaction(input.script_pubkey(), 6000);
-    let prevout = OutPoint {
-        txid: funding.txid(),
-        vout: 2,
-    };
+    let mut previous_txs = vec![funding_transaction(input.script_pubkey(), 6000)];
+    let mut sources = vec![input.clone()];
+    if multiple_inputs {
+        let nested = Address::p2shwpkh(&public, Network::Bitcoin).unwrap();
+        previous_txs.push(funding_transaction(nested.script_pubkey(), 2_600));
+        sources.push(nested);
+    }
+    let mut outputs = vec![TxOut {
+        value: 5000,
+        script_pubkey: dest.script_pubkey(),
+    }];
+    if multiple_inputs {
+        outputs.push(TxOut {
+            value: 2600,
+            script_pubkey: input.script_pubkey(),
+        });
+    }
     let tx = Transaction {
         version: 2,
         lock_time: PackedLockTime::ZERO,
-        input: vec![TxIn {
-            previous_output: prevout,
-            ..TxIn::default()
-        }],
-        output: vec![TxOut {
-            value: 5000,
-            script_pubkey: dest.script_pubkey(),
-        }],
+        input: previous_txs
+            .iter()
+            .map(|funding| TxIn {
+                previous_output: OutPoint {
+                    txid: funding.txid(),
+                    vout: 2,
+                },
+                ..TxIn::default()
+            })
+            .collect(),
+        output: outputs,
     };
-    let sighash = SighashCache::new(&tx)
-        .segwit_signature_hash(
-            0,
-            &input.script_pubkey().p2wpkh_script_code().unwrap(),
-            6000,
-            EcdsaSighashType::All,
-        )
-        .unwrap();
-    let signature = secp
-        .sign_ecdsa(&Message::from_slice(&sighash[..]).unwrap(), &signing_key)
-        .serialize_compact();
+    let mut signatures = Vec::new();
+    let script_code = input.script_pubkey().p2wpkh_script_code().unwrap();
+    for (index, previous_tx) in previous_txs.iter().enumerate() {
+        let sighash = SighashCache::new(&tx)
+            .segwit_signature_hash(
+                index,
+                &script_code,
+                previous_tx.output[2].value,
+                EcdsaSighashType::All,
+            )
+            .unwrap();
+        signatures.push(
+            secp.sign_ecdsa(&Message::from_slice(&sighash[..]).unwrap(), &signing_key)
+                .serialize_compact(),
+        );
+    }
     KEY_MANAGER.lock().pri_key = vec![2; 32];
     let records = Arc::new(Mutex::new(Vec::<Vec<u8>>::new()));
     let capture = Arc::clone(&records);
     let version = version.to_owned();
     let uncompressed = public.inner.serialize_uncompressed();
+    let mut proof_index = 0;
+    let mut signature_index = 0;
     ikc_transport::p2wsh_test_mock::install(Box::new(move |apdu, _| {
         let bytes = hex::decode(apdu)?;
         capture.lock().unwrap().push(bytes.clone());
@@ -446,8 +541,13 @@ fn run_ordinary(
         }
         Ok(match bytes[1] {
             0x43 => format!("{}{}9000", hex::encode(uncompressed), "00".repeat(32)),
-            0x53 | 0x41 => "9000".to_string(),
-            0x32 => format!("00{}009000", hex::encode(signature)),
+            0x53 => proof_response(&bytes, proof_case, &mut proof_index),
+            0x41 => "9000".to_string(),
+            0x32 => {
+                let signature = signatures[signature_index];
+                signature_index += 1;
+                format!("00{}009000", hex::encode(signature))
+            }
             other => {
                 return Err(anyhow::anyhow!(
                     "unexpected ordinary APDU INS {:02x}",
@@ -461,31 +561,34 @@ fn run_ordinary(
         amount: 5000,
         fee: 1000,
         chain_type: "BITCOIN".to_owned(),
-        unspents: vec![Utxo {
-            txhash: prevout.txid.to_string(),
-            vout: if matches!(proof_case, ProofCase::WrongVout) {
-                4
-            } else {
-                prevout.vout
-            },
-            amount: if matches!(proof_case, ProofCase::MismatchedOutput) {
-                6001
-            } else {
-                6000
-            },
-            address: input.to_string(),
-            script_pubkey: hex::encode(input.script_pubkey().as_bytes()),
-            derive_path: format!("{}/0/0", ACCOUNT),
-            sequence: 0xffffffff,
-        }],
+        unspents: tx
+            .input
+            .iter()
+            .zip(&previous_txs)
+            .zip(&sources)
+            .map(|((txin, previous_tx), source)| Utxo {
+                txhash: txin.previous_output.txid.to_string(),
+                vout: if matches!(proof_case, ProofCase::WrongVout) {
+                    4
+                } else {
+                    2
+                },
+                amount: previous_tx.output[2].value
+                    + u64::from(matches!(proof_case, ProofCase::MismatchedOutput)),
+                address: source.to_string(),
+                script_pubkey: hex::encode(source.script_pubkey().as_bytes()),
+                derive_path: format!("{}/0/0", ACCOUNT),
+                sequence: 0xffffffff,
+            })
+            .collect(),
     };
     if matches!(proof_case, ProofCase::WrongTxid) {
-        funding.version = 1;
+        previous_txs[0].version = 1;
     }
     let previous_transactions = if matches!(proof_case, ProofCase::Missing) {
         vec![]
     } else {
-        vec![serialize(&funding)]
+        previous_txs.iter().map(serialize).collect()
     };
     let result = transfer.sign_transaction_with_previous_transactions(
         "MAINNET",
@@ -504,13 +607,13 @@ fn run_ordinary(
 #[test]
 fn ordinary_gate_rejects_old_applet_for_any_output_type() {
     let _guard = TEST_LOCK.lock().unwrap();
-    let (old, old_trace, _) = run_ordinary("1.6.12", true, ProofCase::Valid);
+    let (old, old_trace, _) = run_ordinary("1.6.12", true, ProofCase::Valid, false);
     assert!(old.is_err());
     assert!(!old_trace
         .iter()
         .any(|a| [0x31, 0x53, 0x41, 0x32].contains(&a[1])));
     for version in ["1.6.13", "1.10.0"] {
-        let (result, trace, expected) = run_ordinary(version, true, ProofCase::Valid);
+        let (result, trace, expected) = run_ordinary(version, true, ProofCase::Valid, false);
         let result = result.unwrap();
         let tx: Transaction = deserialize(&hex::decode(result.signature).unwrap()).unwrap();
         assert_eq!(tx.output[0].script_pubkey, expected);
@@ -542,6 +645,7 @@ fn ordinary_gate_rejects_old_applet_for_any_output_type() {
         let preview = trace.iter().position(|a| a[1] == 0x41).unwrap();
         let sign = trace.iter().position(|a| a[1] == 0x32).unwrap();
         assert!(hash < preview && preview < sign);
+        assert_sign_receipt(&trace[sign], 0, tx.input[0].previous_output);
         let proved = checked_proof(&trace, tx.input[0].previous_output, tx.input[0].sequence);
         assert_eq!(proved.output[2].value, 6000);
         assert_eq!(proved.output[2].script_pubkey, input_script);
@@ -551,7 +655,7 @@ fn ordinary_gate_rejects_old_applet_for_any_output_type() {
             .windows(expected.len())
             .any(|w| w == expected.as_bytes()));
     }
-    let (old_other, trace, _) = run_ordinary("1.6.12", false, ProofCase::Valid);
+    let (old_other, trace, _) = run_ordinary("1.6.12", false, ProofCase::Valid, false);
     assert!(old_other.is_err());
     assert!(!trace
         .iter()
@@ -579,12 +683,94 @@ fn ordinary_btc_requires_matching_funding_data() {
             "btc_previous_transaction_output_mismatch",
         ),
     ] {
-        let (result, trace, _) = run_ordinary("1.6.13", false, fixture);
+        let (result, trace, _) = run_ordinary("1.6.13", false, fixture, false);
         assert!(result.err().unwrap().to_string().contains(expected));
         assert!(!trace
             .iter()
             .any(|apdu| [0x31, 0x53, 0x41, 0x32].contains(&apdu[1])));
     }
+}
+
+#[test]
+fn each_input_receipt_is_returned_on_native_and_nested_segwit_signatures() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    let (result, trace, unsigned, _, _) =
+        run_case("1.6.13", false, 0, false, ProofCase::Valid, true);
+    let signed: Psbt = deserialize(&hex::decode(result.unwrap().psbt).unwrap()).unwrap();
+    let finalized = signed.extract_tx();
+    assert!(finalized.input[0].script_sig.is_empty());
+    assert!(!finalized.input[1].script_sig.is_empty());
+    assert_matching_receipts(&trace, &unsigned);
+
+    let (result, trace, _) = run_ordinary("1.6.13", false, ProofCase::Valid, true);
+    let signed: Transaction =
+        deserialize(&hex::decode(result.unwrap().signature).unwrap()).unwrap();
+    assert!(signed.input[0].script_sig.is_empty());
+    assert!(!signed.input[1].script_sig.is_empty());
+    assert_matching_receipts(&trace, &signed);
+}
+
+fn assert_matching_receipts(trace: &[Vec<u8>], tx: &Transaction) {
+    let first_proof_chunks: Vec<_> = trace
+        .iter()
+        .filter(|apdu| apdu[1] == 0x53 && apdu[2] == 0)
+        .collect();
+    let signatures: Vec<_> = trace.iter().filter(|apdu| apdu[1] == 0x32).collect();
+    assert_eq!(first_proof_chunks.len(), 2);
+    assert_eq!(signatures.len(), 2);
+    for (index, input) in tx.input.iter().enumerate() {
+        let proof = extract_signed_body(first_proof_chunks[index]);
+        assert_eq!(&proof[2..4], &[2, index as u8]);
+        assert_eq!(&proof[4..40], serialize(&input.previous_output));
+        assert_sign_receipt(signatures[index], index as u8, input.previous_output);
+    }
+    assert_eq!(signatures[0][2], 0);
+    assert_eq!(signatures[1][2], 0x80);
+}
+
+#[test]
+fn receipt_protocol_errors_stop_ordinary_and_psbt_before_preview() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    for (fixture, expected) in [
+        (
+            ProofCase::OldAppletWithoutReceipt,
+            "btc_input_proof_receipt_missing",
+        ),
+        (ProofCase::InvalidReceipt, "btc_input_proof_invalid_receipt"),
+        (
+            ProofCase::UnexpectedIntermediateData,
+            "btc_input_proof_unexpected_response_data",
+        ),
+    ] {
+        let (ordinary, trace, _) = run_ordinary("1.6.13", false, fixture, false);
+        assert!(ordinary.err().unwrap().to_string().contains(expected));
+        assert!(!trace
+            .iter()
+            .any(|apdu| [0x31, 0x41, 0x32].contains(&apdu[1])));
+
+        let (psbt, trace, _, _, _) = run_case("1.6.13", false, 0, false, fixture, false);
+        assert!(psbt.err().unwrap().to_string().contains(expected));
+        assert!(!trace
+            .iter()
+            .any(|apdu| [0x31, 0x52, 0x32].contains(&apdu[1])));
+    }
+
+    let (legacy, trace, _, _, _) = run_case(
+        "1.6.13",
+        false,
+        0,
+        true,
+        ProofCase::OldAppletWithoutReceipt,
+        false,
+    );
+    assert!(legacy
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("btc_input_proof_receipt_missing"));
+    assert!(!trace
+        .iter()
+        .any(|apdu| [0x52, 0x50, 0x45].contains(&apdu[1])));
 }
 
 #[test]
