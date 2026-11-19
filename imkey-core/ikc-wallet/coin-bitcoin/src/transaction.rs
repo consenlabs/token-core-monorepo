@@ -1,9 +1,14 @@
 use crate::btc_kin_address::{AddressTrait, BtcKinAddress, ImkeyPublicKey};
-use crate::common::{ensure_p2wsh_version, get_address_version, get_utxo_pub_key, TxSignResult};
+use crate::common::{
+    btc_applet_version_at_least, ensure_p2wsh_version, ensure_transaction_preview_version,
+    get_address_version, get_utxo_pub_key, TxSignResult,
+};
+use crate::input_proof::{check_previous_output, send_input_proof};
 use crate::network::BtcKinNetwork;
 use crate::Result;
+use anyhow::anyhow;
 use bitcoin::blockdata::{opcodes, script::Builder};
-use bitcoin::consensus::{serialize, Encodable};
+use bitcoin::consensus::{deserialize, serialize, Encodable};
 use bitcoin::hashes::hex::FromHex;
 use bitcoin::schnorr::UntweakedPublicKey;
 use bitcoin::util::taproot::TapTweakHash;
@@ -60,29 +65,56 @@ impl BtcTransaction {
         extra_data: Option<&str>,
         seg_wit: &str,
     ) -> Result<TxSignResult> {
-        //path check
-        check_path_validity(path)?;
+        self.sign_transaction_with_previous_transactions(
+            network,
+            path,
+            change_idx,
+            extra_data,
+            seg_wit,
+            &[],
+        )
+    }
 
-        //check uxto number
-        if &self.unspents.len() > &MAX_UTXO_NUMBER {
+    pub fn sign_transaction_with_previous_transactions(
+        &self,
+        network: &str,
+        path: &str,
+        change_idx: Option<u32>,
+        extra_data: Option<&str>,
+        seg_wit: &str,
+        previous_transactions: &[Vec<u8>],
+    ) -> Result<TxSignResult> {
+        check_path_validity(path)?;
+        if self.unspents.len() > MAX_UTXO_NUMBER {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
 
-        //calc utxo total amount
-        if self.get_total_amount() < self.amount {
+        let is_bitcoin = self.chain_type.eq_ignore_ascii_case("BITCOIN");
+        if !is_bitcoin && self.get_total_amount() < self.amount {
             return Err(CoinError::ImkeyInsufficientFunds.into());
         }
-
-        //get current btc applet version
         let btc_version = get_btc_apple_version()?;
-        // P2WSH must not be confirmed on an applet that displays it as Taproot.
-        // Preserve existing handling for addresses this parser cannot decode.
-        let is_p2wsh_recipient = if let Ok(recipient) = BtcKinAddress::from_str(&self.to) {
-            let script = recipient.script_pubkey();
-            ensure_p2wsh_version(&script, &btc_version)?;
-            script.is_v0_p2wsh()
+        let bitcoin_inputs = if is_bitcoin {
+            ensure_transaction_preview_version(&btc_version)?;
+            let inputs = self.validate_bitcoin_inputs(previous_transactions)?;
+            let required = self
+                .amount
+                .checked_add(self.fee)
+                .ok_or(CoinError::ImkeyInsufficientFunds)?;
+            let total = self
+                .unspents
+                .iter()
+                .try_fold(0u64, |sum, utxo| sum.checked_add(utxo.amount))
+                .ok_or(CoinError::InvalidUtxo)?;
+            if total < required {
+                return Err(CoinError::ImkeyInsufficientFunds.into());
+            }
+            Some(inputs)
         } else {
-            false
+            if let Ok(recipient) = BtcKinAddress::from_str(&self.to) {
+                ensure_p2wsh_version(&recipient.script_pubkey(), &btc_version)?;
+            }
+            None
         };
 
         //utxo address verify
@@ -97,18 +129,21 @@ impl BtcTransaction {
             output,
         };
 
-        // The older transaction code compares version strings lexicographically.
-        // A numerically validated P2WSH version always uses the modern path,
-        // including future versions such as 1.10.0.
-        let hash_version = if is_p2wsh_recipient {
-            "1.6.12"
+        if let Some(inputs) = bitcoin_inputs {
+            for (index, (outpoint, previous_tx)) in inputs.iter().enumerate() {
+                if !previous_tx.output[outpoint.vout as usize]
+                    .script_pubkey
+                    .is_p2pkh()
+                {
+                    tx_to_sign.version = 2;
+                }
+                send_input_proof(inputs.len(), index, *outpoint, Sequence::MAX, previous_tx)?;
+            }
         } else {
-            btc_version.as_str()
-        };
-        self.calc_tx_hash(&mut tx_to_sign, hash_version)?;
+            self.calc_tx_hash(&mut tx_to_sign, &btc_version)?;
+        }
 
-        //Compatible with Legacy and Nested Segwit transactions without upgrading btc apples
-        if is_p2wsh_recipient || btc_version.as_str() >= "1.6.00" {
+        if btc_applet_version_at_least(&btc_version, (1, 6, 0)) {
             self.tx_preview(&tx_to_sign, network)?;
             for (idx, utxo) in self.unspents.iter().enumerate() {
                 let script = Script::from_str(&utxo.script_pubkey)?;
@@ -168,6 +203,50 @@ impl BtcTransaction {
             tx_hash: tx_to_sign.txid().to_hex(),
             wtx_id: tx_to_sign.wtxid().to_hex(),
         })
+    }
+
+    fn validate_bitcoin_inputs(
+        &self,
+        previous_transactions: &[Vec<u8>],
+    ) -> Result<Vec<(OutPoint, Transaction)>> {
+        if self.unspents.is_empty() || previous_transactions.len() != self.unspents.len() {
+            return Err(anyhow!("btc_requires_one_previous_transaction_per_input"));
+        }
+
+        self.unspents
+            .iter()
+            .zip(previous_transactions)
+            .enumerate()
+            .map(|(index, (utxo, raw))| {
+                if raw.is_empty() {
+                    return Err(anyhow!("btc_missing_previous_transaction: input {}", index));
+                }
+                let previous_tx: Transaction = deserialize(raw).map_err(|error| {
+                    anyhow!(
+                        "btc_invalid_previous_transaction: input {}: {}",
+                        index,
+                        error
+                    )
+                })?;
+                let outpoint = OutPoint {
+                    txid: bitcoin::Txid::from_str(&utxo.txhash)?,
+                    vout: utxo.vout,
+                };
+                let previous_output = check_previous_output(&previous_tx, outpoint, index)?;
+                let script = Script::from_str(&utxo.script_pubkey)?;
+                let address_script = BtcKinAddress::from_str(&utxo.address)?.script_pubkey();
+                if previous_output.value != utxo.amount
+                    || previous_output.script_pubkey != script
+                    || previous_output.script_pubkey != address_script
+                {
+                    return Err(anyhow!(
+                        "btc_previous_transaction_output_mismatch: input {}",
+                        index
+                    ));
+                }
+                Ok((outpoint, previous_tx))
+            })
+            .collect()
     }
 
     pub fn sign_p2pkh_inputs(
@@ -631,7 +710,7 @@ impl BtcTransaction {
             let mut calc_hash_apdu = vec![];
             calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x40, &txhash_vout_vec));
             calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x80, &sequence_vec));
-            if btc_applet_version >= "1.6.00" {
+            if btc_applet_version_at_least(btc_applet_version, (1, 6, 0)) {
                 calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x20, &amount_vec));
                 calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x21, &script_pubkeys_vec));
             }
@@ -660,8 +739,13 @@ impl BtcTransaction {
         output_serialize_data.remove(4);
         output_serialize_data.insert(4, self.unspents.len() as u8);
 
-        //add fee amount
-        output_serialize_data.extend(bigint_to_byte_vec(self.fee));
+        // BTC firmware computes the fee from the verified previous transactions.
+        // Preserve the eight-byte slot in the existing transaction layout.
+        if self.chain_type.eq_ignore_ascii_case("BITCOIN") {
+            output_serialize_data.extend([0u8; 8]);
+        } else {
+            output_serialize_data.extend(bigint_to_byte_vec(self.fee));
+        }
 
         //add address version
         let network = network_convert(network);

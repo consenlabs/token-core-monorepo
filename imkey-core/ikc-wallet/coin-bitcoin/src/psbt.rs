@@ -1,6 +1,9 @@
-use crate::address::BtcAddress;
 use crate::btcapi::{PsbtInput, PsbtOutput};
-use crate::common::{ensure_p2wsh_version, get_address_version, get_xpub_data, select_btc_applet};
+use crate::common::{ensure_transaction_preview_version, get_xpub_data, select_btc_applet};
+use crate::input_proof::{
+    authenticated_transaction_chunk, check_previous_output, send_input_proof,
+    TRANSACTION_CHUNK_BYTES,
+};
 use crate::Result;
 use anyhow::anyhow;
 use bitcoin::blockdata::script::Builder;
@@ -9,19 +12,16 @@ use bitcoin::psbt::Psbt;
 use bitcoin::schnorr::UntweakedPublicKey;
 use bitcoin::util::taproot::{TapLeafHash, TapTweakHash};
 use bitcoin::{
-    Address, EcdsaSig, EcdsaSighashType, Network, PublicKey, SchnorrSig, SchnorrSighashType,
-    Script, TxOut, WPubkeyHash, Witness,
+    EcdsaSig, EcdsaSighashType, Network, PublicKey, SchnorrSig, SchnorrSighashType, Script, TxOut,
+    WPubkeyHash, Witness,
 };
-use bitcoin_hashes::hex::ToHex;
 use bitcoin_hashes::{hash160, Hash};
 use hex::FromHex;
 use ikc_common::apdu::{ApduCheck, BtcApdu};
-use ikc_common::coin_info::coin_info_from_param;
-use ikc_common::constants;
-use ikc_common::constants::TIMEOUT_LONG;
-use ikc_common::error::{ApduError, CoinError, CommonError};
-use ikc_common::path::{check_path_validity, get_account_path};
-use ikc_common::utility::{bigint_to_byte_vec, hex_to_bytes, secp256k1_sign, sha256_hash};
+use ikc_common::constants::{MAX_UTXO_NUMBER, TIMEOUT_LONG};
+use ikc_common::error::{ApduError, CoinError};
+use ikc_common::path::check_path_validity;
+use ikc_common::utility::hex_to_bytes;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_device::device_manager::get_btc_apple_version;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
@@ -32,31 +32,14 @@ use std::collections::BTreeMap;
 use std::io::Cursor;
 use std::str::FromStr;
 use std::sync::Mutex;
-use std::usize;
 
-// BTC applet releases from 1.6.12 onward must include the P2WSH display fix.
-// A missing or malformed capability/version never permits a P2WSH preview.
-fn ensure_p2wsh_preview_supported<F>(outputs: &[TxOut], read_version: F) -> Result<()>
-where
-    F: FnOnce() -> Result<String>,
-{
-    if !outputs
-        .iter()
-        .any(|output| output.script_pubkey.is_v0_p2wsh())
-    {
-        return Ok(());
-    }
-    let version = read_version()?;
-    for output in outputs {
-        ensure_p2wsh_version(&output.script_pubkey, &version)?;
-    }
-    Ok(())
-}
+const PSBT_PREVIEW_MAX_BYTES: usize = 512;
 
-#[derive(Default)]
-struct P2wshPreviewState {
-    version_checked: bool,
-    preview_confirmed: bool,
+#[derive(PartialEq, Eq)]
+enum PreviewState {
+    Initial,
+    InputsPrepared,
+    Confirmed,
 }
 
 pub struct PsbtSigner<'a> {
@@ -65,9 +48,7 @@ pub struct PsbtSigner<'a> {
     auto_finalize: bool,
     prevouts: Vec<TxOut>,
     network: Network,
-    preview_output: Vec<TxOut>,
-    is_sign_message: bool,
-    p2wsh_preview_state: Mutex<P2wshPreviewState>,
+    preview_state: Mutex<PreviewState>,
 }
 
 impl<'a> PsbtSigner<'a> {
@@ -78,35 +59,32 @@ impl<'a> PsbtSigner<'a> {
         network: Network,
         is_sign_message: bool,
     ) -> Result<Self> {
-        let mut psbt_signer = PsbtSigner {
+        if is_sign_message {
+            return Err(anyhow!(
+                "bip322_signing_requires_a_dedicated_device_protocol"
+            ));
+        }
+        Ok(Self {
             psbt,
             derivation_path: derivation_path.to_string(),
-            prevouts: vec![],
             auto_finalize,
+            prevouts: vec![],
             network,
-            preview_output: vec![],
-            is_sign_message,
-            p2wsh_preview_state: Mutex::new(P2wshPreviewState::default()),
-        };
-        psbt_signer.get_preview_output()?;
-        Ok(psbt_signer)
-    }
-
-    fn has_p2wsh_output(&self) -> bool {
-        self.preview_output
-            .iter()
-            .any(|output| output.script_pubkey.is_v0_p2wsh())
+            preview_state: Mutex::new(PreviewState::Initial),
+        })
     }
 
     pub fn sign(&mut self, pub_keys: &Vec<String>) -> Result<()> {
-        if self.has_p2wsh_output() {
-            let state = self
-                .p2wsh_preview_state
-                .lock()
-                .map_err(|_| ApduError::ImkeyUserNotConfirmed)?;
-            if !state.preview_confirmed {
-                return Err(ApduError::ImkeyUserNotConfirmed.into());
-            }
+        let state = self
+            .preview_state
+            .get_mut()
+            .map_err(|_| ApduError::ImkeyUserNotConfirmed)?;
+        if *state != PreviewState::Confirmed {
+            return Err(ApduError::ImkeyUserNotConfirmed.into());
+        }
+        *state = PreviewState::Initial;
+        if pub_keys.len() != self.prevouts.len() {
+            return Err(CoinError::InvalidUtxo.into());
         }
         for idx in 0..self.prevouts.len() {
             let prevout = &self.prevouts[idx];
@@ -162,22 +140,33 @@ impl<'a> PsbtSigner<'a> {
     }
 
     pub fn prevouts(&mut self) -> Result<()> {
-        let len = self.psbt.inputs.len();
-        let mut utxos = Vec::with_capacity(len);
-
-        for i in 0..len {
-            let input = &self.psbt.inputs[i];
-            let utxo = if let Some(witness_utxo) = &input.witness_utxo {
-                witness_utxo
-            } else if let Some(non_witness_utxo) = &input.non_witness_utxo {
-                let vout = self.psbt.unsigned_tx.input[i].previous_output.vout;
-                &non_witness_utxo.output[vout as usize]
-            } else {
-                return Err(CoinError::InvalidUtxo.into());
-            };
-            utxos.push(utxo.clone());
+        self.prevouts.clear();
+        let inputs = &self.psbt.unsigned_tx.input;
+        if inputs.is_empty() || inputs.len() != self.psbt.inputs.len() {
+            return Err(CoinError::InvalidUtxo.into());
         }
-        self.prevouts = utxos;
+        if inputs.len() > MAX_UTXO_NUMBER {
+            return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
+        }
+
+        let mut prevouts = Vec::with_capacity(inputs.len());
+        for (index, (txin, psbt_input)) in inputs.iter().zip(&self.psbt.inputs).enumerate() {
+            let previous_tx = psbt_input
+                .non_witness_utxo
+                .as_ref()
+                .ok_or_else(|| anyhow!("btc_missing_previous_transaction: input {}", index))?;
+            let output = check_previous_output(previous_tx, txin.previous_output, index)?;
+            if let Some(witness_utxo) = &psbt_input.witness_utxo {
+                if witness_utxo != output {
+                    return Err(anyhow!(
+                        "btc_previous_transaction_output_mismatch: input {}",
+                        index
+                    ));
+                }
+            }
+            prevouts.push(output.clone());
+        }
+        self.prevouts = prevouts;
         Ok(())
     }
 
@@ -238,7 +227,6 @@ impl<'a> PsbtSigner<'a> {
             }
             input_data_vec.extend_from_slice(serialize(&temp_serialize_txin).as_slice());
         }
-        input_data_vec.extend(serialize(&self.psbt.unsigned_tx.output));
         let btc_perpare_apdu_list = BtcApdu::btc_single_utxo_sign_prepare(0x50, &input_data_vec);
         for apdu in btc_perpare_apdu_list {
             ApduCheck::check_response(&send_apdu(apdu)?)?;
@@ -493,139 +481,99 @@ impl<'a> PsbtSigner<'a> {
     }
 
     pub fn calc_tx_hash(&self) -> Result<()> {
-        // Selecting an applet clears transient transaction data, so check the
-        // version before preparing any transaction hashes, never during preview.
-        let mut state = if self.has_p2wsh_output() {
-            Some(
-                self.p2wsh_preview_state
-                    .lock()
-                    .map_err(|_| ApduError::ImkeyUserNotConfirmed)?,
-            )
-        } else {
-            None
-        };
-        if let Some(state) = state.as_mut() {
-            state.version_checked = false;
-            state.preview_confirmed = false;
+        let mut state = self
+            .preview_state
+            .lock()
+            .map_err(|_| ApduError::ImkeyUserNotConfirmed)?;
+        *state = PreviewState::Initial;
+
+        let inputs = &self.psbt.unsigned_tx.input;
+        if inputs.is_empty() || inputs.len() != self.prevouts.len() {
+            return Err(CoinError::InvalidUtxo.into());
         }
-        ensure_p2wsh_preview_supported(&self.preview_output, get_btc_apple_version)?;
-        let mut txhash_vout_vec = vec![];
-        let mut sequence_vec = vec![];
-        let mut amount_vec = vec![];
-        let mut script_pubkeys_vec = vec![];
-        for (idx, tx_in) in self.psbt.unsigned_tx.input.iter().enumerate() {
-            let prevout = &self.prevouts[idx];
-            txhash_vout_vec.extend(serialize(&tx_in.previous_output));
-            sequence_vec.extend(serialize(&tx_in.sequence));
-            amount_vec.extend(serialize(&prevout.value));
-            script_pubkeys_vec.extend(serialize(&prevout.script_pubkey));
+        if inputs.len() > MAX_UTXO_NUMBER {
+            return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
-        let mut calc_hash_apdu = vec![];
-        calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x40, &txhash_vout_vec));
-        calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x80, &sequence_vec));
-        calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x20, &amount_vec));
-        calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x21, &script_pubkeys_vec));
-        for apdu in calc_hash_apdu {
-            ApduCheck::check_response(&send_apdu(apdu)?)?;
+
+        // The version query reselects the applet. Send proofs afterwards
+        // so the proofs, preview, and signing share one device session.
+        ensure_transaction_preview_version(&get_btc_apple_version()?)?;
+        for (index, (input, psbt_input)) in inputs.iter().zip(&self.psbt.inputs).enumerate() {
+            let previous_tx = psbt_input
+                .non_witness_utxo
+                .as_ref()
+                .ok_or_else(|| anyhow!("btc_missing_previous_transaction: input {}", index))?;
+            send_input_proof(
+                inputs.len(),
+                index,
+                input.previous_output,
+                input.sequence,
+                previous_tx,
+            )?;
         }
-        if let Some(state) = state.as_mut() {
-            state.version_checked = true;
-        }
+        *state = PreviewState::InputsPrepared;
         Ok(())
     }
 
     pub fn tx_preview(&self, network: Network) -> Result<()> {
-        // Keep preparation and preview serial for the same signer. Selecting
-        // another applet here would clear the prepared transient device state.
-        let mut state = if self.has_p2wsh_output() {
-            Some(
-                self.p2wsh_preview_state
-                    .lock()
-                    .map_err(|_| ApduError::ImkeyUserNotConfirmed)?,
-            )
-        } else {
-            None
+        let mut state = self
+            .preview_state
+            .lock()
+            .map_err(|_| ApduError::ImkeyUserNotConfirmed)?;
+        if *state != PreviewState::InputsPrepared {
+            return Err(ApduError::ImkeyUserNotConfirmed.into());
+        }
+        *state = PreviewState::Initial;
+        if network != self.network {
+            return Err(CoinError::ImkeySdkIllegalArgument.into());
+        }
+
+        let transaction = &self.psbt.unsigned_tx;
+        let network_id = match network {
+            Network::Bitcoin => 0,
+            Network::Testnet => 1,
+            _ => return Err(CoinError::ImkeySdkIllegalArgument.into()),
         };
-        if let Some(state) = state.as_mut() {
-            state.preview_confirmed = false;
-            if !state.version_checked {
-                return Err(CommonError::UpgradeApplet.into());
-            }
-            if self.is_sign_message {
-                return Err(ApduError::ImkeyUserNotConfirmed.into());
-            }
+        if transaction.output.is_empty() {
+            return Err(anyhow!("psbt_requires_at_least_one_output"));
         }
-        let (total_amount, fee, _outputs) = self.get_preview_info()?;
-        let mut preview_data = vec![];
-        preview_data.extend(&serialize(&self.psbt.unsigned_tx.version)); //version
-        let input_number = self.psbt.unsigned_tx.input.len();
-        preview_data.push(input_number as u8); //input number
-        preview_data.extend(&serialize(&self.psbt.unsigned_tx.lock_time)); //lock time
-        let mut sign_hash_type = Vec::new();
-        let len = EcdsaSighashType::All
-            .to_u32()
-            .consensus_encode(&mut sign_hash_type)
-            .unwrap();
-        debug_assert_eq!(len, sign_hash_type.len());
-        preview_data.extend(&sign_hash_type); //hash type
-        preview_data.extend(bigint_to_byte_vec(total_amount)); //total payment amount
-        preview_data.extend(bigint_to_byte_vec(fee)); //fee
-        let mut output_serialize = vec![];
-        for tx_out in self.psbt.unsigned_tx.output.iter() {
-            output_serialize.extend(serialize(tx_out));
-        }
-        let hash = &sha256_hash(&output_serialize);
-        preview_data.extend_from_slice(hash); //output hash
-        let display_number = self.preview_output.len() as u16;
-        preview_data.extend(display_number.to_be_bytes());
-
-        //set 01 tag and length
-        preview_data.insert(0, preview_data.len() as u8);
-        preview_data.insert(0, 0x01);
-
-        //use local private key sign data
-        let key_manager_obj = KEY_MANAGER.lock();
-        let mut output_pareper_data = secp256k1_sign(&key_manager_obj.pri_key, &preview_data)?;
-        output_pareper_data.insert(0, output_pareper_data.len() as u8);
-        output_pareper_data.insert(0, 0x00);
-        output_pareper_data.extend(preview_data.iter());
-        let btc_prepare_apdu_vec = BtcApdu::btc_prepare(0x4B, 0x00, &output_pareper_data);
-        for temp_str in btc_prepare_apdu_vec {
-            ApduCheck::check_response(&send_apdu(temp_str)?)?;
+        self.output_totals()?;
+        let mut body = vec![network_id];
+        body.extend(transaction.version.to_le_bytes());
+        body.push(transaction.input.len() as u8);
+        body.extend(serialize(&transaction.lock_time));
+        body.extend(serialize(&transaction.output));
+        if body.len() > PSBT_PREVIEW_MAX_BYTES {
+            return Err(anyhow!(
+                "psbt_preview_exceeds_output_data_limit: {} bytes exceeds {}",
+                body.len(),
+                PSBT_PREVIEW_MAX_BYTES
+            ));
         }
 
-        let mut page_number = 0;
-        loop {
-            let mut outputs_data = if self.is_sign_message {
-                vec![0xFF, 0xFF]
+        let chunks = body.chunks(TRANSACTION_CHUNK_BYTES);
+        let last_chunk = chunks.len() - 1;
+        let key_manager = KEY_MANAGER.lock();
+        for (index, fragment) in chunks.enumerate() {
+            let final_chunk = index == last_chunk;
+            let phase = if final_chunk { 0x80 } else { 0x00 };
+            let index = index as u8;
+            let apdu = authenticated_transaction_chunk(
+                0x52,
+                index,
+                phase,
+                fragment,
+                &key_manager.pri_key,
+            )?;
+            let response = if final_chunk {
+                send_apdu_timeout(apdu, TIMEOUT_LONG)?
             } else {
-                self.serizalize_page_data(page_number, network)?
+                send_apdu(apdu)?
             };
-            //set 01 tag and length
-            outputs_data.insert(0, outputs_data.len() as u8);
-            outputs_data.insert(0, 0x01);
-            //use local private key sign data
-            let mut output_pareper_data = secp256k1_sign(&key_manager_obj.pri_key, &outputs_data)?;
-            output_pareper_data.insert(0, output_pareper_data.len() as u8);
-            output_pareper_data.insert(0, 0x00);
-            output_pareper_data.extend(outputs_data.iter());
-            let sign_confirm = if self.is_sign_message {
-                BtcApdu::btc_psbt_preview(&output_pareper_data, 0x80)
-            } else {
-                BtcApdu::btc_psbt_preview(&output_pareper_data, 0x00)
-            };
-            let response = &send_apdu_timeout(sign_confirm, TIMEOUT_LONG)?;
-            ApduCheck::check_response(response)?;
-            if response.len() > 4 {
-                let page_index = &response[..response.len() - 4];
-                page_number = u16::from_str_radix(page_index, 16)? as usize;
-            } else {
-                break;
-            }
+            ApduCheck::check_response(&response)?;
         }
-        if let Some(state) = state.as_mut() {
-            state.preview_confirmed = true;
-        }
+
+        *state = PreviewState::Confirmed;
         Ok(())
     }
 
@@ -715,138 +663,24 @@ impl<'a> PsbtSigner<'a> {
         Hash::hash(input)
     }
 
-    fn get_preview_output(&mut self) -> Result<()> {
-        let mut preview_output: Vec<TxOut> = vec![];
-
-        for tx_out in self.psbt.unsigned_tx.output.iter() {
-            //remove empty and op_return TxOut
-            if tx_out.script_pubkey.is_empty() || tx_out.script_pubkey.is_op_return() {
-                continue;
-            }
-            // P2WSH cannot be this single-key wallet's derived change output.
-            // Retain it in the preview so the applet can display the recipient.
-            let tx_out_script = &tx_out.script_pubkey;
-            if tx_out_script.is_v0_p2wsh() {
-                preview_output.push(tx_out.clone());
-                continue;
-            }
-            let address = if tx_out_script.is_p2pkh() {
-                let change_path =
-                    Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_LEGACY)?;
-                let pub_key = BtcAddress::get_pub_key(&change_path)?;
-                BtcAddress::from_public_key(
-                    &pub_key,
-                    self.network,
-                    constants::BTC_SEG_WIT_TYPE_LEGACY,
-                )?
-            } else if tx_out_script.is_v0_p2wpkh() {
-                let change_path =
-                    Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_VERSION_0)?;
-                let pub_key = BtcAddress::get_pub_key(&change_path)?;
-                BtcAddress::from_public_key(
-                    &pub_key,
-                    self.network,
-                    constants::BTC_SEG_WIT_TYPE_VERSION_0,
-                )?
-            } else if tx_out_script.is_p2sh() {
-                let change_path =
-                    Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_P2WPKH)?;
-                let pub_key = BtcAddress::get_pub_key(&change_path)?;
-                BtcAddress::from_public_key(
-                    &pub_key,
-                    self.network,
-                    constants::BTC_SEG_WIT_TYPE_P2WPKH,
-                )?
-            } else if tx_out_script.is_v1_p2tr() {
-                let change_path =
-                    Self::get_change_index(self.network, constants::BTC_SEG_WIT_TYPE_VERSION_1)?;
-                let pub_key = BtcAddress::get_pub_key(&change_path)?;
-                BtcAddress::from_public_key(
-                    &pub_key,
-                    self.network,
-                    constants::BTC_SEG_WIT_TYPE_VERSION_1,
-                )?
-            } else {
-                continue;
-            };
-            //remove change TxOut
-            let script_hex = Address::from_str(&address)?.script_pubkey().to_hex();
-            if script_hex.eq(&tx_out.script_pubkey.to_hex()) {
-                continue;
-            }
-            preview_output.push(tx_out.clone());
-        }
-        self.preview_output = preview_output;
-        Ok(())
-    }
-
     pub fn get_preview_info(&self) -> Result<(u64, u64, Vec<TxOut>)> {
-        let outputs = &self.preview_output;
-        let payment_total_amount = outputs.iter().map(|tx_out| tx_out.value).sum();
-        let input_total_amount: u64 = self.prevouts.iter().map(|tx_out| tx_out.value).sum();
-        let output_total_amount: u64 = self
-            .psbt
-            .unsigned_tx
-            .output
-            .iter()
-            .map(|tx_out| tx_out.value)
-            .sum();
-        let fee = input_total_amount - output_total_amount;
-        Ok((payment_total_amount, fee, outputs.clone()))
+        let (output_total, fee) = self.output_totals()?;
+        Ok((output_total, fee, self.psbt.unsigned_tx.output.clone()))
     }
 
-    fn get_page_indices(total_number: usize, page_number: usize) -> Result<(usize, usize)> {
-        let total_pages = (total_number + constants::BTC_PSBT_TRX_PER_PAGE_NUMBER - 1)
-            / constants::BTC_PSBT_TRX_PER_PAGE_NUMBER;
-        if page_number >= total_pages {
-            return Err(anyhow!("page_number_out_of_range"));
-        }
-        let start_index = page_number * constants::BTC_PSBT_TRX_PER_PAGE_NUMBER;
-        let end_index = usize::min(
-            total_number,
-            start_index + constants::BTC_PSBT_TRX_PER_PAGE_NUMBER,
-        ) - 1;
-
-        if start_index >= total_number {
-            Ok((total_number, total_number - 1))
-        } else if end_index >= total_number {
-            Ok((start_index, total_number - 1))
-        } else {
-            Ok((start_index, end_index))
-        }
-    }
-
-    fn serizalize_page_data(&self, page_number: usize, network: Network) -> Result<Vec<u8>> {
-        let preview_output = &self.preview_output;
-        let (start_index, end_index) = Self::get_page_indices(preview_output.len(), page_number)?;
-        let mut data = vec![];
-        data.extend((start_index as u16).to_be_bytes());
-        data.extend((end_index as u16).to_be_bytes());
-        for (index, output) in preview_output.iter().enumerate() {
-            if start_index <= index && end_index >= index {
-                let i_u16 = index as u16;
-                data.extend(i_u16.to_be_bytes());
-                data.extend(serialize(&output.value));
-                let address = Address::from_script(&output.script_pubkey, network)?;
-                let address_version = get_address_version(network, &address.to_string())?;
-                let script_bytes = serialize(&output.script_pubkey);
-                data.push((1 + script_bytes.len()) as u8);
-                data.push(address_version);
-                data.extend(script_bytes);
-            }
-        }
-
-        Ok(data)
-    }
-
-    fn get_change_index(network: Network, segwit: &str) -> Result<String> {
-        let network = match network {
-            Network::Bitcoin => "MAINNET",
-            _ => "TESTNET",
+    fn output_totals(&self) -> Result<(u64, u64)> {
+        let sum_outputs = |outputs: &[TxOut]| {
+            outputs
+                .iter()
+                .try_fold(0u64, |sum, output| sum.checked_add(output.value))
+                .ok_or_else(|| anyhow!("psbt_amount_overflow"))
         };
-        let coin_info = coin_info_from_param("BITCOIN", network, segwit, "secp256k1")?;
-        let change_path = get_account_path(&coin_info.derivation_path)?;
-        Ok(change_path)
+        let output_total = sum_outputs(&self.psbt.unsigned_tx.output)?;
+        let input_total = sum_outputs(&self.prevouts)?;
+        let fee = input_total
+            .checked_sub(output_total)
+            .ok_or(CoinError::ImkeyInsufficientFunds)?;
+        Ok((output_total, fee))
     }
 }
 
@@ -874,8 +708,6 @@ pub fn sign_psbt(
     let pub_keys = signer.get_pub_key()?;
 
     signer.calc_tx_hash()?;
-
-    signer.get_preview_info()?;
 
     signer.tx_preview(network)?;
 
@@ -1089,7 +921,7 @@ mod test {
 
         signer.get_preview_info().unwrap();
 
-        signer.tx_preview(Network::Bitcoin).unwrap();
+        signer.tx_preview(Network::Testnet).unwrap();
 
         signer.sign(&pub_keys).unwrap();
 

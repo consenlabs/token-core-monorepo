@@ -82,6 +82,20 @@ impl BtcApdu {
         apdu.to_hex().to_uppercase()
     }
 
+    pub fn btc_authenticated_transaction_chunk(
+        ins: u8,
+        p1: u8,
+        p2: u8,
+        data: &[u8],
+    ) -> Result<String> {
+        if data.len() > LC_MAX as usize {
+            return Err(anyhow::anyhow!("btc_transaction_apdu_exceeds_data_limit"));
+        }
+        let mut apdu = ApduHeader::new(0x80, ins, p1, p2, data.len() as u8).to_array();
+        apdu.extend_from_slice(data);
+        Ok(hex::encode_upper(apdu))
+    }
+
     pub fn btc_sign(index: u8, hash_type: u8, path: &str) -> String {
         let path_bytes = path.as_bytes();
         let mut apdu =

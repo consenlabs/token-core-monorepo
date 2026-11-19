@@ -100,6 +100,8 @@ pub enum CoinError {
     MissingSignature,
     #[error("bip322_not_supported_for_address_type")]
     Bip322NotSupportedForAddressType,
+    #[error("bip322_signing_requires_a_dedicated_device_protocol")]
+    Bip322DeviceProtocolUnavailable,
     #[error("bip137_not_supported_for_taproot")]
     Bip137NotSupportedForTaproot,
     #[error("invalid_signature_type")]

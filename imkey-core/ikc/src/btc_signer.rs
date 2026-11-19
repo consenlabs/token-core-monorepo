@@ -50,12 +50,13 @@ pub fn btc_sign(param: &BtcTxInput, sign_param: &SignParam) -> Result<Vec<u8>> {
         _ => None,
     };
 
-    let signed = btc_tx.sign_transaction(
+    let signed = btc_tx.sign_transaction_with_previous_transactions(
         &sign_param.network,
         &sign_param.path,
         param.change_address_index,
         op_return.as_deref(),
         &param.seg_wit,
+        &param.previous_transactions,
     )?;
     let tx_sign_result = BtcTxOutput {
         signature: signed.signature,

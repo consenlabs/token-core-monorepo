@@ -9,11 +9,26 @@ use ikc_transport::message::send_apdu;
 use secp256k1::{ecdsa::Signature, Message, PublicKey as Secp256k1PublicKey, Secp256k1};
 use std::str::FromStr;
 
+pub(crate) fn ensure_transaction_preview_version(version: &str) -> Result<()> {
+    ensure_applet_version(version, (1, 6, 13))
+}
+
 // Version 1.6.12 and later must contain the P2WSH display fix.
 pub(crate) fn ensure_p2wsh_version(script: &bitcoin::Script, version: &str) -> Result<()> {
     if !script.is_v0_p2wsh() {
         return Ok(());
     }
+    ensure_applet_version(version, (1, 6, 12))
+}
+
+fn ensure_applet_version(version: &str, minimum: (u32, u32, u32)) -> Result<()> {
+    if !btc_applet_version_at_least(version, minimum) {
+        return Err(CommonError::UpgradeApplet.into());
+    }
+    Ok(())
+}
+
+pub(crate) fn btc_applet_version_at_least(version: &str, minimum: (u32, u32, u32)) -> bool {
     let mut parts = version.split('.');
     let parsed = match (parts.next(), parts.next(), parts.next(), parts.next()) {
         (Some(a), Some(b), Some(c), None)
@@ -28,10 +43,7 @@ pub(crate) fn ensure_p2wsh_version(script: &bitcoin::Script, version: &str) -> R
         }
         _ => None,
     };
-    if parsed.map_or(true, |v| v < (1, 6, 12)) {
-        return Err(CommonError::UpgradeApplet.into());
-    }
-    Ok(())
+    parsed.map_or(false, |version| version >= minimum)
 }
 
 /**

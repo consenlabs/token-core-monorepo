@@ -45,6 +45,9 @@ pub struct BtcTxInput {
     pub protocol: ::prost::alloc::string::String,
     #[prost(message, optional, tag = "8")]
     pub extra: ::core::option::Option<BtcTxExtra>,
+    /// Complete previous transaction bytes, in the same order as unspents.
+    #[prost(bytes = "vec", repeated, tag = "9")]
+    pub previous_transactions: ::prost::alloc::vec::Vec<::prost::alloc::vec::Vec<u8>>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

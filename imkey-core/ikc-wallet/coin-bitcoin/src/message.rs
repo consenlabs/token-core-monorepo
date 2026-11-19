@@ -80,11 +80,9 @@ impl MessageSinger {
                 self.sign_message_bip137(&data, is_standard)?
             }
             t if t == BtcSignatureType::Bip322 as i32 => match seg_wit {
-                "NONE" | "P2WPKH" => {
-                    return Err(CoinError::Bip322NotSupportedForAddressType.into());
+                "VERSION_0" | "VERSION_1" => {
+                    return Err(CoinError::Bip322DeviceProtocolUnavailable.into());
                 }
-                "VERSION_0" => self.sign_message_bip322_simple(&data)?,
-                "VERSION_1" => self.sign_message_bip322_full(&data)?,
                 _ => {
                     return Err(CoinError::Bip322NotSupportedForAddressType.into());
                 }
@@ -195,6 +193,8 @@ impl MessageSinger {
         Ok(base64::encode(&result_sig))
     }
 
+    // Retained as a reference for the dedicated device protocol.
+    #[allow(dead_code)]
     fn sign_message_bip322_simple(&self, data: &[u8]) -> Result<String> {
         let path = format!("{}/0/0", self.derivation_path);
         let pub_key = BtcAddress::get_pub_key(&path)?;
@@ -223,6 +223,7 @@ impl MessageSinger {
         }
     }
 
+    #[allow(dead_code)]
     fn sign_message_bip322_full(&self, data: &[u8]) -> Result<String> {
         let path = format!("{}/0/0", self.derivation_path);
         let pub_key = BtcAddress::get_pub_key(&path)?;
@@ -399,9 +400,7 @@ mod tests {
 
     // Cross-validation test: expected values are identical to token-core because
     // both use the same mnemonic. BIP-137/Standard signatures are deterministic
-    // (ECDSA RFC 6979). BIP-322 Native SegWit (ECDSA) is also deterministic.
-    // Taproot BIP-322 Full uses Schnorr (BIP-340) with random nonces, so only
-    // structural correctness is verified.
+    // (ECDSA RFC 6979).
     #[test]
     fn test_cross_validation_sign_message() {
         bind_test();
@@ -433,22 +432,15 @@ mod tests {
             sign(&native, BtcSignatureType::Bip137),
             "KAoVnrHx8t+bNFeX5bbPUMsR6Wud/2OLEsk7NUvnkG6wHA8RkmcNZzFOhuHFzKVEa3f7sfKphiqnGLIFM2aCp5c="
         );
-        assert_eq!(
-            sign(&native, BtcSignatureType::Bip322),
-            "AkgwRQIhAIaZgqlIItOUWUuHrV0dlriw6TtYgPPayR/Cr1O1bBIfAiBi1AyhrTFQPhtwSinfHE5+824+HBCCQ/xT6ESEBY0hJgEhAyR3j5NKIKnKBs7D+3F2zLwFQni51dfwoQd1gjZ6+S51"
-        );
+    }
 
-        // ── Taproot (P2TR) BIP-322 Full ──
-        let taproot = make_signer("VERSION_1", "m/86'/0'/0'");
-        let bip322_sig = sign(&taproot, BtcSignatureType::Bip322);
-        let decoded = base64::decode(&bip322_sig).unwrap();
-        let tx: bitcoin::Transaction =
-            bitcoin::consensus::deserialize(&decoded).expect("valid serialized tx");
-        assert_eq!(tx.version, 0);
-        assert_eq!(tx.input.len(), 1);
-        assert_eq!(tx.output.len(), 1);
-        assert!(!tx.input[0].witness.is_empty());
-        let schnorr_sig = &tx.input[0].witness.to_vec()[0];
-        assert_eq!(schnorr_sig.len(), 64);
+    #[test]
+    fn bip322_requires_dedicated_device_protocol() {
+        for (seg_wit, path) in [("VERSION_0", "m/84'/0'/0'"), ("VERSION_1", "m/86'/0'/0'")] {
+            assert_eq!(
+                sign_err(&make_signer(seg_wit, path), BtcSignatureType::Bip322),
+                "bip322_signing_requires_a_dedicated_device_protocol"
+            );
+        }
     }
 }

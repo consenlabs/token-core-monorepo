@@ -2111,6 +2111,7 @@ mod tests {
             seg_wit: "VERSION_0".to_string(),
             protocol: "".to_string(),
             extra: None,
+            previous_transactions: vec![],
         };
         let input_value = encode_message(tx_input).unwrap();
         let param = SignParam {
@@ -2191,6 +2192,7 @@ mod tests {
             seg_wit: "P2WPKH".to_string(),
             protocol: "".to_string(),
             extra: Some(extra),
+            previous_transactions: vec![],
         };
         let input_value = encode_message(tx_input).unwrap();
         let param = SignParam {

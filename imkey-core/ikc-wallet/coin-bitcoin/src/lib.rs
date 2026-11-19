@@ -2,6 +2,7 @@ pub mod address;
 pub mod btc_kin_address;
 pub mod btcapi;
 pub mod common;
+mod input_proof;
 pub mod message;
 pub mod network;
 pub mod psbt;
