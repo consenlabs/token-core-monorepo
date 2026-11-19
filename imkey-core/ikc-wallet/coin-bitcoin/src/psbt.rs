@@ -1,15 +1,21 @@
 use crate::btcapi::{PsbtInput, PsbtOutput};
+use crate::change_candidates::{
+    bitcoin_network_id, psbt_change_path, send_change_candidates, MAX_CHANGE_CANDIDATES,
+};
 use crate::common::{ensure_transaction_preview_version, get_xpub_data, select_btc_applet};
 use crate::input_proof::{
     authenticated_transaction_chunk, check_previous_output, segwit_sign_apdu, send_input_proof,
     InputReceipt, TRANSACTION_CHUNK_BYTES,
 };
+use crate::multisig::{is_multisig_script_input, MultisigChangePolicy, MultisigSpend};
 use crate::Result;
 use anyhow::anyhow;
 use bitcoin::blockdata::script::Builder;
 use bitcoin::consensus::{serialize, Decodable, Encodable};
-use bitcoin::psbt::Psbt;
+use bitcoin::psbt::{Input, Psbt};
 use bitcoin::schnorr::UntweakedPublicKey;
+use bitcoin::util::bip32::DerivationPath;
+use bitcoin::util::sighash::SighashCache;
 use bitcoin::util::taproot::{TapLeafHash, TapTweakHash};
 use bitcoin::{
     EcdsaSig, EcdsaSighashType, Network, PublicKey, SchnorrSig, SchnorrSighashType, Script, TxOut,
@@ -26,9 +32,11 @@ use ikc_device::device_binding::KEY_MANAGER;
 use ikc_device::device_manager::get_btc_apple_version;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::{
-    ecdsa::Signature, schnorr::Signature as SchnorrSignature, PublicKey as Secp256k1PublicKey,
+    ecdsa::Signature, schnorr::Signature as SchnorrSignature, Message,
+    PublicKey as Secp256k1PublicKey, Secp256k1,
 };
 use std::collections::BTreeMap;
+use std::convert::TryFrom;
 use std::io::Cursor;
 use std::str::FromStr;
 use std::sync::Mutex;
@@ -48,6 +56,7 @@ pub struct PsbtSigner<'a> {
     prevouts: Vec<TxOut>,
     network: Network,
     preview_state: Mutex<PreviewState>,
+    multisig_account: Mutex<Option<DerivationPath>>,
 }
 
 impl<'a> PsbtSigner<'a> {
@@ -70,6 +79,7 @@ impl<'a> PsbtSigner<'a> {
             prevouts: vec![],
             network,
             preview_state: Mutex::new(PreviewState::Initial),
+            multisig_account: Mutex::new(None),
         })
     }
 
@@ -93,6 +103,12 @@ impl<'a> PsbtSigner<'a> {
 
                 if self.auto_finalize {
                     self.finalize_p2pkh(idx);
+                }
+            } else if is_multisig_script_input(&prevout.script_pubkey, &self.psbt.inputs[idx]) {
+                self.sign_p2wsh(idx, &pub_keys[idx], &receipts[idx])?;
+
+                if self.auto_finalize {
+                    self.finalize_p2wsh(idx)?;
                 }
             } else if prevout.script_pubkey.is_p2sh() {
                 self.sign_p2sh_nested_p2wpkh(idx, &pub_keys[idx], &receipts[idx])?;
@@ -130,7 +146,10 @@ impl<'a> PsbtSigner<'a> {
                 }
             }
 
-            if self.auto_finalize {
+            let input = &self.psbt.inputs[idx];
+            if self.auto_finalize
+                && (input.final_script_sig.is_some() || input.final_script_witness.is_some())
+            {
                 self.clear_finalized_input(idx);
             }
         }
@@ -140,6 +159,10 @@ impl<'a> PsbtSigner<'a> {
 
     pub fn prevouts(&mut self) -> Result<()> {
         self.prevouts.clear();
+        *self
+            .multisig_account
+            .get_mut()
+            .map_err(|_| CoinError::InvalidUtxo)? = None;
         let inputs = &self.psbt.unsigned_tx.input;
         if inputs.is_empty() || inputs.len() != self.psbt.inputs.len() {
             return Err(CoinError::InvalidUtxo.into());
@@ -194,21 +217,61 @@ impl<'a> PsbtSigner<'a> {
     }
 
     pub fn get_pub_key(&self) -> Result<Vec<String>> {
-        let mut pub_key_vec = vec![];
+        let mut pub_key_vec = Vec::with_capacity(self.prevouts.len());
+        let mut account = self
+            .multisig_account
+            .lock()
+            .map_err(|_| CoinError::InvalidUtxo)?;
+        *account = None;
+        let mut common_multisig_account = None;
+        let mut same_multisig_account = true;
         for (idx, tx_out) in self.prevouts.iter().enumerate() {
-            let path = if tx_out.script_pubkey.is_v1_p2tr() {
-                self.get_path(idx, true)?
+            let input = &self.psbt.inputs[idx];
+            let script = &tx_out.script_pubkey;
+            if is_multisig_script_input(script, input) {
+                let spend = Self::multisig_spend_for_signing(input, script, idx)?;
+                let network = bitcoin_network_id(self.network)?;
+                let requested_path = if self.derivation_path.is_empty() {
+                    DerivationPath::master()
+                } else {
+                    self.derivation_path.parse()?
+                };
+                let mut paths = spend.signing_paths(input, network, &requested_path);
+                paths.sort_unstable();
+                paths.dedup();
+                let mut owned = None;
+                for path in paths {
+                    let public_key = Self::device_pub_key(&path.to_string())?;
+                    if spend.signing_path(input, network, &public_key).as_ref() == Some(&path) {
+                        let origin = DerivationPath::from(path.as_ref()[..4].to_vec());
+                        owned = Some((public_key, origin));
+                        break;
+                    }
+                }
+                let (public_key, origin) =
+                    owned.ok_or_else(|| anyhow!("psbt_no_device_multisig_key: input {}", idx))?;
+                same_multisig_account &= common_multisig_account
+                    .as_ref()
+                    .map_or(true, |previous| *previous == origin);
+                common_multisig_account = Some(origin);
+                pub_key_vec.push(public_key.to_string());
             } else {
-                self.get_path(idx, false)?
-            };
-
-            let xpub_data = get_xpub_data(&path, false)?;
-            let derive_pub_key = &xpub_data[..130];
-            let public_key = Secp256k1PublicKey::from_str(derive_pub_key)?;
-            pub_key_vec.push(public_key.to_string())
+                let path = self.get_path(idx, script.is_v1_p2tr())?;
+                pub_key_vec.push(Self::device_pub_key(&path)?.to_string());
+            }
         }
-
+        if same_multisig_account {
+            *account = common_multisig_account;
+        }
         Ok(pub_key_vec)
+    }
+
+    fn device_pub_key(path: &str) -> Result<Secp256k1PublicKey> {
+        let xpub_data = get_xpub_data(path, false)?;
+        let pub_key = xpub_data
+            .get(..130)
+            .ok_or_else(|| anyhow!("btc_invalid_device_public_key"))?;
+        Ok(Secp256k1PublicKey::from_str(pub_key)?)
     }
 
     fn sign_p2pkh(&mut self, idx: usize, pub_key: &str) -> Result<()> {
@@ -256,114 +319,84 @@ impl<'a> PsbtSigner<'a> {
         pub_key: &str,
         receipt: &InputReceipt,
     ) -> Result<()> {
-        let temp_serialize_txin = self
-            .psbt
-            .unsigned_tx
-            .input
-            .get(idx)
-            .expect("get_input_error")
-            .clone();
-        let prevout = &self.prevouts[idx];
-        // let pub_key = &self.get_pub_key(idx, false)?;
-        let mut data: Vec<u8> = vec![];
-        //txhash and vout
-        let txhash_data = serialize(&temp_serialize_txin.previous_output);
-        data.extend(txhash_data.iter());
-        //lock script
-        let script = Script::new_v0_p2wpkh(&WPubkeyHash::from_hash(hash160::Hash::hash(
-            &hex_to_bytes(pub_key)?,
-        )));
-        let script = script.p2wpkh_script_code().expect("must be v0_p2wpkh");
-        data.extend(serialize(&script).iter());
-        //amount
-        let mut utxo_amount = num_bigint::BigInt::from(prevout.value).to_signed_bytes_le();
-        while utxo_amount.len() < 8 {
-            utxo_amount.push(0x00);
-        }
-        data.extend(utxo_amount.iter());
-        //set sequence
-        let sequence = serialize(&temp_serialize_txin.sequence).to_vec();
-        data.extend(sequence);
-        //set length
-        data.insert(0, data.len() as u8);
-        //address
-        let mut address_data: Vec<u8> = vec![];
-        let sign_path = self.get_path(idx, false)?;
-        address_data.push(sign_path.as_bytes().len() as u8);
-        address_data.extend_from_slice(sign_path.as_bytes());
-        data.extend(address_data.iter());
-
-        let last_input = idx == self.psbt.unsigned_tx.input.len() - 1;
-        let sign_apdu = segwit_sign_apdu(last_input, data, Some(receipt))?;
-        let sign_apdu_return_data = send_apdu(sign_apdu)?;
-        ApduCheck::check_response(&sign_apdu_return_data)?;
-
-        //build signature obj
-        let sign_result_vec =
-            Vec::from_hex(&sign_apdu_return_data[2..sign_apdu_return_data.len() - 6]).unwrap();
-        let mut signature_obj = Signature::from_compact(sign_result_vec.as_slice())?;
-        signature_obj.normalize_s();
-        //generator der sign data
-        let mut sign_result_vec = signature_obj.serialize_der().to_vec();
-        //add hash type
-        sign_result_vec.push(EcdsaSighashType::All.to_u32() as u8);
         let pub_key = PublicKey::from_str(pub_key)?;
-        self.psbt.inputs[idx]
-            .partial_sigs
-            .insert(pub_key, EcdsaSig::sighash_all(signature_obj));
-        Ok(())
+        let witness_program = Script::new_v0_p2wpkh(&WPubkeyHash::from_hash(hash160::Hash::hash(
+            &pub_key.to_bytes(),
+        )));
+        let script = witness_program
+            .p2wpkh_script_code()
+            .expect("must be v0_p2wpkh");
+        let path = self.get_path(idx, false)?;
+        self.sign_segwit_v0(idx, pub_key, &script, &path, receipt)
     }
 
     fn sign_p2wpkh(&mut self, idx: usize, pub_key: &str, receipt: &InputReceipt) -> Result<()> {
-        let temp_serialize_txin = self
-            .psbt
-            .unsigned_tx
-            .input
-            .get(idx)
-            .expect("get_input_error")
-            .clone();
-        let prevout = &self.prevouts[idx];
-        let mut data: Vec<u8> = vec![];
-        //txhash and vout
-        let txhash_data = serialize(&temp_serialize_txin.previous_output);
-        data.extend(txhash_data.iter());
-        //lock script
-        let script = prevout
+        let script = self.prevouts[idx]
             .script_pubkey
             .p2wpkh_script_code()
             .expect("must be v0_p2wpkh");
-        data.extend(serialize(&script).iter());
-        //amount
-        let mut utxo_amount = num_bigint::BigInt::from(prevout.value).to_signed_bytes_le();
-        while utxo_amount.len() < 8 {
-            utxo_amount.push(0x00);
+        let path = self.get_path(idx, false)?;
+        self.sign_segwit_v0(idx, PublicKey::from_str(pub_key)?, &script, &path, receipt)
+    }
+
+    fn multisig_spend_for_signing<'b>(
+        input: &'b Input,
+        script: &Script,
+        index: usize,
+    ) -> Result<MultisigSpend<'b>> {
+        if input.ecdsa_hash_ty().ok() != Some(EcdsaSighashType::All) {
+            return Err(anyhow!(
+                "psbt_unsupported_multisig_sighash: input {}",
+                index
+            ));
         }
-        data.extend(utxo_amount.iter());
-        //set sequence
-        let sequence = serialize(&temp_serialize_txin.sequence).to_vec();
-        data.extend(sequence);
-        //set length
-        data.insert(0, data.len() as u8);
-        //address
-        let mut address_data: Vec<u8> = vec![];
-        let sign_path = self.get_path(idx, false)?;
-        address_data.push(sign_path.as_bytes().len() as u8);
-        address_data.extend_from_slice(sign_path.as_bytes());
-        data.extend(address_data.iter());
+        MultisigSpend::from_input(input, script)
+            .ok_or_else(|| anyhow!("psbt_unsupported_multisig_script: input {}", index))
+    }
+
+    fn sign_p2wsh(&mut self, idx: usize, pub_key: &str, receipt: &InputReceipt) -> Result<()> {
+        let input = &self.psbt.inputs[idx];
+        let spend =
+            Self::multisig_spend_for_signing(input, &self.prevouts[idx].script_pubkey, idx)?;
+        let pub_key = PublicKey::from_str(pub_key)?;
+        let path = spend
+            .signing_path(input, bitcoin_network_id(self.network)?, &pub_key.inner)
+            .ok_or_else(|| anyhow!("psbt_no_device_multisig_key: input {}", idx))?;
+        let script_code = spend.witness_script.clone();
+        self.sign_segwit_v0(idx, pub_key, &script_code, &path.to_string(), receipt)
+    }
+
+    fn sign_segwit_v0(
+        &mut self,
+        idx: usize,
+        pub_key: PublicKey,
+        script_code: &Script,
+        path: &str,
+        receipt: &InputReceipt,
+    ) -> Result<()> {
+        let tx_in = &self.psbt.unsigned_tx.input[idx];
+        let mut data = vec![0];
+        data.extend(serialize(&tx_in.previous_output));
+        data.extend(serialize(script_code));
+        data.extend(self.prevouts[idx].value.to_le_bytes());
+        data.extend(serialize(&tx_in.sequence));
+        data[0] = u8::try_from(data.len() - 1)?;
+        data.push(u8::try_from(path.len())?);
+        data.extend(path.as_bytes());
 
         let last_input = idx == self.psbt.unsigned_tx.input.len() - 1;
-        let sign_apdu = segwit_sign_apdu(last_input, data, Some(receipt))?;
-        let sign_apdu_return_data = send_apdu(sign_apdu)?;
-        ApduCheck::check_response(&sign_apdu_return_data)?;
-        //build signature obj
-        let sign_result_vec =
-            Vec::from_hex(&sign_apdu_return_data[2..sign_apdu_return_data.len() - 6]).unwrap();
-        let mut signature_obj = Signature::from_compact(sign_result_vec.as_slice())?;
-        signature_obj.normalize_s();
-        let pub_key = PublicKey::from_str(pub_key)?;
+        let command = segwit_sign_apdu(last_input, data, Some(receipt))?;
+        let response = send_apdu(command)?;
+        ApduCheck::check_response(&response)?;
+        let payload = hex::decode(response)?;
+        if payload.len() != 68 {
+            return Err(anyhow!("btc_invalid_segwit_signature_response"));
+        }
+        let mut signature = Signature::from_compact(&payload[1..65])?;
+        signature.normalize_s();
         self.psbt.inputs[idx]
             .partial_sigs
-            .insert(pub_key, EcdsaSig::sighash_all(signature_obj));
+            .insert(pub_key, EcdsaSig::sighash_all(signature));
         Ok(())
     }
 
@@ -528,11 +561,7 @@ impl<'a> PsbtSigner<'a> {
         }
 
         let transaction = &self.psbt.unsigned_tx;
-        let network_id = match network {
-            Network::Bitcoin => 0,
-            Network::Testnet => 1,
-            _ => return Err(CoinError::ImkeySdkIllegalArgument.into()),
-        };
+        let network_id = bitcoin_network_id(network)?;
         if transaction.output.is_empty() {
             return Err(anyhow!("psbt_requires_at_least_one_output"));
         }
@@ -549,6 +578,30 @@ impl<'a> PsbtSigner<'a> {
                 PSBT_PREVIEW_MAX_BYTES
             ));
         }
+
+        let candidates = transaction
+            .output
+            .iter()
+            .zip(&self.psbt.outputs)
+            .enumerate()
+            .filter_map(|(index, (output, metadata))| {
+                psbt_change_path(metadata, &output.script_pubkey, network, network_id)
+                    .map(|path| (index, path))
+            });
+        let mut remaining = MAX_CHANGE_CANDIDATES;
+        if let Some(account) = self
+            .multisig_account
+            .lock()
+            .map_err(|_| CoinError::InvalidUtxo)?
+            .as_ref()
+        {
+            if let Some(policy) =
+                MultisigChangePolicy::from_psbt(self.psbt, &self.prevouts, network, network_id)
+            {
+                remaining -= policy.send(network, account)?;
+            }
+        }
+        send_change_candidates(network_id, candidates, remaining)?;
 
         let chunks = body.chunks(TRANSACTION_CHUNK_BYTES);
         let last_chunk = chunks.len() - 1;
@@ -622,6 +675,53 @@ impl<'a> PsbtSigner<'a> {
 
             input.final_script_witness = Some(witness)
         }
+    }
+
+    fn finalize_p2wsh(&mut self, index: usize) -> Result<()> {
+        let prevout = &self.prevouts[index];
+        let input = &mut self.psbt.inputs[index];
+        let spend = Self::multisig_spend_for_signing(input, &prevout.script_pubkey, index)?;
+
+        let mut sighashes = SighashCache::new(&self.psbt.unsigned_tx);
+        let secp = Secp256k1::verification_only();
+        let mut signatures = Vec::with_capacity(spend.threshold);
+        for key in &spend.keys {
+            if let Some(signature) = input.partial_sigs.get(&PublicKey::new(*key)) {
+                if signature.hash_ty != EcdsaSighashType::All {
+                    continue;
+                }
+                let digest = sighashes.segwit_signature_hash(
+                    index,
+                    spend.witness_script,
+                    prevout.value,
+                    signature.hash_ty,
+                )?;
+                let message = Message::from_slice(&digest[..])?;
+                if secp.verify_ecdsa(&message, &signature.sig, key).is_ok() {
+                    signatures.push(signature.to_vec());
+                    if signatures.len() == spend.threshold {
+                        break;
+                    }
+                }
+            }
+        }
+        if signatures.len() == spend.threshold {
+            let mut witness = Witness::new();
+            witness.push([]);
+            for signature in signatures {
+                witness.push(signature);
+            }
+            witness.push(spend.witness_script.as_bytes());
+            input.final_script_witness = Some(witness);
+            if let Some(redeem_script) = input.redeem_script.as_ref() {
+                input.final_script_sig = Some(
+                    Builder::new()
+                        .push_slice(redeem_script.as_bytes())
+                        .into_script(),
+                );
+            }
+        }
+        Ok(())
     }
 
     fn finalize_p2tr(&mut self, index: usize) {

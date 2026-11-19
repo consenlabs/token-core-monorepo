@@ -1,4 +1,7 @@
 use crate::btc_kin_address::{AddressTrait, BtcKinAddress, ImkeyPublicKey};
+use crate::change_candidates::{
+    bitcoin_network_id, canonical_change_path, send_change_candidates, MAX_CHANGE_CANDIDATES,
+};
 use crate::common::{
     btc_applet_version_at_least, ensure_p2wsh_version, ensure_transaction_preview_version,
     get_address_version, get_utxo_pub_key, TxSignResult,
@@ -120,7 +123,8 @@ impl BtcTransaction {
         //utxo address verify
         let utxo_pub_key_vec = get_utxo_pub_key(&self.unspents)?;
 
-        let output = self.tx_output(change_idx, &path, network, seg_wit, extra_data)?;
+        let (output, change) =
+            self.tx_outputs_with_change(change_idx, path, network, seg_wit, extra_data)?;
 
         let mut tx_to_sign = Transaction {
             version: 1i32,
@@ -146,6 +150,19 @@ impl BtcTransaction {
                     previous_tx,
                 )?);
             }
+            let network_id = bitcoin_network_id(network_convert(network))?;
+            let candidate = change.and_then(|(index, path)| {
+                // The API may have uppercased the existing input derivation path.
+                let path = path.to_ascii_lowercase().parse().ok()?;
+                canonical_change_path(
+                    &path,
+                    &tx_to_sign.output[index].script_pubkey,
+                    network_id,
+                    true,
+                )
+                .map(|path| (index, path))
+            });
+            send_change_candidates(network_id, candidate, MAX_CHANGE_CANDIDATES)?;
             Some(receipts)
         } else {
             self.calc_tx_hash(&mut tx_to_sign, &btc_version)?;
@@ -641,47 +658,50 @@ impl BtcTransaction {
         seg_wit: &str,
         extra_data: Option<&str>,
     ) -> Result<Vec<TxOut>> {
-        let mut outputs = vec![];
-        //to output
-        outputs.push(self.build_send_to_output());
-        //change output
-        if self.get_change_amount() >= MIN_NONDUST_OUTPUT {
-            let change_script = if let Some(change_address_index) = change_idx {
-                let change_path = format!(
-                    "{}{}{}",
-                    get_account_path(change_path)?,
-                    "/1/",
-                    change_address_index
-                );
-                let pub_key = ImkeyPublicKey::get_pub_key(&change_path)?;
-                let network = BtcKinNetwork::find_by_coin(&self.chain_type, network);
-                if network.is_none() {
-                    return Err(CommonError::MissingNetwork.into());
-                }
+        self.tx_outputs_with_change(change_idx, change_path, network, seg_wit, extra_data)
+            .map(|(outputs, _)| outputs)
+    }
 
-                let change_address =
-                    BtcKinAddress::from_public_key(&pub_key, network.unwrap(), seg_wit)?;
-                change_address.script_pubkey()
-                // let change_address = Address::from_str(&change_address)?;
-                // change_address.script_pubkey()
+    fn tx_outputs_with_change(
+        &self,
+        change_idx: Option<u32>,
+        change_path: &str,
+        network: &str,
+        seg_wit: &str,
+        extra_data: Option<&str>,
+    ) -> Result<(Vec<TxOut>, Option<(usize, String)>)> {
+        let mut outputs = vec![self.build_send_to_output()];
+        let mut change = None;
+        let change_amount = self.get_change_amount();
+        if change_amount >= MIN_NONDUST_OUTPUT {
+            let (script_pubkey, path) = if let Some(index) = change_idx {
+                let path = format!("{}/1/{}", get_account_path(change_path)?, index);
+                let pub_key = ImkeyPublicKey::get_pub_key(&path)?;
+                let network = BtcKinNetwork::find_by_coin(&self.chain_type, network)
+                    .ok_or(CommonError::MissingNetwork)?;
+                let address = BtcKinAddress::from_public_key(&pub_key, network, seg_wit)?;
+                (address.script_pubkey(), path)
             } else {
-                BtcKinAddress::from_str(&self.unspents[0].address.to_string())?.script_pubkey()
+                let first_input = &self.unspents[0];
+                let address = BtcKinAddress::from_str(&first_input.address)?;
+                (address.script_pubkey(), first_input.derive_path.clone())
             };
+            change = Some((outputs.len(), path));
             outputs.push(TxOut {
-                value: self.get_change_amount(),
-                script_pubkey: change_script,
+                value: change_amount,
+                script_pubkey,
             });
         }
-        //add the op_return
-        if extra_data.is_some() {
-            let op_return = hex_to_bytes(extra_data.unwrap())?;
+
+        if let Some(extra_data) = extra_data {
+            let op_return = hex_to_bytes(extra_data)?;
             if op_return.len() > MAX_OPRETURN_SIZE {
                 return Err(CoinError::ImkeySdkIllegalArgument.into());
             }
-            outputs.push(self.build_op_return_output(&op_return))
+            outputs.push(self.build_op_return_output(&op_return));
         }
 
-        Ok(outputs)
+        Ok((outputs, change))
     }
 
     pub fn calc_tx_hash(
