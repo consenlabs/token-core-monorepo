@@ -1,6 +1,7 @@
 use crate::btc_kin_address::{AddressTrait, BtcKinAddress, ImkeyPublicKey};
 use crate::change_candidates::{
-    bitcoin_network_id, canonical_change_path, send_change_candidates, MAX_CHANGE_CANDIDATES,
+    bitcoin_network_id, canonical_change_path, send_change_candidates, SingleWalletChange,
+    MAX_CHANGE_CANDIDATES,
 };
 use crate::common::{
     btc_applet_version_at_least, ensure_p2wsh_version, ensure_transaction_preview_version,
@@ -57,6 +58,15 @@ pub struct BtcTransaction {
     pub unspents: Vec<Utxo>,
     pub fee: u64,
     pub chain_type: String,
+}
+
+fn device_compact_ecdsa(response: &str) -> Result<[u8; 64]> {
+    ApduCheck::check_response(response)?;
+    let mut bytes = [0u8; 68];
+    hex::decode_to_slice(response, &mut bytes).map_err(|_| CoinError::MissingSignature)?;
+    let mut compact = [0u8; 64];
+    compact.copy_from_slice(&bytes[1..65]);
+    Ok(compact)
 }
 
 impl BtcTransaction {
@@ -162,7 +172,12 @@ impl BtcTransaction {
                 )
                 .map(|path| (index, path))
             });
-            send_change_candidates(network_id, candidate, MAX_CHANGE_CANDIDATES)?;
+            self.send_single_wallet_change(
+                network_convert(network),
+                &inputs,
+                &utxo_pub_key_vec,
+                candidate,
+            )?;
             Some(receipts)
         } else {
             self.calc_tx_hash(&mut tx_to_sign, &btc_version)?;
@@ -234,7 +249,39 @@ impl BtcTransaction {
         })
     }
 
-    fn validate_bitcoin_inputs(
+    pub(crate) fn send_single_wallet_change(
+        &self,
+        network: bitcoin::Network,
+        inputs: &[(OutPoint, Transaction)],
+        pub_keys: &[String],
+        mut candidate: Option<(usize, String)>,
+    ) -> Result<()> {
+        if let Some((_, path)) = candidate.as_ref() {
+            let policy = SingleWalletChange::from_inputs(
+                network,
+                self.unspents.iter().zip(inputs).zip(pub_keys).map(
+                    |((utxo, (outpoint, previous)), key)| {
+                        (
+                            utxo.derive_path.as_str(),
+                            &previous.output[outpoint.vout as usize].script_pubkey,
+                            key.as_str(),
+                        )
+                    },
+                ),
+            );
+            match policy {
+                Some(policy) if policy.allows(path) => policy.send()?,
+                _ => candidate = None,
+            }
+        }
+        send_change_candidates(
+            bitcoin_network_id(network)?,
+            candidate,
+            MAX_CHANGE_CANDIDATES,
+        )
+    }
+
+    pub(crate) fn validate_bitcoin_inputs(
         &self,
         previous_transactions: &[Vec<u8>],
     ) -> Result<Vec<(OutPoint, Transaction)>> {
@@ -318,17 +365,12 @@ impl BtcTransaction {
                     self.unspents.get(y).unwrap().derive_path.as_str(),
                 );
                 //sign data
-                let btc_sign_apdu_return = send_apdu(btc_sign_apdu)?;
-                ApduCheck::check_response(&btc_sign_apdu_return)?;
-                let btc_sign_apdu_return =
-                    &btc_sign_apdu_return[..btc_sign_apdu_return.len() - 4].to_string();
-                let sign_result_str =
-                    btc_sign_apdu_return[2..btc_sign_apdu_return.len() - 2].to_string();
-
+                let response = send_apdu(btc_sign_apdu)?;
+                let signature = device_compact_ecdsa(&response)?;
                 lock_script_ver.push(self.build_unlock_script(
-                    sign_result_str.as_str(),
+                    &hex::encode(signature),
                     utxo_pub_key_vec.get(y).unwrap(),
-                )?)
+                )?);
             }
         }
         let mut txinputs: Vec<TxIn> = Vec::new();
@@ -354,6 +396,16 @@ impl BtcTransaction {
         pub_key: &str,
         transaction: &mut Transaction,
     ) -> Result<()> {
+        self.sign_p2pkh_input_after_preview(idx, pub_key, transaction, 0x46)
+    }
+
+    pub(crate) fn sign_p2pkh_input_after_preview(
+        &self,
+        idx: usize,
+        pub_key: &str,
+        transaction: &mut Transaction,
+        prepare_ins: u8,
+    ) -> Result<()> {
         let mut input_data_vec = vec![];
         for (x, temp_utxo) in self.unspents.iter().enumerate() {
             let mut temp_serialize_txin = TxIn {
@@ -372,7 +424,8 @@ impl BtcTransaction {
 
             input_data_vec.extend_from_slice(serialize(&temp_serialize_txin).as_slice());
         }
-        let btc_perpare_apdu_list = BtcApdu::btc_single_utxo_sign_prepare(0x46, &input_data_vec);
+        let btc_perpare_apdu_list =
+            BtcApdu::btc_single_utxo_sign_prepare(prepare_ins, &input_data_vec);
         for apdu in btc_perpare_apdu_list {
             ApduCheck::check_response(&send_apdu(apdu)?)?;
         }
@@ -383,16 +436,9 @@ impl BtcTransaction {
             self.unspents.get(idx).unwrap().derive_path.as_str(),
         );
 
-        let btc_sign_apdu_return = send_apdu(btc_sign_apdu)?;
-        ApduCheck::check_response(&btc_sign_apdu_return)?;
-        let btc_sign_apdu_return =
-            &btc_sign_apdu_return[..btc_sign_apdu_return.len() - 4].to_string();
-        let sign_result_str = btc_sign_apdu_return[2..btc_sign_apdu_return.len() - 2].to_string();
-
-        let mut signature_obj = Signature::from_compact(&hex::decode(&sign_result_str)?)?;
-        signature_obj.normalize_s();
-
-        let script_sig = self.build_unlock_script(sign_result_str.as_str(), pub_key)?;
+        let response = send_apdu(btc_sign_apdu)?;
+        let signature = device_compact_ecdsa(&response)?;
+        let script_sig = self.build_unlock_script(&hex::encode(signature), pub_key)?;
         let tx_in = TxIn {
             previous_output: OutPoint {
                 txid: bitcoin::hash_types::Txid::from_hex(self.unspents[idx].txhash.as_str())?,
@@ -407,7 +453,7 @@ impl BtcTransaction {
         Ok(())
     }
 
-    fn sign_p2sh_nested_p2wpkh_input(
+    pub(crate) fn sign_p2sh_nested_p2wpkh_input(
         &self,
         idx: usize,
         pub_key: &str,
@@ -454,13 +500,8 @@ impl BtcTransaction {
 
         let last_input = idx == self.unspents.len() - 1;
         let sign_apdu = segwit_sign_apdu(last_input, data, receipt)?;
-        let sign_apdu_return_data = send_apdu(sign_apdu)?;
-        ApduCheck::check_response(&sign_apdu_return_data)?;
-
-        //build signature obj
-        let sign_result_vec =
-            Vec::from_hex(&sign_apdu_return_data[2..sign_apdu_return_data.len() - 6]).unwrap();
-        let mut signature_obj = Signature::from_compact(sign_result_vec.as_slice())?;
+        let response = send_apdu(sign_apdu)?;
+        let mut signature_obj = Signature::from_compact(&device_compact_ecdsa(&response)?)?;
         signature_obj.normalize_s();
         //generator der sign data
         let mut sign_result_vec = signature_obj.serialize_der().to_vec();
@@ -529,12 +570,8 @@ impl BtcTransaction {
 
         let last_input = idx == self.unspents.len() - 1;
         let sign_apdu = segwit_sign_apdu(last_input, data, receipt)?;
-        let sign_apdu_return_data = send_apdu(sign_apdu)?;
-        ApduCheck::check_response(&sign_apdu_return_data)?;
-        //build signature obj
-        let sign_result_vec =
-            Vec::from_hex(&sign_apdu_return_data[2..sign_apdu_return_data.len() - 6]).unwrap();
-        let mut signature_obj = Signature::from_compact(sign_result_vec.as_slice())?;
+        let response = send_apdu(sign_apdu)?;
+        let mut signature_obj = Signature::from_compact(&device_compact_ecdsa(&response)?)?;
         signature_obj.normalize_s();
         //generator der sign data
         let mut sign_result_vec = signature_obj.serialize_der().to_vec();
@@ -590,8 +627,11 @@ impl BtcTransaction {
         let sign_result = send_apdu(sign_apdu)?;
         ApduCheck::check_response(&sign_result)?;
 
-        let sign_bytes = hex_to_bytes(&sign_result[2..(sign_result.len() - 4)])?;
-        let witness = Witness::from_vec(vec![sign_bytes]);
+        let sign_bytes = hex::decode(sign_result)?;
+        if sign_bytes.len() != 67 || sign_bytes[0] != 64 {
+            return Err(CoinError::MissingSignature.into());
+        }
+        let witness = Witness::from_vec(vec![sign_bytes[1..65].to_vec()]);
         transaction.input.push(TxIn {
             previous_output: OutPoint {
                 txid: bitcoin::hash_types::Txid::from_hex(&unspent.txhash)?,

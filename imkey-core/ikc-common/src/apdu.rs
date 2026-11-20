@@ -654,7 +654,15 @@ pub struct ApduCheck {}
 
 impl ApduCheck {
     pub fn check_response(response_data: &str) -> Result<()> {
-        let response_data: &str = &response_data[response_data.len() - 4..];
+        if response_data.len() < 4 || response_data.len() % 2 != 0 {
+            return Err(ApduError::ImkeyApduWrongLength.into());
+        }
+        let status = response_data
+            .get(response_data.len() - 4..)
+            .filter(|status| status.bytes().all(|byte| byte.is_ascii_hexdigit()))
+            .ok_or(ApduError::ImkeyCommandDataError)?;
+        let response_data = status.to_ascii_uppercase();
+        let response_data = response_data.as_str();
         match response_data {
             "9000" => Ok(()),
             "6940" => Err(ApduError::ImkeyUserNotConfirmed.into()),
@@ -683,6 +691,20 @@ mod tests {
         Apdu, ApduCheck, ApduHeader, BtcApdu, CoinCommonApdu, CosmosApdu, EosApdu, EthApdu, ImkApdu,
     };
     use hex::FromHex;
+
+    #[test]
+    fn malformed_apdu_status_returns_an_error() {
+        assert!(ApduCheck::check_response("").is_err());
+        assert!(ApduCheck::check_response("900").is_err());
+        assert!(ApduCheck::check_response("00900").is_err());
+        assert!(ApduCheck::check_response("€900").is_err());
+        assert!(ApduCheck::check_response("zzzz").is_err());
+        assert_eq!(
+            ApduCheck::check_response("6d00").unwrap_err().to_string(),
+            "imkey_applet_function_not_supported"
+        );
+        assert!(ApduCheck::check_response("01239000").is_ok());
+    }
 
     #[test]
     fn select_applet_test() {

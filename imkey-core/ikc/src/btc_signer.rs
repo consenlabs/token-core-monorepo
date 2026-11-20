@@ -4,6 +4,7 @@ use bitcoin::Network;
 use coin_bitcoin::btcapi::{BtcMessageInput, BtcTxInput, BtcTxOutput};
 use coin_bitcoin::message::MessageSinger;
 use coin_bitcoin::transaction::{BtcTransaction, Utxo};
+use ikc_common::error::CoinError;
 use ikc_common::path::get_account_path;
 use ikc_common::SignParam;
 use prost::Message;
@@ -96,10 +97,16 @@ pub fn sign_usdt_transaction(input: &BtcTxInput, sign_param: &SignParam) -> Resu
     };
     let extra = input
         .extra
-        .clone()
-        .expect("sign usdt tx must contains extra");
+        .as_ref()
+        .ok_or(CoinError::ImkeySdkIllegalArgument)?;
 
-    let signed = btc_tx.sign_omni_transaction(network, &sign_param.path, extra.property_id)?;
+    let signed = btc_tx.sign_omni_transaction_with_previous_transactions(
+        network,
+        &sign_param.path,
+        extra.property_id,
+        false,
+        &input.previous_transactions,
+    )?;
     let tx_sign_result = BtcTxOutput {
         signature: signed.signature,
         tx_hash: signed.tx_hash,
@@ -139,11 +146,16 @@ pub fn sign_usdt_segwit_transaction(input: &BtcTxInput, sign_param: &SignParam) 
 
     let extra = input
         .extra
-        .clone()
-        .expect("sign usdt tx must contains extra");
+        .as_ref()
+        .ok_or(CoinError::ImkeySdkIllegalArgument)?;
 
-    let signed =
-        btc_tx.sign_omni_segwit_transaction(network, &sign_param.path, extra.property_id as i32)?;
+    let signed = btc_tx.sign_omni_transaction_with_previous_transactions(
+        network,
+        &sign_param.path,
+        extra.property_id,
+        true,
+        &input.previous_transactions,
+    )?;
     let tx_sign_result = BtcTxOutput {
         signature: signed.signature,
         wtx_hash: signed.wtx_id,

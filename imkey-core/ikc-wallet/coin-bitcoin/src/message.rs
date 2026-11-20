@@ -1,6 +1,7 @@
 use crate::address::BtcAddress;
 use crate::btcapi::{BtcMessageInput, BtcMessageOutput, BtcSignatureType};
-use crate::common::select_btc_applet;
+use crate::common::{ensure_transaction_preview_version, select_btc_applet};
+use crate::input_proof::{authenticated_transaction_chunk, TRANSACTION_CHUNK_BYTES};
 use crate::psbt::PsbtSigner;
 use crate::Result;
 use bitcoin::consensus::serialize as btc_serialize;
@@ -9,51 +10,24 @@ use bitcoin::{
     Address, OutPoint, PackedLockTime, Script, Sequence, Transaction, TxIn, TxOut, Txid, Witness,
 };
 use hex::FromHex;
-use ikc_common::apdu::{ApduCheck, BtcApdu};
+use ikc_common::apdu::ApduCheck;
 use ikc_common::constants::TIMEOUT_LONG;
-use ikc_common::error::{CoinError, CommonError};
-use ikc_common::utility::{
-    hex_to_bytes, network_convert, secp256k1_sign, sha256_hash, utf8_or_hex_to_bytes,
-    version_at_least,
-};
+use ikc_common::error::CoinError;
+use ikc_common::utility::{network_convert, sha256_hash, utf8_or_hex_to_bytes};
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_device::device_manager::get_btc_apple_version;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::ecdsa::Signature as EcdsaSignature;
 use std::str::FromStr;
 
-/// INS byte for the BTC message signing single-instruction protocol.
-///
-/// All chunks of the wire payload share this INS; phases are distinguished by
-/// the P2 byte (`0x00` to stage, `0x80` to commit + sign).
-const BTC_MSG_SIGN_INS: u8 = 0x51;
-
-/// Outer TLV tags carried in the prep payload.
-const TAG_SIGNATURE: u8 = 0x00;
-const TAG_RAW_DATA: u8 = 0x01;
-
-/// Inner sub-TLV tags carried inside the Raw Data TLV value.
-///
-/// The applet covers both sub-TLVs under the host ECDSA signature so the BIP32
-/// path is bound to the request alongside the message digest.
-const PRE_TAG_TXHASH: u8 = 0xA6;
-const PRE_TAG_PATH: u8 = 0xA7;
+const BTC_MSG_SIGN_INS: u8 = 0x58;
+const MAX_MESSAGE_BYTES: usize = 32767;
 
 pub struct MessageSinger {
     pub derivation_path: String,
     pub chain_type: String,
     pub network: String,
     pub seg_wit: String,
-}
-
-fn bip137_message_hash(message: &[u8]) -> Vec<u8> {
-    let prefix = b"\x18Bitcoin Signed Message:\n";
-    let varint = bitcoin::VarInt(message.len() as u64);
-    let mut data = Vec::new();
-    data.extend_from_slice(prefix);
-    bitcoin::consensus::encode::Encodable::consensus_encode(&varint, &mut data).unwrap();
-    data.extend_from_slice(message);
-    sha256_hash(&sha256_hash(&data))
 }
 
 fn flag_base_for_bip137(seg_wit: &str) -> Result<u8> {
@@ -94,81 +68,58 @@ impl MessageSinger {
     }
 
     fn sign_message_bip137(&self, data: &[u8], is_standard: bool) -> Result<String> {
-        let btc_version = get_btc_apple_version()?;
-        if !version_at_least(&btc_version, (1, 6, 11)) {
-            return Err(CommonError::UpgradeApplet.into());
-        }
-
-        let msg_hash = bip137_message_hash(data);
         let path = format!("{}/0/0", self.derivation_path);
-        let path_bytes = path.as_bytes();
-
-        // Inner sub-TLVs carried inside the Raw Data TLV value. Putting the BIP32
-        // path here (rather than on a separate sign APDU as legacy BTC sign flows
-        // do) pulls it under the host ECDSA signature, closing the path-swap
-        // window between prepare and sign APDUs.
-        //
-        //   [PRE_TAG_TXHASH(0xA6) | 0x20 | 32-byte BIP-137 digest]
-        //   [PRE_TAG_PATH(0xA7)   | path_len | path bytes]
-        let mut raw_data_value = Vec::with_capacity(2 + msg_hash.len() + 2 + path_bytes.len());
-        raw_data_value.push(PRE_TAG_TXHASH);
-        raw_data_value.push(msg_hash.len() as u8);
-        raw_data_value.extend_from_slice(&msg_hash);
-        raw_data_value.push(PRE_TAG_PATH);
-        raw_data_value.push(path_bytes.len() as u8);
-        raw_data_value.extend_from_slice(path_bytes);
-
-        // Raw Data TLV: [tag=0x01][len][raw_data_value]
-        let mut raw_data_tlv = Vec::with_capacity(2 + raw_data_value.len());
-        raw_data_tlv.push(TAG_RAW_DATA);
-        raw_data_tlv.push(raw_data_value.len() as u8);
-        raw_data_tlv.extend_from_slice(&raw_data_value);
-
-        // Host signs the full Raw Data TLV bytes (tag | len | value); the applet
-        // verifies the resulting DER signature against the same byte range,
-        // binding both the message hash and the derivation path to this request.
-        let key_manager_obj = KEY_MANAGER.lock();
-        let host_sig = secp256k1_sign(&key_manager_obj.pri_key, &raw_data_tlv)?;
-        drop(key_manager_obj);
-
-        // Final wire payload: [Signature TLV: 0x00 | len | DER_sig] || [Raw Data TLV]
-        let mut prep_data = Vec::with_capacity(2 + host_sig.len() + raw_data_tlv.len());
-        prep_data.push(TAG_SIGNATURE);
-        prep_data.push(host_sig.len() as u8);
-        prep_data.extend_from_slice(&host_sig);
-        prep_data.extend_from_slice(&raw_data_tlv);
-
-        select_btc_applet()?;
-
-        // Single-INS protocol: all chunks share INS=BTC_MSG_SIGN (0x51), P1=0x00.
-        //   P2=0x00 → buffer chunk and return SW=9000
-        //   P2=0x80 → append final chunk, then in the same APDU the applet runs
-        //             host-sig verify → inner TLV parse → user confirmation →
-        //             RFC-6979 ECDSA sign → return 66-byte [len|R|S|V] result.
-        //
-        // btc_prepare already emits the 0x00.../0x80 sequence for us; the final
-        // APDU response carries the signature, so no follow-up sign APDU is sent.
-        let apdus = BtcApdu::btc_prepare(BTC_MSG_SIGN_INS, 0x00, &prep_data);
-        let last_idx = apdus.len() - 1;
-        let mut sign_result = String::new();
-        for (i, apdu) in apdus.into_iter().enumerate() {
-            if i == last_idx {
-                sign_result = send_apdu_timeout(apdu, TIMEOUT_LONG)?;
-                ApduCheck::check_response(&sign_result)?;
-            } else {
-                ApduCheck::check_response(&send_apdu(apdu)?)?;
-            }
+        let path = path.as_bytes();
+        if data.len() > MAX_MESSAGE_BYTES || path.len() + 3 > TRANSACTION_CHUNK_BYTES {
+            return Err(CoinError::ImkeySdkIllegalArgument.into());
         }
 
-        // Response wire format: [length_byte(1) | R(32) | S(32) | V(1)] + SW(2)
-        let sign_bytes = hex_to_bytes(&sign_result[2..(sign_result.len() - 4)])?;
-        if sign_bytes.len() != 65 {
-            return Err(CoinError::MissingSignature.into());
+        let mut body = Vec::with_capacity(3 + path.len() + data.len());
+        body.push(path.len() as u8);
+        body.extend_from_slice(path);
+        body.extend_from_slice(&(data.len() as u16).to_be_bytes());
+        body.extend_from_slice(data);
+
+        ensure_transaction_preview_version(&get_btc_apple_version()?)?;
+        let key_manager = KEY_MANAGER.lock();
+        let chunks = body.chunks(TRANSACTION_CHUNK_BYTES);
+        let last = chunks.len() - 1;
+        let mut sign_bytes = Vec::new();
+        for (index, fragment) in chunks.enumerate() {
+            let phase = if index == last { 0x80 } else { 0 };
+            let apdu = authenticated_transaction_chunk(
+                BTC_MSG_SIGN_INS,
+                index as u8,
+                phase,
+                fragment,
+                &key_manager.pri_key,
+            )?;
+            let response = if index == last {
+                send_apdu_timeout(apdu, TIMEOUT_LONG)?
+            } else {
+                send_apdu(apdu)?
+            };
+            let decoded = hex::decode(&response)?;
+            if decoded.len() < 2 {
+                return Err(CoinError::MissingSignature.into());
+            }
+            ApduCheck::check_response(&response)?;
+            if index == last {
+                if decoded.len() != 68 {
+                    return Err(CoinError::MissingSignature.into());
+                }
+                sign_bytes.extend_from_slice(&decoded[1..66]);
+            } else if decoded.len() != 2 {
+                return Err(CoinError::MissingSignature.into());
+            }
         }
 
         let r = &sign_bytes[0..32];
         let s = &sign_bytes[32..64];
         let v = sign_bytes[64];
+        if v > 3 {
+            return Err(CoinError::MissingSignature.into());
+        }
 
         // BIP-62 low-S normalization
         let mut compact = [0u8; 64];
@@ -178,7 +129,7 @@ impl MessageSinger {
         sig.normalize_s();
         let final_compact = sig.serialize_compact();
         let s_changed = final_compact[32..] != compact[32..];
-        let final_v = if s_changed { 1 - v } else { v };
+        let final_v = if s_changed { v ^ 1 } else { v };
 
         // Standard format always uses legacy-compatible flag base (31)
         let flag_base = if is_standard {

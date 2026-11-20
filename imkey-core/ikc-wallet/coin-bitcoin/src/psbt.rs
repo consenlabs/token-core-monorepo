@@ -1,6 +1,7 @@
 use crate::btcapi::{PsbtInput, PsbtOutput};
 use crate::change_candidates::{
-    bitcoin_network_id, psbt_change_path, send_change_candidates, MAX_CHANGE_CANDIDATES,
+    bitcoin_network_id, psbt_change_path, send_change_candidates, SingleWalletChange,
+    MAX_CHANGE_CANDIDATES,
 };
 use crate::common::{ensure_transaction_preview_version, get_xpub_data, select_btc_applet};
 use crate::input_proof::{
@@ -10,13 +11,15 @@ use crate::input_proof::{
 use crate::multisig::{is_multisig_script_input, MultisigChangePolicy, MultisigSpend};
 use crate::Result;
 use anyhow::anyhow;
-use bitcoin::blockdata::script::Builder;
+use bitcoin::blockdata::opcodes::all::{
+    OP_CHECKSIG, OP_CHECKSIGADD, OP_CHECKSIGVERIFY, OP_CODESEPARATOR,
+};
+use bitcoin::blockdata::script::{Builder, Instruction};
 use bitcoin::consensus::{serialize, Decodable, Encodable};
 use bitcoin::psbt::{Input, Psbt};
-use bitcoin::schnorr::UntweakedPublicKey;
 use bitcoin::util::bip32::DerivationPath;
-use bitcoin::util::sighash::SighashCache;
-use bitcoin::util::taproot::{TapLeafHash, TapTweakHash};
+use bitcoin::util::sighash::{Prevouts, SighashCache};
+use bitcoin::util::taproot::{ControlBlock, LeafVersion, TapLeafHash, TapTweakHash};
 use bitcoin::{
     EcdsaSig, EcdsaSighashType, Network, PublicKey, SchnorrSig, SchnorrSighashType, Script, TxOut,
     WPubkeyHash, Witness,
@@ -24,18 +27,16 @@ use bitcoin::{
 use bitcoin_hashes::{hash160, Hash};
 use hex::FromHex;
 use ikc_common::apdu::{ApduCheck, BtcApdu};
-use ikc_common::constants::{MAX_UTXO_NUMBER, TIMEOUT_LONG};
+use ikc_common::constants::{LC_MAX, MAX_UTXO_NUMBER, TIMEOUT_LONG};
 use ikc_common::error::{ApduError, CoinError};
 use ikc_common::path::check_path_validity;
-use ikc_common::utility::hex_to_bytes;
 use ikc_device::device_binding::KEY_MANAGER;
 use ikc_device::device_manager::get_btc_apple_version;
 use ikc_transport::message::{send_apdu, send_apdu_timeout};
 use secp256k1::{
     ecdsa::Signature, schnorr::Signature as SchnorrSignature, Message,
-    PublicKey as Secp256k1PublicKey, Secp256k1,
+    PublicKey as Secp256k1PublicKey, Secp256k1, XOnlyPublicKey,
 };
-use std::collections::BTreeMap;
 use std::convert::TryFrom;
 use std::io::Cursor;
 use std::str::FromStr;
@@ -45,8 +46,20 @@ const PSBT_PREVIEW_MAX_BYTES: usize = 512;
 
 enum PreviewState {
     Initial,
-    InputsPrepared(Vec<InputReceipt>),
+    InputsPrepared(Vec<InputReceipt>, Option<SingleWalletChange>),
     Confirmed(Vec<InputReceipt>),
+}
+
+enum TaprootSpend<'a> {
+    Key {
+        output_key: XOnlyPublicKey,
+        tweak: TapTweakHash,
+    },
+    Script {
+        leaf: TapLeafHash,
+        script: &'a Script,
+        control: &'a ControlBlock,
+    },
 }
 
 pub struct PsbtSigner<'a> {
@@ -95,65 +108,56 @@ impl<'a> PsbtSigner<'a> {
         if pub_keys.len() != self.prevouts.len() {
             return Err(CoinError::InvalidUtxo.into());
         }
-        for idx in 0..self.prevouts.len() {
+        let finalized: Vec<bool> = (0..self.prevouts.len())
+            .map(|index| self.verify_final_multisig(index))
+            .collect::<Result<_>>()?;
+        let last_pending = finalized.iter().rposition(|finished| !finished);
+        for (idx, already_final) in finalized.into_iter().enumerate() {
+            if already_final {
+                continue;
+            }
+            let last = Some(idx) == last_pending;
             let prevout = &self.prevouts[idx];
 
-            if prevout.script_pubkey.is_p2pkh() {
+            let completed = if prevout.script_pubkey.is_p2pkh() {
                 self.sign_p2pkh(idx, &pub_keys[idx])?;
-
                 if self.auto_finalize {
                     self.finalize_p2pkh(idx);
                 }
+                self.auto_finalize
             } else if is_multisig_script_input(&prevout.script_pubkey, &self.psbt.inputs[idx]) {
-                self.sign_p2wsh(idx, &pub_keys[idx], &receipts[idx])?;
-
-                if self.auto_finalize {
-                    self.finalize_p2wsh(idx)?;
-                }
+                self.sign_p2wsh(idx, &pub_keys[idx], &receipts[idx], last)?;
+                self.auto_finalize && self.finalize_p2wsh(idx)?
             } else if prevout.script_pubkey.is_p2sh() {
-                self.sign_p2sh_nested_p2wpkh(idx, &pub_keys[idx], &receipts[idx])?;
-
+                self.sign_p2sh_nested_p2wpkh(idx, &pub_keys[idx], &receipts[idx], last)?;
                 if self.auto_finalize {
                     self.finalize_p2sh_nested_p2wpkh(idx);
                 }
+                self.auto_finalize
             } else if prevout.script_pubkey.is_v0_p2wpkh() {
-                self.sign_p2wpkh(idx, &pub_keys[idx], &receipts[idx])?;
-
+                self.sign_p2wpkh(idx, &pub_keys[idx], &receipts[idx], last)?;
                 if self.auto_finalize {
                     self.finalize_p2wpkh(idx);
                 }
-            } else if !self.psbt.inputs.first().unwrap().tap_scripts.is_empty() {
-                let input = self.psbt.inputs[idx].clone();
-                let (_, script_leaf) = input.tap_scripts.first_key_value().unwrap();
-                let (script, leaf_version) = script_leaf;
-                self.sign_p2tr_script(
-                    idx,
-                    &pub_keys[idx],
-                    Some((
-                        TapLeafHash::from_script(script, leaf_version.clone()).into(),
-                        0xFFFFFFFF,
-                    )),
-                )?;
-
-                if self.auto_finalize {
-                    self.finalize_p2tr(idx);
-                }
+                self.auto_finalize
             } else if prevout.script_pubkey.is_v1_p2tr() {
-                self.sign_p2tr(idx, &pub_keys[idx])?;
+                self.sign_p2tr(idx, &pub_keys[idx], last)?
+            } else {
+                return Err(anyhow!("psbt_unsupported_input_script: input {}", idx));
+            };
 
-                if self.auto_finalize {
-                    self.finalize_p2tr(idx);
-                }
-            }
-
-            let input = &self.psbt.inputs[idx];
-            if self.auto_finalize
-                && (input.final_script_sig.is_some() || input.final_script_witness.is_some())
-            {
+            if completed {
                 self.clear_finalized_input(idx);
             }
         }
 
+        // The legacy signing command takes an ordinal instead of an end flag.
+        // Reselect only if its last pending input preceded an already-final one.
+        if last_pending.map_or(true, |idx| {
+            idx + 1 < self.prevouts.len() && self.prevouts[idx].script_pubkey.is_p2pkh()
+        }) {
+            select_btc_applet()?;
+        }
         Ok(())
     }
 
@@ -228,7 +232,26 @@ impl<'a> PsbtSigner<'a> {
         for (idx, tx_out) in self.prevouts.iter().enumerate() {
             let input = &self.psbt.inputs[idx];
             let script = &tx_out.script_pubkey;
-            if is_multisig_script_input(script, input) {
+            if self.verify_final_multisig(idx)? {
+                pub_key_vec.push(String::new());
+            } else if script.is_v1_p2tr() {
+                Self::taproot_sighash(input)?;
+                let paths = self.taproot_paths(idx)?;
+                let mut owned = None;
+                for path in paths {
+                    let key = Self::device_pub_key(&path)?;
+                    if self
+                        .taproot_spend(idx, &path, key.x_only_public_key().0)
+                        .is_some()
+                    {
+                        owned = Some(key);
+                        break;
+                    }
+                }
+                let key = owned
+                    .ok_or_else(|| anyhow!("psbt_no_supported_taproot_spend: input {}", idx))?;
+                pub_key_vec.push(key.to_string());
+            } else if is_multisig_script_input(script, input) {
                 let spend = Self::multisig_spend_for_signing(input, script, idx)?;
                 let network = bitcoin_network_id(self.network)?;
                 let requested_path = if self.derivation_path.is_empty() {
@@ -297,14 +320,7 @@ impl<'a> PsbtSigner<'a> {
         let btc_sign_apdu =
             BtcApdu::btc_single_utxo_sign(idx as u8, EcdsaSighashType::All.to_u32() as u8, &path);
 
-        let btc_sign_apdu_return = send_apdu(btc_sign_apdu)?;
-        ApduCheck::check_response(&btc_sign_apdu_return)?;
-        let btc_sign_apdu_return =
-            &btc_sign_apdu_return[..btc_sign_apdu_return.len() - 4].to_string();
-        let sign_result_str = btc_sign_apdu_return[2..btc_sign_apdu_return.len() - 2].to_string();
-
-        let mut signature_obj = Signature::from_compact(&hex::decode(&sign_result_str)?)?;
-        signature_obj.normalize_s();
+        let signature_obj = Self::ecdsa_response(&send_apdu(btc_sign_apdu)?)?;
         let pub_key = PublicKey::from_str(pub_key)?;
         self.psbt.inputs[idx]
             .partial_sigs
@@ -318,6 +334,7 @@ impl<'a> PsbtSigner<'a> {
         idx: usize,
         pub_key: &str,
         receipt: &InputReceipt,
+        last: bool,
     ) -> Result<()> {
         let pub_key = PublicKey::from_str(pub_key)?;
         let witness_program = Script::new_v0_p2wpkh(&WPubkeyHash::from_hash(hash160::Hash::hash(
@@ -327,16 +344,30 @@ impl<'a> PsbtSigner<'a> {
             .p2wpkh_script_code()
             .expect("must be v0_p2wpkh");
         let path = self.get_path(idx, false)?;
-        self.sign_segwit_v0(idx, pub_key, &script, &path, receipt)
+        self.sign_segwit_v0(idx, pub_key, &script, &path, receipt, last, false)
     }
 
-    fn sign_p2wpkh(&mut self, idx: usize, pub_key: &str, receipt: &InputReceipt) -> Result<()> {
+    fn sign_p2wpkh(
+        &mut self,
+        idx: usize,
+        pub_key: &str,
+        receipt: &InputReceipt,
+        last: bool,
+    ) -> Result<()> {
         let script = self.prevouts[idx]
             .script_pubkey
             .p2wpkh_script_code()
             .expect("must be v0_p2wpkh");
         let path = self.get_path(idx, false)?;
-        self.sign_segwit_v0(idx, PublicKey::from_str(pub_key)?, &script, &path, receipt)
+        self.sign_segwit_v0(
+            idx,
+            PublicKey::from_str(pub_key)?,
+            &script,
+            &path,
+            receipt,
+            last,
+            false,
+        )
     }
 
     fn multisig_spend_for_signing<'b>(
@@ -350,11 +381,28 @@ impl<'a> PsbtSigner<'a> {
                 index
             ));
         }
+        if input.sighash_type.is_some()
+            && input
+                .partial_sigs
+                .values()
+                .any(|sig| sig.hash_ty != EcdsaSighashType::All)
+        {
+            return Err(anyhow!(
+                "psbt_conflicting_multisig_sighash: input {}",
+                index
+            ));
+        }
         MultisigSpend::from_input(input, script)
             .ok_or_else(|| anyhow!("psbt_unsupported_multisig_script: input {}", index))
     }
 
-    fn sign_p2wsh(&mut self, idx: usize, pub_key: &str, receipt: &InputReceipt) -> Result<()> {
+    fn sign_p2wsh(
+        &mut self,
+        idx: usize,
+        pub_key: &str,
+        receipt: &InputReceipt,
+        last: bool,
+    ) -> Result<()> {
         let input = &self.psbt.inputs[idx];
         let spend =
             Self::multisig_spend_for_signing(input, &self.prevouts[idx].script_pubkey, idx)?;
@@ -363,7 +411,15 @@ impl<'a> PsbtSigner<'a> {
             .signing_path(input, bitcoin_network_id(self.network)?, &pub_key.inner)
             .ok_or_else(|| anyhow!("psbt_no_device_multisig_key: input {}", idx))?;
         let script_code = spend.witness_script.clone();
-        self.sign_segwit_v0(idx, pub_key, &script_code, &path.to_string(), receipt)
+        self.sign_segwit_v0(
+            idx,
+            pub_key,
+            &script_code,
+            &path.to_string(),
+            receipt,
+            last,
+            true,
+        )
     }
 
     fn sign_segwit_v0(
@@ -373,6 +429,8 @@ impl<'a> PsbtSigner<'a> {
         script_code: &Script,
         path: &str,
         receipt: &InputReceipt,
+        last: bool,
+        verify_multisig: bool,
     ) -> Result<()> {
         let tx_in = &self.psbt.unsigned_tx.input[idx];
         let mut data = vec![0];
@@ -384,134 +442,201 @@ impl<'a> PsbtSigner<'a> {
         data.push(u8::try_from(path.len())?);
         data.extend(path.as_bytes());
 
-        let last_input = idx == self.psbt.unsigned_tx.input.len() - 1;
-        let command = segwit_sign_apdu(last_input, data, Some(receipt))?;
-        let response = send_apdu(command)?;
-        ApduCheck::check_response(&response)?;
-        let payload = hex::decode(response)?;
-        if payload.len() != 68 {
-            return Err(anyhow!("btc_invalid_segwit_signature_response"));
+        let command = segwit_sign_apdu(last, data, Some(receipt))?;
+        let signature = Self::ecdsa_response(&send_apdu(command)?)?;
+        if verify_multisig {
+            let message = self.multisig_digest(idx, script_code)?;
+            Secp256k1::verification_only()
+                .verify_ecdsa(&message, &signature, &pub_key.inner)
+                .map_err(|_| anyhow!("psbt_invalid_device_multisig_signature: input {}", idx))?;
         }
-        let mut signature = Signature::from_compact(&payload[1..65])?;
-        signature.normalize_s();
         self.psbt.inputs[idx]
             .partial_sigs
             .insert(pub_key, EcdsaSig::sighash_all(signature));
         Ok(())
     }
 
-    fn sign_p2tr(&mut self, idx: usize, pub_key: &str) -> Result<()> {
-        let mut data: Vec<u8> = vec![];
-        // epoch (1).
-        data.push(0x00u8);
-        // hash_type (1).
-        data.push(SchnorrSighashType::Default as u8);
-        //nVersion (4):
-        //nLockTime (4)
-        // data.extend(serialize(&PackedLockTime::ZERO));
-        data.extend(serialize(&self.psbt.unsigned_tx.lock_time));
-        //prevouts_hash + amounts_hash + script_pubkeys_hash + sequences_hash + sha_outputs (32)
-        //spend_type (1)
-        data.push(0x00u8);
-        //input_index (4)
-        data.extend(serialize(&(idx as u32)));
-
-        let mut path_data: Vec<u8> = vec![];
-        let sign_path = self.get_path(idx, true)?;
-        path_data.push(sign_path.as_bytes().len() as u8);
-        path_data.extend_from_slice(sign_path.as_bytes());
-        data.extend(path_data.iter());
-
-        let mut tweaked_pub_key_data: Vec<u8> = vec![];
-        let untweaked_public_key = UntweakedPublicKey::from_str(&pub_key[2..66])?;
-        let tweaked_pub_key = TapTweakHash::from_key_and_tweak(untweaked_public_key, None).to_vec();
-        tweaked_pub_key_data.push(tweaked_pub_key.len() as u8);
-        tweaked_pub_key_data.extend_from_slice(&tweaked_pub_key);
-        data.extend(tweaked_pub_key_data.iter());
-
-        let sign_apdu = if idx == (self.psbt.unsigned_tx.input.len() - 1) {
-            BtcApdu::btc_taproot_sign(true, data)
-        } else {
-            BtcApdu::btc_taproot_sign(false, data)
-        };
-        let sign_result = send_apdu(sign_apdu)?;
-        ApduCheck::check_response(&sign_result)?;
-
-        let sign_bytes = hex_to_bytes(&sign_result[2..(sign_result.len() - 4)])?;
-        let sig = SchnorrSignature::from_slice(&sign_bytes)?;
-        self.psbt.inputs[idx].tap_key_sig = Some(SchnorrSig {
-            hash_ty: SchnorrSighashType::Default,
-            sig,
-        });
-
-        Ok(())
+    fn ecdsa_response(response: &str) -> Result<Signature> {
+        ApduCheck::check_response(response)?;
+        let payload = hex::decode(response)?;
+        if payload.len() != 68 {
+            return Err(anyhow!("btc_invalid_ecdsa_signature_response"));
+        }
+        let mut signature = Signature::from_compact(&payload[1..65])?;
+        signature.normalize_s();
+        Ok(signature)
     }
 
-    fn sign_p2tr_script(
-        &mut self,
-        idx: usize,
-        pub_key: &str,
-        leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
-    ) -> Result<()> {
-        let mut data: Vec<u8> = vec![];
-        // epoch (1).
-        data.push(0x00u8);
-        // hash_type (1).
-        data.push(SchnorrSighashType::Default as u8);
-        //nVersion (4):
-        //nLockTime (4)
-        // data.extend(serialize(&PackedLockTime::ZERO));
-        data.extend(serialize(&self.psbt.unsigned_tx.lock_time));
-        //prevouts_hash + amounts_hash + script_pubkeys_hash + sequences_hash + sha_outputs (32)
-        //spend_type (1)
-        let mut spend_type = 0u8;
-        if leaf_hash_code_separator.is_some() {
-            spend_type |= 2u8;
+    fn taproot_sighash(input: &Input) -> Result<SchnorrSighashType> {
+        match input.schnorr_hash_ty()? {
+            sighash @ (SchnorrSighashType::Default | SchnorrSighashType::All) => Ok(sighash),
+            _ => Err(anyhow!("psbt_unsupported_taproot_sighash")),
         }
-        data.push(spend_type);
-        //input_index (4)
-        data.extend(serialize(&(idx as u32)));
-        //leaf hash code separator
-        if let Some((hash, code_separator_pos)) = leaf_hash_code_separator {
-            let mut temp_data = hash.into_inner().to_vec();
-            temp_data.push(0x00u8); //key_version_0
-            let code_separator_pos = code_separator_pos.to_be_bytes();
-            temp_data.extend(code_separator_pos);
-            data.push(temp_data.len() as u8);
-            data.extend(temp_data);
-        }
-        let mut path_data: Vec<u8> = vec![];
-        let sign_path = self.get_path(idx, true)?;
-        path_data.push(sign_path.as_bytes().len() as u8);
-        path_data.extend_from_slice(sign_path.as_bytes());
-        data.extend(path_data.iter());
-        let mut tweaked_pub_key_data: Vec<u8> = vec![];
-        let untweaked_public_key = UntweakedPublicKey::from_str(&pub_key[2..66])?;
-        let tweaked_pub_key = TapTweakHash::from_key_and_tweak(untweaked_public_key, None).to_vec();
-        tweaked_pub_key_data.push(tweaked_pub_key.len() as u8);
-        tweaked_pub_key_data.extend_from_slice(&tweaked_pub_key);
-        data.extend(tweaked_pub_key_data.iter());
+    }
 
-        let sign_apdu = if idx == (self.psbt.unsigned_tx.input.len() - 1) {
-            BtcApdu::btc_taproot_script_sign(true, data)
-        } else {
-            BtcApdu::btc_taproot_script_sign(false, data)
+    fn taproot_paths(&self, index: usize) -> Result<Vec<String>> {
+        let origins = &self.psbt.inputs[index].tap_key_origins;
+        if origins.is_empty() {
+            return Ok(vec![self.get_path(index, true)?]);
+        }
+        let mut paths: Vec<_> = origins
+            .values()
+            .map(|(_, (_, path))| path.to_string())
+            .collect();
+        paths.sort_unstable();
+        paths.dedup();
+        Ok(paths)
+    }
+
+    fn taproot_spend(
+        &self,
+        index: usize,
+        path: &str,
+        key: XOnlyPublicKey,
+    ) -> Option<TaprootSpend<'_>> {
+        let input = &self.psbt.inputs[index];
+        let output = &self.prevouts[index].script_pubkey;
+        let output_key = XOnlyPublicKey::from_slice(output.as_bytes().get(2..)?).ok()?;
+        let secp = Secp256k1::verification_only();
+        let origin = input.tap_key_origins.get(&key);
+        if origin.map_or(!input.tap_key_origins.is_empty(), |(_, (_, key_path))| {
+            key_path.to_string() != path
+        }) {
+            return None;
+        }
+        for (control, (script, version)) in &input.tap_scripts {
+            let leaf = TapLeafHash::from_script(script, *version);
+            if *version == LeafVersion::TapScript
+                && control.leaf_version == *version
+                && origin.map_or(true, |(leaves, _)| leaves.contains(&leaf))
+                && tapleaf_signs_for_key(script, key)
+                && control.verify_taproot_commitment(&secp, output_key, script)
+            {
+                return Some(TaprootSpend::Script {
+                    leaf,
+                    script,
+                    control,
+                });
+            }
+        }
+
+        if origin.map_or(false, |(leaves, _)| !leaves.is_empty())
+            || input
+                .tap_internal_key
+                .map_or(false, |internal| internal != key)
+            || *output != Script::new_v1_p2tr(&secp, key, input.tap_merkle_root)
+        {
+            return None;
+        }
+        Some(TaprootSpend::Key {
+            output_key,
+            tweak: TapTweakHash::from_key_and_tweak(key, input.tap_merkle_root),
+        })
+    }
+
+    fn sign_p2tr(&mut self, index: usize, pub_key: &str, last: bool) -> Result<bool> {
+        let key = Secp256k1PublicKey::from_str(pub_key)?.x_only_public_key().0;
+        let (path, spend) = self
+            .taproot_paths(index)?
+            .into_iter()
+            .find_map(|path| {
+                self.taproot_spend(index, &path, key)
+                    .map(|spend| (path, spend))
+            })
+            .ok_or_else(|| anyhow!("psbt_no_supported_taproot_spend: input {}", index))?;
+        let sighash = Self::taproot_sighash(&self.psbt.inputs[index])?;
+        let leaf = match spend {
+            TaprootSpend::Key { .. } => None,
+            TaprootSpend::Script { leaf, .. } => Some(leaf),
         };
 
-        let sign_result = send_apdu(sign_apdu)?;
-        ApduCheck::check_response(&sign_result)?;
+        // The applet fills version, verified inputs and confirmed outputs.
+        let mut data = vec![0, sighash as u8];
+        data.extend(serialize(&self.psbt.unsigned_tx.lock_time));
+        data.push(if leaf.is_some() { 2 } else { 0 });
+        data.extend((index as u32).to_le_bytes());
+        if let Some(leaf) = leaf {
+            data.push(37);
+            data.extend_from_slice(&leaf[..]);
+            data.push(0);
+            data.extend(u32::MAX.to_le_bytes());
+        }
+        if path.is_empty()
+            || data.len() + 1 + path.len() + if leaf.is_some() { 0 } else { 33 } > LC_MAX as usize
+        {
+            return Err(anyhow!("psbt_taproot_signing_request_too_long"));
+        }
+        data.push(u8::try_from(path.len())?);
+        data.extend(path.as_bytes());
+        let command = match spend {
+            TaprootSpend::Key { tweak, .. } => {
+                data.push(32);
+                data.extend_from_slice(&tweak[..]);
+                BtcApdu::btc_taproot_sign(last, data)
+            }
+            TaprootSpend::Script { .. } => BtcApdu::btc_taproot_script_sign(last, data),
+        };
 
-        let sign_bytes = hex_to_bytes(&sign_result[2..(sign_result.len() - 4)])?;
-        let sig = SchnorrSignature::from_slice(&sign_bytes)?;
-        self.psbt.inputs[idx].tap_key_sig = Some(SchnorrSig {
-            hash_ty: SchnorrSighashType::Default,
+        let response = send_apdu(command)?;
+        ApduCheck::check_response(&response)?;
+        let payload = hex::decode(response)?;
+        if payload.len() != 67 || payload[0] != 64 {
+            return Err(anyhow!("psbt_invalid_taproot_signature_response"));
+        }
+        let sig = SchnorrSignature::from_slice(&payload[1..65])?;
+        let mut cache = SighashCache::new(&self.psbt.unsigned_tx);
+        let prevouts = Prevouts::All(&self.prevouts);
+        let (digest, signing_key) = match spend {
+            TaprootSpend::Key { output_key, .. } => (
+                cache.taproot_key_spend_signature_hash(index, &prevouts, sighash)?,
+                output_key,
+            ),
+            TaprootSpend::Script { leaf, .. } => (
+                cache.taproot_script_spend_signature_hash(index, &prevouts, leaf, sighash)?,
+                key,
+            ),
+        };
+        Secp256k1::verification_only()
+            .verify_schnorr(&sig, &Message::from_slice(&digest[..])?, &signing_key)
+            .map_err(|_| anyhow!("psbt_invalid_device_taproot_signature: input {}", index))?;
+
+        let signature = SchnorrSig {
+            hash_ty: sighash,
             sig,
-        });
-
-        Ok(())
+        };
+        let mut witness = Witness::new();
+        witness.push(signature.to_vec());
+        let completed = match spend {
+            TaprootSpend::Key { .. } => self.auto_finalize,
+            TaprootSpend::Script {
+                script, control, ..
+            } => {
+                if self.auto_finalize && is_single_checksig_leaf(script, key) {
+                    witness.push(script.as_bytes());
+                    witness.push(control.serialize());
+                    true
+                } else {
+                    false
+                }
+            }
+        };
+        let input = &mut self.psbt.inputs[index];
+        if let Some(leaf) = leaf {
+            input.tap_script_sigs.insert((key, leaf), signature);
+        } else {
+            input.tap_key_sig = Some(signature);
+        }
+        if completed {
+            input.final_script_witness = Some(witness);
+        }
+        Ok(completed)
     }
 
     pub fn calc_tx_hash(&self) -> Result<()> {
+        self.calc_tx_hash_with_keys(&self.get_pub_key()?)
+    }
+
+    fn calc_tx_hash_with_keys(&self, pub_keys: &[String]) -> Result<()> {
         let mut state = self
             .preview_state
             .lock()
@@ -525,6 +650,42 @@ impl<'a> PsbtSigner<'a> {
         if inputs.len() > MAX_UTXO_NUMBER {
             return Err(CoinError::ImkeyExceededMaxUtxoNumber.into());
         }
+
+        let single_wallet = (pub_keys.len() == inputs.len())
+            .then_some(pub_keys)
+            .and_then(|keys| {
+                let paths: Vec<_> = self
+                    .prevouts
+                    .iter()
+                    .zip(keys)
+                    .enumerate()
+                    .map(|(index, (prevout, public_key))| {
+                        if !prevout.script_pubkey.is_v1_p2tr() {
+                            return self.get_path(index, false).ok();
+                        }
+                        // BIP371 may list other keys ahead of the device's own key.
+                        let key = public_key
+                            .parse::<Secp256k1PublicKey>()
+                            .ok()?
+                            .x_only_public_key()
+                            .0;
+                        self.taproot_paths(index).ok()?.into_iter().find(|path| {
+                            matches!(
+                                self.taproot_spend(index, path, key),
+                                Some(TaprootSpend::Key { .. })
+                            )
+                        })
+                    })
+                    .collect::<Option<_>>()?;
+                SingleWalletChange::from_inputs(
+                    self.network,
+                    paths.iter().zip(&self.prevouts).zip(keys).map(
+                        |((path, prevout), public_key)| {
+                            (path.as_str(), &prevout.script_pubkey, public_key.as_str())
+                        },
+                    ),
+                )
+            });
 
         // The version query reselects the applet. Send proofs afterwards
         // so the proofs, preview, and signing share one device session.
@@ -543,7 +704,7 @@ impl<'a> PsbtSigner<'a> {
                 previous_tx,
             )?);
         }
-        *state = PreviewState::InputsPrepared(receipts);
+        *state = PreviewState::InputsPrepared(receipts, single_wallet);
         Ok(())
     }
 
@@ -552,8 +713,9 @@ impl<'a> PsbtSigner<'a> {
             .preview_state
             .lock()
             .map_err(|_| ApduError::ImkeyUserNotConfirmed)?;
-        let receipts = match std::mem::replace(&mut *state, PreviewState::Initial) {
-            PreviewState::InputsPrepared(receipts) => receipts,
+        let (receipts, single_wallet) = match std::mem::replace(&mut *state, PreviewState::Initial)
+        {
+            PreviewState::InputsPrepared(receipts, single_wallet) => (receipts, single_wallet),
             _ => return Err(ApduError::ImkeyUserNotConfirmed.into()),
         };
         if network != self.network {
@@ -579,15 +741,22 @@ impl<'a> PsbtSigner<'a> {
             ));
         }
 
-        let candidates = transaction
+        let candidates: Vec<_> = transaction
             .output
             .iter()
             .zip(&self.psbt.outputs)
             .enumerate()
             .filter_map(|(index, (output, metadata))| {
                 psbt_change_path(metadata, &output.script_pubkey, network, network_id)
+                    .filter(|path| {
+                        single_wallet
+                            .as_ref()
+                            .map_or(false, |policy| policy.allows(path))
+                    })
                     .map(|path| (index, path))
-            });
+            })
+            .take(MAX_CHANGE_CANDIDATES)
+            .collect();
         let mut remaining = MAX_CHANGE_CANDIDATES;
         if let Some(account) = self
             .multisig_account
@@ -600,6 +769,9 @@ impl<'a> PsbtSigner<'a> {
             {
                 remaining -= policy.send(network, account)?;
             }
+        }
+        if let Some(policy) = single_wallet.as_ref().filter(|_| !candidates.is_empty()) {
+            policy.send()?;
         }
         send_change_candidates(network_id, candidates, remaining)?;
 
@@ -677,85 +849,121 @@ impl<'a> PsbtSigner<'a> {
         }
     }
 
-    fn finalize_p2wsh(&mut self, index: usize) -> Result<()> {
-        let prevout = &self.prevouts[index];
-        let input = &mut self.psbt.inputs[index];
-        let spend = Self::multisig_spend_for_signing(input, &prevout.script_pubkey, index)?;
-
-        let mut sighashes = SighashCache::new(&self.psbt.unsigned_tx);
-        let secp = Secp256k1::verification_only();
-        let mut signatures = Vec::with_capacity(spend.threshold);
-        for key in &spend.keys {
-            if let Some(signature) = input.partial_sigs.get(&PublicKey::new(*key)) {
-                if signature.hash_ty != EcdsaSighashType::All {
-                    continue;
-                }
-                let digest = sighashes.segwit_signature_hash(
-                    index,
-                    spend.witness_script,
-                    prevout.value,
-                    signature.hash_ty,
-                )?;
-                let message = Message::from_slice(&digest[..])?;
-                if secp.verify_ecdsa(&message, &signature.sig, key).is_ok() {
-                    signatures.push(signature.to_vec());
-                    if signatures.len() == spend.threshold {
-                        break;
-                    }
-                }
-            }
-        }
-        if signatures.len() == spend.threshold {
-            let mut witness = Witness::new();
-            witness.push([]);
-            for signature in signatures {
-                witness.push(signature);
-            }
-            witness.push(spend.witness_script.as_bytes());
-            input.final_script_witness = Some(witness);
-            if let Some(redeem_script) = input.redeem_script.as_ref() {
-                input.final_script_sig = Some(
-                    Builder::new()
-                        .push_slice(redeem_script.as_bytes())
-                        .into_script(),
-                );
-            }
-        }
-        Ok(())
+    fn multisig_digest(&self, index: usize, witness_script: &Script) -> Result<Message> {
+        let digest = SighashCache::new(&self.psbt.unsigned_tx).segwit_signature_hash(
+            index,
+            witness_script,
+            self.prevouts[index].value,
+            EcdsaSighashType::All,
+        )?;
+        Ok(Message::from_slice(&digest[..])?)
     }
 
-    fn finalize_p2tr(&mut self, index: usize) {
-        let input = &mut self.psbt.inputs[index];
-
-        if input.tap_key_sig.is_some() {
-            let mut witness = Witness::new();
-            witness.push(input.tap_key_sig.unwrap().to_vec());
-
-            if !input.tap_scripts.is_empty() {
-                let (control_block, script_leaf) = input.tap_scripts.first_key_value().unwrap();
-
-                let (script, _) = script_leaf;
-                witness.push(script.as_bytes().to_vec());
-                witness.push(control_block.serialize())
-            }
-
-            input.final_script_witness = Some(witness);
+    fn verify_final_multisig(&self, index: usize) -> Result<bool> {
+        let input = &self.psbt.inputs[index];
+        let output = &self.prevouts[index].script_pubkey;
+        let witness_script = input
+            .final_script_witness
+            .as_ref()
+            .and_then(|witness| witness.iter().last())
+            .map(|bytes| Script::from(bytes.to_vec()));
+        let is_nested = output.is_p2sh()
+            && witness_script
+                .as_ref()
+                .map_or(false, |script| script.to_v0_p2wsh().to_p2sh() == *output);
+        if !is_nested && !is_multisig_script_input(output, input) {
+            return Ok(false);
         }
+        if input.final_script_sig.is_none() && input.final_script_witness.is_none() {
+            return Ok(false);
+        }
+
+        let invalid = || anyhow!("psbt_invalid_final_multisig_input: input {}", index);
+        let script = witness_script.as_ref().ok_or_else(invalid)?;
+        let witness = input.final_script_witness.as_ref().ok_or_else(invalid)?;
+        let program = is_nested.then(|| script.to_v0_p2wsh());
+        let expected_scriptsig = program
+            .as_ref()
+            .map(|program| Builder::new().push_slice(program.as_bytes()).into_script());
+        if input.final_script_sig != expected_scriptsig
+            || input
+                .witness_script
+                .as_ref()
+                .map_or(false, |known| known != script)
+            || input
+                .redeem_script
+                .as_ref()
+                .map_or(false, |known| Some(known) != program.as_ref())
+            || input.ecdsa_hash_ty().ok() != Some(EcdsaSighashType::All)
+        {
+            return Err(invalid());
+        }
+        let spend = MultisigSpend::parse(output, script, program.as_ref()).ok_or_else(invalid)?;
+        let mut stack = witness.iter();
+        if witness.len() != spend.threshold + 2 || stack.next() != Some(&[][..]) {
+            return Err(invalid());
+        }
+        let secp = Secp256k1::verification_only();
+        let message = self.multisig_digest(index, script)?;
+        let mut keys = spend.keys.iter();
+        for raw in stack.take(spend.threshold) {
+            let signature = EcdsaSig::from_slice(raw).map_err(|_| invalid())?;
+            if signature.hash_ty != EcdsaSighashType::All
+                || !keys.any(|key| secp.verify_ecdsa(&message, &signature.sig, key).is_ok())
+            {
+                return Err(invalid());
+            }
+        }
+        Ok(true)
+    }
+
+    fn finalize_p2wsh(&mut self, index: usize) -> Result<bool> {
+        let input = &self.psbt.inputs[index];
+        let spend =
+            Self::multisig_spend_for_signing(input, &self.prevouts[index].script_pubkey, index)?;
+        let message = self.multisig_digest(index, spend.witness_script)?;
+        let secp = Secp256k1::verification_only();
+        let signatures: Vec<_> = spend
+            .keys
+            .iter()
+            .filter_map(|key| {
+                let signature = input.partial_sigs.get(&PublicKey::new(*key))?;
+                (signature.hash_ty == EcdsaSighashType::All
+                    && secp.verify_ecdsa(&message, &signature.sig, key).is_ok())
+                .then_some(signature)
+            })
+            .take(spend.threshold)
+            .collect();
+        if signatures.len() != spend.threshold {
+            return Ok(false);
+        }
+        let mut witness = Witness::new();
+        witness.push([]);
+        for signature in signatures {
+            witness.push(signature.to_vec());
+        }
+        witness.push(spend.witness_script.as_bytes());
+        let redeem_sig = input
+            .redeem_script
+            .as_ref()
+            .map(|script| Builder::new().push_slice(script.as_bytes()).into_script());
+        let input = &mut self.psbt.inputs[index];
+        input.final_script_sig = redeem_sig;
+        input.final_script_witness = Some(witness);
+        Ok(true)
     }
 
     fn clear_finalized_input(&mut self, index: usize) {
         let input = &mut self.psbt.inputs[index];
-        input.tap_key_sig = None;
-        input.tap_scripts = BTreeMap::new();
-        input.tap_internal_key = None;
-        input.tap_merkle_root = None;
-        input.tap_script_sigs = BTreeMap::new();
-        input.partial_sigs = BTreeMap::new();
-        input.sighash_type = None;
-        input.redeem_script = None;
-        input.witness_script = None;
-        input.bip32_derivation = BTreeMap::new();
-        input.unknown = BTreeMap::new();
+        *input = Input {
+            non_witness_utxo: input.non_witness_utxo.take(),
+            witness_utxo: input.witness_utxo.take(),
+            final_script_sig: input.final_script_sig.take(),
+            final_script_witness: input.final_script_witness.take(),
+            unknown: std::mem::take(&mut input.unknown),
+            proprietary: std::mem::take(&mut input.proprietary),
+            ..Input::default()
+        };
     }
 
     fn hash160(input: &[u8]) -> hash160::Hash {
@@ -783,6 +991,32 @@ impl<'a> PsbtSigner<'a> {
     }
 }
 
+fn tapleaf_signs_for_key(script: &Script, key: XOnlyPublicKey) -> bool {
+    let key = key.serialize();
+    let mut previous_key = false;
+    let mut checks_key = false;
+    for instruction in script.instructions() {
+        match instruction {
+            Err(_) | Ok(Instruction::Op(OP_CODESEPARATOR)) => return false,
+            Ok(Instruction::PushBytes(data)) => previous_key = data == key,
+            Ok(Instruction::Op(op)) => {
+                checks_key |=
+                    previous_key && matches!(op, OP_CHECKSIG | OP_CHECKSIGVERIFY | OP_CHECKSIGADD);
+                previous_key = false;
+            }
+        }
+    }
+    checks_key
+}
+
+fn is_single_checksig_leaf(script: &Script, key: XOnlyPublicKey) -> bool {
+    let bytes = script.as_bytes();
+    bytes.len() == 34
+        && bytes[0] == 32
+        && bytes[1..33] == key.serialize()
+        && bytes[33] == OP_CHECKSIG.to_u8()
+}
+
 pub fn sign_psbt(
     derivation_path: &str,
     psbt_input: PsbtInput,
@@ -806,7 +1040,7 @@ pub fn sign_psbt(
 
     let pub_keys = signer.get_pub_key()?;
 
-    signer.calc_tx_hash()?;
+    signer.calc_tx_hash_with_keys(&pub_keys)?;
 
     signer.tx_preview(network)?;
 

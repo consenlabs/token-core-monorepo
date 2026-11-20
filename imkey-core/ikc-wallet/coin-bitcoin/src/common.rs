@@ -54,7 +54,7 @@ pub fn get_utxo_pub_key(utxos: &Vec<Utxo>) -> Result<Vec<String>> {
     for utxo in utxos {
         let xpub_data = get_xpub_data(&utxo.derive_path, false)?;
         //parsing xpub data
-        let derive_pub_key = &xpub_data[..130];
+        let derive_pub_key = xpub_data.get(..130).ok_or(CoinError::InvalidUtxo)?;
 
         let mut public_key = PublicKey::from_str(derive_pub_key)?;
         public_key.compressed = true;

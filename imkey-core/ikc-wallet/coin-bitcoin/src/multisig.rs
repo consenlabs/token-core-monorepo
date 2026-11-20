@@ -31,7 +31,7 @@ impl<'a> MultisigSpend<'a> {
         )
     }
 
-    fn parse(
+    pub(crate) fn parse(
         script_pubkey: &Script,
         witness_script: &'a Script,
         redeem_script: Option<&Script>,

@@ -121,6 +121,73 @@ pub(crate) fn psbt_change_path(
     canonical_change_path(path, script, network_id, false)
 }
 
+/// A single account inferred from all of the verified funding scripts and device keys.
+pub(crate) struct SingleWalletChange {
+    input_paths: Vec<DerivationPath>,
+}
+
+impl SingleWalletChange {
+    pub(crate) fn from_inputs<'a>(
+        network: Network,
+        inputs: impl IntoIterator<Item = (&'a str, &'a Script, &'a str)>,
+    ) -> Option<Self> {
+        let network_id = bitcoin_network_id(network).ok()?;
+        let secp = Secp256k1::verification_only();
+        let mut input_paths: Vec<DerivationPath> = Vec::new();
+        for (path, script, public_key) in inputs {
+            let path: DerivationPath = path.to_ascii_lowercase().parse().ok()?;
+            canonical_change_path(&path, script, network_id, true)?;
+            if input_paths
+                .first()
+                .map_or(false, |first| first.as_ref()[..3] != path.as_ref()[..3])
+            {
+                return None;
+            }
+            let public_key: secp256k1::PublicKey = public_key.parse().ok()?;
+            let key = PublicKey::new(public_key);
+            let expected = if script.is_p2pkh() {
+                Address::p2pkh(&key, network).script_pubkey()
+            } else if script.is_p2sh() {
+                Address::p2shwpkh(&key, network).ok()?.script_pubkey()
+            } else if script.is_v0_p2wpkh() {
+                Address::p2wpkh(&key, network).ok()?.script_pubkey()
+            } else {
+                Script::new_v1_p2tr(&secp, public_key.x_only_public_key().0, None)
+            };
+            if expected != *script {
+                return None;
+            }
+            input_paths.push(path);
+        }
+        (!input_paths.is_empty()).then_some(Self { input_paths })
+    }
+
+    pub(crate) fn allows(&self, candidate: &str) -> bool {
+        let path = match candidate.parse::<DerivationPath>() {
+            Ok(path) if path.as_ref().len() == 5 => path,
+            _ => return false,
+        };
+        self.input_paths[0].as_ref()[..3] == path.as_ref()[..3]
+            && (path.as_ref()[3] == ChildNumber::Normal { index: 1 } || self.input_paths[0] == path)
+    }
+
+    pub(crate) fn send(&self) -> Result<()> {
+        let key_manager = KEY_MANAGER.lock();
+        for (index, path) in self.input_paths.iter().enumerate() {
+            let path = path.to_string();
+            send_authenticated_change_command(
+                0x56,
+                index as u8,
+                0,
+                path.as_bytes(),
+                &key_manager.pri_key,
+                path.starts_with("m/86'/"),
+            )?;
+        }
+        Ok(())
+    }
+}
+
 pub(crate) fn send_change_candidates(
     network_id: u8,
     candidates: impl IntoIterator<Item = (usize, String)>,

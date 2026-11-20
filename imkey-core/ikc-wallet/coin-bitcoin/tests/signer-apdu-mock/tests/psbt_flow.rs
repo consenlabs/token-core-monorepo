@@ -112,6 +112,7 @@ enum ProofCase {
     InvalidReceipt,
     UnexpectedIntermediateData,
     UnsupportedChangeHints,
+    MixedWalletInputs,
 }
 
 fn receipt_for(index: u8) -> [u8; 32] {
@@ -202,6 +203,13 @@ fn run_case_with_taproot_change(
     let public = PublicKey::new(secp256k1::PublicKey::from_secret_key(&secp, &signing_key));
     let input_address = if legacy_input {
         Address::p2pkh(&public, Network::Bitcoin)
+    } else if taproot_change {
+        Address::p2tr(
+            &secp,
+            public.inner.x_only_public_key().0,
+            None,
+            Network::Bitcoin,
+        )
     } else {
         Address::p2wpkh(&public, Network::Bitcoin).unwrap()
     };
@@ -257,9 +265,54 @@ fn run_case_with_taproot_change(
             .collect(),
         output: outputs,
     };
+    let taproot_signature = taproot_change.then(|| {
+        use bitcoin::schnorr::TapTweak;
+        use bitcoin::util::sighash::Prevouts;
+        use bitcoin::SchnorrSighashType;
+        use secp256k1::KeyPair;
+        let prevouts: Vec<_> = previous_txs.iter().map(|tx| tx.output[2].clone()).collect();
+        let digest = SighashCache::new(&tx)
+            .taproot_key_spend_signature_hash(
+                0,
+                &Prevouts::All(&prevouts),
+                SchnorrSighashType::Default,
+            )
+            .unwrap();
+        let pair = KeyPair::from_secret_key(&secp, &signing_key)
+            .tap_tweak(&secp, None)
+            .to_inner();
+        secp.sign_schnorr_no_aux_rand(&Message::from_slice(&digest[..]).unwrap(), &pair)
+    });
     let mut signatures = Vec::new();
     let mut psbt = Psbt::from_unsigned_tx(tx.clone()).unwrap();
     if taproot_change {
+        // Unrelated input key origins can sort ahead of the signer in the PSBT map.
+        let unrelated_key = (2..=64)
+            .map(|value| {
+                let secret = SecretKey::from_slice(&[value; 32]).unwrap();
+                secp256k1::PublicKey::from_secret_key(&secp, &secret)
+                    .x_only_public_key()
+                    .0
+            })
+            .find(|key| *key < tap_internal_key)
+            .unwrap();
+        psbt.inputs[0].tap_key_origins.insert(
+            unrelated_key,
+            (
+                Vec::new(),
+                (Default::default(), "m/86'/0'/7'/0/0".parse().unwrap()),
+            ),
+        );
+        psbt.inputs[0].tap_key_origins.insert(
+            tap_internal_key,
+            (
+                Vec::new(),
+                (
+                    Default::default(),
+                    format!("{TAPROOT_ACCOUNT}/0/0").parse().unwrap(),
+                ),
+            ),
+        );
         psbt.outputs[1].tap_internal_key = Some(tap_internal_key);
         psbt.outputs[1].tap_key_origins.insert(
             tap_internal_key,
@@ -338,6 +391,11 @@ fn run_case_with_taproot_change(
                 0x43 => format!("{}{}9000", hex::encode(uncompressed), "00".repeat(32)),
                 0x53 => proof_response(&bytes, proof_case, &mut proof_index),
                 0x50 => "9000".to_string(),
+                0x56 => {
+                    assert_eq!(timeout, if taproot_change { 120 } else { 20 });
+                    "9000".to_owned()
+                }
+                0x40 => format!("40{}9000", hex::encode(taproot_signature.unwrap().as_ref())),
                 0x54 => {
                     let expected_timeout = if bytes[3] == 2 { 120 } else { 20 };
                     assert_eq!(timeout, expected_timeout);
@@ -359,7 +417,11 @@ fn run_case_with_taproot_change(
         Ok(response)
     }));
     let result = coin_bitcoin::psbt::sign_psbt(
-        ACCOUNT,
+        if taproot_change {
+            TAPROOT_ACCOUNT
+        } else {
+            ACCOUNT
+        },
         PsbtInput {
             psbt: hex::encode(serialize(&psbt)),
             auto_finalize: true,
@@ -582,7 +644,16 @@ fn run_ordinary_with_change_mode(
     let secp = Secp256k1::new();
     let signing_key = SecretKey::from_slice(&[1; 32]).unwrap();
     let public = PublicKey::new(secp256k1::PublicKey::from_secret_key(&secp, &signing_key));
-    let input = Address::p2wpkh(&public, Network::Bitcoin).unwrap();
+    let input = if taproot_change {
+        Address::p2tr(
+            &secp,
+            public.inner.x_only_public_key().0,
+            None,
+            Network::Bitcoin,
+        )
+    } else {
+        Address::p2wpkh(&public, Network::Bitcoin).unwrap()
+    };
     let dest = if is_p2wsh {
         Address::from_str(DEST).unwrap()
     } else {
@@ -596,9 +667,13 @@ fn run_ordinary_with_change_mode(
     let mut previous_txs = vec![funding_transaction(input.script_pubkey(), 6000)];
     let mut sources = vec![input.clone()];
     if multiple_inputs {
-        let nested = Address::p2shwpkh(&public, Network::Bitcoin).unwrap();
-        previous_txs.push(funding_transaction(nested.script_pubkey(), 2_600));
-        sources.push(nested);
+        let second = if matches!(proof_case, ProofCase::MixedWalletInputs) {
+            Address::p2shwpkh(&public, Network::Bitcoin).unwrap()
+        } else {
+            input.clone()
+        };
+        previous_txs.push(funding_transaction(second.script_pubkey(), 2_600));
+        sources.push(second);
     }
     let mut outputs = vec![TxOut {
         value: 5000,
@@ -626,7 +701,11 @@ fn run_ordinary_with_change_mode(
         output: outputs,
     };
     let mut signatures = Vec::new();
-    let script_code = input.script_pubkey().p2wpkh_script_code().unwrap();
+    let script_code = Address::p2wpkh(&public, Network::Bitcoin)
+        .unwrap()
+        .script_pubkey()
+        .p2wpkh_script_code()
+        .unwrap();
     for (index, previous_tx) in previous_txs.iter().enumerate() {
         let sighash = SighashCache::new(&tx)
             .segwit_signature_hash(
@@ -662,6 +741,11 @@ fn run_ordinary_with_change_mode(
             0x43 => format!("{}{}9000", hex::encode(uncompressed), "00".repeat(32)),
             0x53 => proof_response(&bytes, proof_case, &mut proof_index),
             0x41 => "9000".to_string(),
+            0x56 => {
+                assert_eq!(timeout, if taproot_change { 120 } else { 20 });
+                "9000".to_owned()
+            }
+            0x40 => format!("40{}9000", "01".repeat(64)),
             0x54 => {
                 let expected_timeout = if bytes[3] == 2 { 120 } else { 20 };
                 assert_eq!(timeout, expected_timeout);
@@ -701,7 +785,14 @@ fn run_ordinary_with_change_mode(
                     + u64::from(matches!(proof_case, ProofCase::MismatchedOutput)),
                 address: source.to_string(),
                 script_pubkey: hex::encode(source.script_pubkey().as_bytes()),
-                derive_path: format!("{}/0/0", ACCOUNT),
+                derive_path: format!(
+                    "{}/0/0",
+                    if taproot_change {
+                        TAPROOT_ACCOUNT
+                    } else {
+                        ACCOUNT
+                    },
+                ),
                 sequence: 0xffffffff,
             })
             .collect(),
@@ -835,7 +926,7 @@ fn each_input_receipt_is_returned_on_native_and_nested_segwit_signatures() {
     assert!(!finalized.input[1].script_sig.is_empty());
     assert_matching_receipts(&trace, &unsigned);
 
-    let (result, trace, _) = run_ordinary("1.6.13", false, ProofCase::Valid, true);
+    let (result, trace, _) = run_ordinary("1.6.13", false, ProofCase::MixedWalletInputs, true);
     let signed: Transaction =
         deserialize(&hex::decode(result.unwrap().signature).unwrap()).unwrap();
     assert!(signed.input[0].script_sig.is_empty());
@@ -863,7 +954,28 @@ fn assert_change_hints(trace: &[Vec<u8>], preview_ins: u8, candidates: &[(u8, &s
         .iter()
         .position(|apdu| apdu[1] == preview_ins)
         .unwrap();
-    let hints = &trace[proof_end + 1..preview];
+    let commands = &trace[proof_end + 1..preview];
+    let wallet_count = commands.iter().take_while(|apdu| apdu[1] == 0x56).count();
+    let input_count = trace
+        .iter()
+        .filter(|apdu| apdu[1] == 0x53 && apdu[2] == 0)
+        .count();
+    assert_eq!(
+        wallet_count,
+        if candidates.is_empty() {
+            0
+        } else {
+            input_count
+        }
+    );
+    for (index, command) in commands[..wallet_count].iter().enumerate() {
+        assert_eq!(command[..4], [0x80, 0x56, index as u8, 0]);
+        let raw = extract_signed_body(command);
+        assert_eq!(raw[..2], [index as u8, 0]);
+        assert!(raw[2..].starts_with(ACCOUNT.as_bytes()));
+        assert_host_signature(command);
+    }
+    let hints = &commands[wallet_count..];
     assert_eq!(hints.len(), candidates.len() + 1);
     for (apdu, (index, path)) in hints.iter().zip(candidates) {
         assert_eq!(&apdu[..4], &[0x80, 0x54, *index, 0]);
@@ -1388,7 +1500,14 @@ fn ordinary_and_psbt_taproot_change_require_device_tweak_command() {
 
     for (trace, review) in [(&ordinary, 0x41), (&psbt, 0x52)] {
         let candidate = trace.iter().position(|a| a[1..4] == [0x54, 1, 2]).unwrap();
-        assert!(candidate > trace.iter().rposition(|a| a[1] == 0x53).unwrap());
+        let first = trace.iter().rposition(|a| a[1] == 0x53).unwrap() + 1;
+        assert_eq!(trace[first][1..4], [0x56, 0, 0]);
+        assert_eq!(&extract_signed_body(&trace[first])[2..], b"m/86'/0'/0'/0/0");
+        assert_host_signature(&trace[first]);
+        assert_eq!(
+            candidate,
+            trace.iter().rposition(|a| a[1] == 0x56).unwrap() + 1
+        );
         assert_eq!(trace[candidate + 1][1..4], [0x54, 0xff, 0x80]);
         assert!(candidate < trace.iter().position(|a| a[1] == review).unwrap());
         assert_eq!(
@@ -1410,6 +1529,24 @@ fn ordinary_and_psbt_taproot_change_require_device_tweak_command() {
     assert!(result.is_err());
     assert!(trace.iter().any(|a| a[1..4] == [0x54, 1, 2]));
     assert!(!trace.iter().any(|a| [0x52, 0x32].contains(&a[1])));
+}
+
+#[test]
+fn mixed_wallet_inputs_keep_actual_change_output_external() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    let (result, ordinary, _) = run_ordinary_with_change_index(
+        "1.6.13",
+        false,
+        ProofCase::MixedWalletInputs,
+        true,
+        Some(19),
+    );
+    assert!(result.is_ok(), "{:?}", result.err());
+    assert_change_hints(&ordinary, 0x41, &[]);
+
+    let (result, psbt, _, _, _) = run_case("1.6.13", false, 1, false, ProofCase::Valid, true);
+    assert!(result.is_ok(), "{:?}", result.err());
+    assert_change_hints(&psbt, 0x52, &[]);
 }
 
 #[test]
@@ -1443,4 +1580,266 @@ fn invalid_multisig_partial_signature_cannot_trigger_autofinalization() {
     assert!(result.inputs[0].final_script_witness.is_none());
     assert_eq!(result.inputs[0].partial_sigs.len(), 2);
     assert!(result.inputs[1].final_script_witness.is_some());
+}
+
+#[test]
+fn multisig_partial_second_round_preserves_metadata_and_skips_verified_final_input() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    use bitcoin::util::psbt::raw::Key;
+    let mut fixture = wallet_fixture(true, MultisigCase::Complete, true);
+    let valid_other_signature = fixture.psbt.inputs[0].partial_sigs.clone();
+    let wrong_signature = *fixture.psbt.inputs[1].partial_sigs.values().next().unwrap();
+    *fixture.psbt.inputs[0]
+        .partial_sigs
+        .values_mut()
+        .next()
+        .unwrap() = wrong_signature;
+    let unknown = Key {
+        type_value: 0xA2,
+        key: vec![1],
+    };
+    for input in &mut fixture.psbt.inputs {
+        input.unknown.insert(unknown.clone(), vec![2, 3]);
+    }
+
+    let (first, _) = run_multisig_psbt(&fixture, MultisigCase::Complete);
+    let first: Psbt = deserialize(&hex::decode(first.unwrap().psbt).unwrap()).unwrap();
+    assert!(first.inputs[0].final_script_witness.is_none());
+    assert!(first.inputs[1].witness_script.is_none());
+    let final_witness = first.inputs[1].final_script_witness.clone();
+    assert!(final_witness.is_some());
+    assert_eq!(first.inputs[1].unknown.get(&unknown), Some(&vec![2, 3]));
+
+    fixture.psbt = first;
+    fixture.psbt.inputs[0]
+        .partial_sigs
+        .extend(valid_other_signature);
+    let (second, trace) = run_multisig_psbt(&fixture, MultisigCase::Complete);
+    let second: Psbt = deserialize(&hex::decode(second.unwrap().psbt).unwrap()).unwrap();
+    let signatures: Vec<_> = trace.iter().filter(|apdu| apdu[1] == 0x32).collect();
+    assert_eq!(signatures.len(), 1);
+    assert_eq!(
+        signatures[0][2], 0x80,
+        "last pending signature closes the session"
+    );
+    assert!(second.inputs[0].final_script_witness.is_some());
+    assert_eq!(second.inputs[1].final_script_witness, final_witness);
+    assert_eq!(second.inputs[0].unknown.get(&unknown), Some(&vec![2, 3]));
+}
+
+#[test]
+fn incomplete_multisig_final_fields_are_rejected_before_authorization() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    let mut fixture = wallet_fixture(true, MultisigCase::Complete, false);
+    let redeem = fixture.psbt.inputs[0].redeem_script.as_ref().unwrap();
+    fixture.psbt.inputs[0].final_script_sig = Some(
+        bitcoin::blockdata::script::Builder::new()
+            .push_slice(redeem.as_bytes())
+            .into_script(),
+    );
+    let (result, trace) = run_multisig_psbt(&fixture, MultisigCase::Complete);
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("psbt_invalid_final_multisig_input"));
+    assert!(!trace.iter().any(|apdu| [0x52, 0x32].contains(&apdu[1])));
+}
+
+#[test]
+fn invalid_device_multisig_signature_is_not_stored() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    let mut fixture = wallet_fixture(false, MultisigCase::Complete, false);
+    fixture.applet_signature.swap(0, 1);
+    let (result, trace) = run_multisig_psbt(&fixture, MultisigCase::Complete);
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("psbt_invalid_device_multisig_signature"));
+    assert_eq!(trace.iter().filter(|apdu| apdu[1] == 0x32).count(), 1);
+}
+
+#[test]
+fn taproot_key_and_script_spends_use_each_inputs_own_psbt_fields() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    for (script_first, auto_finalize) in [(true, false), (false, true)] {
+        mixed_taproot_spend(script_first, auto_finalize);
+    }
+}
+
+fn mixed_taproot_spend(script_first: bool, auto_finalize: bool) {
+    use bitcoin::blockdata::{opcodes::all::OP_CHECKSIG, script::Builder};
+    use bitcoin::util::{
+        bip32::DerivationPath,
+        schnorr::TapTweak,
+        sighash::Prevouts,
+        taproot::{LeafVersion, TapLeafHash, TaprootBuilder},
+    };
+    use bitcoin::SchnorrSighashType;
+    use secp256k1::{KeyPair, XOnlyPublicKey};
+
+    let secp = Secp256k1::new();
+    let keypair =
+        |byte: u8| KeyPair::from_secret_key(&secp, &SecretKey::from_slice(&[byte; 32]).unwrap());
+    let key_pair = keypair(1);
+    let script_pair = keypair(2);
+    let key = XOnlyPublicKey::from_keypair(&key_pair).0;
+    let script_key = XOnlyPublicKey::from_keypair(&script_pair).0;
+    let internal = XOnlyPublicKey::from_keypair(&keypair(3)).0;
+    let leaf_script = Builder::new()
+        .push_slice(&script_key.serialize())
+        .push_opcode(OP_CHECKSIG)
+        .into_script();
+    let leaf_hash = TapLeafHash::from_script(&leaf_script, LeafVersion::TapScript);
+    let tree = TaprootBuilder::new()
+        .add_leaf(0, leaf_script.clone())
+        .unwrap()
+        .finalize(&secp, internal)
+        .unwrap();
+    let control = tree
+        .control_block(&(leaf_script.clone(), LeafVersion::TapScript))
+        .unwrap();
+    let is_script = [script_first, !script_first];
+    let funding: Vec<_> = is_script
+        .iter()
+        .map(|script| {
+            let output = if *script {
+                Script::new_v1_p2tr_tweaked(tree.output_key())
+            } else {
+                Script::new_v1_p2tr(&secp, key, None)
+            };
+            funding_transaction(output, 10_000)
+        })
+        .collect();
+    let unsigned = Transaction {
+        version: 2,
+        lock_time: PackedLockTime::ZERO,
+        input: funding
+            .iter()
+            .map(|tx| TxIn {
+                previous_output: OutPoint {
+                    txid: tx.txid(),
+                    vout: 2,
+                },
+                sequence: Sequence::MAX,
+                ..TxIn::default()
+            })
+            .collect(),
+        output: vec![TxOut {
+            value: 19_000,
+            script_pubkey: Address::from_str(DEST).unwrap().script_pubkey(),
+        }],
+    };
+    let prevouts: Vec<_> = funding.iter().map(|tx| tx.output[2].clone()).collect();
+    let prevouts = Prevouts::All(&prevouts);
+    let mut cache = SighashCache::new(&unsigned);
+    let mut signatures = Vec::new();
+    let mut keys = Vec::new();
+    let mut psbt = Psbt::from_unsigned_tx(unsigned.clone()).unwrap();
+    for (index, (input, script)) in psbt.inputs.iter_mut().zip(is_script).enumerate() {
+        input.non_witness_utxo = Some(funding[index].clone());
+        let path = DerivationPath::from_str(&format!("{}/0/{}", TAPROOT_ACCOUNT, index)).unwrap();
+        let hash_type = SchnorrSighashType::Default;
+        let (hash, pair) = if script {
+            input.tap_scripts.insert(
+                control.clone(),
+                (leaf_script.clone(), LeafVersion::TapScript),
+            );
+            input
+                .tap_key_origins
+                .insert(script_key, (vec![leaf_hash], (Default::default(), path)));
+            keys.push(script_pair.public_key().serialize_uncompressed());
+            (
+                cache
+                    .taproot_script_spend_signature_hash(index, &prevouts, leaf_hash, hash_type)
+                    .unwrap(),
+                script_pair,
+            )
+        } else {
+            input.tap_internal_key = Some(key);
+            input
+                .tap_key_origins
+                .insert(key, (vec![], (Default::default(), path)));
+            keys.push(key_pair.public_key().serialize_uncompressed());
+            (
+                cache
+                    .taproot_key_spend_signature_hash(index, &prevouts, hash_type)
+                    .unwrap(),
+                key_pair.tap_tweak(&secp, None).to_inner(),
+            )
+        };
+        signatures
+            .push(secp.sign_schnorr_no_aux_rand(&Message::from_slice(&hash[..]).unwrap(), &pair));
+    }
+
+    let recorded = Arc::new(Mutex::new(Vec::new()));
+    let captured = Arc::clone(&recorded);
+    let mut key_index = 0;
+    let mut proof_index = 0;
+    KEY_MANAGER.lock().pri_key = vec![2; 32];
+    ikc_transport::p2wsh_test_mock::install(Box::new(move |apdu, _| {
+        let bytes = hex::decode(apdu)?;
+        if bytes[..2] == [0, 0xa4] {
+            return Ok(
+                if bytes.len() > 5 && bytes[5..] == [0x69, 0x5f, 0x62, 0x74, 0x63, 0] {
+                    "312e362e31339000".to_owned()
+                } else {
+                    "9000".to_owned()
+                },
+            );
+        }
+        match bytes[1] {
+            0x43 => {
+                let key = keys[key_index];
+                key_index += 1;
+                Ok(format!("{}{}9000", hex::encode(key), "00".repeat(32)))
+            }
+            0x53 => Ok(proof_response(&bytes, ProofCase::Valid, &mut proof_index)),
+            0x54 | 0x52 => Ok("9000".to_owned()),
+            0x40 => {
+                let body = &bytes[5..5 + bytes[4] as usize];
+                let index = u32::from_le_bytes(body[7..11].try_into().unwrap()) as usize;
+                assert_eq!(body[6], if is_script[index] { 2 } else { 0 });
+                assert_eq!(bytes[3], if is_script[index] { 0x80 } else { 0 });
+                if is_script[index] {
+                    assert_eq!(body[11], 37);
+                    assert_eq!(&body[12..44], &leaf_hash[..]);
+                    assert_eq!(
+                        body.len(),
+                        50 + body[49] as usize,
+                        "only one path block follows leaf metadata"
+                    );
+                }
+                captured.lock().unwrap().push(index);
+                Ok(format!("40{}9000", hex::encode(signatures[index].as_ref())))
+            }
+            opcode => Err(anyhow::anyhow!("unexpected Taproot APDU {opcode:#x}")),
+        }
+    }));
+    let response = coin_bitcoin::psbt::sign_psbt(
+        TAPROOT_ACCOUNT,
+        PsbtInput {
+            psbt: hex::encode(serialize(&psbt)),
+            auto_finalize,
+        },
+        Network::Bitcoin,
+    );
+    ikc_transport::p2wsh_test_mock::clear();
+    KEY_MANAGER.lock().pri_key.clear();
+    let signed: Psbt = deserialize(&hex::decode(response.unwrap().psbt).unwrap()).unwrap();
+    assert_eq!(*recorded.lock().unwrap(), vec![0, 1]);
+    for (input, script) in signed.inputs.iter().zip(is_script) {
+        if auto_finalize {
+            assert_eq!(
+                input.final_script_witness.as_ref().unwrap().len(),
+                if script { 3 } else { 1 }
+            );
+            assert!(input.tap_key_sig.is_none() && input.tap_script_sigs.is_empty());
+        } else if script {
+            assert!(input.tap_script_sigs.contains_key(&(script_key, leaf_hash)));
+            assert!(input.tap_key_sig.is_none());
+        } else {
+            assert!(input.tap_key_sig.is_some());
+            assert!(input.tap_script_sigs.is_empty());
+        }
+    }
 }
