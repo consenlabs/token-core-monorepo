@@ -103,6 +103,16 @@ impl BtcTransaction {
         }
 
         let is_bitcoin = self.chain_type.eq_ignore_ascii_case("BITCOIN");
+        if self.chain_type.eq_ignore_ascii_case("DOGECOIN") {
+            if !seg_wit.is_empty() && !seg_wit.eq_ignore_ascii_case("NONE") {
+                return Err(CoinError::InvalidUtxo.into());
+            }
+            for utxo in &self.unspents {
+                if !Script::from_str(&utxo.script_pubkey)?.is_p2pkh() {
+                    return Err(CoinError::InvalidUtxo.into());
+                }
+            }
+        }
         if !is_bitcoin && self.get_total_amount() < self.amount {
             return Err(CoinError::ImkeyInsufficientFunds.into());
         }
@@ -482,11 +492,7 @@ impl BtcTransaction {
         let script = script.p2wpkh_script_code().expect("must be v0_p2wpkh");
         data.extend(serialize(&script).iter());
         //amount
-        let mut utxo_amount = num_bigint::BigInt::from(unspent.amount).to_signed_bytes_le();
-        while utxo_amount.len() < 8 {
-            utxo_amount.push(0x00);
-        }
-        data.extend(utxo_amount.iter());
+        data.extend(unspent.amount.to_le_bytes());
         //set sequence
         data.extend(hex::decode("FFFFFFFF").unwrap());
         //set length
@@ -552,11 +558,7 @@ impl BtcTransaction {
             .expect("must be v0_p2wpkh");
         data.extend(serialize(&script).iter());
         //amount
-        let mut utxo_amount = num_bigint::BigInt::from(unspent.amount).to_signed_bytes_le();
-        while utxo_amount.len() < 8 {
-            utxo_amount.push(0x00);
-        }
-        data.extend(utxo_amount.iter());
+        data.extend(unspent.amount.to_le_bytes());
         //set sequence
         data.extend(hex::decode("FFFFFFFF").unwrap());
         //set length
@@ -900,14 +902,13 @@ impl BtcTransaction {
 mod tests {
     use crate::transaction::{BtcTransaction, Utxo};
     use bitcoin::psbt::serialize::Deserialize;
-    use bitcoin::{Address, Network, Transaction};
+    use bitcoin::Transaction;
     use bitcoin_hashes::hex::ToHex;
     use hex::FromHex;
     use ikc_common::utility::hex_to_bytes;
     use ikc_device::device_binding::bind_test;
     use secp256k1::schnorr::Signature;
     use secp256k1::{Message, Secp256k1, XOnlyPublicKey};
-    use std::str::FromStr;
 
     #[test]
     fn test_sign_p2pkh() {
@@ -988,7 +989,7 @@ mod tests {
     fn test_sign_p2wpkh() {
         bind_test();
 
-        let extra_data = Vec::from_hex("1234").unwrap();
+        let _extra_data = Vec::from_hex("1234").unwrap();
         let utxos = vec![
             Utxo {
                 txhash: "c2ceb5088cf39b677705526065667a3992c68cc18593a9af12607e057672717f"

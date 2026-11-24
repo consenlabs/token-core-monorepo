@@ -257,3 +257,107 @@ fn bip137_transmits_original_message_and_has_no_legacy_fallback() {
         assert_eq!(&payload[path_end + 2..], message.as_bytes());
     }
 }
+
+#[test]
+fn bip137_normalizes_uppercase_and_h_hardened_derivation_paths() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    let (secret, _, trace) = setup();
+    let capture = trace.clone();
+    let signature = Secp256k1::new().sign_ecdsa(&Message::from_slice(&[1; 32]).unwrap(), &secret);
+    ikc_transport::p2wsh_test_mock::install(Box::new(move |apdu, _| {
+        let bytes = hex::decode(apdu)?;
+        capture.lock().unwrap().push(bytes.clone());
+        Ok(match bytes[1] {
+            0xA4 => format!("{}9000", hex::encode("1.6.13")),
+            0x58 => format!("00{}009000", hex::encode(signature.serialize_compact())),
+            other => return Err(anyhow::anyhow!("unexpected message APDU {other:02x}")),
+        })
+    }));
+    let singer = MessageSinger {
+        derivation_path: "M/84H/0h/0'".to_owned(),
+        chain_type: "BITCOIN".to_owned(),
+        network: "MAINNET".to_owned(),
+        seg_wit: "VERSION_0".to_owned(),
+    };
+    let result = singer.sign_message(BtcMessageInput {
+        message: "hello".to_owned(),
+        signature_type: BtcSignatureType::Bip137 as i32,
+    });
+    ikc_transport::p2wsh_test_mock::clear();
+    KEY_MANAGER.lock().pri_key.clear();
+    assert!(result.is_ok());
+    let trace = trace.lock().unwrap();
+    let command = trace.iter().find(|cmd| cmd[1] == 0x58).unwrap();
+    let payload = command_body(command);
+    let path_end = 1 + payload[0] as usize;
+    assert_eq!(&payload[1..path_end], b"m/84'/0'/0'/0/0");
+}
+
+#[test]
+fn dogecoin_legacy_signs_and_segwit_is_rejected_on_btc_applet_1_6_13() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    for (segwit, path, source_addr, to_addr, script_hex, segwit_flag) in [
+        (
+            false,
+            "m/44'/3'/0'/0/0",
+            "D596YFweJQuHY1BbjazZYmAbt8jJPbKehC",
+            "D6hLULEGDRbk86j58t5iWmeinqM6acA16V",
+            "76a914000000000000000000000000000000000000000088ac",
+            "NONE",
+        ),
+        (
+            true,
+            "m/49'/3'/0'/0/0",
+            "9rSGfPZLcyCGzY4uYEL1fkzJr6fkicS2rs",
+            "9rSGfPZLcyCGzY4uYEL1fkzJr6fkicS2rs",
+            "a914000000000000000000000000000000000000000087",
+            "P2WPKH",
+        ),
+    ] {
+        let (secret, public, trace) = setup();
+        let capture = trace.clone();
+        let key = public.inner.serialize_uncompressed();
+        let signature =
+            Secp256k1::new().sign_ecdsa(&Message::from_slice(&[7; 32]).unwrap(), &secret);
+        ikc_transport::p2wsh_test_mock::install(Box::new(move |apdu, _| {
+            let bytes = hex::decode(apdu)?;
+            capture.lock().unwrap().push(bytes.clone());
+            Ok(match bytes[1] {
+                0xA4 => format!("{}9000", hex::encode("1.6.13")),
+                0x43 => format!("{}{}9000", hex::encode(key), "00".repeat(32)),
+                0x4E | 0x46 => "9000".to_owned(),
+                0x45 => format!("00{}009000", hex::encode(signature.serialize_compact())),
+                other => return Err(anyhow::anyhow!("unexpected DOGE APDU {other:02x}")),
+            })
+        }));
+        let tx = BtcTransaction {
+            to: to_addr.to_owned(),
+            amount: 5_000,
+            fee: 1_000,
+            unspents: vec![Utxo {
+                txhash: "11".repeat(32),
+                vout: 0,
+                amount: 6_000,
+                address: source_addr.to_owned(),
+                script_pubkey: script_hex.to_owned(),
+                derive_path: path.to_owned(),
+                sequence: 0xffffffff,
+            }],
+            chain_type: "DOGECOIN".to_owned(),
+        };
+        let result = tx.sign_transaction("MAINNET", "m/44'/3'/0'", None, None, segwit_flag);
+        ikc_transport::p2wsh_test_mock::clear();
+        KEY_MANAGER.lock().pri_key.clear();
+        let trace = trace.lock().unwrap();
+        let ins: Vec<_> = trace.iter().map(|cmd| cmd[1]).collect();
+        if segwit {
+            assert!(result.is_err(), "DOGE SegWit must be rejected");
+            assert!(ins.is_empty(), "DOGE SegWit must fail before sending APDUs: {ins:02x?}");
+        } else {
+            assert!(result.is_ok(), "DOGE legacy failed: {:?}", result.err());
+            assert!(ins.contains(&0x4E), "DOGE must use 0x4E preview");
+            assert!(ins.contains(&0x45), "DOGE legacy must sign via 0x45");
+            assert!(!ins.contains(&0x32), "DOGE must never call 0x32");
+        }
+    }
+}

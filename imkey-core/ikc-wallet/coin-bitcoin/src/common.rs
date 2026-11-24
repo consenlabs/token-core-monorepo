@@ -112,6 +112,7 @@ pub fn get_address_version(network: Network, address: &str) -> Result<u8> {
             if address.starts_with('1')
                 || address.starts_with('3')
                 || address.starts_with('D')
+                || address.starts_with('9')
                 || address.starts_with('A')
             {
                 let address_bytes = base58::from(address)?;

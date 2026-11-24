@@ -68,7 +68,12 @@ impl MessageSinger {
     }
 
     fn sign_message_bip137(&self, data: &[u8], is_standard: bool) -> Result<String> {
-        let path = format!("{}/0/0", self.derivation_path);
+        let account_path = self
+            .derivation_path
+            .to_ascii_lowercase()
+            .parse::<bitcoin::util::bip32::DerivationPath>()
+            .map_err(|_| CoinError::ImkeySdkIllegalArgument)?;
+        let path = format!("{}/0/0", account_path);
         let path = path.as_bytes();
         if data.len() > MAX_MESSAGE_BYTES || path.len() + 3 > TRANSACTION_CHUNK_BYTES {
             return Err(CoinError::ImkeySdkIllegalArgument.into());
