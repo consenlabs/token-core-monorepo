@@ -209,6 +209,7 @@ jobs:
         with:
           name: "Release ${{ steps.getversion.outputs.version }}"
           tag_name: "v${{ steps.getversion.outputs.version }}"
+          target_commitish: ${{ steps.sha.outputs.result }}
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
