@@ -29,6 +29,8 @@ use secp256k1::ecdsa::Signature;
 use secp256k1::PublicKey;
 use std::str::FromStr;
 
+const MODERN_APDU_MIN_VERSION: &str = "1.6.00";
+
 //The address version set supported by bitcoin applet versions lower than 1.6.00
 const VALID_ADDRESS_VERSIONS: [u8; 7] = [0, 111, 5, 196, 113, 30, 22];
 
@@ -97,18 +99,13 @@ impl BtcTransaction {
             output,
         };
 
-        // The older transaction code compares version strings lexicographically.
-        // A numerically validated P2WSH version always uses the modern path,
-        // including future versions such as 1.10.0.
-        let hash_version = if is_p2wsh_recipient {
-            "1.6.12"
-        } else {
-            btc_version.as_str()
-        };
-        self.calc_tx_hash(&mut tx_to_sign, hash_version)?;
+        // P2WSH recipients already passed the numeric version check, including
+        // versions such as 1.10.0 that sort below the threshold as strings.
+        let use_modern_apdu = is_p2wsh_recipient || btc_version.as_str() >= MODERN_APDU_MIN_VERSION;
+        self.calc_tx_hash_with_apdu_mode(&mut tx_to_sign, use_modern_apdu)?;
 
         //Compatible with Legacy and Nested Segwit transactions without upgrading btc apples
-        if is_p2wsh_recipient || btc_version.as_str() >= "1.6.00" {
+        if use_modern_apdu {
             self.tx_preview(&tx_to_sign, network)?;
             for (idx, utxo) in self.unspents.iter().enumerate() {
                 let script = Script::from_str(&utxo.script_pubkey)?;
@@ -602,6 +599,14 @@ impl BtcTransaction {
         transaction: &mut Transaction,
         btc_applet_version: &str,
     ) -> Result<()> {
+        self.calc_tx_hash_with_apdu_mode(transaction, btc_applet_version >= MODERN_APDU_MIN_VERSION)
+    }
+
+    fn calc_tx_hash_with_apdu_mode(
+        &self,
+        transaction: &mut Transaction,
+        use_modern_apdu: bool,
+    ) -> Result<()> {
         let mut txhash_vout_vec = vec![];
         let mut sequence_vec = vec![];
         let mut amount_vec = vec![];
@@ -631,7 +636,7 @@ impl BtcTransaction {
             let mut calc_hash_apdu = vec![];
             calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x40, &txhash_vout_vec));
             calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x80, &sequence_vec));
-            if btc_applet_version >= "1.6.00" {
+            if use_modern_apdu {
                 calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x20, &amount_vec));
                 calc_hash_apdu.extend(BtcApdu::btc_prepare(0x31, 0x21, &script_pubkeys_vec));
             }

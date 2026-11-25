@@ -305,7 +305,7 @@ fn ordinary_gate_versions_and_legacy_non_p2wsh() {
     let (old, old_trace, _) = run_ordinary("1.6.11", true);
     assert!(old.is_err());
     assert!(!old_trace.iter().any(|a| [0x31, 0x41, 0x32].contains(&a[1])));
-    for version in ["1.6.12", "1.10.0"] {
+    for version in ["1.6.12", "1.7.0", "1.10.0"] {
         let (result, trace, expected) = run_ordinary(version, true);
         let result = result.unwrap();
         let tx: Transaction = deserialize(&hex::decode(result.signature).unwrap()).unwrap();
