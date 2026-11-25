@@ -135,8 +135,41 @@ pub struct TxSignResult {
 
 #[cfg(test)]
 mod test {
-    use crate::common::get_address_version;
-    use bitcoin::Network;
+    use crate::common::{ensure_p2wsh_version, get_address_version};
+    use bitcoin::{Network, Script};
+
+    #[test]
+    fn p2wsh_version_checks_minimum_and_format() {
+        let script = Script::from(hex::decode(format!("0020{}", "11".repeat(32))).unwrap());
+        for version in [
+            "1.6.11",
+            "1.6.9",
+            "1.6.0",
+            "1.+6.12",
+            "1.6.4294967296",
+            "",
+            "1.6",
+            "1.6.12-extra",
+            "1.6.12.1",
+            "banana",
+        ] {
+            assert_eq!(
+                ensure_p2wsh_version(&script, version)
+                    .unwrap_err()
+                    .to_string(),
+                "upgrade_applet",
+                "{}",
+                version
+            );
+        }
+        for version in ["1.6.12", "1.6.13", "1.7.0", "1.10.0", "2.0.0"] {
+            assert!(
+                ensure_p2wsh_version(&script, version).is_ok(),
+                "{}",
+                version
+            );
+        }
+    }
 
     #[test]
     fn get_address_version_test() {
