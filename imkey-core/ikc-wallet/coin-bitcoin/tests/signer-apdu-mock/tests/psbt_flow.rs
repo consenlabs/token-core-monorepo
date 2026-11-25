@@ -2,11 +2,11 @@
 //! substitute. The substitute cannot open HID or connect to a real device.
 use bitcoin::consensus::{deserialize, serialize};
 use bitcoin::hashes::{sha256d, Hash};
-use bitcoin::psbt::Psbt;
+use bitcoin::psbt::{Psbt, PsbtSighashType};
 use bitcoin::util::sighash::SighashCache;
 use bitcoin::{
     Address, EcdsaSighashType, Network, OutPoint, PackedLockTime, PublicKey, Script, Sequence,
-    Transaction, TxIn, TxOut, Witness,
+    Transaction, TxIn, TxOut, Txid, Witness,
 };
 use coin_bitcoin::btcapi::PsbtInput;
 use ikc_device::device_binding::KEY_MANAGER;
@@ -1842,4 +1842,241 @@ fn mixed_taproot_spend(script_first: bool, auto_finalize: bool) {
             assert!(input.tap_script_sigs.is_empty());
         }
     }
+}
+
+#[test]
+fn psbt_rejects_unsupported_outputs_and_non_all_single_key_sighash_before_proofs() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    let secp = Secp256k1::new();
+    let signing_key = SecretKey::from_slice(&[7; 32]).unwrap();
+    let public = PublicKey::new(secp256k1::PublicKey::from_secret_key(&secp, &signing_key));
+    let input_script = Address::p2wpkh(&public, Network::Bitcoin)
+        .unwrap()
+        .script_pubkey();
+    let funding = Transaction {
+        version: 2,
+        lock_time: PackedLockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::new(Txid::from_slice(&[3; 32]).unwrap(), 0),
+            script_sig: Script::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new(),
+        }],
+        output: vec![TxOut {
+            value: 10_000,
+            script_pubkey: input_script.clone(),
+        }],
+    };
+    let make_psbt = |output_script: Script, sighash: Option<PsbtSighashType>| {
+        let tx = Transaction {
+            version: 2,
+            lock_time: PackedLockTime::ZERO,
+            input: vec![TxIn {
+                previous_output: OutPoint::new(funding.txid(), 0),
+                script_sig: Script::new(),
+                sequence: Sequence::MAX,
+                witness: Witness::new(),
+            }],
+            output: vec![TxOut {
+                value: 8_000,
+                script_pubkey: output_script,
+            }],
+        };
+        let mut psbt = Psbt::from_unsigned_tx(tx).unwrap();
+        psbt.inputs[0].non_witness_utxo = Some(funding.clone());
+        psbt.inputs[0].witness_utxo = Some(funding.output[0].clone());
+        psbt.inputs[0].sighash_type = sighash;
+        psbt
+    };
+
+    // 1. Empty script, P2PK, and witness v2 outputs fail before 0x53 input proofs or 0x52 preview.
+    let mut p2pk = vec![33];
+    p2pk.extend_from_slice(&public.to_bytes());
+    p2pk.push(0xac);
+    let mut witness_v2 = vec![0x52, 0x20];
+    witness_v2.extend_from_slice(&[0x33; 32]);
+    for bad_script in [Script::new(), Script::from(p2pk), Script::from(witness_v2)] {
+        let psbt = make_psbt(bad_script, None);
+        let trace = Arc::new(Mutex::new(Vec::<Vec<u8>>::new()));
+        let capture = Arc::clone(&trace);
+        let uncompressed = public.inner.serialize_uncompressed();
+        KEY_MANAGER.lock().pri_key = vec![2; 32];
+        ikc_transport::p2wsh_test_mock::install(Box::new(move |apdu, _| {
+            let bytes = hex::decode(apdu)?;
+            capture.lock().unwrap().push(bytes.clone());
+            Ok(if bytes[..2] == [0, 0xa4] {
+                if bytes.len() > 5 && bytes[5..] == [0x69, 0x5f, 0x62, 0x74, 0x63, 0] {
+                    "312e362e31339000".to_owned()
+                } else {
+                    "9000".to_owned()
+                }
+            } else if bytes[1] == 0x43 {
+                format!("{}{}9000", hex::encode(uncompressed), "00".repeat(32))
+            } else {
+                return Err(anyhow::anyhow!("unexpected APDU {:02x}", bytes[1]));
+            })
+        }));
+        let err = coin_bitcoin::psbt::sign_psbt(
+            ACCOUNT,
+            PsbtInput {
+                psbt: hex::encode(serialize(&psbt)),
+                auto_finalize: true,
+            },
+            Network::Bitcoin,
+        )
+        .unwrap_err()
+        .to_string();
+        ikc_transport::p2wsh_test_mock::clear();
+        KEY_MANAGER.lock().pri_key.clear();
+        assert!(
+            err.contains("psbt_unsupported_output_script"),
+            "unexpected error: {err}"
+        );
+        assert!(!trace
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|cmd| [0x53, 0x54, 0x52, 0x32, 0x45].contains(&cmd[1])));
+    }
+
+    // 2. Non-SIGHASH_ALL on single-key ECDSA input is rejected before any proofs or signing.
+    let bad_sighash = make_psbt(
+        Address::p2wpkh(&public, Network::Bitcoin)
+            .unwrap()
+            .script_pubkey(),
+        Some(PsbtSighashType::from(EcdsaSighashType::None)),
+    );
+    KEY_MANAGER.lock().pri_key = vec![2; 32];
+    ikc_transport::p2wsh_test_mock::install(Box::new(move |apdu, _| {
+        let bytes = hex::decode(apdu)?;
+        if bytes[..2] == [0, 0xa4] {
+            Ok("9000".to_owned())
+        } else {
+            Err(anyhow::anyhow!("unexpected APDU {:02x}", bytes[1]))
+        }
+    }));
+    let err = coin_bitcoin::psbt::sign_psbt(
+        ACCOUNT,
+        PsbtInput {
+            psbt: hex::encode(serialize(&bad_sighash)),
+            auto_finalize: true,
+        },
+        Network::Bitcoin,
+    )
+    .unwrap_err()
+    .to_string();
+    ikc_transport::p2wsh_test_mock::clear();
+    KEY_MANAGER.lock().pri_key.clear();
+    assert!(
+        err.contains("psbt_unsupported_ecdsa_sighash"),
+        "unexpected error: {err}"
+    );
+}
+
+#[test]
+fn psbt_single_key_selects_matching_derivation_and_rejects_invalid_device_signature() {
+    let _guard = TEST_LOCK.lock().unwrap();
+    let secp = Secp256k1::new();
+    let signing_key = SecretKey::from_slice(&[7; 32]).unwrap();
+    let public = PublicKey::new(secp256k1::PublicKey::from_secret_key(&secp, &signing_key));
+    let other_secret = SecretKey::from_slice(&[2; 32]).unwrap();
+    let other_public = secp256k1::PublicKey::from_secret_key(&secp, &other_secret);
+    let input_script = Address::p2wpkh(&public, Network::Bitcoin)
+        .unwrap()
+        .script_pubkey();
+    let funding = Transaction {
+        version: 2,
+        lock_time: PackedLockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::new(Txid::from_slice(&[4; 32]).unwrap(), 0),
+            script_sig: Script::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new(),
+        }],
+        output: vec![TxOut {
+            value: 10_000,
+            script_pubkey: input_script.clone(),
+        }],
+    };
+    let tx = Transaction {
+        version: 2,
+        lock_time: PackedLockTime::ZERO,
+        input: vec![TxIn {
+            previous_output: OutPoint::new(funding.txid(), 0),
+            script_sig: Script::new(),
+            sequence: Sequence::MAX,
+            witness: Witness::new(),
+        }],
+        output: vec![
+            TxOut {
+                value: 6_000,
+                script_pubkey: Script::new_op_return(&[0xde, 0xad]),
+            },
+            TxOut {
+                value: 3_000,
+                script_pubkey: input_script.clone(),
+            },
+        ],
+    };
+    let mut psbt = Psbt::from_unsigned_tx(tx.clone()).unwrap();
+    psbt.inputs[0].non_witness_utxo = Some(funding.clone());
+    psbt.inputs[0].witness_utxo = Some(funding.output[0].clone());
+    // Insert an unrelated key alongside the actual signer so selection must match prevout.
+    psbt.inputs[0].bip32_derivation.insert(
+        other_public,
+        (Default::default(), "m/84'/0'/9'/0/9".parse().unwrap()),
+    );
+    psbt.inputs[0].bip32_derivation.insert(
+        public.inner,
+        (Default::default(), "m/84'/0'/0'/0/5".parse().unwrap()),
+    );
+
+    let uncompressed = public.inner.serialize_uncompressed();
+    let bad_signature = secp
+        .sign_ecdsa(&Message::from_slice(&[9; 32]).unwrap(), &signing_key)
+        .serialize_compact();
+    let mut proof_index = 0;
+    let asked_paths = Arc::new(Mutex::new(Vec::<String>::new()));
+    let capture_paths = Arc::clone(&asked_paths);
+    KEY_MANAGER.lock().pri_key = vec![2; 32];
+    ikc_transport::p2wsh_test_mock::install(Box::new(move |apdu, _| {
+        let bytes = hex::decode(apdu)?;
+        if bytes[..2] == [0, 0xa4] {
+            return Ok(
+                if bytes.len() > 5 && bytes[5..] == [0x69, 0x5f, 0x62, 0x74, 0x63, 0] {
+                    "312e362e31339000".to_owned()
+                } else {
+                    "9000".to_owned()
+                },
+            );
+        }
+        Ok(match bytes[1] {
+            0x43 => {
+                let path = String::from_utf8(bytes[5..5 + bytes[4] as usize].to_vec())?;
+                capture_paths.lock().unwrap().push(path);
+                format!("{}{}9000", hex::encode(uncompressed), "00".repeat(32))
+            }
+            0x53 => proof_response(&bytes, ProofCase::Valid, &mut proof_index),
+            0x54 | 0x52 => "9000".to_owned(),
+            0x32 => format!("00{}009000", hex::encode(bad_signature)),
+            other => return Err(anyhow::anyhow!("unexpected APDU {:02x}", other)),
+        })
+    }));
+    let err = coin_bitcoin::psbt::sign_psbt(
+        ACCOUNT,
+        PsbtInput {
+            psbt: hex::encode(serialize(&psbt)),
+            auto_finalize: true,
+        },
+        Network::Bitcoin,
+    )
+    .unwrap_err()
+    .to_string();
+    ikc_transport::p2wsh_test_mock::clear();
+    KEY_MANAGER.lock().pri_key.clear();
+    assert_eq!(*asked_paths.lock().unwrap(), vec!["m/84'/0'/0'/0/5"]);
+    assert!(
+        err.contains("psbt_invalid_device_ecdsa_signature"),
+        "invalid device ECDSA signature must be rejected: {err}"
+    );
 }
