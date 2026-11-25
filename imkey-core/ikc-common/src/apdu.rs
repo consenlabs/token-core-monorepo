@@ -657,7 +657,6 @@ impl ApduCheck {
             "F080" => Err(ApduError::ImkeyInMenuPage.into()),
             "F081" => Err(ApduError::ImkeyPinNotVerified.into()),
             "6F01" => Err(ApduError::ImkeyBluetoothChannelError.into()),
-            "6943" => Err(ApduError::ImkeyMnemonicCheckFailed.into()),
             "6944" => Err(ApduError::ImkeyCancelMnemonicCheck.into()),
             _ => Err(anyhow!("imkey_command_execute_fail_{}", response_data)), //Err(ApduError::ImkeyCommandExecuteFail.into())
         }
@@ -992,6 +991,10 @@ mod tests {
         assert!(ApduCheck::check_response("00F080").is_err());
         assert!(ApduCheck::check_response("00F081").is_err());
         assert!(ApduCheck::check_response("006F01").is_err());
+        assert_eq!(
+            ApduCheck::check_response("006943").unwrap_err().to_string(),
+            "imkey_command_execute_fail_6943"
+        );
         assert!(ApduCheck::check_response("000000").is_err());
     }
 }

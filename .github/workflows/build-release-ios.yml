@@ -14,7 +14,7 @@ jobs:
   build:
     name: Build iOS Release
     if: github.event.review.state == 'approved'
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Get the latest commit SHA
         id: sha
@@ -205,11 +205,13 @@ jobs:
           popd
 
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3.0.4
         with:
           name: "Release ${{ steps.getversion.outputs.version }}"
           tag_name: "v${{ steps.getversion.outputs.version }}"
+          target_commitish: ${{ steps.sha.outputs.result }}
           generate_release_notes: true
+          fail_on_unmatched_files: true
           files: |
             ios-ikc-${{ steps.getversion.outputs.version }}.zip
             ios-tcx-${{ steps.getversion.outputs.version }}.zip
