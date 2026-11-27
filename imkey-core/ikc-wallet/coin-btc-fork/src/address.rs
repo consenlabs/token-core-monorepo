@@ -29,13 +29,7 @@ pub struct BtcForkAddress {
 impl BtcForkAddress {
     pub fn get_enc_xpub(network: Network, path: &str) -> Result<String> {
         let xpub = Self::get_xpub(network, path)?;
-        let key = ikc_common::XPUB_COMMON_KEY_128.read();
-        let iv = ikc_common::XPUB_COMMON_IV.read();
-        let key_bytes = hex::decode(&*key)?;
-        let iv_bytes = hex::decode(&*iv)?;
-        let encrypted =
-            ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
-        Ok(base64::encode(&encrypted))
+        ikc_common::utility::encrypt_xpub(&xpub)
     }
 
     /**
@@ -399,9 +393,18 @@ mod test {
 
         let version: Network = Network::Bitcoin;
         let path: &str = "m/44'/2'/0'/0/0";
+        *ikc_common::XPUB_COMMON_KEY_128.write() = "11111111111111111111111111111111".to_owned();
         let get_enc_xpub_result = BtcForkAddress::get_enc_xpub(version, path);
         let enc_xpub = get_enc_xpub_result.ok().unwrap();
-        assert_eq!("qO1zELT4UFoF3jVJ5qeo34HDSZVfDjd7u89H12wqyEQ4K1KEYoNVnBm61RyJevqOhwNKPJGrLp0QkJfJR3eFDKcI9rfvDl6bUXDZ+Kw1e4OzPSOkG8rwhqQnZKb7xd+xJSRRNkhLOMTEu0XutOqvjA==", enc_xpub);
+        assert_eq!(
+            xpub,
+            ikc_common::utility::decrypt_xpub_with_key_iv(
+                &enc_xpub,
+                &ikc_common::XPUB_COMMON_KEY_128.read(),
+                ""
+            )
+            .unwrap()
+        );
     }
 
     #[test]

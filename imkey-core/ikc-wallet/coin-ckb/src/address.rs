@@ -87,13 +87,7 @@ impl CkbAddress {
 
     pub fn get_enc_xpub(network: &str, path: &str) -> Result<String> {
         let xpub = Self::get_xpub(network, path)?;
-        let key = ikc_common::XPUB_COMMON_KEY_128.read();
-        let iv = ikc_common::XPUB_COMMON_IV.read();
-        let key_bytes = hex::decode(&*key)?;
-        let iv_bytes = hex::decode(&*iv)?;
-        let encrypted =
-            ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
-        Ok(base64::encode(&encrypted))
+        ikc_common::utility::encrypt_xpub(&xpub)
     }
 
     pub fn get_xpub(network: &str, path: &str) -> Result<String> {
@@ -253,6 +247,14 @@ mod tests {
         let path: &str = "m/44'/309'/0'";
         let get_enc_xpub_result = CkbAddress::get_enc_xpub("MAINNET", path);
         let enc_xpub = get_enc_xpub_result.ok().unwrap();
-        assert_eq!("xkpmspgDJhDx7nBk/se+P0CRS/fbPKYivQiqocPEdXFIsNLCHy5lZEc59LGLbsFFamWX7j8TUs5ugKynEign+y0hDQIhm3y1PypmU+frhoWckc7vgkdzbd9xGdMTVv7J+JW4Zlenksb8a9UNkRfrJg==", enc_xpub);
+        assert_eq!(
+            xpub,
+            ikc_common::utility::decrypt_xpub_with_key_iv(
+                &enc_xpub,
+                &ikc_common::XPUB_COMMON_KEY_128.read(),
+                ""
+            )
+            .unwrap()
+        );
     }
 }

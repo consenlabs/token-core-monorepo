@@ -580,7 +580,7 @@ mod tests {
             derived_accounts.accounts[0].public_key
         );
         assert_eq!("xpub6D3MqTwuLWB5veAfhDjPu1oHfS6L1imVbf22zQFWJW9EtnSmYYqiGMGkW1MCsT2HmkW872tefMY9deewW6DGd8zE7RcXVv8wKhZnbJeidjT", derived_accounts.accounts[0].extended_public_key);
-        assert_eq!("MwDMFXVWDEuWvBogeW1v/MOMFDnGnnflm2JAPvJaJZO4HXp8fCsWETA7u8MzOW3KaPksglpUHLN3xkDr2QWMEQq0TewFZoZ3KsjmLW0KGMRN7XQKqo/omkSEsPfalVnp9Zxm2lpxVmIacqvlernVSg==", derived_accounts.accounts[0].encrypted_extended_public_key);
+        assert_encrypted_xpub("MwDMFXVWDEuWvBogeW1v/MOMFDnGnnflm2JAPvJaJZO4HXp8fCsWETA7u8MzOW3KaPksglpUHLN3xkDr2QWMEQq0TewFZoZ3KsjmLW0KGMRN7XQKqo/omkSEsPfalVnp9Zxm2lpxVmIacqvlernVSg==", &derived_accounts.accounts[0].encrypted_extended_public_key);
 
         assert_eq!(
             "MQHaFwU3DiWQoz48TqZHtZ4jF7tFDj9yQF",
@@ -591,7 +591,7 @@ mod tests {
             derived_accounts.accounts[1].public_key
         );
         assert_eq!("xpub6DCrE779Ryz387SnYxktBSM6M8Q2G2xTsxK6XSwzwrtRwHyCtREopxRstj35QPdDfZY6XJTPnKWxQJHV35mKAjLHWXKahozqstkccmHvUgG", derived_accounts.accounts[1].extended_public_key);
-        assert_eq!("ZVejk1prSEDaxjlIH9Uk9wZXWW2GX4MqfWQ92Rmulh64ORupkjCfxIZRatgvQGneupHpw31REz+gjt1qOCeundhrpv2IlgIu51EDv5bp9hsEeON1vnKjC2rx+CezkwAOf15cMt59bXZM6fQSeIgJnA==", derived_accounts.accounts[1].encrypted_extended_public_key);
+        assert_encrypted_xpub("ZVejk1prSEDaxjlIH9Uk9wZXWW2GX4MqfWQ92Rmulh64ORupkjCfxIZRatgvQGneupHpw31REz+gjt1qOCeundhrpv2IlgIu51EDv5bp9hsEeON1vnKjC2rx+CezkwAOf15cMt59bXZM6fQSeIgJnA==", &derived_accounts.accounts[1].encrypted_extended_public_key);
 
         assert_eq!(
             "mpke4CzhBTV2dFZpnABT9EN1kPc4vDWZxw",
@@ -602,7 +602,7 @@ mod tests {
             derived_accounts.accounts[2].public_key
         );
         assert_eq!("tpubDCwNET9ErXmBracx3ZBfi6rXQZRjYkpitFe23FAW9M3RcCw4aveNC4SAV5yYrFDjtP3b46eFfv4VtiYP3EXoTZsbnJia2yNznExS8EEcACv", derived_accounts.accounts[2].extended_public_key);
-        assert_eq!("6lm577UNC0reTJjrMYWZm2GBjYqUjKWI1Y8X5hZ3XdSrsvEcjhO/m6bFUu3b21KDWDCe850mbUMi7U0Dx+Bt2ahFczqmgdCA3CnJPz4XUn5aNi/1kQpJSm7x92JJCWA3twQ0BSrg6HV+zYHm7voWKg==", derived_accounts.accounts[2].encrypted_extended_public_key);
+        assert_encrypted_xpub("6lm577UNC0reTJjrMYWZm2GBjYqUjKWI1Y8X5hZ3XdSrsvEcjhO/m6bFUu3b21KDWDCe850mbUMi7U0Dx+Bt2ahFczqmgdCA3CnJPz4XUn5aNi/1kQpJSm7x92JJCWA3twQ0BSrg6HV+zYHm7voWKg==", &derived_accounts.accounts[2].encrypted_extended_public_key);
 
         assert_eq!(
             "TY2uroBeZ5trA9QT96aEWj32XLkAAhQ9R2",
@@ -613,7 +613,7 @@ mod tests {
             derived_accounts.accounts[3].public_key
         );
         assert_eq!("tpubDCxD6k9PreNhSacpfSZ3iErESZnncY1n7qU7e3stZXLPh84xVVt5ERMAqKeefUU8jswx2GpCkQpeYow4xH3PGx2iim6ftPa32GNvTKAtknz", derived_accounts.accounts[3].extended_public_key);
-        assert_eq!("A6SCjz/iYksc/3pnVnMIzXimsQAm2p4EUJ1T6fRYkeHSqtSuBcF7O2Fyt3lYbiD4RoL1wf6VfknDiLdS1mcJyD09kXl5s+fuBaklKAZ2Dh6YuGlPGJqaGnrQ/rsTJ+Adb0ZRO3F3xGadXjiGb3hTSA==", derived_accounts.accounts[3].encrypted_extended_public_key);
+        assert_encrypted_xpub("A6SCjz/iYksc/3pnVnMIzXimsQAm2p4EUJ1T6fRYkeHSqtSuBcF7O2Fyt3lYbiD4RoL1wf6VfknDiLdS1mcJyD09kXl5s+fuBaklKAZ2Dh6YuGlPGJqaGnrQ/rsTJ+Adb0ZRO3F3xGadXjiGb3hTSA==", &derived_accounts.accounts[3].encrypted_extended_public_key);
 
         assert_eq!(
             "ckt1qyqtr684u76tu7r8efkd24hw8922xfvhnazskzdzy6",
@@ -624,7 +624,7 @@ mod tests {
             derived_accounts.accounts[4].public_key
         );
         assert_eq!("tpubDDMZ3uNczagkRgAQBT6vmHFwM6Tc8RwYKU4ufqywmZEUNVfYNNyrVyXgmSpDTVsthVEbEzH5QjhxQPExpjBtVXVWZinpdRjiRGtpXuALuND", derived_accounts.accounts[4].extended_public_key);
-        assert_eq!("VXhh0t5/x2aZJI0mKfkYREXX/VWw7PVEz4Gyf1bj9DS9ETRShdPA519gJMrbw8XJVk/p8X+ixbYras39ITKtl7KOSaE+E2T126r2NAR0gXRWOLIp2rrpnVWerlBkzjkoJ1KOKIPIIYhZYP7kn+tbSQ==", derived_accounts.accounts[4].encrypted_extended_public_key);
+        assert_encrypted_xpub("VXhh0t5/x2aZJI0mKfkYREXX/VWw7PVEz4Gyf1bj9DS9ETRShdPA519gJMrbw8XJVk/p8X+ixbYras39ITKtl7KOSaE+E2T126r2NAR0gXRWOLIp2rrpnVWerlBkzjkoJ1KOKIPIIYhZYP7kn+tbSQ==", &derived_accounts.accounts[4].encrypted_extended_public_key);
 
         assert_eq!(
             "t12i3bop43tprlnymx2c75u6uvlq7iur2rcd7qsey",
@@ -635,7 +635,7 @@ mod tests {
             derived_accounts.accounts[5].public_key
         );
         assert_eq!("tpubDDaEZaaDDmwnZTP6u7m3yTKFgnbSx2uTaxp1hKM5oiVZo6iBB46rWnWpdkpbPxtfdYiyLbyhqgbXRXYff3LfW4rCpYyfpb5pC67CPZdKkZB", derived_accounts.accounts[5].extended_public_key);
-        assert_eq!("PRImz4qL7pDJsEtqNVzVG9llzx+DN1XFbucDahOvyQ9g9yc5HWMdH6jAx4Mc/syseMWHLj9Y17Mfqib3sl88Ddgs3tTXhJq6vWToyXlQ6t9yg/LX1qKzLKcXLD+W0872G5m1urk//YOLIyhPkaLV2g==", derived_accounts.accounts[5].encrypted_extended_public_key);
+        assert_encrypted_xpub("PRImz4qL7pDJsEtqNVzVG9llzx+DN1XFbucDahOvyQ9g9yc5HWMdH6jAx4Mc/syseMWHLj9Y17Mfqib3sl88Ddgs3tTXhJq6vWToyXlQ6t9yg/LX1qKzLKcXLD+W0872G5m1urk//YOLIyhPkaLV2g==", &derived_accounts.accounts[5].encrypted_extended_public_key);
 
         assert_eq!(
             "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992",
@@ -646,7 +646,7 @@ mod tests {
             derived_accounts.accounts[6].public_key
         );
         assert_eq!("xpub6CrWRZY39gj49G1ipdmcVunEnb5RoTGf9o6QnJQp8c4b84V2piN1Rdy1xWVJ4P7VXNx5Ckg6rZcvSNvJtvWz8zs3RkPayHn9vMMuK9ERrFr", derived_accounts.accounts[6].extended_public_key);
-        assert_eq!("rJQ+jO02Yn+Rdfjn5QbStU/2aS0T5zW5HU83JoHLBZHafsr8FSdG7lPV59XAw1LwuUCMCtRBueG1iJ2AsA76PP1zyVzj0LxDIq3iHAOxBdwIZDP5C1sY+RMGwXk+6a2OwmYN/zF/q2SL8D6aeGyD9g==", derived_accounts.accounts[6].encrypted_extended_public_key);
+        assert_encrypted_xpub("rJQ+jO02Yn+Rdfjn5QbStU/2aS0T5zW5HU83JoHLBZHafsr8FSdG7lPV59XAw1LwuUCMCtRBueG1iJ2AsA76PP1zyVzj0LxDIq3iHAOxBdwIZDP5C1sY+RMGwXk+6a2OwmYN/zF/q2SL8D6aeGyD9g==", &derived_accounts.accounts[6].encrypted_extended_public_key);
 
         assert_eq!("", derived_accounts.accounts[7].address);
         assert_eq!(
@@ -654,7 +654,7 @@ mod tests {
             derived_accounts.accounts[7].public_key
         );
         assert_eq!("xpub6CUtvjXi3yjmhjaC2GxjiWE9FbQs1TrtqAgRDhB2gmDBsPzTfwqZ7MvGGYScKiVx8PBNFSmHm4mCnFDCaX23c1nJS4p8ynR2wnGne4qEEX9", derived_accounts.accounts[7].extended_public_key);
-        assert_eq!("jSPl9msMWjfMrj/09dRJ/epEWFnjjNHoOfro8xVrvcmhTnTC0iK+RDXXJ7iI2UpIa3ckFw7g2QGaVgODFQVLrEboEysXX5YMsPczdAUrdKh27vx5A3KMFylw2kVrUmSdoMDID8wlVfqkteyIHED0iQ==", derived_accounts.accounts[7].encrypted_extended_public_key);
+        assert_encrypted_xpub("jSPl9msMWjfMrj/09dRJ/epEWFnjjNHoOfro8xVrvcmhTnTC0iK+RDXXJ7iI2UpIa3ckFw7g2QGaVgODFQVLrEboEysXX5YMsPczdAUrdKh27vx5A3KMFylw2kVrUmSdoMDID8wlVfqkteyIHED0iQ==", &derived_accounts.accounts[7].encrypted_extended_public_key);
 
         assert_eq!(
             "0x6031564e7b2F5cc33737807b2E58DaFF870B590b",
@@ -665,7 +665,7 @@ mod tests {
             derived_accounts.accounts[8].public_key
         );
         assert_eq!("tpubDCvte6zYB6DKMaEy4fwyoXpuExA4ery3Hu6dVSBZeY9Rg57VKFLwNPMfywWtqRFM1Df5gQJTu42RaaNCgVEyngdVfnYRh9Kb1UCoEYojURc", derived_accounts.accounts[8].extended_public_key);
-        assert_eq!("w6s0ZvUoPPSiEi1xDMKy5X9+qwhcX4u3e3LOBosJaOSro2ny9jppDxcczZfrhe29n9H3UkmgNoecq/85xfXkGDtH8PMR9iclK5WrcUtkgjXsBcrR6JF0j58i4W9x3y539vXOsLMifCmUr2RcqknDgw==", derived_accounts.accounts[8].encrypted_extended_public_key);
+        assert_encrypted_xpub("w6s0ZvUoPPSiEi1xDMKy5X9+qwhcX4u3e3LOBosJaOSro2ny9jppDxcczZfrhe29n9H3UkmgNoecq/85xfXkGDtH8PMR9iclK5WrcUtkgjXsBcrR6JF0j58i4W9x3y539vXOsLMifCmUr2RcqknDgw==", &derived_accounts.accounts[8].encrypted_extended_public_key);
 
         assert_eq!(
             "12z6UzsA3tjpaeuvA2Zr9jwx19Azz74D6g",
@@ -676,7 +676,7 @@ mod tests {
             derived_accounts.accounts[9].public_key
         );
         assert_eq!("xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8", derived_accounts.accounts[9].extended_public_key);
-        assert_eq!("BdgvWHN/Uh/K526q/+CdpGwEPZ41SvZHHGSgiSqhFesjErdbo6UnJMIoDOHV94qW8fd2KBW18UG3nTzDwS7a5oArqPtv+2aE9+1bNvCdtYoAx3979N3vbX4Xxn/najTABykXrJDjgpoaXxSo/xTktQ==", derived_accounts.accounts[9].encrypted_extended_public_key);
+        assert_encrypted_xpub("BdgvWHN/Uh/K526q/+CdpGwEPZ41SvZHHGSgiSqhFesjErdbo6UnJMIoDOHV94qW8fd2KBW18UG3nTzDwS7a5oArqPtv+2aE9+1bNvCdtYoAx3979N3vbX4Xxn/najTABykXrJDjgpoaXxSo/xTktQ==", &derived_accounts.accounts[9].encrypted_extended_public_key);
 
         assert_eq!(
             "3JmreiUEKn8P3SyLYmZ7C1YCd4r2nFy3Dp",
@@ -687,7 +687,7 @@ mod tests {
             derived_accounts.accounts[10].public_key
         );
         assert_eq!("xpub6Boii2KSAfEv7EhbBuopXKB2Gshi8kMpTGWyHuY9BHwYA8qPeu7ZYdnnXCuUdednhwyjyK2Z8gJD2AfawgBHp3Kkf2GjBjzEQAyJ3uJ4SuG", derived_accounts.accounts[10].extended_public_key);
-        assert_eq!("CPEZEgxonR02LextSVWxqQmH7zSjfNN44+0KYuTJ4ezARna34lG4YcX7nR5xvSrMhuRv4eI8BG+2h3Zz4523lNPp8Y6pEEtdJHSvTzS/APQYtdpHB3Hye+kQ+D7YuJ7Ps+LxoxFAwpic7a3CS+R+cw==", derived_accounts.accounts[10].encrypted_extended_public_key);
+        assert_encrypted_xpub("CPEZEgxonR02LextSVWxqQmH7zSjfNN44+0KYuTJ4ezARna34lG4YcX7nR5xvSrMhuRv4eI8BG+2h3Zz4523lNPp8Y6pEEtdJHSvTzS/APQYtdpHB3Hye+kQ+D7YuJ7Ps+LxoxFAwpic7a3CS+R+cw==", &derived_accounts.accounts[10].encrypted_extended_public_key);
 
         assert_eq!(
             "Fde6T2hDvbvuQrRizcjPoQNZTxuVSbTp78zwFcxzUb86xXS",
@@ -746,7 +746,7 @@ mod tests {
             derived_accounts.accounts[15].public_key
         );
         assert_eq!("xpub6DCc3LkXWVzLHfCFSvmxmXytMfVnxeQQ3LDiLmHwTojg3p3U6qFmNLqzPijosTwRqeC4j2TqJamUjM44GBVRcdPukxEN94Rac8WndUhfYEK", derived_accounts.accounts[15].extended_public_key);
-        assert_eq!("/zWESZN6UDRR8xZp/+puhlD0WsPheWx1+FILE+g3Ayilu3wk8L7HqErnFoOwFbH2q/VajmUM9nauncSyKs9RyO91oVoKV6Z1xOuS7nUHS3tJZHDbf2grG2Hrcoh2SiZpDycFxEPWpHCfD6cias4vLQ==", derived_accounts.accounts[15].encrypted_extended_public_key);
+        assert_encrypted_xpub("/zWESZN6UDRR8xZp/+puhlD0WsPheWx1+FILE+g3Ayilu3wk8L7HqErnFoOwFbH2q/VajmUM9nauncSyKs9RyO91oVoKV6Z1xOuS7nUHS3tJZHDbf2grG2Hrcoh2SiZpDycFxEPWpHCfD6cias4vLQ==", &derived_accounts.accounts[15].encrypted_extended_public_key);
 
         assert_eq!(
             "mhW3n3x8rvB5MmPXsbYDyfAGs8mhw9GGaW",
@@ -757,7 +757,7 @@ mod tests {
             derived_accounts.accounts[16].public_key
         );
         assert_eq!("tpubDDDcs8o1LaKXKXaPTEVBUZJYTgNAte4xj24MtFCMsfrHku93ZZjy87CGyz93dcocR6x6JHdusHodD9EVcSQuDbmkAWznWZtvyqyMDqS6VK4", derived_accounts.accounts[16].extended_public_key);
-        assert_eq!("KN9qVdfibQ6+qM/gpglypnGYL0A5Wsu/hm7q5QHoAzUNRQUmKOmyQquyka2FNzSEIfBp/3PZemS/uhEEbbpJfSh7mhbKDQfNQHRalWLEXrfZvOk3Aaej7cxtMnm0UdzNQlYlbeCo/E43kcfCnlsKBw==", derived_accounts.accounts[16].encrypted_extended_public_key);
+        assert_encrypted_xpub("KN9qVdfibQ6+qM/gpglypnGYL0A5Wsu/hm7q5QHoAzUNRQUmKOmyQquyka2FNzSEIfBp/3PZemS/uhEEbbpJfSh7mhbKDQfNQHRalWLEXrfZvOk3Aaej7cxtMnm0UdzNQlYlbeCo/E43kcfCnlsKBw==", &derived_accounts.accounts[16].encrypted_extended_public_key);
 
         assert_eq!(
             "2NAL4iTQFwEdjFEbtDuAyoxXTqR4Cd8qtSx",
@@ -768,7 +768,7 @@ mod tests {
             derived_accounts.accounts[17].public_key
         );
         assert_eq!("tpubDCBMEG97swCNP2tSe6nujEWPbzoN88rszu7GeTbHXChRuRW6j7xeh5TcmEzGA9b2VrWeatYRfn8FiMACLY2XhUn3id22sGeTz8ZhounC4Wa", derived_accounts.accounts[17].extended_public_key);
-        assert_eq!("LtJEXs9Hqofmtz+0eVqUcdnrX4Ax41/LFjPXVWr2zg/LSL9mbj09oVo4I8mmID2xm4Q+cCjMfmroYTUFJKJxZQ2jQwmbQP+eVlcFtmKzafaUEen+rbchlWbWRKLzyVFLBNT72I0SjplHi2f5QHKauA==", derived_accounts.accounts[17].encrypted_extended_public_key);
+        assert_encrypted_xpub("LtJEXs9Hqofmtz+0eVqUcdnrX4Ax41/LFjPXVWr2zg/LSL9mbj09oVo4I8mmID2xm4Q+cCjMfmroYTUFJKJxZQ2jQwmbQP+eVlcFtmKzafaUEen+rbchlWbWRKLzyVFLBNT72I0SjplHi2f5QHKauA==", &derived_accounts.accounts[17].encrypted_extended_public_key);
 
         assert_eq!(
             "cosmos1ajz9y0x3wekez7tz2td2j6l2dftn28v26dd992",
@@ -779,7 +779,7 @@ mod tests {
             derived_accounts.accounts[18].public_key
         );
         assert_eq!("tpubDDE8woMirxgWR4CaGpkhhq7c7iB5nqmihRgi8rTxUWpUsM9jtwD6a5drCYa5at4jKHUypLByPfSy8ZQvHnNE2SKLVM8tepSPWJxK59Eegmh", derived_accounts.accounts[18].extended_public_key);
-        assert_eq!("BgtriGuk6ykY4ESnLsjreJCKdGcV/5evGC3/F1afYvIYvNkpdk4bTNf/Bpy3aQCabifcQtoDL6hc+wEFbEJ/xu2pxcmP8Qiu/tU70IlTMUoItYRIOc+qs3cJHOsIPB5jqfnpSNuJWHTEFgPSj8swmw==", derived_accounts.accounts[18].encrypted_extended_public_key);
+        assert_encrypted_xpub("BgtriGuk6ykY4ESnLsjreJCKdGcV/5evGC3/F1afYvIYvNkpdk4bTNf/Bpy3aQCabifcQtoDL6hc+wEFbEJ/xu2pxcmP8Qiu/tU70IlTMUoItYRIOc+qs3cJHOsIPB5jqfnpSNuJWHTEFgPSj8swmw==", &derived_accounts.accounts[18].encrypted_extended_public_key);
 
         assert_eq!("", derived_accounts.accounts[19].address);
         assert_eq!(
@@ -787,7 +787,7 @@ mod tests {
             derived_accounts.accounts[19].public_key
         );
         assert_eq!("tpubDCrXSyMPmFhDyXm3UTwpvRZWaiWWzrMxNoGiaFEB2fy5cgfAkAgeFob6WaXPrDTBvHiGs2HAJAbFURhoyNsHVTEbVfZSfK5GXjsCQ3kYMcy", derived_accounts.accounts[19].extended_public_key);
-        assert_eq!("GmqrouLXtLQX0uCLHClBSkupGErjvRRkcooO0xLJWE04j14KZeadxrAsJD4nqRPxbM99rzybs9FRY2jkqfR1OyEP3XDx7Vmn0iuYt/0y7aLsiAsma3iM5CwaXKuXFM3bFAuBRHUk3Meqhx2F8zmCBQ==", derived_accounts.accounts[19].encrypted_extended_public_key);
+        assert_encrypted_xpub("GmqrouLXtLQX0uCLHClBSkupGErjvRRkcooO0xLJWE04j14KZeadxrAsJD4nqRPxbM99rzybs9FRY2jkqfR1OyEP3XDx7Vmn0iuYt/0y7aLsiAsma3iM5CwaXKuXFM3bFAuBRHUk3Meqhx2F8zmCBQ==", &derived_accounts.accounts[19].encrypted_extended_public_key);
 
         assert_eq!(
             "bc1q05ec6z8df2vlzkxjxfd2xr3veypzm93wqnazr2",
@@ -798,7 +798,7 @@ mod tests {
             derived_accounts.accounts[20].public_key
         );
         assert_eq!("xpub6CKMszasQeidek6fYD7g5N1mwUK3ouX8YHWs47MZyXh62GxsEQsU57NuN6GTS3Mh3bwykHGa14617A6HQoYFDSM9deJvgjDeEJxBYsfJ1bs", derived_accounts.accounts[20].extended_public_key);
-        assert_eq!("lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==", derived_accounts.accounts[20].encrypted_extended_public_key);
+        assert_encrypted_xpub("lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==", &derived_accounts.accounts[20].encrypted_extended_public_key);
 
         assert_eq!(
             "bc1pqvrla5hul9cqdtz60lwwn35zdcx363pyxua0trqnz3wx8hvjxzdsdevceu",
@@ -809,7 +809,7 @@ mod tests {
             derived_accounts.accounts[21].public_key
         );
         assert_eq!("xpub6CHyG1anQPWb9ss5CUeZ7cHnvoxqAZNzJBNx6fpxaWPmybH7YbJMxjp4wFp5gnxqX59hCAAbwbQTVTzAbwJsVYgBw4CYU3eAeCGn2tUajR3", derived_accounts.accounts[21].extended_public_key);
-        assert_eq!("rb+ddXgewhq85D6t5JDIV/+7kbzUF3aQxSvleskiKtQthnJmexw16XzB7hjAcCMY+8ADQ2KGIIELsvxrb1OTwvx8hF5xNzFjntBZPVT/C4WWEmdbcMvgDr+l29kdCKCWyaBh3fJRmxZw3VDlfWzehw==", derived_accounts.accounts[21].encrypted_extended_public_key);
+        assert_encrypted_xpub("rb+ddXgewhq85D6t5JDIV/+7kbzUF3aQxSvleskiKtQthnJmexw16XzB7hjAcCMY+8ADQ2KGIIELsvxrb1OTwvx8hF5xNzFjntBZPVT/C4WWEmdbcMvgDr+l29kdCKCWyaBh3fJRmxZw3VDlfWzehw==", &derived_accounts.accounts[21].encrypted_extended_public_key);
 
         assert_eq!(
             "tb1q05ec6z8df2vlzkxjxfd2xr3veypzm93w24x3ce",
@@ -820,7 +820,7 @@ mod tests {
             derived_accounts.accounts[22].public_key
         );
         assert_eq!("tpubDCgzQEQZ7vg5vYHWzQ6mHHM9GbQhoJ2C5v7AQfQiKSSymZdaJdiZDZ3jc8MExYJvqWUtMrnSY9v3oLatofPV6soShF4ENFsspGYbJq1Hz2f", derived_accounts.accounts[22].extended_public_key);
-        assert_eq!("5nOP+V6SX2jPrrRq8kIHvECIUTy+tClgU92qR5SZSD54cFlfzYDvUjcCu2/RRrUO45S34TcGpU7aj0kuowRWdtTtbzql8kSVK4J0xm30Bv+MsA5zSSAwaPIpoyXbmju4kg2JNknuI7U7lVYG44HEEw==", derived_accounts.accounts[22].encrypted_extended_public_key);
+        assert_encrypted_xpub("5nOP+V6SX2jPrrRq8kIHvECIUTy+tClgU92qR5SZSD54cFlfzYDvUjcCu2/RRrUO45S34TcGpU7aj0kuowRWdtTtbzql8kSVK4J0xm30Bv+MsA5zSSAwaPIpoyXbmju4kg2JNknuI7U7lVYG44HEEw==", &derived_accounts.accounts[22].encrypted_extended_public_key);
 
         assert_eq!(
             "tb1pqvrla5hul9cqdtz60lwwn35zdcx363pyxua0trqnz3wx8hvjxzds636hrn",
@@ -831,7 +831,7 @@ mod tests {
             derived_accounts.accounts[23].public_key
         );
         assert_eq!("tpubDCfbnFQU7fU3Rg3vefdeKXdAFw4V9wt3qoyFTDt6vR9fiswpcp9T7BUuBHtsDHv5JygbojgUUhEWBeUmzoA7Nz8Uzewr9aJQE9sBnsJkNxG", derived_accounts.accounts[23].extended_public_key);
-        assert_eq!("XMpKliPCkntBO51gk2e9O2kNxYcIe64boiJ3yjdiYdGJjbM3GeEUIaJnrNR13mqKLphye+RbzfMnaITZG+qSTYxFT2p6SEoeBUxionjKb9gVJ/AbUkseruRVJ3I8pI0Gefd/KoJe76bFBZhGEXSD2Q==", derived_accounts.accounts[23].encrypted_extended_public_key);
+        assert_encrypted_xpub("XMpKliPCkntBO51gk2e9O2kNxYcIe64boiJ3yjdiYdGJjbM3GeEUIaJnrNR13mqKLphye+RbzfMnaITZG+qSTYxFT2p6SEoeBUxionjKb9gVJ/AbUkseruRVJ3I8pI0Gefd/KoJe76bFBZhGEXSD2Q==", &derived_accounts.accounts[23].encrypted_extended_public_key);
 
         assert_eq!(
             "DQ4tVEqdPWHc1aVBm4Sfwft8XyNRPMEchR",
@@ -842,7 +842,7 @@ mod tests {
             derived_accounts.accounts[24].public_key
         );
         assert_eq!("xpub6CDSaXHQokkKmHHG2kNCFZeirJkcZgRZE97ZZUtViif3SFHSNVAvRpWC3CxeRt2VZetEGCcPTmWEFpKF4NDeeZrMNPQgfUaX5Hkw89kW8qE", derived_accounts.accounts[24].extended_public_key);
-        assert_eq!("xfp4vzRYZmLL7L/3HQZeGxbWkkU5Pr/2MPb2t3NvPiI+t+8SbOof9Vo3tW6B/5JO+Qt4Dud4d+OTS1rbcZ35F8ldMbClq/z/+vaN2PwkiLmF2WrKJofr9BdHbfyLbQeg6LJ02hZ7yVAjP7w5pn2S8w==", derived_accounts.accounts[24].encrypted_extended_public_key);
+        assert_encrypted_xpub("xfp4vzRYZmLL7L/3HQZeGxbWkkU5Pr/2MPb2t3NvPiI+t+8SbOof9Vo3tW6B/5JO+Qt4Dud4d+OTS1rbcZ35F8ldMbClq/z/+vaN2PwkiLmF2WrKJofr9BdHbfyLbQeg6LJ02hZ7yVAjP7w5pn2S8w==", &derived_accounts.accounts[24].encrypted_extended_public_key);
 
         assert_eq!(
             "DAGWiHeAHCTLUTsBEFMWviSkdGeZGveASM",
@@ -853,7 +853,7 @@ mod tests {
             derived_accounts.accounts[25].public_key
         );
         assert_eq!("xpub6CSt8ZdrPg6j9ECzMGGDaKJJDUe8Cfm4xHjVrvL7PyGkBGdog8asBznBaZQiYbRtCdWRUAKGpKcbyUYMUUwgmiNt7mPs1QCUMhyHB6rBURT", derived_accounts.accounts[25].extended_public_key);
-        assert_eq!("aZQFapKlNXVFODnqcTrkYcUdEBOJng0detiaBwO/7yNBWxxukf9/GJOn1dUh4oumFTtHoNNsBxYjYXpMdO7HMksOlOOJUCFNGRvVkiS5W83nAMTTDDbJGlC9ZB0lbm6wC4RYP3uGlg1anIl2BOW+mg==", derived_accounts.accounts[25].encrypted_extended_public_key);
+        assert_encrypted_xpub("aZQFapKlNXVFODnqcTrkYcUdEBOJng0detiaBwO/7yNBWxxukf9/GJOn1dUh4oumFTtHoNNsBxYjYXpMdO7HMksOlOOJUCFNGRvVkiS5W83nAMTTDDbJGlC9ZB0lbm6wC4RYP3uGlg1anIl2BOW+mg==", &derived_accounts.accounts[25].encrypted_extended_public_key);
 
         assert_eq!(
             "1pd2gajgcpr7c5ajgl377sgmqexw5jxqvl305zw2a7aeujf8pun7ksh45tuj",
@@ -864,7 +864,7 @@ mod tests {
             derived_accounts.accounts[26].public_key
         );
         assert_eq!("xpub6CSt8ZdrPg6j9ECzMGGDaKJJDUe8Cfm4xHjVrvL7PyGkBGdog8asBznBaZQiYbRtCdWRUAKGpKcbyUYMUUwgmiNt7mPs1QCUMhyHB6rBURT", derived_accounts.accounts[26].extended_public_key);
-        assert_eq!("aZQFapKlNXVFODnqcTrkYcUdEBOJng0detiaBwO/7yNBWxxukf9/GJOn1dUh4oumFTtHoNNsBxYjYXpMdO7HMksOlOOJUCFNGRvVkiS5W83nAMTTDDbJGlC9ZB0lbm6wC4RYP3uGlg1anIl2BOW+mg==", derived_accounts.accounts[26].encrypted_extended_public_key);
+        assert_encrypted_xpub("aZQFapKlNXVFODnqcTrkYcUdEBOJng0detiaBwO/7yNBWxxukf9/GJOn1dUh4oumFTtHoNNsBxYjYXpMdO7HMksOlOOJUCFNGRvVkiS5W83nAMTTDDbJGlC9ZB0lbm6wC4RYP3uGlg1anIl2BOW+mg==", &derived_accounts.accounts[26].encrypted_extended_public_key);
     }
 
     #[test]
@@ -901,10 +901,7 @@ mod tests {
             "xpub6CZG7sArTpFs5n47cUxtbcVXuq4QfUTykGWL8t8RJdPXvnSnF2VrDwgqjuS7JvJ7DK8B4pnbMxCNtPsbHdPjuFBCcBo81cfMRWcPUXWND3e",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "NgtbCRYto2FQ0yESmBA1NU1djYyJjSVdMq4qW+J1BrGBRAX0PUte5WoNtgmB9/XA+tGrQjkzovKH6WT963PcqJNlyBmAyjeKmL26+zKGa03+ropCiSLHqVZsVR1V/Cq6Ppz3meBvQRglORyZeE+98g==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("NgtbCRYto2FQ0yESmBA1NU1djYyJjSVdMq4qW+J1BrGBRAX0PUte5WoNtgmB9/XA+tGrQjkzovKH6WT963PcqJNlyBmAyjeKmL26+zKGa03+ropCiSLHqVZsVR1V/Cq6Ppz3meBvQRglORyZeE+98g==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "0x80427Ae1f55bCf60ee4CD2db7549b8BC69a74303",
             derived_sub_accounts.accounts[1].address
@@ -933,10 +930,7 @@ mod tests {
             "tpubDCvte6zYB6DKMaEy4fwyoXpuExA4ery3Hu6dVSBZeY9Rg57VKFLwNPMfywWtqRFM1Df5gQJTu42RaaNCgVEyngdVfnYRh9Kb1UCoEYojURc",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "w6s0ZvUoPPSiEi1xDMKy5X9+qwhcX4u3e3LOBosJaOSro2ny9jppDxcczZfrhe29n9H3UkmgNoecq/85xfXkGDtH8PMR9iclK5WrcUtkgjXsBcrR6JF0j58i4W9x3y539vXOsLMifCmUr2RcqknDgw==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("w6s0ZvUoPPSiEi1xDMKy5X9+qwhcX4u3e3LOBosJaOSro2ny9jppDxcczZfrhe29n9H3UkmgNoecq/85xfXkGDtH8PMR9iclK5WrcUtkgjXsBcrR6JF0j58i4W9x3y539vXOsLMifCmUr2RcqknDgw==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "0x80427Ae1f55bCf60ee4CD2db7549b8BC69a74303",
             derived_sub_accounts.accounts[1].address
@@ -981,10 +975,7 @@ mod tests {
             "xpub6D3MqTwuLWB5veAfhDjPu1oHfS6L1imVbf22zQFWJW9EtnSmYYqiGMGkW1MCsT2HmkW872tefMY9deewW6DGd8zE7RcXVv8wKhZnbJeidjT",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "MwDMFXVWDEuWvBogeW1v/MOMFDnGnnflm2JAPvJaJZO4HXp8fCsWETA7u8MzOW3KaPksglpUHLN3xkDr2QWMEQq0TewFZoZ3KsjmLW0KGMRN7XQKqo/omkSEsPfalVnp9Zxm2lpxVmIacqvlernVSg==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("MwDMFXVWDEuWvBogeW1v/MOMFDnGnnflm2JAPvJaJZO4HXp8fCsWETA7u8MzOW3KaPksglpUHLN3xkDr2QWMEQq0TewFZoZ3KsjmLW0KGMRN7XQKqo/omkSEsPfalVnp9Zxm2lpxVmIacqvlernVSg==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "LavE5eHDvw9VDiNifbraR7GyY8MRvcQSLQ",
             derived_sub_accounts.accounts[1].address
@@ -1009,10 +1000,7 @@ mod tests {
             "0x0289ca41680edbc5594ee6378ebd937e42cd6b4b969e40dd82c20ef2a8aa5bad7b",
             derived_sub_accounts.accounts[0].public_key
         );
-        assert_eq!(
-            "MwDMFXVWDEuWvBogeW1v/MOMFDnGnnflm2JAPvJaJZO4HXp8fCsWETA7u8MzOW3KaPksglpUHLN3xkDr2QWMEQq0TewFZoZ3KsjmLW0KGMRN7XQKqo/omkSEsPfalVnp9Zxm2lpxVmIacqvlernVSg==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("MwDMFXVWDEuWvBogeW1v/MOMFDnGnnflm2JAPvJaJZO4HXp8fCsWETA7u8MzOW3KaPksglpUHLN3xkDr2QWMEQq0TewFZoZ3KsjmLW0KGMRN7XQKqo/omkSEsPfalVnp9Zxm2lpxVmIacqvlernVSg==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "MBDVivYGGiXzn2dP9Js3xtVViuQS3dyDwM",
             derived_sub_accounts.accounts[1].address
@@ -1042,10 +1030,7 @@ mod tests {
             "tpubDDQzMhmb3n8YCSMX9QiV6w8ezZBz17GZ9HcLLxJeeQu8e57UcmgoQnwak3RzPwyXZf32icQXCTNCKq9Ytx4WWaSXB2MqBSoAufACMGXurct",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "k4GbrxWCcsrGokCos50O69Wg9reixsDqPHkciU4xeUi9dpICotcOMQSgTgRd7XtGXXjdV/SUuTBkPXNQikqORvvW2CnHNe7+iJsTdHebynq2Y3ZXMFUWt8WJkgB5NotqkjOik89LvJBKYKvnon2B0g==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("k4GbrxWCcsrGokCos50O69Wg9reixsDqPHkciU4xeUi9dpICotcOMQSgTgRd7XtGXXjdV/SUuTBkPXNQikqORvvW2CnHNe7+iJsTdHebynq2Y3ZXMFUWt8WJkgB5NotqkjOik89LvJBKYKvnon2B0g==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "QPvKbnvZxAF1KVk5LfXbqtfnkwTymMf2Xu",
             derived_sub_accounts.accounts[1].address
@@ -1075,10 +1060,7 @@ mod tests {
             "tpubDDQzMhmb3n8YCSMX9QiV6w8ezZBz17GZ9HcLLxJeeQu8e57UcmgoQnwak3RzPwyXZf32icQXCTNCKq9Ytx4WWaSXB2MqBSoAufACMGXurct",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "k4GbrxWCcsrGokCos50O69Wg9reixsDqPHkciU4xeUi9dpICotcOMQSgTgRd7XtGXXjdV/SUuTBkPXNQikqORvvW2CnHNe7+iJsTdHebynq2Y3ZXMFUWt8WJkgB5NotqkjOik89LvJBKYKvnon2B0g==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("k4GbrxWCcsrGokCos50O69Wg9reixsDqPHkciU4xeUi9dpICotcOMQSgTgRd7XtGXXjdV/SUuTBkPXNQikqORvvW2CnHNe7+iJsTdHebynq2Y3ZXMFUWt8WJkgB5NotqkjOik89LvJBKYKvnon2B0g==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "mwDE7V4NfJLgk2ABD2qey1RYBuarjJvT7E",
             derived_sub_accounts.accounts[1].address
@@ -1108,10 +1090,7 @@ mod tests {
             "tpubDDaUkLvq9FwVPude19jyPMgTgFVgFRTXRauPt119HmeKgaduxe5tyQ6i8m7rvtaTTU518syGKRM16Un6RwcZ4Anaa84tPLf5TrM2NkJqcFR",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "uxVleeSObdFyxAmXftrBg/hxO6fZufUues2Lh9IrMD+rdYjvJ7wKeXaa2sBtklP9vKRa8RpDDC4odNghyTNS9Bt5y98GL7rXOknJIdBONKyBpcQ9spRibfge2OYAHzqQ/B409Ja3RqoIh9jezhHEwg==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("uxVleeSObdFyxAmXftrBg/hxO6fZufUues2Lh9IrMD+rdYjvJ7wKeXaa2sBtklP9vKRa8RpDDC4odNghyTNS9Bt5y98GL7rXOknJIdBONKyBpcQ9spRibfge2OYAHzqQ/B409Ja3RqoIh9jezhHEwg==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "mmMJYEkfiUNbSKcBt6oUGLLbNd51PsuD5A",
             derived_sub_accounts.accounts[1].address
@@ -1156,10 +1135,7 @@ mod tests {
             "tpubDCxD6k9PreNhSacpfSZ3iErESZnncY1n7qU7e3stZXLPh84xVVt5ERMAqKeefUU8jswx2GpCkQpeYow4xH3PGx2iim6ftPa32GNvTKAtknz",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "A6SCjz/iYksc/3pnVnMIzXimsQAm2p4EUJ1T6fRYkeHSqtSuBcF7O2Fyt3lYbiD4RoL1wf6VfknDiLdS1mcJyD09kXl5s+fuBaklKAZ2Dh6YuGlPGJqaGnrQ/rsTJ+Adb0ZRO3F3xGadXjiGb3hTSA==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("A6SCjz/iYksc/3pnVnMIzXimsQAm2p4EUJ1T6fRYkeHSqtSuBcF7O2Fyt3lYbiD4RoL1wf6VfknDiLdS1mcJyD09kXl5s+fuBaklKAZ2Dh6YuGlPGJqaGnrQ/rsTJ+Adb0ZRO3F3xGadXjiGb3hTSA==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "TC1nbfByaLWHvK8haEFTkMZJBNxsnKfqKh",
             derived_sub_accounts.accounts[1].address
@@ -1205,10 +1181,7 @@ mod tests {
             "tpubDDMZ3uNczagkRgAQBT6vmHFwM6Tc8RwYKU4ufqywmZEUNVfYNNyrVyXgmSpDTVsthVEbEzH5QjhxQPExpjBtVXVWZinpdRjiRGtpXuALuND",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "VXhh0t5/x2aZJI0mKfkYREXX/VWw7PVEz4Gyf1bj9DS9ETRShdPA519gJMrbw8XJVk/p8X+ixbYras39ITKtl7KOSaE+E2T126r2NAR0gXRWOLIp2rrpnVWerlBkzjkoJ1KOKIPIIYhZYP7kn+tbSQ==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("VXhh0t5/x2aZJI0mKfkYREXX/VWw7PVEz4Gyf1bj9DS9ETRShdPA519gJMrbw8XJVk/p8X+ixbYras39ITKtl7KOSaE+E2T126r2NAR0gXRWOLIp2rrpnVWerlBkzjkoJ1KOKIPIIYhZYP7kn+tbSQ==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "ckt1qyqtg4mjvamq80xvwyv5kf2hqelmxcwpuzfsknt33c",
             derived_sub_accounts.accounts[1].address
@@ -1237,10 +1210,7 @@ mod tests {
             "xpub6CyvXfYwHJjJ9syYjG7qZMva1yMx93SUmqUcKHvoReUadCzqJA8mMXrrXQjRvzveuahgdQmCsdsuiCkMRsLec63DW83Wwu5UqKJQmsonKpo",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "51mAHL9xbvjj1yDQ+MyohjLrWVTT2dkWegGfzoDN09qJ2mvCABLYgzyRTEwfTL7Eygd+KH3DyGp6DwhoVOgj02ISYLmsFysI3sqdEWd+7IId0m9xgym75Gl2nKeoH+WVPKOsPLf+w+cbyXRsnA6/3w==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("51mAHL9xbvjj1yDQ+MyohjLrWVTT2dkWegGfzoDN09qJ2mvCABLYgzyRTEwfTL7Eygd+KH3DyGp6DwhoVOgj02ISYLmsFysI3sqdEWd+7IId0m9xgym75Gl2nKeoH+WVPKOsPLf+w+cbyXRsnA6/3w==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "ckb1qyqtg4mjvamq80xvwyv5kf2hqelmxcwpuzfstk4way",
             derived_sub_accounts.accounts[1].address
@@ -1285,10 +1255,7 @@ mod tests {
             "xpub6DCc3LkXWVzLHfCFSvmxmXytMfVnxeQQ3LDiLmHwTojg3p3U6qFmNLqzPijosTwRqeC4j2TqJamUjM44GBVRcdPukxEN94Rac8WndUhfYEK",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "/zWESZN6UDRR8xZp/+puhlD0WsPheWx1+FILE+g3Ayilu3wk8L7HqErnFoOwFbH2q/VajmUM9nauncSyKs9RyO91oVoKV6Z1xOuS7nUHS3tJZHDbf2grG2Hrcoh2SiZpDycFxEPWpHCfD6cias4vLQ==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("/zWESZN6UDRR8xZp/+puhlD0WsPheWx1+FILE+g3Ayilu3wk8L7HqErnFoOwFbH2q/VajmUM9nauncSyKs9RyO91oVoKV6Z1xOuS7nUHS3tJZHDbf2grG2Hrcoh2SiZpDycFxEPWpHCfD6cias4vLQ==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "f1kozkcmzqvmr2bael2m3pu54fc5gibmissybkxzi",
             derived_sub_accounts.accounts[1].address
@@ -1317,10 +1284,7 @@ mod tests {
             "tpubDDaEZaaDDmwnZTP6u7m3yTKFgnbSx2uTaxp1hKM5oiVZo6iBB46rWnWpdkpbPxtfdYiyLbyhqgbXRXYff3LfW4rCpYyfpb5pC67CPZdKkZB",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "PRImz4qL7pDJsEtqNVzVG9llzx+DN1XFbucDahOvyQ9g9yc5HWMdH6jAx4Mc/syseMWHLj9Y17Mfqib3sl88Ddgs3tTXhJq6vWToyXlQ6t9yg/LX1qKzLKcXLD+W0872G5m1urk//YOLIyhPkaLV2g==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("PRImz4qL7pDJsEtqNVzVG9llzx+DN1XFbucDahOvyQ9g9yc5HWMdH6jAx4Mc/syseMWHLj9Y17Mfqib3sl88Ddgs3tTXhJq6vWToyXlQ6t9yg/LX1qKzLKcXLD+W0872G5m1urk//YOLIyhPkaLV2g==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "t1kozkcmzqvmr2bael2m3pu54fc5gibmissybkxzi",
             derived_sub_accounts.accounts[1].address
@@ -1365,10 +1329,7 @@ mod tests {
             "tpubDDDcs8o1LaKXKXaPTEVBUZJYTgNAte4xj24MtFCMsfrHku93ZZjy87CGyz93dcocR6x6JHdusHodD9EVcSQuDbmkAWznWZtvyqyMDqS6VK4",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "KN9qVdfibQ6+qM/gpglypnGYL0A5Wsu/hm7q5QHoAzUNRQUmKOmyQquyka2FNzSEIfBp/3PZemS/uhEEbbpJfSh7mhbKDQfNQHRalWLEXrfZvOk3Aaej7cxtMnm0UdzNQlYlbeCo/E43kcfCnlsKBw==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("KN9qVdfibQ6+qM/gpglypnGYL0A5Wsu/hm7q5QHoAzUNRQUmKOmyQquyka2FNzSEIfBp/3PZemS/uhEEbbpJfSh7mhbKDQfNQHRalWLEXrfZvOk3Aaej7cxtMnm0UdzNQlYlbeCo/E43kcfCnlsKBw==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "mobyyve7CppjKQGFy9j82P5Eccr4PxHeqS",
             derived_sub_accounts.accounts[1].address
@@ -1400,10 +1361,7 @@ mod tests {
             "tpubDDDcs8o1LaKXKXaPTEVBUZJYTgNAte4xj24MtFCMsfrHku93ZZjy87CGyz93dcocR6x6JHdusHodD9EVcSQuDbmkAWznWZtvyqyMDqS6VK4",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "KN9qVdfibQ6+qM/gpglypnGYL0A5Wsu/hm7q5QHoAzUNRQUmKOmyQquyka2FNzSEIfBp/3PZemS/uhEEbbpJfSh7mhbKDQfNQHRalWLEXrfZvOk3Aaej7cxtMnm0UdzNQlYlbeCo/E43kcfCnlsKBw==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("KN9qVdfibQ6+qM/gpglypnGYL0A5Wsu/hm7q5QHoAzUNRQUmKOmyQquyka2FNzSEIfBp/3PZemS/uhEEbbpJfSh7mhbKDQfNQHRalWLEXrfZvOk3Aaej7cxtMnm0UdzNQlYlbeCo/E43kcfCnlsKBw==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "2NFVTYd5GHvFtC6KcHVRHUkHq5qepoRgtxA",
             derived_sub_accounts.accounts[1].address
@@ -1434,10 +1392,7 @@ mod tests {
             "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "BdgvWHN/Uh/K526q/+CdpGwEPZ41SvZHHGSgiSqhFesjErdbo6UnJMIoDOHV94qW8fd2KBW18UG3nTzDwS7a5oArqPtv+2aE9+1bNvCdtYoAx3979N3vbX4Xxn/najTABykXrJDjgpoaXxSo/xTktQ==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("BdgvWHN/Uh/K526q/+CdpGwEPZ41SvZHHGSgiSqhFesjErdbo6UnJMIoDOHV94qW8fd2KBW18UG3nTzDwS7a5oArqPtv+2aE9+1bNvCdtYoAx3979N3vbX4Xxn/najTABykXrJDjgpoaXxSo/xTktQ==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "1962gsZ8PoPUYHneFakkCTrukdFMVQ4i4T",
             derived_sub_accounts.accounts[1].address
@@ -1468,10 +1423,7 @@ mod tests {
             "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "BdgvWHN/Uh/K526q/+CdpGwEPZ41SvZHHGSgiSqhFesjErdbo6UnJMIoDOHV94qW8fd2KBW18UG3nTzDwS7a5oArqPtv+2aE9+1bNvCdtYoAx3979N3vbX4Xxn/najTABykXrJDjgpoaXxSo/xTktQ==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("BdgvWHN/Uh/K526q/+CdpGwEPZ41SvZHHGSgiSqhFesjErdbo6UnJMIoDOHV94qW8fd2KBW18UG3nTzDwS7a5oArqPtv+2aE9+1bNvCdtYoAx3979N3vbX4Xxn/najTABykXrJDjgpoaXxSo/xTktQ==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "3PwFUt9EgTkXzJh4cMoQroJZsVSf3w65mN",
             derived_sub_accounts.accounts[1].address
@@ -1499,10 +1451,7 @@ mod tests {
             "xpub6Boii2KSAfEv7EhbBuopXKB2Gshi8kMpTGWyHuY9BHwYA8qPeu7ZYdnnXCuUdednhwyjyK2Z8gJD2AfawgBHp3Kkf2GjBjzEQAyJ3uJ4SuG",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "CPEZEgxonR02LextSVWxqQmH7zSjfNN44+0KYuTJ4ezARna34lG4YcX7nR5xvSrMhuRv4eI8BG+2h3Zz4523lNPp8Y6pEEtdJHSvTzS/APQYtdpHB3Hye+kQ+D7YuJ7Ps+LxoxFAwpic7a3CS+R+cw==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("CPEZEgxonR02LextSVWxqQmH7zSjfNN44+0KYuTJ4ezARna34lG4YcX7nR5xvSrMhuRv4eI8BG+2h3Zz4523lNPp8Y6pEEtdJHSvTzS/APQYtdpHB3Hye+kQ+D7YuJ7Ps+LxoxFAwpic7a3CS+R+cw==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "33xJxujVGf4qBmPTnGW9P8wrKCmT7Nwt3t",
             derived_sub_accounts.accounts[1].address
@@ -1534,10 +1483,7 @@ mod tests {
             "xpub6CKMszasQeidek6fYD7g5N1mwUK3ouX8YHWs47MZyXh62GxsEQsU57NuN6GTS3Mh3bwykHGa14617A6HQoYFDSM9deJvgjDeEJxBYsfJ1bs",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "bc1qak0g6t8syjpq36t8z3768sfz7n0uf0lcz7sj8s",
             derived_sub_accounts.accounts[1].address
@@ -1615,10 +1561,7 @@ mod tests {
             "xpub6CqzLtyKdJN53jPY13W6GdyB8ZGWuFZuBPU4Xh9DXm6Q1cULVLtsyfXSjx4G77rNdCRBgi83LByaWxjtDaZfLAKT6vFUq3EhPtNwTpJigx8",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "BdgvWHN/Uh/K526q/+CdpGwEPZ41SvZHHGSgiSqhFesjErdbo6UnJMIoDOHV94qW8fd2KBW18UG3nTzDwS7a5oArqPtv+2aE9+1bNvCdtYoAx3979N3vbX4Xxn/najTABykXrJDjgpoaXxSo/xTktQ==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("BdgvWHN/Uh/K526q/+CdpGwEPZ41SvZHHGSgiSqhFesjErdbo6UnJMIoDOHV94qW8fd2KBW18UG3nTzDwS7a5oArqPtv+2aE9+1bNvCdtYoAx3979N3vbX4Xxn/najTABykXrJDjgpoaXxSo/xTktQ==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "DDE8E8VmhDHm5HyEzAkJkE2Wdkyenc7wCc",
             derived_sub_accounts.accounts[1].address
@@ -1648,10 +1591,7 @@ mod tests {
             "xpub6CKMszasQeidek6fYD7g5N1mwUK3ouX8YHWs47MZyXh62GxsEQsU57NuN6GTS3Mh3bwykHGa14617A6HQoYFDSM9deJvgjDeEJxBYsfJ1bs",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "AEnAz82LcjUDw1iieSxUMofK84raXDRPcV",
             derived_sub_accounts.accounts[1].address
@@ -1677,10 +1617,7 @@ mod tests {
             "xpub6CKMszasQeidek6fYD7g5N1mwUK3ouX8YHWs47MZyXh62GxsEQsU57NuN6GTS3Mh3bwykHGa14617A6HQoYFDSM9deJvgjDeEJxBYsfJ1bs",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "1qak0g6t8syjpq36t8z3768sfz7n0uf0lc4x75yt",
             derived_sub_accounts.accounts[1].address
@@ -1706,10 +1643,7 @@ mod tests {
             "xpub6CKMszasQeidek6fYD7g5N1mwUK3ouX8YHWs47MZyXh62GxsEQsU57NuN6GTS3Mh3bwykHGa14617A6HQoYFDSM9deJvgjDeEJxBYsfJ1bs",
             derived_sub_accounts.accounts[0].extended_public_key
         );
-        assert_eq!(
-            "lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==",
-            derived_sub_accounts.accounts[0].encrypted_extended_public_key
-        );
+        assert_encrypted_xpub("lclQ6y+KR+TfgLnRs457Yq/cX8LWLG5vajoDbXK+2uCu8iP3ARtWpkTatT+DJSXTMWjOQX6wrZ/h9VeFFQSO7ki1HDjfBcRTRd8LKKyxuRJEDI+bLJ4ZNJqMDJTcPGJZ2n0pXZX3+wCzxe7PmS0cpQ==", &derived_sub_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!(
             "1pxlnp964ka353cuws7m3l7eshf38lyh0m2rme2y69n57t4dhlfq2sks3dcl",
             derived_sub_accounts.accounts[1].address
@@ -2061,7 +1995,17 @@ mod tests {
         DeriveSubAccountsResult::decode(ret_bytes.as_slice()).unwrap()
     }
 
+    fn assert_encrypted_xpub(legacy: &str, current: &str) {
+        let key = "B888D25EC8C12BD5043777B1AC49F872";
+        let iv = "9C0C30889CBCC5E01AB5B2BB88715799";
+        let expected = ikc_common::utility::decrypt_xpub_with_key_iv(legacy, key, iv).unwrap();
+        let actual = ikc_common::utility::decrypt_xpub_with_key_iv(current, key, iv).unwrap();
+        assert!(current.starts_with("tcx-aead-v1:"));
+        assert_eq!(actual, expected);
+    }
+
     fn connect_and_bind() {
+        *ikc_common::XPUB_COMMON_KEY_128.write() = "B888D25EC8C12BD5043777B1AC49F872".to_owned();
         assert!(hid_connect("imKey Pro").is_ok());
         let action: ImkeyAction = ImkeyAction {
             method: "bind_check".to_string(),

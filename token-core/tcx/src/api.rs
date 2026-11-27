@@ -559,6 +559,19 @@ pub struct EncryptDataToIpfsParam {
     pub identifier: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub content: ::prost::alloc::string::String,
+    #[prost(oneof = "encrypt_data_to_ipfs_param::Key", tags = "3, 4")]
+    pub key: ::core::option::Option<encrypt_data_to_ipfs_param::Key>,
+}
+/// Nested message and enum types in `EncryptDataToIpfsParam`.
+pub mod encrypt_data_to_ipfs_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "3")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "4")]
+        DerivedKey(::prost::alloc::string::String),
+    }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -575,6 +588,19 @@ pub struct DecryptDataFromIpfsParam {
     pub identifier: ::prost::alloc::string::String,
     #[prost(string, tag = "2")]
     pub encrypted: ::prost::alloc::string::String,
+    #[prost(oneof = "decrypt_data_from_ipfs_param::Key", tags = "3, 4")]
+    pub key: ::core::option::Option<decrypt_data_from_ipfs_param::Key>,
+}
+/// Nested message and enum types in `DecryptDataFromIpfsParam`.
+pub mod decrypt_data_from_ipfs_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "3")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "4")]
+        DerivedKey(::prost::alloc::string::String),
+    }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

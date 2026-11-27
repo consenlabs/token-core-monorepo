@@ -94,6 +94,9 @@ pub unsafe extern "C" fn call_tcx_api(hex_str: *const c_char) -> *const c_char {
         "import_private_key" => landingpad(|| import_private_key(&action.param.unwrap().value)),
         "export_private_key" => landingpad(|| export_private_key(&action.param.unwrap().value)),
         "verify_password" => landingpad(|| verify_password(&action.param.unwrap().value)),
+        "upgrade_keystore_security" => {
+            landingpad(|| handler::upgrade_keystore_security(&action.param.unwrap().value))
+        }
         "delete_keystore" => landingpad(|| delete_keystore(&action.param.unwrap().value)),
         "exists_mnemonic" => landingpad(|| exists_mnemonic(&action.param.unwrap().value)),
         "exists_private_key" => landingpad(|| exists_private_key(&action.param.unwrap().value)),

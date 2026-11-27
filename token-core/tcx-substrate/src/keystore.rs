@@ -1,7 +1,6 @@
 use crate::SubstrateAddress;
 use rand::Rng;
 use serde::{de, Deserialize, Deserializer, Serialize};
-use std::convert::TryInto;
 use tcx_keystore::{tcx_ensure, Address};
 
 use anyhow::anyhow;
@@ -120,24 +119,28 @@ fn u32_to_bytes(num: u32) -> Vec<u8> {
     wtr
 }
 
-fn bytes_to_u32(bytes: &[u8]) -> u32 {
+fn bytes_to_u32(bytes: &[u8]) -> Result<u32> {
     let mut rdr = Cursor::new(bytes);
-    rdr.read_u32::<LittleEndian>().unwrap()
+    rdr.read_u32::<LittleEndian>()
+        .map_err(|_| anyhow!("pjs_scrypt_param_wrong"))
 }
 
 fn scrypt_param_from_encoded(encoded: &[u8]) -> Result<(scrypt::Params, Vec<u8>)> {
-    let salt = &encoded[0..SALT_LENGTH];
-    let n = bytes_to_u32(&encoded[SALT_LENGTH..SALT_LENGTH + 4]);
-    let p = bytes_to_u32(&encoded[SALT_LENGTH + 4..SALT_LENGTH + 4 * 2]);
-    let r = bytes_to_u32(&encoded[SALT_LENGTH + 4 * 2..SALT_LENGTH + 4 * 3]);
-    let log_n = (n as f64).log2().round();
-
-    let inner_params = scrypt::Params::new(log_n as u8, r, p).expect("init scrypt params");
+    let encoded = encoded
+        .get(..SCRYPT_LENGTH)
+        .ok_or_else(|| anyhow!("pjs_scrypt_param_wrong"))?;
+    let salt = &encoded[..SALT_LENGTH];
+    let n = bytes_to_u32(&encoded[SALT_LENGTH..SALT_LENGTH + 4])?;
+    let p = bytes_to_u32(&encoded[SALT_LENGTH + 4..SALT_LENGTH + 4 * 2])?;
+    let r = bytes_to_u32(&encoded[SALT_LENGTH + 4 * 2..SCRYPT_LENGTH])?;
+    // PJS has a fixed interoperable format. Check it before constructing or
+    // executing a KDF with values taken from an untrusted file.
     if n != PJS_SCRYPT_N || p != PJS_SCRYPT_P || r != PJS_SCRYPT_R {
-        Err(anyhow!("pjs_scrypt_param_wrong"))
-    } else {
-        Ok((inner_params, salt.to_vec()))
+        return Err(anyhow!("pjs_scrypt_param_wrong"));
     }
+    let inner_params = scrypt::Params::new(n.trailing_zeros() as u8, r, p)
+        .map_err(|_| anyhow!("pjs_scrypt_param_wrong"))?;
+    Ok((inner_params, salt.to_vec()))
 }
 
 fn default_scrypt_param() -> (scrypt::Params, Vec<u8>) {
@@ -175,10 +178,10 @@ impl SubstrateKeystore {
         if self.encoded.is_empty() {
             return Err(Error::InvalidKeystore("encoded is empty".to_string()).into());
         }
-        if self.encoding.content[0] != "pkcs8" {
+        if self.encoding.content.first().map(String::as_str) != Some("pkcs8") {
             return Err(Error::InvalidKeystore("need pkcs8 padding".to_string()).into());
         }
-        if self.encoding.content[1] != "sr25519" {
+        if self.encoding.content.get(1).map(String::as_str) != Some("sr25519") {
             return Err(Error::InvalidKeystore("only support sr25519".to_string()).into());
         }
         if self
@@ -222,36 +225,34 @@ impl SubstrateKeystore {
 
             let mut out = [0u8; 64];
             scrypt::scrypt(password.as_bytes(), &salt, &params, &mut out)
-                .expect("can not execute scrypt");
+                .map_err(|_| anyhow!("pjs_scrypt_param_wrong"))?;
             encoded = encoded[SCRYPT_LENGTH..].to_vec();
             out.to_vec()
         } else {
             password.as_bytes().to_vec()
         };
         let decrypted = decrypt_content(&password_bytes, &encoded)?;
-        let header = &decrypted[0..PKCS8_HEADER.len()];
-
-        assert!(header == PKCS8_HEADER, "Invalid Pkcs8 header found in body");
-
-        let mut secret_key =
-            decrypted[PKCS8_HEADER.len()..PKCS8_HEADER.len() + SEC_LENGTH].to_vec();
-
-        let mut div_offset: usize = SEED_OFFSET + SEC_LENGTH;
-        let mut divider = &decrypted[div_offset..div_offset + PKCS8_DIVIDER.len()];
-        if divider != PKCS8_DIVIDER {
-            div_offset = SEED_OFFSET + SEED_LENGTH;
-            secret_key = decrypted[SEED_OFFSET..div_offset].to_vec();
-            divider = &decrypted[div_offset..div_offset + PKCS8_DIVIDER.len()];
+        let secret_length = match decrypted.len() {
+            n if n == PKCS8_HEADER.len() + SEED_LENGTH + PKCS8_DIVIDER.len() + PUB_LENGTH => {
+                SEED_LENGTH
+            }
+            n if n == PKCS8_HEADER.len() + SEC_LENGTH + PKCS8_DIVIDER.len() + PUB_LENGTH => {
+                SEC_LENGTH
+            }
+            _ => return Err(Error::InvalidKeystore("invalid pkcs8 length".into()).into()),
+        };
+        if decrypted[..PKCS8_HEADER.len()] != PKCS8_HEADER {
+            return Err(Error::InvalidKeystore("invalid pkcs8 header".into()).into());
         }
-
-        assert!(
-            divider == PKCS8_DIVIDER,
-            "Invalid Pkcs8 divider found in body"
-        );
-
+        let div_offset = SEED_OFFSET + secret_length;
+        if decrypted[div_offset..div_offset + PKCS8_DIVIDER.len()] != PKCS8_DIVIDER {
+            return Err(Error::InvalidKeystore("invalid pkcs8 divider".into()).into());
+        }
         let pub_offset = div_offset + PKCS8_DIVIDER.len();
-        let pub_key = &decrypted[pub_offset..pub_offset + PUB_LENGTH];
-        Ok((secret_key, pub_key.to_vec()))
+        Ok((
+            decrypted[SEED_OFFSET..div_offset].to_vec(),
+            decrypted[pub_offset..].to_vec(),
+        ))
     }
 
     pub fn encrypt(password: &str, seed: &[u8], pub_key: &[u8]) -> Result<String> {
@@ -261,7 +262,9 @@ impl SubstrateKeystore {
 }
 
 fn decrypt_content(password: &[u8], encoded_bytes: &[u8]) -> Result<Vec<u8>> {
-    let nonce: &[u8; 24] = &encoded_bytes[0..NONCE_LENGTH].try_into().unwrap();
+    let nonce = encoded_bytes
+        .get(..NONCE_LENGTH)
+        .ok_or_else(|| Error::InvalidKeystore("invalid nonce length".into()))?;
     let encrypted = &encoded_bytes[NONCE_LENGTH..];
     let padding_password = password_to_key(password);
     let key = GenericArray::from_slice(&padding_password);
@@ -549,5 +552,35 @@ mod test_super {
         let decode_result = ks.decode_cipher_text().unwrap();
         let result_hex = decode_result.to_hex();
         assert_eq!(result_hex, "cd238963070cc4d6806053ee1ac500c7add9c28732bb5d434a332f84a91d9be0008000000100000008000000cf630a1113941b350ddd06697e50399183162e5e9a0e893eafc7f5f4893a223dca5055706b9925b56fdb4304192143843da718e11717daf89cf4f4781f94fb443f61432f782d54280af9eec90bd3069c3cc2d957a42b7c18dc2e9497f623735518e0e49b58f8e4db2c09da3a45dbb935659d015fc94b946cba75b606a6ff7f4e823f6b049e2e6892026b49de02d6dbbd64646fe0933f537d9ea53a70be");
+    }
+}
+
+#[cfg(test)]
+mod security_import_tests {
+    use super::*;
+    #[test]
+    fn imported_scrypt_headers_are_bounded_before_kdf() {
+        for len in 0..SCRYPT_LENGTH {
+            assert!(scrypt_param_from_encoded(&vec![0; len]).is_err());
+        }
+        for (n, p, r) in [
+            (0, 1, 8),
+            (u32::MAX, u32::MAX, u32::MAX),
+            (1 << 30, 1, 8),
+            (1 << 15, 0, 8),
+        ] {
+            let mut encoded = vec![0; SALT_LENGTH];
+            encoded.extend(u32_to_bytes(n));
+            encoded.extend(u32_to_bytes(p));
+            encoded.extend(u32_to_bytes(r));
+            assert!(
+                std::panic::catch_unwind(|| scrypt_param_from_encoded(&encoded))
+                    .unwrap()
+                    .is_err()
+            );
+        }
+        for len in 0..NONCE_LENGTH {
+            assert!(decrypt_content(b"password", &vec![0; len]).is_err());
+        }
     }
 }

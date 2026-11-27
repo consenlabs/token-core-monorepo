@@ -95,12 +95,7 @@ pub fn calc_external_address(param: &ExternalAddressParam) -> Result<Vec<u8>> {
 
 pub fn get_enc_xpub(network: Network, path: &str) -> Result<String> {
     let xpub = BtcAddress::get_xpub(network, path)?;
-    let key = ikc_common::XPUB_COMMON_KEY_128.read();
-    let iv = ikc_common::XPUB_COMMON_IV.read();
-    let key_bytes = hex::decode(&*key)?;
-    let iv_bytes = hex::decode(&*iv)?;
-    let encrypted = ikc_common::aes::cbc::encrypt_pkcs7(&xpub.as_bytes(), &key_bytes, &iv_bytes)?;
-    Ok(base64::encode(&encrypted))
+    ikc_common::utility::encrypt_xpub(&xpub)
 }
 
 pub fn register_btc_address(param: &AddressParam) -> Result<Vec<u8>> {

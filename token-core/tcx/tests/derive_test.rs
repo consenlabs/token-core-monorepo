@@ -248,27 +248,27 @@ pub fn test_derive_accounts() {
             "LQ3JqCohgLQ3x1CJXYERnJTy1ySaqr1E32",
             derived_accounts.accounts[0].address
         );
-        assert_eq!("/EhDRyPFcj1UGx8i+WiJSIeBSyaN0pX7Oq3wXqwO5M9T1aRhfLpsNPGAPLf07K+p+B0OdQW1ogVbDQCWkIwVXZLPY+njp9LjXaICiWGEeidR1TwBZSwOMRKE68wJWH/7puxYfY/Rq1+d2GFv6NxSCw==", derived_accounts.accounts[0].encrypted_extended_public_key);
+        assert_encrypted_xpub("/EhDRyPFcj1UGx8i+WiJSIeBSyaN0pX7Oq3wXqwO5M9T1aRhfLpsNPGAPLf07K+p+B0OdQW1ogVbDQCWkIwVXZLPY+njp9LjXaICiWGEeidR1TwBZSwOMRKE68wJWH/7puxYfY/Rq1+d2GFv6NxSCw==", &derived_accounts.accounts[0].encrypted_extended_public_key);
         assert_eq!("xpub6BwqzNhMbFpgegP8WGBzFmm7aUsrDQtuuRdT3J3nDhDGnbPCER8qGghKJUCJNhjn2wyZVwAC6mwLNPu9xQpeQenqnzzVj2X7tnDLAM58fRn", derived_accounts.accounts[0].extended_public_key);
 
         assert_eq!(
             "MQUu6P7wsLQZfVZMuFWB7UXiheuVTM7RYF",
             derived_accounts.accounts[1].address
         );
-        //            assert_eq!("5wlT8R+syH37UjMSJXOW3v96ORRykslaBOX7wa+aEt4jbshR9ljP5u+DDskzV5hAKuSBuIPftafEA/k4YQ4Zh2mByl0EE/5jdZI/ZbE0a2zsIiU9BIGuhzA/f+vvQuDJqOHofDd8z0qDesuqxLKv4A==", derived_accounts.accounts[1].encrypted_extended_public_key);
-        assert_eq!("A5LUzJcPB4r54wqr8EjFh9fe0L87spIN9KJKtzHV6QJXBH6GEAiYT57uftpJITx613HdIXXzi8VJ30TmG8erBF30oD1DnbDmGmDo4sdRTdQSsp9NuprhZ3Y3PR9+xzdc2tKDblRL5dLZswaPxCOQcw==", derived_accounts.accounts[1].encrypted_extended_public_key);
+        //            assert_encrypted_xpub("5wlT8R+syH37UjMSJXOW3v96ORRykslaBOX7wa+aEt4jbshR9ljP5u+DDskzV5hAKuSBuIPftafEA/k4YQ4Zh2mByl0EE/5jdZI/ZbE0a2zsIiU9BIGuhzA/f+vvQuDJqOHofDd8z0qDesuqxLKv4A==", &derived_accounts.accounts[1].encrypted_extended_public_key);
+        assert_encrypted_xpub("A5LUzJcPB4r54wqr8EjFh9fe0L87spIN9KJKtzHV6QJXBH6GEAiYT57uftpJITx613HdIXXzi8VJ30TmG8erBF30oD1DnbDmGmDo4sdRTdQSsp9NuprhZ3Y3PR9+xzdc2tKDblRL5dLZswaPxCOQcw==", &derived_accounts.accounts[1].encrypted_extended_public_key);
 
         assert_eq!(
             "mvdDMnRsqjqzvCyYyRXpvscmnU1FxodhkE",
             derived_accounts.accounts[2].address
         );
-        assert_eq!("eZIL4e0a8qw18Pve92iLfehteHDA+kqjwv91aKE+2hNN3arkq20yY2Mx6q4WAowFv0QRfIi6QlrhafJKUpjiC469NNZagCSHLaECYliEwmwTgC97zXmVJDB6MJi79y+mznf8G7Few8+u6UfiXELN5g==", derived_accounts.accounts[2].encrypted_extended_public_key);
+        assert_encrypted_xpub("eZIL4e0a8qw18Pve92iLfehteHDA+kqjwv91aKE+2hNN3arkq20yY2Mx6q4WAowFv0QRfIi6QlrhafJKUpjiC469NNZagCSHLaECYliEwmwTgC97zXmVJDB6MJi79y+mznf8G7Few8+u6UfiXELN5g==", &derived_accounts.accounts[2].encrypted_extended_public_key);
 
         assert_eq!(
             "TLZnqkrSNLUWNrZMug8u9b6pJ3XcTGbzDV",
             derived_accounts.accounts[3].address
         );
-        assert_eq!("Sla41n5BdHqc1QmqA9DXjWNx13Fpq18u19jCaMbYbxClsPr7cr/gzXsbE+08wfNLuGgtVVY4/prpnv3/pdJ8KA/I/iOKvelKxuJgN9n2O5Q54CmObc0qJVZxcAQM0PbrKE9YJyGDkJNMLM+OmjEwjg==", derived_accounts.accounts[3].encrypted_extended_public_key);
+        assert_encrypted_xpub("Sla41n5BdHqc1QmqA9DXjWNx13Fpq18u19jCaMbYbxClsPr7cr/gzXsbE+08wfNLuGgtVVY4/prpnv3/pdJ8KA/I/iOKvelKxuJgN9n2O5Q54CmObc0qJVZxcAQM0PbrKE9YJyGDkJNMLM+OmjEwjg==", &derived_accounts.accounts[3].encrypted_extended_public_key);
 
         assert_eq!(
             "ckt1qyqgkffut7e7md39tp5ts9vxssj7wdw8z4cquyflka",

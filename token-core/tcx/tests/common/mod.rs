@@ -201,3 +201,12 @@ pub fn setup_test(old_wallet_dir: &str) {
 
     init_token_core_x("/tmp/token-core-x");
 }
+
+pub fn assert_encrypted_xpub(legacy: &str, current: &str) {
+    let key = hex::decode("B888D25EC8C12BD5043777B1AC49F872").unwrap();
+    let iv = hex::decode("9C0C30889CBCC5E01AB5B2BB88715799").unwrap();
+    let expected =
+        tcx_crypto::aes::cbc::decrypt_pkcs7(&base64::decode(legacy).unwrap(), &key, &iv).unwrap();
+    let actual = tcx_crypto::aead::open(&key, b"token-core/xpub/v1", current).unwrap();
+    assert_eq!(actual, expected);
+}

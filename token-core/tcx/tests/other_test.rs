@@ -221,6 +221,9 @@ pub fn test_ipfs_encrypt_and_decrypt() {
         let param = EncryptDataToIpfsParam {
             identifier: wallet.identifier.clone(),
             content: content.clone(),
+            key: Some(api::encrypt_data_to_ipfs_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
         };
         let ret = call_api("encrypt_data_to_ipfs", param).unwrap();
         let resp: EncryptDataToIpfsResult =
@@ -229,6 +232,9 @@ pub fn test_ipfs_encrypt_and_decrypt() {
         let param = DecryptDataFromIpfsParam {
             identifier: wallet.identifier,
             encrypted: resp.encrypted,
+            key: Some(api::decrypt_data_from_ipfs_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
         };
         let ret = call_api("decrypt_data_from_ipfs", param).unwrap();
         let resp: DecryptDataFromIpfsResult =
@@ -250,19 +256,48 @@ pub fn test_ipfs_encrypt_and_decrypt_before_migrate() {
         let param = EncryptDataToIpfsParam {
             identifier: "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg".to_string(),
             content: content.clone(),
+            key: Some(api::encrypt_data_to_ipfs_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
         };
-        let ret = call_api("encrypt_data_to_ipfs", param).unwrap();
-        let resp: EncryptDataToIpfsResult =
-            EncryptDataToIpfsResult::decode(ret.as_slice()).unwrap();
-        assert!(!resp.encrypted.is_empty());
-        let param = DecryptDataFromIpfsParam {
-            identifier: "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg".to_string(),
-            encrypted: resp.encrypted,
-        };
-        let ret = call_api("decrypt_data_from_ipfs", param).unwrap();
-        let resp: DecryptDataFromIpfsResult =
-            DecryptDataFromIpfsResult::decode(ret.as_slice()).unwrap();
-        assert_eq!(content, resp.content);
+        let err = call_api("encrypt_data_to_ipfs", param).unwrap_err();
+        assert_eq!(err.to_string(), "backup_security_migration_required");
+        // identity.json alone also contains the encrypted mnemonic: the existing
+        // migration API accepts its file stem and needs no other legacy wallet.
+        let migrated = call_api(
+            "migrate_keystore",
+            api::MigrateKeystoreParam {
+                id: "identity".into(),
+                network: "TESTNET".into(),
+                key: Some(api::migrate_keystore_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            },
+        )
+        .unwrap();
+        let migrated = api::MigrateKeystoreResult::decode(migrated.as_slice())
+            .unwrap()
+            .keystore
+            .unwrap();
+        assert_eq!(
+            migrated.identifier,
+            "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg"
+        );
+        assert_eq!(
+            migrated.ipfs_id,
+            "QmSTTidyfa4np9ak9BZP38atuzkCHy4K59oif23f4dNAGU"
+        );
+        let decoded = call_api("decrypt_data_from_ipfs", DecryptDataFromIpfsParam {
+            identifier: migrated.identifier,
+            encrypted: "0340b2495a1111111111111111111111111111111110b6602c68084bdd08dae796657aa6854ad13312fedc88f5b6f16c56b3e755dde125a1c4775db536ac0442ac942f9634c777f3ae5ca39f6abcae4bd6c87e54ab29ae0062b04d917b32e8d7c88eeb6261301b".into(),
+            key: Some(api::decrypt_data_from_ipfs_param::Key::Password(TEST_PASSWORD.to_owned())),
+        }).unwrap();
+        assert_eq!(
+            DecryptDataFromIpfsResult::decode(decoded.as_slice())
+                .unwrap()
+                .content,
+            "imToken"
+        );
     })
 }
 
@@ -285,4 +320,118 @@ pub fn test_sign_authentication_message() {
             SignAuthenticationMessageResult::decode(ret.as_slice()).unwrap();
         assert_eq!(resp.signature, "0x120cc977f9023c90635144bd0f4c8b85ff8aa23c003edcced9449f0465d05e954bccf9c114484e472c1837b0394f1933ad78ec8050673099e8bf5e9329737fe01c".to_string());
     })
+}
+
+#[test]
+#[serial]
+fn test_security_backup_credentials_and_legacy_migration() {
+    run_test(|| {
+        let id = "0a2756cd-ff70-437b-9bdb-ad46b8bb0819";
+        fs::copy(
+            format!("../test-data/wallets/{id}.json"),
+            format!("/tmp/imtoken/wallets/{id}.json"),
+        )
+        .unwrap();
+        let migrated = call_api(
+            "migrate_keystore",
+            api::MigrateKeystoreParam {
+                id: id.to_owned(),
+                network: "TESTNET".to_owned(),
+                key: Some(api::migrate_keystore_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            },
+        )
+        .unwrap();
+        let migrated = api::MigrateKeystoreResult::decode(migrated.as_slice())
+            .unwrap()
+            .keystore
+            .unwrap();
+        assert_eq!(
+            migrated.identifier,
+            "im18MDKM8hcTykvMmhLnov9m2BaFqsdjoA7cwNg"
+        );
+        assert_eq!(
+            migrated.ipfs_id,
+            "QmSTTidyfa4np9ak9BZP38atuzkCHy4K59oif23f4dNAGU"
+        );
+        // Historical v3 vector encrypted before this migration.
+        let legacy = "0340b2495a1111111111111111111111111111111110b6602c68084bdd08dae796657aa6854ad13312fedc88f5b6f16c56b3e755dde125a1c4775db536ac0442ac942f9634c777f3ae5ca39f6abcae4bd6c87e54ab29ae0062b04d917b32e8d7c88eeb6261301b";
+        let request = |key| DecryptDataFromIpfsParam {
+            identifier: migrated.identifier.clone(),
+            encrypted: legacy.to_owned(),
+            key,
+        };
+        assert_eq!(
+            call_api("decrypt_data_from_ipfs", request(None))
+                .unwrap_err()
+                .to_string(),
+            "missing_key"
+        );
+        assert_eq!(
+            call_api(
+                "decrypt_data_from_ipfs",
+                request(Some(api::decrypt_data_from_ipfs_param::Key::Password(
+                    "wrong".to_owned()
+                )))
+            )
+            .unwrap_err()
+            .to_string(),
+            "password_incorrect"
+        );
+        let decoded = call_api(
+            "decrypt_data_from_ipfs",
+            request(Some(api::decrypt_data_from_ipfs_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            ))),
+        )
+        .unwrap();
+        assert_eq!(
+            DecryptDataFromIpfsResult::decode(decoded.as_slice())
+                .unwrap()
+                .content,
+            "imToken"
+        );
+        let path = format!("/tmp/imtoken/walletsV2/{}.json", migrated.id);
+        let saved = fs::read_to_string(path).unwrap();
+        let value: serde_json::Value = serde_json::from_str(&saved).unwrap();
+        assert_eq!(value["crypto"]["kdf"], "argon2id");
+        assert!(value["identity"].get("encKey").is_none());
+        let restored = tcx_keystore::Keystore::from_json(&saved).unwrap();
+        let key = tcx_crypto::Key::Password(TEST_PASSWORD.to_owned());
+        let unlocker = restored.store().crypto.use_key(&key).unwrap();
+        assert_eq!(
+            restored.identity().decrypt_ipfs(legacy, &unlocker).unwrap(),
+            "imToken"
+        );
+        assert_eq!(restored.backup(&key).unwrap(), TEST_MNEMONIC);
+        let encrypted = call_api(
+            "encrypt_data_to_ipfs",
+            EncryptDataToIpfsParam {
+                identifier: migrated.identifier.clone(),
+                content: "modern backup".into(),
+                key: Some(api::encrypt_data_to_ipfs_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            },
+        )
+        .unwrap();
+        let encrypted = EncryptDataToIpfsResult::decode(encrypted.as_slice()).unwrap();
+        assert!(encrypted.encrypted.starts_with("04tcx-aead-v1:"));
+        let upgraded = call_api(
+            "upgrade_keystore_security",
+            WalletKeyParam {
+                id: migrated.id,
+                key: Some(api::wallet_key_param::Key::Password(
+                    TEST_PASSWORD.to_owned(),
+                )),
+            },
+        )
+        .unwrap();
+        assert!(
+            GeneralResult::decode(upgraded.as_slice())
+                .unwrap()
+                .is_success
+        );
+    });
 }

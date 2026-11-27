@@ -30,7 +30,7 @@ pub mod cbc {
         let iv = GenericArray::from_slice(iv);
         let pt = Aes128CbcDec::new(key, iv)
             .decrypt_padded_b2b_mut::<Pkcs7>(encrypted, &mut buf)
-            .unwrap();
+            .map_err(|_| anyhow::anyhow!("invalid_ciphertext"))?;
         Ok(pt.to_vec())
     }
 }

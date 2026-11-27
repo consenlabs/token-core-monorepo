@@ -1,8 +1,9 @@
 pub mod aes;
+pub use wallet_security_crypto as aead;
 pub mod crypto;
 
 use core::result;
-pub use crypto::{Crypto, EncPair, KdfParams, Key, Pbkdf2Params, SCryptParams};
+pub use crypto::{Argon2idParams, Crypto, EncPair, KdfParams, Key, Pbkdf2Params, SCryptParams};
 use parking_lot::RwLock;
 
 #[macro_use]
@@ -29,9 +30,7 @@ pub enum Error {
 }
 
 lazy_static! {
-    pub static ref XPUB_COMMON_KEY_128: RwLock<String> =
-        RwLock::new("B888D25EC8C12BD5043777B1AC49F872".to_string());
-    pub static ref XPUB_COMMON_IV: RwLock<String> =
-        RwLock::new("9C0C30889CBCC5E01AB5B2BB88715799".to_string());
-    pub static ref KDF_ROUNDS: RwLock<i32> = RwLock::new(262144);
+    pub static ref XPUB_COMMON_KEY_128: RwLock<String> = RwLock::new(String::new());
+    pub static ref XPUB_COMMON_IV: RwLock<String> = RwLock::new(String::new());
+    pub static ref KDF_ROUNDS: RwLock<i32> = RwLock::new(600000);
 }
