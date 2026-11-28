@@ -258,6 +258,35 @@ pub struct EthBatchPersonalSignResult {
     #[prost(string, repeated, tag = "1")]
     pub signatures: ::prost::alloc::vec::Vec<::prost::alloc::string::String>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignTypedDataWithAuthKeyParam {
+    #[prost(string, tag = "1")]
+    pub identifier: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub typed_data: ::prost::alloc::string::String,
+    #[prost(oneof = "sign_typed_data_with_auth_key_param::Key", tags = "3, 4")]
+    pub key: ::core::option::Option<sign_typed_data_with_auth_key_param::Key>,
+}
+/// Nested message and enum types in `SignTypedDataWithAuthKeyParam`.
+pub mod sign_typed_data_with_auth_key_param {
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum Key {
+        #[prost(string, tag = "3")]
+        Password(::prost::alloc::string::String),
+        #[prost(string, tag = "4")]
+        DerivedKey(::prost::alloc::string::String),
+    }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SignTypedDataWithAuthKeyResult {
+    #[prost(string, tag = "1")]
+    pub identifier: ::prost::alloc::string::String,
+    #[prost(string, tag = "2")]
+    pub signature: ::prost::alloc::string::String,
+}
 /// FUNCTION: create_keystore(CreateKeystoreParam): KeystoreResult
 ///
 /// create a new hd keystore

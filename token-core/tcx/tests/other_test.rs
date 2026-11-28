@@ -12,7 +12,8 @@ use tcx::api::{
     DecryptDataFromIpfsParam, DecryptDataFromIpfsResult, DerivedKeyResult, EncryptDataToIpfsParam,
     EncryptDataToIpfsResult, ExistsKeystoreResult, ExistsMnemonicParam, ExistsPrivateKeyParam,
     GeneralResult, ImportPrivateKeyParam, KeystoreResult, SignAuthenticationMessageParam,
-    SignAuthenticationMessageResult, WalletKeyParam,
+    SignAuthenticationMessageResult, SignTypedDataWithAuthKeyParam, SignTypedDataWithAuthKeyResult,
+    WalletKeyParam,
 };
 
 use tcx::handler::{encode_message, get_derived_key, import_private_key};
@@ -22,6 +23,45 @@ use tcx_constants::{TEST_MNEMONIC, TEST_PASSWORD};
 use sp_core::ByteArray;
 
 use crate::common::*;
+
+fn stake_typed_data(identifier: &str) -> String {
+    format!(
+        r#"{{
+          "types": {{
+            "EIP712Domain": [
+              {{ "name": "name", "type": "string" }},
+              {{ "name": "version", "type": "string" }},
+              {{ "name": "chainId", "type": "uint256" }},
+              {{ "name": "verifyingContract", "type": "address" }}
+            ],
+            "BindStakeXpub": [
+              {{ "name": "identifier", "type": "string" }},
+              {{ "name": "xpub", "type": "string" }},
+              {{ "name": "purpose", "type": "string" }},
+              {{ "name": "nonce", "type": "string" }},
+              {{ "name": "expiration", "type": "uint256" }},
+              {{ "name": "network", "type": "string" }}
+            ]
+          }},
+          "primaryType": "BindStakeXpub",
+          "domain": {{
+            "name": "imToken Stake",
+            "version": "1",
+            "chainId": 1,
+            "verifyingContract": "0x0000000000000000000000000000000000000000"
+          }},
+          "message": {{
+            "identifier": "{}",
+            "xpub": "xpub-test-value",
+            "purpose": "bind_stake_xpub",
+            "nonce": "nonce-1",
+            "expiration": 1893456000,
+            "network": "ethereum-mainnet"
+          }}
+        }}"#,
+        identifier
+    )
+}
 
 #[test]
 #[serial]
@@ -284,5 +324,153 @@ pub fn test_sign_authentication_message() {
         let resp: SignAuthenticationMessageResult =
             SignAuthenticationMessageResult::decode(ret.as_slice()).unwrap();
         assert_eq!(resp.signature, "0x120cc977f9023c90635144bd0f4c8b85ff8aa23c003edcced9449f0465d05e954bccf9c114484e472c1837b0394f1933ad78ec8050673099e8bf5e9329737fe01c".to_string());
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_sign_typed_data_with_auth_key_by_password() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let param = SignTypedDataWithAuthKeyParam {
+            identifier: wallet.identifier.clone(),
+            typed_data: stake_typed_data(&wallet.identifier),
+            key: Some(api::sign_typed_data_with_auth_key_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+        };
+        let ret = call_api("sign_typed_data_with_auth_key", param).unwrap();
+        let resp: SignTypedDataWithAuthKeyResult =
+            SignTypedDataWithAuthKeyResult::decode(ret.as_slice()).unwrap();
+
+        assert_eq!(resp.identifier, wallet.identifier);
+        assert_eq!(
+            resp.signature,
+            "0x53ef27314951ae39fcb43b4970241cad83f43c9a4f1350597d63c4fe4dca3d6a2c835831a0dcc167c0b9d6ee30f48593868c06397b3cf4e644bccc90307e7fcc1b"
+        );
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_sign_typed_data_with_auth_key_by_derived_key() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+        let typed_data = stake_typed_data(&wallet.identifier);
+
+        let dk_param = WalletKeyParam {
+            id: wallet.id.to_string(),
+            key: Some(api::wallet_key_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+        };
+        let ret_bytes = get_derived_key(&encode_message(dk_param).unwrap()).unwrap();
+        let derived_key_result: DerivedKeyResult =
+            DerivedKeyResult::decode(ret_bytes.as_slice()).unwrap();
+
+        let password_param = SignTypedDataWithAuthKeyParam {
+            identifier: wallet.identifier.clone(),
+            typed_data: typed_data.clone(),
+            key: Some(api::sign_typed_data_with_auth_key_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+        };
+        let password_ret = call_api("sign_typed_data_with_auth_key", password_param).unwrap();
+        let password_resp: SignTypedDataWithAuthKeyResult =
+            SignTypedDataWithAuthKeyResult::decode(password_ret.as_slice()).unwrap();
+
+        let derived_key_param = SignTypedDataWithAuthKeyParam {
+            identifier: wallet.identifier,
+            typed_data,
+            key: Some(api::sign_typed_data_with_auth_key_param::Key::DerivedKey(
+                derived_key_result.derived_key,
+            )),
+        };
+        let derived_key_ret = call_api("sign_typed_data_with_auth_key", derived_key_param).unwrap();
+        let derived_key_resp: SignTypedDataWithAuthKeyResult =
+            SignTypedDataWithAuthKeyResult::decode(derived_key_ret.as_slice()).unwrap();
+
+        assert_eq!(password_resp.signature, derived_key_resp.signature);
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_sign_typed_data_with_auth_key_identity_not_found() {
+    run_test(|| {
+        let param = SignTypedDataWithAuthKeyParam {
+            identifier: "im-not-found".to_string(),
+            typed_data: stake_typed_data("im-not-found"),
+            key: Some(api::sign_typed_data_with_auth_key_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+        };
+        let ret = call_api("sign_typed_data_with_auth_key", param);
+        assert_eq!(ret.unwrap_err().to_string(), "identity_not_found");
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_sign_typed_data_with_auth_key_malformed_typed_data() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let param = SignTypedDataWithAuthKeyParam {
+            identifier: wallet.identifier,
+            typed_data: "{".to_string(),
+            key: Some(api::sign_typed_data_with_auth_key_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+        };
+        let ret = call_api("sign_typed_data_with_auth_key", param);
+        assert!(ret
+            .unwrap_err()
+            .to_string()
+            .starts_with("invalid_typed_data_json:"));
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_sign_typed_data_with_auth_key_invalid_typed_data() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let param = SignTypedDataWithAuthKeyParam {
+            identifier: wallet.identifier,
+            typed_data: r#"{
+              "types": { "EIP712Domain": [] },
+              "primaryType": "MissingType",
+              "domain": {},
+              "message": {}
+            }"#
+            .to_string(),
+            key: Some(api::sign_typed_data_with_auth_key_param::Key::Password(
+                TEST_PASSWORD.to_owned(),
+            )),
+        };
+        let ret = call_api("sign_typed_data_with_auth_key", param);
+        assert!(ret
+            .unwrap_err()
+            .to_string()
+            .starts_with("invalid_typed_data:"));
+    })
+}
+
+#[test]
+#[serial]
+pub fn test_sign_typed_data_with_auth_key_missing_key() {
+    run_test(|| {
+        let wallet = import_default_wallet();
+
+        let param = SignTypedDataWithAuthKeyParam {
+            identifier: wallet.identifier.clone(),
+            typed_data: stake_typed_data(&wallet.identifier),
+            key: None,
+        };
+        let ret = call_api("sign_typed_data_with_auth_key", param);
+        assert_eq!(ret.unwrap_err().to_string(), "need_password_or_derived_key");
     })
 }
