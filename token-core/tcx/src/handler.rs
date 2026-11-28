@@ -680,6 +680,9 @@ fn identify_legacy_keystore_chain_types(legacy_keystore: &LegacyKeystoreResult) 
         .iter()
         .map(|account| account.chain_type.clone())
         .collect();
+    if active_chain_types.is_empty() {
+        return vec![];
+    }
     match (
         legacy_keystore.source.as_str(),
         active_chain_types[0].as_str(),
